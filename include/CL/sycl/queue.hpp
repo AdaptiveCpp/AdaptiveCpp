@@ -6,6 +6,9 @@
 #include "property.hpp"
 #include "backend/backend.hpp"
 #include "device.hpp"
+#include "context.hpp"
+#include "event.hpp"
+#include "handler.hpp"
 
 namespace cl {
 namespace sycl {
@@ -14,8 +17,9 @@ namespace detail {
 class stream_manager
 {
 public:
-  stream_manager()
+  stream_manager(const device& d)
   {
+    detail::set_device(d);
     detail::check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
   }
 
@@ -29,6 +33,7 @@ public:
     return _stream;
   }
 private:
+
   hipStream_t _stream;
 };
 
@@ -41,45 +46,71 @@ class queue {
 public:
 
   explicit queue(const property_list &propList = {})
-  {}
+    : _device{device{}}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
+  /// \todo constructors do not yet use property lists and asyncHandler
   queue(const async_handler &asyncHandler,
         const property_list &propList = {})
-  {}
-
-
-  queue(const device_selector &deviceSelector,
-        const property_list &propList = {})
+    : _device{device{}}
   {
-
+    _stream = stream_ptr{new stream_manager{_device}};
   }
 
 
   queue(const device_selector &deviceSelector,
-        const async_handler &asyncHandler, const property_list &propList = {});
+        const property_list &propList = {})
+    : _device{deviceSelector.select_device()}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
 
-  queue(const device &syclDevice, const property_list &propList = {});
+  queue(const device_selector &deviceSelector,
+        const async_handler &asyncHandler, const property_list &propList = {})
+    : _device{deviceSelector.select_device()}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
+
+
+  queue(const device &syclDevice, const property_list &propList = {})
+    : _device{syclDevice}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
 
   queue(const device &syclDevice, const async_handler &asyncHandler,
-        const property_list &propList = {});
+        const property_list &propList = {})
+    : _device{syclDevice}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
 
   queue(const context &syclContext, const device_selector &deviceSelector,
-
-        const property_list &propList = {});
+        const property_list &propList = {})
+    : _device{deviceSelector.select_device()}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
 
   queue(const context &syclContext, const device_selector &deviceSelector,
+        const async_handler &asyncHandler, const property_list &propList = {})
+    : _device{deviceSelector.select_device()}
+  {
+    _stream = stream_ptr{new stream_manager{_device}};
+  }
 
-        const async_handler &asyncHandler, const property_list &propList = {});
 
-
+  /* CL Interop is not supported
   queue(cl_command_queue clQueue, const context& syclContext,
-
         const async_handler &asyncHandler = {});
-
+  */
 
   /* -- common interface members -- */
 
@@ -87,10 +118,17 @@ public:
   /* -- property interface members -- */
 
 
+  /* CL Interop is not supported
   cl_command_queue get() const;
+  */
 
-  context get_context() const;
-  device get_device() const;
+  context get_context() const {
+    return context{this->_device.get_platform()};
+  }
+
+  device get_device() const {
+    return this->_device;
+  }
 
 
   bool is_host() const {
@@ -99,24 +137,49 @@ public:
 
 
   template <info::queue param>
-  typename info::param_traits<info::queue, param>::return_type get_info() const;
+  typename info::param_traits<info::queue, param>::return_type get_info() const {
+    static_assert(false, "Unimplemented");
+  }
 
 
   template <typename T>
-  event submit(T cgf);
+  event submit(T cgf) {
+    detail::set_device(_device);
 
+    handler cgh{*this};
+    cgf(cgh);
+
+    return detail::insert_event(_stream->get_stream());
+  }
 
   template <typename T>
-  event submit(T cgf, const queue &secondaryQueue);
+  event submit(T cgf, const queue &secondaryQueue) {
+    detail::set_device(_device);
+
+    try {
+      handler cgh{*this};
+      cgf(cgh);
+      wait();
+      return event();
+    }
+    catch(exception &e) {
+      handler cgh{secondaryQueue};
+      cgf(cgh);
+      return detail::insert_event(secondaryQueue._stream->get_stream());
+    }
+
+  }
 
 
-  void wait();
+  void wait() {
+    detail::check_error(hipStreamSynchronize(_stream->get_stream()));
+  }
 
+  void wait_and_throw() {
+    detail::check_error(hipStreamSynchronize(_stream->get_stream()));
+  }
 
-  void wait_and_throw();
-
-
-  void throw_asynchronous();
+  void throw_asynchronous() {}
 
 private:
   device _device;

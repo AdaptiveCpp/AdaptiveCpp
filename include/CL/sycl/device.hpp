@@ -116,6 +116,9 @@ public:
     return num_devices;
   }
 
+  int get_device_id() const {
+    return _device_id;
+  }
 private:
   int _device_id;
 };
@@ -132,6 +135,13 @@ inline auto device::get_info<info::device::vendor_id>() const {
   return 0;
 }
 
+namespace detail {
+
+static void set_device(const device& d) {
+  detail::check_error(hipSetDevice(d.get_device_id()));
+}
+
+}
 
 
 } // namespace sycl

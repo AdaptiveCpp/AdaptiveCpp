@@ -6,6 +6,8 @@
 #include "device.hpp"
 #include "platform.hpp"
 
+#include <cassert>
+
 namespace cl {
 namespace sycl {
 

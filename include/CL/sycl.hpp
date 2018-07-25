@@ -3,6 +3,7 @@
 
 #define __SYCU__
 
+
 #if defined(__CUDA__)
 
 #define SYCU_PLATFORM_CUDA
@@ -22,10 +23,19 @@
 
 #define sycu_device
 #define sycu_host
+
 #endif
 
 #include "sycl/version.hpp"
 #include "sycl/types.hpp"
+
+#include "sycl/device.hpp"
+#include "sycl/platform.hpp"
+
+#include "sycl/queue.hpp"
+
+#include "sycl/range.hpp"
+#include "sycl/id.hpp"
 
 #endif
 

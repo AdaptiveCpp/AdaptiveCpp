@@ -3,29 +3,10 @@
 
 
 
-#include "../id.hpp"
-#include "../opencl_types.hpp"
-
 namespace cl {
 namespace sycl {
-
-/** \addtogroup execution Platforms, contexts, devices and queues
-    @{
-*/
-
 namespace info {
 
-/** Type of devices
-
-    To be used either to define a device type or to select more
-    broadly a kind of device
-
-    \todo To be moved in the specification from platform to device
-
-    \todo Add opencl to the specification
-
-    \todo there is no accelerator_selector and custom_accelerator
-*/
 enum class device_type : unsigned int {
   cpu,
   gpu,
@@ -37,13 +18,6 @@ enum class device_type : unsigned int {
   all
 };
 
-
-/** Device information descriptors
-
-    From specs/latex/headers/deviceInfo.h in the specification
-
-    \todo Should be unsigned int?
-*/
 enum class device : int {
   device_type,
   vendor_id,

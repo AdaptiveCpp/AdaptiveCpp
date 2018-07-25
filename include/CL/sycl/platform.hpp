@@ -2,11 +2,13 @@
 #define SYCU_PLATFORM_HPP
 
 #include "types.hpp"
-#include "device.hpp"
+#include "device_selector.hpp"
 #include "info/platform.hpp"
 
 namespace cl {
 namespace sycl {
+
+class device_selector;
 
 class platform {
 

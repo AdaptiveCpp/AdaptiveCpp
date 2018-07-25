@@ -7,6 +7,7 @@
 
 #include "types.hpp"
 #include "backend/backend.hpp"
+#include "context.hpp"
 
 namespace cl {
 namespace sycl {

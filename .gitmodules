@@ -1,0 +1,3 @@
+[submodule "contrib/HIP"]
+	path = contrib/HIP
+	url = https://github.com/ROCm-Developer-Tools/HIP

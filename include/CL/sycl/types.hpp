@@ -7,6 +7,7 @@
 #include <thread>
 #include <memory>
 #include <exception>
+#include <mutex>
 
 namespace cl {
 namespace sycl {

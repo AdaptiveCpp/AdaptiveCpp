@@ -22,12 +22,13 @@ SYCU_DEVICE_PARAM_TRAIT(vendor_id, cl_uint);
 //SYCU_DEVICE_PARAM_TRAIT(max_work_item_sizes, id<3>);
 //SYCU_DEVICE_PARAM_TRAIT(max_work_group_size, std::size_t);
 // ToDo: Complete this
-}
+} // info
 
 class device_selector;
 class platform;
 
-class device {
+class device
+{
 public:
 
   /// Since we do not support host execution, this will actually

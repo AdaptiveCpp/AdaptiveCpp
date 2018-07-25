@@ -1,5 +1,5 @@
 #ifndef SYCU_BUFFER_ALLOCATOR_HPP
-#define SYCU_SYCL_BUFFER_ALLOCATOR_HPP
+#define SYCU_BUFFER_ALLOCATOR_HPP
 
 #include <cstddef>
 #include <memory>

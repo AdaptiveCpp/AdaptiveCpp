@@ -16,7 +16,8 @@ namespace sycl {
 class context
 {
 public:
-  explicit context(async_handler asyncHandler = {});
+  explicit context(async_handler asyncHandler = {})
+  {}
 
   context(const device &dev, async_handler asyncHandler = {})
     : _platform{dev.get_platform()}, _devices{dev}

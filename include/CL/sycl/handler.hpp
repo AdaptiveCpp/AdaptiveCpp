@@ -1,6 +1,8 @@
 #ifndef SYCU_HANDLER_HPP
 #define SYCU_HANDLER_HPP
 
+#include "access.hpp"
+#include "accessor.hpp"
 #include "backend/backend.hpp"
 #include "types.hpp"
 
@@ -13,16 +15,14 @@ class handler {
   friend class queue;
   shared_ptr_class<queue> _queue;
 
-  handler(const queue& q)
-    : _queue{new queue{q}}
-  {}
+  handler(const queue& q);
 
 public:
 
   template <typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
   void require(accessor<dataT, dimensions, accessMode, accessTarget,
-               placeholder::true_t> acc);
+               access::placeholder::true_t> acc);
 
   //----- OpenCL interoperability interface is not supported
   /*
@@ -35,6 +35,7 @@ void set_args(Ts &&... args);
 */
   //------ Kernel dispatch API
 
+  /*
   template <typename KernelName, typename KernelType>
   void single_task(KernelType kernelFunc);
 
@@ -56,7 +57,9 @@ void set_args(Ts &&... args);
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                WorkgroupFunctionType kernelFunc);
+  */
 
+  /*
   void single_task(kernel syclKernel);
 
   template <int dimensions>
@@ -68,6 +71,7 @@ void set_args(Ts &&... args);
 
   template <int dimensions>
   void parallel_for(nd_range<dimensions> ndRange, kernel syclKernel);
+  */
 
   //------ Explicit copy operations API
 

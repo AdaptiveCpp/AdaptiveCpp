@@ -4,6 +4,7 @@
 #include "types.hpp"
 #include "backend/backend.hpp"
 #include "exception.hpp"
+#include "info/event.hpp"
 
 namespace cl {
 namespace sycl {
@@ -20,7 +21,7 @@ public:
 
   ~event_manager()
   {
-    detail::check_error(hipEventDestroy(&_evt));
+    detail::check_error(hipEventDestroy(_evt));
   }
 
   hipEvent_t& get_event()
@@ -59,14 +60,13 @@ public:
 
   void wait()
   {
-    if(!_ready)
-      detail::check_error(hipEventSynchronize(_evt->get_event()));
+    this->wait_until_done();
   }
 
   static void wait(const vector_class<event> &eventList)
   {
-    for(event& evt: eventList)
-      evt.wait();
+    for(const event& evt: eventList)
+      evt.wait_until_done();
   }
 
   void wait_and_throw()
@@ -81,13 +81,24 @@ public:
 
   template <info::event param>
   typename info::param_traits<info::event, param>::return_type get_info() const
-  { static_assert(false, "Unimplemented"); }
+  { throw unimplemented{"event::get_info() is unimplemented."}; }
 
   template <info::event_profiling param>
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
-  { static_assert(false, "Unimplemented"); }
+  { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
 
+  bool operator ==(const event& rhs) const
+  { return _evt == rhs._evt; }
+
+  bool operator !=(const event& rhs) const
+  { return !(*this == rhs); }
 private:
+  void wait_until_done() const
+  {
+    if(!_ready)
+      detail::check_error(hipEventSynchronize(_evt->get_event()));
+  }
+
   bool _ready;
   detail::event_ptr _evt;
 };

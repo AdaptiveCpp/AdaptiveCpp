@@ -40,7 +40,7 @@ public:
   template <info::platform param>
   typename info::param_traits<info::platform, param>::return_type get_info() const
   {
-    static_assert(false, "Unimplemented");
+    throw unimplemented{"platform::get_info() is unimplemented"};
   }
 
 
@@ -59,6 +59,11 @@ public:
     return vector_class<platform>{platform()};
   }
 
+  bool operator==(const platform& rhs) const
+  { return true; }
+
+  bool operator!=(const platform& rhs) const
+  { return !(*this == rhs); }
 };
 
 }// namespace sycl

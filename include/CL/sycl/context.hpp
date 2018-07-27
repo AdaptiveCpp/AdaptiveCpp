@@ -2,14 +2,16 @@
 #define SYCU_CONTEXT_HPP
 
 #include "types.hpp"
+#include "platform.hpp"
 #include "exception.hpp"
 #include "device.hpp"
-#include "platform.hpp"
+#include "info/context.hpp"
 
 #include <cassert>
 
 namespace cl {
 namespace sycl {
+
 
 class context
 {
@@ -31,7 +33,7 @@ public:
     if(deviceList.empty())
       throw platform_error{"context: Could not infer platform from empty device list"};
 
-    _platform = deviceList.front();
+    _platform = deviceList.front().get_platform();
 
     for(const auto dev : deviceList)
       assert(dev.get_platform() == _platform);
@@ -63,7 +65,7 @@ public:
 
   template <info::context param>
   typename info::param_traits<info::context, param>::return_type get_info() const {
-    static_assert(false, "Unimplemented");
+    throw unimplemented{"context::get_info() is unimplemented"};
   }
 
 private:

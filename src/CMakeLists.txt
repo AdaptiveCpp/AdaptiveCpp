@@ -1,1 +1,1 @@
-subdirs(tests)
+subdirs(libsycu tests)

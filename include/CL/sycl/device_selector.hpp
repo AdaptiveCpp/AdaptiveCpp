@@ -1,12 +1,14 @@
 #ifndef SYCU_DEVICE_SELECTOR_HPP
 #define SYCU_DEVICE_SELECTOR_HPP
 
-#include "device.hpp"
 #include "exception.hpp"
+#include "device.hpp"
+
 #include <limits>
 
 namespace cl {
 namespace sycl {
+
 
 class device_selector
 {
@@ -19,7 +21,7 @@ public:
 };
 
 
-device device_selector::select_device()
+device device_selector::select_device() const
 {
   auto devices = device::get_devices();
   if(devices.size() == 0)
@@ -30,7 +32,7 @@ device device_selector::select_device()
   for(const device& d : devices)
   {
     int current_score = (*this)(d);
-    if(d > best_score)
+    if(current_score > best_score)
     {
       best_score = current_score;
       candidate = d;
@@ -42,7 +44,7 @@ device device_selector::select_device()
 class gpu_selector : public device_selector
 {
 public:
-  virtual ~default_selector(){}
+  virtual ~gpu_selector(){}
   virtual int operator()(const device& dev) const
   {
     return 1;
@@ -52,7 +54,7 @@ public:
 class error_selector : public device_selector
 {
 public:
-  virtual ~default_selector(){}
+  virtual ~error_selector(){}
   virtual int operator()(const device& dev) const
   {
     throw unimplemented{"SYCU presently only supports GPU platforms and device selectors."};

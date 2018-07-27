@@ -159,6 +159,10 @@ public:
 
   reinterpret(range<ReinterpretDim> reinterpretRange) const;
 
+  bool operator==(const platform& rhs) const;
+
+  bool operator!=(const platform& rhs) const;
+
 private:
   AllocatorT _alloc;
   range<dimensions> _range;

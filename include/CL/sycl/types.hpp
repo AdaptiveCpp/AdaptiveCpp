@@ -22,8 +22,8 @@ using string_class = std::string;
 #endif
 
 #ifndef CL_SYCL_NO_STD_FUNCTION
-template<class R, class... Args>
-using function_class = std::function<R(Args...)>;
+template<class Func>
+using function_class = std::function<Func>;
 #endif
 
 #ifndef CL_SYCL_NO_STD_MUTEX
@@ -51,6 +51,11 @@ using hash_class = std::hash<T>;
 #endif
 
 using exception_ptr_class = std::exception_ptr;
+
+
+using exception_ptr = exception_ptr_class;
+using exception_list = vector_class<exception_ptr>;
+using async_handler = function_class<void(cl::sycl::exception_list)>;
 
 // \todo Better use uint32_t etc
 using cl_uchar = unsigned char;

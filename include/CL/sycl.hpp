@@ -29,6 +29,8 @@
 #include "sycl/version.hpp"
 #include "sycl/types.hpp"
 
+#include "sycl/exception.hpp"
+#include "sycl/device_selector.hpp"
 #include "sycl/device.hpp"
 #include "sycl/platform.hpp"
 

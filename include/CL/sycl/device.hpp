@@ -44,9 +44,7 @@ public:
   // OpenCL interop is not supported
   // explicit device(cl_device_id deviceId);
 
-  explicit device(const device_selector &deviceSelector) {
-    this->_device_id = deviceSelector.select_device()._device_id;
-  }
+  explicit device(const device_selector &deviceSelector);
 
   // OpenCL interop is not supported
   // cl_device_id get() const;
@@ -59,19 +57,21 @@ public:
 
   bool is_accelerator() const {return true; }
 
-  platform get_platform() const {
-    // We only have one platform
-    return platform{};
-  }
+  platform get_platform() const;
 
   template <info::device param>
   typename info::param_traits<info::device, param>::return_type
   get_info() const
   {
-    static_assert(false, "Unimplemented");
+    throw unimplemented{"device::get_info() is unimplemented"};
   }
 
-  bool has_extension(const string_class &extension) const;
+  bool has_extension(const string_class &extension) const
+  {
+    throw unimplemented{"device::has_extension is unimplemented"};
+  }
+
+  /* create_sub_devices is not yet supported
 
   // Available only when prop == info::partition_property::partition_equally
   template <info::partition_property prop>
@@ -81,50 +81,34 @@ public:
   template <info::partition_property prop>
   vector_class<device> create_sub_devices(const vector_class<size_t> &counts) const
   {
-    static_assert(false, "Unimplemented");
+    throw unimplemented{"device::create_sub_devices is unimplemented"};
   }
 
   // Available only when prop == info::partition_property::partition_by_affinity_domain
   template <info::partition_property prop>
   vector_class<device> create_sub_devices(info::affinity_domain affinityDomain) const
   {
-    static_assert(false, "Unimplemented");
+    throw unimplemented{"device::create_sub_devices is unimplemented"};
   }
+  */
 
   static vector_class<device> get_devices(
-      info::device_type deviceType = info::device_type::all)
-  {
-    if(type == info::device_type::cpu ||
-       type == info::device_type::host ||
-       type == info::device_type::opencl)
-      return vector_class<device>();
+      info::device_type deviceType = info::device_type::all);
 
-    vector_class<device> result;
-    int num_devices = get_num_devices();
-    for(int i = 0; i < num_devices; ++i)
-    {
-      device d;
-      d._device_id = i;
+  static int get_num_devices();
 
-      result.push_back(d);
-    }
-    return result;
-  }
+  int get_device_id() const;
 
-  static int get_num_devices() {
-    int num_devices = 0;
-    detail::check_error(hipGetDeviceCount(&num_devices));
-    return num_devices;
-  }
+  bool operator ==(const device& rhs) const
+  { return rhs._device_id == _device_id; }
 
-  int get_device_id() const {
-    return _device_id;
-  }
+  bool operator !=(const device& rhs) const
+  { return !(*this == rhs); }
 private:
   int _device_id;
 };
 
-
+/*
 template <>
 inline auto device::get_info<info::device::device_type>() const {
   return info::device_type::gpu;
@@ -134,13 +118,11 @@ template <>
 inline auto device::get_info<info::device::vendor_id>() const {
   // ToDo: Calculate unique vendor id
   return 0;
-}
+}*/
 
 namespace detail {
 
-static void set_device(const device& d) {
-  detail::check_error(hipSetDevice(d.get_device_id()));
-}
+void set_device(const device& d);
 
 }
 

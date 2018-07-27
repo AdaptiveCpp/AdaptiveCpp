@@ -6,6 +6,8 @@ namespace sycl {
 
 context exception::get_context() const
 {
+  // ToDo That's not entirely correct, as different contexts
+  // can have different devices associated with them
   return context{};
 }
 

@@ -25,60 +25,55 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/device.hpp"
-#include "CL/sycl/device_selector.hpp"
-#include "CL/sycl/platform.hpp"
+
+#ifndef SYCU_ND_RANGE_HPP
+#define SYCU_ND_RANGE_HPP
+
+#include "range.hpp"
+#include "id.hpp"
 
 namespace cl {
 namespace sycl {
 
-
-device::device(const device_selector &deviceSelector) {
-  this->_device_id = deviceSelector.select_device()._device_id;
-}
-
-platform device::get_platform() const  {
-  // We only have one platform
-  return platform{};
-}
-
-vector_class<device> device::get_devices(
-    info::device_type deviceType)
+template<int dimensions = 1>
+struct nd_range
 {
-  if(deviceType == info::device_type::cpu ||
-     deviceType == info::device_type::host)
-    return vector_class<device>();
 
-  vector_class<device> result;
-  int num_devices = get_num_devices();
-  for(int i = 0; i < num_devices; ++i)
-  {
-    device d;
-    d._device_id = i;
+  __host__ __device__
+  nd_range(range<dimensions> globalSize,
+           range<dimensions> localSize,
+           id<dimensions> offset = id<dimensions>())
+    : _global_range{globalSize},
+      _local_range{localSize},
+      _num_groups{globalSize / localSize},
+      _offset{offset}
+  {}
 
-    result.push_back(d);
-  }
-  return result;
+  __host__ __device__
+  range<dimensions> get_global() const
+  { return _global_range; }
+
+  __host__ __device__
+  range<dimensions> get_local() const
+  { return _local_range; }
+
+  __host__ __device__
+  range<dimensions> get_group() const
+  { return _num_groups; }
+
+  __host__ __device__
+  id<dimensions> get_offset() const
+  { return _offset; }
+
+private:
+  range<dimensions> _global_range;
+  range<dimensions> _local_range;
+  range<dimensions> _num_groups;
+  id<dimensions> _offset;
+};
+
+
+}
 }
 
-int device::get_num_devices()
-{
-  int num_devices = 0;
-  detail::check_error(hipGetDeviceCount(&num_devices));
-  return num_devices;
-}
-
-int device::get_device_id() const {
-  return _device_id;
-}
-
-namespace detail {
-
-void set_device(const device& d) {
-  detail::check_error(hipSetDevice(d.get_device_id()));
-}
-
-}
-
-}
-}
+#endif

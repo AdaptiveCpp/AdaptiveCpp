@@ -1,1 +1,1 @@
-subdirs(platform_api)
+subdirs(platform_api hello_world)

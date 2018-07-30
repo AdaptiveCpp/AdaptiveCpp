@@ -33,17 +33,24 @@
 #include "accessor.hpp"
 #include "backend/backend.hpp"
 #include "types.hpp"
+#include "id.hpp"
+#include "range.hpp"
+#include "nd_range.hpp"
+#include "item.hpp"
 
 namespace cl {
 namespace sycl {
 
 class queue;
 
-class handler {
+class handler
+{
   friend class queue;
   shared_ptr_class<queue> _queue;
 
-  handler(const queue& q);
+  handler(const queue& q)
+    : _queue{&q}
+  {}
 
 public:
 
@@ -63,19 +70,38 @@ void set_args(Ts &&... args);
 */
   //------ Kernel dispatch API
 
-  /*
+
   template <typename KernelName, typename KernelType>
-  void single_task(KernelType kernelFunc);
+  void single_task(KernelType kernelFunc)
+  {
+    std::size_t shared_mem_size = 0;
+    hipStream_t stream = _queue->get_hip_stream();
+
+    single_task_kernel<<<1,1,shared_mem_size,stream>>>(kernelFunc);
+  }
 
   template <typename KernelName, typename KernelType, int dimensions>
-  void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc);
+  void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
+  {
+    dispatch_kernel_without_offset(numWorkItems, kernelFunc);
+  }
 
   template <typename KernelName, typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
-                    id<dimensions> workItemOffset, KernelType kernelFunc);
+                    id<dimensions> workItemOffset, KernelType kernelFunc)
+  {
+    dispatch_kernel_with_offset(numWorkItems, workItemOffset, kernelFunc);
+  }
 
   template <typename KernelName, typename KernelType, int dimensions>
-  void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc);
+  void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
+  {
+    dispatch_ndrange_kernel(executionRange, kernelFunc);
+  }
+
+  /*
+
+  // Hierarchical kernel dispatch API - not yet supported
 
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
@@ -126,9 +152,105 @@ void set_args(Ts &&... args);
 
 private:
 
+  template<int dimensions>
+  dim3 get_default_local_range() const
+  {
+    if(dimensions == 1)
+      return dim3(128);
+    else if(dimensions == 2)
+      return dim3(16,16);
+    else if(dimensions == 3)
+      return dim3(8,8,8);
+
+    return dim3(1);
+  }
+
+  std::size_t ceil_division(std::size_t n,
+                           std::size_t divisor) const
+  {
+    return (n + divisor - 1) / divisor;
+  }
+
+  template<int dimensions>
+  void determine_grid_configuration(const range<dimensions>& num_work_items,
+                                    dim3& grid,
+                                    dim3& block) const
+  {
+    block = get_default_local_range<dimensions>();
+
+    if(dimensions == 1)
+      grid = dim3(ceil_division(num_work_items.get(0), block.x));
+    else if (dimensions == 2)
+      grid = dim3(ceil_division(num_work_items.get(0), block.x),
+                  ceil_division(num_work_items.get(1), block.y));
+    else if (dimensions == 3)
+      grid = dim3(ceil_division(num_work_items.get(0), block.x),
+                  ceil_division(num_work_items.get(1), block.y),
+                  ceil_division(num_work_items.get(2), block.z));
+    else
+      grid = dim3(1);
+  }
+
+  template <typename KernelType, int dimensions>
+  void dispatch_kernel_without_offset(range<dimensions> numWorkItems, KernelType kernelFunc)
+  {
+    std::size_t shared_mem_size = 0;
+    hipStream_t stream = _queue->get_hip_stream();
+
+    dim3 grid, block;
+    determine_grid_configuration(numWorkItems, grid, block);
+
+    parallel_for_kernel<<<grid,block,shared_mem_size,stream>>>(kernelFunc, numWorkItems);
+  }
+
+  template <typename KernelType, int dimensions>
+  void dispatch_kernel_with_offset(range<dimensions> numWorkItems,
+                                   id<dimensions> offset,
+                                   KernelType kernelFunc)
+  {
+    std::size_t shared_mem_size = 0;
+    hipStream_t stream = _queue->get_hip_stream();
+
+    dim3 grid, block;
+    determine_grid_configuration(numWorkItems, grid, block);
+
+    parallel_for_kernel_with_offset<<<grid,block,shared_mem_size,stream>>>(kernelFunc,
+                                                                           numWorkItems,
+                                                                           offset);
+  }
+
+  template <typename KernelType, int dimensions>
+  void dispatch_ndrange_kernel(nd_range<dimensions> execution_range,
+                               KernelType kernelFunc)
+  {
+
+  }
 
   template<class Function>
-  __global__ void parallel_for_kernel(Function f)
+  __global__ void single_task_kernel(Function f)
+  {
+    f();
+  }
+
+  template<int dimensions, class Function>
+  __global__ void parallel_for_kernel(Function f,
+                                      range<dimensions> execution_range)
+  {
+    if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
+      f(item<dimensions, false>{});
+  }
+
+  template<int dimensions, class Function>
+  __global__ void parallel_for_kernel_with_offset(Function f,
+                                                  range<dimensions> execution_range,
+                                                  id<dimensions> offset)
+  {
+    if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
+      f(item<dimensions>{offset});
+  }
+
+  template<int dimensions, class Function>
+  __global__ void parallel_for_ndrange_kernel(Function f)
   {
 
   }

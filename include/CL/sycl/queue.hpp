@@ -156,6 +156,8 @@ public:
   bool operator==(const queue& rhs) const;
 
   bool operator!=(const queue& rhs) const;
+
+  hipStream_t get_hip_stream() const;
 private:
   device _device;
   detail::stream_ptr _stream;

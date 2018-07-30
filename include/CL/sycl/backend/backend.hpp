@@ -31,6 +31,13 @@
 
 #include <hip/hip_runtime.h>
 
+#if !defined(__NVCC__) && !defined(__HCC__)
+#define __global__
+#define __device__
+#define __host__
+#define __shared__
+#endif
+
 //#ifdef __HIP_DEVICE_COMPILE__
 //#define __SYCU_DEVICE__
 //#endif

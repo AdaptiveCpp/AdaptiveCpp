@@ -45,6 +45,7 @@ namespace sycl {
 template <std::size_t dimensions = 1>
 struct id {
 
+  __host__ __device__
   id()
     : _data{}
   {}
@@ -52,6 +53,7 @@ struct id {
   /* The following constructor is only available in the id class
    * specialization where: dimensions==1 */
   template<typename = std::enable_if_t<dimensions == 1>>
+  __host__ __device__
   id(size_t dim0)
     : _data{dim0}
   {}
@@ -59,6 +61,7 @@ struct id {
   /* The following constructor is only available in the id class
    * specialization where: dimensions==2 */
   template<typename = std::enable_if_t<dimensions == 2>>
+  __host__ __device__
   id(size_t dim0, size_t dim1)
     : _data{dim0, dim1}
   {}
@@ -66,27 +69,32 @@ struct id {
   /* The following constructor is only available in the id class
    * specialization where: dimensions==3 */
   template<typename = std::enable_if_t<dimensions == 3>>
+  __host__ __device__
   id(size_t dim0, size_t dim1, size_t dim2)
     : _data{dim1, dim2}
   {}
 
+  __host__ __device__
   id(const id<dimensions>& other) = default;
 
-
+  __host__ __device__
   id(const range<dimensions> &range) {
     for(std::size_t i = 0; i < dimensions; ++i)
       this->_data[i] = range[i];
   }
 
+  __host__ __device__
   id(const item<dimensions> &item) {
     for(std::size_t i = 0; i < dimensions; ++i)
       this->_data[i] = item[i];
   }
 
+  __host__ __device__
   size_t get(int dimension) const {
     return this->_data[dimension];
   }
 
+  __host__ __device__
   size_t& operator[](int dimension) const {
     return this->_data[dimension];
   }
@@ -94,6 +102,7 @@ struct id {
   // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define SYCU_ID_BINARY_OP_OUT_OF_PLACE(op) \
+  __host__ __device__  \
   id<dimensions> operator op(const id<dimensions> &rhs) const { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
@@ -119,6 +128,7 @@ struct id {
   SYCU_ID_BINARY_OP_OUT_OF_PLACE(>=)
 
 #define SYCU_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(op) \
+  __host__ __device__ \
   id<dimensions> operator op(const std::size_t &rhs) const { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
@@ -147,6 +157,7 @@ struct id {
   // Implementation of id<dimensions> &operatorOP(const id<dimensions> &rhs);
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define SYCU_ID_BINARY_OP_IN_PLACE(op) \
+  __host__ __device__ \
   id<dimensions>& operator op(const id<dimensions> &rhs) const { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs._data[i]; \
@@ -165,6 +176,7 @@ struct id {
   SYCU_ID_BINARY_OP_IN_PLACE(^=)
 
 #define SYCU_ID_BINARY_OP_IN_PLACE_SIZE_T(op) \
+  __host__ __device__ \
   id<dimensions>& operator op(const std::size_t &rhs) const { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs; \
@@ -187,6 +199,7 @@ private:
 
 #define SYCU_ID_BINARY_OP_SIZE_T(op) \
   template<int dimensions> \
+  __host__ __device__ \
   id<dimensions> operator op(const size_t &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \

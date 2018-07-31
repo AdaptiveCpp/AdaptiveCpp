@@ -41,12 +41,54 @@
 namespace cl {
 namespace sycl {
 
+namespace detail {
+namespace dispatch {
+
+template <typename KernelType, int dimensions>
+void dispatch_ndrange_kernel(nd_range<dimensions> execution_range,
+                             KernelType kernelFunc)
+{
+
+}
+
+template<class Function>
+__global__ void single_task_kernel(Function f)
+{
+  f();
+}
+
+template<int dimensions, class Function>
+__global__ void parallel_for_kernel(Function f,
+                                    range<dimensions> execution_range)
+{
+  if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
+    f(item<dimensions, false>{});
+}
+
+template<int dimensions, class Function>
+__global__ void parallel_for_kernel_with_offset(Function f,
+                                                range<dimensions> execution_range,
+                                                id<dimensions> offset)
+{
+  if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
+    f(item<dimensions>{offset});
+}
+
+template<int dimensions, class Function>
+__global__ void parallel_for_ndrange_kernel(Function f)
+{
+
+}
+
+} // dispatch
+} // detail
+
 class queue;
 
 class handler
 {
   friend class queue;
-  shared_ptr_class<queue> _queue;
+  const queue* _queue;
 
   handler(const queue& q)
     : _queue{&q}
@@ -77,7 +119,7 @@ void set_args(Ts &&... args);
     std::size_t shared_mem_size = 0;
     hipStream_t stream = _queue->get_hip_stream();
 
-    single_task_kernel<<<1,1,shared_mem_size,stream>>>(kernelFunc);
+    detail::dispatch::single_task_kernel<<<1,1,shared_mem_size,stream>>>(kernelFunc);
   }
 
   template <typename KernelName, typename KernelType, int dimensions>
@@ -192,7 +234,8 @@ private:
   }
 
   template <typename KernelType, int dimensions>
-  void dispatch_kernel_without_offset(range<dimensions> numWorkItems, KernelType kernelFunc)
+  void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
+                                      KernelType kernelFunc)
   {
     std::size_t shared_mem_size = 0;
     hipStream_t stream = _queue->get_hip_stream();
@@ -200,7 +243,9 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
-    parallel_for_kernel<<<grid,block,shared_mem_size,stream>>>(kernelFunc, numWorkItems);
+    detail::dispatch::parallel_for_kernel
+        <<<grid,block,shared_mem_size,stream>>>(kernelFunc,
+                                                numWorkItems);
   }
 
   template <typename KernelType, int dimensions>
@@ -214,46 +259,13 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
-    parallel_for_kernel_with_offset<<<grid,block,shared_mem_size,stream>>>(kernelFunc,
-                                                                           numWorkItems,
-                                                                           offset);
+    detail::dispatch::parallel_for_kernel_with_offset
+        <<<grid,block,shared_mem_size,stream>>>(kernelFunc,
+                                                numWorkItems,
+                                                offset);
   }
 
-  template <typename KernelType, int dimensions>
-  void dispatch_ndrange_kernel(nd_range<dimensions> execution_range,
-                               KernelType kernelFunc)
-  {
 
-  }
-
-  template<class Function>
-  __global__ void single_task_kernel(Function f)
-  {
-    f();
-  }
-
-  template<int dimensions, class Function>
-  __global__ void parallel_for_kernel(Function f,
-                                      range<dimensions> execution_range)
-  {
-    if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
-      f(item<dimensions, false>{});
-  }
-
-  template<int dimensions, class Function>
-  __global__ void parallel_for_kernel_with_offset(Function f,
-                                                  range<dimensions> execution_range,
-                                                  id<dimensions> offset)
-  {
-    if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
-      f(item<dimensions>{offset});
-  }
-
-  template<int dimensions, class Function>
-  __global__ void parallel_for_ndrange_kernel(Function f)
-  {
-
-  }
 
 };
 

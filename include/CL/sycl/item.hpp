@@ -98,7 +98,7 @@ struct item_impl<3>
 {
   static __device__ range<3> get_range()
   {
-    return range<2>{hipGridDim_x * hipBlockDim_x,
+    return range<3>{hipGridDim_x * hipBlockDim_x,
                     hipGridDim_y * hipBlockDim_y,
                     hipGridDim_z * hipBlockDim_z};
   }

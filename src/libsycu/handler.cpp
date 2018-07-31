@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+#include "CL/sycl/backend/backend.hpp"
 #include "CL/sycl/handler.hpp"
 #include "CL/sycl/queue.hpp"
 
@@ -33,8 +33,13 @@ namespace cl {
 namespace sycl {
 
 handler::handler(const queue& q)
-: _queue{new queue{q}}
+: _queue{&q}
 {}
+
+hipStream_t handler::get_execution_stream() const
+{
+  return _queue->get_hip_stream();
+}
 
 }
 }

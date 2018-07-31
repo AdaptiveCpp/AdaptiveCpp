@@ -35,7 +35,7 @@
 namespace cl {
 namespace sycl {
 
-template <std::size_t dimensions = 1>
+template <int dimensions = 1>
 class range {
 public:
 
@@ -69,18 +69,20 @@ dimensions==3 */
   /* -- common interface members -- */
 
   __host__ __device__
-  std::size_t get(int dimension) const {
+  size_t get(int dimension) const {
     return _data[dimension];
   }
 
   __host__ __device__
-  std::size_t &operator[](int dimension) {
-    return _data[dimension];
+  size_t &operator[](int dimension) {
+    // Spec requires that this method should be const, but return
+    // a non-const reference...
+    return const_cast<size_t&>(_data[dimension]);
   }
 
   __host__ __device__
-  std::size_t size() const {
-    std::size_t result = 1;
+  size_t size() const {
+    size_t result = 1;
     for(const auto x : _data)
       result *= x;
     return result;

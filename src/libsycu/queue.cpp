@@ -43,7 +43,8 @@ stream_manager::stream_manager(const device& d)
 
 stream_manager::~stream_manager()
 {
-  detail::check_error(hipStreamDestroy(_stream));
+  hipStreamSynchronize(_stream->get_stream());
+  hipStreamDestroy(_stream);
 }
 
 hipStream_t stream_manager::get_stream() const

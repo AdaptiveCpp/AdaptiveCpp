@@ -61,8 +61,9 @@ template<int dimensions, class Function>
 __global__ void parallel_for_kernel(Function f,
                                     range<dimensions> execution_range)
 {
-  if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
-    f(item<dimensions, false>{});
+  item<dimensions, false> this_item;
+  if(this_item.get_linear_id() < execution_range.size())
+    f(this_item);
 }
 
 template<int dimensions, class Function>
@@ -70,8 +71,9 @@ __global__ void parallel_for_kernel_with_offset(Function f,
                                                 range<dimensions> execution_range,
                                                 id<dimensions> offset)
 {
-  if(detail::item_impl<dimensions>::get_linear_id() < execution_range.size())
-    f(item<dimensions>{offset});
+  item<dimensions> this_item{offset};
+  if(this_item.get_linear_id() < execution_range.size())
+    f(this_item);
 }
 
 template<int dimensions, class Function>
@@ -90,9 +92,7 @@ class handler
   friend class queue;
   const queue* _queue;
 
-  handler(const queue& q)
-    : _queue{&q}
-  {}
+  handler(const queue& q);
 
 public:
 
@@ -117,7 +117,7 @@ void set_args(Ts &&... args);
   void single_task(KernelType kernelFunc)
   {
     std::size_t shared_mem_size = 0;
-    hipStream_t stream = _queue->get_hip_stream();
+    hipStream_t stream = this->get_execution_stream();
 
     detail::dispatch::single_task_kernel<<<1,1,shared_mem_size,stream>>>(kernelFunc);
   }
@@ -233,12 +233,14 @@ private:
       grid = dim3(1);
   }
 
+  hipStream_t get_execution_stream() const;
+
   template <typename KernelType, int dimensions>
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
                                       KernelType kernelFunc)
   {
     std::size_t shared_mem_size = 0;
-    hipStream_t stream = _queue->get_hip_stream();
+    hipStream_t stream = this->get_execution_stream();
 
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
@@ -254,7 +256,7 @@ private:
                                    KernelType kernelFunc)
   {
     std::size_t shared_mem_size = 0;
-    hipStream_t stream = _queue->get_hip_stream();
+    hipStream_t stream = this->get_execution_stream();
 
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);

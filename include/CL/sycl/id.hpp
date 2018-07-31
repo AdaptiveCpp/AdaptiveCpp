@@ -42,7 +42,7 @@ class item;
 namespace cl {
 namespace sycl {
 
-template <std::size_t dimensions = 1>
+template <int dimensions = 1>
 struct id {
 
   __host__ __device__
@@ -99,7 +99,9 @@ struct id {
 
   __host__ __device__
   size_t& operator[](int dimension) const {
-    return this->_data[dimension];
+    // Spec requires that this method should be const, but return
+    // a non-const reference...
+    return const_cast<size_t&>(this->_data[dimension]);
   }
 
   // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;

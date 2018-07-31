@@ -40,11 +40,41 @@ namespace sycl {
 
 namespace detail {
 
+static __device__ size_t get_global_id_x()
+{
+  return hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+}
+
+static __device__ size_t get_global_id_y()
+{
+  return hipBlockIdx_y * hipBlockDim_y + hipThreadIdx_y;
+}
+
+static __device__ size_t get_global_id_z()
+{
+  return hipBlockIdx_z * hipBlockDim_z + hipThreadIdx_z;
+}
+
+static __device__ size_t get_global_size_x()
+{
+  return hipGridDim_x * hipBlockDim_x;
+}
+
+static __device__ size_t get_global_size_y()
+{
+  return hipGridDim_y * hipBlockDim_y;
+}
+
+static __device__ size_t get_global_size_z()
+{
+  return hipGridDim_z * hipBlockDim_z;
+}
+
 template<int dim>
 struct item_impl
 {
   static __device__ range<dim> get_range();
-  __device__ std::size_t get_linear_id();
+  __device__ size_t get_linear_id();
 };
 
 template<>
@@ -56,11 +86,11 @@ struct item_impl<1>
   }
 
   __device__ item_impl()
-    : global_id{hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x}
+    : global_id{get_global_id_x()}
   {}
 
 
-  __device__ std::size_t get_linear_id()
+  __device__ size_t get_linear_id() const
   {
     return global_id[0];
   }
@@ -79,12 +109,12 @@ struct item_impl<2>
   }
 
   __device__ item_impl()
-    : global_id{hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x,
-                hipBlockIdx_y * hipBlockDim_y + hipThreadIdx_y}
+    : global_id{get_global_id_x(),
+                get_global_id_y()}
   {}
 
 
-  __device__ std::size_t get_linear_id()
+  __device__ size_t get_linear_id() const
   {
     return  global_id[0] * hipGridDim_y * hipBlockDim_y + global_id[1];
   }
@@ -104,12 +134,12 @@ struct item_impl<3>
   }
 
   __device__ item_impl()
-    : global_id{hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x,
-                hipBlockIdx_y * hipBlockDim_y + hipThreadIdx_y,
-                hipBlockIdx_z * hipBlockDim_z + hipThreadIdx_z}
+    : global_id{get_global_id_x(),
+                get_global_id_y(),
+                get_global_id_z()}
   {}
 
-  __device__ std::size_t get_linear_id()
+  __device__ size_t get_linear_id() const
   {
     return  global_id[0] * hipGridDim_y * hipBlockDim_y * hipGridDim_z * hipBlockDim_z
           + global_id[1] * hipGridDim_z * hipBlockDim_z
@@ -140,28 +170,24 @@ struct item_offset_storage<dimension,true>
 
 }
 
-class handler;
 
 template <int dimensions = 1, bool with_offset = true>
 struct item
 {
-private:
-  friend class handler;
-
   __device__ item() {}
   __device__ item(const id<dimensions>& offset)
     : _offset{offset}
   {}
 
-public:
+
   /* -- common interface members -- */
   __device__ id<dimensions> get_id() const
   { return _impl.global_id; }
 
-  __device__ std::size_t get_id(int dimension) const
+  __device__ size_t get_id(int dimension) const
   { return _impl.global_id[dimension]; }
 
-  __device__ std::size_t &operator[](int dimension)
+  __device__ size_t &operator[](int dimension)
   { return _impl.global_id[dimension]; }
 
   __device__ range<dimensions> get_range() const

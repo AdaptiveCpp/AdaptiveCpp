@@ -15,8 +15,10 @@ int main()
   cl::sycl::queue q;
   q.submit([&](cl::sycl::handler& cgh) {
     cgh.parallel_for<class hello_world>(cl::sycl::range<1>{num_threads},
-                                        [=] __device__ (cl::sycl::id<1> tid){
-      printf("Hello from thread %d", tid[0]);
+                                        [=] __device__ (cl::sycl::item<1> tid){
+      if(tid.get_linear_id() == 0)
+        printf("Hello from thread %d\n", tid.get_linear_id());
     });
   });
+
 }

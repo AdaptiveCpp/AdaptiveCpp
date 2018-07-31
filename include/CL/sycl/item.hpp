@@ -170,14 +170,16 @@ public:
   }
 
   // only available if with_offset is true
-  template<typename = std::enable_if_t<with_offset == true>>
+  template<bool O = with_offset,
+           typename = std::enable_if_t<O == true>>
   __device__ id<dimensions> get_offset() const
   {
     return _offset.offset;
   }
 
   // only available if with_offset is false
-  template<typename = std::enable_if_t<with_offset == false>>
+  template<bool O = with_offset,
+           typename = std::enable_if_t<O == false>>
   __device__ operator item<dimensions, true>() const
   {
     return item<dimensions, true>();

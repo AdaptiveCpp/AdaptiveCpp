@@ -52,7 +52,8 @@ struct id {
 
   /* The following constructor is only available in the id class
    * specialization where: dimensions==1 */
-  template<typename = std::enable_if_t<dimensions == 1>>
+  template<int D = dimensions,
+           typename = std::enable_if_t<D == 1>>
   __host__ __device__
   id(size_t dim0)
     : _data{dim0}
@@ -60,7 +61,8 @@ struct id {
 
   /* The following constructor is only available in the id class
    * specialization where: dimensions==2 */
-  template<typename = std::enable_if_t<dimensions == 2>>
+  template<int D = dimensions,
+           typename = std::enable_if_t<D == 2>>
   __host__ __device__
   id(size_t dim0, size_t dim1)
     : _data{dim0, dim1}
@@ -68,7 +70,8 @@ struct id {
 
   /* The following constructor is only available in the id class
    * specialization where: dimensions==3 */
-  template<typename = std::enable_if_t<dimensions == 3>>
+  template<int D = dimensions,
+           typename = std::enable_if_t<D == 3>>
   __host__ __device__
   id(size_t dim0, size_t dim1, size_t dim2)
     : _data{dim1, dim2}

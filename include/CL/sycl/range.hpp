@@ -32,6 +32,8 @@
 #include <type_traits>
 #include <array>
 
+#include "detail/device_array.hpp"
+
 namespace cl {
 namespace sycl {
 
@@ -185,7 +187,7 @@ dimensions==3 */
 
 
 private:
-  std::array<std::size_t, dimensions> _data;
+  detail::device_array<size_t, dimensions> _data;
 
 };
 

@@ -29,7 +29,7 @@
 #ifndef SYCU_ID_HPP
 #define SYCU_ID_HPP
 
-#include <array>
+#include "detail/device_array.hpp"
 #include <cassert>
 #include <type_traits>
 
@@ -199,7 +199,7 @@ struct id {
   SYCU_ID_BINARY_OP_IN_PLACE_SIZE_T(|=)
   SYCU_ID_BINARY_OP_IN_PLACE_SIZE_T(^=)
 private:
-  std::array<std::size_t, dimensions> _data;
+  detail::device_array<std::size_t, dimensions> _data;
 };
 
 #define SYCU_ID_BINARY_OP_SIZE_T(op) \

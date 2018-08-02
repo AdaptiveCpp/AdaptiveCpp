@@ -33,14 +33,16 @@
 #include <cassert>
 #include <type_traits>
 
-template<std::size_t dimensions>
-class range;
 
-template<std::size_t dimensions>
-class item;
 
 namespace cl {
 namespace sycl {
+
+template<int dimensions>
+class range;
+
+template<int dimensions, bool with_offset>
+class item;
 
 template <int dimensions = 1>
 struct id {
@@ -74,7 +76,7 @@ struct id {
            typename = std::enable_if_t<D == 3>>
   __host__ __device__
   id(size_t dim0, size_t dim1, size_t dim2)
-    : _data{dim1, dim2}
+    : _data{dim0, dim1, dim2}
   {}
 
   __host__ __device__
@@ -86,10 +88,11 @@ struct id {
       this->_data[i] = range[i];
   }
 
+  template<bool with_offset>
   __host__ __device__
-  id(const item<dimensions> &item) {
+  id(const item<dimensions, with_offset> &item) {
     for(std::size_t i = 0; i < dimensions; ++i)
-      this->_data[i] = item[i];
+      this->_data[i] = item.get_id(i);
   }
 
   __host__ __device__

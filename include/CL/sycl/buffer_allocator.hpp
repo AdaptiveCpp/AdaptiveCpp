@@ -48,6 +48,7 @@ using buffer_allocator = std::allocator<T>;
 // ToDo Image allocator
 
 #ifdef __NVCC__
+namespace sycu {
 
 template<class T>
 class svm_allocator
@@ -114,6 +115,7 @@ public:
   { p->~U(); }
 };
 
+}
 #endif
 
 }

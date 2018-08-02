@@ -14,10 +14,19 @@ int main()
 
   cl::sycl::queue q;
   q.submit([&](cl::sycl::handler& cgh) {
-    cgh.parallel_for<class hello_world>(cl::sycl::range<1>{num_threads},
+
+    // First, test with item class
+    cgh.parallel_for<class hello_world_item>(cl::sycl::range<1>{num_threads},
                                         [=] __device__ (cl::sycl::item<1> tid){
       if(tid.get_linear_id() == 0)
-        printf("Hello from thread %d\n", tid.get_linear_id());
+        printf("Hello from sycl item %u\n", tid.get_linear_id());
+    });
+
+    // Test with id class
+    cgh.parallel_for<class hello_world_id>(cl::sycl::range<1>{num_threads},
+                                           [=] __device__ (cl::sycl::id<1> tid) {
+      if(tid[0] == 0)
+        printf("Hello from sycl id %u\n", tid[0]);
     });
   });
 

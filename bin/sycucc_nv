@@ -1,0 +1,90 @@
+#!/usr/bin/python
+
+'''
+ * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ *
+ * Copyright (c) 2018 Aksel Alpay
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ '''
+
+# SYCU nvcc compiler wrapper - this is pretty hacky at the moment,
+# but it works for now
+ 
+import sys
+import subprocess
+
+device_compiler = "nvcc"
+
+global_options = ["-I","-L","-l", "-D"]
+cpp_files = set([".cpp",".cxx",".c++",".cc",".c"])
+
+
+def get_nvcc_arguments():
+  return subprocess.check_output([device_compiler, "--help"]).decode("utf-8") 
+  
+nvcc_option_output = get_nvcc_arguments()
+
+def is_no_nvcc_argument(arg):
+  return not arg in nvcc_option_output
+  
+def is_compilation_step(args):
+  for arg in args:
+    if not arg.startswith("-"):
+      for ending in cpp_files:
+        if arg.lower().endswith(ending):
+          return True
+  return False
+      
+
+def transform_argument(arg):
+  if arg.startswith("-"):
+    for opt in global_options:
+      if arg.startswith(opt):
+        return [arg]
+      else:
+        if is_no_nvcc_argument(arg):
+          return ["-Xcompiler",arg] 
+        
+  
+  return [arg]
+
+    
+if __name__ == '__main__':
+  args = sys.argv
+    
+  if len(args) == 1:
+    print("sycucc for nvidia devices, Copyright (C) 2018 Aksel Alpay")
+    print("Usage: sycucc [device:<device option>] <host options>")
+  else:
+    transformed_args = []
+    for arg in args[1:]:
+      transformed_args += transform_argument(arg)
+        
+    compiler_args = ["--expt-extended-lambda"]
+    if is_compilation_step(args[1:]):
+      compiler_args += ["-x","cu"]
+    compiler_args += transformed_args
+    
+    sys.exit(subprocess.call([device_compiler]+compiler_args))
+
+    

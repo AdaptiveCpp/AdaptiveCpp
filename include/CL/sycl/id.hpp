@@ -80,7 +80,9 @@ struct id {
   {}
 
   __host__ __device__
-  id(const id<dimensions>& other) = default;
+  id(const id<dimensions>& other)
+    : _data{other._data}
+  {}
 
   __host__ __device__
   id(const range<dimensions> &range) {

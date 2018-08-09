@@ -66,10 +66,10 @@ struct nd_range
   { return _offset; }
 
 private:
-  range<dimensions> _global_range;
-  range<dimensions> _local_range;
-  range<dimensions> _num_groups;
-  id<dimensions> _offset;
+  const range<dimensions> _global_range;
+  const range<dimensions> _local_range;
+  const range<dimensions> _num_groups;
+  const id<dimensions> _offset;
 };
 
 

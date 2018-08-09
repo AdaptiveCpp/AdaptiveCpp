@@ -70,6 +70,23 @@ static __device__ size_t get_global_size_z()
   return hipGridDim_z * hipBlockDim_z;
 }
 
+
+static __device__ size_t get_linear_id(const size_t id_x,
+                                       const size_t id_y,
+                                       const size_t range_y)
+{
+  return id_x * range_y + id_y;
+}
+
+static __device__ size_t get_linear_id(const size_t id_x,
+                                       const size_t id_y,
+                                       const size_t id_z,
+                                       const size_t range_y,
+                                       const size_t range_z)
+{
+  return id_x * range_y * range_z + id_y * range_z + id_z;
+}
+
 template<int dim>
 struct item_impl
 {
@@ -82,7 +99,7 @@ struct item_impl<1>
 {
   static __device__ range<1> get_range()
   {
-    return range<1>{hipGridDim_x * hipBlockDim_x};
+    return range<1>{get_global_size_x()};
   }
 
   __device__ item_impl()
@@ -104,8 +121,8 @@ struct item_impl<2>
 {
   static __device__ range<2> get_range()
   {
-    return range<2>{hipGridDim_x * hipBlockDim_x,
-                    hipGridDim_y * hipBlockDim_y};
+    return range<2>{get_global_size_x(),
+                    get_global_size_y()};
   }
 
   __device__ item_impl()
@@ -116,7 +133,8 @@ struct item_impl<2>
 
   __device__ size_t get_linear_id() const
   {
-    return  global_id[0] * hipGridDim_y * hipBlockDim_y + global_id[1];
+    return detail::get_linear_id(global_id[0], global_id[1],
+                                 get_global_size_y());
   }
 
   id<2> global_id;
@@ -128,9 +146,9 @@ struct item_impl<3>
 {
   static __device__ range<3> get_range()
   {
-    return range<3>{hipGridDim_x * hipBlockDim_x,
-                    hipGridDim_y * hipBlockDim_y,
-                    hipGridDim_z * hipBlockDim_z};
+    return range<3>{get_global_size_x(),
+                    get_global_size_y(),
+                    get_global_size_z()};
   }
 
   __device__ item_impl()
@@ -141,9 +159,9 @@ struct item_impl<3>
 
   __device__ size_t get_linear_id() const
   {
-    return  global_id[0] * hipGridDim_y * hipBlockDim_y * hipGridDim_z * hipBlockDim_z
-          + global_id[1] * hipGridDim_z * hipBlockDim_z
-          + global_id[2];
+    return detail::get_linear_id(global_id[0], global_id[1], global_id[2],
+                                 get_global_size_y(),
+                                 get_global_size_z());
   }
 
   id<3> global_id;

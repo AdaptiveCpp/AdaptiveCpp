@@ -39,6 +39,10 @@
 #include "id.hpp"
 #include "range.hpp"
 
+#include "detail/buffer.hpp"
+
+#include "accessor.hpp"
+
 namespace cl {
 namespace sycl {
 namespace property {
@@ -77,7 +81,7 @@ private:
 
 
 template <typename T, int dimensions = 1,
-          typename AllocatorT = cl::sycl::buffer_allocator>
+          typename AllocatorT = cl::sycl::buffer_allocator<T>>
 class buffer : public detail::property_carrying_object
 {
 public:
@@ -86,28 +90,50 @@ public:
   using const_reference = const value_type &;
   using allocator_type = AllocatorT;
 
+
   buffer(const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
-
+    this->init(bufferRange);
   }
 
   buffer(const range<dimensions> &bufferRange, AllocatorT allocator,
-         const property_list &propList = {});
+         const property_list &propList = {})
+    : buffer(bufferRange, propList),
+      _alloc{allocator}
+  {}
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
-         const property_list &propList = {});
+         const property_list &propList = {})
+    : detail::property_carrying_object{propList}
+  {
+    this->init(bufferRange, hostData);
+  }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
-         AllocatorT allocator, const property_list &propList = {});
+         AllocatorT allocator, const property_list &propList = {})
+    : buffer{hostData, bufferRange, propList},
+      _alloc{allocator}
+  {}
 
   buffer(const T *hostData, const range<dimensions> &bufferRange,
-         const property_list &propList = {});
+         const property_list &propList = {})
+    : detail::property_carrying_object{propList}
+  {
+    // Construct buffer
+    this->init(bufferRange);
+    // Only use hostData for initialization
+    _buffer->write(reinterpret_cast<const void*>(hostData));
+  }
 
   buffer(const T *hostData, const range<dimensions> &bufferRange,
-         AllocatorT allocator, const property_list &propList = {});
+         AllocatorT allocator, const property_list &propList = {})
+    : buffer{hostData, bufferRange, propList},
+      _alloc{allocator}
+  {}
 
+  // ToDo Implement these
   buffer(const shared_ptr_class<T> &hostData,
          const range<dimensions> &bufferRange, AllocatorT allocator,
          const property_list &propList = {});
@@ -175,32 +201,87 @@ public:
 
 
   template <typename Destination = std::nullptr_t>
-  void set_final_data(Destination finalData = std::nullptr);
+  void set_final_data(Destination finalData = std::nullptr)
+  {
+    _buffer->set_write_back(finalData);
+    _buffer->enable_write_back(true);
+  }
 
-  void set_write_back(bool flag = true);
+  void set_write_back(bool flag = true)
+  {
+    this->_buffer->enable_write_back(flag);
+  }
 
+  // ToDo Implement
   bool is_sub_buffer() const;
 
-
+  // ToDo Implement
   template <typename ReinterpretT, int ReinterpretDim>
   buffer<ReinterpretT, ReinterpretDim, AllocatorT>
-
   reinterpret(range<ReinterpretDim> reinterpretRange) const;
 
-  bool operator==(const platform& rhs) const;
+  bool operator==(const buffer& rhs) const
+  {
+    return _buffer == rhs->_buffer;
+  }
 
-  bool operator!=(const platform& rhs) const;
+  bool operator!=(const buffer& rhs) const
+  {
+    return !(*this == rhs);
+  }
 
+  detail::buffer_ptr _detail_get_buffer_ptr() const
+  {
+    return _buffer;
+  }
 private:
+  void create_buffer(detail::device_alloc_mode device_mode,
+                     detail::host_alloc_mode host_mode,
+                     const range<dimensions>& range)
+  {
+    _buffer = buffer_ptr{
+        new detail::buffer_impl{
+          sizeof(T) * range.size(), device_mode, host_mode
+      }
+    };
+  }
+
+  void init(const range<dimensions>& range)
+  {
+    this->create_buffer(detail::device_alloc_mode::regular,
+                        detail::host_alloc_mode::regular,
+                        range);
+  }
+
+  void init(const range<dimensions>& range, T* host_memory)
+  {
+
+  }
+
+
   AllocatorT _alloc;
   range<dimensions> _range;
 
-  template<class T>
-  void allocate_buffer(T* host_ptr, std::size_t bytes, bool use_svm = false);
-  void deallocate_buffer();
+  detail::buffer_ptr _buffer;
 };
 
+namespace detail {
+namespace buffer {
 
+template<class Buffer_type>
+void* access_host_ptr(Buffer_type& b, access::mode m)
+{
+  return b._detail_get_buffer_ptr()->access_host(m);
+}
+
+template<class Buffer_type>
+void* access_device_ptr(Buffer_type& b, access::mode m)
+{
+  return b._detail_get_buffer_ptr()->access_device(m);
+}
+
+} // buffer
+} // detail
 
 } // sycl
 } // cl

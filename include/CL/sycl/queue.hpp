@@ -40,7 +40,7 @@
 #include "event.hpp"
 #include "handler.hpp"
 #include "info/queue.hpp"
-#include "CL/sycl/property.hpp"
+
 
 namespace cl {
 namespace sycl {

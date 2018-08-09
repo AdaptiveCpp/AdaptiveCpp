@@ -36,19 +36,82 @@
 namespace cl {
 namespace sycl {
 
+namespace detail {
+
+template<int dimensions>
+__device__
+static id<dimensions> get_local_id();
+
+template<>
+__device__
+id<1> get_local_id<1>()
+{ return id<1>{hipThreadIdx_x}; }
+
+template<>
+__device__
+id<2> get_local_id<2>()
+{ return id<2>{hipThreadIdx_x, hipThreadIdx_y}; }
+
+template<>
+__device__
+id<3> get_local_id<3>()
+{ return id<3>{hipThreadIdx_x, hipThreadIdx_y, hipThreadIdx_z}; }
+
+template<int dimensions>
+__device__
+static id<dimensions> get_global_id();
+
+template<>
+__device__
+id<1> get_global_id<1>()
+{ return id<1>{get_global_id_x()}; }
+
+template<>
+__device__
+id<2> get_global_id<2>()
+{
+  return id<2>{get_global_id_x(),
+               get_global_id_y()};
+}
+
+template<>
+__device__
+id<3> get_global_id<3>()
+{
+  return id<3>{get_global_id_x(),
+               get_global_id_y(),
+               get_global_id_z()};
+}
+
+}
+
+class handler;
+
 template <int dimensions = 1>
 struct nd_item
 {
-  __device__
-  nd_item() = delete;
-
   /* -- common interface members -- */
 
   __device__
-  id<dimensions> get_global() const;
+  id<dimensions> get_global() const
+  {
+    return detail::get_global_id<dimensions>();
+  }
 
   __device__
-  size_t get_global(int dimension) const;
+  size_t get_global(int dimension) const
+  {
+    switch(dimension)
+    {
+    case 0:
+      return detail::get_global_id_x();
+    case 1:
+      return detail::get_global_id_y();
+    case 2:
+      return detail::get_global_id_z();
+    }
+    return 1;
+  }
 
   __device__
   size_t get_global_linear_id() const;
@@ -56,7 +119,7 @@ struct nd_item
   __device__
   id<dimensions> get_local() const
   {
-    return id<dimensions>
+    return detail::get_local_id<dimensions>();
   }
 
   __device__
@@ -78,7 +141,10 @@ struct nd_item
   size_t get_local_linear_id() const;
 
   __device__
-  group<dimensions> get_group() const;
+  group<dimensions> get_group() const
+  {
+
+  }
 
   __device__
   size_t get_group(int dimension) const;
@@ -87,22 +153,40 @@ struct nd_item
   size_t get_group_linear_id() const;
 
   __device__
-  id<dimensions> get_num_groups() const;
+  id<dimensions> get_num_groups() const
+  {
+    return _range.get_group();
+  }
 
   __device__
-  size_t get_num_groups(int dimension) const;
+  size_t get_num_groups(int dimension) const
+  {
+    return _range.get_group().get(dimension);
+  }
 
   __device__
-  range<dimensions> get_global_range() const;
+  range<dimensions> get_global_range() const
+  {
+    return _range.get_global();
+  }
 
   __device__
-  range<dimensions> get_local_range() const;
+  range<dimensions> get_local_range() const
+  {
+    return _range.get_local();
+  }
 
   __device__
-  id<dimensions> get_offset() const;
+  id<dimensions> get_offset() const
+  {
+    return _range.get_offset();
+  }
 
   __device__
-  nd_range<dimensions> get_nd_range() const;
+  nd_range<dimensions> get_nd_range() const
+  {
+    return _range;
+  }
 
   __device__
   void barrier(access::fence_space accessSpace =
@@ -116,9 +200,10 @@ struct nd_item
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
-    barrier(accessSpace);
+    __syncthreads();
   }
 
+  // ToDo: Implement these
   template <typename dataT>
   __device__
   device_event async_work_group_copy(local_ptr<dataT> dest,
@@ -143,6 +228,15 @@ struct nd_item
   __device__
   void wait_for(eventTN... events) const
   {}
+
+private:
+  const nd_range<dimensions> _range;
+
+  __device__
+  nd_item(const nd_range<dimensions>& range)
+    : _range{range}
+  {}
+
 
 };
 

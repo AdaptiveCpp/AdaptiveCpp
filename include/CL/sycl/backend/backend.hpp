@@ -31,6 +31,12 @@
 
 #include <hip/hip_runtime.h>
 
+#ifdef __HIP_PLATFORM_HCC__
+#define SYCU_PLATFORM_HCC
+#else
+#define SYCU_PLATFORM_CUDA
+#endif
+
 #if !defined(__NVCC__) && !defined(__HCC__)
 #define __global__
 #define __device__

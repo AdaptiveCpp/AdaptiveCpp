@@ -68,11 +68,11 @@ class event {
 
 public:
   event()
-    : _ready{true}
+    : _is_null_event{true}
   {}
 
   event(const detail::event_ptr& evt)
-    : _ready{false}, _evt{evt}
+    : _is_null_event{false}, _evt{evt}
   {}
 
   /* CL Interop is not supported
@@ -120,14 +120,15 @@ public:
 
   bool operator !=(const event& rhs) const
   { return !(*this == rhs); }
+
 private:
   void wait_until_done() const
   {
-    if(!_ready)
+    if(!_is_null_event)
       detail::check_error(hipEventSynchronize(_evt->get_event()));
   }
 
-  bool _ready;
+  const bool _is_null_event;
   detail::event_ptr _evt;
 };
 

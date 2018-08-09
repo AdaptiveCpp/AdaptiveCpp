@@ -80,7 +80,7 @@ if __name__ == '__main__':
     for arg in args[1:]:
       transformed_args += transform_argument(arg)
         
-    compiler_args = ["--expt-extended-lambda"]
+    compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
     if is_compilation_step(args[1:]):
       compiler_args += ["-x","cu"]
     compiler_args += transformed_args

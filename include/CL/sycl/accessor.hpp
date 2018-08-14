@@ -32,7 +32,9 @@
 #include <type_traits>
 #include "range.hpp"
 #include "access.hpp"
+#include "item.hpp"
 #include "buffer_allocator.hpp"
+#include "backend/backend.hpp"
 
 
 namespace cl {
@@ -43,17 +45,43 @@ template <typename T, int dimensions = 1,
           typename AllocatorT = cl::sycl::buffer_allocator<T>>
 class buffer;
 
+class handler;
+
 namespace detail {
 namespace buffer {
 
 template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m);
+void* access_host_ptr(Buffer_type& b, access::mode m, hipStream_t stream);
 
 template<class Buffer_type>
-void* access_device_ptr(Buffer_type& b, access::mode m);
+void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream);
 
-}
-}
+template<class Buffer_type>
+sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
+} // buffer
+
+namespace handler {
+
+hipStream_t get_handler_stream(const sycl::handler& h);
+
+} // handler
+
+namespace accessor {
+
+template<class T, access::mode m>
+struct accessor_pointer_type
+{
+  using value = T*;
+};
+
+template<class T>
+struct accessor_pointer_type<T, access::mode::read>
+{
+  using value = const T*;
+};
+
+} // accessor
+} // detail
 
 template<typename dataT, int dimensions,
          access::mode accessmode,
@@ -65,6 +93,9 @@ public:
   using value_type = dataT;
   using reference = dataT &;
   using const_reference = const dataT &;
+
+  using pointer_type =
+    typename detail::accessor::accessor_pointer_type<dataT, accessmode>::value;
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
 accessTarget == access::target::host_buffer) ||
@@ -79,7 +110,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                                        (P == access::placeholder::true_t  &&
                                        (T == access::target::global_buffer ||
                                         T == access::target::constant_buffer)) &&
-                                        D == 0>>
+                                        D == 0 >>
   accessor(buffer<dataT, 1> &bufferRef);
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -91,7 +122,7 @@ access::target::constant_buffer)) && dimensions == 0 */
            typename = std::enable_if_t<(P == access::placeholder::false_t &&
                                        (T == access::target::global_buffer ||
                                         T == access::target::constant_buffer )) &&
-                                        D == 0>>
+                                        D == 0 >>
   accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef);
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -108,18 +139,22 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                                        (P == access::placeholder::true_t &&
                                        (T == access::target::global_buffer ||
                                         T == access::target::constant_buffer)) &&
-                                        D > 0>>
+                                       (D > 0) >>
   accessor(buffer<dataT, dimensions> &bufferRef)
   {
     // ToDo think about when we need to update device/host buffers
     if(accessTarget == access::target::host_buffer)
-      this->_ptr = reinterpret_cast<dataT*>(detail::buffer::access_host_ptr(
+    {
+      this->_ptr = reinterpret_cast<pointer_type>(detail::buffer::access_host_ptr(
                                               bufferRef,
-                                              accessmode));
+                                              accessmode,
+                                              0));
+      this->_range = detail::buffer::get_buffer_range(bufferRef);
+    }
     else
     {
       // ToDo
-      this->_ptr = nullptr;
+      throw unimplemented{"accessor() with placeholder is unimplemented"};
     }
   }
 
@@ -132,12 +167,18 @@ access::target::constant_buffer)) && dimensions > 0 */
            typename = std::enable_if_t<(P == access::placeholder::false_t &&
                                        (T == access::target::global_buffer ||
                                         T == access::target::constant_buffer)) &&
-                                        D > 0>>
+                                       (D > 0)>>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
   {
-    this->_ptr = reinterpret_cast<dataT*>(detail::access_device_ptr(bufferRef,
-                                            accessmode));
+    hipStream_t stream =
+        detail::handler::get_handler_stream(commandGroupHandlerRef);
+
+    this->_ptr = reinterpret_cast<pointer_type>(
+      detail::buffer::access_device_ptr(bufferRef,
+                                        accessmode,
+                                        stream));
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -145,16 +186,49 @@ accessTarget == access::target::host_buffer) ||
 (isPlaceholder ==
 access::placeholder::true_t && (accessTarget == access::target::global_buffer
 || accessTarget == access::target::constant_buffer)) && dimensions > 0 */
-  accessor(buffer<dataT, dimensions> &bufferRef, range<dimensions> accessRange,
-           id<dimensions> accessOffset = {});
+  template<access::placeholder P = isPlaceholder,
+           access::target T = accessTarget,
+           int D = dimensions,
+           typename = std::enable_if_t<(P == access::placeholder::false_t &&
+                                        T == access::target::host_buffer) ||
+                                       (P == access::placeholder::true_t &&
+                                       (T == access::target::global_buffer ||
+                                        T == access::target::constant_buffer)) &&
+                                       (D > 0) >>
+  accessor(buffer<dataT, dimensions> &bufferRef,
+           range<dimensions> accessRange,
+           id<dimensions> accessOffset = {})
+  {
+    this->_ptr = reinterpret_cast<pointer_type>(
+      detail::buffer::access_device_ptr(bufferRef,
+                                        accessmode,
+                                        0));
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
+  }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
 (accessTarget == access::target::global_buffer || accessTarget ==
 access::target::constant_buffer)) && dimensions > 0 */
-
+  template<access::placeholder P = isPlaceholder,
+           access::target T = accessTarget,
+           int D = dimensions,
+           typename = std::enable_if_t<(P == access::placeholder::false_t &&
+                                       (T == access::target::global_buffer ||
+                                        T == access::target::constant_buffer)) &&
+                                       (D > 0)>>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
-           id<dimensions> accessOffset = {});
+           id<dimensions> accessOffset = {})
+  {
+    hipStream_t stream =
+        detail::handler::get_handler_stream(commandGroupHandlerRef);
+
+    this->_ptr = reinterpret_cast<pointer_type>(
+      detail::buffer::access_device_ptr(bufferRef,
+                                        accessmode,
+                                        stream));
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
+  }
 
   /* -- common interface members -- */
   __host__ __device__
@@ -163,65 +237,167 @@ access::target::constant_buffer)) && dimensions > 0 */
     return isPlaceholder == access::placeholder::true_t;
   }
 
-  size_t get_size() const;
+  __host__ __device__
+  size_t get_size() const
+  {
+    return get_count() * sizeof(dataT);
+  }
 
-  size_t get_count() const;
+  template<int D = dimensions,
+           typename = std::enable_if_t<(D > 0)>>
+  __host__ __device__
+  size_t get_count() const
+  {
+    return _range.size();
+  }
+
+  template<int D = dimensions,
+           std::enable_if_t<D == 0>* = nullptr>
+  __host__ __device__
+  size_t get_count() const
+  { return 1; }
 
   /* Available only when: dimensions > 0 */
-  range<dimensions> get_range() const;
+  template<int D = dimensions,
+           std::enable_if_t<(D > 0)>* = nullptr>
+  __host__ __device__
+  range<dimensions> get_range() const
+  {
+    return _range;
+  }
 
   /* Available only when: dimensions > 0 */
-  range<dimensions> get_offset() const;
+  template<int D = dimensions,
+           typename = std::enable_if_t<(D > 0)>>
+  __host__ __device__
+  range<dimensions> get_offset() const
+  {
+    // ToDo: Properly implement access offsets
+    return range<dimensions>{};
+  }
   /* Available only when: (accessMode == access::mode::write || accessMode ==
 access::mode::read_write || accessMode == access::mode::discard_write ||
 accessMode == access::mode::discard_read_write) && dimensions == 0) */
-
-  operator dataT &() const;
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           typename = std::enable_if_t<(M == access::mode::write ||
+                                        M == access::mode::read_write ||
+                                        M == access::mode::discard_write ||
+                                        M == access::mode::discard_read_write) &&
+                                       (D == 0)>>
+  __host__ __device__
+  operator dataT &() const
+  {
+    return *_ptr;
+  }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
 access::mode::read_write || accessMode == access::mode::discard_write ||
 accessMode == access::mode::discard_read_write) && dimensions > 0) */
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           typename = std::enable_if_t<(M == access::mode::write ||
+                                        M == access::mode::read_write ||
+                                        M == access::mode::discard_write ||
+                                        M == access::mode::discard_read_write) &&
+                                       (D > 0)>>
+  __host__ __device__
+  dataT &operator[](id<dimensions> index) const
+  {
 
-  dataT &operator[](id<dimensions> index) const;
+    return _ptr[detail::linear_id<dimensions>::get(index, _range)];
+  }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
 access::mode::read_write || accessMode == access::mode::discard_write ||
 accessMode == access::mode::discard_read_write) && dimensions == 1) */
-  dataT &operator[](size_t index) const;
+
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<(M == access::mode::write ||
+                                        M == access::mode::read_write ||
+                                        M == access::mode::discard_write ||
+                                        M == access::mode::discard_read_write)
+                                    && (D == 1)>>
+  __host__ __device__
+  dataT &operator[](size_t index) const
+  {
+    return _ptr[index];
+  }
+
+
   /* Available only when: accessMode == access::mode::read && dimensions == 0 */
-  operator dataT() const;
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           typename = std::enable_if_t<M == access::mode::read && D == 0>>
+  __host__ __device__
+  operator dataT() const
+  {
+    return *_ptr;
+  }
 
   /* Available only when: accessMode == access::mode::read && dimensions > 0 */
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
   __host__ __device__
-  dataT operator[](id<dimensions> index) const;
-  /* Available only when: accessMode == access::mode::read && dimensions == 1 */
-  __host__ __device__
-  dataT operator[](size_t index) const;
-  /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
-  operator atomic<dataT, access::address_space::global_space> () const;
-  /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
-  atomic<dataT, access::address_space::global_space> operator[](
-      id<dimensions> index) const;
+  dataT operator[](id<dimensions> index) const
+  { return _ptr[detail::linear_id<dimensions>::get(index, _range)]; }
 
-  atomic<dataT, access::address_space::global_space> operator[](
-      size_t index) const;
+  /* Available only when: accessMode == access::mode::read && dimensions == 1 */
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
+  __host__ __device__
+  dataT operator[](size_t index) const
+  { return _ptr[index]; }
+
+
+  /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
+  //operator atomic<dataT, access::address_space::global_space> () const;
+
+  /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
+  //atomic<dataT, access::address_space::global_space> operator[](
+  //    id<dimensions> index) const;
+
+  //atomic<dataT, access::address_space::global_space> operator[](
+  //    size_t index) const;
+
   /* Available only when: dimensions > 1 */
-  __unspecified__ &operator[](size_t index) const;
+  template<int D = dimensions,
+           typename = std::enable_if_t<(D > 1)>>
+  __host__ __device__
+  accessor<dataT, dimensions-1, accessmode, accessTarget, isPlaceholder>
+  operator[](size_t index) const
+  {
+    // Create sub accessor for slice at _ptr[index][...]
+    accessor<dataT, dimensions-1, accessmode, accessTarget, isPlaceholder> sub_accessor;
+    sub_accessor._range = detail::range::omit_first_dimension(this->_range);
+    sub_accessor._ptr = this->_ptr + index * sub_accessor._range.size();
+
+    return sub_accessor;
+  }
 
   /* Available only when: accessTarget == access::target::host_buffer */
-  dataT *get_pointer() const;
+  template<access::target T = accessTarget,
+           typename = std::enable_if_t<T==access::target::host_buffer>>
+  dataT *get_pointer() const
+  {
+    return const_cast<dataT*>(this->_ptr);
+  }
 
   /* Available only when: accessTarget == access::target::global_buffer */
-  global_ptr<dataT> get_pointer() const;
+  //global_ptr<dataT> get_pointer() const;
 
   /* Available only when: accessTarget == access::target::constant_buffer */
-  constant_ptr<dataT> get_pointer() const;
+  //constant_ptr<dataT> get_pointer() const;
 private:
 
-  void init()
+  __host__ __device__
+  accessor(){}
 
   range<dimensions> _range;
-  dataT* _ptr;
+  pointer_type* _ptr;
 };
 
 

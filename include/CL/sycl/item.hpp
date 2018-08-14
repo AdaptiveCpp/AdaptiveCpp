@@ -71,35 +71,73 @@ static __device__ size_t get_global_size_z()
 }
 
 
-static __device__ size_t get_linear_id(const size_t id_x,
-                                       const size_t id_y,
-                                       const size_t range_y)
+static __host__ __device__ size_t get_linear_id(const size_t id_x,
+                                                const size_t id_y,
+                                                const size_t range_y)
 {
   return id_x * range_y + id_y;
 }
 
-static __device__ size_t get_linear_id(const size_t id_x,
-                                       const size_t id_y,
-                                       const size_t id_z,
-                                       const size_t range_y,
-                                       const size_t range_z)
+static __host__ __device__ size_t get_linear_id(const size_t id_x,
+                                                const size_t id_y,
+                                                const size_t id_z,
+                                                const size_t range_y,
+                                                const size_t range_z)
 {
   return id_x * range_y * range_z + id_y * range_z + id_z;
 }
 
 template<int dim>
+struct linear_id
+{
+};
+
+template<>
+struct linear_id<1>
+{
+  static __host__ __device__ size_t get(const id<1>& idx)
+  { return idx[0]; }
+
+  static __host__ __device__ size_t get(const id<1>& idx,
+                                        const sycl::range<1>& r)
+  {
+    return get(idx);
+  }
+};
+
+template<>
+struct linear_id<2>
+{
+  static __host__ __device__ size_t get(const id<2>& idx,
+                                        const sycl::range<2>& r)
+  {
+    return get_linear_id(idx.get(0), idx.get(1), r.get(1));
+  }
+};
+
+template<>
+struct linear_id<3>
+{
+  static __host__ __device__ size_t get(const id<3>& idx,
+                                        const sycl::range<3>& r)
+  {
+    return get_linear_id(idx.get(0), idx.get(1), idx.get(2), r.get(1), r.get(2));
+  }
+};
+
+template<int dim>
 struct item_impl
 {
-  static __device__ range<dim> get_range();
+  static __device__ sycl::range<dim> get_range();
   __device__ size_t get_linear_id();
 };
 
 template<>
 struct item_impl<1>
 {
-  static __device__ range<1> get_range()
+  static __device__ sycl::range<1> get_range()
   {
-    return range<1>{get_global_size_x()};
+    return sycl::range<1>{get_global_size_x()};
   }
 
   __device__ item_impl()
@@ -119,9 +157,9 @@ struct item_impl<1>
 template<>
 struct item_impl<2>
 {
-  static __device__ range<2> get_range()
+  static __device__ sycl::range<2> get_range()
   {
-    return range<2>{get_global_size_x(),
+    return sycl::range<2>{get_global_size_x(),
                     get_global_size_y()};
   }
 
@@ -144,11 +182,13 @@ struct item_impl<2>
 template<>
 struct item_impl<3>
 {
-  static __device__ range<3> get_range()
+  static __device__ sycl::range<3> get_range()
   {
-    return range<3>{get_global_size_x(),
-                    get_global_size_y(),
-                    get_global_size_z()};
+    return sycl::range<3>{
+          get_global_size_x(),
+          get_global_size_y(),
+          get_global_size_z()
+    };
   }
 
   __device__ item_impl()

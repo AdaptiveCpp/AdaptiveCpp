@@ -32,6 +32,8 @@
 #include "../types.hpp"
 #include "../access.hpp"
 
+#include <cstddef>
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -50,12 +52,6 @@ enum class device_alloc_mode
   svm
 };
 
-enum class buffer_state
-{
-  synced,
-  device_ahead,
-  host_ahead
-};
 
 enum class buffer_action
 {
@@ -67,14 +63,19 @@ enum class buffer_action
 class buffer_state_monitor
 {
 public:
-  buffer_state_monitor(bool is_svm = false, buffer_state s = buffer_state::synced);
+  buffer_state_monitor(bool is_svm = false);
 
   buffer_action register_host_access(access::mode m);
   buffer_action register_device_access(access::mode m);
 
+  bool is_host_outdated() const;
+  bool is_device_outdated() const;
 private:
   bool _svm;
-  buffer_state _state;
+
+  std::size_t _host_data_version;
+  std::size_t _device_data_version;
+
 };
 
 class buffer_impl
@@ -93,13 +94,13 @@ public:
   void* get_buffer_ptr() const;
   void* get_host_ptr() const;
 
-  void write(const void* host_data);
+  void write(const void* host_data, hipStream_t stream);
 
-  void update_host(size_t begin, size_t end) const;
-  void update_host() const;
+  void update_host(size_t begin, size_t end, hipStream_t stream);
+  void update_host(hipStream_t stream);
 
-  void update_device(size_t begin, size_t end);
-  void update_device();
+  void update_device(size_t begin, size_t end, hipStream_t stream);
+  void update_device(hipStream_t stream);
 
   bool is_svm_buffer() const;
 
@@ -109,10 +110,14 @@ public:
   void set_write_back(void* ptr);
   void enable_write_back(bool writeback);
 
-  void* access_host(access::mode m);
-  void* access_device(access::mode m);
+  void* access_host(access::mode m, hipStream_t stream);
+  void* access_device(access::mode m, hipStream_t stream);
+
 private:
-  void execute_buffer_action(buffer_action a);
+  void execute_buffer_action(buffer_action a, hipStream_t stream);
+
+  void memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream);
+  void memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream);
 
   bool _svm;
   bool _pinned_memory;
@@ -127,6 +132,8 @@ private:
   void* _write_back_memory;
 
   buffer_state_monitor _monitor;
+
+  mutex_class _mutex;
 };
 
 

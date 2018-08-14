@@ -141,10 +141,14 @@ buffer_impl::~buffer_impl()
   {
     if(_write_back &&
        _write_back_memory != nullptr)
-      hipMemcpy(_write_back_memory,
-                _buffer_pointer,
-                _size,
-                hipMemcpyDeviceToHost);
+    {
+      if((_write_back_memory == _host_memory && _monitor.is_host_outdated())
+       || _write_back_memory != _host_memory)
+        hipMemcpy(_write_back_memory,
+                  _buffer_pointer,
+                  _size,
+                  hipMemcpyDeviceToHost);
+    }
 
     hipFree(_buffer_pointer);
 
@@ -156,16 +160,6 @@ buffer_impl::~buffer_impl()
         delete [] reinterpret_cast<max_aligned_vector*>(_host_memory);
     }
   }
-}
-
-void* buffer_impl::get_buffer_ptr() const
-{
-  return this->_buffer_pointer;
-}
-
-void* buffer_impl::get_host_ptr() const
-{
-  return this->_host_memory;
 }
 
 
@@ -184,53 +178,49 @@ bool buffer_impl::owns_pinned_host_memory() const
   return _pinned_memory;
 }
 
-void buffer_impl::update_host(size_t begin, size_t end) const
+void buffer_impl::update_host(size_t begin, size_t end, hipStream_t stream)
 {
   if(!_svm)
   {
     if(_host_memory != nullptr)
-      detail::check_error(hipMemcpy(memory_offset(_host_memory, begin),
-                                    memory_offset(_buffer_pointer, begin),
-                                    end-begin,
-                                    hipMemcpyDeviceToHost));
+      this->memcpy_d2h(memory_offset(_host_memory, begin),
+                       memory_offset(_buffer_pointer, begin),
+                       end-begin,
+                       stream);
   }
 }
 
-void buffer_impl::update_host() const
+void buffer_impl::update_host(hipStream_t stream)
 {
-  update_host(0, this->_size);
+  update_host(0, this->_size, stream);
 }
 
 
-void buffer_impl::update_device(size_t begin, size_t end)
+void buffer_impl::update_device(size_t begin, size_t end, hipStream_t stream)
 {
   if(!_svm)
   {
     if(_host_memory != nullptr)
-      detail::check_error(hipMemcpy(memory_offset(_buffer_pointer, begin),
-                                    memory_offset(_host_memory, begin),
-                                    end-begin,
-                                    hipMemcpyHostToDevice));
+      this->memcpy_h2d(memory_offset(_buffer_pointer, begin),
+                       memory_offset(_host_memory, begin),
+                       end-begin,
+                       stream);
   }
 }
 
-void buffer_impl::update_device()
+void buffer_impl::update_device(hipStream_t stream)
 {
-  update_device(0, this->_size);
+  update_device(0, this->_size, stream);
 }
 
-void buffer_impl::write(const void* host_data)
+void buffer_impl::write(const void* host_data, hipStream_t stream)
 {
   assert(host_data != nullptr);
   if(!_svm)
-  {
-    detail::check_error(hipMemcpy(_buffer_pointer, host_data,
-                                  _size,
-                                  hipMemcpyHostToDevice));
-  }
+    this->memcpy_h2d(_buffer_pointer, host_data, _size, stream);
   else
   {
-    memcpy(_buffer_pointer, _host_data, _size);
+    memcpy(_buffer_pointer, _host_memory, _size);
   }
 }
 
@@ -245,111 +235,108 @@ void buffer_impl::enable_write_back(bool writeback)
   this->_write_back = writeback;
 }
 
-void buffer_impl::execute_buffer_action(buffer_action a)
+void buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
 {
   if(a == buffer_action::update_device)
-    this->update_device();
+    this->update_device(stream);
   else if(a == buffer_action::update_host)
-    this->update_host();
+    this->update_host(stream);
 }
 
-void* buffer_impl::access_host(access::mode m)
+void* buffer_impl::access_host(access::mode m, hipStream_t stream)
 {
-  execute_buffer_action(_monitor.register_host_access(m));
-  return this->get_host_memory();
+  execute_buffer_action(_monitor.register_host_access(m), stream);
+  return _host_memory;
 }
 
-void* buffer_impl::access_device(access::mode m)
+void* buffer_impl::access_device(access::mode m, hipStream_t stream)
 {
-  execute_buffer_action(_monitor.register_device_access(m));
-  return this->get_device_memory();
+  execute_buffer_action(_monitor.register_device_access(m), stream);
+  return _buffer_pointer;
+}
+
+void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream)
+{
+  detail::check_error(hipMemcpyAsync(host, device, len,
+                                     hipMemcpyDeviceToHost, stream));
+  detail::check_error(hipStreamSynchronize(stream));
+}
+
+void buffer_impl::memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream)
+{
+  detail::check_error(hipMemcpyAsync(device, host, len,
+                                     hipMemcpyHostToDevice, stream));
+  detail::check_error(hipStreamSynchronize(stream));
 }
 
 // ----------- buffer_state_monitor ----------------
 
-buffer_state_monitor::buffer_state_monitor(bool is_svm, buffer_state s)
-  : _svm{is_svm},
-    _state{s}
+buffer_state_monitor::buffer_state_monitor(bool is_svm)
+  : _svm{is_svm}, _host_data_version{0}, _device_data_version{0}
 {}
 
 
 buffer_action buffer_state_monitor::register_host_access(access::mode m)
 {
   if(_svm)
-    this->_state = buffer_state::synced;
+  {
+    // With svm, host and device are always in sync
+    _host_data_version = 0;
+    _device_data_version = 0;
+  }
   else
   {
-    const buffer_state old_state = this->_state;
-    // if m is written to, we need to set
-    // the state to host-ahead
-    if(m != access::mode::read)
-    {
-      // if the buffer was previously in sync,
-      // the version on the host will be newer after the access
-      if(old_state == buffer_state::synced ||
-         old_state == buffer_state::device_ahead)
-        // After the registered access, the host will be ahead
-        // of the device state
-        this->_state = buffer_state::host_ahead;
-    }
-    else
-    {
-      // For a read only access, the buffer state on the host
-      // is synced if the device was ahead. If the host was ahead,
-      // it can remain that way
-      if(old_state == buffer_state::device_ahead)
-        this->_state = buffer_state::synced;
-    }
 
-    // Compare new state against old state to determine required
-    // action
-    if(old_state != this->_state)
-    {
-      if(old_state == buffer_state::device_ahead)
-        return buffer_action::update_host;
-      if(old_state == buffer_state::host_ahead)
-        return buffer_action::update_device;
-    }
+    // Make sure host is up-to-date before reading
+    bool copy_required = _host_data_version < _device_data_version;
+
+    if(m != access::mode::read)
+      _host_data_version++;
+    else
+      _host_data_version = _device_data_version;
+
+    if(copy_required)
+      return buffer_action::update_host;
+
   }
   return buffer_action::none;
 }
 
-void buffer_state_monitor::register_device_access(access::mode m)
+buffer_action buffer_state_monitor::register_device_access(access::mode m)
 {
   if(_svm)
-    this->_state = buffer_state::synced;
+  {
+    // With svm, host and device are always in sync
+    _host_data_version = 0;
+    _device_data_version = 0;
+  }
   else
   {
-    const buffer_state old_state = this->_state;
+
+    // Make sure device is up-to-date before reading
+    bool copy_required = _device_data_version < _host_data_version;
 
     if(m != access::mode::read)
-    {
-      if(old_state == buffer_state::synced ||
-         old_state == buffer_state::host_ahead)
-        // After the registered access, the device will be ahead
-        // of the host state
-        this->_state = buffer_state::device_ahead;
-    }
+      _device_data_version++;
     else
-    {
-      // For a read only access, the buffer state on the device
-      // is synced if the host was ahead. If the device was ahead,
-      // nothing needs to change
-      if(old_state == buffer_state::host_ahead)
-        this->_state = buffer_state::synced;
-    }
+      _device_data_version = _host_data_version;
 
-    if(old_state != this->_state)
-    {
-      if(old_state == buffer_state::device_ahead)
-        return buffer_action::update_host;
-      if(old_state == buffer_state::host_ahead)
-        return buffer_action::update_device;
-    }
+    if(copy_required)
+      return buffer_action::update_device;
+
   }
   return buffer_action::none;
 }
 
+bool buffer_state_monitor::is_host_outdated() const
+{
+  return this->_host_data_version < this->_device_data_version;
+}
+
+bool buffer_state_monitor::is_device_outdated() const
+{
+  return this->_device_data_version < this->_host_data_version;
+}
 
 }
 }

@@ -70,10 +70,10 @@ public:
 
   svm_allocator() noexcept {}
 
-  svm_allocator (const allocator& alloc) noexcept {}
+  svm_allocator (const svm_allocator& alloc) noexcept {}
 
   template <class U>
-  svm_allocator (const allocator<U>& alloc) noexcept {}
+  svm_allocator (const svm_allocator<U>& alloc) noexcept {}
 
   pointer address ( reference x ) const noexcept
   { return &x; }
@@ -81,13 +81,13 @@ public:
   const_pointer address ( const_reference x ) const noexcept
   { return &x; }
 
-  pointer allocate(size_type n, svm_allocator<void>::const_pointer hint=0)
+  pointer allocate(size_type n, const void* hint=0)
   {
     void* ptr = nullptr;
     cudaError_t result = cudaMallocManaged(&ptr, n * sizeof(T));
 
     if(result != cudaSuccess)
-      throw memory_allocation_error{"SVM allocator: bad allocation", static_cast<hipError_t>{result}};
+      throw memory_allocation_error{"SVM allocator: bad allocation", static_cast<hipError_t>(result)};
 
     return reinterpret_cast<pointer>(ptr);
   }
@@ -96,7 +96,7 @@ public:
   {
     cudaError_t result = cudaFree(p);
     if(result != cudaSuccess)
-      throw runtime_error{"SVM allocator: Could not free memory", static_cast<hipError_t>{result}};
+      throw runtime_error{"SVM allocator: Could not free memory", static_cast<hipError_t>(result)};
   }
 
   size_type max_size() const noexcept

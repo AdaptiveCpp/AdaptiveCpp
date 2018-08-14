@@ -41,5 +41,17 @@ hipStream_t handler::get_execution_stream() const
   return _queue->get_hip_stream();
 }
 
+namespace detail {
+namespace handler {
+
+
+hipStream_t get_handler_stream(const sycl::handler& h)
+{
+  return h.get_execution_stream();
 }
-}
+
+} // handler
+} // detail
+
+} // sycl
+} // cl

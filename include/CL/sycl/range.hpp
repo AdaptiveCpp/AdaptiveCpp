@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <array>
 
+#include "id.hpp"
 #include "detail/device_array.hpp"
 
 namespace cl {
@@ -40,6 +41,10 @@ namespace sycl {
 template <int dimensions = 1>
 class range {
 public:
+  __host__ __device__
+  range()
+    : _data{}
+  {}
 
   /* The following constructor is only available in the range class specialization where:
 dimensions==1 */
@@ -213,6 +218,24 @@ SYCU_RANGE_BINARY_OP_SIZE_T(>>)
 SYCU_RANGE_BINARY_OP_SIZE_T(&)
 SYCU_RANGE_BINARY_OP_SIZE_T(|)
 SYCU_RANGE_BINARY_OP_SIZE_T(^)
+
+namespace detail {
+namespace range {
+
+__host__ __device__
+static sycl::range<2> omit_first_dimension(const sycl::range<3>& r)
+{
+  return sycl::range<2>{r.get(1), r.get(2)};
+}
+
+__host__ __device__
+static sycl::range<1> omit_first_dimension(const sycl::range<2>& r)
+{
+  return sycl::range<1>{r.get(1)};
+}
+
+}
+}
 
 } // sycl
 } // cl

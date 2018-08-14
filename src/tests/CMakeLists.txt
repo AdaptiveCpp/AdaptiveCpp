@@ -1,1 +1,1 @@
-subdirs(platform_api hello_world)
+subdirs(platform_api hello_world vector_add)

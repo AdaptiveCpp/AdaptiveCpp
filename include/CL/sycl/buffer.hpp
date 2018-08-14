@@ -90,6 +90,7 @@ public:
   using const_reference = const value_type &;
   using allocator_type = AllocatorT;
 
+  static constexpr int buffer_dim = dimensions;
 
   buffer(const range<dimensions> &bufferRange,
          const property_list &propList = {})
@@ -269,15 +270,21 @@ namespace detail {
 namespace buffer {
 
 template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m)
+void* access_host_ptr(Buffer_type& b, access::mode m, hipStream_t stream)
 {
-  return b._detail_get_buffer_ptr()->access_host(m);
+  return b._detail_get_buffer_ptr()->access_host(m, stream);
 }
 
 template<class Buffer_type>
-void* access_device_ptr(Buffer_type& b, access::mode m)
+void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream)
 {
-  return b._detail_get_buffer_ptr()->access_device(m);
+  return b._detail_get_buffer_ptr()->access_device(m, stream);
+}
+
+template<class Buffer_type>
+range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b)
+{
+  return b.get_range();
 }
 
 } // buffer

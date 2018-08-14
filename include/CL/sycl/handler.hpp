@@ -59,7 +59,7 @@ __global__ void single_task_kernel(Function f)
 
 template<int dimensions, class Function>
 __global__ void parallel_for_kernel(Function f,
-                                    range<dimensions> execution_range)
+                                    sycl::range<dimensions> execution_range)
 {
   item<dimensions, false> this_item;
   if(this_item.get_linear_id() < execution_range.size())
@@ -68,7 +68,7 @@ __global__ void parallel_for_kernel(Function f,
 
 template<int dimensions, class Function>
 __global__ void parallel_for_kernel_with_offset(Function f,
-                                                range<dimensions> execution_range,
+                                                sycl::range<dimensions> execution_range,
                                                 id<dimensions> offset)
 {
   item<dimensions> this_item{offset};
@@ -192,6 +192,7 @@ void set_args(Ts &&... args);
   template<typename T, int dim, access::mode mode, access::target tgt>
   void fill(accessor<T, dim, mode, tgt> dest, const T& src);
 
+  hipStream_t get_execution_stream() const;
 private:
 
   template<int dimensions>
@@ -233,7 +234,6 @@ private:
       grid = dim3(1);
   }
 
-  hipStream_t get_execution_stream() const;
 
   template <typename KernelType, int dimensions>
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
@@ -268,8 +268,15 @@ private:
   }
 
 
+  template <typename KernelType, int dimensions>
+  void dispatch_ndrange_kernel(nd_range<dimensions> executionRange, KernelType kernelFunc)
+  {
+
+  }
 
 };
+
+
 
 } // namespace sycl
 } // namespace cl

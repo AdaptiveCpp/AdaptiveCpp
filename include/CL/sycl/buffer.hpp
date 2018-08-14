@@ -80,8 +80,8 @@ private:
 } // buffer
 
 
-template <typename T, int dimensions = 1,
-          typename AllocatorT = cl::sycl::buffer_allocator<T>>
+template <typename T, int dimensions,
+          typename AllocatorT>
 class buffer : public detail::property_carrying_object
 {
 public:
@@ -101,9 +101,10 @@ public:
 
   buffer(const range<dimensions> &bufferRange, AllocatorT allocator,
          const property_list &propList = {})
-    : buffer(bufferRange, propList),
-      _alloc{allocator}
-  {}
+    : buffer(bufferRange, propList)
+  {
+    _alloc = allocator;
+  }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
@@ -114,9 +115,10 @@ public:
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
-    : buffer{hostData, bufferRange, propList},
-      _alloc{allocator}
-  {}
+    : buffer{hostData, bufferRange, propList}
+  {
+    _alloc = allocator;
+  }
 
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
@@ -124,15 +126,17 @@ public:
   {
     // Construct buffer
     this->init(bufferRange);
+
     // Only use hostData for initialization
-    _buffer->write(reinterpret_cast<const void*>(hostData));
+    _buffer->write(reinterpret_cast<const void*>(hostData), 0);
   }
 
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
-    : buffer{hostData, bufferRange, propList},
-      _alloc{allocator}
-  {}
+    : buffer{hostData, bufferRange, propList}
+  {
+    _alloc = allocator;
+  }
 
   // ToDo Implement these
   buffer(const shared_ptr_class<T> &hostData,
@@ -143,15 +147,21 @@ public:
          const range<dimensions> &bufferRange,
          const property_list &propList = {});
 
-  template <class InputIterator>
-  buffer<T, 1>(InputIterator first, InputIterator last, AllocatorT allocator,
-               const property_list &propList = {});
+  template <class InputIterator,
+            int D = dimensions,
+            typename = std::enable_if_t<D==1>>
+  buffer(InputIterator first, InputIterator last,
+         AllocatorT allocator,
+         const property_list &propList = {});
 
-  template <class InputIterator>
-  buffer<T, 1>(InputIterator first, InputIterator last,
-               const property_list &propList = {});
+  template <class InputIterator,
+            int D = dimensions,
+            typename = std::enable_if_t<D==1>>
+  buffer(InputIterator first, InputIterator last,
+         const property_list &propList = {});
 
-  buffer(buffer<T, dimensions, AllocatorT> b, const id<dimensions> &baseIndex,
+  buffer(buffer<T, dimensions, AllocatorT> b,
+         const id<dimensions> &baseIndex,
          const range<dimensions> &subRange);
 
   /* Available only when: dimensions == 1. */
@@ -186,26 +196,43 @@ public:
   }
 
   template <access::mode mode, access::target target = access::target::global_buffer>
-  accessor<T, dimensions, mode, target> get_access(handler &commandGroupHandler);
+  accessor<T, dimensions, mode, target> get_access(handler &commandGroupHandler)
+  {
+    return accessor<T, dimensions, mode, target>{*this, commandGroupHandler};
+  }
 
   template <access::mode mode>
-  accessor<T, dimensions, mode, access::target::host_buffer> get_access();
+  accessor<T, dimensions, mode, access::target::host_buffer> get_access()
+  {
+    return accessor<T, dimensions, mode, access::target::host_buffer>{*this};
+  }
 
   template <access::mode mode, access::target target = access::target::global_buffer>
   accessor<T, dimensions, mode, target> get_access(
       handler &commandGroupHandler, range<dimensions> accessRange,
-      id<dimensions> accessOffset = {});
+      id<dimensions> accessOffset = {})
+  {
+    return accessor<T, dimensions, mode, target>{
+      *this, commandGroupHandler, accessRange, accessOffset
+    };
+  }
 
   template <access::mode mode>
   accessor<T, dimensions, mode, access::target::host_buffer> get_access(
-      range<dimensions> accessRange, id<dimensions> accessOffset = {});
+      range<dimensions> accessRange, id<dimensions> accessOffset = {})
+  {
+    return accessor<T, dimensions, mode, access::target::host_buffer>{
+      *this, accessRange, accessOffset
+    };
+  }
 
 
   template <typename Destination = std::nullptr_t>
-  void set_final_data(Destination finalData = std::nullptr)
+  void set_final_data(Destination finalData = nullptr)
   {
     _buffer->set_write_back(finalData);
-    _buffer->enable_write_back(true);
+    if(finalData != nullptr)
+      _buffer->enable_write_back(true);
   }
 
   void set_write_back(bool flag = true)
@@ -240,9 +267,20 @@ private:
                      detail::host_alloc_mode host_mode,
                      const range<dimensions>& range)
   {
-    _buffer = buffer_ptr{
+    _buffer = detail::buffer_ptr{
         new detail::buffer_impl{
           sizeof(T) * range.size(), device_mode, host_mode
+      }
+    };
+  }
+
+  void create_buffer(T* host_memory,
+                     const range<dimensions>& range)
+  {
+    _buffer = detail::buffer_ptr{
+      new detail::buffer_impl{
+        sizeof(T) * range.size(),
+        reinterpret_cast<void*>(host_memory)
       }
     };
   }
@@ -256,7 +294,7 @@ private:
 
   void init(const range<dimensions>& range, T* host_memory)
   {
-
+    this->create_buffer(host_memory, range);
   }
 
 
@@ -282,7 +320,7 @@ void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream)
 }
 
 template<class Buffer_type>
-range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b)
+sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b)
 {
   return b.get_range();
 }

@@ -61,9 +61,7 @@ sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
 } // buffer
 
 namespace handler {
-
 hipStream_t get_handler_stream(const sycl::handler& h);
-
 } // handler
 
 namespace accessor {
@@ -105,12 +103,12 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                        T == access::target::host_buffer) ||
-                                       (P == access::placeholder::true_t  &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer)) &&
-                                        D == 0 >>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                             T == access::target::host_buffer) ||
+                            (P == access::placeholder::true_t  &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer)) &&
+                             D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef);
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -119,10 +117,10 @@ access::target::constant_buffer)) && dimensions == 0 */
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer )) &&
-                                        D == 0 >>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer )) &&
+                             D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef);
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -134,12 +132,12 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                        T == access::target::host_buffer) ||
-                                       (P == access::placeholder::true_t &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer)) &&
-                                       (D > 0) >>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                             T == access::target::host_buffer) ||
+                            (P == access::placeholder::true_t &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer)) &&
+                            (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
   {
     // ToDo think about when we need to update device/host buffers
@@ -164,10 +162,10 @@ access::target::constant_buffer)) && dimensions > 0 */
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer)) &&
-                                       (D > 0)>>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer)) &&
+                            (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
   {
@@ -189,12 +187,12 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                        T == access::target::host_buffer) ||
-                                       (P == access::placeholder::true_t &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer)) &&
-                                       (D > 0) >>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                             T == access::target::host_buffer) ||
+                            (P == access::placeholder::true_t &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer)) &&
+                            (D > 0) >* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
@@ -212,10 +210,10 @@ access::target::constant_buffer)) && dimensions > 0 */
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           typename = std::enable_if_t<(P == access::placeholder::false_t &&
-                                       (T == access::target::global_buffer ||
-                                        T == access::target::constant_buffer)) &&
-                                       (D > 0)>>
+           std::enable_if_t<(P == access::placeholder::false_t &&
+                            (T == access::target::global_buffer ||
+                             T == access::target::constant_buffer)) &&
+                            (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
@@ -397,7 +395,7 @@ private:
   accessor(){}
 
   range<dimensions> _range;
-  pointer_type* _ptr;
+  pointer_type _ptr;
 };
 
 

@@ -36,7 +36,7 @@ int main()
 
     cgh.parallel_for<class hello_world_ndrange>(cl::sycl::nd_range<>(cl::sycl::range<1>(num_threads),
                                                                      cl::sycl::range<1>(group_size)),
-                                                [=](){
+                                                [=](cl::sycl::nd_item<1> tid){
 
     });
   });

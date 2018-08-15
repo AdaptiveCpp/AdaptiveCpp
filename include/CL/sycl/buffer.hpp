@@ -79,7 +79,8 @@ private:
 } // property
 } // buffer
 
-
+// Default template arguments for the buffer class
+// are defined when forward-declaring the buffer in accessor.hpp
 template <typename T, int dimensions,
           typename AllocatorT>
 class buffer : public detail::property_carrying_object

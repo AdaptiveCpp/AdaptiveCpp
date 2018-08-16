@@ -17,6 +17,7 @@ SYCU attempts to solve these problems by providing a SYCL interface to CUDA/HIP.
 SYCU is still in an early stage of development. It can successfully execute some simple SYCL programs; but large parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
+* offsets
 * hierarchical kernel dispatch
 * ndrange kernel dispatch
 * local memory
@@ -24,6 +25,7 @@ Still unimplemented/missing is in particular:
 * Device library
 * Images
 * device/platform information queries
+* thread safety
 
 
 ## Building SYCU

@@ -99,7 +99,10 @@ public:
   template <typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
   void require(accessor<dataT, dimensions, accessMode, accessTarget,
-               access::placeholder::true_t> acc);
+               access::placeholder::true_t> acc)
+  {
+
+  }
 
   //----- OpenCL interoperability interface is not supported
   /*

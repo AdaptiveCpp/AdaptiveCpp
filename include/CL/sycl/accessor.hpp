@@ -398,8 +398,26 @@ private:
   pointer_type _ptr;
 };
 
+namespace detail {
+namespace accessor {
 
+
+template<typename dataT, int dimensions,
+         access::mode accessmode,
+         access::target accessTarget,
+         access::placeholder isPlaceholder>
+__host__ __device__
+dataT* get_accessor_ptr(const sycl::accessor<dataT,dimensions,accessmode,accessTarget,isPlaceholder>& a)
+{
+  return a.get_pointer();
 }
-}
+
+
+} // accessor
+} // detail
+
+
+} // sycl
+} // cl
 
 #endif

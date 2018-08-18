@@ -37,6 +37,7 @@
 #include "range.hpp"
 #include "nd_range.hpp"
 #include "item.hpp"
+#include "nd_item.hpp"
 
 namespace cl {
 namespace sycl {
@@ -44,12 +45,6 @@ namespace sycl {
 namespace detail {
 namespace dispatch {
 
-template <typename KernelType, int dimensions>
-void dispatch_ndrange_kernel(nd_range<dimensions> execution_range,
-                             KernelType kernelFunc)
-{
-
-}
 
 template<class Function>
 __global__ void single_task_kernel(Function f)
@@ -77,9 +72,10 @@ __global__ void parallel_for_kernel_with_offset(Function f,
 }
 
 template<int dimensions, class Function>
-__global__ void parallel_for_ndrange_kernel(Function f)
+__global__ void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
 {
-
+  nd_item<dimensions> this_item{offset};
+  f(this_item);
 }
 
 } // dispatch
@@ -197,6 +193,7 @@ void set_args(Ts &&... args);
 
   hipStream_t get_execution_stream() const;
 private:
+  void select_device() const;
 
   template<int dimensions>
   dim3 get_default_local_range() const
@@ -215,6 +212,19 @@ private:
                            std::size_t divisor) const
   {
     return (n + divisor - 1) / divisor;
+  }
+
+  template<int dimensions>
+  dim3 range_to_dim3(const range<dimensions>& r) const
+  {
+    if(dimensions == 1)
+      return dim3(r.get(0));
+    else if(dimensions == 2)
+      return dim3(r.get(0), r.get(1));
+    else if(dimensions == 3)
+      return dim3(r.get(0), r.get(1), r.get(2));
+
+    return dim3(1);
   }
 
   template<int dimensions>
@@ -242,6 +252,8 @@ private:
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
                                       KernelType kernelFunc)
   {
+    this->select_device();
+
     std::size_t shared_mem_size = 0;
     hipStream_t stream = this->get_execution_stream();
 
@@ -258,6 +270,8 @@ private:
                                    id<dimensions> offset,
                                    KernelType kernelFunc)
   {
+    this->select_device();
+
     std::size_t shared_mem_size = 0;
     hipStream_t stream = this->get_execution_stream();
 
@@ -274,7 +288,28 @@ private:
   template <typename KernelType, int dimensions>
   void dispatch_ndrange_kernel(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
+    for(int i = 0; i < dimensions; ++i)
+    {
+      if(executionRange.get_global()[i] % executionRange.get_local()[i] != 0)
+        throw invalid_parameter_error{"Global size must be a multiple of the local size"};
+    }
 
+    this->select_device();
+
+    std::size_t shared_mem_size = 0;
+    hipStream_t stream = this->get_execution_stream();
+
+    id<dimensions> offset = executionRange.get_offset();
+    range<dimensions> grid_range = executionRange.get_group();
+    range<dimensions> block_range = executionRange.get_local();
+
+    dim3 grid = range_to_dim3(grid_range);
+    dim3 block = range_to_dim3(block_range);
+
+    executionRange.get_group();
+
+    detail::dispatch::parallel_for_ndrange_kernel
+        <<<grid,block,shared_mem_size,stream>>>(kernelFunc, offset);
   }
 
 };

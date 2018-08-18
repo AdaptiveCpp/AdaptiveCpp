@@ -25,94 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCU_ND_ITEM_HPP
-#define SYCU_ND_ITEM_HPP
+#ifndef SYCU_GROUP_HPP
+#define SYCU_GROUP_HPP
 
 #include "id.hpp"
-#include "item.hpp"
 #include "range.hpp"
-#include "nd_range.hpp"
-#include "multi_ptr.hpp"
-#include "group.hpp"
+#include "access.hpp"
 #include "device_event.hpp"
+#include "backend/backend.hpp"
 #include "detail/thread_hierarchy.hpp"
+#include "multi_ptr.hpp"
 
 namespace cl {
 namespace sycl {
 
-
-class handler;
-
 template <int dimensions = 1>
-struct nd_item
+struct group
 {
-  /* -- common interface members -- */
 
   __device__
-  id<dimensions> get_global() const
+  id<dimensions> get_id() const
   {
-    return detail::get_global_id<dimensions>();
+    return detail::get_group_id<dimensions>();
   }
 
   __device__
-  size_t get_global(int dimension) const
-  {
-    return detail::get_global_id(dimension);
-  }
-
-  __device__
-  size_t get_global_linear_id() const
-  {
-    return detail::linear_id<dimensions>::get(get_global(), get_global_range());
-  }
-
-  __device__
-  id<dimensions> get_local() const
-  {
-    return detail::get_local_id<dimensions>();
-  }
-
-  __device__
-  size_t get_local(int dimension) const
-  {
-    return detail::get_local_id(dimension);
-  }
-
-  __device__
-  size_t get_local_linear_id() const
-  {
-    return detail::linear_id<dimensions>::get(get_local(), get_local_range());
-  }
-
-  __device__
-  group<dimensions> get_group() const
-  {
-    return group<dimensions>{};
-  }
-
-  __device__
-  size_t get_group(int dimension) const
+  size_t get_id(int dimension) const
   {
     return detail::get_group_id(dimension);
-  }
-
-  __device__
-  size_t get_group_linear_id() const
-  {
-    return detail::linear_id<dimensions>::get(detail::get_group_id<dimensions>(),
-                                              detail::get_grid_size<dimensions>());
-  }
-
-  __device__
-  id<dimensions> get_num_groups() const
-  {
-    return detail::get_grid_size<dimensions>();
-  }
-
-  __device__
-  size_t get_num_groups(int dimension) const
-  {
-    return detail::get_grid_size(dimension);
   }
 
   __device__
@@ -122,31 +62,60 @@ struct nd_item
   }
 
   __device__
+  size_t get_global_range(int dimension) const
+  {
+    return detail::get_global_size(dimension);
+  }
+
+  __device__
   range<dimensions> get_local_range() const
   {
     return detail::get_local_size<dimensions>();
   }
 
   __device__
-  id<dimensions> get_offset() const
+  size_t get_local_range(int dimension) const
   {
-    return id<dimensions>{};
+    return detail::get_local_size(dimension);
+  }
+
+  // Note: This returns the number of groups
+  // in each dimension - the spec wrongly claims that it should
+  // return the range "of the current group", i.e. the local range
+  // which makes no sense.
+  __device__
+  range<dimensions> get_group_range() const
+  {
+    return detail::get_grid_size<dimensions>();
   }
 
   __device__
-  nd_range<dimensions> get_nd_range() const
+  size_t get_group_range(int dimension) const
   {
-    return nd_range<dimensions>{detail::get_global_size<dimensions>(),
-                                detail::get_local_size<dimensions>(),
-                                get_offset()};
+    return detail::get_grid_size(dimension);
   }
 
   __device__
-  void barrier(access::fence_space accessSpace =
-      access::fence_space::global_and_local) const
+  size_t operator[](int dimension) const
   {
-    __syncthreads();
+    return detail::get_group_id(dimension);
   }
+
+  __device__
+  size_t get_linear() const
+  {
+    return detail::linear_id<dimensions>::get(get_id(),
+                                              get_group_range());
+  }
+
+  template<typename workItemFunctionT>
+  __device__
+  void parallel_for_work_item(workItemFunctionT func) const;
+
+  template<typename workItemFunctionT>
+  __device__
+  void parallel_for_work_item(range<dimensions> flexibleRange,
+                              workItemFunctionT func) const;
 
   template <access::mode accessMode = access::mode::read_write>
   __device__
@@ -161,7 +130,10 @@ struct nd_item
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
-    get_group().async_work_group_copy(dest, src, numElements);
+    size_t local_size = get_local_range().size();
+    for(size_t i = get_linear(); i < numElements; i += local_size)
+      dest[i] = src[i];
+    __syncthreads();
   }
 
   template <typename dataT>
@@ -169,7 +141,10 @@ struct nd_item
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
-    get_group().async_work_group_copy(dest, src, numElements);
+    size_t local_size = get_local_range().size();
+    for(size_t i = get_linear(); i < numElements; i += local_size)
+      dest[i] = src[i];
+    __syncthreads();
   }
 
   template <typename dataT>
@@ -177,8 +152,10 @@ struct nd_item
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
-    get_group().async_work_group_copy(dest,
-                                      src, numElements, srcStride);
+    size_t local_size = get_local_range().size();
+    for(size_t i = get_linear(); i < numElements; i += local_size)
+      dest[i] = src[i * srcStride];
+    __syncthreads();
   }
 
   template <typename dataT>
@@ -186,24 +163,21 @@ struct nd_item
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
-    get_group().async_work_group_copy(dest, src, numElements, destStride);
+    size_t local_size = get_local_range().size();
+    for(size_t i = get_linear(); i < numElements; i += local_size)
+      dest[i * destStride] = src[i];
+    __syncthreads();
   }
 
   template <typename... eventTN>
   __device__
-  void wait_for(eventTN... events) const
-  {
-    get_group().wait_for(events...);
-  }
+  void wait_for(eventTN...) const {}
 
-  __device__
-  nd_item(id<dimensions> offset)
-  {}
-
-
+private:
+  group() = default;
 };
 
-} // namespace sycl
-} // namespace cl
+}
+}
 
 #endif

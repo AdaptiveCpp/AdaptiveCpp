@@ -61,6 +61,7 @@ template<typename dataT, int dimensions,
          access::target accessTarget,
          access::placeholder isPlaceholder>
 __host__ __device__
+static
 dataT* get_accessor_ptr(const sycl::accessor<dataT,dimensions,accessmode,accessTarget,isPlaceholder>&);
 
 }

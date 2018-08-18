@@ -25,38 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/handler.hpp"
-#include "CL/sycl/queue.hpp"
+#ifndef SYCU_DEVICE_EVENT_HPP
+#define SYCU_DEVICE_EVENT_HPP
 
 namespace cl {
 namespace sycl {
 
-handler::handler(const queue& q)
-: _queue{&q}
-{}
-
-hipStream_t handler::get_execution_stream() const
+class device_event
 {
-  return _queue->get_hip_stream();
+public:
+  __device__
+  device_event(){}
+
+  __device__
+  void wait(){}
+};
+
+}
 }
 
-void handler::select_device() const
-{
-  detail::set_device(this->_queue->get_device());
-}
-
-namespace detail {
-namespace handler {
-
-
-hipStream_t get_handler_stream(const sycl::handler& h)
-{
-  return h.get_execution_stream();
-}
-
-} // handler
-} // detail
-
-} // sycl
-} // cl
+#endif

@@ -42,6 +42,7 @@
 #include "sycl/accessor.hpp"
 #include "sycl/buffer.hpp"
 #include "sycl/nd_item.hpp"
+#include "sycl/multi_ptr.hpp"
 
 #endif
 

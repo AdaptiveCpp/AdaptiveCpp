@@ -57,9 +57,13 @@ enum class placeholder {
   true_t
 };
 
+enum class fence_space : char {
+  local_space,
+  global_space,
+  global_and_local
+};
+
 }
-
-
 }
 }
 

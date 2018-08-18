@@ -36,8 +36,12 @@ int main()
 
     cgh.parallel_for<class hello_world_ndrange>(cl::sycl::nd_range<>(cl::sycl::range<1>(num_threads),
                                                                      cl::sycl::range<1>(group_size)),
-                                                [=](cl::sycl::nd_item<1> tid){
+                                                [=] __device__ (cl::sycl::nd_item<1> tid){
+      size_t lid = tid.get_local(0);
+      size_t group_id = tid.get_group(0);
 
+      if(lid == 0)
+        printf("Hello world from group %u\n", group_id);
     });
   });
 

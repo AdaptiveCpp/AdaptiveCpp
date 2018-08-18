@@ -407,7 +407,12 @@ template<typename dataT, int dimensions,
          access::target accessTarget,
          access::placeholder isPlaceholder>
 __host__ __device__
-dataT* get_accessor_ptr(const sycl::accessor<dataT,dimensions,accessmode,accessTarget,isPlaceholder>& a)
+static
+dataT* get_accessor_ptr(const sycl::accessor<dataT,
+                                             dimensions,
+                                             accessmode,
+                                             accessTarget,
+                                             isPlaceholder>& a)
 {
   return a.get_pointer();
 }

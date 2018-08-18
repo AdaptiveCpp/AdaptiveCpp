@@ -42,7 +42,7 @@ template<int dimensions>
 class range;
 
 template<int dimensions, bool with_offset>
-class item;
+struct item;
 
 template <int dimensions = 1>
 struct id {

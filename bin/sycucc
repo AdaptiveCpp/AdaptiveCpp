@@ -143,7 +143,7 @@ if __name__ == '__main__':
         else:
           selected_compiler = hcc
 
-    # If not compiler has been explicitly chosen, use the only one existing
+    # If no compiler has been explicitly chosen, use the only one existing
     # or print error if several choices exist
     if selected_compiler == None:
       if rocm_available and cuda_available:

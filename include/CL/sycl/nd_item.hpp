@@ -51,13 +51,13 @@ struct nd_item
   __device__
   id<dimensions> get_global() const
   {
-    return detail::get_global_id<dimensions>();
+    return detail::get_global_id<dimensions>() + (*_offset);
   }
 
   __device__
   size_t get_global(int dimension) const
   {
-    return detail::get_global_id(dimension);
+    return detail::get_global_id(dimension) + _offset->get(dimension);
   }
 
   __device__
@@ -130,7 +130,7 @@ struct nd_item
   __device__
   id<dimensions> get_offset() const
   {
-    return id<dimensions>{};
+    return *_offset;
   }
 
   __device__

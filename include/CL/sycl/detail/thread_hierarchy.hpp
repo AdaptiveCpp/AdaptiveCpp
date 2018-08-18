@@ -154,8 +154,7 @@ template<>
 __device__
 id<2> get_global_id<2>()
 {
-  return id<2>{get_global_id_x(),
-               get_global_id_y()};
+  return id<2>{get_global_id_x(), get_global_id_y()};
 }
 
 template<>

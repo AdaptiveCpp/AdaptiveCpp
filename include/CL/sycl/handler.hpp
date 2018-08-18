@@ -67,7 +67,18 @@ __global__ void parallel_for_kernel_with_offset(Function f,
                                                 id<dimensions> offset)
 {
   item<dimensions> this_item{offset};
-  if(this_item.get_linear_id() < execution_range.size())
+
+  bool item_is_in_range = true;
+  for(int i = 0; i < dimensions; ++i)
+  {
+    if(this_item.get_id(i) >= offset.get(i) + execution_range.get(i))
+    {
+      item_is_in_range = false;
+      break;
+    }
+  }
+
+  if(item_is_in_range)
     f(this_item);
 }
 

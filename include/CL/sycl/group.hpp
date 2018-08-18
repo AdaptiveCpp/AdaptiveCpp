@@ -173,8 +173,7 @@ struct group
   __device__
   void wait_for(eventTN...) const {}
 
-private:
-  group() = default;
+  //group(id<dimensions>* offset) = default;
 };
 
 }

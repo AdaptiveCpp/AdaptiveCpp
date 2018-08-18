@@ -197,9 +197,11 @@ struct nd_item
   }
 
   __device__
-  nd_item(id<dimensions> offset)
+  nd_item(id<dimensions>* offset)
+    : _offset{offset}
   {}
-
+private:
+  const id<dimensions>* _offset;
 
 };
 

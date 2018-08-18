@@ -74,7 +74,7 @@ __global__ void parallel_for_kernel_with_offset(Function f,
 template<int dimensions, class Function>
 __global__ void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
 {
-  nd_item<dimensions> this_item{offset};
+  nd_item<dimensions> this_item{&offset};
   f(this_item);
 }
 

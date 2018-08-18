@@ -1,0 +1,164 @@
+#!/usr/bin/python
+
+'''
+ * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ *
+ * Copyright (c) 2018 Aksel Alpay
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ '''
+
+
+import sys
+import subprocess
+import os
+
+def is_program_executable(cmd):
+  try:
+    subprocess.call([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return True
+  except:
+    return False
+
+cpp_files = set([".cpp",".cxx",".c++",".cc",".c"])
+
+class cuda_compiler:
+  def __init__(self):
+    self.device_compiler = "nvcc"
+
+    self.global_options = ["-I","-L","-l", "-D"]
+    self.nvcc_option_output = self.get_nvcc_arguments()
+
+
+  def get_nvcc_arguments(self):
+    return subprocess.check_output([self.device_compiler, "--help"]).decode("utf-8")
+
+
+  def is_no_nvcc_argument(self,arg):
+    return not arg in self.nvcc_option_output
+
+  def is_compilation_step(self,args):
+    for arg in args:
+      if not arg.startswith("-"):
+        for ending in cpp_files:
+          if arg.lower().endswith(ending):
+            return True
+    return False
+
+
+  def transform_argument(self,arg):
+    if arg.startswith("-"):
+      for opt in self.global_options:
+        if arg.startswith(opt):
+          return [arg]
+        else:
+          if self.is_no_nvcc_argument(arg):
+            return ["-Xcompiler",arg]
+    return [arg]
+
+  def run(self, args):
+    if len(args) == 1:
+      return -1
+    else:
+      transformed_args = []
+      for arg in args[1:]:
+        transformed_args += self.transform_argument(arg)
+
+      compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
+      if self.is_compilation_step(args[1:]):
+        compiler_args += ["-x","cu"]
+      compiler_args += transformed_args
+
+      return subprocess.call([self.device_compiler]+compiler_args)
+
+  def is_available(self):
+    return is_program_executable(self.device_compiler)
+
+class hip_compiler:
+  def __init__(self):
+    self.device_compiler = "hcc"
+
+  def run(self, args):
+    if len(args) == 1:
+      return -1
+    else:
+      return subprocess.call([self.device_compiler]+args[1:])
+
+  def is_available(self):
+    return is_program_executable(self.device_compiler)
+
+if __name__ == '__main__':
+  args = sys.argv
+
+  if len(args) == 1:
+    print("sycucc for amd and nvidia devices, Copyright (C) 2018 Aksel Alpay")
+    print("Usage: sycucc <options>")
+  else:
+    hcc = hip_compiler()
+    cuda = cuda_compiler()
+
+    rocm_available = hcc.is_available()
+    cuda_available = cuda.is_available()
+
+    if not rocm_available and not cuda_available:
+      print("Neither CUDA nor ROCm seem to be installed - cannot find hcc or nvcc")
+      sys.exit(-1)
+
+    selected_compiler = None
+    # First check if the user has specified which compiler should
+    # be used
+    if "SYCU_PLATFORM" in os.environ:
+      envconfig = os.environ["SYCU_PLATFORM"].lower()
+      if envconfig == "cuda" or envconfig == "nvcc":
+        if not cuda_available:
+          print("CUDA was requested as SYCU platform via the SYCU_PLATFORM "
+                "environment variable, but it is not available.")
+          sys.exit(-1)
+        else:
+          selected_compiler = cuda
+      elif envconfig == "hip" or envconfig == "rocm" or envconfig == "hcc":
+        if not rocm_available:
+          print("ROCm was requested as SYCU platform via the SYCU_PLATFORM "
+                "environment variable, but it is not available.")
+          sys.exit(-1)
+        else:
+          selected_compiler = hcc
+
+    # If not compiler has been explicitly chosen, use the only one existing
+    # or print error if several choices exist
+    if selected_compiler == None:
+      if rocm_available and cuda_available:
+        print("Both CUDA and ROCm are available, please specify which platform "
+              "should be used by SYCU via the SYCU_PLATFORM environment variable.")
+        sys.exit(-1)
+      else:
+        if rocm_available:
+          selected_compiler = hcc
+        elif cuda_available:
+          selected_compiler = cuda
+
+    if selected_compiler == None:
+      print("Could not select compiler - this is a bug")
+      sys.exit(-1)
+
+    sys.exit(selected_compiler.run(args))
+

@@ -2,7 +2,7 @@
 
 project(SYCU)
 # ToDo: Detect hcc
-set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/sycucc_nv)
+set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/sycucc)
 
 cmake_minimum_required (VERSION 2.6)
 

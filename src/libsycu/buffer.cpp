@@ -62,6 +62,11 @@ buffer_impl::buffer_impl(size_t buffer_size,
     _write_back_memory{host_ptr}
 {
   detail::check_error(hipMalloc(&_buffer_pointer, buffer_size));
+
+  // This tells the buffer state monitor that the host pointer
+  // may already have been modified, and guarantees that it will
+  // be copied to the device before being used.
+  this->_monitor.register_host_access(access::mode::read_write);
 }
 
 buffer_impl::buffer_impl(size_t buffer_size,
@@ -286,18 +291,16 @@ buffer_action buffer_state_monitor::register_host_access(access::mode m)
   }
   else
   {
-
     // Make sure host is up-to-date before reading
     bool copy_required = _host_data_version < _device_data_version;
 
     if(m != access::mode::read)
-      _host_data_version++;
+      _host_data_version = _device_data_version + 1;
     else
       _host_data_version = _device_data_version;
 
     if(copy_required)
       return buffer_action::update_host;
-
   }
   return buffer_action::none;
 }
@@ -317,7 +320,7 @@ buffer_action buffer_state_monitor::register_device_access(access::mode m)
     bool copy_required = _device_data_version < _host_data_version;
 
     if(m != access::mode::read)
-      _device_data_version++;
+      _device_data_version = _host_data_version + 1;
     else
       _device_data_version = _host_data_version;
 

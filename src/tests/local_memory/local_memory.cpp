@@ -50,7 +50,8 @@ int main()
   {
     cl::sycl::buffer<data_type> input_buffer{input.data(), input.size()};
 
-    q.submit([&](cl::sycl::handler& cgh){
+    q.submit([&](cl::sycl::handler& cgh)
+    {
       auto access_input =
           input_buffer.get_access<cl::sycl::access::mode::read_write>(cgh);
 
@@ -60,11 +61,11 @@ int main()
           cl::sycl::access::target::local>{local_size, cgh};
 
       cl::sycl::nd_range<1> execution_range{global_size, local_size};
-
       cgh.parallel_for<class reduction>(execution_range,
-                     [=] __device__ (cl::sycl::nd_item<1> this_item){
+                     [=] __device__ (cl::sycl::nd_item<1> this_item)
+      {
         data_type* scratch_ptr = scratch.get_pointer();
-        size_t lid = this_item.get_local(0);
+        const size_t lid = this_item.get_local(0);
 
         scratch_ptr[lid] = access_input[this_item.get_global()];
 
@@ -78,12 +79,21 @@ int main()
         }
 
         if(lid == 0)
-          access_input[this_item.get_group_linear_id()] = scratch_ptr[0];
+          access_input[this_item.get_global()] = scratch_ptr[0];
       });
     });
   }
 
   std::cout << "Computed local sums:" << std::endl;
   for(std::size_t i = 0; i < global_size/local_size; ++i)
-    std::cout << input[i] << std::endl;
+    std::cout << input[i * local_size] << std::endl;
+
+  std::cout << "Expected results:" << std::endl;
+  for(std::size_t i = 0; i < global_size/local_size; ++i)
+  {
+    std::size_t sum = 0;
+    for(std::size_t j = 0; j < local_size; ++j)
+      sum += i * local_size + j;
+    std::cout << sum << std::endl;
+  }
 }

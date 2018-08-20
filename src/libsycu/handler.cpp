@@ -33,7 +33,8 @@ namespace cl {
 namespace sycl {
 
 handler::handler(const queue& q)
-: _queue{&q}
+: _queue{&q},
+  _local_mem_allocator{q.get_device()}
 {}
 
 hipStream_t handler::get_execution_stream() const

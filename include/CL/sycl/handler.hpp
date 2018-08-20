@@ -38,6 +38,8 @@
 #include "nd_range.hpp"
 #include "item.hpp"
 #include "nd_item.hpp"
+#include "group.hpp"
+#include "detail/local_memory_allocator.hpp"
 
 namespace cl {
 namespace sycl {
@@ -89,6 +91,13 @@ __global__ void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
   f(this_item);
 }
 
+template<int dimensions, class Function>
+__global__ void parallel_for_workgroup(Function f)
+{
+  group<dimensions> this_group;
+  f(this_group);
+}
+
 } // dispatch
 } // detail
 
@@ -98,6 +107,7 @@ class handler
 {
   friend class queue;
   const queue* _queue;
+  detail::local_memory_allocator _local_mem_allocator;
 
   handler(const queue& q);
 
@@ -151,19 +161,27 @@ void set_args(Ts &&... args);
     dispatch_ndrange_kernel(executionRange, kernelFunc);
   }
 
-  /*
 
-  // Hierarchical kernel dispatch API - not yet supported
-
+  // Hierarchical kernel dispatch API
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
-                               WorkgroupFunctionType kernelFunc);
+                               WorkgroupFunctionType kernelFunc)
+  {
+    dispatch_hierarchical_kernel(numWorkGroups,
+                                 get_default_local_range<dimensions>(),
+                                 kernelFunc);
+  }
 
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
-                               WorkgroupFunctionType kernelFunc);
-  */
+                               WorkgroupFunctionType kernelFunc)
+  {
+    dispatch_hierarchical_kernel(numWorkGroups,
+                                 workGroupSize,
+                                 kernelFunc);
+  }
+
 
   /*
   void single_task(kernel syclKernel);
@@ -203,7 +221,13 @@ void set_args(Ts &&... args);
   void fill(accessor<T, dim, mode, tgt> dest, const T& src);
 
   hipStream_t get_execution_stream() const;
+
+  detail::local_memory_allocator& get_local_memory_allocator()
+  {
+    return _local_mem_allocator;
+  }
 private:
+
   void select_device() const;
 
   template<int dimensions>
@@ -265,7 +289,9 @@ private:
   {
     this->select_device();
 
-    std::size_t shared_mem_size = 0;
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
     hipStream_t stream = this->get_execution_stream();
 
     dim3 grid, block;
@@ -283,7 +309,9 @@ private:
   {
     this->select_device();
 
-    std::size_t shared_mem_size = 0;
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
     hipStream_t stream = this->get_execution_stream();
 
     dim3 grid, block;
@@ -307,7 +335,9 @@ private:
 
     this->select_device();
 
-    std::size_t shared_mem_size = 0;
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
     hipStream_t stream = this->get_execution_stream();
 
     id<dimensions> offset = executionRange.get_offset();
@@ -323,9 +353,26 @@ private:
         <<<grid,block,shared_mem_size,stream>>>(kernelFunc, offset);
   }
 
+  template <typename WorkgroupFunctionType, int dimensions>
+  void dispatch_hierarchical_kernel(range<dimensions> numWorkGroups,
+                                    range<dimensions> workGroupSize,
+                                    WorkgroupFunctionType kernelFunc);
+
 };
 
+namespace detail {
+namespace handler {
 
+
+template<class T>
+detail::local_memory::address allocate_local_mem(cl::sycl::handler& cgh,
+                                                 size_t num_elements)
+{
+  return cgh.get_local_memory_allocator().alloc<T>(num_elements);
+}
+
+}
+}
 
 } // namespace sycl
 } // namespace cl

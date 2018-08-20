@@ -17,10 +17,7 @@ SYCU attempts to solve these problems by providing a SYCL interface to CUDA/HIP.
 SYCU is still in an early stage of development. It can successfully execute some simple SYCL programs; but large parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
-* offsets
-* hierarchical kernel dispatch
-* ndrange kernel dispatch
-* local memory
+* hierarchical kernel dispatch (WIP)
 * Explicit memory copy functions
 * Device library
 * Images
@@ -39,12 +36,12 @@ On AMD, at the moment hcc must be manually specified as cmake compiler.
 
 ## Caveats
 * Since SYCU uses the vendor compilers nvcc (nvidia) and hcc (AMD) to compile code, all device functions must be marked with `__device__`, as is the case in cuda. This especially affects SYCL kernel lambdas. At the current time, SYCU can hence be thought of as a SYCL dialect. However, portability of SYCU code with other SYCL runtimes can be easily achieved by simply defining `__device__` during compilation. For future versions, it is planned to investigate the possibility of adding the `__device__` attributes automatically using libclang, such that regular sycl code can be compiled as well.
+* The same goes for local memory objects declared in hierarchical parallel for invocations; such objects must be marked with `__shared__`.
 * SYCU uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately I cannot test SYCU on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
 * Because SYCU doesn't build on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in SYCU.
 
 ## Compiling software with SYCU
-* On nvidia, SYCU provides a nvcc compiler wrapper that sets a couple of necessary compilation options for SYCU. This wrapper can be found in `bin/sycucc_nv`. Then just type `sycucc_nv -lsycu <args>`.
-* On AMD, hcc must be invoked manually.
+SYCU provides the `sycucc` compiler wrapper. `sycucc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `SYCU_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `sycucc` also automatically sets a couple of compiler flags required for the compilation of SYCU programs. All other arguments are forwarded to hcc/nvcc.
 
 ## Example
 The following code adds two vectors:

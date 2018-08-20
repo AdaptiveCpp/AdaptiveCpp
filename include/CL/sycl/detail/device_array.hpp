@@ -38,9 +38,6 @@ namespace detail {
 template<class T, size_t N>
 struct device_array
 {
-  static_assert(N > 0, "Array size must be greater than 0");
-
-
   using iterator = T*;
   using const_iterator = const T*;
 
@@ -111,6 +108,73 @@ struct device_array
   }
 
   T _data [N];
+};
+
+template<class T>
+struct device_array<T, 0>
+{
+
+  using iterator = T*;
+  using const_iterator = const T*;
+
+
+  __host__ __device__
+  device_array& operator=(const device_array&) noexcept
+  {}
+
+  __host__ __device__
+  size_t size() const noexcept
+  {
+    return 0;
+  }
+
+  __host__ __device__
+  bool operator== (const device_array&) const noexcept
+  {
+    return true;
+  }
+
+  __host__ __device__
+  bool operator!= (const device_array& other) const noexcept
+  {
+    return !(*this == other);
+  }
+
+  __host__ __device__
+  T& operator[] (size_t) noexcept
+  {
+    return *reinterpret_cast<T*>(0);
+  }
+
+  __host__ __device__
+  const T& operator[] (size_t) const noexcept
+  {
+    return *reinterpret_cast<T*>(0);
+  }
+
+  __host__ __device__
+  iterator begin() noexcept
+  {
+    return nullptr;
+  }
+
+  __host__ __device__
+  const_iterator begin() const noexcept
+  {
+    return nullptr;
+  }
+
+  __host__ __device__
+  iterator end() noexcept
+  {
+    return nullptr;
+  }
+
+  __host__ __device__
+  const_iterator end() const noexcept
+  {
+    return nullptr;
+  }
 };
 
 }

@@ -35,7 +35,8 @@
 #include "item.hpp"
 #include "buffer_allocator.hpp"
 #include "backend/backend.hpp"
-
+#include "multi_ptr.hpp"
+#include "detail/local_memory_allocator.hpp"
 
 namespace cl {
 namespace sycl {
@@ -62,6 +63,10 @@ sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
 
 namespace handler {
 hipStream_t get_handler_stream(const sycl::handler& h);
+
+template<class T>
+detail::local_memory::address allocate_local_mem(cl::sycl::handler&,
+                                                 size_t num_elements);
 } // handler
 
 namespace accessor {
@@ -385,10 +390,22 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   }
 
   /* Available only when: accessTarget == access::target::global_buffer */
-  //global_ptr<dataT> get_pointer() const;
+  template<access::target T = accessTarget,
+           typename = std::enable_if_t<T == access::target::global_buffer>>
+  __host__ __device__
+  global_ptr<dataT> get_pointer() const
+  {
+    return global_ptr<dataT>{_ptr};
+  }
 
   /* Available only when: accessTarget == access::target::constant_buffer */
-  //constant_ptr<dataT> get_pointer() const;
+  template<access::target T = accessTarget,
+           typename = std::enable_if_t<T == access::target::constant_buffer>>
+  __host__ __device__
+  constant_ptr<dataT> get_pointer() const
+  {
+    return constant_ptr<dataT>{_ptr};
+  }
 private:
 
   __host__ __device__
@@ -396,6 +413,148 @@ private:
 
   range<dimensions> _range;
   pointer_type _ptr;
+};
+
+/// Accessor specialization for local memory
+template <typename dataT,
+          int dimensions,
+          access::mode accessmode,
+          access::placeholder isPlaceholder>
+class accessor<
+    dataT,
+    dimensions,
+    accessmode,
+    access::target::local,
+    isPlaceholder>
+{
+  using address = detail::local_memory::address;
+public:
+  static_assert(isPlaceholder == access::placeholder::false_t,
+                "Local accessors cannot be placeholders.");
+
+  using value_type = dataT;
+  using reference = dataT &;
+  using const_reference = const dataT &;
+
+
+  /* Available only when: dimensions == 0 */
+  template<int D = dimensions,
+           typename std::enable_if_t<D == 0>* = nullptr>
+  accessor(handler &commandGroupHandlerRef)
+    : _addr{detail::handler::allocate_local_mem<dataT>(
+              commandGroupHandlerRef,1)}
+  {}
+
+  /* Available only when: dimensions > 0 */
+  template<int D = dimensions,
+           typename std::enable_if_t<(D > 0)>* = nullptr>
+  accessor(range<dimensions> allocationSize,
+           handler &commandGroupHandlerRef)
+    : _addr{detail::handler::allocate_local_mem<dataT>(
+              commandGroupHandlerRef,
+              allocationSize.size())},
+      _num_elements{allocationSize}
+  {}
+
+
+  /* -- common interface members -- */
+  __device__
+  size_t get_size() const
+  {
+    return get_count() * sizeof(dataT);
+  }
+
+  __device__
+  size_t get_count() const
+  {
+    return _num_elements.size();
+  }
+
+  /* Available only when: accessMode == access::mode::read_write && dimensions == 0) */
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           std::enable_if_t<M == access::mode::read_write &&
+                            D == 0>* = nullptr>
+  __device__
+  operator dataT &() const
+  {
+    return *detail::local_memory::get_ptr<dataT>(_addr);
+  }
+
+  /* Available only when: accessMode == access::mode::read_write && dimensions > 0) */
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           std::enable_if_t<M == access::mode::read_write &&
+                            (D > 0)>* = nullptr>
+  __device__
+  dataT &operator[](id<dimensions> index) const
+  {
+    *(detail::local_memory::get_ptr<dataT>(_addr) +
+        detail::linear_id<dimensions>::get(index, _num_elements));
+  }
+
+  /* Available only when: accessMode == access::mode::read_write && dimensions == 1) */
+  template<access::mode M = accessmode,
+           int D = dimensions,
+           std::enable_if_t<M == access::mode::read_write &&
+                            D == 1>* = nullptr>
+  __device__
+  dataT &operator[](size_t index) const
+  {
+    return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
+  }
+
+  /* Available only when: accessMode == access::mode::atomic && dimensions == 0 */
+  //operator atomic<dataT,access::address_space::local_space> () const;
+
+
+  /* Available only when: accessMode == access::mode::atomic && dimensions > 0 */
+  //atomic<dataT, access::address_space::local_space> operator[](
+  //      id<dimensions> index) const;
+
+  /* Available only when: accessMode == access::mode::atomic && dimensions == 1 */
+  //atomic<dataT, access::address_space::local_space> operator[](size_t index) const;
+
+  /* Available only when: dimensions > 1 */
+  template<int D = dimensions,
+           std::enable_if_t<(D > 1)>* = nullptr>
+  __device__
+  accessor<dataT, dimensions-1, accessmode, access::target::local, isPlaceholder>&
+  operator[](size_t index) const
+  {
+    // Create sub accessor for slice at _ptr[index][...]
+
+    using subaccessor_type = accessor<
+        dataT,
+        dimensions-1,
+        accessmode,
+        access::target::local,
+        isPlaceholder>;
+
+    auto subrange =
+        detail::range::omit_first_dimension(this->_num_elements);
+    address subaddr = this->_addr
+                + index * subrange.size() * sizeof(dataT);
+
+    return subaccessor_type{subaddr, subrange};
+  }
+
+  __device__
+  local_ptr<dataT> get_pointer() const
+  {
+    return local_ptr<dataT>{
+      detail::local_memory::get_ptr<dataT>(_addr)
+    };
+  }
+
+private:
+  __device__
+  accessor(address addr, range<dimensions> r)
+    : _addr{addr}, _num_elements{r}
+  {}
+
+  const address _addr;
+  const range<dimensions> _num_elements;
 };
 
 namespace detail {

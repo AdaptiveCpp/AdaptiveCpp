@@ -48,6 +48,10 @@ struct item_impl
     : global_id{detail::get_global_id<dim>()}
   {}
 
+  __device__ item_impl(id<dim> my_id)
+    : global_id{my_id}
+  {}
+
   static __device__ sycl::range<dim> get_range()
   {
     return detail::get_global_size<dim>();
@@ -94,8 +98,13 @@ template <int dimensions = 1, bool with_offset = true>
 struct item
 {
   __device__ item() {}
+
   __device__ item(const id<dimensions>& offset)
     : _offset_storage{offset}
+  {}
+
+  __device__ item(const detail::item_impl<dimensions>& impl)
+    : _impl{impl}
   {}
 
 

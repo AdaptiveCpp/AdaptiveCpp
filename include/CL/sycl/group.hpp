@@ -35,6 +35,7 @@
 #include "backend/backend.hpp"
 #include "detail/thread_hierarchy.hpp"
 #include "multi_ptr.hpp"
+#include "h_item.hpp"
 
 namespace cl {
 namespace sycl {
@@ -110,12 +111,22 @@ struct group
 
   template<typename workItemFunctionT>
   __device__
-  void parallel_for_work_item(workItemFunctionT func) const;
+  void parallel_for_work_item(workItemFunctionT func) const
+  {
+    h_item<dimensions> idx;
+    func(idx);
+    // We need implicit synchonization semantics
+    __syncthreads();
+  }
 
+  /// \todo Flexible ranges are currently unsupported.
+  /*
   template<typename workItemFunctionT>
   __device__
   void parallel_for_work_item(range<dimensions> flexibleRange,
                               workItemFunctionT func) const;
+  */
+
 
   template <access::mode accessMode = access::mode::read_write>
   __device__
@@ -124,6 +135,7 @@ struct group
   {
     __syncthreads();
   }
+
 
   template <typename dataT>
   __device__

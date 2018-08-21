@@ -25,29 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_HPP
-#define SYCL_HPP
+#ifndef SYCU_PRIVATE_MEMORY_HPP
+#define SYCU_PRIVATE_MEMORY_HPP
 
-#define __SYCU__
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+#include "group.hpp"
+#include "h_item.hpp"
 
-#include "sycl/version.hpp"
-#include "sycl/types.hpp"
-#include "sycl/exception.hpp"
-#include "sycl/device_selector.hpp"
-#include "sycl/device.hpp"
-#include "sycl/platform.hpp"
-#include "sycl/queue.hpp"
-#include "sycl/range.hpp"
-#include "sycl/id.hpp"
-#include "sycl/accessor.hpp"
-#include "sycl/buffer.hpp"
-#include "sycl/nd_item.hpp"
-#include "sycl/multi_ptr.hpp"
-#include "sycl/group.hpp"
-#include "sycl/h_item.hpp"
-#include "sycl/private_memory.hpp"
+namespace cl {
+namespace sycl {
+
+template<typename T, int Dimensions = 1>
+class private_memory
+{
+public:
+  __device__
+  private_memory(const group<Dimensions>&)
+  {}
+
+  __device__
+  T& operator()(const h_item<Dimensions>&)
+  {
+    return _data;
+  }
+
+private:
+  T _data;
+};
+
+}
+}
 
 #endif
-

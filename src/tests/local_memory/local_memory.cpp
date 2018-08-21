@@ -64,22 +64,21 @@ int main()
       cgh.parallel_for<class reduction>(execution_range,
                      [=] __device__ (cl::sycl::nd_item<1> this_item)
       {
-        data_type* scratch_ptr = scratch.get_pointer();
         const size_t lid = this_item.get_local(0);
 
-        scratch_ptr[lid] = access_input[this_item.get_global()];
+        scratch[lid] = access_input[this_item.get_global()];
 
         this_item.barrier();
 
         for(size_t i = local_size/2; i > 0; i /= 2)
         {
           if(lid < i)
-            scratch_ptr[lid] += scratch_ptr[lid + i];
+            scratch[lid] += scratch[lid + i];
           this_item.barrier();
         }
 
         if(lid == 0)
-          access_input[this_item.get_global()] = scratch_ptr[0];
+          access_input[this_item.get_global()] = scratch[0];
       });
     });
   }

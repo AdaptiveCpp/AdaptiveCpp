@@ -92,7 +92,8 @@ __global__ void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
 }
 
 template<int dimensions, class Function>
-__global__ void parallel_for_workgroup(Function f)
+__global__ void parallel_for_workgroup(Function f,
+                                       sycl::range<dimensions> work_group_size)
 {
   group<dimensions> this_group;
   f(this_group);
@@ -163,6 +164,9 @@ void set_args(Ts &&... args);
 
 
   // Hierarchical kernel dispatch API
+
+  /// \todo flexible ranges are currently unsupported
+  /*
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                WorkgroupFunctionType kernelFunc)
@@ -171,6 +175,7 @@ void set_args(Ts &&... args);
                                  get_default_local_range<dimensions>(),
                                  kernelFunc);
   }
+  */
 
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
@@ -347,8 +352,6 @@ private:
     dim3 grid = range_to_dim3(grid_range);
     dim3 block = range_to_dim3(block_range);
 
-    executionRange.get_group();
-
     detail::dispatch::parallel_for_ndrange_kernel
         <<<grid,block,shared_mem_size,stream>>>(kernelFunc, offset);
   }
@@ -356,7 +359,20 @@ private:
   template <typename WorkgroupFunctionType, int dimensions>
   void dispatch_hierarchical_kernel(range<dimensions> numWorkGroups,
                                     range<dimensions> workGroupSize,
-                                    WorkgroupFunctionType kernelFunc);
+                                    WorkgroupFunctionType kernelFunc)
+  {
+
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
+    hipStream_t stream = this->get_execution_stream();
+
+    dim3 grid = range_to_dim3(numWorkGroups);
+    dim3 block = range_to_dim3(workGroupSize);
+
+    detail::dispatch::parallel_for_workgroup
+        <<<grid,block,shared_mem_size,stream>>>(kernelFunc, workGroupSize);
+  }
 
 };
 

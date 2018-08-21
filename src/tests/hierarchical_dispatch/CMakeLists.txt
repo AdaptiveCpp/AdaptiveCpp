@@ -1,0 +1,2 @@
+add_executable(hierarchical_dispatch hierarchical_dispatch.cpp)
+target_link_libraries(hierarchical_dispatch sycu)

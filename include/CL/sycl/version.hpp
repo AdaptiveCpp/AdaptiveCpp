@@ -29,8 +29,33 @@
 #ifndef SYCU_VERSION_HPP
 #define SYCU_VERSION_HPP
 
+#include "backend/backend.hpp"
+#include "exception.hpp"
+#include "types.hpp"
+
 #define SYCU_VERSION_MAJOR 0
-#define SYCU_VERSION_MINOR 1
+#define SYCU_VERSION_MINOR 3
 #define SYCU_VERSION_PATCH 0
+
+namespace cl {
+namespace sycl {
+namespace detail {
+
+static string_class version_string()
+{
+  int version;
+  check_error(hipRuntimeGetVersion(&version));
+  string_class hip_version = std::to_string(version)+".0";
+
+  string_class sycu_version = std::to_string(SYCU_VERSION_MAJOR)
+      + "." + std::to_string(SYCU_VERSION_MINOR)
+      + "." + std::to_string(SYCU_VERSION_PATCH);
+
+  return "SYCU " + sycu_version + " on HIP/CUDA " + hip_version;
+}
+
+}
+}
+}
 
 #endif

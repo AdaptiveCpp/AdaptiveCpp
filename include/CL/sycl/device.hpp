@@ -37,6 +37,7 @@
 #include "backend/backend.hpp"
 #include "exception.hpp"
 #include "id.hpp"
+#include "version.hpp"
 
 namespace cl {
 namespace sycl {
@@ -85,29 +86,39 @@ public:
 
   bool has_extension(const string_class &extension) const
   {
-    throw unimplemented{"device::has_extension is unimplemented"};
+    return false;
   }
 
-  /* create_sub_devices is not yet supported
+
 
   // Available only when prop == info::partition_property::partition_equally
-  template <info::partition_property prop>
-  vector_class<device> create_sub_devices(size_t nbSubDev) const;
+  template <info::partition_property prop,
+            std::enable_if_t<prop == info::partition_property::partition_equally>*
+              = nullptr>
+  vector_class<device> create_sub_devices(size_t nbSubDev) const
+  {
+    throw feature_not_supported{"subdevices are unsupported."};
+  }
 
   // Available only when prop == info::partition_property::partition_by_counts
-  template <info::partition_property prop>
+  template <info::partition_property prop,
+            std::enable_if_t<prop == info::partition_property::partition_by_counts>*
+              = nullptr>
   vector_class<device> create_sub_devices(const vector_class<size_t> &counts) const
   {
-    throw unimplemented{"device::create_sub_devices is unimplemented"};
+    throw feature_not_supported{"subdevices are unsupported."};
   }
 
   // Available only when prop == info::partition_property::partition_by_affinity_domain
-  template <info::partition_property prop>
-  vector_class<device> create_sub_devices(info::affinity_domain affinityDomain) const
+  template <info::partition_property prop,
+            std::enable_if_t<prop == info::partition_property::partition_by_affinity_domain>*
+              = nullptr>
+  vector_class<device> create_sub_devices(info::partition_affinity_domain
+                                          affinityDomain) const
   {
-    throw unimplemented{"device::create_sub_devices is unimplemented"};
+    throw feature_not_supported{"subdevices are unsupported."};
   }
-  */
+
 
   static vector_class<device> get_devices(
       info::device_type deviceType = info::device_type::all);
@@ -395,19 +406,23 @@ SYCU_SPECIALIZE_GET_INFO(device, vendor)
 
 SYCU_SPECIALIZE_GET_INFO(device, driver_version)
 {
-  int version;
-  detail::check_error(hipRuntimeGetVersion(&version));
-  return std::to_string(version)+".0";
+  return detail::version_string();
 }
 
 SYCU_SPECIALIZE_GET_INFO(device, profile)
-{ return "SYCU/CUDA/HIP"; }
+{ return "FULL_PROFILE"; }
 
 SYCU_SPECIALIZE_GET_INFO(device, version)
-{ return "1.2"; }
+{
+#ifdef SYCU_PLATFORM_CUDA
+  return "1.2 "+detail::version_string()+", running on NVIDIA CUDA";
+#else
+  return "1.2 "+detail::version_string()+", running on AMD ROCm";
+#endif
+}
 
 SYCU_SPECIALIZE_GET_INFO(device, opencl_c_version)
-{ return "1.2"; }
+{ return "1.2 SYCU CUDA/HIP"; }
 
 SYCU_SPECIALIZE_GET_INFO(device, extensions)
 {

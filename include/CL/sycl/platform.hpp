@@ -32,6 +32,7 @@
 #include "types.hpp"
 #include "device_selector.hpp"
 #include "info/info.hpp"
+#include "version.hpp"
 
 namespace cl {
 namespace sycl {
@@ -66,10 +67,7 @@ public:
 
 
   template <info::platform param>
-  typename info::param_traits<info::platform, param>::return_type get_info() const
-  {
-    throw unimplemented{"platform::get_info() is unimplemented"};
-  }
+  typename info::param_traits<info::platform, param>::return_type get_info() const;
 
 
   /// \todo Think of a better solution
@@ -97,6 +95,33 @@ public:
 
 SYCU_SPECIALIZE_GET_INFO(device, platform)
 { return this->get_platform(); }
+
+SYCU_SPECIALIZE_GET_INFO(platform, profile)
+{ return "FULL_PROFILE"; }
+
+SYCU_SPECIALIZE_GET_INFO(platform, version)
+{
+  return detail::version_string();
+}
+
+SYCU_SPECIALIZE_GET_INFO(platform, name)
+{
+#ifdef SYCU_PLATFORM_CUDA
+  return "SYCU [SYCL over CUDA/HIP] on NVIDIA CUDA";
+#else
+  return "SYCU [SYCL over CUDA/HIP] on AMD ROCm";
+#endif
+}
+
+SYCU_SPECIALIZE_GET_INFO(platform, vendor)
+{
+  return "The SYCU project";
+}
+
+SYCU_SPECIALIZE_GET_INFO(platform, extensions)
+{
+  return vector_class<string_class>{};
+}
 
 }// namespace sycl
 }// namespace cl

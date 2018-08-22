@@ -1,0 +1,36 @@
+pkgname=sycu-git
+pkgver=0.3.0
+pkgrel=1
+pkgdesc="SYCL implementation over CUDA/HIP."
+arch=("x86_64")
+url="https://github.com/illuhad/SYCU"
+makedepends=("cmake")
+depends=("cuda")
+license=("BSD")
+
+source=('SYCU::git+https://github.com/illuhad/SYCU.git')
+
+md5sums=("SKIP")
+
+pkgver() {
+  cd "${srcdir}/SYCU"
+  git log -1 --format=%cd.%h --date=short|tr -d -
+}
+
+prepare() {
+  cd "${srcdir}/SYCU/contrib/HIP"
+  git submodule init
+  git submodule update
+}
+
+build() {
+    mkdir -p ${srcdir}/SYCU/build
+    cd "${srcdir}/SYCU/build"
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr ..
+}
+
+package() {
+    cd "${srcdir}/SYCU/build"
+    VERBOSE=1 DESTDIR=${pkgdir} make install
+}

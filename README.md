@@ -27,13 +27,19 @@ Still unimplemented/missing is in particular:
 
 
 ## Building SYCU
-On nvidia, simply type
+For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
+
+All other users need to compile SYCU manually. First, make sure to clone the repository with all submodules:
+```
+$ git clone --recurse-submodules https://github.com/illuhad/SYCU
+```
+Then, create a build directory and compile SYCU:
 ```
 $ cd <build directory>
-$ cmake <sycu source directory>
-$ make
+$ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <sycu source directory>
+$ make install
 ```
-On AMD, at the moment hcc must be manually specified as cmake compiler.
+The default installation prefix is `/usr/local`. Change this to your liking.
 
 ## Caveats
 * Since SYCU uses the vendor compilers nvcc (nvidia) and hcc (AMD) to compile code, all device functions must be marked with `__device__`, as is the case in cuda. This especially affects SYCL kernel lambdas. At the current time, SYCU can hence be thought of as a SYCL dialect. However, portability of SYCU code with other SYCL runtimes can be easily achieved by simply defining `__device__` during compilation. For future versions, it is planned to investigate the possibility of adding the `__device__` attributes automatically using libclang, such that regular sycl code can be compiled as well.

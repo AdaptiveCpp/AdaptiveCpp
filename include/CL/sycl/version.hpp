@@ -45,7 +45,7 @@ static string_class version_string()
 {
   int version;
   check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version)+".0";
+  string_class hip_version = std::to_string(version);
 
   string_class sycu_version = std::to_string(SYCU_VERSION_MAJOR)
       + "." + std::to_string(SYCU_VERSION_MINOR)

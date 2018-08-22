@@ -31,6 +31,11 @@
 import sys
 import subprocess
 import os
+import tempfile
+import os.path
+from shutil import copyfile
+import binascii
+
 
 def is_program_executable(cmd):
   try:
@@ -38,6 +43,37 @@ def is_program_executable(cmd):
     return True
   except:
     return False
+
+
+class source_file_processor:
+
+  def __init__(self, suffix):
+    self._managed_files = []
+    self._suffix = suffix
+
+  def process_file(self,filename):
+    new_name = self._copy_file_to_temp_with_new_suffix(filename,
+                                                       self._suffix)
+    self._managed_files.append(new_name)
+    return new_name
+
+  def release_files(self):
+    for filename in self._managed_files:
+      os.remove(filename)
+
+  def _copy_file_to_temp_with_new_suffix(self,filename,suffix):
+    tempdir = tempfile.gettempdir()
+    base_filename = os.path.basename(filename)
+    random_suffix = binascii.b2a_hex(os.urandom(4)).decode("utf-8")
+    new_name = os.path.join(tempdir, base_filename+"_"
+                                    +random_suffix
+                                    +suffix)
+
+    copyfile(filename, new_name)
+    return new_name
+
+
+
 
 cpp_files = set([".cpp",".cxx",".c++",".cc",".c"])
 
@@ -56,13 +92,30 @@ class cuda_compiler:
   def is_no_nvcc_argument(self,arg):
     return not arg in self.nvcc_option_output
 
+  def is_source_file(self, arg):
+    if not arg.startswith("-"):
+      for ending in cpp_files:
+        if arg.lower().endswith(ending):
+          return True
+    return False
+
   def is_compilation_step(self,args):
     for arg in args:
-      if not arg.startswith("-"):
-        for ending in cpp_files:
-          if arg.lower().endswith(ending):
-            return True
+      if self.is_source_file(arg):
+        return True
     return False
+
+  def obtain_linker_arguments(self, linker_args):
+    if not linker_args.startswith("-Wl,"):
+      return [linker_args]
+    else:
+      args = linker_args.replace("-Wl,","",1).split(",")
+
+      result = []
+      for arg in args:
+        result.append("-Xlinker")
+        result.append(arg)
+      return result
 
 
   def transform_argument(self,arg):
@@ -72,23 +125,35 @@ class cuda_compiler:
           return [arg]
         else:
           if self.is_no_nvcc_argument(arg):
-            return ["-Xcompiler",arg]
+            if arg.startswith("-Wl,"):
+              return self.obtain_linker_arguments(arg)
+            else:
+              return ["-Xcompiler",arg]
     return [arg]
 
   def run(self, args):
-    if len(args) == 1:
-      return -1
-    else:
-      transformed_args = []
-      for arg in args[1:]:
-        transformed_args += self.transform_argument(arg)
+    source_processor = source_file_processor(".cu")
+    result = None
+    try:
+      if len(args) == 1:
+        return -1
+      else:
+        transformed_args = []
+        for arg in args[1:]:
+          if self.is_source_file(arg):
+            transformed_args.append(source_processor.process_file(arg))
+          else:
+            transformed_args += self.transform_argument(arg)
 
-      compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
-      if self.is_compilation_step(args[1:]):
-        compiler_args += ["-x","cu"]
-      compiler_args += transformed_args
+        compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
+        compiler_args += transformed_args
 
-      return subprocess.call([self.device_compiler]+compiler_args)
+        result = subprocess.call([self.device_compiler]+compiler_args)
+
+    finally:
+      source_processor.release_files()
+
+    return result
 
   def is_available(self):
     return is_program_executable(self.device_compiler)

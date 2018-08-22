@@ -25,43 +25,19 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef SYCU_INFO_HPP
+#define SYCU_INFO_HPP
 
-#ifndef SYCU_INFO_CONTEXT_HPP
-#define SYCU_INFO_CONTEXT_HPP
-
-#include "../types.hpp"
 #include "param_traits.hpp"
+#include "context.hpp"
+#include "device.hpp"
+#include "event.hpp"
+#include "platform.hpp"
+#include "queue.hpp"
 
-namespace cl {
-namespace sycl {
-
-class platform;
-class device;
-
-namespace info {
-
-enum class context : int {
-  reference_count,
-  platform,
-  devices
-};
-
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::reference_count,
-                              cl_uint);
-
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::platform,
-                              sycl::platform);
-
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::devices,
-                              vector_class<sycl::device>);
-
-}
-}
-}
-
-
+#define SYCU_SPECIALIZE_GET_INFO(class_name, specialization)\
+  template<> \
+  inline typename info::param_traits<info::class_name,info::class_name::specialization>::return_type \
+  sycl::class_name::get_info<info::class_name::specialization>() const
 
 #endif

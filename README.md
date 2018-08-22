@@ -17,8 +17,9 @@ SYCU attempts to solve these problems by providing a SYCL interface to CUDA/HIP.
 SYCU is still in an early stage of development. It can successfully execute some simple SYCL programs; but large parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
-* hierarchical kernel dispatch (WIP)
+* hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` is supported).
 * Explicit memory copy functions
+* Atomics
 * Device library
 * Images
 * device/platform information queries

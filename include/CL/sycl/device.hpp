@@ -29,28 +29,17 @@
 #ifndef SYCU_DEVICE_HPP
 #define SYCU_DEVICE_HPP
 
+#include <limits>
+#include <type_traits>
+
 #include "types.hpp"
-#include "info/device.hpp"
-#include "info/param_traits.hpp"
+#include "info/info.hpp"
 #include "backend/backend.hpp"
 #include "exception.hpp"
 #include "id.hpp"
 
 namespace cl {
 namespace sycl {
-namespace info {
-
-#define SYCU_DEVICE_PARAM_TRAIT(param, return_value) \
-  SYCU_PARAM_TRAIT_RETURN_VALUE(info::device, info::device::param, return_value)
-
-SYCU_DEVICE_PARAM_TRAIT(device_type, info::device_type);
-SYCU_DEVICE_PARAM_TRAIT(vendor_id, cl_uint);
-//SYCU_DEVICE_PARAM_TRAIT(max_compute_units, cl_uint);
-//SYCU_DEVICE_PARAM_TRAIT(max_work_item_dimensions, cl_uint);
-//SYCU_DEVICE_PARAM_TRAIT(max_work_item_sizes, id<3>);
-//SYCU_DEVICE_PARAM_TRAIT(max_work_group_size, std::size_t);
-// ToDo: Complete this
-} // info
 
 class device_selector;
 class platform;
@@ -136,17 +125,330 @@ private:
   int _device_id;
 };
 
-/*
-template <>
-inline auto device::get_info<info::device::device_type>() const {
-  return info::device_type::gpu;
+SYCU_SPECIALIZE_GET_INFO(device, device_type)
+{ return info::device_type::gpu; }
+
+/// \todo Return different id for amd and nvidia
+SYCU_SPECIALIZE_GET_INFO(device, vendor_id)
+{ return 1; }
+
+SYCU_SPECIALIZE_GET_INFO(device, max_compute_units)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_uint>(props.multiProcessorCount);
 }
 
-template <>
-inline auto device::get_info<info::device::vendor_id>() const {
-  // ToDo: Calculate unique vendor id
-  return 0;
-}*/
+SYCU_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
+{ return 3; }
+
+SYCU_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return id<3>{
+    static_cast<size_t>(props.maxThreadsDim[0]),
+    static_cast<size_t>(props.maxThreadsDim[1]),
+    static_cast<size_t>(props.maxThreadsDim[2])
+  };
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, max_work_group_size)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<size_t>(props.maxThreadsPerBlock);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_char)
+{ return 4; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_double)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_float)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_half)
+{ return 0; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_int)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_long)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, preferred_vector_width_short)
+{ return 2; }
+
+
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_char)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_double)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_float)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_half)
+{ return 0; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_int)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_long)
+{ return 1; }
+SYCU_SPECIALIZE_GET_INFO(device, native_vector_width_short)
+{ return 1; }
+
+SYCU_SPECIALIZE_GET_INFO(device, max_clock_frequency)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_uint>(props.clockRate / 1000);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, address_bits)
+{ return 64; }
+
+SYCU_SPECIALIZE_GET_INFO(device, max_mem_alloc_size)
+{
+  // return global memory size for now
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_ulong>(props.totalGlobalMem);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, image_support)
+{ return true; }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, max_read_image_args)
+{ return 128; }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, max_write_image_args)
+{ return 128; }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image2d_max_width)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image2d_max_height)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image3d_max_width)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image3d_max_height)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image3d_max_depth)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image_max_buffer_size)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, image_max_array_size)
+{ return std::numeric_limits<size_t>::max(); }
+
+/// \todo Find out actual value
+SYCU_SPECIALIZE_GET_INFO(device, max_samplers)
+{ return std::numeric_limits<cl_uint>::max(); }
+
+SYCU_SPECIALIZE_GET_INFO(device, max_parameter_size)
+{ return std::numeric_limits<size_t>::max(); }
+
+SYCU_SPECIALIZE_GET_INFO(device, mem_base_addr_align)
+{ return 8; }
+
+SYCU_SPECIALIZE_GET_INFO(device, half_fp_config)
+{
+  return vector_class<info::fp_config>{
+    info::fp_config::denorm,
+    info::fp_config::inf_nan,
+    info::fp_config::round_to_nearest,
+    info::fp_config::round_to_zero,
+    info::fp_config::round_to_inf,
+    info::fp_config::fma,
+    info::fp_config::correctly_rounded_divide_sqrt
+  };
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, single_fp_config)
+{
+  return vector_class<info::fp_config>{
+    info::fp_config::denorm,
+    info::fp_config::inf_nan,
+    info::fp_config::round_to_nearest,
+    info::fp_config::round_to_zero,
+    info::fp_config::round_to_inf,
+    info::fp_config::fma,
+    info::fp_config::correctly_rounded_divide_sqrt
+  };
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, double_fp_config)
+{
+  return vector_class<info::fp_config>{
+    info::fp_config::denorm,
+    info::fp_config::inf_nan,
+    info::fp_config::round_to_nearest,
+    info::fp_config::round_to_zero,
+    info::fp_config::round_to_inf,
+    info::fp_config::fma,
+    info::fp_config::correctly_rounded_divide_sqrt
+  };
+}
+
+
+SYCU_SPECIALIZE_GET_INFO(device, name)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return string_class{props.name};
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, global_mem_cache_type)
+{
+  return info::global_mem_cache_type::read_only;
+}
+
+/// \todo what is the cache line size on AMD devices?
+SYCU_SPECIALIZE_GET_INFO(device, global_mem_cache_line_size)
+{ return 128; }
+
+SYCU_SPECIALIZE_GET_INFO(device, global_mem_cache_size)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_ulong>(props.l2CacheSize);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, global_mem_size)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_ulong>(props.totalGlobalMem);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, max_constant_buffer_size)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_ulong>(props.totalConstMem);
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, max_constant_args)
+{ return std::numeric_limits<cl_uint>::max(); }
+
+SYCU_SPECIALIZE_GET_INFO(device, local_mem_type)
+{ return info::local_mem_type::local; }
+
+SYCU_SPECIALIZE_GET_INFO(device, local_mem_size)
+{
+  hipDeviceProp_t props;
+  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  return static_cast<cl_ulong>(props.sharedMemPerBlock);
+}
+
+/// \todo actually check support
+SYCU_SPECIALIZE_GET_INFO(device, error_correction_support)
+{ return false; }
+
+SYCU_SPECIALIZE_GET_INFO(device, host_unified_memory)
+{ return false; }
+
+SYCU_SPECIALIZE_GET_INFO(device, profiling_timer_resolution)
+{ return 1; }
+
+SYCU_SPECIALIZE_GET_INFO(device, is_endian_little)
+{ return true; }
+
+SYCU_SPECIALIZE_GET_INFO(device, is_available)
+{ return true; }
+
+SYCU_SPECIALIZE_GET_INFO(device, is_compiler_available)
+{ return true; }
+
+SYCU_SPECIALIZE_GET_INFO(device, is_linker_available)
+{ return true; }
+
+SYCU_SPECIALIZE_GET_INFO(device, execution_capabilities)
+{
+  return vector_class<info::execution_capability>{
+    info::execution_capability::exec_kernel
+  };
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, queue_profiling)
+{ return false; }
+
+SYCU_SPECIALIZE_GET_INFO(device, built_in_kernels)
+{ return vector_class<string_class>{}; }
+
+
+SYCU_SPECIALIZE_GET_INFO(device, vendor)
+{
+#ifdef SYCU_PLATFORM_CUDA
+  return string_class{"NVIDIA"};
+#else
+  return string_class{"AMD"};
+#endif
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, driver_version)
+{
+  int version;
+  detail::check_error(hipRuntimeGetVersion(&version));
+  return std::to_string(version)+".0";
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, profile)
+{ return "SYCU/CUDA/HIP"; }
+
+SYCU_SPECIALIZE_GET_INFO(device, version)
+{ return "1.2"; }
+
+SYCU_SPECIALIZE_GET_INFO(device, opencl_c_version)
+{ return "1.2"; }
+
+SYCU_SPECIALIZE_GET_INFO(device, extensions)
+{
+  return vector_class<string_class>{};
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, printf_buffer_size)
+{ return std::numeric_limits<size_t>::max(); }
+
+SYCU_SPECIALIZE_GET_INFO(device, preferred_interop_user_sync)
+{ return true; }
+
+SYCU_SPECIALIZE_GET_INFO(device, parent_device)
+{ throw invalid_object_error{"Device is not a subdevice"}; }
+
+SYCU_SPECIALIZE_GET_INFO(device, partition_max_sub_devices)
+{ return 0; }
+
+SYCU_SPECIALIZE_GET_INFO(device, partition_properties)
+{ return vector_class<info::partition_property>{}; }
+
+SYCU_SPECIALIZE_GET_INFO(device, partition_affinity_domains)
+{
+  return vector_class<info::partition_affinity_domain>{
+    info::partition_affinity_domain::not_applicable
+  };
+}
+
+SYCU_SPECIALIZE_GET_INFO(device, partition_type_property)
+{ return info::partition_property::no_partition; }
+
+SYCU_SPECIALIZE_GET_INFO(device, partition_type_affinity_domain)
+{ return info::partition_affinity_domain::not_applicable; }
+
+
+SYCU_SPECIALIZE_GET_INFO(device, reference_count)
+{
+  // SYCU device classes do not need any resources, and hence
+  // no reference counting is required.
+  return 1;
+}
 
 namespace detail {
 

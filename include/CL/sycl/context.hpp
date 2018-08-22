@@ -33,7 +33,7 @@
 #include "platform.hpp"
 #include "exception.hpp"
 #include "device.hpp"
-#include "info/context.hpp"
+#include "info/info.hpp"
 
 #include <cassert>
 
@@ -101,6 +101,16 @@ private:
   platform _platform;
   vector_class<device> _devices;
 };
+
+
+SYCU_SPECIALIZE_GET_INFO(context, reference_count)
+{ return 1; }
+
+SYCU_SPECIALIZE_GET_INFO(context, platform)
+{ return get_platform(); }
+
+SYCU_SPECIALIZE_GET_INFO(context, devices)
+{ return get_devices(); }
 
 } // namespace sycl
 } // namespace cl

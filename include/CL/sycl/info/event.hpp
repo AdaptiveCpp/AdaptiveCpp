@@ -29,6 +29,7 @@
 #ifndef SYCU_INFO_EVENT_HPP
 #define SYCU_INFO_EVENT_HPP
 
+#include "param_traits.hpp"
 
 namespace cl {
 namespace sycl {

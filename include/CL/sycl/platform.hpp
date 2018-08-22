@@ -31,7 +31,7 @@
 
 #include "types.hpp"
 #include "device_selector.hpp"
-#include "info/platform.hpp"
+#include "info/info.hpp"
 
 namespace cl {
 namespace sycl {
@@ -93,6 +93,10 @@ public:
   bool operator!=(const platform& rhs) const
   { return !(*this == rhs); }
 };
+
+
+SYCU_SPECIALIZE_GET_INFO(device, platform)
+{ return this->get_platform(); }
 
 }// namespace sycl
 }// namespace cl

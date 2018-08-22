@@ -44,6 +44,24 @@ def is_program_executable(cmd):
   except:
     return False
 
+def get_sycu_default_options(use_bundled_hip = False):
+  sycucc_path = os.path.dirname(os.path.realpath(__file__))
+  libpath = os.path.join(sycucc_path,"../lib")
+  includepath = os.path.join(sycucc_path,"../include")
+
+  bundled_hip_path = os.path.join(sycucc_path,
+                                  "../include/sycu/HIP")
+  # If we are compiling SYCU itself, the library won't exist yet.
+  # In that case, cmake will take care of the paths, so
+  # we only need to worry about adding the options if we
+  # are part of the installed distribution, i.e. the libsycu
+  # library exists.
+  result = []
+  if os.path.isfile(os.path.join(libpath,"libsycu.so")):
+    result = ["-I"+includepath, "-L"+libpath, "-lsycu"]
+    if use_bundled_hip:
+      result.append("-I"+bundled_hip_path)
+  return result
 
 class source_file_processor:
 
@@ -146,6 +164,7 @@ class cuda_compiler:
             transformed_args += self.transform_argument(arg)
 
         compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
+        compiler_args += get_sycu_default_options(use_bundled_hip = True)
         compiler_args += transformed_args
 
         result = subprocess.call([self.device_compiler]+compiler_args)
@@ -166,7 +185,9 @@ class hip_compiler:
     if len(args) == 1:
       return -1
     else:
-      return subprocess.call([self.device_compiler]+args[1:])
+      return subprocess.call([self.device_compiler]
+                            +get_sycu_default_options()
+                            +args[1:])
 
   def is_available(self):
     return is_program_executable(self.device_compiler)

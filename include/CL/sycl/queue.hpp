@@ -40,27 +40,11 @@
 #include "event.hpp"
 #include "handler.hpp"
 #include "info/queue.hpp"
-
+#include "detail/stream.hpp"
 
 namespace cl {
 namespace sycl {
-namespace detail {
 
-
-class stream_manager
-{
-public:
-  stream_manager(const device& d);
-  ~stream_manager();
-
-  hipStream_t get_stream() const;
-private:
-  hipStream_t _stream;
-};
-
-using stream_ptr = shared_ptr_class<stream_manager>;
-
-}
 
 class queue : public detail::property_carrying_object
 {
@@ -125,7 +109,9 @@ public:
     handler cgh{*this};
     cgf(cgh);
 
-    return detail::insert_event(_stream->get_stream());
+    event evt = cgh._detail_get_event();
+
+    return evt;
   }
 
   template <typename T>
@@ -135,13 +121,13 @@ public:
     try {
       handler cgh{*this};
       cgf(cgh);
+
+      // We need to wait to make sure everything is fine.
       wait();
       return event();
     }
-    catch(exception &e) {
-      handler cgh{secondaryQueue};
-      cgf(cgh);
-      return detail::insert_event(secondaryQueue._stream->get_stream());
+    catch(exception&) {
+      return secondaryQueue.submit(cgf);
     }
 
   }
@@ -158,7 +144,9 @@ public:
   bool operator!=(const queue& rhs) const;
 
   hipStream_t get_hip_stream() const;
+
 private:
+
   device _device;
   detail::stream_ptr _stream;
 };

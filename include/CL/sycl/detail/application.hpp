@@ -25,34 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef SYCU_APPLICATION_HPP
+#define SYCU_APPLICATION_HPP
 
-#ifndef SYCU_VERSION_HPP
-#define SYCU_VERSION_HPP
-
-#include "backend/backend.hpp"
-#include "exception.hpp"
-#include "types.hpp"
-
-#define SYCU_VERSION_MAJOR 0
-#define SYCU_VERSION_MINOR 5
-#define SYCU_VERSION_PATCH 0
+#include "task_graph.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-static string_class version_string()
+class application
 {
-  int version;
-  check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version);
+public:
+  static task_graph& get_task_graph()
+  {
+    static task_graph tg;
+    return tg;
+  }
 
-  string_class sycu_version = std::to_string(SYCU_VERSION_MAJOR)
-      + "." + std::to_string(SYCU_VERSION_MINOR)
-      + "." + std::to_string(SYCU_VERSION_PATCH);
-
-  return "SYCU " + sycu_version + " on HIP/CUDA " + hip_version;
-}
+  application() = delete;
+};
 
 }
 }

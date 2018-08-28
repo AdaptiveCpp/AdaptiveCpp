@@ -28,6 +28,7 @@
 #include "CL/sycl/backend/backend.hpp"
 #include "CL/sycl/detail/buffer.hpp"
 #include "CL/sycl/exception.hpp"
+#include "CL/sycl/detail/application.hpp"
 #include <cstring>
 #include <cassert>
 
@@ -218,11 +219,15 @@ void buffer_impl::update_device(hipStream_t stream)
   update_device(0, this->_size, stream);
 }
 
-void buffer_impl::write(const void* host_data, hipStream_t stream)
+void buffer_impl::write(const void* host_data, hipStream_t stream, bool async)
 {
   assert(host_data != nullptr);
   if(!_svm)
+  {
     this->memcpy_h2d(_buffer_pointer, host_data, _size, stream);
+    if(!async)
+      detail::check_error(hipStreamSynchronize(stream));
+  }
   else
   {
     memcpy(_buffer_pointer, _host_memory, _size);
@@ -248,30 +253,60 @@ void buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
     this->update_host(stream);
 }
 
-void* buffer_impl::access_host(access::mode m, hipStream_t stream)
-{
-  execute_buffer_action(_monitor.register_host_access(m), stream);
-  return _host_memory;
-}
-
-void* buffer_impl::access_device(access::mode m, hipStream_t stream)
-{
-  execute_buffer_action(_monitor.register_device_access(m), stream);
-  return _buffer_pointer;
-}
 
 void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream)
 {
   detail::check_error(hipMemcpyAsync(host, device, len,
                                      hipMemcpyDeviceToHost, stream));
-  detail::check_error(hipStreamSynchronize(stream));
+
 }
 
 void buffer_impl::memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream)
 {
   detail::check_error(hipMemcpyAsync(device, host, len,
                                      hipMemcpyHostToDevice, stream));
-  detail::check_error(hipStreamSynchronize(stream));
+}
+
+task_graph_node_ptr
+buffer_impl::access_host(detail::buffer_ptr buff,
+                         access::mode m,
+                         detail::stream_ptr stream,
+                         async_handler error_handler)
+{
+  task_graph& tg = detail::application::get_task_graph();
+
+  auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
+
+  auto task = [buff, m, stream] () -> hip_event {
+    buff->execute_buffer_action(buff->_monitor.register_device_access(m));
+    return detail::insert_event(stream->get_stream());
+  };
+
+  task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);
+  buff->_dependency_manager.add_operation(node, m);
+
+  return node;
+}
+
+task_graph_node_ptr
+buffer_impl::access_device(detail::buffer_ptr buff,
+                           access::mode m,
+                           detail::stream_ptr stream,
+                           async_handler error_handler)
+{
+  task_graph& tg = detail::application::get_task_graph();
+
+  auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
+
+  auto task = [buff, m, stream] () -> hip_event {
+    buff->execute_buffer_action(buff->_monitor.register_host_access(m));
+    return detail::insert_event(stream->get_stream());
+  };
+
+  task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);
+  buff->_dependency_manager.add_operation(node, m);
+
+  return node;
 }
 
 // ----------- buffer_state_monitor ----------------
@@ -339,6 +374,70 @@ bool buffer_state_monitor::is_host_outdated() const
 bool buffer_state_monitor::is_device_outdated() const
 {
   return this->_device_data_version < this->_host_data_version;
+}
+
+// -------------- buffer_access_log ----------------
+
+
+void buffer_access_log::add_operation(const task_graph_node_ptr& task,
+                                      access::mode access)
+{  
+  _operations.push_back({task, access});
+
+  for(auto it = _operations.begin();
+      it != _operations.end();)
+  {
+    if(it->task->is_done())
+      it = _operations.erase(it);
+    else
+      ++it;
+  }
+}
+
+bool buffer_access_log::is_buffer_in_use() const
+{
+  return _operations.size() > 0;
+}
+
+buffer_access_log::~buffer_access_log()
+{
+  for(auto& op : _operations)
+    op.task->wait();
+}
+
+
+vector_class<task_graph_node_ptr>
+buffer_access_log::calculate_dependencies(access::mode m) const
+{
+  vector_class<task_graph_node_ptr> deps;
+
+  if(m != access::mode::read)
+  {
+    // Write operations need to wait until all previous
+    // reads and writes have finished to guarantee consistency
+    for(auto op : _operations)
+      deps.push_back(op.task);
+  }
+  else
+  {
+    // Read-only operations do not need to depend on previous
+    // write operations
+    for(auto op: _operations)
+      if(op.access_mode != access::mode::read)
+        deps.push_back(op.task);
+  }
+
+  return deps;
+}
+
+bool
+buffer_access_log::is_write_operation_pending() const
+{
+  for(auto op : _operations)
+    if(op.access_mode != access::mode::read &&
+       !op.task->is_done())
+      return true;
+  return false;
 }
 
 }

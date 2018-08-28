@@ -69,20 +69,15 @@ int main()
               access_input[item.get_global_id()];
         });
 
-        work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
+        for(size_t i = local_size/2; i > 0; i /= 2)
         {
-          const size_t lid = item.get_local_id()[0];
-          for(size_t i = local_size/2; i > 0; i /= 2)
+          work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
           {
+            const size_t lid = item.get_local_id()[0];
             if(lid < i)
               scratch[lid] += scratch[lid + i];
-
-            // This should probably be a full barrier, but since
-            // SYCU implements mem_fence with __syncthreads(), this
-            // should be fine for testing
-            work_group.mem_fence();
-          }
-        });
+          });
+        }
 
         work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
         {

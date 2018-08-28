@@ -48,7 +48,7 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 * Because SYCU doesn't build on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in SYCU.
 
 ## Compiling software with SYCU
-SYCU provides the `sycucc` compiler wrapper. `sycucc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `SYCU_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `sycucc` also automatically sets a couple of compiler flags required for the compilation of SYCU programs. All other arguments are forwarded to hcc/nvcc.
+SYCU provides the `syclcc` compiler wrapper. `syclcc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `SYCU_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `syclcc` also automatically sets a couple of compiler flags required for the compilation of SYCU programs. All other arguments are forwarded to hcc/nvcc.
 
 ## Example
 The following code adds two vectors:

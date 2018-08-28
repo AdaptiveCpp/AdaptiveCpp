@@ -25,87 +25,93 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef SYCU_HIP_EVENT_HPP
+#define SYCU_HIP_EVENT_HPP
 
-#ifndef SYCU_EVENT_HPP
-#define SYCU_EVENT_HPP
-
-#include "types.hpp"
-#include "backend/backend.hpp"
-#include "exception.hpp"
-#include "info/event.hpp"
-#include "detail/task_graph.hpp"
+#include "../backend/backend.hpp"
+#include "../exception.hpp"
 
 namespace cl {
 namespace sycl {
+namespace detail {
 
-// ToDo: Replace with detail::task_graph_node
-class event {
-
+class hip_event_manager
+{
 public:
-  event()
+  hip_event_manager()
+  {
+    detail::check_error(hipEventCreate(&_evt));
+  }
+
+  ~hip_event_manager()
+  {
+    detail::check_error(hipEventDestroy(_evt));
+  }
+
+  hipEvent_t& get_event()
+  {
+    return _evt;
+  }
+private:
+  hipEvent_t _evt;
+};
+
+using hip_event_ptr = shared_ptr_class<hip_event_manager>;
+
+
+class hip_event
+{
+public:
+  hip_event()
     : _is_null_event{true}
   {}
 
-  event(const detail::task_graph_node_ptr& evt)
+  hip_event(const detail::hip_event_ptr& evt)
     : _is_null_event{false}, _evt{evt}
   {}
 
-
-  /* CL Interop is not supported
-  event(cl_event clEvent, const context& syclContext);
-
-  cl_event get();
-  */
-
-  vector_class<event> get_wait_list()
+  void wait() const
   {
-    return vector_class<event>{};
+    this->wait_until_done();
   }
 
-  void wait()
+  bool is_done() const
   {
-    if(!this->_is_null_event)
-      this->_evt->wait();
+    if(_is_null_event)
+      return true;
+
+    return hipEventQuery(_evt->get_event()) == hipSuccess;
   }
 
-  static void wait(const vector_class<event> &eventList)
-  {
-    for(const event& evt: eventList)
-      const_cast<event&>(evt).wait();
-  }
-
-  void wait_and_throw()
-  {
-    wait();
-  }
-
-  static void wait_and_throw(const vector_class<event> &eventList)
-  {
-    wait(eventList);
-  }
-
-  template <info::event param>
-  typename info::param_traits<info::event, param>::return_type get_info() const
-  { throw unimplemented{"event::get_info() is unimplemented."}; }
-
-  template <info::event_profiling param>
-  typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
-  { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
-
-  bool operator ==(const event& rhs) const
+  bool operator ==(const hip_event& rhs) const
   { return _evt == rhs._evt; }
 
-  bool operator !=(const event& rhs) const
+  bool operator !=(const hip_event& rhs) const
   { return !(*this == rhs); }
 
 private:
+  void wait_until_done() const
+  {
+    if(!_is_null_event)
+      detail::check_error(hipEventSynchronize(_evt->get_event()));
+  }
 
   bool _is_null_event;
-  detail::task_graph_node_ptr _evt;
+  detail::hip_event_ptr _evt;
 };
 
 
-} // namespace sycl
-} // namespace cl
+/// Inserts an event into the current stream
+static hip_event insert_event(hipStream_t stream)
+{
+  hip_event_ptr evt{new hip_event_manager()};
+  detail::check_error(hipEventRecord(evt->get_event(), stream));
+  return hip_event{evt};
+}
+
+
+}
+}
+}
 
 #endif

@@ -196,7 +196,7 @@ if __name__ == '__main__':
   args = sys.argv
 
   if len(args) == 1:
-    print("sycucc for amd and nvidia devices, Copyright (C) 2018 Aksel Alpay")
+    print("syclcc for amd and nvidia devices, Copyright (C) 2018 Aksel Alpay")
     print("Usage: sycucc <options>")
   else:
     hcc = hip_compiler()

@@ -37,6 +37,7 @@
 #include "backend/backend.hpp"
 #include "multi_ptr.hpp"
 #include "detail/local_memory_allocator.hpp"
+#include "detail/stream.hpp"
 
 namespace cl {
 namespace sycl {
@@ -52,7 +53,7 @@ namespace detail {
 namespace buffer {
 
 template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m, hipStream_t stream);
+void* access_host_ptr(Buffer_type& b, access::mode m);
 
 template<class Buffer_type>
 void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream);
@@ -67,6 +68,11 @@ hipStream_t get_handler_stream(const sycl::handler& h);
 template<class T>
 detail::local_memory::address allocate_local_mem(cl::sycl::handler&,
                                                  size_t num_elements);
+
+template<class Buffer_type>
+void register_accessor(cl::sycl::handler& cgh,
+                       access::mode access_mode,
+                       const Buffer_type& buff);
 } // handler
 
 namespace accessor {
@@ -108,12 +114,12 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                             T == access::target::host_buffer) ||
-                            (P == access::placeholder::true_t  &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer)) &&
-                             D == 0 >* = nullptr>
+           std::enable_if_t<((P == access::placeholder::false_t &&
+                              T == access::target::host_buffer) ||
+                             (P == access::placeholder::true_t  &&
+                             (T == access::target::global_buffer ||
+                              T == access::target::constant_buffer))) &&
+                              D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef);
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -137,12 +143,12 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                             T == access::target::host_buffer) ||
-                            (P == access::placeholder::true_t &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer)) &&
-                            (D > 0)>* = nullptr>
+           std::enable_if_t<((P == access::placeholder::false_t &&
+                              T == access::target::host_buffer) ||
+                             (P == access::placeholder::true_t &&
+                             (T == access::target::global_buffer ||
+                              T == access::target::constant_buffer))) &&
+                             (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
   {
     // ToDo think about when we need to update device/host buffers
@@ -150,8 +156,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
     {
       this->_ptr = reinterpret_cast<pointer_type>(detail::buffer::access_host_ptr(
                                               bufferRef,
-                                              accessmode,
-                                              0));
+                                              accessmode));
       this->_range = detail::buffer::get_buffer_range(bufferRef);
     }
     else
@@ -407,6 +412,10 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
     return constant_ptr<dataT>{_ptr};
   }
 private:
+  void register_access_with_handler(handler& cgh)
+  {
+
+  }
 
   __host__ __device__
   accessor(){}

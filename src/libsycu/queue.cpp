@@ -41,10 +41,17 @@ stream_manager::stream_manager(const device& d)
   detail::check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
 }
 
+stream_manager::stream_manager()
+  : _stream{0}
+{}
+
 stream_manager::~stream_manager()
 {
-  hipStreamSynchronize(_stream);
-  hipStreamDestroy(_stream);
+  if(_stream != 0)
+  {
+    hipStreamSynchronize(_stream);
+    hipStreamDestroy(_stream);
+  }
 }
 
 hipStream_t stream_manager::get_stream() const
@@ -52,7 +59,10 @@ hipStream_t stream_manager::get_stream() const
   return _stream;
 }
 
-
+stream_ptr stream_manager::default_stream()
+{
+  return stream_ptr{new stream_manager()};
+}
 }
 
 

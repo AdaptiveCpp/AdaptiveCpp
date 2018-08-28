@@ -25,34 +25,46 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef SYCU_STREAM_HPP
+#define SYCU_STREAM_HPP
 
-#ifndef SYCU_VERSION_HPP
-#define SYCU_VERSION_HPP
-
-#include "backend/backend.hpp"
-#include "exception.hpp"
-#include "types.hpp"
-
-#define SYCU_VERSION_MAJOR 0
-#define SYCU_VERSION_MINOR 5
-#define SYCU_VERSION_PATCH 0
+#include "../backend/backend.hpp"
+#include "../types.hpp"
 
 namespace cl {
 namespace sycl {
+
+class device;
+
 namespace detail {
 
-static string_class version_string()
+class stream_manager;
+using stream_ptr = shared_ptr_class<stream_manager>;
+
+class stream_manager
 {
-  int version;
-  check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version);
+public:
+  /// Creates a stream manager object on the default stream.
+  /// On the default stream, there can be several stream manager objects.
+  stream_manager();
 
-  string_class sycu_version = std::to_string(SYCU_VERSION_MAJOR)
-      + "." + std::to_string(SYCU_VERSION_MINOR)
-      + "." + std::to_string(SYCU_VERSION_PATCH);
+  /// Creates a new stream on the given device.
+  /// \param d The device
+  stream_manager(const device& d);
 
-  return "SYCU " + sycu_version + " on HIP/CUDA " + hip_version;
-}
+  /// If the managed stream is not the default stream,
+  /// synchronizes and destroys the stream.
+  ~stream_manager();
+
+  /// \return The managed stream
+  hipStream_t get_stream() const;
+
+  /// \return A stream manager pointer using the default stream
+  static stream_ptr default_stream();
+private:
+  hipStream_t _stream;
+};
+
 
 }
 }

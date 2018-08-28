@@ -40,11 +40,21 @@
 #include "nd_item.hpp"
 #include "group.hpp"
 #include "detail/local_memory_allocator.hpp"
+#include "detail/buffer.hpp"
+#include "detail/task_graph.hpp"
 
 namespace cl {
 namespace sycl {
 
 namespace detail {
+
+
+struct buffer_access
+{
+  access::mode access_mode;
+  detail::buffer_ptr buff;
+};
+
 namespace dispatch {
 
 
@@ -106,13 +116,11 @@ class queue;
 
 class handler
 {
-  friend class queue;
-  const queue* _queue;
-  detail::local_memory_allocator _local_mem_allocator;
-
-  handler(const queue& q);
-
 public:
+  ~handler()
+  {
+    /// \todo mark all buffers as unused
+  }
 
   template <typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
@@ -231,6 +239,13 @@ void set_args(Ts &&... args);
   {
     return _local_mem_allocator;
   }
+
+  void _detail_add_access(detail::task_graph_node_ptr task)
+  {
+    this->_buffer_accesses.push_back(task);
+  }
+
+  event _detail_get_event();
 private:
 
   void select_device() const;
@@ -374,6 +389,15 @@ private:
         <<<grid,block,shared_mem_size,stream>>>(kernelFunc, workGroupSize);
   }
 
+  handler(const queue& q);
+
+  friend class queue;
+  const queue* _queue;
+  detail::local_memory_allocator _local_mem_allocator;
+
+
+  vector_class<detail::task_graph_node_ptr> _buffer_accesses;
+  vector_class<detail::task_graph_node_ptr> _kernel_launches;
 };
 
 namespace detail {
@@ -385,6 +409,15 @@ detail::local_memory::address allocate_local_mem(cl::sycl::handler& cgh,
                                                  size_t num_elements)
 {
   return cgh.get_local_memory_allocator().alloc<T>(num_elements);
+}
+
+
+template<class Buffer_type>
+void register_accessor(cl::sycl::handler& cgh,
+                       access::mode access_mode,
+                       const Buffer_type& buff)
+{
+  cgh._detail_add_access(access_mode, buff._detail_get_buffer_ptr());
 }
 
 }

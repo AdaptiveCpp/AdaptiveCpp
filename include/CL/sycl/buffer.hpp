@@ -309,9 +309,9 @@ namespace detail {
 namespace buffer {
 
 template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m, hipStream_t stream)
+void* access_host_ptr(Buffer_type& b, access::mode m)
 {
-  return b._detail_get_buffer_ptr()->access_host(m, stream);
+  return b._detail_get_buffer_ptr()->access_host(m);
 }
 
 template<class Buffer_type>

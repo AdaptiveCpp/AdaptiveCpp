@@ -31,6 +31,9 @@
 #include "../backend/backend.hpp"
 #include "../types.hpp"
 #include "../access.hpp"
+#include "../event.hpp"
+#include "task_graph.hpp"
+#include "stream.hpp"
 
 #include <cstddef>
 
@@ -75,8 +78,42 @@ private:
 
   std::size_t _host_data_version;
   std::size_t _device_data_version;
-
 };
+
+/// Logs operations on the buffer, and calculates
+/// dependencies on previous buffer accesses
+class buffer_access_log
+{
+public:
+  /// Blocks until all work has completed
+  ~buffer_access_log();
+
+  /// Adds a buffer access to the dependency list
+  void add_operation(const task_graph_node_ptr& task,
+                     access::mode access);
+
+  /// \return whether the buffer is currently in use,
+  /// i.e. any operations have been registered.
+  bool is_buffer_in_use() const;
+
+  /// Calculates the dependencies required for the specified access mode.
+  /// The following rules are used
+  vector_class<task_graph_node_ptr>
+  calculate_dependencies(access::mode m) const;
+
+  bool is_write_operation_pending() const;
+private:
+  struct dependency
+  {
+    task_graph_node_ptr task;
+    access::mode access_mode;
+  };
+
+  vector_class<dependency> _operations;
+};
+
+class buffer_impl;
+using buffer_ptr = shared_ptr_class<buffer_impl>;
 
 class buffer_impl
 {
@@ -94,13 +131,7 @@ public:
   void* get_buffer_ptr() const;
   void* get_host_ptr() const;
 
-  void write(const void* host_data, hipStream_t stream);
-
-  void update_host(size_t begin, size_t end, hipStream_t stream);
-  void update_host(hipStream_t stream);
-
-  void update_device(size_t begin, size_t end, hipStream_t stream);
-  void update_device(hipStream_t stream);
+  void write(const void* host_data, hipStream_t stream, bool async = false);
 
   bool is_svm_buffer() const;
 
@@ -110,13 +141,38 @@ public:
   void set_write_back(void* ptr);
   void enable_write_back(bool writeback);
 
-  void* access_host(access::mode m, hipStream_t stream);
-  void* access_device(access::mode m, hipStream_t stream);
+
+  static
+  task_graph_node_ptr access_host(detail::buffer_ptr buff,
+                                  access::mode m,
+                                  detail::stream_ptr stream,
+                                  async_handler error_handler);
+
+  static
+  task_graph_node_ptr access_device(detail::buffer_ptr buff,
+                                    access::mode m,
+                                    detail::stream_ptr stream,
+                                    async_handler error_handler);
+
 
 private:
+
+  void update_host(size_t begin, size_t end, hipStream_t stream);
+  void update_host(hipStream_t stream);
+
+  void update_device(size_t begin, size_t end, hipStream_t stream);
+  void update_device(hipStream_t stream);
+
   void execute_buffer_action(buffer_action a, hipStream_t stream);
 
+  /// Performs an async data transfer if the stream is from
+  /// a sycl queue (i.e. not the default stream) and a synchronous
+  /// data transfer otherwise.
   void memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream);
+
+  /// Performs an async data transfer if the stream is from
+  /// a sycl queue (i.e. not the default stream) and a synchronous
+  /// data transfer otherwise.
   void memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream);
 
   bool _svm;
@@ -132,12 +188,12 @@ private:
   void* _write_back_memory;
 
   buffer_state_monitor _monitor;
+  buffer_access_log _dependency_manager;
 
   mutex_class _mutex;
 };
 
 
-using buffer_ptr = shared_ptr_class<detail::buffer_impl>;
 
 }
 }

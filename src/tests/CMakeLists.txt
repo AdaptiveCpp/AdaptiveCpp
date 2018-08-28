@@ -1,1 +1,1 @@
-subdirs(platform_api hello_world vector_add local_memory hierarchical_dispatch)
+subdirs(platform_api hello_world vector_add local_memory hierarchical_dispatch task_graph)

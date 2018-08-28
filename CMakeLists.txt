@@ -2,7 +2,7 @@
 
 project(SYCU)
 # ToDo: Detect hcc
-set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/sycucc)
+set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
 
 cmake_minimum_required (VERSION 2.6)
 
@@ -12,4 +12,4 @@ subdirs(src)
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY contrib/HIP/include/ DESTINATION include/sycu/HIP)
-install(PROGRAMS bin/sycucc DESTINATION bin)
+install(PROGRAMS bin/syclcc DESTINATION bin)

@@ -30,11 +30,11 @@
 
 #include "../backend/backend.hpp"
 #include "../types.hpp"
+#include "../device.hpp"
 
 namespace cl {
 namespace sycl {
 
-class device;
 
 namespace detail {
 
@@ -48,9 +48,19 @@ public:
   /// On the default stream, there can be several stream manager objects.
   stream_manager();
 
+  /// Creates a stream manager object on the default stream
+  /// \param handler The error handler
+  stream_manager(async_handler handler);
+
   /// Creates a new stream on the given device.
   /// \param d The device
   stream_manager(const device& d);
+
+  /// Creates a new stream on the given device.
+  /// \param d The device
+  /// \param handler The error handler
+  stream_manager(const device& d,
+                 async_handler handler);
 
   /// If the managed stream is not the default stream,
   /// synchronizes and destroys the stream.
@@ -61,8 +71,19 @@ public:
 
   /// \return A stream manager pointer using the default stream
   static stream_ptr default_stream();
+
+  /// Sets the device on which the stream is constructed
+  /// as active device
+  void activate_device() const;
+
+  /// \return The error handler associated with this
+  /// stream
+  async_handler get_error_handler() const;
 private:
   hipStream_t _stream;
+
+  device _dev;
+  async_handler _handler;
 };
 
 

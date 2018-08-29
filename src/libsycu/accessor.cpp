@@ -25,34 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/accessor.hpp"
 #include "CL/sycl/handler.hpp"
-#include "CL/sycl/queue.hpp"
+#include "CL/sycl/detail/buffer.hpp"
+#include "CL/sycl/detail/task_graph.hpp"
+#include "CL/sycl/detail/application.hpp"
 
 namespace cl {
 namespace sycl {
+namespace detail {
+namespace accessor {
 
-handler::handler(const queue& q, async_handler handler)
-: _queue{&q},
-  _local_mem_allocator{q.get_device()},
-  _handler{handler}
-{}
-
-hipStream_t handler::get_hip_stream() const
+void* obtain_host_access(buffer_ptr buff,
+                         access::mode access_mode)
 {
-  return _queue->get_hip_stream();
-}
+  void* ptr = buff->get_host_ptr();
+  stream_ptr stream = stream_manager::default_stream();
 
-detail::stream_ptr handler::get_stream() const
-{
-  return _queue->get_stream();
-}
+  detail::buffer_impl::access_host(buff,
+                                   access_mode,
+                                   stream,
+                                   stream->get_error_handler());
 
-void handler::select_device() const
-{
-  detail::set_device(this->_queue->get_device());
+  return ptr;
+
 }
 
 
-} // sycl
-} // cl
+void* obtain_device_access(buffer_ptr buff,
+                           sycl::handler& cgh,
+                           access::mode access_mode)
+{
+  void* ptr = buff->get_buffer_ptr();
+
+  auto task_graph_node =
+      detail::buffer_impl::access_device(buff,
+                                         access_mode,
+                                         cgh.get_stream(),
+                                         cgh.get_stream()->get_error_handler());
+
+  cgh._detail_add_access(buff, access_mode, task_graph_node);
+
+  return ptr;
+}
+
+
+}
+}
+}
+}

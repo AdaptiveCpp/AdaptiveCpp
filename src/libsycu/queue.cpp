@@ -28,7 +28,7 @@
 #include "CL/sycl/context.hpp"
 #include "CL/sycl/device.hpp"
 #include "CL/sycl/queue.hpp"
-
+#include "CL/sycl/detail/application.hpp"
 
 
 namespace cl {
@@ -36,13 +36,26 @@ namespace sycl {
 namespace detail {
 
 stream_manager::stream_manager(const device& d)
+  : stream_manager{d, [](exception_list){}}
+{}
+
+stream_manager::stream_manager(const device& d,
+                               async_handler handler)
+  : _dev{d},
+    _handler{handler}
 {
   detail::set_device(d);
   detail::check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
 }
 
 stream_manager::stream_manager()
-  : _stream{0}
+  : stream_manager{[](exception_list){}}
+{}
+
+stream_manager::stream_manager(async_handler handler)
+  : _stream{0},
+    _dev{},
+    _handler{handler}
 {}
 
 stream_manager::~stream_manager()
@@ -63,76 +76,105 @@ stream_ptr stream_manager::default_stream()
 {
   return stream_ptr{new stream_manager()};
 }
+
+void stream_manager::activate_device() const
+{
+  detail::set_device(_dev);
+}
+
+async_handler stream_manager::get_error_handler() const
+{
+  return this->_handler;
+}
+
 }
 
 
 queue::queue(const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{device{}}
+    _device{device{}},
+    _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr(new detail::stream_manager{_device});
+  _stream = detail::stream_ptr(new detail::stream_manager{_device,
+                                                          _handler});
 }
 
 /// \todo constructors do not yet use asyncHandler
 queue::queue(const async_handler &asyncHandler,
              const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{device{}}
+    _device{device{}},
+    _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{_device,
+                                                          _handler}};
 }
 
 
 queue::queue(const device_selector &deviceSelector,
              const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()}
+    _device{deviceSelector.select_device()},
+    _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{_device,
+                                                          _handler}};
 }
 
 
 queue::queue(const device_selector &deviceSelector,
              const async_handler &asyncHandler, const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()}
+    _device{deviceSelector.select_device()},
+    _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{_device,
+                                                          _handler}};
 }
 
 
 queue::queue(const device &syclDevice, const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{syclDevice}
+    _device{syclDevice},
+    _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{_device,
+                                                          _handler}};
 }
 
 
 queue::queue(const device &syclDevice, const async_handler &asyncHandler,
              const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{syclDevice}
+    _device{syclDevice},
+    _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{_device,
+                                                          _handler}};
 }
 
 
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()}
+    _device{deviceSelector.select_device()},
+    _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{
+      _device,
+      _handler}};
 }
 
 
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const async_handler &asyncHandler, const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()}
+    _device{deviceSelector.select_device()},
+    _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device}};
+  _stream = detail::stream_ptr{new detail::stream_manager{
+      _device,
+      _handler}};
 }
 
 
@@ -150,11 +192,11 @@ bool queue::is_host() const {
 }
 
 void queue::wait() {
-  detail::check_error(hipStreamSynchronize(_stream->get_stream()));
+  detail::application::get_task_graph().finish(_stream);
 }
 
 void queue::wait_and_throw() {
-  detail::check_error(hipStreamSynchronize(_stream->get_stream()));
+  detail::application::get_task_graph().finish(_stream);
 }
 
 void queue::throw_asynchronous() {}
@@ -167,6 +209,9 @@ bool queue::operator!=(const queue& rhs) const
 
 hipStream_t queue::get_hip_stream() const
 { return _stream->get_stream(); }
+
+detail::stream_ptr queue::get_stream() const
+{ return _stream; }
 
 }// namespace sycl
 }// namespace cl

@@ -154,6 +154,12 @@ public:
                                     detail::stream_ptr stream,
                                     async_handler error_handler);
 
+  /// Registers an external operation on the buffer in the access log,
+  /// such as an explicit copy or a kernel working with the buffer.
+  /// The external operation will then be taken account during the dependency
+  /// resolution for buffer accesses.
+  void register_external_access(const task_graph_node_ptr& task,
+                                access::mode m);
 
 private:
 

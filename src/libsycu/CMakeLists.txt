@@ -6,7 +6,8 @@ add_library(sycu SHARED
   queue.cpp
   handler.cpp
   buffer.cpp
-  task_graph.cpp)
+  task_graph.cpp
+  accessor.cpp)
 
 install(TARGETS sycu
         LIBRARY DESTINATION lib

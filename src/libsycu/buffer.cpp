@@ -278,7 +278,8 @@ buffer_impl::access_host(detail::buffer_ptr buff,
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
 
   auto task = [buff, m, stream] () -> hip_event {
-    buff->execute_buffer_action(buff->_monitor.register_device_access(m));
+    buff->execute_buffer_action(buff->_monitor.register_device_access(m),
+                                stream->get_stream());
     return detail::insert_event(stream->get_stream());
   };
 
@@ -299,7 +300,8 @@ buffer_impl::access_device(detail::buffer_ptr buff,
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
 
   auto task = [buff, m, stream] () -> hip_event {
-    buff->execute_buffer_action(buff->_monitor.register_host_access(m));
+    buff->execute_buffer_action(buff->_monitor.register_host_access(m),
+                                stream->get_stream());
     return detail::insert_event(stream->get_stream());
   };
 
@@ -307,6 +309,23 @@ buffer_impl::access_device(detail::buffer_ptr buff,
   buff->_dependency_manager.add_operation(node, m);
 
   return node;
+}
+
+void
+buffer_impl::register_external_access(const task_graph_node_ptr& task,
+                                      access::mode m)
+{
+  this->_dependency_manager.add_operation(task, m);
+}
+
+void* buffer_impl::get_buffer_ptr() const
+{
+  return _buffer_pointer;
+}
+
+void* buffer_impl::get_host_ptr() const
+{
+  return _host_memory;
 }
 
 // ----------- buffer_state_monitor ----------------

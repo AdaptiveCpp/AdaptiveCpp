@@ -38,6 +38,7 @@
 #include "multi_ptr.hpp"
 #include "detail/local_memory_allocator.hpp"
 #include "detail/stream.hpp"
+#include "detail/buffer.hpp"
 
 namespace cl {
 namespace sycl {
@@ -53,26 +54,18 @@ namespace detail {
 namespace buffer {
 
 template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m);
-
-template<class Buffer_type>
-void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream);
+buffer_ptr get_buffer_impl(Buffer_type& buff);
 
 template<class Buffer_type>
 sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
 } // buffer
 
 namespace handler {
-hipStream_t get_handler_stream(const sycl::handler& h);
 
 template<class T>
 detail::local_memory::address allocate_local_mem(cl::sycl::handler&,
                                                  size_t num_elements);
 
-template<class Buffer_type>
-void register_accessor(cl::sycl::handler& cgh,
-                       access::mode access_mode,
-                       const Buffer_type& buff);
 } // handler
 
 namespace accessor {
@@ -88,6 +81,13 @@ struct accessor_pointer_type<T, access::mode::read>
 {
   using value = const T*;
 };
+
+void* obtain_host_access(buffer_ptr buff,
+                         access::mode access_mode);
+
+void* obtain_device_access(buffer_ptr buff,
+                           sycl::handler& cgh,
+                           access::mode access_mode);
 
 } // accessor
 } // detail
@@ -151,13 +151,9 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                              (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
   {
-    // ToDo think about when we need to update device/host buffers
     if(accessTarget == access::target::host_buffer)
     {
-      this->_ptr = reinterpret_cast<pointer_type>(detail::buffer::access_host_ptr(
-                                              bufferRef,
-                                              accessmode));
-      this->_range = detail::buffer::get_buffer_range(bufferRef);
+      this->init_host_accessor(bufferRef);
     }
     else
     {
@@ -179,14 +175,7 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
   {
-    hipStream_t stream =
-        detail::handler::get_handler_stream(commandGroupHandlerRef);
-
-    this->_ptr = reinterpret_cast<pointer_type>(
-      detail::buffer::access_device_ptr(bufferRef,
-                                        accessmode,
-                                        stream));
-    this->_range = detail::buffer::get_buffer_range(bufferRef);
+    this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -207,11 +196,15 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
   {
-    this->_ptr = reinterpret_cast<pointer_type>(
-      detail::buffer::access_device_ptr(bufferRef,
-                                        accessmode,
-                                        0));
-    this->_range = detail::buffer::get_buffer_range(bufferRef);
+    if(accessTarget == access::target::host_buffer)
+    {
+      this->init_host_accessor(bufferRef);
+    }
+    else
+    {
+      // ToDo
+      throw unimplemented{"Placeholder accessors are unsupported"};
+    }
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -228,14 +221,7 @@ access::target::constant_buffer)) && dimensions > 0 */
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
   {
-    hipStream_t stream =
-        detail::handler::get_handler_stream(commandGroupHandlerRef);
-
-    this->_ptr = reinterpret_cast<pointer_type>(
-      detail::buffer::access_device_ptr(bufferRef,
-                                        accessmode,
-                                        stream));
-    this->_range = detail::buffer::get_buffer_range(bufferRef);
+    this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
 
   /* -- common interface members -- */
@@ -412,9 +398,28 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
     return constant_ptr<dataT>{_ptr};
   }
 private:
-  void register_access_with_handler(handler& cgh)
+  template<class Buffer_type>
+  void init_device_accessor(Buffer_type& bufferRef,
+                            handler& commandGroupHandlerRef)
   {
+    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
+    this->_ptr = reinterpret_cast<pointer_type>(
+          detail::accessor::obtain_device_access(buff,
+                                                 commandGroupHandlerRef,
+                                                 accessmode));
 
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
+  }
+
+  template<class Buffer_type>
+  void init_host_accessor(Buffer_type& bufferRef)
+  {
+    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
+    this->_ptr = reinterpret_cast<pointer_type>(
+          detail::accessor::obtain_host_access(buff,
+                                               accessmode));
+
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
   }
 
   __host__ __device__
@@ -568,7 +573,7 @@ private:
 
 namespace detail {
 namespace accessor {
-
+/*
 
 template<typename dataT, int dimensions,
          access::mode accessmode,
@@ -584,7 +589,7 @@ dataT* get_accessor_ptr(const sycl::accessor<dataT,
 {
   return a.get_pointer();
 }
-
+*/
 
 } // accessor
 } // detail

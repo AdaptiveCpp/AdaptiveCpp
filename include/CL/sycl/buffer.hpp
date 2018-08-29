@@ -308,16 +308,11 @@ private:
 namespace detail {
 namespace buffer {
 
-template<class Buffer_type>
-void* access_host_ptr(Buffer_type& b, access::mode m)
-{
-  return b._detail_get_buffer_ptr()->access_host(m);
-}
 
 template<class Buffer_type>
-void* access_device_ptr(Buffer_type& b, access::mode m, hipStream_t stream)
+buffer_ptr get_buffer_impl(Buffer_type& buff)
 {
-  return b._detail_get_buffer_ptr()->access_device(m, stream);
+  return buff._detail_get_buffer_ptr();
 }
 
 template<class Buffer_type>

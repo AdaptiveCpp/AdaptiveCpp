@@ -42,18 +42,13 @@
 #include "detail/local_memory_allocator.hpp"
 #include "detail/buffer.hpp"
 #include "detail/task_graph.hpp"
+#include "detail/application.hpp"
 
 namespace cl {
 namespace sycl {
 
 namespace detail {
 
-
-struct buffer_access
-{
-  access::mode access_mode;
-  detail::buffer_ptr buff;
-};
 
 namespace dispatch {
 
@@ -145,10 +140,20 @@ void set_args(Ts &&... args);
   template <typename KernelName, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
-    std::size_t shared_mem_size = 0;
-    hipStream_t stream = this->get_execution_stream();
+    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
+    detail::stream_ptr stream = this->get_stream();
 
-    detail::dispatch::single_task_kernel<<<1,1,shared_mem_size,stream>>>(kernelFunc);
+    auto kernel_launch = [=]()
+        -> detail::hip_event
+    {
+      stream->activate_device();
+      detail::dispatch::single_task_kernel
+          <<<1,1,shared_mem_size,stream->get_stream()>>>(kernelFunc);
+
+      return detail::insert_event(stream->get_stream());
+    };
+
+    this->submit_kernel(kernel_launch);
   }
 
   template <typename KernelName, typename KernelType, int dimensions>
@@ -233,20 +238,38 @@ void set_args(Ts &&... args);
   template<typename T, int dim, access::mode mode, access::target tgt>
   void fill(accessor<T, dim, mode, tgt> dest, const T& src);
 
-  hipStream_t get_execution_stream() const;
-
   detail::local_memory_allocator& get_local_memory_allocator()
   {
     return _local_mem_allocator;
   }
 
-  void _detail_add_access(detail::task_graph_node_ptr task)
+  void _detail_add_access(detail::buffer_ptr buff,
+                          access::mode access_mode,
+                          detail::task_graph_node_ptr task)
   {
-    this->_buffer_accesses.push_back(task);
+    this->_spawned_task_nodes.push_back(task);
+    this->_accessed_buffers.push_back({access_mode, buff, task});
   }
 
-  event _detail_get_event();
+  event _detail_get_event() const
+  {
+    if(_spawned_task_nodes.empty())
+      return event{};
+
+    return event{_spawned_task_nodes.back()};
+  }
+
+
+  detail::stream_ptr get_stream() const;
 private:
+  struct buffer_access
+  {
+    access::mode access_mode;
+    detail::buffer_ptr buff;
+    detail::task_graph_node_ptr task;
+  };
+
+  hipStream_t get_hip_stream() const;
 
   void select_device() const;
 
@@ -307,19 +330,27 @@ private:
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
                                       KernelType kernelFunc)
   {
-    this->select_device();
+    dim3 grid, block;
+    determine_grid_configuration(numWorkItems, grid, block);
 
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
-    hipStream_t stream = this->get_execution_stream();
+    detail::stream_ptr stream = this->get_stream();
 
-    dim3 grid, block;
-    determine_grid_configuration(numWorkItems, grid, block);
+    auto kernel_launch = [=]()
+        -> detail::hip_event
+    {
+      stream->activate_device();
+      detail::dispatch::parallel_for_kernel
+          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
+                                                                numWorkItems);
 
-    detail::dispatch::parallel_for_kernel
-        <<<grid,block,shared_mem_size,stream>>>(kernelFunc,
-                                                numWorkItems);
+      return detail::insert_event(stream->get_stream());
+    };
+
+    this->submit_kernel(kernel_launch);
+
   }
 
   template <typename KernelType, int dimensions>
@@ -327,20 +358,28 @@ private:
                                    id<dimensions> offset,
                                    KernelType kernelFunc)
   {
-    this->select_device();
+    dim3 grid, block;
+    determine_grid_configuration(numWorkItems, grid, block);
 
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
-    hipStream_t stream = this->get_execution_stream();
+    detail::stream_ptr stream = this->get_stream();
 
-    dim3 grid, block;
-    determine_grid_configuration(numWorkItems, grid, block);
 
-    detail::dispatch::parallel_for_kernel_with_offset
-        <<<grid,block,shared_mem_size,stream>>>(kernelFunc,
-                                                numWorkItems,
-                                                offset);
+    auto kernel_launch = [=]()
+        -> detail::hip_event
+    {
+      stream->activate_device();
+      detail::dispatch::parallel_for_kernel_with_offset
+          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
+                                                                numWorkItems,
+                                                                offset);
+
+      return detail::insert_event(stream->get_stream());
+    };
+
+    this->submit_kernel(kernel_launch);
   }
 
 
@@ -353,13 +392,6 @@ private:
         throw invalid_parameter_error{"Global size must be a multiple of the local size"};
     }
 
-    this->select_device();
-
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    hipStream_t stream = this->get_execution_stream();
-
     id<dimensions> offset = executionRange.get_offset();
     range<dimensions> grid_range = executionRange.get_group();
     range<dimensions> block_range = executionRange.get_local();
@@ -367,8 +399,24 @@ private:
     dim3 grid = range_to_dim3(grid_range);
     dim3 block = range_to_dim3(block_range);
 
-    detail::dispatch::parallel_for_ndrange_kernel
-        <<<grid,block,shared_mem_size,stream>>>(kernelFunc, offset);
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
+    detail::stream_ptr stream = this->get_stream();
+
+    auto kernel_launch = [=]()
+        -> detail::hip_event
+    {
+      stream->activate_device();
+
+      detail::dispatch::parallel_for_ndrange_kernel
+          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
+                                                                offset);
+
+      return detail::insert_event(stream->get_stream());
+    };
+
+    this->submit_kernel(kernel_launch);
   }
 
   template <typename WorkgroupFunctionType, int dimensions>
@@ -380,24 +428,56 @@ private:
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
-    hipStream_t stream = this->get_execution_stream();
+    detail::stream_ptr stream = this->get_stream();
 
     dim3 grid = range_to_dim3(numWorkGroups);
     dim3 block = range_to_dim3(workGroupSize);
 
-    detail::dispatch::parallel_for_workgroup
-        <<<grid,block,shared_mem_size,stream>>>(kernelFunc, workGroupSize);
+    auto kernel_launch = [=]()
+        -> detail::hip_event
+    {
+      stream->activate_device();
+      detail::dispatch::parallel_for_workgroup
+          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
+                                                                workGroupSize);
+
+      return detail::insert_event(stream->get_stream());
+    };
+
+    this->submit_kernel(kernel_launch);
+
   }
 
-  handler(const queue& q);
+  void submit_kernel(detail::task_functor f)
+  {
+    auto& task_graph = detail::application::get_task_graph();
+
+    auto graph_node =
+        task_graph.insert(f, _spawned_task_nodes, get_stream(), _handler);
+
+    // Add new node to the access log of buffers. This guarantees that
+    // subsequent buffer accesses will wait for the kernels to complete,
+    // if necessary
+    for(const auto& buffer_access : _accessed_buffers)
+    {
+      buffer_access.buff->register_external_access(
+            buffer_access.task,
+            buffer_access.access_mode);
+    }
+
+    _spawned_task_nodes.push_back(graph_node);
+  }
+
+  handler(const queue& q, async_handler handler);
 
   friend class queue;
   const queue* _queue;
   detail::local_memory_allocator _local_mem_allocator;
+  async_handler _handler;
 
 
-  vector_class<detail::task_graph_node_ptr> _buffer_accesses;
-  vector_class<detail::task_graph_node_ptr> _kernel_launches;
+  vector_class<detail::task_graph_node_ptr> _spawned_task_nodes;
+  vector_class<buffer_access> _accessed_buffers;
 };
 
 namespace detail {
@@ -405,19 +485,11 @@ namespace handler {
 
 
 template<class T>
-detail::local_memory::address allocate_local_mem(cl::sycl::handler& cgh,
-                                                 size_t num_elements)
+static detail::local_memory::address allocate_local_mem(
+    cl::sycl::handler& cgh,
+    size_t num_elements)
 {
   return cgh.get_local_memory_allocator().alloc<T>(num_elements);
-}
-
-
-template<class Buffer_type>
-void register_accessor(cl::sycl::handler& cgh,
-                       access::mode access_mode,
-                       const Buffer_type& buff)
-{
-  cgh._detail_add_access(access_mode, buff._detail_get_buffer_ptr());
 }
 
 }

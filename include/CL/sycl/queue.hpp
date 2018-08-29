@@ -104,9 +104,9 @@ public:
 
   template <typename T>
   event submit(T cgf) {
-    detail::set_device(_device);
+    _stream->activate_device();
 
-    handler cgh{*this};
+    handler cgh{*this, _handler};
     cgf(cgh);
 
     event evt = cgh._detail_get_event();
@@ -116,10 +116,10 @@ public:
 
   template <typename T>
   event submit(T cgf, const queue &secondaryQueue) {
-    detail::set_device(_device);
+    _stream->activate_device();
 
     try {
-      handler cgh{*this};
+      handler cgh{*this, _handler};
       cgf(cgh);
 
       // We need to wait to make sure everything is fine.
@@ -135,6 +135,7 @@ public:
 
   void wait();
 
+  /// \todo implement these properly
   void wait_and_throw();
 
   void throw_asynchronous();
@@ -144,11 +145,13 @@ public:
   bool operator!=(const queue& rhs) const;
 
   hipStream_t get_hip_stream() const;
+  detail::stream_ptr get_stream() const;
 
 private:
 
   device _device;
   detail::stream_ptr _stream;
+  async_handler _handler;
 };
 
 }// namespace sycl

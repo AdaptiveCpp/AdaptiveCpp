@@ -7,7 +7,8 @@ add_library(sycu SHARED
   handler.cpp
   buffer.cpp
   task_graph.cpp
-  accessor.cpp)
+  accessor.cpp
+  async_worker.cpp)
 
 install(TARGETS sycu
         LIBRARY DESTINATION lib

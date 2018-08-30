@@ -25,62 +25,84 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/device.hpp"
-#include "CL/sycl/device_selector.hpp"
-#include "CL/sycl/platform.hpp"
-
+#include "CL/sycl/detail/async_worker.hpp"
 
 namespace cl {
 namespace sycl {
-
-
-device::device(const device_selector &deviceSelector) {
-  this->_device_id = deviceSelector.select_device()._device_id;
-}
-
-platform device::get_platform() const  {
-  // We only have one platform
-  return platform{};
-}
-
-vector_class<device> device::get_devices(
-    info::device_type deviceType)
-{
-  if(deviceType == info::device_type::cpu ||
-     deviceType == info::device_type::host)
-    return vector_class<device>();
-
-  vector_class<device> result;
-  int num_devices = get_num_devices();
-  for(int i = 0; i < num_devices; ++i)
-  {
-    device d;
-    d._device_id = i;
-
-    result.push_back(d);
-  }
-  return result;
-}
-
-int device::get_num_devices()
-{
-  int num_devices = 0;
-  detail::check_error(hipGetDeviceCount(&num_devices));
-  return num_devices;
-}
-
-int device::get_device_id() const {
-  return _device_id;
-}
-
 namespace detail {
 
-void set_device(const device& d)
+worker_thread::worker_thread()
+  : _is_operation_pending{false},
+    _continue{true},
+    _async_operation{[](){}}
 {
-  detail::check_error(hipSetDevice(d.get_device_id()));
+  _worker_thread = std::thread{[this](){ work(); } };
+}
+
+
+worker_thread::~worker_thread()
+{
+  halt();
+
+  if(_worker_thread.joinable())
+    _worker_thread.join();
+}
+
+void worker_thread::wait()
+{
+  if(_is_operation_pending)
+  {
+    std::unique_lock<std::mutex> lock(_mutex);
+    // Wait until no operation is pending
+    _condition_wait.wait(lock, [this]{return !_is_operation_pending;});
+  }
+}
+
+
+bool worker_thread::is_currently_working() const
+{
+  return _is_operation_pending;
+}
+
+void worker_thread::halt()
+{
+
+  // Wait until no operation is pending
+  if(_is_operation_pending)
+  {
+    std::unique_lock<std::mutex> lock(_mutex);
+    _condition_wait.wait(lock, [this]{return !_is_operation_pending;});
+  }
+
+  _continue = false;
+  _condition_wait.notify_one();
+}
+
+void worker_thread::work()
+{
+  while(_continue)
+  {
+    {
+      std::unique_lock<std::mutex> lock(_mutex);
+
+      // Wait until we have work, or until _continue becomes false
+      _condition_wait.wait(lock,
+                           [this](){return _is_operation_pending || !_continue;});
+    }
+
+    if(_continue && _is_operation_pending)
+    {
+      _async_operation();
+
+      {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _is_operation_pending = false;
+      }
+      _condition_wait.notify_one();
+    }
+  }
 }
 
 }
-
 }
 }

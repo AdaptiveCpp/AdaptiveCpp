@@ -32,6 +32,7 @@
 #include "../backend/backend.hpp"
 #include "hip_event.hpp"
 #include "stream.hpp"
+#include "async_worker.hpp"
 
 #include <atomic>
 
@@ -101,6 +102,9 @@ public:
   /// A single processing step
   void process_graph();
 
+  /// Handler that is executed when a task has finished.
+  void on_task_completed(task_graph_node* node,
+                         hipError_t status);
 private:
   void purge_finished_tasks();
   void submit_eligible_tasks() const;
@@ -108,6 +112,8 @@ private:
   vector_class<task_graph_node_ptr> _nodes;
 
   mutex_class _mutex;
+
+  worker_thread _worker;
 
 };
 

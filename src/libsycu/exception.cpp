@@ -28,6 +28,8 @@
 #include "CL/sycl/exception.hpp"
 #include "CL/sycl/context.hpp"
 
+#include <iostream>
+
 namespace cl {
 namespace sycl {
 
@@ -42,6 +44,11 @@ namespace detail {
 
 void check_error(hipError_t e) {
 
+  if(e != hipSuccess)
+  {
+    std::cout << "Error: " << e << std::endl;
+    std::terminate();
+  }
   switch(e) {
 
   case hipSuccess:

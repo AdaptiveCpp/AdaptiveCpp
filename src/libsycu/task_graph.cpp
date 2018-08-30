@@ -41,18 +41,7 @@ void task_done_callback(hipStream_t stream,
 
   if(node != nullptr)
   {
-    try
-    {
-      detail::check_error(status);
-
-      task_graph* graph = node->get_graph();
-      graph->process_graph();
-    }
-    catch(...)
-    {
-      exception_ptr e = std::current_exception();
-      node->run_error_handler(sycl::exception_list{e});
-    }
+    node->get_graph()->on_task_completed(node, status);
   }
 }
 
@@ -105,7 +94,10 @@ task_graph_node::submit()
   }
   catch(...)
   {
+    _submitted = true;
+
     exception_ptr e = std::current_exception();
+
     _handler(sycl::exception_list{e});
   }
 
@@ -139,7 +131,7 @@ task_graph_node::wait()
       requirement->wait();
   }
   // wait until submission - this shouldn't take long
-  while(!_submitted.load())
+  while(!_submitted)
     ;
 
   this->_event.wait();
@@ -252,6 +244,31 @@ void task_graph::finish(detail::stream_ptr stream)
 
   for(auto& node : nodes_snapshot)
     node->wait();
+}
+
+void task_graph::on_task_completed(task_graph_node* node,
+                                   hipError_t status)
+{
+  // We need to offload the graph update/processing to a
+  // separate worker thread because CUDA (and HIP?) forbid
+  // calling functions that operate on streams in stream callbacks.
+
+  _worker([=]()
+  {
+    try
+    {
+      detail::check_error(status);
+
+      task_graph* graph = node->get_graph();
+      graph->process_graph();
+    }
+    catch(...)
+    {
+      exception_ptr e = std::current_exception();
+      node->run_error_handler(sycl::exception_list{e});
+    }
+  });
+
 }
 
 }

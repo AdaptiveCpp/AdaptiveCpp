@@ -34,7 +34,7 @@
 #include "types.hpp"
 
 #define SYCU_VERSION_MAJOR 0
-#define SYCU_VERSION_MINOR 5
+#define SYCU_VERSION_MINOR 6
 #define SYCU_VERSION_PATCH 0
 
 namespace cl {

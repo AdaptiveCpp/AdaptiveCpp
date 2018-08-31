@@ -80,7 +80,10 @@ public:
     if(_is_null_event)
       return true;
 
-    return hipEventQuery(_evt->get_event()) == hipSuccess;
+    hipError_t err = hipEventQuery(_evt->get_event());
+    detail::check_error(err);
+
+    return err == hipSuccess;
   }
 
   bool operator ==(const hip_event& rhs) const

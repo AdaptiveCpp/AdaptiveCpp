@@ -28,6 +28,9 @@
 #include "CL/sycl/detail/task_graph.hpp"
 
 #include <mutex>
+#include <cassert>
+
+#include <iostream>
 
 namespace cl {
 namespace sycl {
@@ -82,8 +85,12 @@ bool task_graph_node::is_done() const
 void
 task_graph_node::submit()
 {
+  assert(!_submitted);
+  assert(is_ready());
+
   try
   {
+    _stream->activate_device();
     this->_event = _tf();
     _submitted = true;
 
@@ -91,6 +98,7 @@ task_graph_node::submit()
     detail::check_error(
           hipStreamAddCallback(_stream->get_stream(), task_done_callback,
                                reinterpret_cast<void*>(this), 0));
+
   }
   catch(...)
   {
@@ -130,12 +138,13 @@ task_graph_node::wait()
     for(auto& requirement : _requirements)
       requirement->wait();
   }
-  // wait until submission - this shouldn't take long
+  // wait until submission - this shouldn't take long, once
+  // all requirements are met
   while(!_submitted)
     ;
 
   this->_event.wait();
-
+  assert(this->_event.is_done());
 }
 
 bool
@@ -168,6 +177,7 @@ task_graph::insert(task_functor tf,
                                                                this);
   std::lock_guard<mutex_class> lock{_mutex};
   _nodes.push_back(node);
+  this->purge_finished_tasks();
   this->submit_eligible_tasks();
 
   return node;
@@ -190,7 +200,7 @@ void
 task_graph::submit_eligible_tasks() const
 {
   for(const auto& node : _nodes)
-    if(node->is_ready() && !node->is_done())
+    if(!node->is_submitted() && node->is_ready())
       node->submit();
 }
 
@@ -198,7 +208,10 @@ void
 task_graph::process_graph()
 {
   std::lock_guard<mutex_class> lock{_mutex};
-  this->purge_finished_tasks();
+  // Don't call purge_finished_tasks() here for now
+  // to avoid resource deallocation in the worker thread.
+  // The implementation is not yet thread-safe enough
+  // for multi-threaded destruction.
   this->submit_eligible_tasks();
 }
 
@@ -210,7 +223,9 @@ void task_graph::flush()
 
 void task_graph::finish()
 {
-  // We wait on a copy of the task graph; this allows us
+  _worker.wait();
+
+  // We work on a copy of the task graph; this allows us
   // to wait without locking the task graph the entire time
   vector_class<task_graph_node_ptr> nodes_snapshot;
   {

@@ -33,6 +33,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <functional>
+#include <queue>
 
 
 namespace cl {
@@ -40,42 +41,29 @@ namespace sycl {
 namespace detail {
 
 
-/// A worker thread that executes exactly one task in the background.
-/// If a second task is enqueued, waits until the first task
-/// has completed.
+
+/// A worker thread that processes a queue in the background.
 class worker_thread
 {
 public:
+  using async_function = std::function<void ()>;
+
   /// Construct object
   worker_thread();
-
 
   worker_thread(const worker_thread&) = delete;
   worker_thread& operator=(const worker_thread&) = delete;
 
   ~worker_thread();
 
-  /// If a task is currently running, waits until it
-  /// has completed.
+  /// Waits until all enqueued tasks have completed.
   void wait();
 
   /// Enqueues a user-specified function for asynchronous
-  /// execution in the worker thread. If another task is
-  /// still pending, waits until this task has completed.
-  /// \tparam Function A callable object with signature void(void).
+  /// execution in the worker thread.
   /// \param f The function to enqueue for execution
-  template<class Function>
-  void operator()(Function f)
-  {
-    wait();
+  void operator()(async_function f);
 
-    std::unique_lock<std::mutex> lock(_mutex);
-    _async_operation = f;
-    _is_operation_pending = true;
-
-    lock.unlock();
-    _condition_wait.notify_one();
-  }
 
   /// \return whether there is currently an operation
   /// pending.
@@ -100,7 +88,7 @@ private:
   std::condition_variable _condition_wait;
   std::mutex _mutex;
 
-  std::function<void()> _async_operation;
+  std::queue<async_function> _enqueued_operations;
 };
 
 }

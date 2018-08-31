@@ -42,10 +42,13 @@ void* obtain_host_access(buffer_ptr buff,
   void* ptr = buff->get_host_ptr();
   stream_ptr stream = stream_manager::default_stream();
 
-  detail::buffer_impl::access_host(buff,
-                                   access_mode,
-                                   stream,
-                                   stream->get_error_handler());
+  auto task_graph_node = detail::buffer_impl::access_host(
+        buff,
+        access_mode,
+        stream,
+        stream->get_error_handler());
+
+  task_graph_node->wait();
 
   return ptr;
 

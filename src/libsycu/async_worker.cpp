@@ -27,14 +27,16 @@
 
 #include "CL/sycl/detail/async_worker.hpp"
 
+#include <cassert>
+
 namespace cl {
 namespace sycl {
 namespace detail {
 
+
 worker_thread::worker_thread()
   : _is_operation_pending{false},
-    _continue{true},
-    _async_operation{[](){}}
+    _continue{true}
 {
   _worker_thread = std::thread{[this](){ work(); } };
 }
@@ -46,6 +48,8 @@ worker_thread::~worker_thread()
 
   if(_worker_thread.joinable())
     _worker_thread.join();
+
+  assert(_enqueued_operations.empty());
 }
 
 void worker_thread::wait()
@@ -66,21 +70,17 @@ bool worker_thread::is_currently_working() const
 
 void worker_thread::halt()
 {
-
-  // Wait until no operation is pending
-  if(_is_operation_pending)
-  {
-    std::unique_lock<std::mutex> lock(_mutex);
-    _condition_wait.wait(lock, [this]{return !_is_operation_pending;});
-  }
-
   _continue = false;
   _condition_wait.notify_one();
 }
 
 void worker_thread::work()
 {
-  while(_continue)
+  // This is the main function executed by the worker thread.
+  // The loop is executed as long as there are enqueued operations,
+  // (_is_operation_pending) or we should wait for new operations
+  // (_continue).
+  while(_continue || _is_operation_pending)
   {
     {
       std::unique_lock<std::mutex> lock(_mutex);
@@ -90,17 +90,42 @@ void worker_thread::work()
                            [this](){return _is_operation_pending || !_continue;});
     }
 
-    if(_continue && _is_operation_pending)
+    // In any way, process the pending operations
+    if(_is_operation_pending)
     {
-      _async_operation();
+      async_function operation = [](){};
 
       {
         std::lock_guard<std::mutex> lock(_mutex);
-        _is_operation_pending = false;
+
+        if(!_enqueued_operations.empty())
+        {
+          operation = _enqueued_operations.front();
+          _enqueued_operations.pop();
+        }
+      }
+
+      operation();
+
+      {
+        std::lock_guard<std::mutex> lock(_mutex);
+        if(_enqueued_operations.empty())
+          _is_operation_pending = false;
       }
       _condition_wait.notify_one();
     }
   }
+}
+
+void worker_thread::operator()(worker_thread::async_function f)
+{
+  std::unique_lock<std::mutex> lock(_mutex);
+
+  _is_operation_pending = true;
+  _enqueued_operations.push(f);
+
+  lock.unlock();
+  _condition_wait.notify_one();
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_INFO_CONTEXT_HPP
-#define SYCU_INFO_CONTEXT_HPP
+#ifndef HIPSYCL_INFO_CONTEXT_HPP
+#define HIPSYCL_INFO_CONTEXT_HPP
 
 #include "../types.hpp"
 #include "param_traits.hpp"
@@ -46,17 +46,17 @@ enum class context : int {
   devices
 };
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::reference_count,
-                              cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::reference_count,
+                                 cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::platform,
-                              sycl::platform);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::platform,
+                                 sycl::platform);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(context,
-                              context::devices,
-                              vector_class<sycl::device>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::devices,
+                                 vector_class<sycl::device>);
 
 }
 }

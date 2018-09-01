@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_PARAM_TRAITS_HPP
-#define SYCU_PARAM_TRAITS_HPP
+#ifndef HIPSYCL_PARAM_TRAITS_HPP
+#define HIPSYCL_PARAM_TRAITS_HPP
 
 #include "../types.hpp"
 
@@ -38,7 +38,7 @@ namespace info {
 template <typename T, T Param>
 struct param_traits {};
 
-#define SYCU_PARAM_TRAIT_RETURN_VALUE(T, param, ret_value) \
+#define HIPSYCL_PARAM_TRAIT_RETURN_VALUE(T, param, ret_value) \
   template<> \
   struct param_traits<T, param> \
   { using return_type = ret_value; };

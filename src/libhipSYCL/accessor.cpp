@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,31 +25,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/device_selector.hpp"
+#include "CL/sycl/accessor.hpp"
+#include "CL/sycl/handler.hpp"
+#include "CL/sycl/detail/buffer.hpp"
+#include "CL/sycl/detail/task_graph.hpp"
+#include "CL/sycl/detail/application.hpp"
+
+#include <cassert>
+#include <iostream>
 
 namespace cl {
 namespace sycl {
+namespace detail {
+namespace accessor {
 
-
-device device_selector::select_device() const
+void* obtain_host_access(buffer_ptr buff,
+                         access::mode access_mode)
 {
-  auto devices = device::get_devices();
-  if(devices.size() == 0)
-    throw platform_error{"No available devices!"};
 
-  int best_score = std::numeric_limits<int>::min();
-  device candidate;
-  for(const device& d : devices)
-  {
-    int current_score = (*this)(d);
-    if(current_score > best_score)
-    {
-      best_score = current_score;
-      candidate = d;
-    }
-  }
-  return candidate;
+  void* ptr = buff->get_host_ptr();
+  stream_ptr stream = stream_manager::default_stream();
+
+  std::cout << "Accessing host" << std::endl;
+  auto task_graph_node = detail::buffer_impl::access_host(
+        buff,
+        access_mode,
+        stream,
+        stream->get_error_handler());
+
+  task_graph_node->wait();
+
+  return ptr;
+
 }
 
+
+void* obtain_device_access(buffer_ptr buff,
+                           sycl::handler& cgh,
+                           access::mode access_mode)
+{
+  void* ptr = buff->get_buffer_ptr();
+
+  auto task_graph_node =
+      detail::buffer_impl::access_device(buff,
+                                         access_mode,
+                                         cgh.get_stream(),
+                                         cgh.get_stream()->get_error_handler());
+
+  cgh._detail_add_access(buff, access_mode, task_graph_node);
+
+  return ptr;
+}
+
+
+}
+}
 }
 }

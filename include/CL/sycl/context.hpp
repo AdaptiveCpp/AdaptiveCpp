@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,9 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#ifndef SYCU_CONTEXT_HPP
-#define SYCU_CONTEXT_HPP
+#ifndef HIPSYCL_CONTEXT_HPP
+#define HIPSYCL_CONTEXT_HPP
 
 #include "types.hpp"
 #include "platform.hpp"
@@ -103,13 +102,13 @@ private:
 };
 
 
-SYCU_SPECIALIZE_GET_INFO(context, reference_count)
+HIPSYCL_SPECIALIZE_GET_INFO(context, reference_count)
 { return 1; }
 
-SYCU_SPECIALIZE_GET_INFO(context, platform)
+HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 { return get_platform(); }
 
-SYCU_SPECIALIZE_GET_INFO(context, devices)
+HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
 
 } // namespace sycl

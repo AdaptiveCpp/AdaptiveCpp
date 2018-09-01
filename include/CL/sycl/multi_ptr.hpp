@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCU_MULTI_PTR_HPP
-#define SYCU_MULTI_PTR_HPP
+#ifndef HIPSYCL_MULTI_PTR_HPP
+#define HIPSYCL_MULTI_PTR_HPP
 
 #include "backend/backend.hpp"
 #include "access.hpp"

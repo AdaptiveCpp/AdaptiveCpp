@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_DEVICE_SELECTOR_HPP
-#define SYCU_DEVICE_SELECTOR_HPP
+#ifndef HIPSYCL_DEVICE_SELECTOR_HPP
+#define HIPSYCL_DEVICE_SELECTOR_HPP
 
 #include "exception.hpp"
 #include "device.hpp"
@@ -65,7 +65,7 @@ public:
   virtual ~error_selector(){}
   virtual int operator()(const device& dev) const
   {
-    throw unimplemented{"SYCU presently only supports GPU platforms and device selectors."};
+    throw unimplemented{"hipSYCL presently only supports GPU platforms and device selectors."};
   }
 };
 

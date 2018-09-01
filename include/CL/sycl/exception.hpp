@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,9 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#ifndef SYCU_EXCEPTION_HPP
-#define SYCU_EXCEPTION_HPP
+#ifndef HIPSYCL_EXCEPTION_HPP
+#define HIPSYCL_EXCEPTION_HPP
 
 #include <stdexcept>
 #include <exception>

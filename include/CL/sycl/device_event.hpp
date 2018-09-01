@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCU_DEVICE_EVENT_HPP
-#define SYCU_DEVICE_EVENT_HPP
+#ifndef HIPSYCL_DEVICE_EVENT_HPP
+#define HIPSYCL_DEVICE_EVENT_HPP
 
 namespace cl {
 namespace sycl {

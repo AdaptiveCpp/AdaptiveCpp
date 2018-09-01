@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCU_INFO_HPP
-#define SYCU_INFO_HPP
+#ifndef HIPSYCL_INFO_HPP
+#define HIPSYCL_INFO_HPP
 
 #include "param_traits.hpp"
 #include "context.hpp"
@@ -35,7 +35,7 @@
 #include "platform.hpp"
 #include "queue.hpp"
 
-#define SYCU_SPECIALIZE_GET_INFO(class_name, specialization)\
+#define HIPSYCL_SPECIALIZE_GET_INFO(class_name, specialization)\
   template<> \
   inline typename info::param_traits<info::class_name,info::class_name::specialization>::return_type \
   sycl::class_name::get_info<info::class_name::specialization>() const

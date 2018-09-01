@@ -1,1 +1,1 @@
-subdirs(libsycu tests)
+subdirs(libhipSYCL tests)

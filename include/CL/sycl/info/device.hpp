@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_INFO_DEVICE_HPP
-#define SYCU_INFO_DEVICE_HPP
+#ifndef HIPSYCL_INFO_DEVICE_HPP
+#define HIPSYCL_INFO_DEVICE_HPP
 
 #include <cstddef>
 
@@ -169,93 +169,93 @@ enum class execution_capability : unsigned int {
   exec_native_kernel
 };
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::device_type, device_type);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::vendor_id, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_compute_units, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_dimensions, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_sizes, id<3>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_group_size, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::device_type, device_type);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::vendor_id, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_compute_units, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_dimensions, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_sizes, id<3>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_group_size, size_t);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_char, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_double, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_float, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_half, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_int, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_long, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_short, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_char, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_double, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_float, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_half, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_int, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_long, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_short, cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_char, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_double, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_float, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_half, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_int, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_long, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_short, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_char, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_double, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_float, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_half, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_int, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_long, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_short, cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_clock_frequency, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::address_bits, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_mem_alloc_size, cl_ulong);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image_support, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_clock_frequency, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::address_bits, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_mem_alloc_size, cl_ulong);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_support, bool);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_read_image_args, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_write_image_args, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_read_image_args, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_write_image_args, cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_width, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_height, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_width, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_height, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_depth, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_buffer_size, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_array_size, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_width, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_height, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_width, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_height, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_depth, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_buffer_size, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_array_size, size_t);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_samplers, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_parameter_size, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::mem_base_addr_align, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_samplers, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_parameter_size, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::mem_base_addr_align, cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::half_fp_config, vector_class<fp_config>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::single_fp_config, vector_class<fp_config>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::double_fp_config, vector_class<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::half_fp_config, vector_class<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::single_fp_config, vector_class<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::double_fp_config, vector_class<fp_config>);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_type, global_mem_cache_type);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_line_size, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_size, cl_ulong);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_size, cl_ulong);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_type, global_mem_cache_type);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_line_size, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_size, cl_ulong);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_size, cl_ulong);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_buffer_size, cl_ulong);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_args, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_buffer_size, cl_ulong);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_args, cl_uint);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_type, local_mem_type);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_size, cl_ulong);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_type, local_mem_type);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_size, cl_ulong);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::error_correction_support, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::host_unified_memory, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::profiling_timer_resolution, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::is_endian_little, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::is_available, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::is_compiler_available, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::is_linker_available, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::execution_capabilities, vector_class<execution_capability>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::queue_profiling, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::built_in_kernels, vector_class<string_class>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::platform, sycl::platform);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::error_correction_support, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::host_unified_memory, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profiling_timer_resolution, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_endian_little, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_available, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_compiler_available, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_linker_available, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::execution_capabilities, vector_class<execution_capability>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::queue_profiling, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::built_in_kernels, vector_class<string_class>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::platform, sycl::platform);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::name, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::vendor, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::driver_version, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::profile, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::version, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::opencl_c_version, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, vector_class<string_class>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::name, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::vendor, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::driver_version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profile, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::opencl_c_version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, vector_class<string_class>);
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::printf_buffer_size, size_t);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_interop_user_sync, bool);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::parent_device, sycl::device);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::partition_max_sub_devices, cl_uint);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::partition_properties, vector_class<partition_property>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::partition_affinity_domains, vector_class<partition_affinity_domain>);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_property, partition_property);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_affinity_domain, partition_affinity_domain);
-SYCU_PARAM_TRAIT_RETURN_VALUE(device, device::reference_count, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::printf_buffer_size, size_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_interop_user_sync, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::parent_device, sycl::device);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_max_sub_devices, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_properties, vector_class<partition_property>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_affinity_domains, vector_class<partition_affinity_domain>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_property, partition_property);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_affinity_domain, partition_affinity_domain);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::reference_count, cl_uint);
 
 } // namespace info
 } // namespace sycl

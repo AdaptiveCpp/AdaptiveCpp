@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_INFO_PLATFORM_HPP
-#define SYCU_INFO_PLATFORM_HPP
+#ifndef HIPSYCL_INFO_PLATFORM_HPP
+#define HIPSYCL_INFO_PLATFORM_HPP
 
 #include "param_traits.hpp"
 #include "../types.hpp"
@@ -45,14 +45,11 @@ enum class platform : unsigned int
   extensions
 };
 
-SYCU_PARAM_TRAIT_RETURN_VALUE(platform, platform::profile, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(platform, platform::version, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(platform, platform::name, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(platform, platform::vendor, string_class);
-SYCU_PARAM_TRAIT_RETURN_VALUE(platform, platform::extensions, vector_class<string_class>);
-
-
-
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::profile, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::name, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::vendor, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::extensions, vector_class<string_class>);
 
 
 }

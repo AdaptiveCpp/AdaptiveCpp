@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,15 +26,15 @@
  */
 
 
-#ifndef SYCU_BACKEND_HPP
-#define SYCU_BACKEND_HPP
+#ifndef HIPSYCL_BACKEND_HPP
+#define HIPSYCL_BACKEND_HPP
 
 #include <hip/hip_runtime.h>
 
 #ifdef __HIP_PLATFORM_HCC__
-#define SYCU_PLATFORM_HCC
+#define HIPSYCL_PLATFORM_HCC
 #else
-#define SYCU_PLATFORM_CUDA
+#define HIPSYCL_PLATFORM_CUDA
 #endif
 
 #if !defined(__NVCC__) && !defined(__HCC__)
@@ -45,7 +45,7 @@
 #endif
 
 //#ifdef __HIP_DEVICE_COMPILE__
-//#define __SYCU_DEVICE__
+//#define __HIPSYCL_DEVICE__
 //#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_INFO_QUEUE_HPP
-#define SYCU_INFO_QUEUE_HPP
+#ifndef HIPSYCL_INFO_QUEUE_HPP
+#define HIPSYCL_INFO_QUEUE_HPP
 
 namespace cl {
 namespace sycl {

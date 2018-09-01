@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -89,7 +89,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
 
   if(device_mode == device_alloc_mode::svm)
-#ifdef SYCU_PLATFORM_CUDA
+#ifdef HIPSYCL_PLATFORM_CUDA
     _svm = true;
 #else
     throw unimplemented{"SVM allocation is currently only supported on CUDA"};
@@ -100,7 +100,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
   if(_svm)
   {
-#ifdef SYCU_PLATFORM_CUDA
+#ifdef HIPSYCL_PLATFORM_CUDA
     if(cudaMallocManaged(&_buffer_pointer, buffer_size) != cudaSuccess)
       throw memory_allocation_error{"Couldn't allocate cuda managed memory"};
 
@@ -135,7 +135,7 @@ buffer_impl::~buffer_impl()
 {
   if(_svm)
   {
-#ifdef SYCU_PLATFORM_CUDA
+#ifdef HIPSYCL_PLATFORM_CUDA
     cudaFree(this->_buffer_pointer);
 #endif
   }
@@ -158,7 +158,7 @@ void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
 {
   if(buff->_svm)
   {
-#ifdef SYCU_PLATFORM_CUDA
+#ifdef HIPSYCL_PLATFORM_CUDA
     if(buff->_write_back &&
        buff->_write_back_memory != nullptr &&
        buff->_write_back_memory != buff->_buffer_pointer)

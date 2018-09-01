@@ -1,5 +1,5 @@
 
-add_library(sycu SHARED
+add_library(hipSYCL SHARED
   device.cpp
   device_selector.cpp
   exception.cpp
@@ -10,6 +10,6 @@ add_library(sycu SHARED
   accessor.cpp
   async_worker.cpp)
 
-install(TARGETS sycu
+install(TARGETS hipSYCL
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib/static)

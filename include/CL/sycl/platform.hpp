@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,8 +26,8 @@
  */
 
 
-#ifndef SYCU_PLATFORM_HPP
-#define SYCU_PLATFORM_HPP
+#ifndef HIPSYCL_PLATFORM_HPP
+#define HIPSYCL_PLATFORM_HPP
 
 #include "types.hpp"
 #include "device_selector.hpp"
@@ -93,32 +93,32 @@ public:
 };
 
 
-SYCU_SPECIALIZE_GET_INFO(device, platform)
+HIPSYCL_SPECIALIZE_GET_INFO(device, platform)
 { return this->get_platform(); }
 
-SYCU_SPECIALIZE_GET_INFO(platform, profile)
+HIPSYCL_SPECIALIZE_GET_INFO(platform, profile)
 { return "FULL_PROFILE"; }
 
-SYCU_SPECIALIZE_GET_INFO(platform, version)
+HIPSYCL_SPECIALIZE_GET_INFO(platform, version)
 {
   return detail::version_string();
 }
 
-SYCU_SPECIALIZE_GET_INFO(platform, name)
+HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 {
-#ifdef SYCU_PLATFORM_CUDA
-  return "SYCU [SYCL over CUDA/HIP] on NVIDIA CUDA";
+#ifdef HIPSYCL_PLATFORM_CUDA
+  return "hipSYCL [SYCL over CUDA/HIP] on NVIDIA CUDA";
 #else
-  return "SYCU [SYCL over CUDA/HIP] on AMD ROCm";
+  return "hipSYCL [SYCL over CUDA/HIP] on AMD ROCm";
 #endif
 }
 
-SYCU_SPECIALIZE_GET_INFO(platform, vendor)
+HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
 {
-  return "The SYCU project";
+  return "The hipSYCL project";
 }
 
-SYCU_SPECIALIZE_GET_INFO(platform, extensions)
+HIPSYCL_SPECIALIZE_GET_INFO(platform, extensions)
 {
   return vector_class<string_class>{};
 }

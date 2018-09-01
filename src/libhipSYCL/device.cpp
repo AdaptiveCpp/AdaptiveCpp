@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,60 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/accessor.hpp"
-#include "CL/sycl/handler.hpp"
-#include "CL/sycl/detail/buffer.hpp"
-#include "CL/sycl/detail/task_graph.hpp"
-#include "CL/sycl/detail/application.hpp"
+#include "CL/sycl/device.hpp"
+#include "CL/sycl/device_selector.hpp"
+#include "CL/sycl/platform.hpp"
 
-#include <cassert>
-#include <iostream>
 
 namespace cl {
 namespace sycl {
+
+
+device::device(const device_selector &deviceSelector) {
+  this->_device_id = deviceSelector.select_device()._device_id;
+}
+
+platform device::get_platform() const  {
+  // We only have one platform
+  return platform{};
+}
+
+vector_class<device> device::get_devices(
+    info::device_type deviceType)
+{
+  if(deviceType == info::device_type::cpu ||
+     deviceType == info::device_type::host)
+    return vector_class<device>();
+
+  vector_class<device> result;
+  int num_devices = get_num_devices();
+  for(int i = 0; i < num_devices; ++i)
+  {
+    device d;
+    d._device_id = i;
+
+    result.push_back(d);
+  }
+  return result;
+}
+
+int device::get_num_devices()
+{
+  int num_devices = 0;
+  detail::check_error(hipGetDeviceCount(&num_devices));
+  return num_devices;
+}
+
+int device::get_device_id() const {
+  return _device_id;
+}
+
 namespace detail {
-namespace accessor {
 
-void* obtain_host_access(buffer_ptr buff,
-                         access::mode access_mode)
+void set_device(const device& d)
 {
-
-  void* ptr = buff->get_host_ptr();
-  stream_ptr stream = stream_manager::default_stream();
-
-  std::cout << "Accessing host" << std::endl;
-  auto task_graph_node = detail::buffer_impl::access_host(
-        buff,
-        access_mode,
-        stream,
-        stream->get_error_handler());
-
-  task_graph_node->wait();
-
-  return ptr;
+  detail::check_error(hipSetDevice(d.get_device_id()));
+}
 
 }
 
-
-void* obtain_device_access(buffer_ptr buff,
-                           sycl::handler& cgh,
-                           access::mode access_mode)
-{
-  void* ptr = buff->get_buffer_ptr();
-
-  auto task_graph_node =
-      detail::buffer_impl::access_device(buff,
-                                         access_mode,
-                                         cgh.get_stream(),
-                                         cgh.get_stream()->get_error_handler());
-
-  cgh._detail_add_access(buff, access_mode, task_graph_node);
-
-  return ptr;
-}
-
-
-}
-}
 }
 }

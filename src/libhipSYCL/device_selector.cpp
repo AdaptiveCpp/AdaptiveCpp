@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -25,61 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/device.hpp"
 #include "CL/sycl/device_selector.hpp"
-#include "CL/sycl/platform.hpp"
-
 
 namespace cl {
 namespace sycl {
 
 
-device::device(const device_selector &deviceSelector) {
-  this->_device_id = deviceSelector.select_device()._device_id;
-}
-
-platform device::get_platform() const  {
-  // We only have one platform
-  return platform{};
-}
-
-vector_class<device> device::get_devices(
-    info::device_type deviceType)
+device device_selector::select_device() const
 {
-  if(deviceType == info::device_type::cpu ||
-     deviceType == info::device_type::host)
-    return vector_class<device>();
+  auto devices = device::get_devices();
+  if(devices.size() == 0)
+    throw platform_error{"No available devices!"};
 
-  vector_class<device> result;
-  int num_devices = get_num_devices();
-  for(int i = 0; i < num_devices; ++i)
+  int best_score = std::numeric_limits<int>::min();
+  device candidate;
+  for(const device& d : devices)
   {
-    device d;
-    d._device_id = i;
-
-    result.push_back(d);
+    int current_score = (*this)(d);
+    if(current_score > best_score)
+    {
+      best_score = current_score;
+      candidate = d;
+    }
   }
-  return result;
-}
-
-int device::get_num_devices()
-{
-  int num_devices = 0;
-  detail::check_error(hipGetDeviceCount(&num_devices));
-  return num_devices;
-}
-
-int device::get_device_id() const {
-  return _device_id;
-}
-
-namespace detail {
-
-void set_device(const device& d)
-{
-  detail::check_error(hipSetDevice(d.get_device_id()));
-}
-
+  return candidate;
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -26,16 +26,16 @@
  */
 
 
-#ifndef SYCU_VERSION_HPP
-#define SYCU_VERSION_HPP
+#ifndef HIPSYCL_VERSION_HPP
+#define HIPSYCL_VERSION_HPP
 
 #include "backend/backend.hpp"
 #include "exception.hpp"
 #include "types.hpp"
 
-#define SYCU_VERSION_MAJOR 0
-#define SYCU_VERSION_MINOR 6
-#define SYCU_VERSION_PATCH 0
+#define HIPSYCL_VERSION_MAJOR 0
+#define HIPSYCL_VERSION_MINOR 6
+#define HIPSYCL_VERSION_PATCH 2
 
 namespace cl {
 namespace sycl {
@@ -47,11 +47,11 @@ static string_class version_string()
   check_error(hipRuntimeGetVersion(&version));
   string_class hip_version = std::to_string(version);
 
-  string_class sycu_version = std::to_string(SYCU_VERSION_MAJOR)
-      + "." + std::to_string(SYCU_VERSION_MINOR)
-      + "." + std::to_string(SYCU_VERSION_PATCH);
+  string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
+      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
+      + "." + std::to_string(HIPSYCL_VERSION_PATCH);
 
-  return "SYCU " + sycu_version + " on HIP/CUDA " + hip_version;
+  return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
 }
 
 }

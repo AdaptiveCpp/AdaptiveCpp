@@ -1,5 +1,5 @@
 /*
- * This file is part of SYCU, a SYCL implementation based CUDA/HIP
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
  * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
@@ -28,7 +28,7 @@
 #ifndef SYCL_HPP
 #define SYCL_HPP
 
-#define __SYCU__
+#define __HIPSYCL__
 #define CL_SYCL_LANGUAGE_VERSION 121
 #define __SYCL_SINGLE_SOURCE__
 

@@ -31,6 +31,8 @@
 #include "../backend/backend.hpp"
 #include "../exception.hpp"
 
+#include <cassert>
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -40,7 +42,8 @@ class hip_event_manager
 public:
   hip_event_manager()
   {
-    detail::check_error(hipEventCreate(&_evt));
+    detail::check_error(hipEventCreateWithFlags(&_evt,
+                                                hipEventDisableTiming));
   }
 
   ~hip_event_manager()
@@ -92,6 +95,8 @@ public:
   bool operator !=(const hip_event& rhs) const
   { return !(*this == rhs); }
 
+  bool is_null_event() const
+  { return _is_null_event; }
 private:
   void wait_until_done() const
   {
@@ -109,7 +114,10 @@ static hip_event insert_event(hipStream_t stream)
 {
   hip_event_ptr evt{new hip_event_manager()};
   detail::check_error(hipEventRecord(evt->get_event(), stream));
-  return hip_event{evt};
+  hip_event result{evt};
+
+  assert(!result.is_null_event());
+  return result;
 }
 
 

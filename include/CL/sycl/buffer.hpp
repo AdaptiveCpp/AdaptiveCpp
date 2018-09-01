@@ -104,7 +104,7 @@ public:
          const property_list &propList = {})
     : buffer(bufferRange, propList)
   {
-    _alloc = allocator;
+    _alloc = allocator;;
   }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
@@ -291,11 +291,15 @@ private:
     this->create_buffer(detail::device_alloc_mode::regular,
                         detail::host_alloc_mode::regular,
                         range);
+    this->_writeback_trigger =
+        std::make_shared<detail::buffer_writeback_trigger>(_buffer);
   }
 
   void init(const range<dimensions>& range, T* host_memory)
   {
     this->create_buffer(host_memory, range);
+    this->_writeback_trigger =
+        std::make_shared<detail::buffer_writeback_trigger>(_buffer);
   }
 
 
@@ -303,6 +307,7 @@ private:
   range<dimensions> _range;
 
   detail::buffer_ptr _buffer;
+  shared_ptr_class<detail::buffer_writeback_trigger> _writeback_trigger;
 };
 
 namespace detail {

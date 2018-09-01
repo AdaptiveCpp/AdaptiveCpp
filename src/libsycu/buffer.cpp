@@ -31,6 +31,7 @@
 #include "CL/sycl/detail/application.hpp"
 #include <cstring>
 #include <cassert>
+#include <mutex>
 
 
 namespace cl {
@@ -135,28 +136,11 @@ buffer_impl::~buffer_impl()
   if(_svm)
   {
 #ifdef SYCU_PLATFORM_CUDA
-    if(_write_back &&
-       _write_back_memory != nullptr &&
-       _write_back_memory != _buffer_pointer)
-      // write back
-      memcpy(_write_back_memory, _buffer_pointer, _size);
-
     cudaFree(this->_buffer_pointer);
 #endif
   }
   else
   {
-    if(_write_back &&
-       _write_back_memory != nullptr)
-    {
-      if((_write_back_memory == _host_memory && _monitor.is_host_outdated())
-       || _write_back_memory != _host_memory)
-        hipMemcpy(_write_back_memory,
-                  _buffer_pointer,
-                  _size,
-                  hipMemcpyDeviceToHost);
-    }
-
     hipFree(_buffer_pointer);
 
     if(_owns_host_memory)
@@ -169,6 +153,62 @@ buffer_impl::~buffer_impl()
   }
 }
 
+void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
+                                           detail::stream_ptr stream)
+{
+  if(buff->_svm)
+  {
+#ifdef SYCU_PLATFORM_CUDA
+    if(buff->_write_back &&
+       buff->_write_back_memory != nullptr &&
+       buff->_write_back_memory != buff->_buffer_pointer)
+      // write back
+      memcpy(buff->_write_back_memory, buff->_buffer_pointer, buff->_size);
+#endif
+  }
+  else
+  {
+    if(buff->_write_back &&
+       buff->_write_back_memory != nullptr)
+    {
+      if((buff->_write_back_memory == buff->_host_memory &&
+          buff->_monitor.is_host_outdated())
+       || buff->_write_back_memory != buff->_host_memory)
+      {
+        task_graph_node_ptr node;
+
+        {
+          std::lock_guard<mutex_class> lock(buff->_mutex);
+
+          task_graph& tg = detail::application::get_task_graph();
+
+          auto dependencies =
+              buff->_dependency_manager.calculate_dependencies(access::mode::read);
+
+          auto task = [buff, stream] () -> hip_event {
+
+            detail::check_error(hipMemcpyAsync(buff->_write_back_memory,
+                                               buff->_buffer_pointer,
+                                               buff->_size,
+                                               hipMemcpyDeviceToHost,
+                                               stream->get_stream()));
+            return detail::insert_event(stream->get_stream());
+          };
+
+          task_graph_node_ptr node = tg.insert(task,
+                                               dependencies,
+                                               stream,
+                                               stream->get_error_handler());
+          buff->_dependency_manager.add_operation(node, access::mode::read);
+        }
+
+        if(node != nullptr)
+          node->wait();
+
+      }
+    }
+  }
+}
 
 bool buffer_impl::is_svm_buffer() const
 {
@@ -222,6 +262,8 @@ void buffer_impl::update_device(hipStream_t stream)
 
 void buffer_impl::write(const void* host_data, hipStream_t stream, bool async)
 {
+  std::lock_guard<mutex_class> lock(_mutex);
+
   assert(host_data != nullptr);
   if(!_svm)
   {
@@ -238,11 +280,13 @@ void buffer_impl::write(const void* host_data, hipStream_t stream, bool async)
 
 void buffer_impl::set_write_back(void* ptr)
 {
+  std::lock_guard<mutex_class> lock(_mutex);
   this->_write_back_memory = ptr;
 }
 
 void buffer_impl::enable_write_back(bool writeback)
 {
+  std::lock_guard<mutex_class> lock(_mutex);
   this->_write_back = writeback;
 }
 
@@ -274,6 +318,8 @@ buffer_impl::access_host(detail::buffer_ptr buff,
                          detail::stream_ptr stream,
                          async_handler error_handler)
 {
+  std::lock_guard<mutex_class> lock(buff->_mutex);
+
   task_graph& tg = detail::application::get_task_graph();
 
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
@@ -296,6 +342,8 @@ buffer_impl::access_device(detail::buffer_ptr buff,
                            detail::stream_ptr stream,
                            async_handler error_handler)
 {
+  std::lock_guard<mutex_class> lock(buff->_mutex);
+
   task_graph& tg = detail::application::get_task_graph();
 
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
@@ -316,6 +364,7 @@ void
 buffer_impl::register_external_access(const task_graph_node_ptr& task,
                                       access::mode m)
 {
+  std::lock_guard<mutex_class> lock(_mutex);
   this->_dependency_manager.add_operation(task, m);
 }
 
@@ -441,7 +490,7 @@ buffer_access_log::calculate_dependencies(access::mode m) const
   else
   {
     // Read-only operations do not need to depend on previous
-    // write operations
+    // read operations
     for(auto op: _operations)
       if(op.access_mode != access::mode::read)
         deps.push_back(op.task);
@@ -458,6 +507,19 @@ buffer_access_log::is_write_operation_pending() const
        !op.task->is_done())
       return true;
   return false;
+}
+
+///////////////////// buffer_writeback_trigger ///////////////////
+
+buffer_writeback_trigger::buffer_writeback_trigger(buffer_ptr buff)
+  : _buff{buff}
+{}
+
+buffer_writeback_trigger::~buffer_writeback_trigger()
+{
+  auto stream = detail::stream_ptr{new detail::stream_manager()};
+  buffer_impl::trigger_writeback_action(_buff,
+                                        stream);
 }
 
 }

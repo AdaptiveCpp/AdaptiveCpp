@@ -42,10 +42,24 @@ void task_done_callback(hipStream_t stream,
 {
   task_graph_node* node = reinterpret_cast<task_graph_node*>(userData);
 
-  if(node != nullptr)
+  assert(node != nullptr);
+  // The node should only be 'done' once the callback has been handled.
+  assert(!node->is_done());
+
+  std::cout << node << " has completed." << std::endl;
+
+  try
   {
     node->get_graph()->on_task_completed(node, status);
   }
+  catch (...)
+  {
+    // ToDo: Set error condition in graph node?
+  }
+
+  node->_register_callback();
+  assert(node->is_done());
+
 }
 
 task_graph_node::task_graph_node(task_functor tf,
@@ -54,6 +68,7 @@ task_graph_node::task_graph_node(task_functor tf,
                                  async_handler error_handler,
                                  task_graph* tgraph)
   : _submitted{false},
+    _callback_handled{false},
     _tf{tf},
     _requirements{requirements},
     _stream{stream},
@@ -79,7 +94,8 @@ bool task_graph_node::is_done() const
   if(!_submitted)
     return false;
 
-  return _event.is_done();
+  assert(!_event.is_null_event());
+  return _callback_handled;
 }
 
 void
@@ -90,11 +106,14 @@ task_graph_node::submit()
 
   try
   {
+    std::cout << "Submitting " << this << std::endl;
+
     _stream->activate_device();
     this->_event = _tf();
     _submitted = true;
 
     // ToDo: Only add callback if event is not already complete?
+
     detail::check_error(
           hipStreamAddCallback(_stream->get_stream(), task_done_callback,
                                reinterpret_cast<void*>(this), 0));
@@ -102,13 +121,19 @@ task_graph_node::submit()
   }
   catch(...)
   {
+    std::cout << "Error submitting " << this << std::endl;
     _submitted = true;
 
     exception_ptr e = std::current_exception();
-
     _handler(sycl::exception_list{e});
   }
 
+}
+
+void
+task_graph_node::_register_callback()
+{
+  this->_callback_handled = true;
 }
 
 
@@ -140,9 +165,9 @@ task_graph_node::wait()
   }
   // wait until submission - this shouldn't take long, once
   // all requirements are met
-  while(!_submitted)
-    ;
+  while(!_submitted);
 
+  assert(_submitted);
   this->_event.wait();
   assert(this->_event.is_done());
 }
@@ -175,10 +200,21 @@ task_graph::insert(task_functor tf,
                                                                stream,
                                                                handler,
                                                                this);
+
+  std::cout << "Receiving " << node.get() << std::endl;
+  std::cout << "  Depends on: ";
+  for(const auto& req : requirements)
+    std::cout << req.get() << " ";
+  std::cout << std::endl;
+
   std::lock_guard<mutex_class> lock{_mutex};
-  _nodes.push_back(node);
+
   this->purge_finished_tasks();
-  this->submit_eligible_tasks();
+  _nodes.push_back(node);
+
+  // Trigger the on_task_completed handler to make sure
+  // the task gets submitted if it is the first one
+  this->on_task_completed(node.get(), hipSuccess);
 
   return node;
 }
@@ -223,6 +259,7 @@ void task_graph::flush()
 
 void task_graph::finish()
 {
+
   _worker.wait();
 
   // We work on a copy of the task graph; this allows us
@@ -240,6 +277,7 @@ void task_graph::finish()
 
   for(auto& node : nodes_snapshot)
     node->wait();
+
 }
 
 void task_graph::finish(detail::stream_ptr stream)
@@ -268,7 +306,7 @@ void task_graph::on_task_completed(task_graph_node* node,
   // separate worker thread because CUDA (and HIP?) forbid
   // calling functions that operate on streams in stream callbacks.
 
-  _worker([=]()
+  _worker([node, status]()
   {
     try
     {

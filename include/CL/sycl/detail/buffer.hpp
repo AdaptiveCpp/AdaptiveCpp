@@ -141,6 +141,9 @@ public:
   void set_write_back(void* ptr);
   void enable_write_back(bool writeback);
 
+  static
+  void trigger_writeback_action(detail::buffer_ptr buff,
+                                detail::stream_ptr stream);
 
   static
   task_graph_node_ptr access_host(detail::buffer_ptr buff,
@@ -197,6 +200,16 @@ private:
   buffer_access_log _dependency_manager;
 
   mutex_class _mutex;
+};
+
+class buffer_writeback_trigger
+{
+public:
+  buffer_writeback_trigger(buffer_ptr buff);
+  ~buffer_writeback_trigger();
+
+private:
+  buffer_ptr _buff;
 };
 
 

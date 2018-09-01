@@ -64,11 +64,6 @@ public:
   /// \param f The function to enqueue for execution
   void operator()(async_function f);
 
-
-  /// \return whether there is currently an operation
-  /// pending.
-  inline
-  bool is_currently_working() const;
 private:
 
   /// Stop the worker thread - this should only be
@@ -80,7 +75,6 @@ private:
   /// supplied.
   void work();
 
-  bool _is_operation_pending;
   std::thread _worker_thread;
 
   bool _continue;

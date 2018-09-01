@@ -31,6 +31,9 @@
 #include "CL/sycl/detail/task_graph.hpp"
 #include "CL/sycl/detail/application.hpp"
 
+#include <cassert>
+#include <iostream>
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -39,9 +42,11 @@ namespace accessor {
 void* obtain_host_access(buffer_ptr buff,
                          access::mode access_mode)
 {
+
   void* ptr = buff->get_host_ptr();
   stream_ptr stream = stream_manager::default_stream();
 
+  std::cout << "Accessing host" << std::endl;
   auto task_graph_node = detail::buffer_impl::access_host(
         buff,
         access_mode,

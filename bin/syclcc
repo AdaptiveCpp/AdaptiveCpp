@@ -72,12 +72,21 @@ class source_file_processor:
   def process_file(self,filename):
     new_name = self._copy_file_to_temp_with_new_suffix(filename,
                                                        self._suffix)
+    self._prepend_to_file(new_name, "#line 1 \""+filename+"\"\n")
     self._managed_files.append(new_name)
+
     return new_name
 
   def release_files(self):
     for filename in self._managed_files:
       os.remove(filename)
+
+  def _prepend_to_file(self, filename, prepend_data):
+    with open(filename, 'r') as original:
+      original_data = original.read()
+    with open(filename, 'w') as modified:
+      modified.write(prepend_data + original_data)
+
 
   def _copy_file_to_temp_with_new_suffix(self,filename,suffix):
     tempdir = tempfile.gettempdir()

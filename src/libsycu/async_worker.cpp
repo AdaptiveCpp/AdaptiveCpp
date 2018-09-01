@@ -35,8 +35,7 @@ namespace detail {
 
 
 worker_thread::worker_thread()
-  : _is_operation_pending{false},
-    _continue{true}
+    : _continue{true}
 {
   _worker_thread = std::thread{[this](){ work(); } };
 }
@@ -54,22 +53,19 @@ worker_thread::~worker_thread()
 
 void worker_thread::wait()
 {
-  if(_is_operation_pending)
+  std::unique_lock<std::mutex> lock(_mutex);
+  if(!_enqueued_operations.empty())
   {
-    std::unique_lock<std::mutex> lock(_mutex);
     // Wait until no operation is pending
-    _condition_wait.wait(lock, [this]{return !_is_operation_pending;});
+    _condition_wait.wait(lock, [this]{return _enqueued_operations.empty();});
   }
 }
 
 
-bool worker_thread::is_currently_working() const
-{
-  return _is_operation_pending;
-}
-
 void worker_thread::halt()
 {
+  wait();
+
   _continue = false;
   _condition_wait.notify_one();
 }
@@ -80,40 +76,36 @@ void worker_thread::work()
   // The loop is executed as long as there are enqueued operations,
   // (_is_operation_pending) or we should wait for new operations
   // (_continue).
-  while(_continue || _is_operation_pending)
+  while(_continue || _enqueued_operations.size() > 0)
   {
     {
       std::unique_lock<std::mutex> lock(_mutex);
 
       // Wait until we have work, or until _continue becomes false
       _condition_wait.wait(lock,
-                           [this](){return _is_operation_pending || !_continue;});
+                           [this](){
+        return _enqueued_operations.size()>0 || !_continue;
+      });
     }
 
     // In any way, process the pending operations
-    if(_is_operation_pending)
+
+    async_function operation = [](){};
+
     {
-      async_function operation = [](){};
+      std::lock_guard<std::mutex> lock(_mutex);
 
+      if(!_enqueued_operations.empty())
       {
-        std::lock_guard<std::mutex> lock(_mutex);
-
-        if(!_enqueued_operations.empty())
-        {
-          operation = _enqueued_operations.front();
-          _enqueued_operations.pop();
-        }
+        operation = _enqueued_operations.front();
+        _enqueued_operations.pop();
       }
-
-      operation();
-
-      {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if(_enqueued_operations.empty())
-          _is_operation_pending = false;
-      }
-      _condition_wait.notify_one();
     }
+
+    operation();
+
+    _condition_wait.notify_one();
+
   }
 }
 
@@ -121,7 +113,6 @@ void worker_thread::operator()(worker_thread::async_function f)
 {
   std::unique_lock<std::mutex> lock(_mutex);
 
-  _is_operation_pending = true;
   _enqueued_operations.push(f);
 
   lock.unlock();

@@ -461,7 +461,7 @@ private:
     for(const auto& buffer_access : _accessed_buffers)
     {
       buffer_access.buff->register_external_access(
-            buffer_access.task,
+            graph_node,
             buffer_access.access_mode);
     }
 

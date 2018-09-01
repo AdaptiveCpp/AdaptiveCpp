@@ -58,6 +58,11 @@ public:
 
   void wait();
   bool is_submitted() const;
+
+  /// A node is considered 'done' if
+  /// the enqueued HIP operation has completed
+  /// and the task_graph has been notified of
+  /// the completion.
   bool is_done() const;
   bool is_ready() const;
   bool are_requirements_on_same_stream() const;
@@ -70,8 +75,10 @@ public:
 
   detail::stream_ptr get_stream() const;
 
+  void _register_callback();
 private:
   std::atomic<bool> _submitted;
+  std::atomic<bool> _callback_handled;
 
   task_functor _tf;
   vector_class<task_graph_node_ptr> _requirements;

@@ -195,16 +195,17 @@ void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
             return detail::insert_event(stream->get_stream());
           };
 
-          task_graph_node_ptr node = tg.insert(task,
-                                               dependencies,
-                                               stream,
-                                               stream->get_error_handler());
+          node = tg.insert(task,
+                           dependencies,
+                           stream,
+                           stream->get_error_handler());
           buff->_dependency_manager.add_operation(node, access::mode::read);
         }
 
-        if(node != nullptr)
-          node->wait();
+        assert(node != nullptr);
+        node->wait();
 
+        assert(node->is_done());
       }
     }
   }

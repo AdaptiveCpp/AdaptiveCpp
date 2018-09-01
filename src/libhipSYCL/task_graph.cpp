@@ -169,6 +169,11 @@ task_graph_node::wait()
 
   assert(_submitted);
   this->_event.wait();
+
+  // The callback should be executed immediately after
+  // the event's completion
+  while(!_callback_handled);
+
   assert(this->_event.is_done());
 }
 

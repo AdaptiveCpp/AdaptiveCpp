@@ -26,11 +26,11 @@
  */
 
 #include "CL/sycl/detail/task_graph.hpp"
+#include "CL/sycl/detail/debug.hpp"
 
 #include <mutex>
 #include <cassert>
 
-#include <iostream>
 
 namespace cl {
 namespace sycl {
@@ -46,7 +46,9 @@ void task_done_callback(hipStream_t stream,
   // The node should only be 'done' once the callback has been handled.
   assert(!node->is_done());
 
-  std::cout << node << " has completed." << std::endl;
+  HIPSYCL_DEBUG_INFO << "task_graph: node "
+                     << node
+                     << " has completed" << std::endl;
 
   try
   {
@@ -54,7 +56,12 @@ void task_done_callback(hipStream_t stream,
   }
   catch (...)
   {
-    // ToDo: Set error condition in graph node?
+    // ToDo: Set error condition of node?
+    HIPSYCL_DEBUG_ERROR << "task_graph: task_done_callback caught async error, "
+                           " invoking async handler." << std::endl;
+
+    exception_ptr e = std::current_exception();
+    node->run_error_handler(sycl::exception_list{e});
   }
 
   node->_register_callback();
@@ -106,7 +113,8 @@ task_graph_node::submit()
 
   try
   {
-    std::cout << "Submitting " << this << std::endl;
+    HIPSYCL_DEBUG_INFO << "task_graph: Submitting node "
+                       << this << std::endl;
 
     _stream->activate_device();
     this->_event = _tf();
@@ -121,7 +129,10 @@ task_graph_node::submit()
   }
   catch(...)
   {
-    std::cout << "Error submitting " << this << std::endl;
+    HIPSYCL_DEBUG_ERROR << "task_graph: submit() caught async error, "
+                           " invoking async handler." << std::endl;
+    // Submitted must be set to true to avoid
+    // subsequent submissions
     _submitted = true;
 
     exception_ptr e = std::current_exception();
@@ -192,6 +203,9 @@ task_graph_node::are_requirements_on_same_stream() const
 task_graph::~task_graph()
 {
   this->finish();
+  assert(this->_worker.queue_size() == 0);
+  for(const auto& node : _nodes)
+    assert(node->is_done());
 }
 
 task_graph_node_ptr
@@ -206,11 +220,11 @@ task_graph::insert(task_functor tf,
                                                                handler,
                                                                this);
 
-  std::cout << "Receiving " << node.get() << std::endl;
-  std::cout << "  Depends on: ";
+  HIPSYCL_DEBUG_INFO << "task_graph: Receiving task node "
+                     << node.get() << std::endl;
+  HIPSYCL_DEBUG_INFO << "task_graph:    Dependencies: " << std::endl;
   for(const auto& req : requirements)
-    std::cout << req.get() << " ";
-  std::cout << std::endl;
+    HIPSYCL_DEBUG_INFO << "task_graph:    " << req.get() << std::endl;
 
   std::lock_guard<mutex_class> lock{_mutex};
 
@@ -242,7 +256,10 @@ task_graph::submit_eligible_tasks() const
 {
   for(const auto& node : _nodes)
     if(!node->is_submitted() && node->is_ready())
+    {
       node->submit();
+      assert(node->is_submitted());
+    }
 }
 
 void
@@ -323,6 +340,8 @@ void task_graph::on_task_completed(task_graph_node* node,
     }
     catch(...)
     {
+      HIPSYCL_DEBUG_ERROR << "task_graph: task completion status returned error, "
+                             " invoking async handler." << std::endl;
       exception_ptr e = std::current_exception();
       node->run_error_handler(sycl::exception_list{e});
     }

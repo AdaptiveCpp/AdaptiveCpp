@@ -269,8 +269,8 @@ private:
                      const range<dimensions>& range)
   {
     _buffer = detail::buffer_ptr{
-        new detail::buffer_impl{
-          sizeof(T) * range.size(), device_mode, host_mode
+      new detail::buffer_impl{
+        sizeof(T) * range.size(), device_mode, host_mode
       }
     };
   }
@@ -291,14 +291,14 @@ private:
     this->create_buffer(detail::device_alloc_mode::regular,
                         detail::host_alloc_mode::regular,
                         range);
-    this->_writeback_trigger =
+    this->_cleanup_trigger =
         std::make_shared<detail::buffer_cleanup_trigger>(_buffer);
   }
 
   void init(const range<dimensions>& range, T* host_memory)
   {
     this->create_buffer(host_memory, range);
-    this->_writeback_trigger =
+    this->_cleanup_trigger =
         std::make_shared<detail::buffer_cleanup_trigger>(_buffer);
   }
 
@@ -307,7 +307,7 @@ private:
   range<dimensions> _range;
 
   detail::buffer_ptr _buffer;
-  shared_ptr_class<detail::buffer_cleanup_trigger> _writeback_trigger;
+  shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
 };
 
 namespace detail {

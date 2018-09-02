@@ -27,6 +27,7 @@
 
 #include "CL/sycl/exception.hpp"
 #include "CL/sycl/context.hpp"
+#include "CL/sycl/detail/debug.hpp"
 
 
 namespace cl {
@@ -54,41 +55,78 @@ void check_error(hipError_t e) {
     // This occurs when no devices are found. Do not throw in that case,
     // we want the user to treat the case when no devices are
     // available without try/catch
+    HIPSYCL_DEBUG_WARNING << "check_error: Received hipErrorNoDevice, "
+                             "no devices available."
+                          << std::endl;
     return;
   case hipErrorInvalidContext:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidContext, "
+                        << " throwing platform_error." << std::endl;
     throw platform_error{"Input context is invalid", e};
   case hipErrorInvalidKernelFile:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidKernelFile, "
+                        << " throwing platform_error." << std::endl;
     throw platform_error{"Invalid PTX",e};
   case hipErrorMemoryAllocation:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorMemoryAllocation, "
+                        << " throwing memory_allocation_error." << std::endl;
     throw memory_allocation_error{"Bad memory allocation",e};
   case hipErrorInitializationError:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInitializationError, "
+                        << " throwing exception." << std::endl;
     throw exception{"Initialization error", e};
   case hipErrorLaunchFailure:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorMemoryAllocation, "
+                        << " throwing memory_allocation_error." << std::endl;
     throw kernel_error{"An error occurred on the device while executing a kernel.", e};
   case hipErrorInvalidDevice:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidDevice, "
+                        << " throwing device_error." << std::endl;
     throw device_error{"Invalid device id", e};
   case hipErrorInvalidValue:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidValue, "
+                        << " throwing runtime_error." << std::endl;
     throw runtime_error{"One or more of the parameters passed to the API "
                         "call is NULL or not in an acceptable range.",e};
   case hipErrorInvalidDevicePointer:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidDevicePointer, "
+                        << " throwing invalid_parameter_error." << std::endl;
     throw invalid_parameter_error{"Invalid device pointer",e};
   case hipErrorInvalidMemcpyDirection:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidMemcpyDirection, "
+                        << " throwing invalid_parameter_error." << std::endl;
     throw invalid_parameter_error{"Invalid memcpy direction",e};
   case hipErrorUnknown:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorUnknown, "
+                        << " throwing exception." << std::endl;
     throw exception{"Unknown HIP error",e};
   case hipErrorInvalidResourceHandle:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorInvalidResourceHandle, "
+                        << " throwing invalid_object_error." << std::endl;
     throw invalid_object_error{"Invalid event or queue",e};
   case hipErrorRuntimeMemory:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorRuntimeMemory, "
+                        << " throwing devic_error." << std::endl;
     throw device_error{"HSA memory error",e};
   case hipErrorRuntimeOther:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorRuntimeOther, "
+                        << " throwing device_error." << std::endl;
     throw device_error{"HSA error",e};
   case hipErrorHostMemoryAlreadyRegistered:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorHostMemoryAlreadyRegistered, "
+                        << " throwing runtime_error." << std::endl;
     throw runtime_error{"Could not lock page-locked memory",e};
   case hipErrorHostMemoryNotRegistered:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorHostMemoryNotRegistered, "
+                        << " throwing runtime_error." << std::endl;
     throw runtime_error{"Could not unlock non-page-locked memory",e};
   case hipErrorMapBufferObjectFailed:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received hipErrorMapBufferObjectFailed, "
+                        << " throwing runtime_error." << std::endl;
     throw runtime_error{"IPC memory attach failed from ROCr",e};
   default:
+    HIPSYCL_DEBUG_ERROR << "check_error: Received unknown HIP error "<< e
+                        << ", throwing memory_allocation_error." << std::endl;
     throw exception{"Unknown error occured", e};
   }
 

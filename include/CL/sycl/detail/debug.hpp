@@ -25,62 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/accessor.hpp"
-#include "CL/sycl/handler.hpp"
-#include "CL/sycl/detail/buffer.hpp"
-#include "CL/sycl/detail/task_graph.hpp"
-#include "CL/sycl/detail/application.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#ifndef HIPSYCL_DEBUG_HPP
+#define HIPSYCL_DEBUG_HPP
 
-#include <cassert>
+#define HIPSYCL_DEBUG_LEVEL_NONE 0
+#define HIPSYCL_DEBUG_LEVEL_ERROR 1
+#define HIPSYCL_DEBUG_LEVEL_WARNING 2
+#define HIPSYCL_DEBUG_LEVEL_INFO 3
 
-namespace cl {
-namespace sycl {
-namespace detail {
-namespace accessor {
+#ifndef HIPSYCL_DEBUG_LEVEL
+#define HIPSYCL_DEBUG_LEVEL HIPSYCL_DEBUG_LEVEL_NONE
+#endif
 
-void* obtain_host_access(buffer_ptr buff,
-                         access::mode access_mode)
-{
-
-  void* ptr = buff->get_host_ptr();
-  stream_ptr stream = stream_manager::default_stream();
-
-  HIPSYCL_DEBUG_INFO << "accessor: Spawning host access task"
-                     << std::endl;
-
-  auto task_graph_node = detail::buffer_impl::access_host(
-        buff,
-        access_mode,
-        stream,
-        stream->get_error_handler());
-
-  task_graph_node->wait();
-
-  return ptr;
-
-}
+#include <iostream>
 
 
-void* obtain_device_access(buffer_ptr buff,
-                           sycl::handler& cgh,
-                           access::mode access_mode)
-{
-  void* ptr = buff->get_buffer_ptr();
 
-  auto task_graph_node =
-      detail::buffer_impl::access_device(buff,
-                                         access_mode,
-                                         cgh.get_stream(),
-                                         cgh.get_stream()->get_error_handler());
+#define HIPSYCL_DEBUG_STREAM(level, prefix) \
+if(level > HIPSYCL_DEBUG_LEVEL); else std::cout << prefix
 
-  cgh._detail_add_access(buff, access_mode, task_graph_node);
-
-  return ptr;
-}
+#define HIPSYCL_DEBUG_ERROR \
+  HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_ERROR, \
+                      "[hipSYCL Debug: Error] ")
 
 
-}
-}
-}
-}
+#define HIPSYCL_DEBUG_WARNING \
+  HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_WARNING, \
+                      "[hipSYCL Debug: Warning] ")
+
+
+#define HIPSYCL_DEBUG_INFO \
+  HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_INFO, \
+                      "[hipSYCL Debug: Info] ")
+
+
+#endif

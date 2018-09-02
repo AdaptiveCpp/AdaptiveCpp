@@ -133,6 +133,8 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
 buffer_impl::~buffer_impl()
 {
+  _dependency_manager.wait_dependencies();
+
   if(_svm)
   {
 #ifdef HIPSYCL_PLATFORM_CUDA
@@ -153,43 +155,42 @@ buffer_impl::~buffer_impl()
   }
 }
 
-void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
-                                           detail::stream_ptr stream)
+void buffer_impl::perform_writeback(detail::stream_ptr stream)
 {
-  if(buff->_svm)
+  if(_svm)
   {
 #ifdef HIPSYCL_PLATFORM_CUDA
-    if(buff->_write_back &&
-       buff->_write_back_memory != nullptr &&
-       buff->_write_back_memory != buff->_buffer_pointer)
+    if(_write_back &&
+       _write_back_memory != nullptr &&
+       _write_back_memory != _buffer_pointer)
       // write back
-      memcpy(buff->_write_back_memory, buff->_buffer_pointer, buff->_size);
+      memcpy(_write_back_memory, _buffer_pointer, _size);
 #endif
   }
   else
   {
-    if(buff->_write_back &&
-       buff->_write_back_memory != nullptr)
+    if(_write_back &&
+       _write_back_memory != nullptr)
     {
-      if((buff->_write_back_memory == buff->_host_memory &&
-          buff->_monitor.is_host_outdated())
-       || buff->_write_back_memory != buff->_host_memory)
+      if((_write_back_memory == _host_memory &&
+          _monitor.is_host_outdated())
+       || _write_back_memory != _host_memory)
       {
         task_graph_node_ptr node;
 
         {
-          std::lock_guard<mutex_class> lock(buff->_mutex);
+          std::lock_guard<mutex_class> lock(_mutex);
 
           task_graph& tg = detail::application::get_task_graph();
 
           auto dependencies =
-              buff->_dependency_manager.calculate_dependencies(access::mode::read);
+              _dependency_manager.calculate_dependencies(access::mode::read);
 
-          auto task = [buff, stream] () -> hip_event {
+          auto task = [this, stream] () -> hip_event {
 
-            detail::check_error(hipMemcpyAsync(buff->_write_back_memory,
-                                               buff->_buffer_pointer,
-                                               buff->_size,
+            detail::check_error(hipMemcpyAsync(_write_back_memory,
+                                               _buffer_pointer,
+                                               _size,
                                                hipMemcpyDeviceToHost,
                                                stream->get_stream()));
             return detail::insert_event(stream->get_stream());
@@ -199,7 +200,7 @@ void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
                            dependencies,
                            stream,
                            stream->get_error_handler());
-          buff->_dependency_manager.add_operation(node, access::mode::read);
+          _dependency_manager.add_operation(node, access::mode::read);
         }
 
         assert(node != nullptr);
@@ -209,6 +210,21 @@ void buffer_impl::trigger_writeback_action(detail::buffer_ptr buff,
       }
     }
   }
+}
+
+void buffer_impl::finalize_host(detail::stream_ptr stream)
+{
+  // Writeback must be triggered in any case
+  perform_writeback(stream);
+  // Additionally, if we use host memory that is not
+  // managed by the buffer object, we must wait until
+  // all operations on the buffer have finished. If the
+  // host buffer is allocated by an external object, it is
+  // possible that this object (e.g. std::vector) goes out
+  // of scope after the buffer (but not buffer_impl) object
+  // is destroyed.
+  if(!_owns_host_memory && !_svm)
+    _dependency_manager.wait_dependencies();
 }
 
 bool buffer_impl::is_svm_buffer() const
@@ -510,17 +526,23 @@ buffer_access_log::is_write_operation_pending() const
   return false;
 }
 
+void
+buffer_access_log::wait_dependencies()
+{
+  for(auto op : _operations)
+    op.task->wait();
+}
+
 ///////////////////// buffer_writeback_trigger ///////////////////
 
-buffer_writeback_trigger::buffer_writeback_trigger(buffer_ptr buff)
+buffer_cleanup_trigger::buffer_cleanup_trigger(buffer_ptr buff)
   : _buff{buff}
 {}
 
-buffer_writeback_trigger::~buffer_writeback_trigger()
+buffer_cleanup_trigger::~buffer_cleanup_trigger()
 {
   auto stream = detail::stream_ptr{new detail::stream_manager()};
-  buffer_impl::trigger_writeback_action(_buff,
-                                        stream);
+  _buff->finalize_host(stream);
 }
 
 }

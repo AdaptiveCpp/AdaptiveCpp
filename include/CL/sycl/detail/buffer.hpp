@@ -102,6 +102,9 @@ public:
   calculate_dependencies(access::mode m) const;
 
   bool is_write_operation_pending() const;
+
+  /// Waits until all dependencies have completed.
+  void wait_dependencies();
 private:
   struct dependency
   {
@@ -141,9 +144,13 @@ public:
   void set_write_back(void* ptr);
   void enable_write_back(bool writeback);
 
-  static
-  void trigger_writeback_action(detail::buffer_ptr buff,
-                                detail::stream_ptr stream);
+  /// Finishes all enqueued host accesses, and executes
+  /// possible write-back operations. After a call to this
+  /// function, the host-side buffer can be safely released
+  /// and it is guaranteed that it won't be accessed anymore,
+  /// as long no new host accesses are enqueued.
+
+  void finalize_host(detail::stream_ptr stream);
 
   static
   task_graph_node_ptr access_host(detail::buffer_ptr buff,
@@ -165,6 +172,7 @@ public:
                                 access::mode m);
 
 private:
+  void perform_writeback(detail::stream_ptr stream);
 
   void update_host(size_t begin, size_t end, hipStream_t stream);
   void update_host(hipStream_t stream);
@@ -202,11 +210,11 @@ private:
   mutex_class _mutex;
 };
 
-class buffer_writeback_trigger
+class buffer_cleanup_trigger
 {
 public:
-  buffer_writeback_trigger(buffer_ptr buff);
-  ~buffer_writeback_trigger();
+  buffer_cleanup_trigger(buffer_ptr buff);
+  ~buffer_cleanup_trigger();
 
 private:
   buffer_ptr _buff;

@@ -119,6 +119,11 @@ void worker_thread::operator()(worker_thread::async_function f)
   _condition_wait.notify_one();
 }
 
+std::size_t worker_thread::queue_size() const
+{
+  return _enqueued_operations.size();
+}
+
 }
 }
 }

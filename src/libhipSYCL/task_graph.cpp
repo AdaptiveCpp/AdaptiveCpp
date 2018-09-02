@@ -265,8 +265,6 @@ void task_graph::flush()
 void task_graph::finish()
 {
 
-  _worker.wait();
-
   // We work on a copy of the task graph; this allows us
   // to wait without locking the task graph the entire time
   vector_class<task_graph_node_ptr> nodes_snapshot;
@@ -279,9 +277,12 @@ void task_graph::finish()
 
     nodes_snapshot = _nodes;
   }
+  // Wait until everything is submitted
+  _worker.wait();
 
   for(auto& node : nodes_snapshot)
     node->wait();
+
 
 }
 

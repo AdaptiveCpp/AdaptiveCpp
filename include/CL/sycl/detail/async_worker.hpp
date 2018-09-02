@@ -64,6 +64,8 @@ public:
   /// \param f The function to enqueue for execution
   void operator()(async_function f);
 
+  /// \return The number of enqueued operations
+  std::size_t queue_size() const;
 private:
 
   /// Stop the worker thread - this should only be

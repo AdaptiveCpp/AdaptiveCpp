@@ -83,9 +83,11 @@ buffer_impl::buffer_impl(size_t buffer_size,
     _write_back{true},
     _write_back_memory{nullptr}
 {
-  if(device_mode == device_alloc_mode::svm &&
-     host_alloc_mode != host_alloc_mode::none)
-    throw invalid_parameter_error{"buffer_impl: SVM allocation cannot be in conjunction with host allocation"};
+  if((device_mode == device_alloc_mode::svm &&
+      host_alloc_mode != host_alloc_mode::svm) ||
+     (host_alloc_mode == host_alloc_mode::svm &&
+      device_mode != device_alloc_mode::svm))
+    throw invalid_parameter_error{"buffer_impl: SVM allocation must be enabled on both host and device side"};
 
 
   if(device_mode == device_alloc_mode::svm)
@@ -95,7 +97,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
     throw unimplemented{"SVM allocation is currently only supported on CUDA"};
 #endif
 
-  if(host_alloc_mode != host_alloc_mode::none)
+  if(host_alloc_mode != host_alloc_mode::svm)
     _owns_host_memory = true;
 
   if(_svm)
@@ -172,6 +174,9 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
     if(_write_back &&
        _write_back_memory != nullptr)
     {
+      // ToDo: if write_back_memory != host_memory
+      // and !_monitor.is_host_outdated(), we can simply
+      // use a memcpy().
       if((_write_back_memory == _host_memory &&
           _monitor.is_host_outdated())
        || _write_back_memory != _host_memory)
@@ -223,7 +228,7 @@ void buffer_impl::finalize_host(detail::stream_ptr stream)
   // possible that this object (e.g. std::vector) goes out
   // of scope after the buffer (but not buffer_impl) object
   // is destroyed.
-  if(!_owns_host_memory && !_svm)
+  if(!_owns_host_memory)
     _dependency_manager.wait_dependencies();
 }
 

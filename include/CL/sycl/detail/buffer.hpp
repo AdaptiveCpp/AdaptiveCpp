@@ -44,7 +44,7 @@ namespace detail {
 
 enum class host_alloc_mode
 {
-  none,
+  svm,
   regular,
   allow_pinned
 };

@@ -30,7 +30,7 @@
 
 #include "../types.hpp"
 #include "../backend/backend.hpp"
-#include "hip_event.hpp"
+//#include "hip_event.hpp"
 #include "stream.hpp"
 #include "async_worker.hpp"
 
@@ -81,12 +81,14 @@ public:
 
   detail::stream_ptr get_stream() const;
 
-  void _register_callback();
+  void set_done();
 
   const vector_class<task_graph_node_ptr>& get_requirements() const;
+
+  async_handler get_error_handler() const;
 private:
   std::atomic<bool> _submitted;
-  std::atomic<bool> _callback_handled;
+  std::atomic<bool> _task_done;
 
   task_functor _tf;
   vector_class<task_graph_node_ptr> _requirements;
@@ -118,8 +120,7 @@ public:
   void process_graph();
 
   /// Handler that is executed when a task has finished.
-  void invoke_async_submission(task_graph_node* node,
-                               hipError_t status);
+  void invoke_async_submission(async_handler error_handler);
 private:
   void purge_finished_tasks();
   void submit_eligible_tasks() const;

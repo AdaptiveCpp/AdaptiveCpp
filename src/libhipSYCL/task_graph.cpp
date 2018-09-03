@@ -31,7 +31,6 @@
 #include <mutex>
 #include <cassert>
 
-
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -50,9 +49,24 @@ void task_done_callback(hipStream_t stream,
                      << node
                      << " has completed" << std::endl;
 
+  task_graph* graph = node->get_graph();
+  async_handler error_handler = node->get_error_handler();
+  assert(graph != nullptr);
+
+  // The callback must be registered before we try
+  // to submit the next tasks, so that they can consider
+  // this node as 'done' if it is a requirement. This
+  // prevents deadlocks.
+  //
+  // As soon as the task is set to done, the task graph
+  // may decide to delete it - after this point, the node
+  // should hence not be accessed anymore.
+  node->set_done();
+
   try
   {
-    node->get_graph()->invoke_async_submission(node, status);
+    detail::check_error(status);
+    graph->invoke_async_submission(error_handler);
   }
   catch (...)
   {
@@ -61,11 +75,8 @@ void task_done_callback(hipStream_t stream,
                            " invoking async handler." << std::endl;
 
     exception_ptr e = std::current_exception();
-    node->run_error_handler(sycl::exception_list{e});
+    error_handler(sycl::exception_list{e});
   }
-
-  node->_register_callback();
-  assert(node->is_done());
 
 }
 
@@ -75,13 +86,19 @@ task_graph_node::task_graph_node(task_functor tf,
                                  async_handler error_handler,
                                  task_graph* tgraph)
   : _submitted{false},
-    _callback_handled{false},
+    _task_done{false},
     _tf{tf},
     _requirements{requirements},
     _stream{stream},
     _handler{error_handler},
     _parent_graph{tgraph}
 {}
+
+async_handler
+task_graph_node::get_error_handler() const
+{
+  return _handler;
+}
 
 bool task_graph_node::is_submitted() const
 {
@@ -101,7 +118,7 @@ bool task_graph_node::is_done() const
   if(!_submitted)
     return false;
 
-  return _callback_handled;
+  return _task_done;
 }
 
 void
@@ -151,9 +168,9 @@ task_graph_node::submit()
 }
 
 void
-task_graph_node::_register_callback()
+task_graph_node::set_done()
 {
-  this->_callback_handled = true;
+  this->_task_done = true;
 }
 
 
@@ -191,7 +208,7 @@ task_graph_node::wait()
 
   // The callback should be executed immediately after
   // the event's completion
-  while(!_callback_handled);
+  while(!_task_done);
 
 }
 
@@ -246,7 +263,9 @@ task_graph::insert(task_functor tf,
 
   // Trigger the on_task_completed handler to make sure
   // the task gets submitted if it is the first one
-  this->invoke_async_submission(node.get(), hipSuccess);
+
+  // ToDo: Use the correct error handler
+  this->invoke_async_submission(node->get_error_handler());
 
   return node;
 }
@@ -333,28 +352,24 @@ void task_graph::finish(detail::stream_ptr stream)
     node->wait();
 }
 
-void task_graph::invoke_async_submission(task_graph_node* node,
-                                         hipError_t status)
+void task_graph::invoke_async_submission(async_handler error_handler)
 {
   // We need to offload the graph update/processing to a
   // separate worker thread because CUDA (and HIP?) forbid
   // calling functions that operate on streams in stream callbacks.
 
-  _worker([node, status]()
+  _worker([this, error_handler]()
   {
     try
     {
-      detail::check_error(status);
-
-      task_graph* graph = node->get_graph();
-      graph->process_graph();
+      this->process_graph();
     }
     catch(...)
     {
-      HIPSYCL_DEBUG_ERROR << "task_graph: task completion status returned error, "
+      HIPSYCL_DEBUG_ERROR << "task_graph: caught error in invoke_async_submission, "
                              " invoking async handler." << std::endl;
       exception_ptr e = std::current_exception();
-      node->run_error_handler(sycl::exception_list{e});
+      error_handler(sycl::exception_list{e});
     }
   });
 

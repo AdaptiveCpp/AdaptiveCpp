@@ -76,6 +76,8 @@ public:
   detail::stream_ptr get_stream() const;
 
   void _register_callback();
+
+  const vector_class<task_graph_node_ptr>& get_requirements() const;
 private:
   std::atomic<bool> _submitted;
   std::atomic<bool> _callback_handled;
@@ -110,8 +112,8 @@ public:
   void process_graph();
 
   /// Handler that is executed when a task has finished.
-  void on_task_completed(task_graph_node* node,
-                         hipError_t status);
+  void invoke_async_submission(task_graph_node* node,
+                               hipError_t status);
 private:
   void purge_finished_tasks();
   void submit_eligible_tasks() const;

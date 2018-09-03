@@ -29,6 +29,8 @@
 #include "CL/sycl/detail/buffer.hpp"
 #include "CL/sycl/exception.hpp"
 #include "CL/sycl/detail/application.hpp"
+#include "CL/sycl/detail/debug.hpp"
+
 #include <cstring>
 #include <cassert>
 #include <mutex>
@@ -162,6 +164,8 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
   if(_svm)
   {
 #ifdef HIPSYCL_PLATFORM_CUDA
+    HIPSYCL_DEBUG_INFO << "buffer_impl: Running implicit SVM write-back"
+                       << std::endl;
     if(_write_back &&
        _write_back_memory != nullptr &&
        _write_back_memory != _buffer_pointer)
@@ -174,53 +178,71 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
     if(_write_back &&
        _write_back_memory != nullptr)
     {
-      // ToDo: if write_back_memory != host_memory
-      // and !_monitor.is_host_outdated(), we can simply
-      // use a memcpy().
-      if((_write_back_memory == _host_memory &&
-          _monitor.is_host_outdated())
-       || _write_back_memory != _host_memory)
+
+      task_graph_node_ptr node;
+
       {
-        task_graph_node_ptr node;
+        HIPSYCL_DEBUG_INFO << "buffer_impl: Preparing write-back"
+                           << std::endl;
+        std::lock_guard<mutex_class> lock(_mutex);
 
-        {
-          std::lock_guard<mutex_class> lock(_mutex);
+        task_graph& tg = detail::application::get_task_graph();
 
-          task_graph& tg = detail::application::get_task_graph();
+        auto dependencies =
+            _dependency_manager.calculate_dependencies(access::mode::read);
 
-          auto dependencies =
-              _dependency_manager.calculate_dependencies(access::mode::read);
-
-          auto task = [this, stream] () -> hip_event {
+        // It's fine to capture this here, since we will wait
+        // for this task anyway.
+        auto task = [this, stream] () -> hip_event {
+          // ToDo: if write_back_memory != host_memory
+          // and !_monitor.is_host_outdated(), we can simply
+          // use a memcpy().
+          if((_write_back_memory == _host_memory &&
+              _monitor.is_host_outdated())
+             || _write_back_memory != _host_memory)
+          {
+            HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
+                                  "Device->Host copy for writeback"
+                               << std::endl;
 
             detail::check_error(hipMemcpyAsync(_write_back_memory,
                                                _buffer_pointer,
                                                _size,
                                                hipMemcpyDeviceToHost,
                                                stream->get_stream()));
-            return detail::insert_event(stream->get_stream());
-          };
+          }
+          else
+            HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, device memory and "
+                                  "write-back memory are already in sync."
+                               << std::endl;
 
-          node = tg.insert(task,
-                           dependencies,
-                           stream,
-                           stream->get_error_handler());
-          _dependency_manager.add_operation(node, access::mode::read);
-        }
+          return detail::insert_event(stream->get_stream());
+        };
 
-        assert(node != nullptr);
-        node->wait();
 
-        assert(node->is_done());
+
+        node = tg.insert(task,
+                         dependencies,
+                         stream,
+                         stream->get_error_handler());
+        _dependency_manager.add_operation(node, access::mode::read);
       }
+
+      assert(node != nullptr);
+      node->wait();
+      assert(node->is_done());
+
+
     }
+    else
+      HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, write-back was disabled "
+                            "or target memory is NULL"
+                         << std::endl;
   }
 }
 
 void buffer_impl::finalize_host(detail::stream_ptr stream)
 {
-  // Writeback must be triggered in any case
-  perform_writeback(stream);
   // Additionally, if we use host memory that is not
   // managed by the buffer object, we must wait until
   // all operations on the buffer have finished. If the
@@ -230,6 +252,9 @@ void buffer_impl::finalize_host(detail::stream_ptr stream)
   // is destroyed.
   if(!_owns_host_memory)
     _dependency_manager.wait_dependencies();
+
+  // Writeback must be triggered in any case
+  perform_writeback(stream);
 }
 
 bool buffer_impl::is_svm_buffer() const
@@ -323,6 +348,10 @@ void buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
 
 void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream)
 {
+  HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
+                        "Device->Host copy"
+                     << std::endl;
+
   detail::check_error(hipMemcpyAsync(host, device, len,
                                      hipMemcpyDeviceToHost, stream));
 
@@ -330,6 +359,10 @@ void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStre
 
 void buffer_impl::memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream)
 {
+  HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
+                        "Host->Device copy"
+                     << std::endl;
+
   detail::check_error(hipMemcpyAsync(device, host, len,
                                      hipMemcpyHostToDevice, stream));
 }
@@ -546,6 +579,8 @@ buffer_cleanup_trigger::buffer_cleanup_trigger(buffer_ptr buff)
 
 buffer_cleanup_trigger::~buffer_cleanup_trigger()
 {
+  HIPSYCL_DEBUG_INFO << "buffer_cleanup_trigger: Buffer went out of scope,"
+                        " triggering cleanup" << std::endl;
   auto stream = detail::stream_ptr{new detail::stream_manager()};
   _buff->finalize_host(stream);
 }

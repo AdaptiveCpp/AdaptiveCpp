@@ -52,7 +52,7 @@ void task_done_callback(hipStream_t stream,
 
   try
   {
-    node->get_graph()->on_task_completed(node, status);
+    node->get_graph()->invoke_async_submission(node, status);
   }
   catch (...)
   {
@@ -198,6 +198,12 @@ task_graph_node::are_requirements_on_same_stream() const
   return true;
 }
 
+const vector_class<task_graph_node_ptr>&
+task_graph_node::get_requirements() const
+{
+  return _requirements;
+}
+
 ///////////////// task_graph /////////////////////////
 
 task_graph::~task_graph()
@@ -222,7 +228,7 @@ task_graph::insert(task_functor tf,
 
   HIPSYCL_DEBUG_INFO << "task_graph: Receiving task node "
                      << node.get() << std::endl;
-  HIPSYCL_DEBUG_INFO << "task_graph:    Dependencies: " << std::endl;
+  HIPSYCL_DEBUG_INFO << "task_graph:  Dependencies: " << std::endl;
   for(const auto& req : requirements)
     HIPSYCL_DEBUG_INFO << "task_graph:    " << req.get() << std::endl;
 
@@ -233,7 +239,7 @@ task_graph::insert(task_functor tf,
 
   // Trigger the on_task_completed handler to make sure
   // the task gets submitted if it is the first one
-  this->on_task_completed(node.get(), hipSuccess);
+  this->invoke_async_submission(node.get(), hipSuccess);
 
   return node;
 }
@@ -299,8 +305,6 @@ void task_graph::finish()
 
   for(auto& node : nodes_snapshot)
     node->wait();
-
-
 }
 
 void task_graph::finish(detail::stream_ptr stream)
@@ -322,8 +326,8 @@ void task_graph::finish(detail::stream_ptr stream)
     node->wait();
 }
 
-void task_graph::on_task_completed(task_graph_node* node,
-                                   hipError_t status)
+void task_graph::invoke_async_submission(task_graph_node* node,
+                                         hipError_t status)
 {
   // We need to offload the graph update/processing to a
   // separate worker thread because CUDA (and HIP?) forbid

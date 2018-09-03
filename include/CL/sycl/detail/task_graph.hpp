@@ -40,7 +40,13 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-using task_functor = function_class<hip_event ()>;
+enum class task_state
+{
+  enqueued,
+  complete
+};
+
+using task_functor = function_class<task_state ()>;
 
 class task_graph_node;
 using task_graph_node_ptr = shared_ptr_class<task_graph_node>;
@@ -84,7 +90,7 @@ private:
 
   task_functor _tf;
   vector_class<task_graph_node_ptr> _requirements;
-  hip_event _event;
+
   stream_ptr _stream;
   async_handler _handler;
 

@@ -193,7 +193,7 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
 
         // It's fine to capture this here, since we will wait
         // for this task anyway.
-        auto task = [this, stream] () -> hip_event {
+        auto task = [this, stream] () -> task_state{
           // ToDo: if write_back_memory != host_memory
           // and !_monitor.is_host_outdated(), we can simply
           // use a memcpy().
@@ -210,16 +210,17 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
                                                _size,
                                                hipMemcpyDeviceToHost,
                                                stream->get_stream()));
+            return task_state::enqueued;
           }
           else
+          {
             HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, device memory and "
                                   "write-back memory are already in sync."
                                << std::endl;
+            return task_state::complete;
+          }
 
-          return detail::insert_event(stream->get_stream());
         };
-
-
 
         node = tg.insert(task,
                          dependencies,
@@ -276,11 +277,11 @@ void buffer_impl::update_host(size_t begin, size_t end, hipStream_t stream)
 {
   if(!_svm)
   {
-    if(_host_memory != nullptr)
-      this->memcpy_d2h(memory_offset(_host_memory, begin),
-                       memory_offset(_buffer_pointer, begin),
-                       end-begin,
-                       stream);
+    assert(_host_memory != nullptr);
+    this->memcpy_d2h(memory_offset(_host_memory, begin),
+                     memory_offset(_buffer_pointer, begin),
+                     end-begin,
+                     stream);
   }
 }
 
@@ -294,11 +295,11 @@ void buffer_impl::update_device(size_t begin, size_t end, hipStream_t stream)
 {
   if(!_svm)
   {
-    if(_host_memory != nullptr)
-      this->memcpy_h2d(memory_offset(_buffer_pointer, begin),
-                       memory_offset(_host_memory, begin),
-                       end-begin,
-                       stream);
+    assert(_host_memory != nullptr);
+    this->memcpy_h2d(memory_offset(_buffer_pointer, begin),
+                     memory_offset(_host_memory, begin),
+                     end-begin,
+                     stream);
   }
 }
 
@@ -337,12 +338,20 @@ void buffer_impl::enable_write_back(bool writeback)
   this->_write_back = writeback;
 }
 
-void buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
+task_state
+buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
 {
-  if(a == buffer_action::update_device)
-    this->update_device(stream);
-  else if(a == buffer_action::update_host)
-    this->update_host(stream);
+  if(a != buffer_action::none)
+  {
+    if(a == buffer_action::update_device)
+      this->update_device(stream);
+    else if(a == buffer_action::update_host)
+      this->update_host(stream);
+
+    return task_state::enqueued;
+  }
+
+  return task_state::complete;
 }
 
 
@@ -379,10 +388,10 @@ buffer_impl::access_host(detail::buffer_ptr buff,
 
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
 
-  auto task = [buff, m, stream] () -> hip_event {
-    buff->execute_buffer_action(buff->_monitor.register_host_access(m),
-                                stream->get_stream());
-    return detail::insert_event(stream->get_stream());
+  auto task = [buff, m, stream] () -> task_state {
+    return buff->execute_buffer_action(
+          buff->_monitor.register_host_access(m),
+          stream->get_stream());
   };
 
   task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);
@@ -403,10 +412,11 @@ buffer_impl::access_device(detail::buffer_ptr buff,
 
   auto dependencies = buff->_dependency_manager.calculate_dependencies(m);
 
-  auto task = [buff, m, stream] () -> hip_event {
-    buff->execute_buffer_action(buff->_monitor.register_device_access(m),
-                                stream->get_stream());
-    return detail::insert_event(stream->get_stream());
+  auto task = [buff, m, stream] () -> task_state {
+    return buff->execute_buffer_action(
+          buff->_monitor.register_device_access(m),
+          stream->get_stream());
+
   };
 
   task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);

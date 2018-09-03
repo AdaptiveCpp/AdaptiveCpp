@@ -144,13 +144,13 @@ void set_args(Ts &&... args);
     detail::stream_ptr stream = this->get_stream();
 
     auto kernel_launch = [=]()
-        -> detail::hip_event
+        -> detail::task_state
     {
       stream->activate_device();
       detail::dispatch::single_task_kernel
           <<<1,1,shared_mem_size,stream->get_stream()>>>(kernelFunc);
 
-      return detail::insert_event(stream->get_stream());
+      return detail::task_state::enqueued;
     };
 
     this->submit_kernel(kernel_launch);
@@ -339,14 +339,14 @@ private:
     detail::stream_ptr stream = this->get_stream();
 
     auto kernel_launch = [=]()
-        -> detail::hip_event
+        -> detail::task_state
     {
       stream->activate_device();
       detail::dispatch::parallel_for_kernel
           <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
                                                                 numWorkItems);
 
-      return detail::insert_event(stream->get_stream());
+      return detail::task_state::enqueued;
     };
 
     this->submit_kernel(kernel_launch);
@@ -368,7 +368,7 @@ private:
 
 
     auto kernel_launch = [=]()
-        -> detail::hip_event
+        -> detail::task_state
     {
       stream->activate_device();
       detail::dispatch::parallel_for_kernel_with_offset
@@ -376,7 +376,7 @@ private:
                                                                 numWorkItems,
                                                                 offset);
 
-      return detail::insert_event(stream->get_stream());
+      return detail::task_state::enqueued;
     };
 
     this->submit_kernel(kernel_launch);
@@ -405,7 +405,7 @@ private:
     detail::stream_ptr stream = this->get_stream();
 
     auto kernel_launch = [=]()
-        -> detail::hip_event
+        -> detail::task_state
     {
       stream->activate_device();
 
@@ -413,7 +413,7 @@ private:
           <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
                                                                 offset);
 
-      return detail::insert_event(stream->get_stream());
+      return detail::task_state::enqueued;
     };
 
     this->submit_kernel(kernel_launch);
@@ -434,14 +434,14 @@ private:
     dim3 block = range_to_dim3(workGroupSize);
 
     auto kernel_launch = [=]()
-        -> detail::hip_event
+        -> detail::task_state
     {
       stream->activate_device();
       detail::dispatch::parallel_for_workgroup
           <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
                                                                 workGroupSize);
 
-      return detail::insert_event(stream->get_stream());
+      return detail::task_state::enqueued;
     };
 
     this->submit_kernel(kernel_launch);

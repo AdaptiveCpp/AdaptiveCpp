@@ -180,7 +180,7 @@ private:
   void update_device(size_t begin, size_t end, hipStream_t stream);
   void update_device(hipStream_t stream);
 
-  void execute_buffer_action(buffer_action a, hipStream_t stream);
+  task_state execute_buffer_action(buffer_action a, hipStream_t stream);
 
   /// Performs an async data transfer if the stream is from
   /// a sycl queue (i.e. not the default stream) and a synchronous

@@ -46,17 +46,17 @@ if(level > HIPSYCL_DEBUG_LEVEL); else std::cout << prefix
 
 #define HIPSYCL_DEBUG_ERROR \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_ERROR, \
-                      "[hipSYCL Debug: Error] ")
+                      "[hipSYCL Error] ")
 
 
 #define HIPSYCL_DEBUG_WARNING \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_WARNING, \
-                      "[hipSYCL Debug: Warning] ")
+                      "[hipSYCL Warning] ")
 
 
 #define HIPSYCL_DEBUG_INFO \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_INFO, \
-                      "[hipSYCL Debug: Info] ")
+                      "[hipSYCL Info] ")
 
 
 #endif

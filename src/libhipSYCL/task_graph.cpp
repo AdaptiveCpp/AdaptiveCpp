@@ -101,7 +101,6 @@ bool task_graph_node::is_done() const
   if(!_submitted)
     return false;
 
-  assert(!_event.is_null_event());
   return _callback_handled;
 }
 
@@ -117,14 +116,22 @@ task_graph_node::submit()
                        << this << std::endl;
 
     _stream->activate_device();
-    this->_event = _tf();
+    task_state state = _tf();
     _submitted = true;
 
-    // ToDo: Only add callback if event is not already complete?
-
-    detail::check_error(
+    if(state == task_state::enqueued)
+    {
+      detail::check_error(
           hipStreamAddCallback(_stream->get_stream(), task_done_callback,
                                reinterpret_cast<void*>(this), 0));
+    }
+    else
+    {
+      // Trigger callback
+      task_done_callback(_stream->get_stream(),
+                         hipSuccess,
+                         reinterpret_cast<void*>(this));
+    }
 
   }
   catch(...)
@@ -134,6 +141,8 @@ task_graph_node::submit()
     // Submitted must be set to true to avoid
     // subsequent submissions
     _submitted = true;
+    // ToDo: Should we also consider the task as done here?
+    // Or at least trigger the callback?
 
     exception_ptr e = std::current_exception();
     _handler(sycl::exception_list{e});
@@ -179,13 +188,11 @@ task_graph_node::wait()
   while(!_submitted);
 
   assert(_submitted);
-  this->_event.wait();
 
   // The callback should be executed immediately after
   // the event's completion
   while(!_callback_handled);
 
-  assert(this->_event.is_done());
 }
 
 bool

@@ -6,17 +6,17 @@ hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applicatio
 ## Why use hipSYCL over raw CUDA/HIP?
 * hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls.
 * Openness. hipSYCL applications are written against an API that is an open standard (SYCL) instead of being locked to one specific vendor.
-* Portability. The hipSYCL input language is (at the moment) a slightly modified, annotated SYCL (see the corresponding section below). This input language can be turned into regular SYCL with simple `#defines`. A hipSYCL can hence run
+* Portability. The hipSYCL input language is (at the moment) a slightly modified, annotated SYCL (see the corresponding section below). This input language can be turned into regular SYCL with simple `#defines`. A hipSYCL application can hence run
    * via hipSYCL:
-      * AMD devices via AMD HIP on the ROCm platform
-      * NVIDIA devices via CUDA
+      * on AMD devices via AMD HIP on the ROCm platform
+      * on NVIDIA devices via CUDA
    * via regular SYCL:
       * the triSYCL SYCL implementation can be used to execute the application
          * on CPUs with OpenMP
          * on Xilinx FPGAs (experimental)
-      * Codeplay's ComputeCpp SYCL implementation run on any OpenCL device with SPIR support, including at least:
-         * AMD devices
-         * Intel devices
+      * Codeplay's ComputeCpp SYCL implementation runs on any OpenCL device with SPIR support, including at least:
+         * on AMD devices
+         * on Intel devices
 * Powerful, but intuitive programming model. SYCL (and by extension, hipSYCL) relies on an asynchronous task graph with support for out-of-order execution instead of the simple in-order queues (streams) provided by CUDA and HIP. This task graph is constructed based on the requirements (e.g. memory accesses) that the user specifies for one kernel. All data transfers between host and device are then executed automatically (if necessary) by the SYCL runtime. hipSYCL will optimize the execution order of the tasks and will for example automatically try to overlap kernels and data transfers, if possible. This allows for the development of highly optimized applications with little effort from the application developer.
 * All CUDA or HIP intrinsics or other features can still be used from within hipSYCL if desired. This is because an hipSYCL application is compiled like any regular CUDA/HIP application with nvcc/hcc. For portability, it is however best to use such unportable features only within preprocessor `#ifdef HIPSYCL_PLATFORM_CUDA` or `#ifdef HIPSYCL_PLATFORM_HIP` constructs.
 
@@ -35,6 +35,8 @@ Still unimplemented/missing is in particular:
 
 
 ## Building hipSYCL
+In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested with CUDA 9.2 and gcc 7.3.
+
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
 
 All other users need to compile hipSYCL manually. First, make sure to clone the repository with all submodules:

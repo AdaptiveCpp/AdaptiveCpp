@@ -1,20 +1,27 @@
 # hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
 The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that is built upon NVIDIA CUDA/AMD HIP.
-Essentially, hipSYCL is a SYCL wrapper around CUDA/HIP, i.e. your applications are compiled with nvcc (NVIDIA) or hcc (AMD) like regular CUDA/HIP applications.
 
-## Rationale
-Present solutions (OpenCL, SYCL, CUDA, HIP) require choosing either portability or access to latest hardware features.
-For example, when writing an application in CUDA, because of vendor support by NVIDIA, latest hardware features of NVIDIA GPUs can be exploited and there are sophisticated debugging/profiling tools available.
-However, the application is then inherently unportable and will only run on NVIDIA GPUs.
-If portability is more important, OpenCL can be used instead, which is however not well supported by some vendors, and some newer features are not implemented by these vendors. Here, especially NVIDIA stands out as a trouble spot.
+hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applications are then compiled with the regular vendor compilers (nvcc for nvidia and hcc for AMD), and hence can enjoy full vendor support.
 
-hipSYCL attempts to solve these problems by providing a SYCL interface to CUDA/HIP. This means that
-* You program your applications against the SYCL interface, which is an open standard. There are several other SYCL implementations available that allow for an execution of SYCL-compliant code on any OpenCL device, from CPUs to GPUs and FPGAs. In other words, if you don't want to run your code on GPUs from a certain vendor anymore, if it's written in SYCL, you can easily run it on any other device.
-* Since hipSYCL is effectively a CUDA/HIP wrapper, you have full vendor support from NVIDIA (and AMD). Consequently, all CUDA/HIP profiling debugging tools are expected to work with hipSYCL.
-* Since hipSYCL code relies on compilation with nvcc/hcc, you can easily create optimized code paths for the latest GPUs, and all the latest features that are available in CUDA will also be available to you.
+## Why use hipSYCL over raw CUDA/HIP?
+* hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls.
+* Openness. hipSYCL applications are written against an API that is an open standard (SYCL) instead of being locked to one specific vendor.
+* Portability. The hipSYCL input language is (at the moment) a slightly modified, annotated SYCL (see the corresponding section below). This input language can be turned into regular SYCL with simple `#defines`. A hipSYCL can hence run
+   * via hipSYCL:
+      * AMD devices via AMD HIP on the ROCm platform
+      * NVIDIA devices via CUDA
+   * via regular SYCL:
+      * the triSYCL SYCL implementation can be used to execute the application
+         * on CPUs with OpenMP
+         * on Xilinx FPGAs (experimental)
+      * Codeplay's ComputeCpp SYCL implementation run on any OpenCL device with SPIR support, including at least:
+         * AMD devices
+         * Intel devices
+* Powerful, but intuitive programming model. SYCL (and by extension, hipSYCL) relies on an asynchronous task graph with support for out-of-order execution instead of the simple in-order queues (streams) provided by CUDA and HIP. This task graph is constructed based on the requirements (e.g. memory accesses) that the user specifies for one kernel. All data transfers between host and device are then executed automatically (if necessary) by the SYCL runtime. hipSYCL will optimize the execution order of the tasks and will for example automatically try to overlap kernels and data transfers, if possible. This allows for the development of highly optimized applications with little effort from the application developer.
+* All CUDA or HIP intrinsics or other features can still be used from within hipSYCL if desired. This is because an hipSYCL application is compiled like any regular CUDA/HIP application with nvcc/hcc. For portability, it is however best to use such unportable features only within preprocessor `#ifdef HIPSYCL_PLATFORM_CUDA` or `#ifdef HIPSYCL_PLATFORM_HIP` constructs.
 
 ## Current state
-hipSYCL is still in an early stage of development. It can successfully execute some simple SYCL programs; but large parts of the specification are not yet implemented.
+hipSYCL is still in an experimental stage of development. It can successfully execute some SYCL programs; but parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
 * hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` is supported).
@@ -23,8 +30,8 @@ Still unimplemented/missing is in particular:
 * Atomics
 * Device library
 * Images
-* device/platform information queries
-* thread safety
+* queue and event information queries
+* Some locks for multithreaded SYCL applications are missing.
 
 
 ## Building hipSYCL
@@ -42,10 +49,21 @@ $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
 
+## hipSYCL input language: `__device__` annotated SYCL
+Due to the CUDA/HIP programming models that hipSYCL builds on, all functions that are executed on the device must be marked with the `__device__` annotation. This particularly affects SYCL kernel lambdas. Local memory allocated statically in an hierarchical parallel for invocation must be marked as `__shared__` for the same reason. The following code snippet can be used to guarantee compatibility of hipSYCL applications with regular SYCL:
+```cpp
+#ifndef __HIPSYCL__
+ #define __device__
+ #define __host__
+ #define __global__
+ #define __shared__
+#endif
+```
+As a future project, it is planned to investigate the possibility of automatically adding these annotations automatically with libclang, such that unmodified, regular SYCL code can be compiled.
+
 ## Caveats
-* Since hipSYCL uses the vendor compilers nvcc (nvidia) and hcc (AMD) to compile code, all device functions must be marked with `__device__`, as is the case in cuda. This especially affects SYCL kernel lambdas. At the current time, hipSYCL can hence be thought of as a SYCL dialect. However, portability of hipSYCL code with other SYCL runtimes can be easily achieved by simply defining `__device__` during compilation. For future versions, it is planned to investigate the possibility of adding the `__device__` attributes automatically using libclang, such that regular sycl code can be compiled as well.
-* The same goes for local memory objects declared in hierarchical parallel for invocations; such objects must be marked with `__shared__`.
-* hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately I cannot test hipSYCL on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
+* hipSYCL uses a slightly different input language compared to regular SYCL, see above
+* hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
 * Because hipSYCL doesn't build on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
 
 ## Compiling software with hipSYCL

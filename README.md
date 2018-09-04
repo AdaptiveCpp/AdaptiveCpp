@@ -52,7 +52,7 @@ $ make install
 The default installation prefix is `/usr/local`. Change this to your liking.
 
 ## hipSYCL input language: `__device__` annotated SYCL
-Due to the CUDA/HIP programming models that hipSYCL builds on, all functions that are executed on the device must be marked with the `__device__` annotation. This particularly affects SYCL kernel lambdas. Local memory allocated statically in an hierarchical parallel for invocation must be marked as `__shared__` for the same reason. The following code snippet can be used to guarantee compatibility of hipSYCL applications with regular SYCL:
+Due to the CUDA/HIP programming model that hipSYCL builds upon, all functions that are executed on the device must be annotated with the `__device__` attribute. This particularly affects SYCL kernel lambdas. Local memory allocated statically in an hierarchical parallel for invocation must be marked as `__shared__` for the same reason. The following code snippet can be used to guarantee compatibility of hipSYCL applications with regular SYCL:
 ```cpp
 #ifndef __HIPSYCL__
  #define __device__
@@ -61,7 +61,7 @@ Due to the CUDA/HIP programming models that hipSYCL builds on, all functions tha
  #define __shared__
 #endif
 ```
-As a future project, it is planned to investigate the possibility of automatically adding these annotations automatically with libclang, such that unmodified, regular SYCL code can be compiled.
+As a future project, it is planned to investigate the possibility of automatically adding these annotations with libclang, such that unmodified, regular SYCL code can be compiled as well.
 
 ## Caveats
 * hipSYCL uses a slightly different input language compared to regular SYCL, see above

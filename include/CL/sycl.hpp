@@ -48,6 +48,7 @@
 #include "sycl/group.hpp"
 #include "sycl/h_item.hpp"
 #include "sycl/private_memory.hpp"
+#include "sycl/vec.hpp"
 
 #endif
 

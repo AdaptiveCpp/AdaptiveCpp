@@ -35,7 +35,7 @@
 
 #define HIPSYCL_VERSION_MAJOR 0
 #define HIPSYCL_VERSION_MINOR 6
-#define HIPSYCL_VERSION_PATCH 5
+#define HIPSYCL_VERSION_PATCH 6
 
 namespace cl {
 namespace sycl {

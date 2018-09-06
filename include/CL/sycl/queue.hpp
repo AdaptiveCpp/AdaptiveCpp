@@ -123,6 +123,7 @@ public:
       cgf(cgh);
 
       // We need to wait to make sure everything is fine.
+      // ToDo: Check for asynchronous errors.
       wait();
       return event();
     }

@@ -24,7 +24,7 @@ hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applicatio
 hipSYCL is still in an experimental stage of development. It can successfully execute some SYCL programs; but parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
-* hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` is supported).
+* hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
 * Explicit memory copy functions
 * placeholder accessors
 * Atomics
@@ -66,7 +66,7 @@ As a future project, it is planned to investigate the possibility of automatical
 ## Caveats
 * hipSYCL uses a slightly different input language compared to regular SYCL, see above
 * hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
-* Because hipSYCL doesn't build on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
+* Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
 
 ## Compiling software with hipSYCL
 hipSYCL provides the `syclcc` compiler wrapper. `syclcc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `HIPSYCL_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `syclcc` also automatically sets a couple of compiler flags required for the compilation of hipSYCL programs. All other arguments are forwarded to hcc/nvcc.

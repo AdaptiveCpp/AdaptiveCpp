@@ -30,7 +30,7 @@
 
 #include "../types.hpp"
 #include "../backend/backend.hpp"
-//#include "hip_event.hpp"
+
 #include "stream.hpp"
 #include "async_worker.hpp"
 

@@ -49,6 +49,7 @@
 #include "sycl/h_item.hpp"
 #include "sycl/private_memory.hpp"
 #include "sycl/vec.hpp"
+#include "sycl/math.hpp"
 
 #endif
 

@@ -460,6 +460,15 @@ struct vector_impl<T,1>
     data.x = f(data.x);
   }
 
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data.x = f(data.x, other.data.x);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(*)
@@ -520,6 +529,16 @@ struct vector_impl<T,2>
   {
     data.x = f(data.x);
     data.y = f(data.y);
+  }
+
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data.x = f(data.x, other.data.x);
+    result.data.y = f(data.y, other.data.y);
+    return result;
   }
 
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(+)
@@ -585,6 +604,17 @@ struct vector_impl<T,3>
     data.z = f(data.z);
   }
 
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data.x = f(data.x, other.data.x);
+    result.data.y = f(data.y, other.data.y);
+    result.data.z = f(data.z, other.data.z);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(*)
@@ -647,6 +677,18 @@ struct vector_impl<T,4>
     data.y = f(data.y);
     data.z = f(data.z);
     data.w = f(data.w);
+  }
+
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data.x = f(data.x, other.data.x);
+    result.data.y = f(data.y, other.data.y);
+    result.data.z = f(data.z, other.data.z);
+    result.data.w = f(data.w, other.data.w);
+    return result;
   }
 
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(+)
@@ -752,6 +794,24 @@ struct vector_impl<T,8>
     data1.w = f(data1.w);
   }
 
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data0.x = f(data0.x, other.data0.x);
+    result.data0.y = f(data0.y, other.data0.y);
+    result.data0.z = f(data0.z, other.data0.z);
+    result.data0.w = f(data0.w, other.data0.w);
+
+    result.data1.x = f(data1.x, other.data1.x);
+    result.data1.y = f(data1.y, other.data1.y);
+    result.data1.z = f(data1.z, other.data1.z);
+    result.data1.w = f(data1.w, other.data1.w);
+
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(*)
@@ -825,6 +885,34 @@ struct vector_impl<T,16>
     data3.w = f(data3.w);
   }
 
+  template<class Function>
+  __host__ __device__
+  vector_impl binary_operation(Function f, const vector_impl& other) const
+  {
+    vector_impl result;
+    result.data0.x = f(data0.x, other.data0.x);
+    result.data0.y = f(data0.y, other.data0.y);
+    result.data0.z = f(data0.z, other.data0.z);
+    result.data0.w = f(data0.w, other.data0.w);
+
+    result.data1.x = f(data1.x, other.data1.x);
+    result.data1.y = f(data1.y, other.data1.y);
+    result.data1.z = f(data1.z, other.data1.z);
+    result.data1.w = f(data1.w, other.data1.w);
+
+    result.data2.x = f(data2.x, other.data2.x);
+    result.data2.y = f(data2.y, other.data2.y);
+    result.data2.z = f(data2.z, other.data2.z);
+    result.data2.w = f(data2.w, other.data2.w);
+
+    result.data3.x = f(data3.x, other.data3.x);
+    result.data3.y = f(data3.y, other.data3.y);
+    result.data3.z = f(data3.z, other.data3.z);
+    result.data3.w = f(data3.w, other.data3.w);
+
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(*)
@@ -862,6 +950,12 @@ struct vector_impl<T,16>
 template<class T, int N, class Function>
 __host__ __device__
 void transform_vector(vec<T,N>& v, Function);
+
+template<class T, int N, class Function>
+__host__ __device__
+vec<T,N> binary_vector_operation(const vec<T,N>& a,
+                                 const vec<T,N>& b,
+                                 Function f);
 
 }
 
@@ -907,8 +1001,15 @@ template <typename dataT, int numElements>
 class vec
 {
   template<class Function>
+  __host__ __device__
   friend void detail::transform_vector(vec<dataT,numElements>& v,
                                        Function f);
+
+  template<class T, int N, class Function>
+  __host__ __device__
+  friend vec<T,N> binary_vector_operation(const vec<T,N>& a,
+                                          const vec<T,N>& b,
+                                          Function f);
 
   explicit vec(const detail::vector_impl<dataT,numElements>& v)
     : _impl{v}
@@ -1213,6 +1314,15 @@ __host__ __device__
 inline void transform_vector(vec<T,N>& v, Function f)
 {
   v._impl.transform(f);
+}
+
+template<class T, int N, class Function>
+__host__ __device__
+vec<T,N> binary_vector_operation(const vec<T,N>& a,
+                                 const vec<T,N>& b,
+                                 Function f)
+{
+  return a._impl.binary_operation(f, b);
 }
 
 } // detail

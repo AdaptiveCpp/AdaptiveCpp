@@ -31,8 +31,9 @@ Still unimplemented/missing is in particular:
 * Device library
 * Images
 * queue and event information queries
+* vec<> class is incomplete
 * Some locks for multithreaded SYCL applications are missing.
-
+* Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
 
 ## Building hipSYCL
 In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested with CUDA 9.2 and gcc 7.3.

@@ -469,6 +469,18 @@ struct vector_impl<T,1>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data.x = f(a.data.x,b.data.x,c.data.x);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(*)
@@ -495,6 +507,32 @@ struct vector_impl<T,1>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR1(%=)
+
+
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T,^)
 
   typename intrinsic_vector<T,1>::type data;
 };
@@ -541,6 +579,19 @@ struct vector_impl<T,2>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data.x = f(a.data.x, b.data.x, c.data.x);
+    result.data.y = f(a.data.y, b.data.y, c.data.y);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(*)
@@ -567,6 +618,31 @@ struct vector_impl<T,2>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR2(%=)
+
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T,^)
 
   typename intrinsic_vector<T,2>::type data;
 };
@@ -615,6 +691,20 @@ struct vector_impl<T,3>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data.x = f(a.data.x, b.data.x, c.data.x);
+    result.data.y = f(a.data.y, b.data.y, c.data.y);
+    result.data.z = f(a.data.z, b.data.z, c.data.z);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(*)
@@ -641,6 +731,31 @@ struct vector_impl<T,3>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR3(%=)
+
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T,^)
 
   typename intrinsic_vector<T,3>::type data;
 };
@@ -691,6 +806,21 @@ struct vector_impl<T,4>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data.x = f(a.data.x, b.data.x, c.data.x);
+    result.data.y = f(a.data.y, b.data.y, c.data.y);
+    result.data.z = f(a.data.z, b.data.z, c.data.z);
+    result.data.w = f(a.data.w, b.data.w, c.data.w);
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(*)
@@ -717,6 +847,31 @@ struct vector_impl<T,4>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR4(%=)
+
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T,^)
 
   typename intrinsic_vector<T,4>::type data;
 };
@@ -812,6 +967,27 @@ struct vector_impl<T,8>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data0.x = f(a.data0.x, b.data0.x, c.data0.x);
+    result.data0.y = f(a.data0.y, b.data0.y, c.data0.y);
+    result.data0.z = f(a.data0.z, b.data0.z, c.data0.z);
+    result.data0.w = f(a.data0.w, b.data0.w, c.data0.w);
+
+    result.data1.x = f(a.data1.x, b.data1.x, c.data1.x);
+    result.data1.y = f(a.data1.y, b.data1.y, c.data1.y);
+    result.data1.z = f(a.data1.z, b.data1.z, c.data1.z);
+    result.data1.w = f(a.data1.w, b.data1.w, c.data1.w);
+
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(*)
@@ -838,6 +1014,31 @@ struct vector_impl<T,8>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR8(%=)
+
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T,^)
 
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;
@@ -913,6 +1114,37 @@ struct vector_impl<T,16>
     return result;
   }
 
+  template<class Function>
+  __host__ __device__
+  static vector_impl trinary_operation(Function f,
+                                       const vector_impl& a,
+                                       const vector_impl& b,
+                                       const vector_impl& c)
+  {
+    vector_impl result;
+    result.data0.x = f(a.data0.x, b.data0.x, c.data0.x);
+    result.data0.y = f(a.data0.y, b.data0.y, c.data0.y);
+    result.data0.z = f(a.data0.z, b.data0.z, c.data0.z);
+    result.data0.w = f(a.data0.w, b.data0.w, c.data0.w);
+
+    result.data1.x = f(a.data1.x, b.data1.x, c.data1.x);
+    result.data1.y = f(a.data1.y, b.data1.y, c.data1.y);
+    result.data1.z = f(a.data1.z, b.data1.z, c.data1.z);
+    result.data1.w = f(a.data1.w, b.data1.w, c.data1.w);
+
+    result.data2.x = f(a.data2.x, b.data2.x, c.data2.x);
+    result.data2.y = f(a.data2.y, b.data2.y, c.data2.y);
+    result.data2.z = f(a.data2.z, b.data2.z, c.data2.z);
+    result.data2.w = f(a.data2.w, b.data2.w, c.data2.w);
+
+    result.data3.x = f(a.data3.x, b.data3.x, c.data3.x);
+    result.data3.y = f(a.data3.y, b.data3.y, c.data3.y);
+    result.data3.z = f(a.data3.z, b.data3.z, c.data3.z);
+    result.data3.w = f(a.data3.w, b.data3.w, c.data3.w);
+
+    return result;
+  }
+
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(+)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(-)
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(*)
@@ -940,6 +1172,32 @@ struct vector_impl<T,16>
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR16(%=)
 
+  // Bitwise operators
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(^)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T,&)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T,|)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T,^)
+
+
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;
   typename intrinsic_vector<T,4>::type data2;
@@ -956,6 +1214,13 @@ __host__ __device__
 vec<T,N> binary_vector_operation(const vec<T,N>& a,
                                  const vec<T,N>& b,
                                  Function f);
+
+template<class T, int N, class Function>
+__host__ __device__
+vec<T,N> trinary_vector_operation(const vec<T,N>& a,
+                                  const vec<T,N>& b,
+                                  const vec<T,N>& c,
+                                  Function f);
 
 }
 
@@ -1010,6 +1275,13 @@ class vec
   friend vec<T,N> binary_vector_operation(const vec<T,N>& a,
                                           const vec<T,N>& b,
                                           Function f);
+
+  template<class T, int N, class Function>
+  __host__ __device__
+  friend vec<T,N> trinary_vector_operation(const vec<T,N>& a,
+                                           const vec<T,N>& b,
+                                           const vec<T,N>& c,
+                                           Function f);
 
   explicit vec(const detail::vector_impl<dataT,numElements>& v)
     : _impl{v}
@@ -1207,6 +1479,30 @@ public:
   //vec<dataT, numElements> operatorOP(const vec<dataT, numElements> &rhs) const;
   //vec<dataT, numElements> operatorOP(const dataT &rhs) const;
 
+  __host__ __device__
+  vec<dataT, numElements> operator&(const vec<dataT,numElements> &rhs) const
+  { return vec<dataT,numElements>{_impl & rhs._impl}; }
+
+  __host__ __device__
+  vec<dataT, numElements> operator|(const vec<dataT,numElements> &rhs) const
+  { return vec<dataT,numElements>{_impl | rhs._impl}; }
+
+  __host__ __device__
+  vec<dataT, numElements> operator^(const vec<dataT,numElements> &rhs) const
+  { return vec<dataT,numElements>{_impl ^ rhs._impl}; }
+
+  __host__ __device__
+  vec<dataT, numElements> operator&(const dataT &rhs) const
+  { return vec<dataT,numElements>{_impl & rhs}; }
+
+  __host__ __device__
+  vec<dataT, numElements> operator|(const dataT &rhs) const
+  { return vec<dataT,numElements>{_impl | rhs}; }
+
+  __host__ __device__
+  vec<dataT, numElements> operator^(const dataT &rhs) const
+  { return vec<dataT,numElements>{_impl ^ rhs}; }
+
   // OP is: &=, |=, ˆ=
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
@@ -1318,11 +1614,21 @@ inline void transform_vector(vec<T,N>& v, Function f)
 
 template<class T, int N, class Function>
 __host__ __device__
-vec<T,N> binary_vector_operation(const vec<T,N>& a,
-                                 const vec<T,N>& b,
-                                 Function f)
+inline vec<T,N> binary_vector_operation(const vec<T,N>& a,
+                                        const vec<T,N>& b,
+                                        Function f)
 {
   return a._impl.binary_operation(f, b);
+}
+
+template<class T, int N, class Function>
+__host__ __device__
+inline vec<T,N> trinary_vector_operation(const vec<T,N>& a,
+                                         const vec<T,N>& b,
+                                         const vec<T,N>& c,
+                                         Function f)
+{
+  return vector_impl<T,N>::trinary_operation(f, a._impl, b._impl, c._impl);
 }
 
 } // detail

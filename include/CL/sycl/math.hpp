@@ -77,12 +77,37 @@ inline float_type cospi(float_type x)
 
 __device__
 inline float exp10(float x)
-{ return exp10f(x); }
+{ return ::exp10f(x); }
 
 __device__
 inline double exp10(double x)
-{ return exp10(x); }
+{ return ::exp10(x); }
 
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type fabs(float_type x)
+{ return std::abs(x); }
+
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type fmax(float_type x, float_type y)
+{ return std::max(x,y); }
+
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type fmin(float_type x, float_type y)
+{ return std::min(x,y); }
+
+__device__
+inline float logb(float x)
+{ return ::logbf(x); }
+
+__device__
+inline double logb(double x)
+{ return ::logb(x); }
 
 } // detail
 
@@ -106,6 +131,15 @@ inline double exp10(double x)
     return detail::binary_vector_operation(a,b,func); \
   }
 
+#define HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(name, func) \
+  template<class float_type, int N, \
+           HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)> \
+  __device__ \
+  inline vec<float_type, N> name(const vec<float_type, N>& a, \
+                                 const vec<float_type, N>& b, \
+                                 const vec<float_type, N>& c) {\
+    return detail::trinary_vector_operation(a,b,c, func); \
+  }
 
 #define HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(func) \
   using ::std::func; \
@@ -156,6 +190,61 @@ using detail::exp10;
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(exp10, detail::exp10)
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(expm1)
+
+using detail::fabs;
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(fabs, detail::fabs)
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(fdim)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(floor)
+
+// ToDo: Triple Op
+using std::fma;
+HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(fma, std::fma);
+
+using detail::fmin;
+using detail::fmax;
+HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(fmin, detail::fmin)
+HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(fmax, detail::fmax)
+
+template<class float_type, int N,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline vec<float_type, N> fmin(const vec<float_type, N>& a,
+                               float_type b) {
+  return fmin(a, vec<float_type,N>{b});
+}
+
+template<class float_type, int N,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline vec<float_type, N> fmax(const vec<float_type, N>& a,
+                               float_type b) {
+  return fmax(a, vec<float_type,N>{b});
+}
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(fmod)
+
+// ToDo fract
+// ToDo frexp
+
+HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(hypot)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(ilogb)
+
+// ToDo ldexp
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(lgamma)
+
+// ToDo lgamma_r
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log2)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log10)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log1p)
+
+using detail::logb;
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(logb, detail::logb)
+
+// ToDo mad - unsupported in cuda/hip
 
 }
 }

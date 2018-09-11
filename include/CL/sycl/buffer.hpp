@@ -61,7 +61,7 @@ public:
   mutex_class* get_mutex_ptr() const;
 };
 
-class context_bound
+class context_bound : public detail::property
 {
 public:
   context_bound(context bound_context)
@@ -78,6 +78,22 @@ private:
 
 } // property
 } // buffer
+
+
+// hipSYCL property extensions
+namespace hipsycl {
+namespace property {
+namespace buffer {
+
+struct use_svm : public detail::property
+{};
+
+struct try_pinned_memory : public detail::property
+{};
+
+}
+}
+}
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
@@ -288,8 +304,29 @@ private:
 
   void init(const range<dimensions>& range)
   {
-    this->create_buffer(detail::device_alloc_mode::regular,
-                        detail::host_alloc_mode::regular,
+
+    detail::device_alloc_mode device_mode =
+        detail::device_alloc_mode::regular;
+    detail::host_alloc_mode host_mode =
+        detail::host_alloc_mode::regular;
+
+    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>() &&
+       this->has_property<hipsycl::property::buffer::use_svm>())
+      throw invalid_parameter_error{"use_pinned_memory and use_svm "
+                                    "as buffer properties cannot be specified "
+                                    "at the same time."};
+
+    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>())
+      host_mode = detail::host_alloc_mode::allow_pinned;
+
+    if(this->has_property<hipsycl::property::buffer::use_svm>())
+    {
+      device_mode = detail::device_alloc_mode::svm;
+      host_mode = detail::host_alloc_mode::svm;
+    }
+
+    this->create_buffer(device_mode,
+                        host_mode,
                         range);
     this->_cleanup_trigger =
         std::make_shared<detail::buffer_cleanup_trigger>(_buffer);

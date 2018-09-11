@@ -60,7 +60,7 @@ public:
   {
     for(const auto& property_ptr: _props)
     {
-      if(dynamic_cast<propertyT>(property_ptr.get()) != nullptr)
+      if(dynamic_cast<propertyT*>(property_ptr.get()) != nullptr)
         return true;
     }
     return false;
@@ -71,7 +71,7 @@ public:
   {
     for(const auto& property_ptr: _props)
     {
-      propertyT* prop = dynamic_cast<propertyT>(property_ptr.get());
+      propertyT* prop = dynamic_cast<propertyT*>(property_ptr.get());
       if(prop != nullptr)
         return *prop;
     }
@@ -84,6 +84,7 @@ private:
   void init(const T& current, Other... others)
   {
     add_property(current);
+    init(others...);
   }
 
   template<class T>

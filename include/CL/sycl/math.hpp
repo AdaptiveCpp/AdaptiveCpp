@@ -75,6 +75,19 @@ __device__
 inline float_type cospi(float_type x)
 { return std::cos(x * static_cast<float_type>(M_PI)); }
 
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type sinpi(float_type x)
+{ return std::sin(x * static_cast<float_type>(M_PI)); }
+
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type tanpi(float_type x)
+{ return std::tan(x * static_cast<float_type>(M_PI)); }
+
+
 __device__
 inline float exp10(float x)
 { return ::exp10f(x); }
@@ -108,6 +121,14 @@ inline float logb(float x)
 __device__
 inline double logb(double x)
 { return ::logb(x); }
+
+template<typename float_type,
+         HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
+__device__
+inline float_type rsqrt(float_type x)
+{ return static_cast<float_type>(1.f) / std::sqrt(x); }
+
+
 
 } // detail
 
@@ -246,7 +267,104 @@ HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(logb, detail::logb)
 
 // ToDo mad - unsupported in cuda/hip
 
-}
-}
+// ToDo maxmag
+// ToDo minmag
+// ToDo modf
+
+// ToDo nan
+
+// ToDo nextafter
+
+HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(pow)
+// ToDo pown
+// ToDo powr
+
+// ToDo remainder
+// ToDo remquo
+// ToDo rint
+// ToDo rootn
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(round)
+
+using detail::rsqrt;
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(rsqrt, detail::rsqrt)
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sin)
+
+// ToDo sincos
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sinh)
+
+using detail::sinpi;
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(sinpi, detail::sinpi)
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sqrt)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tan)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tanh)
+
+using detail::tanpi;
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(tanpi, detail::tanpi)
+
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tgamma)
+HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(trunc)
+
+namespace native {
+
+
+#define HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(name, fallback_func, fast_sp_func) \
+  template<class float_type> \
+  __device__ inline float_type name(float_type x){return fallback_func(x);} \
+  template<> \
+  __device__ inline float name(float x) { return fast_sp_func(x); }
+
+#define HIPSYCL_DEFINE_FAST_FUNCTION(name, fallback_func, \
+                                     fast_sp_func,\
+                                     fast_dp_func) \
+  template<class float_type> \
+  __device__ inline float_type name(float_type x){return fallback_func(x);} \
+  template<> \
+  __device__ inline float name(float x) { return fast_sp_func(x); } \
+  template<> \
+  __device__ inline double name(double x) { return fast_dp_func(x); } \
+
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(cos, std::cos, __cosf);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(exp, std::exp, __expf);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(rsqrt, std::exp, __frsqrt_rn);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log10, std::log10, __log10f);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log2, std::log2, __log2f);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log, std::log, __logf);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(sin, std::sin, __sinf);
+HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(tan, std::tan, __tanf);
+HIPSYCL_DEFINE_FAST_FUNCTION(sqrt, std::sqrt, __fsqrt_rn, __dsqrt_rn);
+
+template<class float_type>
+__device__
+inline float_type pow(float_type x, float_type y){return std::pow(x,y);}
+
+template<>
+__device__
+inline float pow(float x, float y) { return __powf(x,y); }
+
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(cos, cos);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(exp, exp);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(rsqrt, rsqrt);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(log10, log10);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(log2, log2);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(log, log);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(sin, sin);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(tan, tan);
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(sqrt, sqrt);
+HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(pow, pow);
+
+} // native
+
+namespace half_precision {
+
+// ToDo
+
+} // half_precision
+
+} // sycl
+} // cl
 
 #endif

@@ -2528,7 +2528,9 @@ vec<T,N> trinary_vector_operation(const vec<T,N>& a,
                                   const vec<T,N>& c,
                                   Function f)
 {
-  return vector_impl<T,N>::trinary_operation(f, a._impl, b._impl, c._impl);
+  return vec<T,N>{
+        vector_impl<T,N>::trinary_operation(f, a._impl, b._impl, c._impl)
+  };
 }
 
 } // detail

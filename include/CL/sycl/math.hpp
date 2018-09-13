@@ -139,7 +139,8 @@ inline float_type rsqrt(float_type x)
   __device__ \
   inline vec<float_type,N> name(const vec<float_type, N>& v) {\
     vec<float_type,N> result = v; \
-    detail::transform_vector(result, func); \
+    detail::transform_vector(result, \
+                      (float_type (*)(float_type))&func); \
     return result; \
   }
 
@@ -149,7 +150,8 @@ inline float_type rsqrt(float_type x)
   __device__ \
   inline vec<float_type, N> name(const vec<float_type, N>& a, \
                                  const vec<float_type, N>& b) {\
-    return detail::binary_vector_operation(a,b,func); \
+    return detail::binary_vector_operation(a,b,\
+                          (float_type (*)(float_type,float_type))&func); \
   }
 
 #define HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(name, func) \
@@ -159,7 +161,8 @@ inline float_type rsqrt(float_type x)
   inline vec<float_type, N> name(const vec<float_type, N>& a, \
                                  const vec<float_type, N>& b, \
                                  const vec<float_type, N>& c) {\
-    return detail::trinary_vector_operation(a,b,c, func); \
+    return detail::trinary_vector_operation(a,b,c,\
+               (float_type (*)(float_type,float_type,float_type))&func); \
   }
 
 #define HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(func) \

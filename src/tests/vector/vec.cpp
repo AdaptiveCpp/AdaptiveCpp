@@ -81,6 +81,13 @@ int main()
 
       print_vector(cl::sycl::sin(v2));
 
+      // Causes error:
+      //cl::sycl::vec<float, 4> v3(1.0f, 2.0f);
+      //cl::sycl::vec<float, 4> v4(1.0f, 2.0f, v2);
+
+      v2 = cl::sycl::fma(v2, v2, v2);
+      print_vector(v2 + v2);
+
     });
   });
 }

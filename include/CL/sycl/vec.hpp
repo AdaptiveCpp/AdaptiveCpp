@@ -1079,8 +1079,28 @@ public:
   vec<dataT, numElements> &operator%=(const vec<dataT, numElements> &rhs)
   { _impl %= rhs._impl; return *this; }
 
-  // ToDo
-  vec<dataT, numElements> &operatorOP(const dataT &rhs);
+
+  __host__ __device__
+  vec<dataT, numElements> &operator+=(const dataT &rhs)
+  { _impl += rhs; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements> &operator-=(const dataT &rhs)
+  { _impl -= rhs; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements> &operator*=(const dataT &rhs)
+  { _impl *= rhs; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements> &operator/=(const dataT &rhs)
+  { _impl /= rhs; return *this; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT, numElements> &operator%=(const dataT &rhs)
+  { _impl %= rhs; return *this; }
 
   // OP is: ++, --
   __host__ __device__
@@ -1110,8 +1130,6 @@ public:
   // OP is: &, |, ˆ
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  //vec<dataT, numElements> operatorOP(const vec<dataT, numElements> &rhs) const;
-  //vec<dataT, numElements> operatorOP(const dataT &rhs) const;
 
   __host__ __device__
   vec<dataT, numElements> operator&(const vec<dataT,numElements> &rhs) const
@@ -1140,8 +1158,29 @@ public:
   // OP is: &=, |=, ˆ=
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  // vec<dataT, numElements> &operatorOP(const vec<dataT, numElements> &rhs);
-  // vec<dataT, numElements> &operatorOP(const dataT &rhs);
+  __host__ __device__
+  vec<dataT, numElements>& operator&=(const vec<dataT,numElements>& rhs) const
+  { _impl &= rhs._impl; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements>& operator|=(const vec<dataT,numElements>& rhs) const
+  { _impl |= rhs._impl; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements>& operator^=(const vec<dataT,numElements>& rhs) const
+  { _impl ^= rhs._impl; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements>& operator&=(const dataT& rhs) const
+  { _impl &= rhs; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements>& operator|=(const dataT& rhs) const
+  { _impl |= rhs; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements>& operator^=(const dataT& rhs) const
+  { _impl ^= rhs; return *this; }
 
   // OP is: &&, ||
   // vec<RET, numElements> operatorOP(const vec<dataT, numElements> &rhs) const;
@@ -1169,8 +1208,18 @@ public:
 && dataT != cl_half. */
   //vec<dataT, numElements> operator~();
   //vec<RET, numElements> operator!();
-  //vec<dataT, numElements> &operator=(const vec<dataT, numElements> &rhs);
-  //vec<dataT, numElements> &operator=(const dataT &rhs);
+
+  __host__ __device__
+  vec<dataT, numElements> &operator=(const vec<dataT, numElements> &rhs)
+  { _impl = rhs._impl; return *this; }
+
+  __host__ __device__
+  vec<dataT, numElements> &operator=(const dataT &rhs)
+  {
+    broadcast_scalar_init(typename detail::vector_impl<dataT,numElements>::indices(),
+                          rhs);
+    return *this;
+  }
 
 private:
   detail::vector_impl<dataT, numElements> _impl;

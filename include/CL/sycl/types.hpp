@@ -97,7 +97,8 @@ using cl_long = long long;
 
 using cl_float = float;
 using cl_double = double;
-
+// ToDo: Proper half type
+using cl_half = cl_ushort;
 
 }
 }
@@ -117,6 +118,7 @@ using cl::sycl::cl_long;
 
 using cl::sycl::cl_float;
 using cl::sycl::cl_double;
+using cl::sycl::cl_half;
 #endif
 
 #endif

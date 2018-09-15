@@ -547,6 +547,26 @@ vector_impl& operator op(const T& rhs) const { \
   return *this; \
 }
 
+#define HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(helper_name, op) \
+private: \
+template<int... Indices> \
+__host__ __device__ \
+auto helper_name(vector_index_sequence<Indices...>, \
+                 const vector_impl& rhs) const { \
+  using result_type = typename logical_vector_op_result<T>::type; \
+  vector_impl<result_type, dimension> result; \
+  auto dummy_initializer = { \
+    ((result.set<Indices>(static_cast<result_type>(get<Indices>() \
+                          op rhs.get<Indices>()))), 0)... \
+  }; \
+  return result; \
+} \
+public: \
+__host__ __device__ \
+auto operator op(const vector_impl& rhs) const { \
+  return helper_name(indices(), rhs); \
+}
+
 template<class T, int N>
 struct vector_impl
 {
@@ -701,6 +721,15 @@ struct vector_impl<T,1>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR1(^=)
+
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
   typename intrinsic_vector<T,1>::type data;
 };
@@ -858,6 +887,15 @@ struct vector_impl<T,2>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR2(^=)
+
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
   typename intrinsic_vector<T,2>::type data;
 };
@@ -1018,6 +1056,15 @@ struct vector_impl<T,3>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR3(^=)
+
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
   typename intrinsic_vector<T,3>::type data;
 };
@@ -1181,6 +1228,15 @@ struct vector_impl<T,4>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR4(^=)
+
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
   typename intrinsic_vector<T,4>::type data;
 };
@@ -1395,6 +1451,15 @@ struct vector_impl<T,8>
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(^=)
 
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;
 };
@@ -1603,6 +1668,15 @@ struct vector_impl<T,16>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR16(^=)
+
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than, <)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(less_than_equal, <=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than, >)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
+  HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;

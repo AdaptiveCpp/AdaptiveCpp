@@ -65,6 +65,14 @@ void print_vector(const cl::sycl::vec<float,8>& v)
          v.s4(), v.s5(), v.s6(), v.s7());
 }
 
+__device__
+void print_vector(const cl::sycl::vec<int,8>& v)
+{
+  printf("%d %d %d %d %d %d %d %d\n",
+         v.s0(), v.s1(), v.s2(), v.s3(),
+         v.s4(), v.s5(), v.s6(), v.s7());
+}
+
 int main()
 {
   cl::sycl::queue q;
@@ -87,6 +95,9 @@ int main()
 
       v2 = cl::sycl::fma(v2, v2, v2);
       print_vector(v2 + v2);
+      print_vector(cl::sycl::cos(v2));
+      print_vector(cl::sycl::sin(v2));
+      print_vector(cl::sycl::cos(v2) < cl::sycl::sin(v2));
 
     });
   });

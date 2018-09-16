@@ -15,7 +15,7 @@ FORCE)
 endif()
 add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.12)
 
 include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/contrib/HIP/include)
 subdirs(src)

@@ -567,6 +567,23 @@ auto operator op(const vector_impl& rhs) const { \
   return helper_name(indices(), rhs); \
 }
 
+#define HIPSYCL_DEFINE_UNARY_OPERATOR(helper_name, return_type, op) \
+__host__ __device__ \
+auto operator op() const { \
+  return helper_name(indices()); \
+} \
+private: \
+template<int... Indices> \
+__host__ __device__ \
+auto helper_name(vector_index_sequence<Indices...>) const { \
+  vector_impl<return_type, dimension> result; \
+  auto dummy_initializer = { \
+    ((result.set<Indices>(static_cast<return_type>(get<Indices>()))), 0)... \
+  }; \
+  return result; \
+} \
+public:
+
 template<class T, int N>
 struct vector_impl
 {
@@ -730,6 +747,47 @@ struct vector_impl<T,1>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
+
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR1(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR1(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR1(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR1(>>=)
+
 
   typename intrinsic_vector<T,1>::type data;
 };
@@ -896,6 +954,45 @@ struct vector_impl<T,2>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR2(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR2(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR2(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR2(>>=)
 
   typename intrinsic_vector<T,2>::type data;
 };
@@ -1065,6 +1162,45 @@ struct vector_impl<T,3>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR3(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR3(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR3(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR3(>>=)
 
   typename intrinsic_vector<T,3>::type data;
 };
@@ -1237,6 +1373,45 @@ struct vector_impl<T,4>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR4(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR4(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR4(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR4(>>=)
 
   typename intrinsic_vector<T,4>::type data;
 };
@@ -1460,6 +1635,45 @@ struct vector_impl<T,8>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
 
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR8(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR8(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(>>=)
+
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;
 };
@@ -1677,6 +1891,45 @@ struct vector_impl<T,16>
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(greater_than_equal, >=)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(equals, ==)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(not_equals, !=)
+
+  HIPSYCL_DEFINE_UNARY_OPERATOR(logical_not,
+                                typename logical_vector_op_result<T>::type, !)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_UNARY_OPERATOR(bitwise_not, T, ~)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(<<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(>>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T, <<)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T, >>)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR16(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR16(<<=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR16(>>=)
+
+  template<class t = T,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR16(>>=)
 
   typename intrinsic_vector<T,4>::type data0;
   typename intrinsic_vector<T,4>::type data1;

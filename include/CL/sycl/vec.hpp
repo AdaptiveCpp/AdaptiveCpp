@@ -1231,22 +1231,69 @@ public:
   }
 
   // OP is: &&, ||
-  // vec<RET, numElements> operatorOP(const dataT &rhs) const;
+  __host__ __device__
+  auto operator&& (const dataT &rhs) const
+  { return (*this) && vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator|| (const dataT &rhs) const
+  { return (*this) || vec<dataT,numElements>{rhs}; }
 
   // OP is: <<, >>
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  // vec<dataT, numElements> operatorOP(const vec<dataT, numElements> &rhs) const;
-  // vec<dataT, numElements> operatorOP(const dataT &rhs) const;
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT,numElements> operator <<(const vec<dataT, numElements>& rhs) const
+  { return vec<dataT,numElements>{_impl << rhs._impl}; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT,numElements> operator >>(const vec<dataT, numElements>& rhs) const
+  { return vec<dataT,numElements>{_impl >> rhs._impl}; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT,numElements> operator <<(const dataT& rhs) const
+  { return vec<dataT,numElements>{_impl << rhs}; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT,numElements> operator >>(const dataT& rhs) const
+  { return vec<dataT,numElements>{_impl >> rhs}; }
 
   // OP is: <<=, >>=
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  // vec<dataT, numElements> &operatorOP(const vec<dataT, numElements> &rhs);
-  // vec<dataT, numElements> &operatorOP(const dataT &rhs);
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT, numElements>& operator<<=(const vec<dataT, numElements> &rhs)
+  { _impl <<= rhs._impl; }
 
-  // OP is: ==, !=, <, >, <=, >=
-  //vec<RET, numElements> operatorOP(const dataT &rhs) const;
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT, numElements>& operator>>=(const vec<dataT, numElements> &rhs)
+  { _impl >>= rhs._impl; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT, numElements>& operator<<=(const dataT &rhs)
+  { _impl <<= rhs; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  vec<dataT, numElements>& operator>>=(const dataT &rhs)
+  { _impl >>= rhs; }
+
   __host__ __device__
   auto operator== (const vec<dataT, numElements>& rhs) const
   {
@@ -1313,10 +1360,44 @@ public:
     };
   }
 
+  __host__ __device__
+  auto operator== (const dataT &rhs) const
+  { return (*this) == vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator!= (const dataT &rhs) const
+  { return (*this) != vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator< (const dataT &rhs) const
+  { return (*this) < vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator> (const dataT &rhs) const
+  { return (*this) > vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator<= (const dataT &rhs) const
+  { return (*this) <= vec<dataT,numElements>{rhs}; }
+
+  __host__ __device__
+  auto operator>= (const dataT &rhs) const
+  { return (*this) >= vec<dataT,numElements>{rhs}; }
+
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  //vec<dataT, numElements> operator~();
-  //vec<RET, numElements> operator!();
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  auto operator~()
+  { return vec<dataT, numElements>{~_impl}; }
+
+  template<class t = dataT,
+           std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  __host__ __device__
+  auto operator!()
+  { return vec<dataT, numElements>{!_impl}; }
 
   __host__ __device__
   vec<dataT, numElements> &operator=(const vec<dataT, numElements> &rhs)
@@ -1334,32 +1415,153 @@ private:
   detail::vector_impl<dataT, numElements> _impl;
 };
 
-/*
+
 
 // OP is: +, -, *, /, %
 template <typename dataT, int numElements>
-vec<dataT, numElements> operatorOP(const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs);
+__host__ __device__
+inline
+vec<dataT, numElements> operator+ (const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return rhs + lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator* (const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return rhs * lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator- (const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return vec<dataT,numElements>{lhs} - rhs; }
+
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator/ (const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return vec<dataT,numElements>{lhs} / rhs; }
+
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator% (const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return vec<dataT,numElements>{lhs} % rhs; }
+
+
+
 // OP is: &, |, ˆ
 // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
-template <typename dataT, int numElements>
-vec<dataT, numElements> operatorOP(const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs);
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator&(const dataT& lhs,
+                                  const vec<dataT, numElements>& rhs)
+{ return rhs & lhs; }
+
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator|(const dataT& lhs,
+                                  const vec<dataT, numElements>& rhs)
+{ return rhs | lhs; }
+
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator^(const dataT& lhs,
+                                  const vec<dataT, numElements>& rhs)
+{ return rhs ^ lhs; }
+
+
 // OP is: &&, ||
 template <typename dataT, int numElements>
-vec<RET, numElements> operatorOP(const dataT &lhs,
-                                 const vec<dataT, numElements> &rhs);
+__host__ __device__
+inline
+vec<dataT, numElements> operator&&(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs && lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator||(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs || lhs; }
+
+
 // OP is: <<, >>
 // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
-template <typename dataT, int numElements>
-vec<dataT, numElements> operatorOP(const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs);
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator<<(const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return vec<dataT, numElements>{lhs} << rhs; }
+
+template <typename dataT, int numElements,
+          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
+__host__ __device__
+inline
+vec<dataT, numElements> operator>>(const dataT &lhs,
+                                   const vec<dataT, numElements> &rhs)
+{ return vec<dataT, numElements>{lhs} >> rhs; }
+
+
 // OP is: ==, !=, <, >, <=, >=
 template <typename dataT, int numElements>
-vec<RET, numElements> operatorOP(const dataT &lhs,
-                                 const vec<dataT, numElements> &rhs);
+__host__ __device__
+inline
+vec<dataT, numElements> operator==(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs == lhs; }
 
-*/
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator!=(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs != lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator< (const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs >= lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator<=(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs > lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator> (const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs <= lhs; }
+
+template <typename dataT, int numElements>
+__host__ __device__
+inline
+vec<dataT, numElements> operator>=(const dataT& lhs,
+                                   const vec<dataT, numElements>& rhs)
+{ return rhs < lhs; }
+
 
 #define HIPSYCL_DEFINE_VECTOR_ALIAS(T, alias) \
   using alias ## 2  = vec<T, 2 >; \

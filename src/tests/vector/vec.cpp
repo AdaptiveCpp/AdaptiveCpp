@@ -27,6 +27,7 @@
 
 #include <iostream>
 
+#define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
 
 #ifndef __HIPSYCL__
@@ -89,7 +90,7 @@ int main()
 
       print_vector(cl::sycl::sin(v2));
 
-      // Causes error:
+      // Should cause error:
       //cl::sycl::vec<float, 4> v3(1.0f, 2.0f);
       //cl::sycl::vec<float, 4> v4(1.0f, 2.0f, v2);
 
@@ -98,6 +99,16 @@ int main()
       print_vector(cl::sycl::cos(v2));
       print_vector(cl::sycl::sin(v2));
       print_vector(cl::sycl::cos(v2) < cl::sycl::sin(v2));
+
+      // Swizzles!
+      //cl::sycl::vec<float, 4> v2_lo = v2.lo();
+      cl::sycl::vec<float, 4> v2_lo(1.f, 2.f, 3.f, 4.f);
+      print_vector(v2_lo);
+
+      cl::sycl::vec<float, 4> v3 = v2_lo.wzyx();
+      print_vector(v3);
+      v3.xwyz() = v2_lo.xxyy();
+      print_vector(v3);
 
     });
   });

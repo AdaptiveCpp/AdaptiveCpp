@@ -139,7 +139,12 @@ class vec_swizzle
   {
     return swizzle<swizzleIndices...>();
   }
+
+
 public:
+
+  template<class, int>
+  friend class cl::sycl::vec;
 
   static constexpr int N = sizeof...(Access_indices);
 
@@ -157,13 +162,16 @@ public:
     : _swizzled_access{vector_ref}
   {}
 
+  vec_swizzle() = delete;
+  vec_swizzle& operator=(const vec_swizzle&) = delete;
+
   __host__ __device__
   vec_swizzle& operator=(const vec<T,N>&);
 
   template<int Rhs_original_vec_size,
            int... Rhs_access_indices>
   __host__ __device__
-  vec_swizzle& operator=(const vec_swizzle<T, Rhs_original_vec_size, Rhs_access_indices...>& rhs)
+  vec_swizzle& operator=(vec_swizzle<T, Rhs_original_vec_size, Rhs_access_indices...>&& rhs)
   {
     _swizzled_access.set(rhs.swizzled_access().get());
     return *this;

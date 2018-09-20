@@ -88,6 +88,7 @@ int main()
       print_vector(v1);
       print_vector(v2);
 
+      // Broadcasting math functions over vector elements
       print_vector(cl::sycl::sin(v2));
 
       // Should cause error:
@@ -108,6 +109,9 @@ int main()
       cl::sycl::vec<float, 4> v3 = v2_lo.wzyx();
       print_vector(v3);
       v3.xwyz() = v2_lo.xxyy();
+      print_vector(v3);
+      // Nested swizzles
+      v3.yxzw().lo() = v2_lo.xxyy().hi();
       print_vector(v3);
 
     });

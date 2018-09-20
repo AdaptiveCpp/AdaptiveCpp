@@ -125,7 +125,7 @@ private:
     };
   }
 
-  vector_impl<dataT, swizzled_vec_size>& _data;
+  vector_impl<dataT, Original_vec_size>& _data;
 };
 
 template<class T,
@@ -133,6 +133,12 @@ template<class T,
          int... Access_indices>
 class vec_swizzle
 {
+  template<int... swizzleIndices>
+  __host__ __device__
+  auto swizzle_index_sequence(detail::vector_index_sequence<swizzleIndices...>) const
+  {
+    return swizzle<swizzleIndices...>();
+  }
 public:
 
   static constexpr int N = sizeof...(Access_indices);
@@ -240,25 +246,37 @@ public:
            std::enable_if_t<(n > 1)>* = nullptr>
   __host__ __device__
   auto lo() const
-  { return swizzle<typename detail::vector_impl<T, N>::lo_indices>(); }
+  {
+    return swizzle_index_sequence(
+          typename detail::vector_impl<T, n>::lo_indices());
+  }
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
   __host__ __device__
   auto hi() const
-  { return swizzle<typename detail::vector_impl<T, N>::hi_indices>(); }
+  {
+    return swizzle_index_sequence(
+          typename detail::vector_impl<T, n>::hi_indices());
+  }
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
   __host__ __device__
   auto even() const
-  { return swizzle<typename detail::vector_impl<T, N>::even_indices>(); }
+  {
+    return swizzle_index_sequence(
+          typename detail::vector_impl<T, n>::even_indices());
+  }
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
   __host__ __device__
   auto odd() const
-  { return swizzle<typename detail::vector_impl<T, N>::odd_indices>(); }
+  {
+    return swizzle_index_sequence(
+          typename detail::vector_impl<T, n>::odd_indices());
+  }
 
 #ifdef SYCL_SIMPLE_SWIZZLES
 #define HIPSYCL_DEFINE_SWIZZLE2(name, i0, i1) \

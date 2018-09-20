@@ -306,7 +306,7 @@ public:
 
   template<int... swizzleIndexes>
   __host__ __device__
-  vec<dataT,numElements> swizzle() const
+  auto swizzle() const
   {
     return detail::vec_swizzle<dataT, numElements, swizzleIndexes...>{
       const_cast<detail::vector_impl<dataT,numElements>&>(_impl)

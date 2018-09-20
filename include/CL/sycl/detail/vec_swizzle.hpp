@@ -79,6 +79,7 @@ struct vec_swizzled_access
   get() const
   { return get(linear_indices_container{}); }
 
+  /// \return The vector object that this swizzle refers to
   __host__ __device__
   vector_impl<dataT, Original_vec_size>& get_vector() const
   { return _data; }
@@ -158,7 +159,7 @@ public:
   __host__ __device__
   vec_swizzle& operator=(const vec_swizzle<T, Rhs_original_vec_size, Rhs_access_indices...>& rhs)
   {
-    _swizzled_access.set(rhs._swizzled_access.get());
+    _swizzled_access.set(rhs.swizzled_access().get());
     return *this;
   }
 

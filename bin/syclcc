@@ -53,8 +53,10 @@ def get_hipsycl_default_options(use_bundled_hip = False):
   libpath = os.path.join(hipsyclcc_path,"../lib")
   includepath = os.path.join(hipsyclcc_path,"../include")
 
-  bundled_hip_path = os.path.join(hipsyclcc_path,
-                                  "../include/hipSYCL/HIP")
+  bundled_hip_install_path = os.path.join(hipsyclcc_path,
+                                    "../include/hipSYCL/HIP/include")
+  bundled_hip_preinstall_path = os.path.join(hipsyclcc_path,
+                                    "../contrib/HIP/include")
   # If we are compiling hipSYCL itself, the library won't exist yet.
   # In that case, cmake will take care of the paths, so
   # we only need to worry about adding the options if we
@@ -64,7 +66,10 @@ def get_hipsycl_default_options(use_bundled_hip = False):
   if os.path.isfile(os.path.join(libpath,"libhipSYCL.so")):
     result = ["-I"+includepath, "-L"+libpath, "-lhipSYCL"]
     if use_bundled_hip:
-      result.append("-I"+bundled_hip_path)
+      result.append("-I"+bundled_hip_install_path)
+  else:
+    if use_bundled_hip:
+      result.append("-I"+bundled_hip_preinstall_path)
   return result
 
 class source_file_processor:
@@ -204,7 +209,7 @@ class hip_compiler:
       return -1
     else:
       return subprocess.call([self.device_compiler]
-                            +get_hipsycl_default_options()
+                            +get_hipsycl_default_options(use_bundled_hip = False)
                             +args[1:])
 
   def is_available(self):

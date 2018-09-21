@@ -20,7 +20,7 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 
 cmake_minimum_required (VERSION 3.5)
 
-include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/contrib/HIP/include)
+include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include)
 subdirs(src)
 
 install(DIRECTORY include/CL DESTINATION include/

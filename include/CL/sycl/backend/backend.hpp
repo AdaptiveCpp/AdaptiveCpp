@@ -31,6 +31,7 @@
 
 #include <hip/hip_runtime.h>
 
+
 #ifdef __HIP_PLATFORM_HCC__
 #define HIPSYCL_PLATFORM_HCC
 #else

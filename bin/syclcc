@@ -43,9 +43,7 @@ def is_program_executable(cmd):
   try:
     subprocess.call([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return True
-  except Exception as e:
-    print("Could not execute",cmd)
-    print(e)
+  except:
     return False
 
 def get_hipsycl_default_options(use_bundled_hip = False):
@@ -54,7 +52,7 @@ def get_hipsycl_default_options(use_bundled_hip = False):
   includepath = os.path.join(hipsyclcc_path,"../include")
 
   bundled_hip_install_path = os.path.join(hipsyclcc_path,
-                                    "../include/hipSYCL/HIP/include")
+                                    "../include/hipSYCL/")
   bundled_hip_preinstall_path = os.path.join(hipsyclcc_path,
                                     "../contrib/HIP/include")
   # If we are compiling hipSYCL itself, the library won't exist yet.

@@ -25,5 +25,5 @@ subdirs(src)
 
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/HIP)
+install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 install(PROGRAMS bin/syclcc DESTINATION bin)

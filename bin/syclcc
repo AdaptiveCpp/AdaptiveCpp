@@ -201,17 +201,29 @@ class cuda_compiler:
 class hip_compiler:
   def __init__(self):
     self.device_compiler = "hcc"
+    self.is_hcc_available = (is_program_executable(self.device_compiler) and
+                             is_program_executable("hcc-config"))
+    self.hcc_options = []
+    if self.is_hcc_available:
+      self.hcc_options = self._get_config()
 
   def run(self, args):
     if len(args) == 1:
       return -1
     else:
-      return subprocess.call([self.device_compiler]
-                            +get_hipsycl_default_options(use_bundled_hip = False)
-                            +args[1:])
+      return subprocess.call([self.device_compiler, "-Wno-unused-command-line-argument"]+
+                   self.hcc_options+
+                   get_hipsycl_default_options(use_bundled_hip = False)+args[1:])
+
+  def _get_config(self):
+    cxxconfig = subprocess.check_output(["hcc-config","--cxxflags"]).decode("utf-8")
+    ldconfig = subprocess.check_output(["hcc-config","--ldflags"]).decode("utf-8")
+    # ToDo: What if the hcc include/library paths in cxxconfig and ldconfig
+    # contain spaces?
+    return cxxconfig.split()+ldconfig.split()
 
   def is_available(self):
-    return is_program_executable(self.device_compiler)
+    return self.is_hcc_available
 
 if __name__ == '__main__':
   args = sys.argv

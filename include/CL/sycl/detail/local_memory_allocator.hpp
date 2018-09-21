@@ -91,7 +91,6 @@ private:
   size_t _num_allocated_bytes;
 };
 
-extern __shared__ __device__ local_memory_allocator::smallest_type local_mem_data [];
 
 class local_memory
 {
@@ -102,6 +101,7 @@ public:
   __device__
   static T* get_ptr(const address addr)
   {
+    extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
     return reinterpret_cast<T*>(reinterpret_cast<char*>(local_mem_data) + addr);
   }
 };

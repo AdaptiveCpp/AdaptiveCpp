@@ -91,7 +91,7 @@ private:
   size_t _num_allocated_bytes;
 };
 
-extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
+extern __shared__ __device__ local_memory_allocator::smallest_type local_mem_data [];
 
 class local_memory
 {

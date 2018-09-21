@@ -63,6 +63,7 @@ sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
 namespace handler {
 
 template<class T>
+inline
 detail::local_memory::address allocate_local_mem(cl::sycl::handler&,
                                                  size_t num_elements);
 

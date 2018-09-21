@@ -147,8 +147,9 @@ void set_args(Ts &&... args);
         -> detail::task_state
     {
       stream->activate_device();
-      detail::dispatch::single_task_kernel
-          <<<1,1,shared_mem_size,stream->get_stream()>>>(kernelFunc);
+      hipLaunchKernelGGL(detail::dispatch::single_task_kernel,
+                        1,1,shared_mem_size,stream->get_stream(),
+                        kernelFunc);
 
       return detail::task_state::enqueued;
     };
@@ -342,9 +343,10 @@ private:
         -> detail::task_state
     {
       stream->activate_device();
-      detail::dispatch::parallel_for_kernel
-          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
-                                                                numWorkItems);
+
+      hipLaunchKernelGGL(detail::dispatch::parallel_for_kernel,
+                        grid, block, shared_mem_size, stream->get_stream(),
+                        kernelFunc, numWorkItems);
 
       return detail::task_state::enqueued;
     };
@@ -371,10 +373,11 @@ private:
         -> detail::task_state
     {
       stream->activate_device();
-      detail::dispatch::parallel_for_kernel_with_offset
-          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
-                                                                numWorkItems,
-                                                                offset);
+
+      hipLaunchKernelGGL(detail::dispatch::parallel_for_kernel_with_offset,
+                        grid, block, shared_mem_size, stream->get_stream(),
+                        kernelFunc, numWorkItems, offset);
+
 
       return detail::task_state::enqueued;
     };
@@ -409,9 +412,10 @@ private:
     {
       stream->activate_device();
 
-      detail::dispatch::parallel_for_ndrange_kernel
-          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
-                                                                offset);
+      hipLaunchKernelGGL(detail::dispatch::parallel_for_ndrange_kernel,
+                        grid, block, shared_mem_size, stream->get_stream(),
+                        kernelFunc, offset);
+
 
       return detail::task_state::enqueued;
     };
@@ -437,9 +441,11 @@ private:
         -> detail::task_state
     {
       stream->activate_device();
-      detail::dispatch::parallel_for_workgroup
-          <<<grid,block,shared_mem_size,stream->get_stream()>>>(kernelFunc,
-                                                                workGroupSize);
+
+      hipLaunchKernelGGL(detail::dispatch::parallel_for_workgroup,
+                        grid, block, shared_mem_size, stream->get_stream(),
+                        kernelFunc, workGroupSize);
+
 
       return detail::task_state::enqueued;
     };
@@ -485,7 +491,7 @@ namespace handler {
 
 
 template<class T>
-static detail::local_memory::address allocate_local_mem(
+inline detail::local_memory::address allocate_local_mem(
     cl::sycl::handler& cgh,
     size_t num_elements)
 {

@@ -29,6 +29,7 @@
 #define HIPSYCL_DEVICE_ARRAY_HPP
 
 #include <array>
+#include <type_traits>
 #include "../backend/backend.hpp"
 
 namespace cl {
@@ -40,6 +41,31 @@ struct device_array
 {
   using iterator = T*;
   using const_iterator = const T*;
+
+#ifdef HIPSYCL_PLATFORM_HCC
+  // There seem to be problems with aggregate initialization with hcc?
+  template<size_t n = N,
+           std::enable_if_t<n == 1>* = nullptr>
+  __host__ __device__
+  explicit device_array(T x)
+    : _data{x}
+  {}
+
+  template<size_t n = N,
+           std::enable_if_t<n == 2>* = nullptr>
+  __host__ __device__
+  device_array(T x, T y)
+    : _data{x,y}
+  {}
+
+  template<size_t n = N,
+           std::enable_if_t<n == 3>* = nullptr>
+  __host__ __device__
+  device_array(T x, T y, T z)
+    : _data{x,y,z}
+  {}
+
+#endif
 
 
   __host__ __device__

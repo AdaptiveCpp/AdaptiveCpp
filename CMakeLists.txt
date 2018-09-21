@@ -16,7 +16,7 @@ endif()
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
-add_definitions(-DHIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
+add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 cmake_minimum_required (VERSION 3.5)
 

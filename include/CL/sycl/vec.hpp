@@ -160,7 +160,7 @@ class vec
   __host__ __device__
   constexpr void init_from_vec(const vec<dataT,N>& other)
   {
-    init_from_vec<Start_index>(detail::vector_impl<dataT,N>::indices(),
+    init_from_vec<Start_index>(typename detail::vector_impl<dataT,N>::indices(),
                                other);
   }
 

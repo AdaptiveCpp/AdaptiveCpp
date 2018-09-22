@@ -65,6 +65,11 @@ struct device_array
     : _data{x,y,z}
   {}
 
+  __host__ __device__
+  device_array()
+    : _data{}
+  {}
+
 #endif
 
 

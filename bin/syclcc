@@ -202,7 +202,8 @@ class hip_compiler:
   def __init__(self):
     self.device_compiler = "hcc"
     self.is_hcc_available = (is_program_executable(self.device_compiler) and
-                             is_program_executable("hcc-config"))
+                             is_program_executable("hcc-config") and
+                             is_program_executable("hipconfig"))
     self.hcc_options = []
     if self.is_hcc_available:
       self.hcc_options = self._get_config()
@@ -211,16 +212,22 @@ class hip_compiler:
     if len(args) == 1:
       return -1
     else:
-      return subprocess.call([self.device_compiler, "-Wno-unused-command-line-argument"]+
+      return subprocess.call([self.device_compiler,
+                             "-Wno-unused-command-line-argument",
+                             "-Wno-ignored-attributes",
+                             "-std=c++14"]+
                    self.hcc_options+
                    get_hipsycl_default_options(use_bundled_hip = False)+args[1:])
 
   def _get_config(self):
     cxxconfig = subprocess.check_output(["hcc-config","--cxxflags"]).decode("utf-8")
     ldconfig = subprocess.check_output(["hcc-config","--ldflags"]).decode("utf-8")
+    rocmpath = subprocess.check_output(["hipconfig","-p"]).decode("utf-8")
+    hip_lib_path = os.path.join(rocmpath, "lib")
     # ToDo: What if the hcc include/library paths in cxxconfig and ldconfig
     # contain spaces?
-    return cxxconfig.split()+ldconfig.split()
+    return cxxconfig.split()+ldconfig.split()+["-L"+hip_lib_path,
+                                               "-lhip_hcc","-lhip_device"]
 
   def is_available(self):
     return self.is_hcc_available

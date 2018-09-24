@@ -35,8 +35,16 @@ Still unimplemented/missing is in particular:
 * Some locks for multithreaded SYCL applications are missing.
 * Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
 
+
+### News
+2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
+
 ## Building hipSYCL
-In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested with CUDA 9.2 and gcc 7.3.
+In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested:
+* On NVIDIA: with CUDA 9.2 and gcc 7.3
+* On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware)
+
+hipSYCL only depends on python 3 (for the `syclcc` compiler wrapper), `cmake`, `hcc` or `nvcc`, and HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
 
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
 

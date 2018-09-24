@@ -849,6 +849,16 @@ public:
   HIPSYCL_DEFINE_SWIZZLE4(wwww, 3, 3, 3, 3)
   HIPSYCL_DEFINE_SWIZZLE4(aaaa, 3, 3, 3, 3)
 #endif
+
+  // ToDo: load and store member functions
+  template <access::address_space addressSpace>
+  __host__ __device__
+  void load(size_t offset, multi_ptr<T, addressSpace> ptr);
+
+  template <access::address_space addressSpace>
+  __host__ __device__
+  void store(size_t offset, multi_ptr<T, addressSpace> ptr) const;
+
 private:
   swizzled_access_type _swizzled_access;
 };

@@ -233,6 +233,11 @@ task_graph_node::get_requirements() const
 task_graph::~task_graph()
 {
   this->finish();
+
+  // Shut down the asynchronous worker. It is important to do this explicitly,
+  // since this guarantees that no graph update request come in anymore.
+  _worker.halt();
+
   assert(this->_worker.queue_size() == 0);
   for(const auto& node : _nodes)
     assert(node->is_done());
@@ -261,7 +266,7 @@ task_graph::insert(task_functor tf,
   this->purge_finished_tasks();
   _nodes.push_back(node);
 
-  // Trigger the on_task_completed handler to make sure
+  // Trigger the invoke_async_submission function to make sure
   // the task gets submitted if it is the first one
 
   // ToDo: Use the correct error handler
@@ -284,7 +289,7 @@ task_graph::purge_finished_tasks()
 }
 
 void
-task_graph::submit_eligible_tasks() const
+task_graph::submit_eligible_tasks()
 {
   for(const auto& node : _nodes)
     if(!node->is_submitted() && node->is_ready())

@@ -66,11 +66,10 @@ public:
 
   /// \return The number of enqueued operations
   std::size_t queue_size() const;
-private:
 
-  /// Stop the worker thread - this should only be
-  /// done in the destructor.
+  /// Stop the worker thread
   void halt();
+private:
 
   /// Starts the worker thread, which will execute the supplied
   /// tasks. If no tasks are available, waits until a new task is
@@ -82,7 +81,7 @@ private:
   bool _continue;
 
   std::condition_variable _condition_wait;
-  std::mutex _mutex;
+  mutable std::mutex _mutex;
 
   std::queue<async_function> _enqueued_operations;
 };

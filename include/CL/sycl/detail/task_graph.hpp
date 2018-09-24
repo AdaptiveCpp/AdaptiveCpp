@@ -123,7 +123,7 @@ public:
   void invoke_async_submission(async_handler error_handler);
 private:
   void purge_finished_tasks();
-  void submit_eligible_tasks() const;
+  void submit_eligible_tasks();
 
   vector_class<task_graph_node_ptr> _nodes;
 
@@ -131,6 +131,7 @@ private:
 
   worker_thread _worker;
 
+  std::atomic<int> _num_open_callbacks;
 };
 
 }

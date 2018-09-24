@@ -26,6 +26,7 @@
  */
 
 #include "CL/sycl/detail/async_worker.hpp"
+#include "CL/sycl/detail/debug.hpp"
 
 #include <cassert>
 
@@ -45,9 +46,6 @@ worker_thread::~worker_thread()
 {
   halt();
 
-  if(_worker_thread.joinable())
-    _worker_thread.join();
-
   assert(_enqueued_operations.empty());
 }
 
@@ -56,6 +54,8 @@ void worker_thread::wait()
   std::unique_lock<std::mutex> lock(_mutex);
   if(!_enqueued_operations.empty())
   {
+    // Before going to sleep, wake up the other thread to avoid deadlocks
+    _condition_wait.notify_one();
     // Wait until no operation is pending
     _condition_wait.wait(lock, [this]{return _enqueued_operations.empty();});
   }
@@ -68,6 +68,9 @@ void worker_thread::halt()
 
   _continue = false;
   _condition_wait.notify_one();
+
+  if(_worker_thread.joinable())
+    _worker_thread.join();
 }
 
 void worker_thread::work()
@@ -81,6 +84,9 @@ void worker_thread::work()
     {
       std::unique_lock<std::mutex> lock(_mutex);
 
+      // Before going to sleep, wake up the other thread in case it is is waiting
+      // for the queue to get empty
+      _condition_wait.notify_one();
       // Wait until we have work, or until _continue becomes false
       _condition_wait.wait(lock,
                            [this](){
@@ -99,6 +105,11 @@ void worker_thread::work()
       {
         operation = _enqueued_operations.front();
         _enqueued_operations.pop();
+
+        HIPSYCL_DEBUG_INFO << "Async worker thread: Processing op, "
+                              "remaining queue size: "
+                  << _enqueued_operations.size()
+                  << std::endl;
       }
     }
 
@@ -121,6 +132,7 @@ void worker_thread::operator()(worker_thread::async_function f)
 
 std::size_t worker_thread::queue_size() const
 {
+  std::lock_guard<std::mutex> lock(_mutex);
   return _enqueued_operations.size();
 }
 

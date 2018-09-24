@@ -556,7 +556,7 @@ auto helper_name(vector_index_sequence<Indices...>, \
   using result_type = typename logical_vector_op_result<T>::type; \
   vector_impl<result_type, dimension> result; \
   auto dummy_initializer = { \
-    ((result.set<Indices>(static_cast<result_type>(get<Indices>() \
+    ((result.template set<Indices>(static_cast<result_type>(get<Indices>() \
                           op rhs.get<Indices>()))), 0)... \
   }; \
   return result; \
@@ -1625,6 +1625,7 @@ struct vector_impl<T,8>
   template<class t = T,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(^=)
+
 
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_and, &&)
   HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(logical_or, ||)

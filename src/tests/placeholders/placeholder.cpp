@@ -57,6 +57,9 @@ int main()
 
   q.submit([&](cl::sycl::handler& cgh) {
     cgh.require(placeholder_accessor);
+    // Test copying accessors
+    auto placeholder_copy = placeholder_accessor;
+    cgh.require(placeholder_copy);
 
     cgh.parallel_for<class placeholder_test>(cl::sycl::range<1>{num_elements},
           [=] __device__ (cl::sycl::id<1> tid) {

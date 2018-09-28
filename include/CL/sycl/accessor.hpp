@@ -217,7 +217,11 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                              (T == access::target::global_buffer ||
                               T == access::target::constant_buffer))) &&
                               D == 0 >* = nullptr>
-  accessor(buffer<dataT, 1> &bufferRef);
+  accessor(buffer<dataT, 1> &bufferRef)
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+  {
+    throw unimplemented{"0-dimensional accessors are not yet implemented"};
+  }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
 (accessTarget == access::target::global_buffer || accessTarget ==
@@ -229,7 +233,11 @@ access::target::constant_buffer)) && dimensions == 0 */
                             (T == access::target::global_buffer ||
                              T == access::target::constant_buffer )) &&
                              D == 0 >* = nullptr>
-  accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef);
+  accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef)
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+  {
+    throw unimplemented{"0-dimensional accessors are not yet implemented"};
+  }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
 accessTarget == access::target::host_buffer) ||
@@ -255,10 +263,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
     }
     else
     {
-      detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
-
-      this->_ptr = reinterpret_cast<pointer_type>(buff->get_buffer_ptr());
-      this->_range = detail::buffer::get_buffer_range(bufferRef);
+      this->init_placeholder_accessor(bufferRef);
     }
   }
 
@@ -274,6 +279,7 @@ access::target::constant_buffer)) && dimensions > 0 */
                             (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
   {
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
@@ -299,6 +305,7 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
   {
     if(accessTarget == access::target::host_buffer)
     {
@@ -306,8 +313,7 @@ access::target::constant_buffer)) && dimensions > 0 */
     }
     else
     {
-      // ToDo
-      throw unimplemented{"Placeholder accessors are unsupported"};
+      this->init_placeholder_accessor(bufferRef);
     }
   }
 
@@ -324,6 +330,7 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
   {
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
@@ -539,6 +546,15 @@ private:
           detail::accessor::obtain_host_access(buff,
                                                accessmode));
 
+    this->_range = detail::buffer::get_buffer_range(bufferRef);
+  }
+
+  template<class Buffer_type>
+  void init_placeholder_accessor(Buffer_type& bufferRef)
+  {
+    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
+
+    this->_ptr = reinterpret_cast<pointer_type>(buff->get_buffer_ptr());
     this->_range = detail::buffer::get_buffer_range(bufferRef);
   }
 

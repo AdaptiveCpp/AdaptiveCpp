@@ -26,7 +26,6 @@ hipSYCL is still in an experimental stage of development. It can successfully ex
 Still unimplemented/missing is in particular:
 * hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
 * Explicit memory copy functions
-* placeholder accessors
 * Atomics
 * Device library
 * Images

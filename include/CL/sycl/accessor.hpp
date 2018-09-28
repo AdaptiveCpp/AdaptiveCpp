@@ -39,6 +39,7 @@
 #include "detail/local_memory_allocator.hpp"
 #include "detail/stream.hpp"
 #include "detail/buffer.hpp"
+#include "detail/application.hpp"
 
 namespace cl {
 namespace sycl {
@@ -90,15 +91,110 @@ void* obtain_device_access(buffer_ptr buff,
                            sycl::handler& cgh,
                            access::mode access_mode);
 
+
 } // accessor
+
+template<typename dataT, int dimensions,
+         access::mode accessmode,
+         access::target accessTarget,
+         access::placeholder isPlaceholder>
+class accessor_base
+{
+public:
+  accessor_base(const accessor_base&) = default;
+  accessor_base& operator=(const accessor_base&) = default;
+  accessor_base() = default;
+
+  __host__ __device__
+  accessor_base(const detail::buffer_ptr&) {}
+};
+
+
+template<typename dataT, int dimensions,
+         access::mode accessmode,
+         access::target accessTarget>
+class accessor_base<dataT,dimensions,accessmode,accessTarget,
+                    access::placeholder::true_t>
+{
+public:
+  // Should we allow default-constructing placeholder accessors?
+  __host__ __device__
+  accessor_base()
+  {
+#ifndef __HIP_DEVICE_COMPILE__
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    placeholder_tracker.new_accessor(this, nullptr);
+#endif
+  }
+
+  __host__ __device__
+  accessor_base(const detail::buffer_ptr& buff)
+  {
+#ifndef __HIP_DEVICE_COMPILE__
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    placeholder_tracker.new_accessor(this, buff);
+#endif
+  }
+
+  __host__ __device__
+  accessor_base(const accessor_base& other)
+  {
+#ifndef __HIP_DEVICE_COMPILE__
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    detail::buffer_ptr buff =
+        placeholder_tracker.find_accessor(&other);
+
+    placeholder_tracker.new_accessor(this, buff);
+#endif
+  }
+
+  __host__ __device__
+  accessor_base& operator=(const accessor_base& other)
+  {
+#ifndef __HIP_DEVICE_COMPILE__
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    detail::buffer_ptr other_buffer =
+        placeholder_tracker.find_accessor(&other);
+
+    placeholder_tracker.set_accessor_buffer(this, other_buffer);
+
+    return *this;
+#endif
+  }
+
+  __host__ __device__
+  ~accessor_base()
+  {
+#ifndef __HIP_DEVICE_COMPILE__
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    placeholder_tracker.release_accessor(this);
+#endif
+  }
+};
+
 } // detail
 
 template<typename dataT, int dimensions,
          access::mode accessmode,
          access::target accessTarget = access::target::global_buffer,
          access::placeholder isPlaceholder = access::placeholder::false_t>
-class accessor
+class accessor : public detail::accessor_base<
+    dataT,dimensions,accessmode,accessTarget,isPlaceholder>
 {
+  using base_type = detail::accessor_base<dataT,dimensions,
+                                          accessmode,accessTarget,
+                                          isPlaceholder>;
+
 public:
   using value_type = dataT;
   using reference = dataT &;
@@ -151,6 +247,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                               T == access::target::constant_buffer))) &&
                              (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
+    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
   {
     if(accessTarget == access::target::host_buffer)
     {
@@ -158,8 +255,10 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
     }
     else
     {
-      // ToDo
-      throw unimplemented{"accessor() with placeholder is unimplemented"};
+      detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
+
+      this->_ptr = reinterpret_cast<pointer_type>(buff->get_buffer_ptr());
+      this->_range = detail::buffer::get_buffer_range(bufferRef);
     }
   }
 
@@ -179,11 +278,15 @@ access::target::constant_buffer)) && dimensions > 0 */
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-accessTarget == access::target::host_buffer) ||
-(isPlaceholder ==
-access::placeholder::true_t && (accessTarget == access::target::global_buffer
-|| accessTarget == access::target::constant_buffer)) && dimensions > 0 */
+  /// Creates an accessor for a partial range of the buffer, described by an offset
+  /// and range.
+  ///
+  /// Implementation note: At the moment, this still transfers the entire buffer.
+  ///
+  /// Available only when: (isPlaceholder == access::placeholder::false_t &&
+  /// accessTarget == access::target::host_buffer) || (isPlaceholder ==
+  /// access::placeholder::true_t && (accessTarget == access::target::global_buffer
+  /// || accessTarget == access::target::constant_buffer)) && dimensions > 0 */
   template<access::placeholder P = isPlaceholder,
            access::target T = accessTarget,
            int D = dimensions,
@@ -224,6 +327,22 @@ access::target::constant_buffer)) && dimensions > 0 */
   {
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
+
+  __host__ __device__
+  accessor(const accessor& other)
+    : base_type{other},
+      _ptr{other._ptr},
+      _range{other._range}
+  {}
+
+  __host__ __device__
+  accessor& operator=(const accessor& other)
+  {
+    base_type::operator=(other);
+    _ptr = other._ptr;
+    _range = other._range;
+  }
+
 
   /* -- common interface members -- */
   __host__ __device__

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_APPLICATION_HPP
 #define HIPSYCL_APPLICATION_HPP
 
-#include "task_graph.hpp"
+#include "runtime.hpp"
 
 namespace cl {
 namespace sycl {
@@ -37,10 +37,16 @@ namespace detail {
 class application
 {
 public:
+
+  static runtime& get_hipsycl_runtime()
+  {
+    static runtime rt;
+    return rt;
+  }
+
   static task_graph& get_task_graph()
   {
-    static task_graph tg;
-    return tg;
+    return get_hipsycl_runtime().get_task_graph();
   }
 
   application() = delete;

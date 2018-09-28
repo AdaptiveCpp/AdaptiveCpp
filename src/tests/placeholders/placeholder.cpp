@@ -25,37 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <iostream>
+#include <cassert>
 
-#ifndef HIPSYCL_VERSION_HPP
-#define HIPSYCL_VERSION_HPP
+#include <CL/sycl.hpp>
 
-#include "backend/backend.hpp"
-#include "exception.hpp"
-#include "types.hpp"
-
-#define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 6
-#define HIPSYCL_VERSION_PATCH 8
-
-namespace cl {
-namespace sycl {
-namespace detail {
-
-static string_class version_string()
-{
-  int version;
-  check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version);
-
-  string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
-      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
-      + "." + std::to_string(HIPSYCL_VERSION_PATCH);
-
-  return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
-}
-
-}
-}
-}
-
+#ifndef __HIPSYCL__
+#define __device__
 #endif
+
+constexpr std::size_t num_elements  = 4096*1024;
+
+int main()
+{
+  cl::sycl::queue q;
+
+  cl::sycl::buffer<int,1> buff_a{num_elements};
+
+  {
+    auto host_access = buff_a.get_access<cl::sycl::access::mode::discard_write>();
+
+    for(std::size_t i = 0; i < num_elements; ++i)
+      host_access[i] = static_cast<int>(i);
+  }
+
+  cl::sycl::accessor<int,1,
+                     cl::sycl::access::mode::read_write,
+                     cl::sycl::access::target::global_buffer,
+                     cl::sycl::access::placeholder::true_t>
+      placeholder_accessor{buff_a};
+
+  q.submit([&](cl::sycl::handler& cgh) {
+    cgh.require(placeholder_accessor);
+
+    cgh.parallel_for<class placeholder_test>(cl::sycl::range<1>{num_elements},
+          [=] __device__ (cl::sycl::id<1> tid) {
+
+      placeholder_accessor[tid] *= 2;
+    });
+  });
+
+  {
+    auto host_access = buff_a.get_access<cl::sycl::access::mode::read>();
+
+    for(std::size_t i = 0; i < num_elements; ++i)
+      assert(host_access[i] == 2*i);
+  }
+
+  std::cout << "Passed." << std::endl;
+}
+
+

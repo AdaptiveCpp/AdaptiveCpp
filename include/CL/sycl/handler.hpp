@@ -114,14 +114,33 @@ class handler
 public:
   ~handler()
   {
-    /// \todo mark all buffers as unused
   }
 
   template <typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
   void require(accessor<dataT, dimensions, accessMode, accessTarget,
-               access::placeholder::true_t> acc)
+                        access::placeholder::true_t> acc)
   {
+    static_assert(accessTarget == access::target::global_buffer ||
+                  accessTarget == access::target::constant_buffer,
+                  "Only placeholder accessors for global and constant buffers are "
+                  "supported.");
+
+    detail::placeholder_accessor_tracker& placeholder_tracker =
+        detail::application::get_hipsycl_runtime().get_placeholder_tracker();
+
+    using accessor_base_ptr =
+      const detail::accessor_base<dataT,dimensions,accessMode,accessTarget,
+                            access::placeholder::true_t>*;
+
+    accessor_base_ptr ptr = &acc;
+
+    detail::buffer_ptr buff = placeholder_tracker.find_accessor(ptr);
+
+
+    detail::accessor::obtain_device_access(buff,
+                                           *this,
+                                           accessMode);
 
   }
 

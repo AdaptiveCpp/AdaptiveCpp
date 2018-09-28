@@ -27,12 +27,14 @@ Still unimplemented/missing is in particular:
 * hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
 * Explicit memory copy functions
 * Atomics
-* Device library
+* Device builtins (math library is mostly complete though)
 * Images
 * queue and event information queries
-* vec<> class is incomplete
+* vec<> class lacks convert(), as(), swizzled temporary vector objects lack operators
 * Some locks for multithreaded SYCL applications are missing.
 * Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
+* Error handling: Exception migration to the main thread is unimplemented, but async handlers are usable
+* 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 
 
 ### News

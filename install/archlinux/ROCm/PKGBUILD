@@ -1,11 +1,11 @@
-pkgname=hipsycl-git
-pkgver=0.6.0
+pkgname=hipsycl-rocm-git
+pkgver=0.6.8
 pkgrel=1
 pkgdesc="SYCL implementation over CUDA/HIP."
 arch=("x86_64")
 url="https://github.com/illuhad/hipSYCL"
 makedepends=("cmake")
-depends=("cuda")
+provides=("hipSYCL" "SYCL")
 license=("BSD")
 
 source=('hipSYCL::git+https://github.com/illuhad/hipSYCL.git')
@@ -24,13 +24,15 @@ prepare() {
 }
 
 build() {
+    export HIPSYCL_PLATFORM=rocm
     mkdir -p ${srcdir}/hipSYCL/build
     cd "${srcdir}/hipSYCL/build"
     cmake -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/usr ..
+          -DCMAKE_INSTALL_PREFIX=/opt/hipSYCL/ROCm ..
 }
 
 package() {
+    export HIPSYCL_PLATFORM=rocm
     cd "${srcdir}/hipSYCL/build"
     VERBOSE=1 DESTDIR=${pkgdir} make install
 }

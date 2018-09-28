@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_INFO_EVENT_HPP
 #define HIPSYCL_INFO_EVENT_HPP
 
+#include "../types.hpp"
 #include "param_traits.hpp"
 
 namespace cl {
@@ -54,6 +55,10 @@ enum class event_profiling : int
   command_start,
   command_end
 };
+
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::command_execution_status, event_command_status);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::reference_count, cl_uint);
 
 }
 }

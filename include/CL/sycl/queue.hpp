@@ -39,7 +39,7 @@
 #include "context.hpp"
 #include "event.hpp"
 #include "handler.hpp"
-#include "info/queue.hpp"
+#include "info/info.hpp"
 #include "detail/stream.hpp"
 
 namespace cl {
@@ -52,7 +52,6 @@ public:
 
   explicit queue(const property_list &propList = {});
 
-  /// \todo constructors do not yet use asyncHandler
   queue(const async_handler &asyncHandler,
         const property_list &propList = {});
 
@@ -97,9 +96,7 @@ public:
 
 
   template <info::queue param>
-  typename info::param_traits<info::queue, param>::return_type get_info() const {
-    throw unimplemented{"queue::get_info() is unimplemented"};
-  }
+  typename info::param_traits<info::queue, param>::return_type get_info() const;
 
 
   template <typename T>
@@ -154,6 +151,21 @@ private:
   detail::stream_ptr _stream;
   async_handler _handler;
 };
+
+HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
+{
+  return get_context();
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(queue, device)
+{
+  return get_device();
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
+{
+  return _stream.use_count();
+}
 
 }// namespace sycl
 }// namespace cl

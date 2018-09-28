@@ -29,8 +29,15 @@
 #ifndef HIPSYCL_INFO_QUEUE_HPP
 #define HIPSYCL_INFO_QUEUE_HPP
 
+#include "param_traits.hpp"
+#include "../types.hpp"
+
 namespace cl {
 namespace sycl {
+
+class context;
+class device;
+
 namespace info {
 
 enum class queue : int
@@ -39,6 +46,10 @@ enum class queue : int
   device,
   reference_count
 };
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::context, sycl::context);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::device, sycl::device);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::reference_count, cl_uint);
 
 }
 }

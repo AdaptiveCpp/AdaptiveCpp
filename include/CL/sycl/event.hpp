@@ -32,7 +32,7 @@
 #include "types.hpp"
 #include "backend/backend.hpp"
 #include "exception.hpp"
-#include "info/event.hpp"
+#include "info/info.hpp"
 #include "detail/task_graph.hpp"
 
 namespace cl {
@@ -85,8 +85,7 @@ public:
   }
 
   template <info::event param>
-  typename info::param_traits<info::event, param>::return_type get_info() const
-  { throw unimplemented{"event::get_info() is unimplemented."}; }
+  typename info::param_traits<info::event, param>::return_type get_info() const;
 
   template <info::event_profiling param>
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
@@ -103,6 +102,22 @@ private:
   bool _is_null_event;
   detail::task_graph_node_ptr _evt;
 };
+
+HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
+{
+  if(_evt->is_done())
+    return info::event_command_status::complete;
+
+  if(_evt->is_submitted())
+    return info::event_command_status::running;
+
+  return info::event_command_status::submitted;
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count)
+{
+  return _evt.use_count();
+}
 
 
 } // namespace sycl

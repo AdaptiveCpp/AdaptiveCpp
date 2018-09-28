@@ -29,11 +29,10 @@ Still unimplemented/missing is in particular:
 * Atomics
 * Device builtins (math library is mostly complete though)
 * Images
-* queue and event information queries
 * vec<> class lacks convert(), as(), swizzled temporary vector objects lack operators
 * Some locks for multithreaded SYCL applications are missing.
 * Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
-* Error handling: Exception migration to the main thread is unimplemented, but async handlers are usable
+* Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 
 

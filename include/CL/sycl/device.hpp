@@ -79,10 +79,7 @@ public:
 
   template <info::device param>
   typename info::param_traits<info::device, param>::return_type
-  get_info() const
-  {
-    throw unimplemented{"device::get_info() is unimplemented"};
-  }
+  get_info() const;
 
   bool has_extension(const string_class &extension) const
   {

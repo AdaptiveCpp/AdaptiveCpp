@@ -36,6 +36,32 @@
 namespace cl {
 namespace sycl {
 
+#ifdef __HIPSYCL_TRANSFORM__
+// During the source-to-source transformation step, we replace all calls
+// to the HCC/NVCC math libraries with calls to these placeholder functions.
+// This reduces the dependencies between hipSYCL and standard libraries and prevents
+// that the source-to-source transformation wants to change the declaration of
+// function from the standard library.
+template<class T>
+__device__
+inline T __placeholder_function(T) {return T();}
+
+template<class T>
+__device__
+inline T __placeholder_function(T, T) {return T();}
+
+template<class T>
+__device__
+inline T __placeholder_function(T, T, T) {return T();}
+
+#define HIPSYCL_STD_FUNCTION(function_name) __placeholder_function
+
+#else
+
+#define HIPSYCL_STD_FUNCTION(function_name) function_name
+
+#endif
+
 #define HIPSYCL_PP_CONCATENATE_IMPL(a,b) a ## b
 #define HIPSYCL_PP_CONCATENATE(a,b) HIPSYCL_PP_CONCATENATE_IMPL(a,b)
 
@@ -43,16 +69,19 @@ namespace sycl {
   std::enable_if_t<std::is_floating_point<float_type>::value>* = nullptr
 
 #define HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x) { return float_func(x); } \
-  __device__ inline double name(double x) { return double_func(x); }
+  __device__ inline float name(float x) { return HIPSYCL_STD_FUNCTION(float_func)(x); } \
+  __device__ inline double name(double x) { return HIPSYCL_STD_FUNCTION(double_func)(x); }
 
 #define HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x, float y){ return float_func(x,y); } \
-  __device__ inline double name(double x, double y){ return double_func(x,y); }
+  __device__ inline float name(float x, float y){ return HIPSYCL_STD_FUNCTION(float_func)(x,y); } \
+  __device__ inline double name(double x, double y){ return HIPSYCL_STD_FUNCTION(double_func)(x,y); }
 
 #define HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x, float y, float z){ return float_func(x,y,z); } \
-  __device__ inline double name(double x, double y, double z){ return double_func(x,y,z); }
+  __device__ inline float name(float x, float y, float z)\
+  { return HIPSYCL_STD_FUNCTION(float_func)(x,y,z); } \
+  \
+  __device__ inline double name(double x, double y, double z)\
+  { return HIPSYCL_STD_FUNCTION(double_func)(x,y,z); }
 
 
 #define HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(name, func) \
@@ -237,19 +266,27 @@ namespace native {
 
 #define HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(name, fallback_func, fast_sp_func) \
   template<class float_type> \
-  __device__ inline float_type name(float_type x){return fallback_func(x);} \
+  __device__ inline float_type name(float_type x)\
+  {return HIPSYCL_STD_FUNCTION(fallback_func)(x);} \
+  \
   template<> \
-  __device__ inline float name(float x) { return fast_sp_func(x); }
+  __device__ inline float name(float x)\
+  { return HIPSYCL_STD_FUNCTION(fast_sp_func)(x); }
 
 #define HIPSYCL_DEFINE_FAST_FUNCTION(name, fallback_func, \
                                      fast_sp_func,\
                                      fast_dp_func) \
   template<class float_type> \
-  __device__ inline float_type name(float_type x){return fallback_func(x);} \
+  __device__ inline float_type name(float_type x)\
+  {return HIPSYCL_STD_FUNCTION(fallback_func)(x);} \
+  \
   template<> \
-  __device__ inline float name(float x) { return fast_sp_func(x); } \
+  __device__ inline float name(float x) \
+  { return HIPSYCL_STD_FUNCTION(fast_sp_func)(x); } \
+  \
   template<> \
-  __device__ inline double name(double x) { return fast_dp_func(x); } \
+  __device__ inline double name(double x) \
+  { return HIPSYCL_STD_FUNCTION(fast_dp_func)(x); } \
 
 #ifdef __HIPSYCL_TRANSFORM__
 
@@ -276,15 +313,15 @@ HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(tan, sycl::tan, __tanf);
 
 #endif // __HIPSYCL_TRANSFORM__
 
-HIPSYCL_DEFINE_FAST_FUNCTION(sqrt, std::sqrt, __fsqrt_rn, __dsqrt_rn);
+HIPSYCL_DEFINE_FAST_FUNCTION(sqrt, sycl::sqrt, __fsqrt_rn, __dsqrt_rn);
 
 template<class float_type>
 __device__
-inline float_type pow(float_type x, float_type y){return std::pow(x,y);}
+inline float_type pow(float_type x, float_type y){return sycl::pow(x,y);}
 
 template<>
 __device__
-inline float pow(float x, float y) { return __powf(x,y); }
+inline float pow(float x, float y) { return HIPSYCL_STD_FUNCTION(__powf)(x,y); }
 
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(cos, cos);
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(exp, exp);

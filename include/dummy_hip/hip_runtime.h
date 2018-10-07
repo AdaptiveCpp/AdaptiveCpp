@@ -329,6 +329,7 @@ struct hipPointerAttribute_t
 
 typedef void(*hipStreamCallback_t)(hipStream_t, hipError_t, void*);
 
+__device__
 void __syncthreads();
 
 hipError_t hipDeviceReset();
@@ -721,181 +722,181 @@ DUMMY_HIP_MAKE_VECTOR_TYPE(double, double)
 
 
 
-
+__device__
 float __fadd_rd(float x, float y);
 
-
+__device__
 float __fadd_rn(float x, float y);
 
-
+__device__
 float __fadd_ru(float x, float y);
 
-
+__device__
 float __fadd_rz(float x, float y);
 
-
+__device__
 float __fdiv_rd(float x, float y);
 
-
+__device__
 float __fdiv_rn(float x, float y);
 
-
+__device__
 float __fdiv_ru(float x, float y);
 
-
+__device__
 float __fdiv_rz(float x, float y);
 
-
+__device__
 float __fdividef(float x, float y);
 
-
+__device__
 float __fmaf_rd(float x, float y, float z);
 
-
+__device__
 float __fmaf_rn(float x, float y, float z);
 
-
+__device__
 float __fmaf_ru(float x, float y, float z);
 
-
+__device__
 float __fmaf_rz(float x, float y, float z);
 
-
+__device__
 float __fmul_rd(float x, float y);
 
-
+__device__
 float __fmul_rn(float x, float y);
 
-
+__device__
 float __fmul_ru(float x, float y);
 
-
+__device__
 float __fmul_rz(float x, float y);
 
-
+__device__
 float __frcp_rd(float x);
 
-
+__device__
 float __frcp_rn(float x);
 
-
+__device__
 float __frcp_ru(float x);
 
-
+__device__
 float __frcp_rz(float x);
 
-
+__device__
 float __frsqrt_rn(float x);
 
-
+__device__
 float __fsqrt_rd(float x);
 
-
+__device__
 float __fsqrt_rn(float x);
 
-
+__device__
 float __fsqrt_ru(float x);
 
-
+__device__
 float __fsqrt_rz(float x);
 
-
+__device__
 float __fsub_rd(float x, float y);
 
-
+__device__
 float __fsub_rn(float x, float y);
 
-
+__device__
 float __fsub_ru(float x, float y);
 
-
+__device__
 float __fsub_rz(float x, float y);
 
 
 
 
-
+__device__
 double __dadd_rd(double x, double y);
 
-
+__device__
 double __dadd_rn(double x, double y);
 
-
+__device__
 double __dadd_ru(double x, double y);
 
-
+__device__
 double __dadd_rz(double x, double y);
 
-
+__device__
 double __ddiv_rd(double x, double y);
 
-
+__device__
 double __ddiv_rn(double x, double y);
 
-
+__device__
 double __ddiv_ru(double x, double y);
 
-
+__device__
 double __ddiv_rz(double x, double y);
 
-
+__device__
 double __dmul_rd(double x, double y);
 
-
+__device__
 double __dmul_rn(double x, double y);
 
-
+__device__
 double __dmul_ru(double x, double y);
 
-
+__device__
 double __dmul_rz(double x, double y);
 
-
+__device__
 double __drcp_rd(double x);
 
-
+__device__
 double __drcp_rn(double x);
 
-
+__device__
 double __drcp_ru(double x);
 
-
+__device__
 double __drcp_rz(double x);
 
-
+__device__
 double __dsqrt_rd(double x);
 
-
+__device__
 double __dsqrt_rn(double x);
 
-
+__device__
 double __dsqrt_ru(double x);
 
-
+__device__
 double __dsqrt_rz(double x);
 
-
+__device__
 double __dsub_rd(double x, double y);
 
-
+__device__
 double __dsub_rn(double x, double y);
 
-
+__device__
 double __dsub_ru(double x, double y);
 
-
+__device__
 double __dsub_rz(double x, double y);
 
-
+__device__
 double __fma_rd(double x, double y, double z);
 
-
+__device__
 double __fma_rn(double x, double y, double z);
 
-
+__device__
 double __fma_ru(double x, double y, double z);
 
-
+__device__
 double __fma_rz(double x, double y, double z);
 
 

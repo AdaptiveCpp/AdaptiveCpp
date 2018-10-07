@@ -121,7 +121,7 @@ public:
   __host__ __device__
   accessor_base()
   {
-#ifndef __HIP_DEVICE_COMPILE__
+#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
     detail::placeholder_accessor_tracker& placeholder_tracker =
         application::get_hipsycl_runtime().get_placeholder_tracker();
 
@@ -132,7 +132,7 @@ public:
   __host__ __device__
   accessor_base(const detail::buffer_ptr& buff)
   {
-#ifndef __HIP_DEVICE_COMPILE__
+#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
     detail::placeholder_accessor_tracker& placeholder_tracker =
         application::get_hipsycl_runtime().get_placeholder_tracker();
 
@@ -143,7 +143,7 @@ public:
   __host__ __device__
   accessor_base(const accessor_base& other)
   {
-#ifndef __HIP_DEVICE_COMPILE__
+#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
     detail::placeholder_accessor_tracker& placeholder_tracker =
         application::get_hipsycl_runtime().get_placeholder_tracker();
 
@@ -157,7 +157,7 @@ public:
   __host__ __device__
   accessor_base& operator=(const accessor_base& other)
   {
-#ifndef __HIP_DEVICE_COMPILE__
+#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
     detail::placeholder_accessor_tracker& placeholder_tracker =
         application::get_hipsycl_runtime().get_placeholder_tracker();
 
@@ -173,7 +173,7 @@ public:
   __host__ __device__
   ~accessor_base()
   {
-#ifndef __HIP_DEVICE_COMPILE__
+#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
     detail::placeholder_accessor_tracker& placeholder_tracker =
         application::get_hipsycl_runtime().get_placeholder_tracker();
 

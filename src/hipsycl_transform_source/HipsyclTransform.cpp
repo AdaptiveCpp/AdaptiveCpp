@@ -28,13 +28,13 @@
 
 #include "HipsyclTransform.hpp"
 
-
 namespace hipsycl {
 namespace transform {
 
 HipsyclTransformASTConsumer::HipsyclTransformASTConsumer(clang::Rewriter& R)
-  : _visitor{R}
-{}
+  : _rewriter{R}
+{
+}
 
 HipsyclTransformASTConsumer::~HipsyclTransformASTConsumer()
 {}
@@ -45,7 +45,6 @@ HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
   for (clang::DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b) {
 
     _visitor.TraverseDecl(*b);
-
     //(*b)->dump();
   }
   return true;
@@ -53,7 +52,8 @@ HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
 
 void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext&)
 {
-  _visitor.addAnnotations();
+  CompilationTargetAnnotator annotationCorrector{_rewriter, _visitor};
+  annotationCorrector.addAnnotations();
 }
 
 HipsyclTransfromFrontendAction::HipsyclTransfromFrontendAction()

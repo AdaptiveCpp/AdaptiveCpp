@@ -29,89 +29,94 @@
 
 #include "CompilationTargetAnnotator.hpp"
 
+#define HIPSYCL_VERBOSE_DEBUG
 
 using namespace clang;
 
 namespace hipsycl {
 namespace transform {
 
-CompilationTargetAnnotatingASTVisitor::CompilationTargetAnnotatingASTVisitor(Rewriter& r)
+CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
+                                                       clang::CallGraph& callGraph)
   : _rewriter{r},
-    _currentFunction{nullptr}
-{}
-
-bool CompilationTargetAnnotatingASTVisitor::VisitCallExpr(CallExpr *call)
+    _callGraph{callGraph}
 {
-  if(_currentFunction != nullptr)
+  for(clang::CallGraph::iterator node = _callGraph.begin();
+      node != _callGraph.end(); ++node)
   {
-    FunctionDecl* callee = call->getDirectCallee();
-
-    if(callee != nullptr)
-      _callers[callee].push_back(_currentFunction);
+    if(node->getFirst())
+    {
+      for(auto child : *(node->getSecond()))
+      {
+        if(child->getDecl())
+          _callers[child->getDecl()].push_back(node->getFirst());
+      }
+    }
   }
-  return true;
 }
 
-bool CompilationTargetAnnotatingASTVisitor::VisitFunctionDecl(FunctionDecl *f)
+void
+CompilationTargetAnnotator::addAnnotations()
 {
-  if(f->hasBody())
-    _currentFunction = f;
-
-  return true;
-}
-
-void CompilationTargetAnnotatingASTVisitor::addAnnotations()
-{
-  for(auto func : _callers)
+  for(auto decl : _callers)
   {
     bool isHost = false;
     bool isDevice = false;
-    correctFunctionAnnotations(isHost, isDevice, func.first);
+
+    if(decl.first)
+      correctFunctionAnnotations(isHost, isDevice, decl.first);
   }
 
-  for(FunctionDecl* f : _isFunctionCorrectedDevice)
+
+  for(const Decl* f : _isFunctionCorrectedDevice)
   {
-    HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __device__: "
-                       << f->getNameAsString() << std::endl;
-    writeAnnotation(f, "__device__");
+    if(f->getAsFunction())
+    {
+      HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __device__: "
+                         << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
+    }
+    writeAnnotation(f, " __device__ ");
   }
 
-  for(FunctionDecl* f: _isFunctionCorrectedHost)
+  for(const Decl* f: _isFunctionCorrectedHost)
   {
     // Explicit __host__ annotation is only necessary if a __device__ annotation
     // is present as well
     if(isDeviceFunction(f))
     {
-      HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __host__: "
-                         << f->getNameAsString() << std::endl;
-      writeAnnotation(f, "__host__");
+      if(f->getAsFunction())
+      {
+        HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __host__: "
+                           << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
+      }
+      writeAnnotation(f, " __host__ ");
     }
   }
 }
 
 bool
-CompilationTargetAnnotatingASTVisitor::isHostFunction(clang::FunctionDecl* f) const
+CompilationTargetAnnotator::isHostFunction(const clang::Decl* f) const
 {
   return this->containsTargetAttribute(f, "host") ||
       (_isFunctionCorrectedHost.find(f) != _isFunctionCorrectedHost.end());
 }
 
 bool
-CompilationTargetAnnotatingASTVisitor::isDeviceFunction(clang::FunctionDecl* f) const
+CompilationTargetAnnotator::isDeviceFunction(const clang::Decl* f) const
 {
   return this->containsTargetAttribute(f, "device") ||
       (_isFunctionCorrectedDevice.find(f) != _isFunctionCorrectedDevice.end());
 }
 
 bool
-CompilationTargetAnnotatingASTVisitor::isKernelFunction(clang::FunctionDecl* f) const
+CompilationTargetAnnotator::isKernelFunction(const clang::Decl* f) const
 {
   return this->containsTargetAttribute(f, "kernel");
 }
 
 bool
-CompilationTargetAnnotatingASTVisitor::containsTargetAttribute(
-    FunctionDecl* f,
+CompilationTargetAnnotator::containsTargetAttribute(
+    const Decl* f,
     const std::string& targetString) const
 {
   auto functionAttributes = f->getAttrs();
@@ -128,14 +133,14 @@ CompilationTargetAnnotatingASTVisitor::containsTargetAttribute(
 }
 
 
-bool CompilationTargetAnnotatingASTVisitor::canCallHostFunctions(
-    clang::FunctionDecl* f) const
+bool CompilationTargetAnnotator::canCallHostFunctions(
+    const clang::Decl* f) const
 {
   return isHostFunction(f);
 }
 
-bool CompilationTargetAnnotatingASTVisitor::canCallDeviceFunctions(
-    clang::FunctionDecl* f) const
+bool CompilationTargetAnnotator::canCallDeviceFunctions(
+    const clang::Decl* f) const
 {
   return isDeviceFunction(f) || isKernelFunction(f);
 }
@@ -143,9 +148,12 @@ bool CompilationTargetAnnotatingASTVisitor::canCallDeviceFunctions(
 
 /// Determines if a function is called by host or device functions.
 void
-CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
-    bool& isHost, bool& isDevice, clang::FunctionDecl* f)
+CompilationTargetAnnotator::correctFunctionAnnotations(
+    bool& isHost, bool& isDevice, const clang::Decl* f)
 {
+  if(!f)
+    return;
+
   if(isKernelFunction(f))
   {
     // Treat kernels as device functions since they execute on the device
@@ -165,21 +173,29 @@ CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
       // cycles in the call graph
       _isFunctionProcessed[f] = true;
 
-      isHost = false;
-      isDevice = false;
+      isHost = isHostFunction(f);
+      isDevice = isDeviceFunction(f);
 
       auto callers = _callers[f];
 #ifdef HIPSYCL_VERBOSE_DEBUG
-      HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: "
-                         << "call graph for "
-                         << f->getNameAsString() << ": " << std::endl;
+      if(f->getAsFunction())
+      {
+        HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: "
+                           << "call graph for "
+                           << f->getAsFunction()->getQualifiedNameAsString() << ": " << std::endl;
+      }
 #endif
-      for(clang::FunctionDecl* caller : callers)
+      for(const clang::Decl* caller : callers)
       {
 #ifdef HIPSYCL_VERBOSE_DEBUG
-        HIPSYCL_DEBUG_INFO << "    called by "
-                           << caller->getNameAsString() << std::endl;
+        if(caller->getAsFunction())
+        {
+          HIPSYCL_DEBUG_INFO << "    called by "
+                             << caller->getAsFunction()->getQualifiedNameAsString() << std::endl;
+        }
 #endif
+        if(isHost && isDevice)
+          break;
 
         bool callerIsHostFunction = false;
         bool callerIsDeviceFunction = false;
@@ -187,10 +203,7 @@ CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
         correctFunctionAnnotations(callerIsHostFunction, callerIsDeviceFunction, caller);
 
         isHost |= callerIsHostFunction;
-        isDevice |= callerIsDeviceFunction;
-
-        if(isHost && isDevice)
-          break;
+        isDevice |= callerIsDeviceFunction;  
       }
 
       if(isHost)
@@ -208,19 +221,23 @@ CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
   }
 }
 
-void CompilationTargetAnnotatingASTVisitor::writeAnnotation(
-    clang::FunctionDecl* f,
+void CompilationTargetAnnotator::writeAnnotation(
+    const clang::Decl* f,
     const std::string& annotation)
 {
-  for(FunctionDecl* currentDecl = f->getMostRecentDecl();
+  for(const Decl* currentDecl = f->getMostRecentDecl();
       currentDecl != nullptr;
       currentDecl = currentDecl->getPreviousDecl())
   {
-    _rewriter.InsertText(currentDecl->getTypeSpecStartLoc(), annotation);
+    if(isa<FunctionDecl>(currentDecl))
+    {
+      const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
+      _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+    }
   }
 }
 
-void CompilationTargetAnnotatingASTVisitor::markAsHost(clang::FunctionDecl* f)
+void CompilationTargetAnnotator::markAsHost(const clang::Decl* f)
 {
   if(isKernelFunction(f))
     return;
@@ -230,7 +247,7 @@ void CompilationTargetAnnotatingASTVisitor::markAsHost(clang::FunctionDecl* f)
 
 }
 
-void CompilationTargetAnnotatingASTVisitor::markAsDevice(clang::FunctionDecl* f)
+void CompilationTargetAnnotator::markAsDevice(const clang::Decl* f)
 {
   if(isKernelFunction(f))
     return;

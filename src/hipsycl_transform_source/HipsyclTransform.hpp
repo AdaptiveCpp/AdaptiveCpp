@@ -31,6 +31,7 @@
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Analysis/CallGraph.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -61,7 +62,8 @@ public:
   void HandleTranslationUnit(clang::ASTContext &Ctx) override;
 
 private:
-  CompilationTargetAnnotatingASTVisitor _visitor;
+  clang::CallGraph _visitor;
+  clang::Rewriter& _rewriter;
 };
 
 class HipsyclTransfromFrontendAction : public clang::ASTFrontendAction {

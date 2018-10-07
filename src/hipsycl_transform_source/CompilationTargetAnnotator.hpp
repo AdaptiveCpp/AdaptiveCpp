@@ -31,50 +31,49 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Analysis/CallGraph.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 
 namespace hipsycl {
 namespace transform {
 
-class CompilationTargetAnnotatingASTVisitor
-    : public clang::RecursiveASTVisitor<CompilationTargetAnnotatingASTVisitor>
+class CompilationTargetAnnotator
 {
 public:
   using CallerMapType =
-      std::unordered_map<clang::FunctionDecl*, std::vector<clang::FunctionDecl*>>;
+      std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
-  CompilationTargetAnnotatingASTVisitor(clang::Rewriter& rewriter);
+  CompilationTargetAnnotator(clang::Rewriter& rewriter,
+                             clang::CallGraph& callGraph);
 
-  bool VisitCallExpr(clang::CallExpr*);
-  bool VisitFunctionDecl(clang::FunctionDecl*);
 
   void addAnnotations();
 
 private:
-  bool containsTargetAttribute(clang::FunctionDecl* f, const std::string& target) const;
-  bool isHostFunction(clang::FunctionDecl*) const;
-  bool isDeviceFunction(clang::FunctionDecl*) const;
-  bool isKernelFunction(clang::FunctionDecl*) const;
+  bool containsTargetAttribute(const clang::Decl* f, const std::string& target) const;
+  bool isHostFunction(const clang::Decl*) const;
+  bool isDeviceFunction(const clang::Decl*) const;
+  bool isKernelFunction(const clang::Decl*) const;
 
-  bool canCallHostFunctions(clang::FunctionDecl* f) const;
-  bool canCallDeviceFunctions(clang::FunctionDecl* f) const;
+  bool canCallHostFunctions(const clang::Decl* f) const;
+  bool canCallDeviceFunctions(const clang::Decl* f) const;
 
-  void correctFunctionAnnotations(bool& host, bool& device, clang::FunctionDecl* f);
+  void correctFunctionAnnotations(bool& host, bool& device, const clang::Decl* f);
 
   // These functions add the corresponding attribute to the attribute lists
-  void markAsHost(clang::FunctionDecl* f);
-  void markAsDevice(clang::FunctionDecl* f);
+  void markAsHost(const clang::Decl* f);
+  void markAsDevice(const clang::Decl* f);
 
-  void writeAnnotation(clang::FunctionDecl* f, const std::string& annotation);
+  void writeAnnotation(const clang::Decl* f, const std::string& annotation);
 
   clang::Rewriter& _rewriter;
-  clang::FunctionDecl* _currentFunction;
+  clang::CallGraph& _callGraph;
+
   CallerMapType _callers;
 
-  std::unordered_map<clang::FunctionDecl*, bool> _isFunctionProcessed;
-  std::unordered_set<clang::FunctionDecl*> _isFunctionCorrectedDevice;
-  std::unordered_set<clang::FunctionDecl*> _isFunctionCorrectedHost;
+  std::unordered_map<const clang::Decl*, bool> _isFunctionProcessed;
+  std::unordered_set<const clang::Decl*> _isFunctionCorrectedDevice;
+  std::unordered_set<const clang::Decl*> _isFunctionCorrectedHost;
 };
 
 }

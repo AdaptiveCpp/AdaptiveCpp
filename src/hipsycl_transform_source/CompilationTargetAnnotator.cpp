@@ -68,6 +68,25 @@ void CompilationTargetAnnotatingASTVisitor::addAnnotations()
     bool isDevice = false;
     correctFunctionAnnotations(isHost, isDevice, func.first);
   }
+
+  for(FunctionDecl* f : _isFunctionCorrectedDevice)
+  {
+    HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __device__: "
+                       << f->getNameAsString() << std::endl;
+    writeAnnotation(f, "__device__");
+  }
+
+  for(FunctionDecl* f: _isFunctionCorrectedHost)
+  {
+    // Explicit __host__ annotation is only necessary if a __device__ annotation
+    // is present as well
+    if(isDeviceFunction(f))
+    {
+      HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __host__: "
+                         << f->getNameAsString() << std::endl;
+      writeAnnotation(f, "__host__");
+    }
+  }
 }
 
 bool
@@ -128,8 +147,11 @@ CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
     bool& isHost, bool& isDevice, clang::FunctionDecl* f)
 {
   if(isKernelFunction(f))
+  {
     // Treat kernels as device functions since they execute on the device
     isDevice = true;
+    isHost = false;
+  }
   else
   {
     if(_isFunctionProcessed[f])
@@ -186,7 +208,7 @@ CompilationTargetAnnotatingASTVisitor::correctFunctionAnnotations(
   }
 }
 
-void CompilationTargetAnnotatingASTVisitor::markAs(
+void CompilationTargetAnnotatingASTVisitor::writeAnnotation(
     clang::FunctionDecl* f,
     const std::string& annotation)
 {
@@ -204,16 +226,8 @@ void CompilationTargetAnnotatingASTVisitor::markAsHost(clang::FunctionDecl* f)
     return;
 
   if(!isHostFunction(f))
-  {
-#ifdef HIPSYCL_VERBOSE_DEBUG
-    HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __host__: "
-                       << f->getNameAsString() << std::endl;
-#endif
     _isFunctionCorrectedHost.insert(f);
 
-    markAs(f, " __host__ ");
-
-  }
 }
 
 void CompilationTargetAnnotatingASTVisitor::markAsDevice(clang::FunctionDecl* f)
@@ -222,15 +236,7 @@ void CompilationTargetAnnotatingASTVisitor::markAsDevice(clang::FunctionDecl* f)
     return;
 
   if(!isDeviceFunction(f))
-  {
-#ifdef HIPSYCL_VERBOSE_DEBUG
-    HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __device__: "
-                       << f->getNameAsString() << std::endl;
-#endif
     _isFunctionCorrectedDevice.insert(f);
-
-    markAs(f, " __device__ ");
-  }
 }
 
 

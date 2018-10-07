@@ -66,7 +66,7 @@ private:
   void markAsHost(clang::FunctionDecl* f);
   void markAsDevice(clang::FunctionDecl* f);
 
-  void markAs(clang::FunctionDecl* f, const std::string& annotation);
+  void writeAnnotation(clang::FunctionDecl* f, const std::string& annotation);
 
   clang::Rewriter& _rewriter;
   clang::FunctionDecl* _currentFunction;

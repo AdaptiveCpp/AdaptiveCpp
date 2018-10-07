@@ -26,36 +26,66 @@
  */
 
 
-#ifndef HIPSYCL_VERSION_HPP
-#define HIPSYCL_VERSION_HPP
+#include "HipsyclTransform.hpp"
 
-#include "backend/backend.hpp"
-#include "exception.hpp"
-#include "types.hpp"
 
-#define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 6
-#define HIPSYCL_VERSION_PATCH 9
+namespace hipsycl {
+namespace transform {
 
-namespace cl {
-namespace sycl {
-namespace detail {
+HipsyclTransformASTConsumer::HipsyclTransformASTConsumer(clang::Rewriter& R)
+  : _visitor{R}
+{}
 
-static string_class version_string()
+HipsyclTransformASTConsumer::~HipsyclTransformASTConsumer()
+{}
+
+bool
+HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
 {
-  int version;
-  check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version);
+  for (clang::DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b) {
 
-  string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
-      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
-      + "." + std::to_string(HIPSYCL_VERSION_PATCH);
+    _visitor.TraverseDecl(*b);
 
-  return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
+    //(*b)->dump();
+  }
+  return true;
+}
+
+void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext&)
+{
+  _visitor.addAnnotations();
+}
+
+HipsyclTransfromFrontendAction::HipsyclTransfromFrontendAction()
+{}
+
+void
+HipsyclTransfromFrontendAction::EndSourceFileAction()
+{
+  clang::SourceManager &sourceMgr = _rewriter.getSourceMgr();
+
+  std::string source_file = this->getCurrentFile();
+  std::string transformed_file = source_file.append(".transformed.cpp");
+
+  std::error_code error;
+  llvm::raw_fd_ostream output{
+    transformed_file,
+    error,
+    llvm::sys::fs::OpenFlags::F_None
+  };
+
+  // Now emit the rewritten buffer.
+  _rewriter.getEditBuffer(sourceMgr.getMainFileID()).write(output);
+
+}
+
+std::unique_ptr<clang::ASTConsumer>
+HipsyclTransfromFrontendAction::CreateASTConsumer(clang::CompilerInstance &CI,
+                                                  clang::StringRef)
+{
+  _rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
+  return llvm::make_unique<HipsyclTransformASTConsumer>(_rewriter);
 }
 
 }
 }
-}
-
-#endif

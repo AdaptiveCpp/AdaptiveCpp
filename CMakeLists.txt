@@ -2,6 +2,10 @@ project(hipSYCL)
 
 set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 if(NOT HIPSYCL_DEBUG_LEVEL)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(HIPSYCL_DEBUG_LEVEL 3 CACHE INTEGER
@@ -25,5 +29,8 @@ subdirs(src)
 
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/dummy_hip DESTINATION include/
+        FILES_MATCHING PATTERN "*.h")
+
 install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 install(PROGRAMS bin/syclcc DESTINATION bin)

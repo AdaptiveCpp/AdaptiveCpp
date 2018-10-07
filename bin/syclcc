@@ -46,22 +46,34 @@ def is_program_executable(cmd):
   except:
     return False
 
-def get_hipsycl_default_options(use_bundled_hip = False):
-  hipsyclcc_path = os.path.dirname(os.path.realpath(__file__))
-  libpath = os.path.join(hipsyclcc_path,"../lib")
-  includepath = os.path.join(hipsyclcc_path,"../include")
 
-  bundled_hip_install_path = os.path.join(hipsyclcc_path,
-                                    "../include/hipSYCL/")
-  bundled_hip_preinstall_path = os.path.join(hipsyclcc_path,
-                                    "../contrib/HIP/include")
+def get_hipsycl_binary_path():
+  return os.path.dirname(os.path.realpath(__file__))
+
+def get_hipsycl_install_path():
+  hipsyclcc_path = get_hipsycl_binary_path()
+  return os.path.join(hipsyclcc_path, "..")
+
+def is_during_hipsycl_installation():
+  libpath = os.path.join(get_hipsycl_install_path(),"lib")
+  return not os.path.isfile(os.path.join(libpath,"libhipSYCL.so"))
+
+def get_hipsycl_default_options(use_bundled_hip = False):
+  hipsycl_install_path = get_hipsycl_install_path()
+  libpath = os.path.join(hipsycl_install_path,"lib")
+  includepath = os.path.join(hipsycl_install_path,"include")
+
+  bundled_hip_install_path = os.path.join(includepath,
+                                    "hipSYCL")
+  bundled_hip_preinstall_path = os.path.join(hipsycl_install_path,
+                                    "contrib/HIP/include")
   # If we are compiling hipSYCL itself, the library won't exist yet.
   # In that case, cmake will take care of the paths, so
   # we only need to worry about adding the options if we
   # are part of the installed distribution, i.e. the libhipSYCL
   # library exists.
   result = []
-  if os.path.isfile(os.path.join(libpath,"libhipSYCL.so")):
+  if not is_during_hipsycl_installation():
     result = ["-I"+includepath, "-L"+libpath, "-lhipSYCL"]
     if use_bundled_hip:
       result.append("-I"+bundled_hip_install_path)
@@ -76,9 +88,29 @@ class source_file_processor:
     self._managed_files = []
     self._suffix = suffix
 
+
+  def _run_source_transformation(self, filename):
+    transformed_file = filename+".transformed.cpp"
+    tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_transform_source")
+
+    if not is_during_hipsycl_installation():
+      returnvalue = subprocess.call(
+        [tool,filename,"--","-Wno-unused-command-line-argument"]+get_hipsycl_default_options())
+
+      self._managed_files.append(transformed_file)
+
+      if returnvalue != 0:
+        raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
+
+      new_name = self._copy_file_to_temp_with_new_suffix(transformed_file, self._suffix)
+
+      return new_name
+    else:
+      return self._copy_file_to_temp_with_new_suffix(filename, self._suffix)
+
+
   def process_file(self,filename):
-    new_name = self._copy_file_to_temp_with_new_suffix(filename,
-                                                       self._suffix)
+    new_name = self._run_source_transformation(filename)
     self._prepend_to_file(new_name, "#line 1 \""+filename+"\"\n")
     self._managed_files.append(new_name)
 
@@ -86,6 +118,7 @@ class source_file_processor:
 
   def release_files(self):
     for filename in self._managed_files:
+      # ToDo: Check If file exists
       os.remove(filename)
 
   def _prepend_to_file(self, filename, prepend_data):
@@ -212,12 +245,31 @@ class hip_compiler:
     if len(args) == 1:
       return -1
     else:
-      return subprocess.call([self.device_compiler,
-                             "-Wno-unused-command-line-argument",
-                             "-Wno-ignored-attributes",
-                             "-std=c++14"]+
-                   self.hcc_options+
-                   get_hipsycl_default_options(use_bundled_hip = False)+args[1:])
+      source_processor = source_file_processor(".cpp")
+      result = None
+      try:
+        if len(args) == 1:
+          return -1
+        else:
+          transformed_args = []
+          for arg in args[1:]:
+            if self.is_source_file(arg):
+              transformed_args.append(source_processor.process_file(arg))
+            else:
+              transformed_args += arg
+
+          compiler_args = ["-Wno-unused-command-line-argument",
+                           "-Wno-ignored-attributes",
+                           "-std=c++14"]+self.hcc_options
+          compiler_args += get_hipsycl_default_options(use_bundled_hip = False)
+          compiler_args += transformed_args
+
+          result = subprocess.call([self.device_compiler]+compiler_args)
+
+      finally:
+        source_processor.release_files()
+
+      return result
 
   def _get_config(self):
     cxxconfig = subprocess.check_output(["hcc-config","--cxxflags"]).decode("utf-8")
@@ -232,6 +284,32 @@ class hip_compiler:
   def is_available(self):
     return self.is_hcc_available
 
+class syclcc_config:
+  def __init__(self, argv):
+    self._alternative_compiler = ""
+    self._forwarded_args = []
+    for arg in argv:
+      if arg.startswith("--force-alternative-compiler="):
+        parsed_args = arg.split("=")
+        if len(parsed_args) != 2:
+          raise RuntimeError("Invalid argument: "+arg)
+
+        self._alternative_compiler = parsed_args[1]
+      else:
+        self._forwarded_args.append(arg)
+
+  def use_alternative_compiler(self):
+    return len(self._alternative_compiler) != 0
+
+  def get_alternative_compiler(self):
+    if not self.use_alternative_compiler():
+      return None
+    else:
+      return self._alternative_compiler
+
+  def get_forwarded_args(self):
+    return self._forwarded_args
+
 if __name__ == '__main__':
   args = sys.argv
 
@@ -239,56 +317,66 @@ if __name__ == '__main__':
     print("syclcc requires python 3.")
     sys.exit(-1)
 
-  if len(args) == 1:
-    print("syclcc [hipSYCL] for amd and nvidia devices, Copyright (C) 2018 Aksel Alpay")
-    print("Usage: syclcc <options>")
-  else:
-    hcc = hip_compiler()
-    cuda = cuda_compiler()
+  try:
+    if len(args) == 1:
+      print("syclcc [hipSYCL] for amd and nvidia devices, Copyright (C) 2018 Aksel Alpay")
+      print("Usage: syclcc <options>")
+    else:
+      config = syclcc_config(args)
 
-    rocm_available = hcc.is_available()
-    cuda_available = cuda.is_available()
-
-    if not rocm_available and not cuda_available:
-      print("Neither CUDA nor ROCm seem to be installed - cannot find hcc or nvcc")
-      sys.exit(-1)
-
-    selected_compiler = None
-    # First check if the user has specified which compiler should
-    # be used
-    if "HIPSYCL_PLATFORM" in os.environ:
-      envconfig = os.environ["HIPSYCL_PLATFORM"].lower()
-      if envconfig == "cuda" or envconfig == "nvcc":
-        if not cuda_available:
-          print("CUDA was requested as hipSYCL platform via the HIPSYCL_PLATFORM "
-                "environment variable, but it is not available.")
-          sys.exit(-1)
-        else:
-          selected_compiler = cuda
-      elif envconfig == "hip" or envconfig == "rocm" or envconfig == "hcc":
-        if not rocm_available:
-          print("ROCm was requested as hipSYCL platform via the HIPSYCL_PLATFORM "
-                "environment variable, but it is not available.")
-          sys.exit(-1)
-        else:
-          selected_compiler = hcc
-
-    # If no compiler has been explicitly chosen, use the only one existing
-    # or print error if several choices exist
-    if selected_compiler == None:
-      if rocm_available and cuda_available:
-        print("Both CUDA and ROCm are available, please specify which platform "
-              "should be used by hipSYCL via the HIPSYCL_PLATFORM environment variable.")
-        sys.exit(-1)
+      if config.use_alternative_compiler():
+        sys.exit(subprocess.call([config.get_alternative_compiler()]
+                                + config.get_forwarded_args()))
       else:
-        if rocm_available:
-          selected_compiler = hcc
-        elif cuda_available:
-          selected_compiler = cuda
+        hcc = hip_compiler()
+        cuda = cuda_compiler()
 
-    if selected_compiler == None:
-      print("Could not select compiler - this is a bug")
-      sys.exit(-1)
+        rocm_available = hcc.is_available()
+        cuda_available = cuda.is_available()
 
-    sys.exit(selected_compiler.run(args))
+        if not rocm_available and not cuda_available:
+          print("Neither CUDA nor ROCm seem to be installed - cannot find hcc or nvcc")
+          sys.exit(-1)
+
+        selected_compiler = None
+        # First check if the user has specified which compiler should
+        # be used
+        if "HIPSYCL_PLATFORM" in os.environ:
+          envconfig = os.environ["HIPSYCL_PLATFORM"].lower()
+          if envconfig == "cuda" or envconfig == "nvcc":
+            if not cuda_available:
+              print("CUDA was requested as hipSYCL platform via the HIPSYCL_PLATFORM "
+                    "environment variable, but it is not available.")
+              sys.exit(-1)
+            else:
+              selected_compiler = cuda
+          elif envconfig == "hip" or envconfig == "rocm" or envconfig == "hcc":
+            if not rocm_available:
+              print("ROCm was requested as hipSYCL platform via the HIPSYCL_PLATFORM "
+                    "environment variable, but it is not available.")
+              sys.exit(-1)
+            else:
+              selected_compiler = hcc
+
+        # If no compiler has been explicitly chosen, use the only one existing
+        # or print error if several choices exist
+        if selected_compiler == None:
+          if rocm_available and cuda_available:
+            print("Both CUDA and ROCm are available, please specify which platform "
+                  "should be used by hipSYCL via the HIPSYCL_PLATFORM environment variable.")
+            sys.exit(-1)
+          else:
+            if rocm_available:
+              selected_compiler = hcc
+            elif cuda_available:
+              selected_compiler = cuda
+
+        if selected_compiler == None:
+          print("Could not select compiler - this is a bug")
+          sys.exit(-1)
+
+        sys.exit(selected_compiler.run(args))
+  except Exception as e:
+    print("syclcc fatal error: "+str(e))
+    sys.exit(-1)
 

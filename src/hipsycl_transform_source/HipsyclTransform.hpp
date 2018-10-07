@@ -25,32 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_HPP
-#define SYCL_HPP
+#ifndef HIPSYCL_TRANSFORM_HPP
+#define HIPSYCL_TRANSFORM_HPP
+
+#include "clang/AST/AST.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Frontend/ASTConsumers.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendActions.h"
+#include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/Tooling/CommonOptionsParser.h"
+#include "clang/Tooling/Tooling.h"
+#include "llvm/Support/raw_ostream.h"
+
+#include "CompilationTargetAnnotator.hpp"
+
+namespace hipsycl {
+namespace transform {
 
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+// Implementation of the ASTConsumer interface for reading an AST produced
+// by the Clang parser.
+class HipsyclTransformASTConsumer : public clang::ASTConsumer {
+public:
+  HipsyclTransformASTConsumer(clang::Rewriter &R);
 
-#include "sycl/backend/backend.hpp"
-#include "sycl/version.hpp"
-#include "sycl/types.hpp"
-#include "sycl/exception.hpp"
-#include "sycl/device_selector.hpp"
-#include "sycl/device.hpp"
-#include "sycl/platform.hpp"
-#include "sycl/queue.hpp"
-#include "sycl/range.hpp"
-#include "sycl/id.hpp"
-#include "sycl/accessor.hpp"
-#include "sycl/buffer.hpp"
-#include "sycl/nd_item.hpp"
-#include "sycl/multi_ptr.hpp"
-#include "sycl/group.hpp"
-#include "sycl/h_item.hpp"
-#include "sycl/private_memory.hpp"
-#include "sycl/vec.hpp"
-#include "sycl/math.hpp"
+  virtual ~HipsyclTransformASTConsumer() override;
+
+  // Override the method that gets called for each parsed top-level
+  // declaration.
+
+  bool HandleTopLevelDecl(clang::DeclGroupRef DR) override;
+
+  void HandleTranslationUnit(clang::ASTContext &Ctx) override;
+
+private:
+  CompilationTargetAnnotatingASTVisitor _visitor;
+};
+
+class HipsyclTransfromFrontendAction : public clang::ASTFrontendAction {
+public:
+  HipsyclTransfromFrontendAction();
+
+  void EndSourceFileAction() override;
+
+  std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &CI, clang::StringRef file) override;
+
+private:
+  clang::Rewriter _rewriter;
+};
+
+
+
+
+}
+}
 
 #endif
-

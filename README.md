@@ -6,7 +6,7 @@ hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applicatio
 ## Why use hipSYCL over raw CUDA/HIP?
 * hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls.
 * Openness. hipSYCL applications are written against an API that is an open standard (SYCL) instead of being locked to one specific vendor.
-* Portability. The hipSYCL input language is (at the moment) a slightly modified, annotated SYCL (see the corresponding section below). This input language can be turned into regular SYCL with simple `#defines`. A hipSYCL application can hence run
+* Portability. The hipSYCL input language is (at the moment) a slightly modified, annotated SYCL (see the corresponding section below, support for regular SYCL is on the way). This input language can be turned into regular SYCL with simple `#defines`. Note that there is also experimental support for ingesting regular SYCL code via a clang-based source-to-source transformation step. A hipSYCL application can hence run
    * via hipSYCL:
       * on AMD devices via AMD HIP on the ROCm platform
       * on NVIDIA devices via CUDA
@@ -37,6 +37,7 @@ Still unimplemented/missing is in particular:
 
 
 ### News
+2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 
 ## Building hipSYCL
@@ -44,7 +45,13 @@ In order to successfully build and install hipSYCL, a working installation of ei
 * On NVIDIA: with CUDA 9.2 and gcc 7.3
 * On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware)
 
-hipSYCL only depends on python 3 (for the `syclcc` compiler wrapper), `cmake`, `hcc` or `nvcc`, and HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
+hipSYCL depends on:
+* python 3 (for the `syclcc` compiler wrapper)
+* `cmake`
+* `hcc` or `nvcc`
+* HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
+* llvm/clang (with development headers and libraries)
+* the Boost C++ library (only the preprocessor library at the moment)
 
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
 
@@ -60,7 +67,7 @@ $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
 
-## hipSYCL input language: `__device__` annotated SYCL
+## hipSYCL input language: `__device__` annotated SYCL, experimental support for regular SYCL
 Due to the CUDA/HIP programming model that hipSYCL builds upon, all functions that are executed on the device must be annotated with the `__device__` attribute. This particularly affects SYCL kernel lambdas. Local memory allocated statically in an hierarchical parallel for invocation must be marked as `__shared__` for the same reason. The following code snippet can be used to guarantee compatibility of hipSYCL applications with regular SYCL:
 ```cpp
 #ifndef __HIPSYCL__
@@ -70,8 +77,7 @@ Due to the CUDA/HIP programming model that hipSYCL builds upon, all functions th
  #define __shared__
 #endif
 ```
-As a future project, it is planned to investigate the possibility of automatically adding these annotations with libclang, such that unmodified, regular SYCL code can be compiled as well.
-
+However, as of 2018/10/07, hipSYCL now tries to automatically add these decorators using a clang-based source-to-source transformation step before the code is fed into nvcc or hcc. This allows hipSYCL to ingest regular SYCL code as well. Once this feature is more tested and more mature, it will be recommended to write code in regular SYCL.
 ## Caveats
 * hipSYCL uses a slightly different input language compared to regular SYCL, see above
 * hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
@@ -90,6 +96,7 @@ The following code adds two vectors:
 
 #ifndef __HIPSYCL__
 // This guarantees compatibility if we are not using hipSYCL as SYCL implementation.
+// This is only needed if you don't trust hipSYCL's experimental support for regular SYCL.
 #define __device__
 #endif
 
@@ -114,6 +121,8 @@ std::vector<data_type> add(cl::sycl::queue& q,
       auto access_b = buff_b.get_access<cl::sycl::access::mode::read>(cgh);
       auto access_c = buff_c.get_access<cl::sycl::access::mode::write>(cgh);
 
+      // The __device__ decorator is only needed if you don't trust hipSYCL's
+      // experimental support for regular SYCL :-)
       cgh.parallel_for<class vector_add>(work_items,
                                          [=] __device__ (cl::sycl::id<1> tid) {
         access_c[tid] = access_a[tid] + access_b[tid];

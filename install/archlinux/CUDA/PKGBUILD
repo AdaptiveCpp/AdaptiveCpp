@@ -8,7 +8,7 @@ url="https://github.com/illuhad/hipSYCL"
 makedepends=("cmake")
 provides=("hipSYCL" "SYCL")
 license=("BSD")
-depends=("cuda")
+depends=("cuda" "llvm" "clang" "boost")
 
 source=('hipSYCL::git+https://github.com/illuhad/hipSYCL.git')
 

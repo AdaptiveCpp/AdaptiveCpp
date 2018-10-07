@@ -8,6 +8,7 @@ url="https://github.com/illuhad/hipSYCL"
 makedepends=("cmake")
 provides=("hipSYCL" "SYCL")
 license=("BSD")
+depends=("llvm" "clang")
 
 source=('hipSYCL::git+https://github.com/illuhad/hipSYCL.git')
 

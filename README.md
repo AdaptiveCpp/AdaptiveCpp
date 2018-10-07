@@ -37,8 +37,8 @@ Still unimplemented/missing is in particular:
 
 
 ### News
-2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
-2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
+* 2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
+* 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 
 ## Building hipSYCL
 In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested:
@@ -79,7 +79,7 @@ Due to the CUDA/HIP programming model that hipSYCL builds upon, all functions th
 ```
 However, as of 2018/10/07, hipSYCL now tries to automatically add these decorators using a clang-based source-to-source transformation step before the code is fed into nvcc or hcc. This allows hipSYCL to ingest regular SYCL code as well. Once this feature is more tested and more mature, it will be recommended to write code in regular SYCL.
 ## Caveats
-* hipSYCL uses a slightly different input language compared to regular SYCL, see above
+* hipSYCL uses a slightly different input language compared to regular SYCL. This is about to change, see above
 * hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
 * Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
 

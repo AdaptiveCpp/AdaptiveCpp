@@ -52,6 +52,13 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
           _callers[child->getDecl()].push_back(node->getFirst());
       }
     }
+    else
+    {
+      for(auto child : *(node->getSecond()))
+        if(child->getDecl())
+          if(_callers.find(child->getDecl()) == _callers.end())
+            _callers[child->getDecl()] = std::vector<const clang::Decl*>();
+    }
   }
 }
 
@@ -233,6 +240,11 @@ void CompilationTargetAnnotator::writeAnnotation(
     {
       const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
       _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+    }
+    else
+    {
+      std::cout << "Inserting at " << f->getLocStart().printToString(_rewriter.getSourceMgr()) << std::endl;
+      _rewriter.InsertText(f->getLocStart(), annotation);
     }
   }
 }

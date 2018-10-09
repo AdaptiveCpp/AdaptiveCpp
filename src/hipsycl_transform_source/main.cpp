@@ -42,10 +42,13 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "HipsyclTransform.hpp"
+#include "Attributes.hpp"
+
 
 using namespace clang;
 using namespace clang::driver;
 using namespace clang::tooling;
+
 
 
 
@@ -62,15 +65,15 @@ int main(int argc, const char **argv) {
   {
     CommandLineArguments modifiedArgs = args;
 
-    modifiedArgs.push_back("-D__global__=__attribute__((target(\"kernel\")))");
-    modifiedArgs.push_back("-D__host__=__attribute__((target(\"host\")))");
-    modifiedArgs.push_back("-D__device__=__attribute__((target(\"device\")))");
+    modifiedArgs.push_back("-D__global__="+hipsycl::transform::KernelAttribute::getString());
+    modifiedArgs.push_back("-D__host__="+hipsycl::transform::HostAttribute::getString());
+    modifiedArgs.push_back("-D__device__="+hipsycl::transform::DeviceAttribute::getString());
     //modifiedArgs.push_back("-D__constant__");
     //modifiedArgs.push_back("-D__shared__");
 
     modifiedArgs.push_back("-D__HIPSYCL_TRANSFORM__");
 
-    modifiedArgs.push_back("-Wno-ignored-attributes");
+    modifiedArgs.push_back("-std=c++14");
 
 #ifdef HIPSYCL_TRANSFORM_CLANG_DIR
     std::string clangIncludeDir =
@@ -89,6 +92,7 @@ int main(int argc, const char **argv) {
     return modifiedArgs;
   };
   tool.appendArgumentsAdjuster(adjuster);
+
 
   using FrontendActionType = hipsycl::transform::HipsyclTransfromFrontendAction;
   return tool.run(newFrontendActionFactory<FrontendActionType>().get());

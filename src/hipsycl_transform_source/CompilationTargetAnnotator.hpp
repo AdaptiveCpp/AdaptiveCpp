@@ -34,6 +34,7 @@
 #include "clang/Analysis/CallGraph.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 
+
 namespace hipsycl {
 namespace transform {
 
@@ -50,7 +51,22 @@ public:
   void addAnnotations();
 
 private:
-  bool containsTargetAttribute(const clang::Decl* f, const std::string& target) const;
+
+  template<class AttributeType>
+  bool containsAttributeForCompilation(const clang::Decl* f) const
+  {
+    auto functionAttributes = f->getAttrs();
+
+    for(clang::Attr* currentAttrib : functionAttributes)
+    {
+      if(AttributeType::describedBy(currentAttrib))
+        return true;
+
+    }
+    return false;
+  }
+
+
   bool isHostFunction(const clang::Decl*) const;
   bool isDeviceFunction(const clang::Decl*) const;
   bool isKernelFunction(const clang::Decl*) const;

@@ -28,8 +28,12 @@
 
 #include "HipsyclTransform.hpp"
 
+#include "clang/Rewrite/Frontend/Rewriters.h"
+
+
 namespace hipsycl {
 namespace transform {
+
 
 HipsyclTransformASTConsumer::HipsyclTransformASTConsumer(clang::Rewriter& R)
   : _rewriter{R}
@@ -42,6 +46,7 @@ HipsyclTransformASTConsumer::~HipsyclTransformASTConsumer()
 bool
 HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
 {
+
   for (clang::DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b) {
 
     _visitor.TraverseDecl(*b);
@@ -74,8 +79,14 @@ HipsyclTransfromFrontendAction::EndSourceFileAction()
     llvm::sys::fs::OpenFlags::F_None
   };
 
-  // Now emit the rewritten buffer.
   _rewriter.getEditBuffer(sourceMgr.getMainFileID()).write(output);
+
+  /*
+  clang::RewriteIncludesInInput(this->getCompilerInstance().getPreprocessor(),
+                                &output,
+                                this->getCompilerInstance().getPreprocessorOutputOpts());
+*/
+
 
 }
 

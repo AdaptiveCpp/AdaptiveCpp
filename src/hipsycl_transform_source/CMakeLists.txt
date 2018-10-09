@@ -43,7 +43,8 @@ target_link_libraries(hipsycl_transform_source
   clangLex
   clangTooling
   clangRewrite
-  clangRewriteFrontend)
+  clangRewriteFrontend
+  clangASTMatchers)
 
 install(TARGETS hipsycl_transform_source
         RUNTIME DESTINATION bin/)

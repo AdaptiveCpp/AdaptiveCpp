@@ -28,6 +28,7 @@
 #include "CL/sycl/detail/debug.hpp"
 
 #include "CompilationTargetAnnotator.hpp"
+#include "Attributes.hpp"
 
 #define HIPSYCL_VERBOSE_DEBUG
 
@@ -74,7 +75,10 @@ CompilationTargetAnnotator::addAnnotations()
       correctFunctionAnnotations(isHost, isDevice, decl.first);
   }
 
-
+  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __device__: "
+                     << _isFunctionCorrectedDevice.size() << std::endl;
+  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __host_: "
+                     << _isFunctionCorrectedHost.size() << std::endl;
   for(const Decl* f : _isFunctionCorrectedDevice)
   {
     if(f->getAsFunction())
@@ -104,40 +108,23 @@ CompilationTargetAnnotator::addAnnotations()
 bool
 CompilationTargetAnnotator::isHostFunction(const clang::Decl* f) const
 {
-  return this->containsTargetAttribute(f, "host") ||
+  return this->containsAttributeForCompilation<HostAttribute>(f) ||
       (_isFunctionCorrectedHost.find(f) != _isFunctionCorrectedHost.end());
 }
 
 bool
 CompilationTargetAnnotator::isDeviceFunction(const clang::Decl* f) const
 {
-  return this->containsTargetAttribute(f, "device") ||
+  return this->containsAttributeForCompilation<DeviceAttribute>(f) ||
       (_isFunctionCorrectedDevice.find(f) != _isFunctionCorrectedDevice.end());
 }
 
 bool
 CompilationTargetAnnotator::isKernelFunction(const clang::Decl* f) const
 {
-  return this->containsTargetAttribute(f, "kernel");
+  return this->containsAttributeForCompilation<KernelAttribute>(f);
 }
 
-bool
-CompilationTargetAnnotator::containsTargetAttribute(
-    const Decl* f,
-    const std::string& targetString) const
-{
-  auto functionAttributes = f->getAttrs();
-  for(Attr* currentAttrib : functionAttributes)
-  {
-    if(isa<TargetAttr>(currentAttrib))
-    {
-      TargetAttr* target = cast<TargetAttr>(currentAttrib);
-      if(target->getFeaturesStr().str() == targetString)
-        return true;
-    }
-  }
-  return false;
-}
 
 
 bool CompilationTargetAnnotator::canCallHostFunctions(
@@ -183,7 +170,7 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
       isHost = isHostFunction(f);
       isDevice = isDeviceFunction(f);
 
-      auto callers = _callers[f];
+      const auto& callers = _callers[f];
 #ifdef HIPSYCL_VERBOSE_DEBUG
       if(f->getAsFunction())
       {
@@ -243,7 +230,6 @@ void CompilationTargetAnnotator::writeAnnotation(
     }
     else
     {
-      std::cout << "Inserting at " << f->getLocStart().printToString(_rewriter.getSourceMgr()) << std::endl;
       _rewriter.InsertText(f->getLocStart(), annotation);
     }
   }

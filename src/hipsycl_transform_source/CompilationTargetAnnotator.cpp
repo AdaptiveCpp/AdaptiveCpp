@@ -64,6 +64,34 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
 }
 
 void
+CompilationTargetAnnotator::treatConstructsAsFunctionCalls(
+    const CXXConstructCallerMatcher& constructCallers)
+{
+  for(const auto& construct : constructCallers.getResults())
+  {
+    for(const clang::Decl* caller : construct.second)
+    {
+      _callers[construct.first].push_back(caller);
+
+      // Also add destructor as a callee
+      if(isa<CXXConstructorDecl>(construct.first))
+      {
+        const CXXRecordDecl* parent =
+            cast<CXXConstructorDecl>(construct.first)->getParent();
+        if(parent)
+        {
+          const CXXDestructorDecl* destructor = parent->getDestructor();
+
+          if(destructor)
+            _callers[destructor].push_back(caller);
+        }
+
+      }
+    }
+  }
+}
+
+void
 CompilationTargetAnnotator::addAnnotations()
 {
   for(auto decl : _callers)
@@ -77,7 +105,7 @@ CompilationTargetAnnotator::addAnnotations()
 
   HIPSYCL_DEBUG_INFO << "Number of functions annotated with __device__: "
                      << _isFunctionCorrectedDevice.size() << std::endl;
-  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __host_: "
+  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __host__: "
                      << _isFunctionCorrectedHost.size() << std::endl;
   for(const Decl* f : _isFunctionCorrectedDevice)
   {
@@ -225,8 +253,28 @@ void CompilationTargetAnnotator::writeAnnotation(
   {
     if(isa<FunctionDecl>(currentDecl))
     {
-      const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
-      _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+      bool suppressAnnotation = false;
+
+      if(isa<CXXMethodDecl>(currentDecl))
+      {
+        const CXXMethodDecl* methodDecl = cast<CXXMethodDecl>(currentDecl);
+        if(methodDecl->isDefaulted() || methodDecl->isDeleted())
+          suppressAnnotation = true;
+      }
+
+
+      if(!suppressAnnotation)
+      {
+        if(isa<CXXConstructorDecl>(currentDecl) || isa<CXXDestructorDecl>(currentDecl))
+        {
+          _rewriter.InsertText(f->getLocStart(), annotation);
+        }
+        else
+        {
+          const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
+          _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+        }
+      }
     }
     else
     {

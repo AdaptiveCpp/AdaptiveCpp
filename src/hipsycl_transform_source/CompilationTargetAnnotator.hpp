@@ -33,7 +33,7 @@
 #include <unordered_set>
 #include "clang/Analysis/CallGraph.h"
 #include "clang/Rewrite/Core/Rewriter.h"
-
+#include "Matcher.hpp"
 
 namespace hipsycl {
 namespace transform {
@@ -47,6 +47,8 @@ public:
   CompilationTargetAnnotator(clang::Rewriter& rewriter,
                              clang::CallGraph& callGraph);
 
+
+  void treatConstructsAsFunctionCalls(const CXXConstructCallerMatcher& constructCallers);
 
   void addAnnotations();
 

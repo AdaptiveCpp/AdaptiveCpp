@@ -50,11 +50,6 @@ using namespace clang::driver;
 using namespace clang::tooling;
 
 
-
-
-// For each source file provided to the tool, a new FrontendAction is created.
-
-
 int main(int argc, const char **argv) {
   CommonOptionsParser op(argc, argv, llvm::cl::GeneralCategory);
 
@@ -92,7 +87,6 @@ int main(int argc, const char **argv) {
     return modifiedArgs;
   };
   tool.appendArgumentsAdjuster(adjuster);
-
 
   using FrontendActionType = hipsycl::transform::HipsyclTransfromFrontendAction;
   return tool.run(newFrontendActionFactory<FrontendActionType>().get());

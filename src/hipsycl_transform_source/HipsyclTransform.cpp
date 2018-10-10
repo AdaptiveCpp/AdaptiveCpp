@@ -46,7 +46,6 @@ HipsyclTransformASTConsumer::~HipsyclTransformASTConsumer()
 bool
 HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
 {
-
   for (clang::DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b) {
 
     _visitor.TraverseDecl(*b);
@@ -55,9 +54,18 @@ HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
   return true;
 }
 
-void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext&)
+void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext& ctx)
 {
+  clang::ast_matchers::MatchFinder finder;
+  CXXConstructCallerMatcher::registerMatcher(finder,
+                                             _constructMatcher,
+                                             "construct_matcher");
+
+
+  finder.matchAST(ctx);
+
   CompilationTargetAnnotator annotationCorrector{_rewriter, _visitor};
+  annotationCorrector.treatConstructsAsFunctionCalls(_constructMatcher);
   annotationCorrector.addAnnotations();
 }
 
@@ -69,25 +77,18 @@ HipsyclTransfromFrontendAction::EndSourceFileAction()
 {
   clang::SourceManager &sourceMgr = _rewriter.getSourceMgr();
 
-  std::string source_file = this->getCurrentFile();
-  std::string transformed_file = source_file.append(".transformed.cpp");
+  std::string sourceFile = this->getCurrentFile();
+  std::string transformedFile = sourceFile.append(".hip.cpp");
 
   std::error_code error;
   llvm::raw_fd_ostream output{
-    transformed_file,
+    transformedFile,
     error,
     llvm::sys::fs::OpenFlags::F_None
   };
 
+
   _rewriter.getEditBuffer(sourceMgr.getMainFileID()).write(output);
-
-  /*
-  clang::RewriteIncludesInInput(this->getCompilerInstance().getPreprocessor(),
-                                &output,
-                                this->getCompilerInstance().getPreprocessorOutputOpts());
-*/
-
-
 }
 
 std::unique_ptr<clang::ASTConsumer>

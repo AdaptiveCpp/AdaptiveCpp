@@ -7,7 +7,8 @@ find_package(Boost REQUIRED)
 add_executable(hipsycl_transform_source
   main.cpp
   CompilationTargetAnnotator.cpp
-  HipsyclTransform.cpp)
+  HipsyclTransform.cpp
+  Matcher.cpp)
 
 target_include_directories(hipsycl_transform_source PRIVATE
   ${LLVM_INCLUDE_DIRS}

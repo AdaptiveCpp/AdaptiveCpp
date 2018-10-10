@@ -25,64 +25,46 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_TRANSFORM_HPP
-#define HIPSYCL_TRANSFORM_HPP
+#ifndef HIPSYCL_MATCHER_HPP
+#define HIPSYCL_MATCHER_HPP
 
-#include "clang/AST/AST.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Analysis/CallGraph.h"
-#include "clang/Frontend/ASTConsumers.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
-#include "clang/Rewrite/Core/Rewriter.h"
-#include "clang/Tooling/CommonOptionsParser.h"
-#include "clang/Tooling/Tooling.h"
-#include "llvm/Support/raw_ostream.h"
+#include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "clang/ASTMatchers/ASTMatchers.h"
 
-#include "CompilationTargetAnnotator.hpp"
-#include "Matcher.hpp"
+#include <vector>
+#include <unordered_map>
+#include <memory>
 
 namespace hipsycl {
 namespace transform {
 
-
-// Implementation of the ASTConsumer interface for reading an AST produced
-// by the Clang parser.
-class HipsyclTransformASTConsumer : public clang::ASTConsumer {
+class CXXConstructCallerMatcher : public clang::ast_matchers::MatchFinder::MatchCallback
+{
 public:
-  HipsyclTransformASTConsumer(clang::Rewriter &R);
+  CXXConstructCallerMatcher() = default;
+  CXXConstructCallerMatcher(const std::string& id);
 
-  virtual ~HipsyclTransformASTConsumer() override;
+  static void registerMatcher(clang::ast_matchers::MatchFinder& finder,
+                              CXXConstructCallerMatcher& handler,
+                              const std::string& id);
 
-  // Override the method that gets called for each parsed top-level
-  // declaration.
+  virtual void run(const clang::ast_matchers::MatchFinder::MatchResult & result) override;
 
-  bool HandleTopLevelDecl(clang::DeclGroupRef DR) override;
+  using ConstructCallerMapType =
+    std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
-  void HandleTranslationUnit(clang::ASTContext &Ctx) override;
+  const ConstructCallerMapType& getResults() const
+  { return _constructCallers; }
 
 private:
-  clang::CallGraph _visitor;
-  CXXConstructCallerMatcher _constructMatcher;
-  clang::Rewriter& _rewriter;
+  void findCXXConstructExprs(const clang::Stmt* current,
+                             std::vector<const clang::CXXConstructExpr*>& out);
+
+  // Maps the constructor declaration to the declaration of
+  // the calling function
+  ConstructCallerMapType _constructCallers;
+  std::string _id;
 };
-
-class HipsyclTransfromFrontendAction : public clang::ASTFrontendAction {
-public:
-  HipsyclTransfromFrontendAction();
-
-  void EndSourceFileAction() override;
-
-  std::unique_ptr<clang::ASTConsumer>
-  CreateASTConsumer(clang::CompilerInstance &CI, clang::StringRef file) override;
-
-private:
-  clang::Rewriter _rewriter;
-};
-
-
-
 
 }
 }

@@ -90,7 +90,7 @@ class source_file_processor:
 
 
   def _run_source_transformation(self, filename):
-    transformed_file = filename+".transformed.cpp"
+    transformed_file = filename+".hip.cpp"
     tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_transform_source")
 
     if not is_during_hipsycl_installation():

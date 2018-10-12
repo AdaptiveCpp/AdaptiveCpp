@@ -65,6 +65,7 @@ public:
 private:
   clang::CallGraph _visitor;
   CXXConstructCallerMatcher _constructMatcher;
+
   clang::Rewriter& _rewriter;
 };
 

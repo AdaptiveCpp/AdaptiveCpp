@@ -30,7 +30,7 @@
 #include "CompilationTargetAnnotator.hpp"
 #include "Attributes.hpp"
 
-#define HIPSYCL_VERBOSE_DEBUG
+//#define HIPSYCL_VERBOSE_DEBUG
 
 using namespace clang;
 
@@ -100,7 +100,21 @@ CompilationTargetAnnotator::addAnnotations()
     bool isDevice = false;
 
     if(decl.first)
+    {
+      // This corrects device, host attributes
       correctFunctionAnnotations(isHost, isDevice, decl.first);
+
+      // If this is a kernel function in a parallel hierarchical for,
+      // we also need to add __shared__ attributes. This is the case
+      // if the function is called by cl::sycl::detail::dispatch::parallel_for_workgroup
+      for(auto caller : decl.second)
+      {
+        if(caller && caller->getAsFunction())
+          if(caller->getAsFunction()->getQualifiedNameAsString() ==
+             "cl::sycl::detail::dispatch::parallel_for_workgroup")
+            this->correctSharedMemoryAnnotations(decl.first);
+      }
+    }
   }
 
   HIPSYCL_DEBUG_INFO << "Number of functions annotated with __device__: "
@@ -129,6 +143,26 @@ CompilationTargetAnnotator::addAnnotations()
                            << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
       }
       writeAnnotation(f, " __host__ ");
+    }
+  }
+}
+
+void
+CompilationTargetAnnotator::correctSharedMemoryAnnotations(
+    const clang::Decl* kernelFunction)
+{
+  if(const clang::Stmt* body = kernelFunction->getBody())
+  {
+    for(auto currentStmt = body->child_begin();
+        currentStmt != body->child_end(); ++currentStmt)
+    {
+      if(clang::isa<clang::DeclStmt>(*currentStmt))
+      {
+        HIPSYCL_DEBUG_INFO << "Marking variable as __shared__ in "
+                           << kernelFunction->getAsFunction()->getQualifiedNameAsString()
+                           << std::endl;
+        _rewriter.InsertText((*currentStmt)->getBeginLoc(), " __shared__ ");
+      }
     }
   }
 }

@@ -75,12 +75,6 @@ CXXConstructCallerMatcher::run(
 
         if(!isLambda)
           _constructCallers[constructor].push_back(function);
-
-        std::cout << "Constructor "
-                  << constructor->getAsFunction()->getQualifiedNameAsString()
-                  << "\n   called by: "
-                  << function->getAsFunction()->getQualifiedNameAsString()
-                  << std::endl;
       }
     }
   }
@@ -102,6 +96,7 @@ CXXConstructCallerMatcher::findCXXConstructExprs(const clang::Stmt* current,
     }
   }
 }
+
 
 }
 }

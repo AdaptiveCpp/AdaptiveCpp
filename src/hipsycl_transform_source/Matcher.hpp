@@ -30,6 +30,8 @@
 
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
+#include "clang/Rewrite/Frontend/Rewriters.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 
 #include <vector>
 #include <unordered_map>
@@ -65,6 +67,7 @@ private:
   ConstructCallerMapType _constructCallers;
   std::string _id;
 };
+
 
 }
 }

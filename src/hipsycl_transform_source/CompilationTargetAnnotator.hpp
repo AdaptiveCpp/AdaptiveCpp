@@ -77,6 +77,7 @@ private:
   bool canCallDeviceFunctions(const clang::Decl* f) const;
 
   void correctFunctionAnnotations(bool& host, bool& device, const clang::Decl* f);
+  void correctSharedMemoryAnnotations(const clang::Decl* kernelFunction);
 
   // These functions add the corresponding attribute to the attribute lists
   void markAsHost(const clang::Decl* f);

@@ -30,15 +30,15 @@
 
 
 #ifndef __global__
-#define __global__ __attribute__((target("kernel")))
+#define __global__ __attribute__((section("kernel")))
 #endif
 
 #ifndef __device__
-#define __device__ __attribute__((target("device")))
+#define __device__ __attribute__((section("device")))
 #endif
 
 #ifndef __host__
-#define __host__ __attribute__((target("host")))
+#define __host__ __attribute__((visibility("default")))
 #endif
 
 #ifndef __constant__

@@ -147,6 +147,25 @@ CompilationTargetAnnotator::addAnnotations()
   }
 }
 
+bool
+CompilationTargetAnnotator::isPrivateMemory(const clang::DeclStmt* declaration) const
+{
+  for(auto decl = declaration->decl_begin();
+      decl != declaration->decl_end();
+      ++decl)
+  {
+    if(clang::isa<clang::VarDecl>(*decl))
+    {
+      const clang::VarDecl* var = clang::cast<clang::VarDecl>(*decl);
+      const clang::CXXRecordDecl* recordDecl = var->getType()->getAsCXXRecordDecl();
+      if(recordDecl)
+        return recordDecl->getQualifiedNameAsString() == "cl::sycl::private_memory";
+    }
+  }
+
+  return false;
+}
+
 void
 CompilationTargetAnnotator::correctSharedMemoryAnnotations(
     const clang::Decl* kernelFunction)
@@ -158,10 +177,13 @@ CompilationTargetAnnotator::correctSharedMemoryAnnotations(
     {
       if(clang::isa<clang::DeclStmt>(*currentStmt))
       {
-        HIPSYCL_DEBUG_INFO << "Marking variable as __shared__ in "
-                           << kernelFunction->getAsFunction()->getQualifiedNameAsString()
-                           << std::endl;
-        _rewriter.InsertText((*currentStmt)->getBeginLoc(), " __shared__ ");
+        if(!isPrivateMemory(clang::cast<clang::DeclStmt>(*currentStmt)))
+        {
+          HIPSYCL_DEBUG_INFO << "Marking variable as __shared__ in "
+                             << kernelFunction->getAsFunction()->getQualifiedNameAsString()
+                             << std::endl;
+          _rewriter.InsertText((*currentStmt)->getBeginLoc(), " __shared__ ");
+        }
       }
     }
   }

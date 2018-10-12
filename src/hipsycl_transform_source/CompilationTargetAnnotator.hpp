@@ -85,6 +85,8 @@ private:
 
   void writeAnnotation(const clang::Decl* f, const std::string& annotation);
 
+  bool isPrivateMemory(const clang::DeclStmt* decl) const;
+
   clang::Rewriter& _rewriter;
   clang::CallGraph& _callGraph;
 

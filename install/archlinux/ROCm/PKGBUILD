@@ -1,6 +1,6 @@
 # Maintainer: Aksel Alpay <alpay at stud dot uni-heidelberg dot de>
 pkgname=hipsycl-rocm-git
-pkgver=0.6.8
+pkgver=0.7.0
 pkgrel=1
 pkgdesc="SYCL implementation over CUDA/HIP for AMD devices."
 arch=("x86_64")

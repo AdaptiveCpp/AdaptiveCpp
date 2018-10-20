@@ -125,7 +125,7 @@ class source_file_processor:
       # ToDo: Check If file exists
       os.remove(filename)
     for dirname in self._managed_directories:
-      pass #shutil.rmtree(dirname)
+      shutil.rmtree(dirname)
 
   def _get_temp_directory(self):
     tempdir = tempfile.gettempdir()

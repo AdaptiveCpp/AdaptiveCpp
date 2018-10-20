@@ -27,12 +27,65 @@
 
 
 #include "HipsyclTransform.hpp"
+#include "ChangedFilesWriter.hpp"
 
 #include "clang/Rewrite/Frontend/Rewriters.h"
 
+#include <cstdlib>
+#include <stdexcept>
 
 namespace hipsycl {
 namespace transform {
+
+
+std::string
+CommandLineArgs::extractArg(const std::string& optionString) const
+{
+  std::size_t pos;
+  if((pos = optionString.find("=")) != std::string::npos)
+  {
+    return optionString.substr(pos+1);
+  }
+  else
+    throw std::invalid_argument("Option "+optionString+" is missing an argument.");
+}
+
+clang::tooling::CommandLineArguments
+CommandLineArgs::consumeHipsyclArgs(
+    const clang::tooling::CommandLineArguments& args)
+{
+  clang::tooling::CommandLineArguments modifiedArgs;
+
+  _transformDirectory = "";
+  _mainFilename = "";
+
+  for(std::size_t i = 0; i < args.size(); ++i)
+  {
+    if(args[i].find("--hipsycl-transform-dir") == 0)
+    {
+      _transformDirectory = extractArg(args[i]);
+    }
+    else if(args[i].find("--hipsycl-main-output-file") == 0)
+    {
+      _mainFilename = extractArg(args[i]);
+    }
+    else
+      modifiedArgs.push_back(args[i]);
+
+    if(_mainFilename.empty())
+      _mainFilename = "hipsycl_transformed_main.cpp";
+  }
+
+  return modifiedArgs;
+}
+
+std::string
+CommandLineArgs::getTransformDirectory() const
+{ return _transformDirectory; }
+
+std::string
+CommandLineArgs::getMainFilename() const
+{ return _mainFilename; }
 
 
 HipsyclTransformASTConsumer::HipsyclTransformASTConsumer(clang::Rewriter& R)
@@ -77,18 +130,16 @@ HipsyclTransfromFrontendAction::EndSourceFileAction()
 {
   clang::SourceManager &sourceMgr = _rewriter.getSourceMgr();
 
-  std::string sourceFile = this->getCurrentFile();
-  std::string transformedFile = sourceFile.append(".hip.cpp");
 
-  std::error_code error;
-  llvm::raw_fd_ostream output{
-    transformedFile,
-    error,
-    llvm::sys::fs::OpenFlags::F_None
-  };
+  clang::HeaderSearch& headerSearch =
+      this->getCompilerInstance().getPreprocessorPtr()->getHeaderSearchInfo();
 
+  ChangedFilesWriter writer{headerSearch,
+        sourceMgr,
+        _rewriter,
+        Application::getCommandLineArgs().getMainFilename()};
 
-  _rewriter.getEditBuffer(sourceMgr.getMainFileID()).write(output);
+  writer.run(Application::getCommandLineArgs().getTransformDirectory());
 }
 
 std::unique_ptr<clang::ASTConsumer>

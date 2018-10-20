@@ -37,6 +37,7 @@ import tempfile
 import os.path
 from shutil import copyfile
 import binascii
+import shutil
 
 
 def is_program_executable(cmd):
@@ -86,59 +87,60 @@ class source_file_processor:
 
   def __init__(self, suffix):
     self._managed_files = []
+    self._managed_directories = []
     self._suffix = suffix
 
 
-  def _run_source_transformation(self, filename):
-    transformed_file = filename+".hip.cpp"
+  def _run_source_transformation(self, filename, output_dir, output_filename):
+
     tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_transform_source")
 
     if not is_during_hipsycl_installation():
       returnvalue = subprocess.call(
-        [tool,filename,"--","-Wno-unused-command-line-argument"]+get_hipsycl_default_options())
-
-      self._managed_files.append(transformed_file)
+        [tool,
+         filename,
+         "--",
+         "-Wno-unused-command-line-argument",
+         "--hipsycl-transform-dir="+output_dir,
+         "--hipsycl-main-output-file="+output_filename]+get_hipsycl_default_options())
 
       if returnvalue != 0:
         raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
-
-      new_name = self._copy_file_to_temp_with_new_suffix(transformed_file, self._suffix)
-
-      return new_name
     else:
-      return self._copy_file_to_temp_with_new_suffix(filename, self._suffix)
+      self._copy_file(filename, os.path.join(output_dir,output_filename))
 
 
   def process_file(self,filename):
-    new_name = self._run_source_transformation(filename)
-    self._prepend_to_file(new_name, "#line 1 \""+filename+"\"\n")
-    self._managed_files.append(new_name)
+    working_dir = self._get_temp_directory()
+    os.makedirs(working_dir)
+    self._managed_directories.append(working_dir)
+    output_file = "hipsycl_compilation_unit"+self._suffix
 
-    return new_name
+    self._run_source_transformation(os.path.abspath(filename), working_dir, output_file)
+
+    return os.path.join(working_dir, output_file)
 
   def release_files(self):
     for filename in self._managed_files:
       # ToDo: Check If file exists
       os.remove(filename)
+    for dirname in self._managed_directories:
+      pass #shutil.rmtree(dirname)
 
-  def _prepend_to_file(self, filename, prepend_data):
+  def _get_temp_directory(self):
+    tempdir = tempfile.gettempdir()
+    random_suffix = binascii.b2a_hex(os.urandom(8)).decode("utf-8")
+    return os.path.join(tempdir, "hipsycl_"+random_suffix)
+
+  def _copy_file(self,filename,new_filename):
+    prepend_data = "#line 1 \""+filename+"\"\n"
+
     with open(filename, 'r') as original:
       original_data = original.read()
-    with open(filename, 'w') as modified:
+
+    with open(new_filename, "w") as modified:
       modified.write(prepend_data + original_data)
-
-
-  def _copy_file_to_temp_with_new_suffix(self,filename,suffix):
-    tempdir = tempfile.gettempdir()
-    base_filename = os.path.basename(filename)
-    random_suffix = binascii.b2a_hex(os.urandom(4)).decode("utf-8")
-    new_name = os.path.join(tempdir, base_filename+"_"
-                                    +random_suffix
-                                    +suffix)
-
-    copyfile(filename, new_name)
-    return new_name
-
+      modified.close()
 
 
 

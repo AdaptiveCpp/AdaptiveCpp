@@ -334,274 +334,274 @@ void __syncthreads();
 
 hipError_t hipDeviceReset();
 hipError_t hipGetLastError();
-inline static hipError_t hipPeekAtLastError();
-inline static hipError_t hipMalloc(void** ptr, size_t size);
-inline static hipError_t hipMallocPitch(void** ptr, size_t* pitch, size_t width, size_t height);
-inline static hipError_t hipMalloc3D(hipPitchedPtr* pitchedDevPtr, hipExtent extent);
-inline static hipError_t hipFree(void* ptr);
-inline static hipError_t hipMallocHost(void** ptr, size_t size);
-inline static hipError_t hipHostAlloc(void** ptr, size_t size, unsigned int flags);
-inline static hipError_t hipHostMalloc(void** ptr, size_t size, unsigned int flags);
-inline static hipError_t hipMallocArray(hipArray** array,
+hipError_t hipPeekAtLastError();
+hipError_t hipMalloc(void** ptr, size_t size);
+hipError_t hipMallocPitch(void** ptr, size_t* pitch, size_t width, size_t height);
+hipError_t hipMalloc3D(hipPitchedPtr* pitchedDevPtr, hipExtent extent);
+hipError_t hipFree(void* ptr);
+hipError_t hipMallocHost(void** ptr, size_t size);
+hipError_t hipHostAlloc(void** ptr, size_t size, unsigned int flags);
+hipError_t hipHostMalloc(void** ptr, size_t size, unsigned int flags);
+hipError_t hipMallocArray(hipArray** array,
                                         const hipChannelFormatDesc* desc,
                                         size_t width, size_t height,
                                         unsigned int flags);
-inline static hipError_t hipMalloc3DArray(hipArray** array, const struct hipChannelFormatDesc* desc,
+hipError_t hipMalloc3DArray(hipArray** array, const struct hipChannelFormatDesc* desc,
                             struct hipExtent extent, unsigned int flags);
-inline static hipError_t hipFreeArray(hipArray* array);
-inline static hipError_t hipHostGetDevicePointer(void** devPtr, void* hostPtr, unsigned int flags);
-inline static hipError_t hipHostGetFlags(unsigned int* flagsPtr, void* hostPtr);
-inline static hipError_t hipHostRegister(void* ptr, size_t size, unsigned int flags);
-inline static hipError_t hipHostUnregister(void* ptr);
-inline static hipError_t hipFreeHost(void* ptr);
-inline static hipError_t hipHostFree(void* ptr);
-inline static hipError_t hipSetDevice(int device);
-inline static hipError_t hipChooseDevice(int* device, const hipDeviceProp_t* prop);
-inline static hipError_t hipMemcpyHtoD(hipDeviceptr_t dst, void* src, size_t size);
-inline static hipError_t hipMemcpyDtoH(void* dst, hipDeviceptr_t src, size_t size);
-inline static hipError_t hipMemcpyDtoD(hipDeviceptr_t dst, hipDeviceptr_t src, size_t size);
-inline static hipError_t hipMemcpyHtoDAsync(hipDeviceptr_t dst, void* src, size_t size,
+hipError_t hipFreeArray(hipArray* array);
+hipError_t hipHostGetDevicePointer(void** devPtr, void* hostPtr, unsigned int flags);
+hipError_t hipHostGetFlags(unsigned int* flagsPtr, void* hostPtr);
+hipError_t hipHostRegister(void* ptr, size_t size, unsigned int flags);
+hipError_t hipHostUnregister(void* ptr);
+hipError_t hipFreeHost(void* ptr);
+hipError_t hipHostFree(void* ptr);
+hipError_t hipSetDevice(int device);
+hipError_t hipChooseDevice(int* device, const hipDeviceProp_t* prop);
+hipError_t hipMemcpyHtoD(hipDeviceptr_t dst, void* src, size_t size);
+hipError_t hipMemcpyDtoH(void* dst, hipDeviceptr_t src, size_t size);
+hipError_t hipMemcpyDtoD(hipDeviceptr_t dst, hipDeviceptr_t src, size_t size);
+hipError_t hipMemcpyHtoDAsync(hipDeviceptr_t dst, void* src, size_t size,
                                             hipStream_t stream);
-inline static hipError_t hipMemcpyDtoHAsync(void* dst, hipDeviceptr_t src, size_t size,
+hipError_t hipMemcpyDtoHAsync(void* dst, hipDeviceptr_t src, size_t size,
                                             hipStream_t stream);
-inline static hipError_t hipMemcpyDtoDAsync(hipDeviceptr_t dst, hipDeviceptr_t src, size_t size,
+hipError_t hipMemcpyDtoDAsync(hipDeviceptr_t dst, hipDeviceptr_t src, size_t size,
                                             hipStream_t stream);
-inline static hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes,
+hipError_t hipMemcpy(void* dst, const void* src, size_t sizeBytes,
                                    hipMemcpyKind copyKind);
-inline static hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
+hipError_t hipMemcpyAsync(void* dst, const void* src, size_t sizeBytes,
                                         hipMemcpyKind copyKind, hipStream_t stream = 0);
-inline static hipError_t hipMemcpyToSymbol(const void* symbol, const void* src, size_t sizeBytes,
+hipError_t hipMemcpyToSymbol(const void* symbol, const void* src, size_t sizeBytes,
                                            size_t offset = 0,
                                            hipMemcpyKind copyType = hipMemcpyHostToDevice);
 
-inline static hipError_t hipMemcpyToSymbolAsync(const void* symbol, const void* src,
+hipError_t hipMemcpyToSymbolAsync(const void* symbol, const void* src,
                                                 size_t sizeBytes, size_t offset,
                                                 hipMemcpyKind copyType,
                                                 hipStream_t stream = 0);
 
-inline static hipError_t hipMemcpyFromSymbol(void* dst, const void* symbolName, size_t sizeBytes,
+hipError_t hipMemcpyFromSymbol(void* dst, const void* symbolName, size_t sizeBytes,
                                              size_t offset = 0,
                                              hipMemcpyKind kind = hipMemcpyDeviceToHost);
 
-inline static hipError_t hipMemcpyFromSymbolAsync(void* dst, const void* symbolName,
+hipError_t hipMemcpyFromSymbolAsync(void* dst, const void* symbolName,
                                                   size_t sizeBytes, size_t offset,
                                                   hipMemcpyKind kind,
                                                   hipStream_t stream = 0);
 
-inline static hipError_t hipMemcpy2D(void* dst, size_t dpitch, const void* src, size_t spitch,
+hipError_t hipMemcpy2D(void* dst, size_t dpitch, const void* src, size_t spitch,
                                      size_t width, size_t height, hipMemcpyKind kind);
 
-inline static hipError_t hipMemcpy3D(const struct hipMemcpy3DParms *p);
+hipError_t hipMemcpy3D(const struct hipMemcpy3DParms *p);
 
-inline static hipError_t hipMemcpy2DAsync(void* dst, size_t dpitch, const void* src, size_t spitch,
+hipError_t hipMemcpy2DAsync(void* dst, size_t dpitch, const void* src, size_t spitch,
                                           size_t width, size_t height, hipMemcpyKind kind,
                                           hipStream_t stream);
 
-inline static hipError_t hipMemcpy2DToArray(hipArray* dst, size_t wOffset, size_t hOffset,
+hipError_t hipMemcpy2DToArray(hipArray* dst, size_t wOffset, size_t hOffset,
                                             const void* src, size_t spitch, size_t width,
                                             size_t height, hipMemcpyKind kind);
 
-inline static hipError_t hipMemcpyToArray(hipArray* dst, size_t wOffset, size_t hOffset,
+hipError_t hipMemcpyToArray(hipArray* dst, size_t wOffset, size_t hOffset,
                                           const void* src, size_t count, hipMemcpyKind kind);
 
-inline static hipError_t hipMemcpyFromArray(void* dst, hipArray_const_t srcArray, size_t wOffset,
+hipError_t hipMemcpyFromArray(void* dst, hipArray_const_t srcArray, size_t wOffset,
                                             size_t hOffset, size_t count, hipMemcpyKind kind);
 
-inline static hipError_t hipMemcpyAtoH(void* dst, hipArray* srcArray, size_t srcOffset,
+hipError_t hipMemcpyAtoH(void* dst, hipArray* srcArray, size_t srcOffset,
                                        size_t count);
 
-inline static hipError_t hipMemcpyHtoA(hipArray* dstArray, size_t dstOffset, const void* srcHost,
+hipError_t hipMemcpyHtoA(hipArray* dstArray, size_t dstOffset, const void* srcHost,
                                        size_t count);
 
-inline static hipError_t hipDeviceSynchronize();
+hipError_t hipDeviceSynchronize();
 
-inline static hipError_t hipDeviceGetCacheConfig(hipFuncCache_t* pCacheConfig);
+hipError_t hipDeviceGetCacheConfig(hipFuncCache_t* pCacheConfig);
 
-inline static const char* hipGetErrorString(hipError_t error);
+const char* hipGetErrorString(hipError_t error);
 
-inline static const char* hipGetErrorName(hipError_t error);
+const char* hipGetErrorName(hipError_t error);
 
-inline static hipError_t hipGetDeviceCount(int* count);
+hipError_t hipGetDeviceCount(int* count);
 
-inline static hipError_t hipGetDevice(int* device);
+hipError_t hipGetDevice(int* device);
 
-inline static hipError_t hipIpcCloseMemHandle(void* devPtr);
+hipError_t hipIpcCloseMemHandle(void* devPtr);
 
-inline static hipError_t hipIpcGetEventHandle(hipIpcEventHandle_t* handle, hipEvent_t event);
+hipError_t hipIpcGetEventHandle(hipIpcEventHandle_t* handle, hipEvent_t event);
 
-inline static hipError_t hipIpcGetMemHandle(hipIpcMemHandle_t* handle, void* devPtr);
+hipError_t hipIpcGetMemHandle(hipIpcMemHandle_t* handle, void* devPtr);
 
-inline static hipError_t hipIpcOpenEventHandle(hipEvent_t* event, hipIpcEventHandle_t handle);
+hipError_t hipIpcOpenEventHandle(hipEvent_t* event, hipIpcEventHandle_t handle);
 
-inline static hipError_t hipIpcOpenMemHandle(void** devPtr, hipIpcMemHandle_t handle,
+hipError_t hipIpcOpenMemHandle(void** devPtr, hipIpcMemHandle_t handle,
                                              unsigned int flags);
 
-inline static hipError_t hipMemset(void* devPtr, int value, size_t count);
+hipError_t hipMemset(void* devPtr, int value, size_t count);
 
-inline static hipError_t hipMemsetAsync(void* devPtr, int value, size_t count,
+hipError_t hipMemsetAsync(void* devPtr, int value, size_t count,
                                         hipStream_t stream = 0);
 
-inline static hipError_t hipMemsetD8(hipDeviceptr_t dest, unsigned char value, size_t sizeBytes);
+hipError_t hipMemsetD8(hipDeviceptr_t dest, unsigned char value, size_t sizeBytes);
 
-inline static hipError_t hipMemset2D(void* dst, size_t pitch, int value, size_t width, size_t height);
+hipError_t hipMemset2D(void* dst, size_t pitch, int value, size_t width, size_t height);
 
-inline static hipError_t hipMemset2DAsync(void* dst, size_t pitch, int value, size_t width, size_t height, hipStream_t stream = 0);
+hipError_t hipMemset2DAsync(void* dst, size_t pitch, int value, size_t width, size_t height, hipStream_t stream = 0);
 
-inline static hipError_t hipMemset3D(hipPitchedPtr pitchedDevPtr, int  value, hipExtent extent );
+hipError_t hipMemset3D(hipPitchedPtr pitchedDevPtr, int  value, hipExtent extent );
 
-inline static hipError_t hipMemset3DAsync(hipPitchedPtr pitchedDevPtr, int  value, hipExtent extent, hipStream_t stream = 0);
+hipError_t hipMemset3DAsync(hipPitchedPtr pitchedDevPtr, int  value, hipExtent extent, hipStream_t stream = 0);
 
 
-inline static hipError_t hipGetDeviceProperties(hipDeviceProp_t* p_prop, int device);
+hipError_t hipGetDeviceProperties(hipDeviceProp_t* p_prop, int device);
 
-inline static hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int device);
+hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int device);
 
-inline static hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks,
+hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks,
                                                                       const void* func,
                                                                       int blockSize,
                                                                       size_t dynamicSMemSize);
 
-inline static hipError_t hipPointerGetAttributes(hipPointerAttribute_t* attributes, void* ptr);
+hipError_t hipPointerGetAttributes(hipPointerAttribute_t* attributes, void* ptr);
 
-inline static hipError_t hipMemGetInfo(size_t* free, size_t* total);
+hipError_t hipMemGetInfo(size_t* free, size_t* total);
 
-inline static hipError_t hipEventCreate(hipEvent_t* event);
+hipError_t hipEventCreate(hipEvent_t* event);
 
-inline static hipError_t hipEventRecord(hipEvent_t event, hipStream_t stream = 0);
+hipError_t hipEventRecord(hipEvent_t event, hipStream_t stream = 0);
 
-inline static hipError_t hipEventSynchronize(hipEvent_t event);
+hipError_t hipEventSynchronize(hipEvent_t event);
 
-inline static hipError_t hipEventElapsedTime(float* ms, hipEvent_t start, hipEvent_t stop);
+hipError_t hipEventElapsedTime(float* ms, hipEvent_t start, hipEvent_t stop);
 
-inline static hipError_t hipEventDestroy(hipEvent_t event);
+hipError_t hipEventDestroy(hipEvent_t event);
 
-inline static hipError_t hipStreamCreateWithFlags(hipStream_t* stream, unsigned int flags);
+hipError_t hipStreamCreateWithFlags(hipStream_t* stream, unsigned int flags);
 
-inline static hipError_t hipStreamCreate(hipStream_t* stream);
+hipError_t hipStreamCreate(hipStream_t* stream);
 
-inline static hipError_t hipStreamSynchronize(hipStream_t stream);
+hipError_t hipStreamSynchronize(hipStream_t stream);
 
-inline static hipError_t hipStreamDestroy(hipStream_t stream);
+hipError_t hipStreamDestroy(hipStream_t stream);
 
-inline static hipError_t hipStreamWaitEvent(hipStream_t stream, hipEvent_t event,
+hipError_t hipStreamWaitEvent(hipStream_t stream, hipEvent_t event,
                                             unsigned int flags);
 
-inline static hipError_t hipStreamQuery(hipStream_t stream);
+hipError_t hipStreamQuery(hipStream_t stream);
 
-inline static hipError_t hipStreamAddCallback(hipStream_t stream, hipStreamCallback_t callback,
+hipError_t hipStreamAddCallback(hipStream_t stream, hipStreamCallback_t callback,
                                               void* userData, unsigned int flags);
 
-inline static hipError_t hipDriverGetVersion(int* driverVersion);
+hipError_t hipDriverGetVersion(int* driverVersion);
 
-inline static hipError_t hipRuntimeGetVersion(int* runtimeVersion);
+hipError_t hipRuntimeGetVersion(int* runtimeVersion);
 
-inline static hipError_t hipDeviceCanAccessPeer(int* canAccessPeer, int device, int peerDevice);
+hipError_t hipDeviceCanAccessPeer(int* canAccessPeer, int device, int peerDevice);
 
-inline static hipError_t hipDeviceDisablePeerAccess(int peerDevice);
+hipError_t hipDeviceDisablePeerAccess(int peerDevice);
 
-inline static hipError_t hipDeviceEnablePeerAccess(int peerDevice, unsigned int flags);
-inline static hipError_t hipCtxDisablePeerAccess(hipCtx_t peerCtx);
+hipError_t hipDeviceEnablePeerAccess(int peerDevice, unsigned int flags);
+hipError_t hipCtxDisablePeerAccess(hipCtx_t peerCtx);
 
-inline static hipError_t hipCtxEnablePeerAccess(hipCtx_t peerCtx, unsigned int flags);
+hipError_t hipCtxEnablePeerAccess(hipCtx_t peerCtx, unsigned int flags);
 
-inline static hipError_t hipDevicePrimaryCtxGetState(hipDevice_t dev, unsigned int* flags,
+hipError_t hipDevicePrimaryCtxGetState(hipDevice_t dev, unsigned int* flags,
                                                      int* active);
 
-inline static hipError_t hipDevicePrimaryCtxRelease(hipDevice_t dev);
+hipError_t hipDevicePrimaryCtxRelease(hipDevice_t dev);
 
-inline static hipError_t hipDevicePrimaryCtxRetain(hipCtx_t* pctx, hipDevice_t dev);
+hipError_t hipDevicePrimaryCtxRetain(hipCtx_t* pctx, hipDevice_t dev);
 
-inline static hipError_t hipDevicePrimaryCtxReset(hipDevice_t dev);
+hipError_t hipDevicePrimaryCtxReset(hipDevice_t dev);
 
-inline static hipError_t hipDevicePrimaryCtxSetFlags(hipDevice_t dev, unsigned int flags);
+hipError_t hipDevicePrimaryCtxSetFlags(hipDevice_t dev, unsigned int flags);
 
-inline static hipError_t hipMemGetAddressRange(hipDeviceptr_t* pbase, size_t* psize,
+hipError_t hipMemGetAddressRange(hipDeviceptr_t* pbase, size_t* psize,
                                                hipDeviceptr_t dptr);
 
-inline static hipError_t hipMemcpyPeer(void* dst, int dstDevice, const void* src, int srcDevice,
+hipError_t hipMemcpyPeer(void* dst, int dstDevice, const void* src, int srcDevice,
                                        size_t count);
 
-inline static hipError_t hipMemcpyPeerAsync(void* dst, int dstDevice, const void* src,
+hipError_t hipMemcpyPeerAsync(void* dst, int dstDevice, const void* src,
                                             int srcDevice, size_t count,
                                             hipStream_t stream = 0);
 
 // Profile APIs:
-inline static hipError_t hipProfilerStart();
-inline static hipError_t hipProfilerStop();
+hipError_t hipProfilerStart();
+hipError_t hipProfilerStop();
 
-inline static hipError_t hipSetDeviceFlags(unsigned int flags);
+hipError_t hipSetDeviceFlags(unsigned int flags);
 
-inline static hipError_t hipEventCreateWithFlags(hipEvent_t* event, unsigned int flags);
+hipError_t hipEventCreateWithFlags(hipEvent_t* event, unsigned int flags);
 
-inline static hipError_t hipEventQuery(hipEvent_t event);
+hipError_t hipEventQuery(hipEvent_t event);
 
-inline static hipError_t hipCtxCreate(hipCtx_t* ctx, unsigned int flags, hipDevice_t device);
+hipError_t hipCtxCreate(hipCtx_t* ctx, unsigned int flags, hipDevice_t device);
 
-inline static hipError_t hipCtxDestroy(hipCtx_t ctx);
+hipError_t hipCtxDestroy(hipCtx_t ctx);
 
-inline static hipError_t hipCtxPopCurrent(hipCtx_t* ctx);
+hipError_t hipCtxPopCurrent(hipCtx_t* ctx);
 
-inline static hipError_t hipCtxPushCurrent(hipCtx_t ctx);
+hipError_t hipCtxPushCurrent(hipCtx_t ctx);
 
-inline static hipError_t hipCtxSetCurrent(hipCtx_t ctx);
+hipError_t hipCtxSetCurrent(hipCtx_t ctx);
 
-inline static hipError_t hipCtxGetCurrent(hipCtx_t* ctx);
+hipError_t hipCtxGetCurrent(hipCtx_t* ctx);
 
-inline static hipError_t hipCtxGetDevice(hipDevice_t* device);
+hipError_t hipCtxGetDevice(hipDevice_t* device);
 
-inline static hipError_t hipCtxGetApiVersion(hipCtx_t ctx, int* apiVersion);
+hipError_t hipCtxGetApiVersion(hipCtx_t ctx, int* apiVersion);
 
-inline static hipError_t hipCtxGetCacheConfig(hipFuncCache* cacheConfig);
+hipError_t hipCtxGetCacheConfig(hipFuncCache* cacheConfig);
 
-inline static hipError_t hipCtxSetCacheConfig(hipFuncCache cacheConfig);
+hipError_t hipCtxSetCacheConfig(hipFuncCache cacheConfig);
 
-inline static hipError_t hipCtxSetSharedMemConfig(hipSharedMemConfig config);
+hipError_t hipCtxSetSharedMemConfig(hipSharedMemConfig config);
 
-inline static hipError_t hipCtxGetSharedMemConfig(hipSharedMemConfig* pConfig);
+hipError_t hipCtxGetSharedMemConfig(hipSharedMemConfig* pConfig);
 
-inline static hipError_t hipCtxSynchronize(void);
+hipError_t hipCtxSynchronize(void);
 
-inline static hipError_t hipCtxGetFlags(unsigned int* flags);
+hipError_t hipCtxGetFlags(unsigned int* flags);
 
-inline static hipError_t hipCtxDetach(hipCtx_t ctx);
+hipError_t hipCtxDetach(hipCtx_t ctx);
 
-inline static hipError_t hipDeviceGet(hipDevice_t* device, int ordinal);
+hipError_t hipDeviceGet(hipDevice_t* device, int ordinal);
 
-inline static hipError_t hipDeviceComputeCapability(int* major, int* minor, hipDevice_t device);
+hipError_t hipDeviceComputeCapability(int* major, int* minor, hipDevice_t device);
 
-inline static hipError_t hipDeviceGetName(char* name, int len, hipDevice_t device);
+hipError_t hipDeviceGetName(char* name, int len, hipDevice_t device);
 
-inline static hipError_t hipDeviceGetPCIBusId(char* pciBusId, int len, hipDevice_t device);
+hipError_t hipDeviceGetPCIBusId(char* pciBusId, int len, hipDevice_t device);
 
-inline static hipError_t hipDeviceGetByPCIBusId(int* device, const char* pciBusId);
+hipError_t hipDeviceGetByPCIBusId(int* device, const char* pciBusId);
 
-inline static hipError_t hipDeviceGetSharedMemConfig(hipSharedMemConfig* config);
+hipError_t hipDeviceGetSharedMemConfig(hipSharedMemConfig* config);
 
-inline static hipError_t hipDeviceSetSharedMemConfig(hipSharedMemConfig config);
+hipError_t hipDeviceSetSharedMemConfig(hipSharedMemConfig config);
 
-inline static hipError_t hipDeviceGetLimit(size_t* pValue, hipLimit_t limit);
+hipError_t hipDeviceGetLimit(size_t* pValue, hipLimit_t limit);
 
-inline static hipError_t hipDeviceTotalMem(size_t* bytes, hipDevice_t device);
+hipError_t hipDeviceTotalMem(size_t* bytes, hipDevice_t device);
 
-inline static hipError_t hipModuleLoad(hipModule_t* module, const char* fname);
+hipError_t hipModuleLoad(hipModule_t* module, const char* fname);
 
-inline static hipError_t hipModuleUnload(hipModule_t hmod);
+hipError_t hipModuleUnload(hipModule_t hmod);
 
-inline static hipError_t hipModuleGetFunction(hipFunction_t* function, hipModule_t module,
+hipError_t hipModuleGetFunction(hipFunction_t* function, hipModule_t module,
                                               const char* kname);
 
-inline static hipError_t hipFuncGetAttributes(hipFuncAttributes* attr, const void* func);
+hipError_t hipFuncGetAttributes(hipFuncAttributes* attr, const void* func);
 
-inline static hipError_t hipModuleGetGlobal(hipDeviceptr_t* dptr, size_t* bytes, hipModule_t hmod,
+hipError_t hipModuleGetGlobal(hipDeviceptr_t* dptr, size_t* bytes, hipModule_t hmod,
                                             const char* name);
 
-inline static hipError_t hipModuleLoadData(hipModule_t* module, const void* image);
+hipError_t hipModuleLoadData(hipModule_t* module, const void* image);
 
-inline static hipError_t hipModuleLoadDataEx(hipModule_t* module, const void* image,
+hipError_t hipModuleLoadDataEx(hipModule_t* module, const void* image,
                                              unsigned int numOptions, hipJitOption* options,
                                              void** optionValues);
 
-inline static hipError_t hipModuleLaunchKernel(hipFunction_t f, unsigned int gridDimX,
+hipError_t hipModuleLaunchKernel(hipFunction_t f, unsigned int gridDimX,
                                                unsigned int gridDimY, unsigned int gridDimZ,
                                                unsigned int blockDimX, unsigned int blockDimY,
                                                unsigned int blockDimZ, unsigned int sharedMemBytes,
@@ -609,67 +609,67 @@ inline static hipError_t hipModuleLaunchKernel(hipFunction_t f, unsigned int gri
                                                void** extra);
 
 
-inline static hipError_t hipFuncSetCacheConfig(const void* func, hipFuncCache_t cacheConfig);
+hipError_t hipFuncSetCacheConfig(const void* func, hipFuncCache_t cacheConfig);
 
 
 template <class T>
-inline static hipError_t hipOccupancyMaxPotentialBlockSize(int* minGridSize, int* blockSize, T func,
+hipError_t hipOccupancyMaxPotentialBlockSize(int* minGridSize, int* blockSize, T func,
                                                            size_t dynamicSMemSize = 0,
                                                            int blockSizeLimit = 0,
                                                            unsigned int flags = 0);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipBindTexture(size_t* offset, const struct texture<T, dim, readMode>& tex,
+hipError_t hipBindTexture(size_t* offset, const struct texture<T, dim, readMode>& tex,
                                         const void* devPtr, size_t size = UINT_MAX);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipBindTexture(size_t* offset, struct texture<T, dim, readMode>& tex,
+hipError_t hipBindTexture(size_t* offset, struct texture<T, dim, readMode>& tex,
                                         const void* devPtr, const struct hipChannelFormatDesc& desc,
                                         size_t size = UINT_MAX);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipUnbindTexture(struct texture<T, dim, readMode>* tex);
+hipError_t hipUnbindTexture(struct texture<T, dim, readMode>* tex);
 
-inline static hipError_t hipBindTexture(size_t* offset, textureReference* tex, const void* devPtr,
+hipError_t hipBindTexture(size_t* offset, textureReference* tex, const void* devPtr,
                                         const hipChannelFormatDesc* desc, size_t size = UINT_MAX);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipBindTextureToArray(struct texture<T, dim, readMode>& tex,
+hipError_t hipBindTextureToArray(struct texture<T, dim, readMode>& tex,
                                                hipArray_const_t array,
                                                const struct hipChannelFormatDesc& desc);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipBindTextureToArray(struct texture<T, dim, readMode> *tex,
+hipError_t hipBindTextureToArray(struct texture<T, dim, readMode> *tex,
                                                hipArray_const_t array,
                                                const struct hipChannelFormatDesc* desc);
 
 template <class T, int dim, enum hipTextureReadMode readMode>
-inline static hipError_t hipBindTextureToArray(struct texture<T, dim, readMode>& tex,
+hipError_t hipBindTextureToArray(struct texture<T, dim, readMode>& tex,
                                                hipArray_const_t array);
 
 template <class T>
-inline static hipChannelFormatDesc hipCreateChannelDesc();
+hipChannelFormatDesc hipCreateChannelDesc();
 
-inline static hipChannelFormatDesc hipCreateChannelDesc(int x, int y, int z, int w,
+hipChannelFormatDesc hipCreateChannelDesc(int x, int y, int z, int w,
                                                         hipChannelFormatKind f);
 
-inline static hipError_t hipCreateTextureObject(hipTextureObject_t* pTexObject,
+hipError_t hipCreateTextureObject(hipTextureObject_t* pTexObject,
                                                 const hipResourceDesc* pResDesc,
                                                 const hipTextureDesc* pTexDesc,
                                                 const hipResourceViewDesc* pResViewDesc);
 
-inline static hipError_t hipDestroyTextureObject(hipTextureObject_t textureObject);
+hipError_t hipDestroyTextureObject(hipTextureObject_t textureObject);
 
-inline static hipError_t hipCreateSurfaceObject(hipSurfaceObject_t* pSurfObject,
+hipError_t hipCreateSurfaceObject(hipSurfaceObject_t* pSurfObject,
                                                 const hipResourceDesc* pResDesc);
 
-inline static hipError_t hipDestroySurfaceObject(hipSurfaceObject_t surfaceObject);
+hipError_t hipDestroySurfaceObject(hipSurfaceObject_t surfaceObject);
 
-inline static hipError_t hipGetTextureObjectResourceDesc(hipResourceDesc* pResDesc,
+hipError_t hipGetTextureObjectResourceDesc(hipResourceDesc* pResDesc,
                                            hipTextureObject_t textureObject);
 
-inline static hipError_t hipGetTextureAlignmentOffset(size_t* offset, const textureReference* texref);
-inline static hipError_t hipGetChannelDesc(hipChannelFormatDesc* desc, hipArray_const_t array);
+hipError_t hipGetTextureAlignmentOffset(size_t* offset, const textureReference* texref);
+hipError_t hipGetChannelDesc(hipChannelFormatDesc* desc, hipArray_const_t array);
 
 #define DUMMY_HIP_MAKE_VECTOR1(T, name) \
   struct name {\

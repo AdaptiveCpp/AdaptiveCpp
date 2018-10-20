@@ -5,10 +5,11 @@ find_package(LLVM REQUIRED)
 find_package(Boost REQUIRED)
 
 add_executable(hipsycl_transform_source
-  main.cpp
+  HipsyclTransformSource.cpp
   CompilationTargetAnnotator.cpp
   HipsyclTransform.cpp
-  Matcher.cpp)
+  Matcher.cpp
+  ChangedFilesWriter.cpp)
 
 target_include_directories(hipsycl_transform_source PRIVATE
   ${LLVM_INCLUDE_DIRS}

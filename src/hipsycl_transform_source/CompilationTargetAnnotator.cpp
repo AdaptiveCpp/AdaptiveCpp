@@ -123,11 +123,6 @@ CompilationTargetAnnotator::addAnnotations()
                      << _isFunctionCorrectedHost.size() << std::endl;
   for(const Decl* f : _isFunctionCorrectedDevice)
   {
-    if(f->getAsFunction())
-    {
-      HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __device__: "
-                         << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
-    }
     writeAnnotation(f, " __device__ ");
   }
 
@@ -137,11 +132,6 @@ CompilationTargetAnnotator::addAnnotations()
     // is present as well
     if(isDeviceFunction(f))
     {
-      if(f->getAsFunction())
-      {
-        HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as __host__: "
-                           << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
-      }
       writeAnnotation(f, " __host__ ");
     }
   }
@@ -313,11 +303,12 @@ void CompilationTargetAnnotator::writeAnnotation(
 
       if(isa<CXXMethodDecl>(currentDecl))
       {
+        // Don't add __host__,__device__ attributes to defaulted or deleted
+        // functions
         const CXXMethodDecl* methodDecl = cast<CXXMethodDecl>(currentDecl);
         if(methodDecl->isDefaulted() || methodDecl->isDeleted())
           suppressAnnotation = true;
       }
-
 
       if(!suppressAnnotation)
       {
@@ -329,6 +320,13 @@ void CompilationTargetAnnotator::writeAnnotation(
         {
           const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
           _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+        }
+
+        if(f->getAsFunction())
+        {
+          HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as '"
+                             << annotation << "': "
+                             << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
         }
       }
     }

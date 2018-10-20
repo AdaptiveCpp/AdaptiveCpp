@@ -46,6 +46,42 @@
 namespace hipsycl {
 namespace transform {
 
+class CommandLineArgs
+{
+public:
+
+  clang::tooling::CommandLineArguments
+  consumeHipsyclArgs(const clang::tooling::CommandLineArguments& args);
+
+  std::string getTransformDirectory() const;
+  std::string getMainFilename() const;
+private:
+  std::string extractArg(const std::string& optionString) const;
+
+  std::string _transformDirectory;
+  std::string _mainFilename;
+};
+
+class Application
+{
+public:
+  static CommandLineArgs& getCommandLineArgs()
+  {
+    return getInstance()._args;
+  }
+
+  static Application& getInstance()
+  {
+    static Application app;
+    return app;
+  }
+
+private:
+  Application(){}
+
+  CommandLineArgs _args;
+};
+
 
 // Implementation of the ASTConsumer interface for reading an AST produced
 // by the Clang parser.

@@ -34,8 +34,8 @@
 #include "types.hpp"
 
 #define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 6
-#define HIPSYCL_VERSION_PATCH 9
+#define HIPSYCL_VERSION_MINOR 7
+#define HIPSYCL_VERSION_PATCH 0
 
 namespace cl {
 namespace sycl {

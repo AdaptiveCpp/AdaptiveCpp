@@ -24,9 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <iostream>
 #include <sstream>
 #include <string>
+#include <stdexcept>
 #include <boost/preprocessor/stringize.hpp>
 
 #include "clang/AST/AST.h"
@@ -50,6 +51,7 @@ using namespace clang::driver;
 using namespace clang::tooling;
 
 
+
 int main(int argc, const char **argv) {
   CommonOptionsParser op(argc, argv, llvm::cl::GeneralCategory);
 
@@ -58,7 +60,8 @@ int main(int argc, const char **argv) {
   ArgumentsAdjuster adjuster =
       [](const CommandLineArguments& args,StringRef) -> CommandLineArguments
   {
-    CommandLineArguments modifiedArgs = args;
+    CommandLineArguments modifiedArgs =
+        hipsycl::transform::Application::getCommandLineArgs().consumeHipsyclArgs(args);
 
     modifiedArgs.push_back("-D__global__="+hipsycl::transform::KernelAttribute::getString());
     modifiedArgs.push_back("-D__host__="+hipsycl::transform::HostAttribute::getString());
@@ -86,8 +89,18 @@ int main(int argc, const char **argv) {
 
     return modifiedArgs;
   };
-  tool.appendArgumentsAdjuster(adjuster);
 
-  using FrontendActionType = hipsycl::transform::HipsyclTransfromFrontendAction;
-  return tool.run(newFrontendActionFactory<FrontendActionType>().get());
+  try
+  {
+
+    tool.appendArgumentsAdjuster(adjuster);
+
+    using FrontendActionType = hipsycl::transform::HipsyclTransfromFrontendAction;
+    return tool.run(newFrontendActionFactory<FrontendActionType>().get());
+  }
+  catch(std::exception& e)
+  {
+    std::cout << "hipsycl_transform_source error: " << e.what() << std::endl;
+    return -1;
+  }
 }

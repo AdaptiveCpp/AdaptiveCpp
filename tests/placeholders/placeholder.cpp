@@ -25,53 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cassert>
 #include <iostream>
+#include <cassert>
 
 #include <CL/sycl.hpp>
 
-#ifndef __HIPSYCL__
-#define __device__
-#endif
 
-using data_type = float;
-
-std::vector<data_type> add(cl::sycl::queue& q,
-                           const std::vector<data_type>& a,
-                           const std::vector<data_type>& b)
-{
-  std::vector<data_type> c(a.size());
-
-  assert(a.size() == b.size());
-  cl::sycl::range<1> work_items{a.size()};
-
-  {
-    cl::sycl::buffer<data_type> buff_a(a.data(), a.size());
-    cl::sycl::buffer<data_type> buff_b(b.data(), b.size());
-    cl::sycl::buffer<data_type> buff_c(c.data(), c.size());
-
-    q.submit([&](cl::sycl::handler& cgh){
-      auto access_a = buff_a.get_access<cl::sycl::access::mode::read>(cgh);
-      auto access_b = buff_b.get_access<cl::sycl::access::mode::read>(cgh);
-      auto access_c = buff_c.get_access<cl::sycl::access::mode::write>(cgh);
-
-      cgh.parallel_for<class vector_add>(work_items,
-                                         [=] __device__ (cl::sycl::id<1> tid) {
-        access_c[tid] = access_a[tid] + access_b[tid];
-      });
-    });
-  }
-  return c;
-}
+constexpr std::size_t num_elements  = 4096*1024;
 
 int main()
 {
   cl::sycl::queue q;
-  std::vector<data_type> a = {1.f, 2.f, 3.f, 4.f, 5.f};
-  std::vector<data_type> b = {-1.f, 2.f, -3.f, 4.f, -5.f};
-  auto result = add(q, a, b);
 
-  std::cout << "Result: " << std::endl;
-  for(const auto x: result)
-    std::cout << x << std::endl;
+  cl::sycl::buffer<int,1> buff_a{num_elements};
+
+  {
+    auto host_access = buff_a.get_access<cl::sycl::access::mode::discard_write>();
+
+    for(std::size_t i = 0; i < num_elements; ++i)
+      host_access[i] = static_cast<int>(i);
+  }
+
+  cl::sycl::accessor<int,1,
+                     cl::sycl::access::mode::read_write,
+                     cl::sycl::access::target::global_buffer,
+                     cl::sycl::access::placeholder::true_t>
+      placeholder_accessor{buff_a};
+
+  q.submit([&](cl::sycl::handler& cgh) {
+    cgh.require(placeholder_accessor);
+    // Test copying accessors
+    auto placeholder_copy = placeholder_accessor;
+    cgh.require(placeholder_copy);
+
+    cgh.parallel_for<class placeholder_test>(cl::sycl::range<1>{num_elements},
+          [=] (cl::sycl::id<1> tid) {
+
+      placeholder_accessor[tid] *= 2;
+    });
+  });
+
+  {
+    auto host_access = buff_a.get_access<cl::sycl::access::mode::read>();
+
+    for(std::size_t i = 0; i < num_elements; ++i)
+      assert(host_access[i] == 2*i);
+  }
+
+  std::cout << "Passed." << std::endl;
 }
+
+

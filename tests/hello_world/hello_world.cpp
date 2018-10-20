@@ -30,9 +30,6 @@
 
 #include <CL/sycl.hpp>
 
-#ifndef __HIPSYCL__
-#define __device__
-#endif
 
 int main()
 {
@@ -42,20 +39,20 @@ int main()
   cl::sycl::queue q;
   q.submit([&](cl::sycl::handler& cgh) {
 
-    cgh.single_task<class hello_world_single_task>([=] __device__ (){
+    cgh.single_task<class hello_world_single_task>([=] (){
       printf("Hello world from single task!\n");
     });
 
     // First, test with item class
     cgh.parallel_for<class hello_world_item>(cl::sycl::range<1>{num_threads},
-                                        [=] __device__ (cl::sycl::item<1> tid){
+                                        [=] (cl::sycl::item<1> tid){
       if(tid.get_linear_id() == 0)
         printf("Hello from sycl item %lu\n", tid.get_linear_id());
     });
 
     // Test with id class
     cgh.parallel_for<class hello_world_id>(cl::sycl::range<1>{num_threads},
-                                           [=] __device__ (cl::sycl::id<1> tid) {
+                                           [=] (cl::sycl::id<1> tid) {
       if(tid[0] == 0)
         printf("Hello from sycl id %lu\n", tid[0]);
     });
@@ -63,7 +60,7 @@ int main()
     // Test with nd_item
     cgh.parallel_for<class hello_world_ndrange>(cl::sycl::nd_range<>(cl::sycl::range<1>(num_threads),
                                                                      cl::sycl::range<1>(group_size)),
-                                                [=] __device__ (cl::sycl::nd_item<1> tid){
+                                                [=] (cl::sycl::nd_item<1> tid){
       size_t lid = tid.get_local(0);
       size_t group_id = tid.get_group(0);
 
@@ -74,7 +71,7 @@ int main()
     // Test with offset
     cgh.parallel_for<class hello_world_offset>(cl::sycl::range<2>{16,16},
                                                cl::sycl::id<2>{2,3},
-                                               [=] __device__ (cl::sycl::item<2> tid){
+                                               [=] (cl::sycl::item<2> tid){
       printf("Hello world with 2d offset from thread %lu,%lu, linear id %lu\n",
              tid.get_id(0), tid.get_id(1), tid.get_linear_id());
     });

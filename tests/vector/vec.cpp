@@ -30,35 +30,30 @@
 #define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
 
-#ifndef __HIPSYCL__
-#define __device__
-#endif
 
-__device__
 void print_vector(const cl::sycl::vec<float,1>& v)
 {
   printf("%f\n", v.x());
 }
 
-__device__
+
 void print_vector(const cl::sycl::vec<float,2>& v)
 {
   printf("%f %f\n", v.x(), v.y());
 }
 
-__device__
+
 void print_vector(const cl::sycl::vec<float,3>& v)
 {
   printf("%f %f %f\n", v.x(), v.y(), v.z());
 }
 
-__device__
+
 void print_vector(const cl::sycl::vec<float,4>& v)
 {
   printf("%f %f %f %f\n", v.x(), v.y(), v.z(), v.w());
 }
 
-__device__
 void print_vector(const cl::sycl::vec<float,8>& v)
 {
   printf("%f %f %f %f %f %f %f %f\n",
@@ -66,7 +61,7 @@ void print_vector(const cl::sycl::vec<float,8>& v)
          v.s4(), v.s5(), v.s6(), v.s7());
 }
 
-__device__
+
 void print_vector(const cl::sycl::vec<int,8>& v)
 {
   printf("%d %d %d %d %d %d %d %d\n",
@@ -80,7 +75,7 @@ int main()
 
   q.submit([&](cl::sycl::handler& cgh) {
     cgh.single_task<class vec_test>(
-          [=] __device__ () {
+          [=] () {
 
       cl::sycl::vec<float, 4> v1(1.0f);
       cl::sycl::vec<float, 8> v2(1.f, 2.f, 3.f, v1, 4.f);

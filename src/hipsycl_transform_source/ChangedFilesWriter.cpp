@@ -125,6 +125,11 @@ void ChangedFilesWriter::run(const std::string& basePath)
     markDependentFilesForRewrite(id);
   }
 
+  if(_rewriter.buffer_begin() == _rewriter.buffer_end())
+    // If there are no modified files, we need to at least output the main file
+    // so that the expected output file is present.
+    markDependentFilesForRewrite(_sourceMgr.getMainFileID());
+
   for(auto modifiedFile : _rewrittenFiles)
   {
     this->processFile(basePath, modifiedFile.first, modifiedFile.second);

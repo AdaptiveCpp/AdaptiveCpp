@@ -104,6 +104,7 @@ class source_file_processor:
          "--hipsycl-transform-dir="+output_dir,
          "--hipsycl-main-output-file="+output_filename]+get_hipsycl_default_options())
 
+
       if returnvalue != 0:
         raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
     else:
@@ -118,7 +119,12 @@ class source_file_processor:
 
     self._run_source_transformation(os.path.abspath(filename), working_dir, output_file)
 
-    return os.path.join(working_dir, output_file)
+    full_output_path = os.path.join(working_dir, output_file)
+
+    if not os.path.exists(full_output_path):
+      raise RuntimeError("source-to-source transformation: Expected output file isn't present.")
+
+    return full_output_path
 
   def release_files(self):
     for filename in self._managed_files:
@@ -126,6 +132,7 @@ class source_file_processor:
       os.remove(filename)
     for dirname in self._managed_directories:
       shutil.rmtree(dirname)
+
 
   def _get_temp_directory(self):
     tempdir = tempfile.gettempdir()

@@ -30,14 +30,11 @@
 
 #include <CL/sycl.hpp>
 
-#ifndef __HIPSYCL__
-#define __device__
-#endif
 
 using data_type = int;
 
-constexpr size_t local_size = 256;
-constexpr size_t global_size = 1024;
+const size_t local_size = 256;
+const size_t global_size = 1024;
 
 int main()
 {
@@ -55,36 +52,30 @@ int main()
       auto access_input =
           input_buffer.get_access<cl::sycl::access::mode::read_write>(cgh);
 
-      cgh.parallel_for_work_group<class reduction>(
-            cl::sycl::range<1>{global_size/local_size},
-            cl::sycl::range<1>{local_size},
-            [=] __device__ (cl::sycl::group<1> work_group)
+      auto scratch = cl::sycl::accessor<
+          data_type, 1,
+          cl::sycl::access::mode::read_write,
+          cl::sycl::access::target::local>{local_size, cgh};
+
+      cl::sycl::nd_range<1> execution_range{global_size, local_size};
+      cgh.parallel_for<class reduction>(execution_range,
+                     [=] (cl::sycl::nd_item<1> this_item)
       {
+        const size_t lid = this_item.get_local(0);
 
-        __shared__ data_type scratch [local_size];
+        scratch[lid] = access_input[this_item.get_global()];
 
-        work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
-        {
-          scratch[item.get_local_id()[0]] =
-              access_input[item.get_global_id()];
-        });
+        this_item.barrier();
 
         for(size_t i = local_size/2; i > 0; i /= 2)
         {
-          work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
-          {
-            const size_t lid = item.get_local_id()[0];
-            if(lid < i)
-              scratch[lid] += scratch[lid + i];
-          });
+          if(lid < i)
+            scratch[lid] += scratch[lid + i];
+          this_item.barrier();
         }
 
-        work_group.parallel_for_work_item([&](cl::sycl::h_item<1> item)
-        {
-          const size_t lid = item.get_local_id()[0];
-          if(lid == 0)
-            access_input[item.get_global_id()] = scratch[0];
-        });
+        if(lid == 0)
+          access_input[this_item.get_global()] = scratch[0];
       });
     });
   }

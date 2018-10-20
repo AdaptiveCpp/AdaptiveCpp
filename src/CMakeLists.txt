@@ -1,1 +1,1 @@
-subdirs(libhipSYCL tests hipsycl_transform_source)
+subdirs(libhipSYCL hipsycl_transform_source)

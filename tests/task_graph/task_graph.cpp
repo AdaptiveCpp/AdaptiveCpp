@@ -29,10 +29,6 @@
 
 #include <CL/sycl.hpp>
 
-#ifndef __HIPSYCL__
-#define __device__
-#endif
-
 constexpr std::size_t num_elements = 4096*1024;
 
 int main()
@@ -50,7 +46,7 @@ int main()
         buff_a.get_access<cl::sycl::access::mode::discard_write>(cgh);
 
     cgh.parallel_for<class init_a>(cl::sycl::range<1>{num_elements},
-                                   [=] __device__ (cl::sycl::id<1> tid)
+                                   [=] (cl::sycl::id<1> tid)
     {
       access_a[tid] = static_cast<int>(tid.get(0));
     });
@@ -63,7 +59,7 @@ int main()
         buff_a.get_access<cl::sycl::access::mode::read>(cgh);
 
     cgh.parallel_for<class init_b>(cl::sycl::range<1>{num_elements},
-                                   [=] __device__ (cl::sycl::id<1> tid)
+                                   [=] (cl::sycl::id<1> tid)
     {
       access_b[tid] = access_a[tid];
     });
@@ -75,7 +71,7 @@ int main()
     auto access_c = buff_c.get_access<cl::sycl::access::mode::read_write>(cgh);
 
     cgh.parallel_for<class add_a_b>(cl::sycl::range<1>{num_elements},
-                                    [=] __device__ (cl::sycl::id<1> tid){
+                                    [=] (cl::sycl::id<1> tid){
       access_c[tid] = access_a[tid] + access_b[tid];
     });
   });

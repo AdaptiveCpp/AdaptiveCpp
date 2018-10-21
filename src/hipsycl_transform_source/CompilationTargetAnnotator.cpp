@@ -38,11 +38,11 @@ namespace hipsycl {
 namespace transform {
 
 CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
-                                                       clang::CallGraph& callGraph)
+                                                       CallGraph& callGraph)
   : _rewriter{r},
     _callGraph{callGraph}
 {
-  for(clang::CallGraph::iterator node = _callGraph.begin();
+  for(CallGraph::iterator node = _callGraph.begin();
       node != _callGraph.end(); ++node)
   {
     if(node->getFirst())

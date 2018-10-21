@@ -31,7 +31,6 @@
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Analysis/CallGraph.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -42,6 +41,7 @@
 
 #include "CompilationTargetAnnotator.hpp"
 #include "Matcher.hpp"
+#include "CallGraph.hpp"
 
 namespace hipsycl {
 namespace transform {
@@ -99,7 +99,7 @@ public:
   void HandleTranslationUnit(clang::ASTContext &Ctx) override;
 
 private:
-  clang::CallGraph _visitor;
+  CallGraph _visitor;
   CXXConstructCallerMatcher _constructMatcher;
 
   clang::Rewriter& _rewriter;

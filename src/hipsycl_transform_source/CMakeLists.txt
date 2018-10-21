@@ -9,7 +9,8 @@ add_executable(hipsycl_transform_source
   CompilationTargetAnnotator.cpp
   HipsyclTransform.cpp
   Matcher.cpp
-  ChangedFilesWriter.cpp)
+  ChangedFilesWriter.cpp
+  CallGraph.cpp)
 
 target_include_directories(hipsycl_transform_source PRIVATE
   ${LLVM_INCLUDE_DIRS}

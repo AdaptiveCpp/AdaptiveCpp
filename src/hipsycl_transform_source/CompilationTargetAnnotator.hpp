@@ -31,8 +31,8 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include "clang/Analysis/CallGraph.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "CallGraph.hpp"
 #include "Matcher.hpp"
 
 namespace hipsycl {
@@ -45,7 +45,7 @@ public:
       std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
   CompilationTargetAnnotator(clang::Rewriter& rewriter,
-                             clang::CallGraph& callGraph);
+                             CallGraph& callGraph);
 
 
   void treatConstructsAsFunctionCalls(const CXXConstructCallerMatcher& constructCallers);
@@ -88,7 +88,7 @@ private:
   bool isPrivateMemory(const clang::DeclStmt* decl) const;
 
   clang::Rewriter& _rewriter;
-  clang::CallGraph& _callGraph;
+  CallGraph& _callGraph;
 
   CallerMapType _callers;
 

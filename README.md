@@ -76,6 +76,7 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 ## Limitations
 * hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
 * Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
+* If the SYCL namespace is fully openend with a `using namespace cl::sycl` statement, bad name collisions can be expected since the SYCL spec requires the existence of SYCL vector types in that namespace with the same name as CUDA/HIP vector types which live in the global namespace.
 
 ## Compiling software with hipSYCL
 hipSYCL provides the `syclcc` compiler wrapper. `syclcc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `HIPSYCL_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `syclcc` also automatically sets a couple of compiler flags required for the compilation of hipSYCL programs. All other arguments are forwarded to hcc/nvcc.

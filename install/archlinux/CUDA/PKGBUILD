@@ -1,4 +1,4 @@
-# Maintainer: Aksel Alpay <alpay at stud dot uni-heidelberg dot de>
+# Maintainer: Aksel Alpay <aksel dot alpay at uni-heidelberg dot de>
 pkgname=hipsycl-cuda-git
 pkgver=0.7.0
 pkgrel=1

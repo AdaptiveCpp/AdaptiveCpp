@@ -464,42 +464,42 @@ vector_impl operator op(const T& rhs) const { \
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR1(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR2(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP2((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR3(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP3((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR4(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP4((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR8(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP8((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR16(op) \
 __host__ __device__ \
-vector_impl& operator op(const vector_impl& rhs) const { \
+vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP16((*this), rhs, op); \
   return *this; \
 }
@@ -507,42 +507,42 @@ vector_impl& operator op(const vector_impl& rhs) const { \
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR1(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR2(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP2((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR3(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP3((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR4(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP4((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR16(op) \
 __host__ __device__ \
-vector_impl& operator op(const T& rhs) const { \
+vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP16((*this), rhs, op); \
   return *this; \
 }

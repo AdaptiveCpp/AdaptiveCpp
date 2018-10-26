@@ -85,26 +85,42 @@ def get_hipsycl_default_options(use_bundled_hip = False):
 
 class source_file_processor:
 
-  def __init__(self, suffix):
+  def __init__(self, suffix, do_cleanup = True):
     self._managed_files = []
     self._managed_directories = []
     self._suffix = suffix
+    self._do_cleanup = do_cleanup
 
 
   def _run_source_transformation(self, filename, output_dir, output_filename):
 
-    tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_transform_source")
+    source_transform_tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_transform_source")
+    inclusion_rewriter_tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_rewrite_includes")
 
     if not is_during_hipsycl_installation():
+      # ToDo: We must pass all compilation arguments
+      # to the tools as well!
+
       returnvalue = subprocess.call(
-        [tool,
-         filename,
+        [inclusion_rewriter_tool,
+         filename, "--",
+         "-I"+os.path.dirname(filename),
+         "-Wno-unused-command-line-argument"]
+         +get_hipsycl_default_options())
+
+      if returnvalue != 0:
+        raise RuntimeError("Error while rewriting includes, aborting compilation")
+
+      self._managed_files.append(filename+".inc.cpp")
+
+      returnvalue = subprocess.call(
+        [source_transform_tool,
+         filename+".inc.cpp",
          "--",
+         "-I"+os.path.dirname(filename),
          "-Wno-unused-command-line-argument",
          "--hipsycl-transform-dir="+output_dir,
-         "--hipsycl-main-output-file="+output_filename,
-         "-I"+os.path.dirname(filename)]+get_hipsycl_default_options())
-
+         "--hipsycl-main-output-file="+output_filename]+get_hipsycl_default_options())
 
       if returnvalue != 0:
         raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
@@ -113,10 +129,15 @@ class source_file_processor:
 
 
   def process_file(self,filename):
-    working_dir = self._get_temp_directory()
-    os.makedirs(working_dir)
-    self._managed_directories.append(working_dir)
-    output_file = "hipsycl_compilation_unit"+self._suffix
+    # We work in the file's directory itself - this
+    # is more robust with regards to resolving includes.
+    #working_dir = self._get_temp_directory()
+    #os.makedirs(working_dir)
+    #self._managed_directories.append(working_dir)
+    working_dir = os.path.dirname(filename)
+
+    output_file = self._get_random_id()+self._suffix
+    self._managed_files.append(os.path.join(working_dir, output_file))
 
     self._run_source_transformation(os.path.abspath(filename), working_dir, output_file)
 
@@ -128,17 +149,20 @@ class source_file_processor:
     return full_output_path
 
   def release_files(self):
-    for filename in self._managed_files:
-      # ToDo: Check If file exists
-      os.remove(filename)
-    for dirname in self._managed_directories:
-      shutil.rmtree(dirname)
+    if self._do_cleanup:
+      for filename in self._managed_files:
+        # ToDo: Check If file exists
+        os.remove(filename)
+      for dirname in self._managed_directories:
+        shutil.rmtree(dirname)
 
+  def _get_random_id(self):
+    return "hipsycl_"+binascii.b2a_hex(os.urandom(8)).decode("utf-8")
 
   def _get_temp_directory(self):
     tempdir = tempfile.gettempdir()
-    random_suffix = binascii.b2a_hex(os.urandom(8)).decode("utf-8")
-    return os.path.join(tempdir, "hipsycl_"+random_suffix)
+
+    return os.path.join(tempdir, self._get_random_id())
 
   def _copy_file(self,filename,new_filename):
     prepend_data = "#line 1 \""+filename+"\"\n"

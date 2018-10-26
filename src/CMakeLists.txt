@@ -1,1 +1,1 @@
-subdirs(libhipSYCL hipsycl_transform_source)
+subdirs(libhipSYCL hipsycl_rewrite_includes hipsycl_transform_source)

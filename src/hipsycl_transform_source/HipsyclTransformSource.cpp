@@ -28,7 +28,6 @@
 #include <sstream>
 #include <string>
 #include <stdexcept>
-#include <boost/preprocessor/stringize.hpp>
 
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
@@ -39,11 +38,11 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
-#include "clang/Basic/Version.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "HipsyclTransform.hpp"
 #include "Attributes.hpp"
+#include "../common/Paths.hpp"
 
 
 using namespace clang;
@@ -73,19 +72,9 @@ int main(int argc, const char **argv) {
 
     modifiedArgs.push_back("-std=c++14");
 
-#ifdef HIPSYCL_TRANSFORM_CLANG_DIR
-    std::string clangIncludeDir =
-     BOOST_PP_STRINGIZE(HIPSYCL_TRANSFORM_CLANG_DIR);
-
-    if(clangIncludeDir.size() > 0 && clangIncludeDir[clangIncludeDir.size()-1] != '/')
-      clangIncludeDir += "/";
-
-     clangIncludeDir +=
-        std::string("../lib/clang/")+std::string(CLANG_VERSION_STRING)
-        +"/include";
-
-    modifiedArgs.push_back("-I"+clangIncludeDir);
-#endif
+    std::string clangIncludeDir = hipsycl::paths::getClangIncludePath();
+    if(!clangIncludeDir.empty())
+      modifiedArgs.push_back("-I"+clangIncludeDir);
 
     return modifiedArgs;
   };

@@ -27,7 +27,6 @@
 
 
 #include "HipsyclTransform.hpp"
-#include "ChangedFilesWriter.hpp"
 
 #include "clang/Rewrite/Frontend/Rewriters.h"
 
@@ -87,6 +86,26 @@ std::string
 CommandLineArgs::getMainFilename() const
 { return _mainFilename; }
 
+std::string
+Application::getAbsoluteMainFilename() const
+{
+  std::string fullFilename = this->_args.getTransformDirectory();
+
+  if(!fullFilename.empty())
+  {
+    if(fullFilename[fullFilename.size()-1] != '/')
+    {
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+      if(fullFilename[fullFilename.size()-1] != '\\')
+#endif
+        fullFilename += '/';
+    }
+  }
+  fullFilename += this->_args.getMainFilename();
+
+  return fullFilename;
+}
+
 
 HipsyclTransformASTConsumer::HipsyclTransformASTConsumer(clang::Rewriter& R)
   : _rewriter{R}
@@ -130,16 +149,17 @@ HipsyclTransfromFrontendAction::EndSourceFileAction()
 {
   clang::SourceManager &sourceMgr = _rewriter.getSourceMgr();
 
+  std::string transformedFile =
+      Application::getInstance().getAbsoluteMainFilename();
 
-  clang::HeaderSearch& headerSearch =
-      this->getCompilerInstance().getPreprocessorPtr()->getHeaderSearchInfo();
+  std::error_code error;
+  llvm::raw_fd_ostream output{
+    transformedFile,
+    error,
+    llvm::sys::fs::OpenFlags::F_None
+  };
 
-  ChangedFilesWriter writer{headerSearch,
-        sourceMgr,
-        _rewriter,
-        Application::getCommandLineArgs().getMainFilename()};
-
-  writer.run(Application::getCommandLineArgs().getTransformDirectory());
+  _rewriter.getEditBuffer(sourceMgr.getMainFileID()).write(output);
 }
 
 std::unique_ptr<clang::ASTConsumer>

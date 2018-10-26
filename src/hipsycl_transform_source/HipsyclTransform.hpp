@@ -55,6 +55,7 @@ public:
 
   std::string getTransformDirectory() const;
   std::string getMainFilename() const;
+
 private:
   std::string extractArg(const std::string& optionString) const;
 
@@ -76,6 +77,7 @@ public:
     return app;
   }
 
+  std::string getAbsoluteMainFilename() const;
 private:
   Application(){}
 

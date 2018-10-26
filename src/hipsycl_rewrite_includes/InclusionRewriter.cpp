@@ -491,10 +491,6 @@ void InclusionRewriter::Process(FileID FileId,
                                                               Inc->FileType,
                                                               Inc->DirLookup);
 
-            if(!rewrite)
-              if(Inc)
-              std::cout << "Not rewriting: " << this->SM.getFileEntryForID(Inc->Id)->getName().str() << std::endl;
-
             if(rewrite)
               CommentOutDirective(RawLex, HashToken, FromFile, LocalEOL, NextToWrite,
                 Line);

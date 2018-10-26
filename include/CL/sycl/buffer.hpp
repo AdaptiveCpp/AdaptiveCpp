@@ -289,6 +289,7 @@ private:
         sizeof(T) * range.size(), device_mode, host_mode
       }
     };
+    _range = range;
   }
 
   void create_buffer(T* host_memory,
@@ -300,6 +301,7 @@ private:
         reinterpret_cast<void*>(host_memory)
       }
     };
+    _range = range;
   }
 
   void init(const range<dimensions>& range)

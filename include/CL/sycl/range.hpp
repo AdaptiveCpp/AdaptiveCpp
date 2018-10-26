@@ -84,7 +84,7 @@ dimensions==3 */
   size_t &operator[](int dimension) {
     // Spec requires that this method should be const, but return
     // a non-const reference...
-    return const_cast<size_t&>(_data[dimension]);
+    return _data[dimension];
   }
 
   __host__ __device__

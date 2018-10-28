@@ -51,6 +51,7 @@
 #include "sycl/private_memory.hpp"
 #include "sycl/vec.hpp"
 #include "sycl/math.hpp"
+#include "sycl/atomic.hpp"
 
 #endif
 

@@ -419,7 +419,7 @@ if __name__ == '__main__':
           print("Could not select compiler - this is a bug")
           sys.exit(-1)
 
-        sys.exit(selected_compiler.run(args))
+        sys.exit(selected_compiler.run(config.get_forwarded_args()))
   except Exception as e:
     print("syclcc fatal error: "+str(e))
     sys.exit(-1)

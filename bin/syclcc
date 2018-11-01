@@ -85,11 +85,11 @@ def get_hipsycl_default_options(use_bundled_hip = False):
 
 class source_file_processor:
 
-  def __init__(self, suffix, do_cleanup = True):
+  def __init__(self, config, suffix):
     self._managed_files = []
     self._managed_directories = []
     self._suffix = suffix
-    self._do_cleanup = do_cleanup
+    self._do_cleanup = not config.keep_temporaries()
 
 
   def _run_source_transformation(self, filename, output_dir, output_filename):
@@ -179,8 +179,9 @@ class source_file_processor:
 cpp_files = set([".cpp",".cxx",".c++",".cc",".c"])
 
 class cuda_compiler:
-  def __init__(self):
+  def __init__(self,config):
     self.device_compiler = "nvcc"
+    self.config = config
 
     self.global_options = ["-I","-L","-l", "-D"]
     self.is_nvcc_available = is_program_executable(self.device_compiler)
@@ -238,7 +239,7 @@ class cuda_compiler:
     return [arg]
 
   def run(self, args):
-    source_processor = source_file_processor(".cu")
+    source_processor = source_file_processor(self.config, ".cu")
     result = None
     try:
       if len(args) == 1:
@@ -266,12 +267,14 @@ class cuda_compiler:
     return self.is_nvcc_available
 
 class hip_compiler:
-  def __init__(self):
+  def __init__(self, config):
     self.device_compiler = "hcc"
     self.is_hcc_available = (is_program_executable(self.device_compiler) and
                              is_program_executable("hcc-config") and
                              is_program_executable("hipconfig"))
     self.hcc_options = []
+    self.config = config
+
     if self.is_hcc_available:
       self.hcc_options = self._get_config()
 
@@ -279,7 +282,7 @@ class hip_compiler:
     if len(args) == 1:
       return -1
     else:
-      source_processor = source_file_processor(".cpp")
+      source_processor = source_file_processor(self.config, ".cpp")
       result = None
       try:
         if len(args) == 1:
@@ -322,6 +325,8 @@ class syclcc_config:
   def __init__(self, argv):
     self._alternative_compiler = ""
     self._forwarded_args = []
+    self._keep_temporaries = False
+
     for arg in argv:
       if arg.startswith("--force-alternative-compiler="):
         parsed_args = arg.split("=")
@@ -329,11 +334,16 @@ class syclcc_config:
           raise RuntimeError("Invalid argument: "+arg)
 
         self._alternative_compiler = parsed_args[1]
+      elif arg == "--keep-temporary-files":
+        self._keep_temporaries = True
       else:
         self._forwarded_args.append(arg)
 
   def use_alternative_compiler(self):
     return len(self._alternative_compiler) != 0
+
+  def keep_temporaries(self):
+    return self._keep_temporaries
 
   def get_alternative_compiler(self):
     if not self.use_alternative_compiler():
@@ -362,8 +372,8 @@ if __name__ == '__main__':
         sys.exit(subprocess.call([config.get_alternative_compiler()]
                                 + config.get_forwarded_args()))
       else:
-        hcc = hip_compiler()
-        cuda = cuda_compiler()
+        hcc = hip_compiler(config)
+        cuda = cuda_compiler(config)
 
         rocm_available = hcc.is_available()
         cuda_available = cuda.is_available()

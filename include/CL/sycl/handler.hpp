@@ -126,16 +126,10 @@ public:
                   "Only placeholder accessors for global and constant buffers are "
                   "supported.");
 
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        detail::application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& placeholder_tracker =
+        detail::application::get_hipsycl_runtime().get_accessor_tracker();
 
-    using accessor_base_ptr =
-      const detail::accessor_base<dataT,dimensions,accessMode,accessTarget,
-                            access::placeholder::true_t>*;
-
-    accessor_base_ptr ptr = &acc;
-
-    detail::buffer_ptr buff = placeholder_tracker.find_accessor(ptr);
+    detail::buffer_ptr buff = placeholder_tracker.find_accessor(&acc);
 
 
     detail::accessor::obtain_device_access(buff,

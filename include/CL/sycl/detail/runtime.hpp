@@ -41,80 +41,57 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget,
-         access::placeholder isPlaceholder>
 class accessor_base;
 
-class placeholder_accessor_tracker
+class accessor_tracker
 {
 public:
 
-  template<typename dataT,
-           int dimensions,
-           access::mode accessmode,
-           access::target accessTarget>
-  using placeholder_accessor =
-      accessor_base<dataT,dimensions,accessmode,accessTarget,access::placeholder::true_t>;
-
-  template<typename dataT, int dimensions,
-           access::mode accessmode,
-           access::target accessTarget>
   void new_accessor(
-      const placeholder_accessor<dataT,dimensions,accessmode,accessTarget>* accessor_ptr,
+      const accessor_base* accessor_ptr,
       buffer_ptr buff)
   {
     std::lock_guard<mutex_class> lock{_lock};
 
-    const void* placeholder_object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_placeholder_buffer_map.find(placeholder_object_ptr) ==
-           _placeholder_buffer_map.end());
+    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
+    assert(_buffer_map.find(object_ptr) ==
+           _buffer_map.end());
 
-    _placeholder_buffer_map[placeholder_object_ptr] = buff;
+    _buffer_map[object_ptr] = buff;
   }
 
-  template<typename dataT, int dimensions,
-           access::mode accessmode,
-           access::target accessTarget>
   void set_accessor_buffer(
-      const placeholder_accessor<dataT,dimensions,accessmode,accessTarget>* accessor_ptr,
+      const accessor_base* accessor_ptr,
       buffer_ptr buff)
   {
     std::lock_guard<mutex_class> lock{_lock};
 
-    const void* placeholder_object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_placeholder_buffer_map.find(placeholder_object_ptr) !=
-           _placeholder_buffer_map.end());
+    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
+    assert(_buffer_map.find(object_ptr) !=
+           _buffer_map.end());
 
-    _placeholder_buffer_map[placeholder_object_ptr] = buff;
+    _buffer_map[object_ptr] = buff;
   }
 
-  template<typename dataT, int dimensions,
-           access::mode accessmode,
-           access::target accessTarget>
   void release_accessor(
-      const placeholder_accessor<dataT,dimensions,accessmode,accessTarget>* accessor_ptr)
+      const accessor_base* accessor_ptr)
   {
     std::lock_guard<mutex_class> lock{_lock};
 
-    const void* placeholder_object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_placeholder_buffer_map.find(placeholder_object_ptr) !=
-           _placeholder_buffer_map.end());
+    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
+    assert(_buffer_map.find(object_ptr) !=
+           _buffer_map.end());
 
-    _placeholder_buffer_map.erase(placeholder_object_ptr);
+    _buffer_map.erase(object_ptr);
   }
 
-  template<typename dataT, int dimensions,
-           access::mode accessmode,
-           access::target accessTarget>
   buffer_ptr find_accessor(
-      const placeholder_accessor<dataT,dimensions,accessmode,accessTarget>* accessor_ptr) const
+      const accessor_base* accessor_ptr) const
   {
-    const void* placeholder_object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    auto it = _placeholder_buffer_map.find(placeholder_object_ptr);
+    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
+    auto it = _buffer_map.find(object_ptr);
 
-    if(it == _placeholder_buffer_map.end())
+    if(it == _buffer_map.end())
       return nullptr;
 
     return it->second;
@@ -122,7 +99,7 @@ public:
 
 private:
   mutex_class _lock;
-  std::unordered_map<const void*, buffer_ptr> _placeholder_buffer_map;
+  std::unordered_map<const void*, buffer_ptr> _buffer_map;
 };
 
 class runtime
@@ -135,17 +112,17 @@ public:
   const task_graph& get_task_graph() const
   { return _task_graph; }
 
-  placeholder_accessor_tracker&
-  get_placeholder_tracker()
-  { return _placeholder_tracker; }
+  accessor_tracker&
+  get_accessor_tracker()
+  { return _accessor_tracker; }
 
-  const placeholder_accessor_tracker&
-  get_placeholder_tracker() const
-  { return _placeholder_tracker; }
+  const accessor_tracker&
+  get_accessor_tracker() const
+  { return _accessor_tracker; }
 
 private:
   task_graph _task_graph;
-  placeholder_accessor_tracker _placeholder_tracker;
+  accessor_tracker _accessor_tracker;
 };
 
 }

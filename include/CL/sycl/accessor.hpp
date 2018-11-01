@@ -94,27 +94,9 @@ void* obtain_device_access(buffer_ptr buff,
 
 } // accessor
 
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget,
-         access::placeholder isPlaceholder>
+
+
 class accessor_base
-{
-public:
-  accessor_base(const accessor_base&) = default;
-  accessor_base& operator=(const accessor_base&) = default;
-  accessor_base() = default;
-
-  __host__ __device__
-  accessor_base(const detail::buffer_ptr&) {}
-};
-
-
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget>
-class accessor_base<dataT,dimensions,accessmode,accessTarget,
-                    access::placeholder::true_t>
 {
 public:
   // Should we allow default-constructing placeholder accessors?
@@ -122,10 +104,10 @@ public:
   accessor_base()
   {
 #if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& tracker =
+        application::get_hipsycl_runtime().get_accessor_tracker();
 
-    placeholder_tracker.new_accessor(this, nullptr);
+    tracker.new_accessor(this, nullptr);
 #endif
   }
 
@@ -133,10 +115,10 @@ public:
   accessor_base(const detail::buffer_ptr& buff)
   {
 #if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& tracker =
+        application::get_hipsycl_runtime().get_accessor_tracker();
 
-    placeholder_tracker.new_accessor(this, buff);
+    tracker.new_accessor(this, buff);
 #endif
   }
 
@@ -144,13 +126,13 @@ public:
   accessor_base(const accessor_base& other)
   {
 #if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& tracker =
+        application::get_hipsycl_runtime().get_accessor_tracker();
 
     detail::buffer_ptr buff =
-        placeholder_tracker.find_accessor(&other);
+        tracker.find_accessor(&other);
 
-    placeholder_tracker.new_accessor(this, buff);
+    tracker.new_accessor(this, buff);
 #endif
   }
 
@@ -158,26 +140,25 @@ public:
   accessor_base& operator=(const accessor_base& other)
   {
 #if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& tracker =
+        application::get_hipsycl_runtime().get_accessor_tracker();
 
     detail::buffer_ptr other_buffer =
-        placeholder_tracker.find_accessor(&other);
+        tracker.find_accessor(&other);
 
-    placeholder_tracker.set_accessor_buffer(this, other_buffer);
-
-    return *this;
+    tracker.set_accessor_buffer(this, other_buffer);
 #endif
+    return *this;
   }
 
   __host__ __device__
   ~accessor_base()
   {
 #if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
-    detail::placeholder_accessor_tracker& placeholder_tracker =
-        application::get_hipsycl_runtime().get_placeholder_tracker();
+    detail::accessor_tracker& tracker =
+        application::get_hipsycl_runtime().get_accessor_tracker();
 
-    placeholder_tracker.release_accessor(this);
+    tracker.release_accessor(this);
 #endif
   }
 };
@@ -188,12 +169,8 @@ template<typename dataT, int dimensions,
          access::mode accessmode,
          access::target accessTarget = access::target::global_buffer,
          access::placeholder isPlaceholder = access::placeholder::false_t>
-class accessor : public detail::accessor_base<
-    dataT,dimensions,accessmode,accessTarget,isPlaceholder>
+class accessor : public detail::accessor_base
 {
-  using base_type = detail::accessor_base<dataT,dimensions,
-                                          accessmode,accessTarget,
-                                          isPlaceholder>;
 
 public:
   using value_type = dataT;
@@ -218,7 +195,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                               T == access::target::constant_buffer))) &&
                               D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef)
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     throw unimplemented{"0-dimensional accessors are not yet implemented"};
   }
@@ -234,7 +211,7 @@ access::target::constant_buffer)) && dimensions == 0 */
                              T == access::target::constant_buffer )) &&
                              D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef)
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     throw unimplemented{"0-dimensional accessors are not yet implemented"};
   }
@@ -255,7 +232,7 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                               T == access::target::constant_buffer))) &&
                              (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     if(accessTarget == access::target::host_buffer)
     {
@@ -279,7 +256,7 @@ access::target::constant_buffer)) && dimensions > 0 */
                             (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
@@ -305,7 +282,7 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     if(accessTarget == access::target::host_buffer)
     {
@@ -330,14 +307,14 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
-    : base_type{detail::buffer::get_buffer_impl(bufferRef)}
+    : detail::accessor_base{detail::buffer::get_buffer_impl(bufferRef)}
   {
     this->init_device_accessor(bufferRef, commandGroupHandlerRef);
   }
 
   __host__ __device__
   accessor(const accessor& other)
-    : base_type{other},
+    : detail::accessor_base{other},
       _ptr{other._ptr},
       _range{other._range}
   {}
@@ -345,9 +322,10 @@ access::target::constant_buffer)) && dimensions > 0 */
   __host__ __device__
   accessor& operator=(const accessor& other)
   {
-    base_type::operator=(other);
+    detail::accessor_base::operator=(other);
     _ptr = other._ptr;
     _range = other._range;
+    return *this;
   }
 
 

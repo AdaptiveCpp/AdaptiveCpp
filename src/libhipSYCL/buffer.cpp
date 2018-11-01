@@ -488,6 +488,12 @@ buffer_action buffer_state_monitor::register_device_access(access::mode m)
     // Make sure device is up-to-date before reading
     bool copy_required = _device_data_version < _host_data_version;
 
+    // If we are discarding the previous content anyway,
+    // a data transfer is never required
+    if(m == access::mode::discard_write ||
+       m == access::mode::discard_read_write)
+      copy_required = false;
+
     if(m != access::mode::read)
       _device_data_version = _host_data_version + 1;
     else

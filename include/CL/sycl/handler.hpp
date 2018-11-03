@@ -43,6 +43,8 @@
 #include "detail/buffer.hpp"
 #include "detail/task_graph.hpp"
 #include "detail/application.hpp"
+#include "detail/stream.hpp"
+#include "detail/debug.hpp"
 
 namespace cl {
 namespace sycl {
@@ -247,7 +249,26 @@ void set_args(Ts &&... args);
   void copy(accessor<T, dim, mode, tgt> src, accessor<T, dim, mode, tgt> dest);
 
   template <typename T, int dim, access::mode mode, access::target tgt>
-  void update_host(accessor<T, dim, mode, tgt> acc);
+  void update_host(accessor<T, dim, mode, tgt> acc)
+  {
+    detail::accessor_tracker& placeholder_tracker =
+        detail::application::get_hipsycl_runtime().get_accessor_tracker();
+
+    detail::buffer_ptr buff = placeholder_tracker.find_accessor(&acc);
+
+    detail::stream_ptr stream = this->get_stream();
+
+    HIPSYCL_DEBUG_INFO << "handler: Spawning async host access task"
+                       << std::endl;
+
+    auto task_graph_node = detail::buffer_impl::access_host(
+          buff,
+          mode,
+          stream,
+          stream->get_error_handler());
+
+    this->_detail_add_access(buff, mode, task_graph_node);
+  }
 
   template<typename T, int dim, access::mode mode, access::target tgt>
   void fill(accessor<T, dim, mode, tgt> dest, const T& src);

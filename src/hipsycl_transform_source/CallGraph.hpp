@@ -63,6 +63,12 @@ public:
   CallGraph();
   ~CallGraph();
 
+  bool shouldVisitTemplateInstantiations() const { return true; }
+
+  /// Return whether this visitor should recurse into implicit
+  /// code, e.g., implicit constructors and destructors.
+  bool shouldVisitImplicitCode() const { return true; }
+
   /// Populate the call graph with the functions in the given
   /// declaration.
   ///

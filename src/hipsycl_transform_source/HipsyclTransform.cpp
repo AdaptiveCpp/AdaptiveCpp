@@ -118,16 +118,13 @@ HipsyclTransformASTConsumer::~HipsyclTransformASTConsumer()
 bool
 HipsyclTransformASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef DR)
 {
-  for (clang::DeclGroupRef::iterator b = DR.begin(), e = DR.end(); b != e; ++b) {
-
-    _visitor.TraverseDecl(*b);
-    //(*b)->dump();
-  }
   return true;
 }
 
 void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext& ctx)
 {
+  _visitor.TraverseDecl(ctx.getTranslationUnitDecl());
+
   clang::ast_matchers::MatchFinder finder;
   CXXConstructCallerMatcher::registerMatcher(finder,
                                              _constructMatcher,

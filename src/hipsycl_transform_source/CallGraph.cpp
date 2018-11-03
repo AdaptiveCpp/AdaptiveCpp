@@ -156,8 +156,8 @@ bool CallGraph::includeInGraph(const Decl *D) {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     // We skip function template definitions, as their semantics is
     // only determined when they are instantiated.
-    if (FD->isDependentContext())
-      return false;
+    //if (FD->isDependentContext())
+    //  return false;
 
     IdentifierInfo *II = FD->getIdentifier();
     if (II && II->getName().startswith("__inline"))

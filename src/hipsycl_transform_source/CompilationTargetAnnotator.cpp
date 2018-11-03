@@ -117,10 +117,6 @@ CompilationTargetAnnotator::addAnnotations()
     }
   }
 
-  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __device__: "
-                     << _isFunctionCorrectedDevice.size() << std::endl;
-  HIPSYCL_DEBUG_INFO << "Number of functions annotated with __host__: "
-                     << _isFunctionCorrectedHost.size() << std::endl;
   for(const Decl* f : _isFunctionCorrectedDevice)
   {
     writeAnnotation(f, " __device__ ");
@@ -300,6 +296,7 @@ void CompilationTargetAnnotator::writeAnnotation(
     if(isa<FunctionDecl>(currentDecl))
     {
       bool suppressAnnotation = false;
+
 
       if(isa<CXXMethodDecl>(currentDecl))
       {

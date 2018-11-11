@@ -190,7 +190,11 @@ dimensions==3 */
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(|=)
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(^=)
 
+  bool operator==(const range<dimensions>& other) const
+  { return _data == other._data; }
 
+  bool operator!=(const range<dimensions>& other) const
+  { return !(_data == other._data); }
 private:
   detail::device_array<size_t, dimensions> _data;
 

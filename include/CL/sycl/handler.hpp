@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_HANDLER_HPP
 #define HIPSYCL_HANDLER_HPP
 
+#include "exception.hpp"
 #include "access.hpp"
 #include "accessor.hpp"
 #include "backend/backend.hpp"
@@ -245,8 +246,44 @@ void set_args(Ts &&... args);
   template <typename T, int dim, access::mode mode, access::target tgt>
   void copy(const T * src, accessor<T, dim, mode, tgt> dest);
 
+  /// \todo copy() can be optimized on host accessors with memcpy() calls
+  /// for contiguous memory regions
   template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, accessor<T, dim, mode, tgt> dest);
+  void copy(accessor<T, dim, mode, tgt> src, accessor<T, dim, mode, tgt> dest)
+  {
+    static_assert(mode != access::mode::read,
+                  "Copying to read-only accessors is not allowed.");
+    static_assert(tgt != access::target::host_image,
+                  "host_image targets are unsupported");
+
+    for(int i = 0; i < dim; ++i)
+      if(src.get_range().get(i) >= dest.get_range().get(i))
+        throw invalid_parameter_error{"sycl explicit copy operation: "
+                                      "Accessor sizes are incompatible."};
+
+    if(tgt == access::target::host_buffer)
+    {
+      this->execute_host_range_iteration(src.get_range(),
+                                         id<dim>{},
+                                         [&](id<dim> tid){
+        dest[tid + dest.get_offset()] = src[tid + src.get_offset()];
+      });
+    }
+    else
+    {
+      this->parallel_for<class copy_kernel>(
+            dest.get_range(),
+            dest.get_offset(),
+#ifndef __HIPSYCL_TRANSFORM__
+            [dest,src] __device__ (cl::sycl::id<dim> tid)
+#else
+            [dest,src] (cl::sycl::id<dim> tid)
+#endif
+      {
+        dest[tid] = src;
+      });
+    }
+  }
 
   template <typename T, int dim, access::mode mode, access::target tgt>
   void update_host(accessor<T, dim, mode, tgt> acc)
@@ -270,8 +307,40 @@ void set_args(Ts &&... args);
     this->_detail_add_access(buff, mode, task_graph_node);
   }
 
+  /// \todo fill() on host accessors can be optimized to use
+  /// memset() if the accessor describes a large area of
+  /// contiguous memory
   template<typename T, int dim, access::mode mode, access::target tgt>
-  void fill(accessor<T, dim, mode, tgt> dest, const T& src);
+  void fill(accessor<T, dim, mode, tgt> dest, const T& src)
+  {
+    static_assert(mode != access::mode::read,
+                  "Filling read-only accessors is not allowed.");
+    static_assert(tgt != access::target::host_image,
+                  "host_image targets are unsupported");
+
+    if(tgt == access::target::host_buffer)
+    {
+      this->execute_host_range_iteration(dest.get_range(),
+                                         dest.get_offset(),
+                                         [&](cl::sycl::id<dim> tid){
+        dest[tid] = src;
+      });
+    }
+    else
+    {
+      this->parallel_for<class fill_kernel>(
+            dest.get_range(),
+            dest.get_offset(),
+#ifndef __HIPSYCL_TRANSFORM__
+            [dest,src] __device__ (cl::sycl::id<dim> tid)
+#else
+            [dest,src] (cl::sycl::id<dim> tid)
+#endif
+      {
+        dest[tid] = src;
+      });
+    }
+  }
 
   detail::local_memory_allocator& get_local_memory_allocator()
   {
@@ -297,6 +366,8 @@ void set_args(Ts &&... args);
 
   detail::stream_ptr get_stream() const;
 private:
+
+
   struct buffer_access
   {
     access::mode access_mode;
@@ -360,6 +431,37 @@ private:
       grid = dim3(1);
   }
 
+  template<typename KernelType, int dimension>
+  void execute_host_range_iteration(range<dimension> numWorkItems,
+                                    id<dimension> offset,
+                                    KernelType f)
+  {
+    range<3> num_items3d;
+    id<3> offset3d;
+    for(int i = 0; i < dimension; ++i)
+    {
+      num_items3d[i] = numWorkItems[i];
+      offset3d[i] = offset[i];
+    }
+    for(int i = dimension; i < 3; ++i)
+    {
+      num_items3d[i] = 1;
+      offset3d[i] = 0;
+    }
+
+    id<3> end3d = offset3d + num_items3d;
+    id<3> current3d;
+    for(current3d[0] = offset3d[0]; current3d[0] < end3d[0]; ++current3d[0])
+      for(current3d[1] = offset3d[1]; current3d[1] < end3d[1]; ++current3d[1])
+        for(current3d[2] = offset3d[2]; current3d[2] < end3d[2]; ++current3d[2])
+        {
+          id<dimension> current_item;
+          for(int i = 0; i < dimension; ++i)
+            current_item[i] = current3d[i];
+
+          f(current_item);
+        }
+  }
 
   template <typename KernelType, int dimensions>
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
@@ -485,7 +587,6 @@ private:
     };
 
     this->submit_kernel(kernel_launch);
-
   }
 
   void submit_kernel(detail::task_functor f)

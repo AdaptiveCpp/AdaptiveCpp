@@ -44,9 +44,15 @@ namespace sycl {
 
 class device_selector;
 class platform;
+class device;
+
+namespace detail {
+void set_device(const device& d);
+}
 
 class device
 {
+  friend void detail::set_device(const device&);
 public:
 
   /// Since we do not support host execution, this will actually
@@ -58,6 +64,12 @@ public:
   device()
     : _device_id{0}
   {}
+
+#ifdef HIPSYCL_HIP_INTEROP
+  device(int hipDeviceId)
+    : _device_id{hipDeviceId}
+  {}
+#endif
 
   // OpenCL interop is not supported
   // explicit device(cl_device_id deviceId);
@@ -122,7 +134,10 @@ public:
 
   static int get_num_devices();
 
+
+#ifdef HIPSYCL_HIP_INTEROP
   int get_device_id() const;
+#endif
 
   bool operator ==(const device& rhs) const
   { return rhs._device_id == _device_id; }
@@ -460,12 +475,6 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, reference_count)
   // hipSYCL device classes do not need any resources, and hence
   // no reference counting is required.
   return 1;
-}
-
-namespace detail {
-
-void set_device(const device& d);
-
 }
 
 

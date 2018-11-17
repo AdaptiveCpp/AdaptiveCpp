@@ -69,15 +69,17 @@ int device::get_num_devices()
   return num_devices;
 }
 
+#ifdef HIPSYCL_HIP_INTEROP
 int device::get_device_id() const {
   return _device_id;
 }
+#endif
 
 namespace detail {
 
 void set_device(const device& d)
 {
-  detail::check_error(hipSetDevice(d.get_device_id()));
+  detail::check_error(hipSetDevice(d._device_id));
 }
 
 }

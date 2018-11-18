@@ -61,6 +61,12 @@ struct nd_item
   }
 
   __device__
+  size_t get_global_id(int dimension) const
+  {
+    return get_global(dimension);
+  }
+
+  __device__
   size_t get_global_linear_id() const
   {
     return detail::linear_id<dimensions>::get(get_global(), get_global_range());
@@ -76,6 +82,12 @@ struct nd_item
   size_t get_local(int dimension) const
   {
     return detail::get_local_id(dimension);
+  }
+
+  __device__
+  size_t get_local_id(int dimension) const
+  {
+    return get_local(dimension);
   }
 
   __device__

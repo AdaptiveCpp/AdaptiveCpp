@@ -47,6 +47,13 @@ def is_program_executable(cmd):
   except:
     return False
 
+def is_source_file(arg):
+  if not arg.startswith("-"):
+    for ending in cpp_files:
+      if arg.lower().endswith(ending):
+        return True
+  return False
+
 
 def get_hipsycl_binary_path():
   return os.path.dirname(os.path.realpath(__file__))
@@ -214,16 +221,9 @@ class cuda_compiler:
   def is_no_nvcc_argument(self,arg):
     return not arg in self.nvcc_option_output
 
-  def is_source_file(self, arg):
-    if not arg.startswith("-"):
-      for ending in cpp_files:
-        if arg.lower().endswith(ending):
-          return True
-    return False
-
   def is_compilation_step(self,args):
     for arg in args:
-      if self.is_source_file(arg):
+      if is_source_file(arg):
         return True
     return False
 
@@ -262,7 +262,7 @@ class cuda_compiler:
       else:
         transformed_args = []
         for arg in args[1:]:
-          if self.is_source_file(arg):
+          if is_source_file(arg):
             transformed_args.append(source_processor.process_file(arg))
           else:
             transformed_args += self.transform_argument(arg)
@@ -305,7 +305,7 @@ class hip_compiler:
         else:
           transformed_args = []
           for arg in args[1:]:
-            if self.is_source_file(arg):
+            if is_source_file(arg):
               transformed_args.append(source_processor.process_file(arg))
             else:
               transformed_args += arg

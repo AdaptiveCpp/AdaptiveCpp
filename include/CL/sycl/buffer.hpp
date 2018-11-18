@@ -243,6 +243,11 @@ public:
     };
   }
 
+  void set_final_data(shared_ptr_class<T> finalData)
+  {
+    this->_writeback_buffer = finalData;
+    this->set_final_data(finalData.get());
+  }
 
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
@@ -347,6 +352,8 @@ private:
 
   detail::buffer_ptr _buffer;
   shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
+  // Only used if a shared_ptr is passed to set_final_data()
+  shared_ptr_class<T> _writeback_buffer;
 };
 
 namespace detail {

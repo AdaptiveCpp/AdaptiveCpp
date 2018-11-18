@@ -142,6 +142,7 @@ public:
   bool owns_pinned_host_memory() const;
 
   void set_write_back(void* ptr);
+
   void enable_write_back(bool writeback);
 
   /// Finishes all enqueued host accesses, and executes

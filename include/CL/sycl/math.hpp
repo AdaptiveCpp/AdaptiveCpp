@@ -32,41 +32,13 @@
 #include <type_traits>
 #include <cmath>
 #include "vec.hpp"
+#include "builtin.hpp"
 
 namespace cl {
 namespace sycl {
 
-#ifdef __HIPSYCL_TRANSFORM__
-// During the source-to-source transformation step, we replace all calls
-// to the HCC/NVCC math libraries with calls to these placeholder functions.
-// This reduces the dependencies between hipSYCL and standard libraries and prevents
-// that the source-to-source transformation wants to change the declaration of
-// function from the standard library.
-template<class T>
-__device__
-inline T __placeholder_function(T) {return T();}
-
-template<class T>
-__device__
-inline T __placeholder_function(T, T) {return T();}
-
-template<class T>
-__device__
-inline T __placeholder_function(T, T, T) {return T();}
-
-#define HIPSYCL_STD_FUNCTION(function_name) __placeholder_function
-
-#else
-
-#define HIPSYCL_STD_FUNCTION(function_name) function_name
-
-#endif
-
-#define HIPSYCL_PP_CONCATENATE_IMPL(a,b) a ## b
-#define HIPSYCL_PP_CONCATENATE(a,b) HIPSYCL_PP_CONCATENATE_IMPL(a,b)
-
 #define HIPSYCL_ENABLE_IF_FLOATING_POINT(template_param) \
-  std::enable_if_t<std::is_floating_point<float_type>::value>* = nullptr
+  std::enable_if_t<std::is_floating_point<template_param>::value>* = nullptr
 
 #define HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
   __device__ inline float name(float x) { return HIPSYCL_STD_FUNCTION(float_func)(x); } \

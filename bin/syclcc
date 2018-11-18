@@ -90,7 +90,20 @@ class source_file_processor:
     self._managed_directories = []
     self._suffix = suffix
     self._do_cleanup = not config.keep_temporaries()
-    self._additional_args = additional_args
+
+    # We strip all arguments that are not relevant to
+    # the source transformation, since this may be arguments
+    # for the device compiler nvcc/hcc that are unknown to
+    # regular clang. For the source transformation, the only
+    # arguments that may play a role are preprocessor definitions,
+    # include paths, std flags and filenames
+    self._additional_args = []
+    for arg in additional_args:
+      if (arg.startswith("-std=") or
+          arg.startswith("-I") or
+          arg.startswith("-D") or
+          not arg.startswith("-")):
+        self._additional_args.append(arg)
 
 
   def _run_source_transformation(self, filename, output_dir, output_filename):
@@ -99,8 +112,6 @@ class source_file_processor:
     inclusion_rewriter_tool = os.path.join(get_hipsycl_binary_path(),"hipsycl_rewrite_includes")
 
     if not is_during_hipsycl_installation():
-      # ToDo: We must pass all compilation arguments
-      # to the tools as well!
 
       returnvalue = subprocess.call(
         [inclusion_rewriter_tool,

@@ -153,7 +153,8 @@ void set_args(Ts &&... args);
   //------ Kernel dispatch API
 
 
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = class _unnamed_kernel,
+            typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
@@ -173,20 +174,23 @@ void set_args(Ts &&... args);
     this->submit_kernel(kernel_launch);
   }
 
-  template <typename KernelName, typename KernelType, int dimensions>
+  template <typename KernelName = class _unnamed_kernel,
+            typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
   {
     dispatch_kernel_without_offset(numWorkItems, kernelFunc);
   }
 
-  template <typename KernelName, typename KernelType, int dimensions>
+  template <typename KernelName = class _unnamed_kernel,
+            typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset, KernelType kernelFunc)
   {
     dispatch_kernel_with_offset(numWorkItems, workItemOffset, kernelFunc);
   }
 
-  template <typename KernelName, typename KernelType, int dimensions>
+  template <typename KernelName = class _unnamed_kernel,
+            typename KernelType, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
     dispatch_ndrange_kernel(executionRange, kernelFunc);
@@ -197,7 +201,8 @@ void set_args(Ts &&... args);
 
   /// \todo flexible ranges are currently unsupported
   /*
-  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
+  template <typename KernelName= class _unnamed_kernel,
+            typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                WorkgroupFunctionType kernelFunc)
   {
@@ -207,7 +212,8 @@ void set_args(Ts &&... args);
   }
   */
 
-  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
+  template <typename KernelName = class _unnamed_kernel,
+            typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                WorkgroupFunctionType kernelFunc)

@@ -85,11 +85,12 @@ def get_hipsycl_default_options(use_bundled_hip = False):
 
 class source_file_processor:
 
-  def __init__(self, config, suffix):
+  def __init__(self, config, suffix, additional_args=[]):
     self._managed_files = []
     self._managed_directories = []
     self._suffix = suffix
     self._do_cleanup = not config.keep_temporaries()
+    self._additional_args = additional_args
 
 
   def _run_source_transformation(self, filename, output_dir, output_filename):
@@ -106,6 +107,7 @@ class source_file_processor:
          filename, "--",
          "-I"+os.path.dirname(filename),
          "-Wno-unused-command-line-argument"]
+         +self._additional_args
          +get_hipsycl_default_options())
 
       if returnvalue != 0:
@@ -120,7 +122,9 @@ class source_file_processor:
          "-I"+os.path.dirname(filename),
          "-Wno-unused-command-line-argument",
          "--hipsycl-transform-dir="+output_dir,
-         "--hipsycl-main-output-file="+output_filename]+get_hipsycl_default_options())
+         "--hipsycl-main-output-file="+output_filename]
+         +self._additional_args
+         +get_hipsycl_default_options())
 
       if returnvalue != 0:
         raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
@@ -239,7 +243,7 @@ class cuda_compiler:
     return [arg]
 
   def run(self, args):
-    source_processor = source_file_processor(self.config, ".cu")
+    source_processor = source_file_processor(self.config, ".cu", args)
     result = None
     try:
       if len(args) == 1:
@@ -282,7 +286,7 @@ class hip_compiler:
     if len(args) == 1:
       return -1
     else:
-      source_processor = source_file_processor(self.config, ".cpp")
+      source_processor = source_file_processor(self.config, ".cpp", args)
       result = None
       try:
         if len(args) == 1:

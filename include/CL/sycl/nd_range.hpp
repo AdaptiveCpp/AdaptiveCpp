@@ -54,8 +54,16 @@ struct nd_range
   { return _global_range; }
 
   __host__ __device__
+  range<dimensions> get_global_range() const
+  { return get_global(); }
+
+  __host__ __device__
   range<dimensions> get_local() const
   { return _local_range; }
+
+  __host__ __device__
+  range<dimensions> get_local_range() const
+  { return get_local(); }
 
   __host__ __device__
   range<dimensions> get_group() const

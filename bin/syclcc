@@ -293,6 +293,7 @@ class hip_compiler:
     if self.is_hcc_available:
       self.hcc_options = self._get_config()
 
+
   def run(self, args):
     source_processor = source_file_processor(self.config, ".cpp", args)
     result = None
@@ -325,10 +326,15 @@ class hip_compiler:
     ldconfig = subprocess.check_output(["hcc-config","--ldflags"]).decode("utf-8")
     rocmpath = subprocess.check_output(["hipconfig","-p"]).decode("utf-8")
     hip_lib_path = os.path.join(rocmpath, "lib")
+
+    additional_args = []
+    if "HIPSYCL_GPU_ARCH" in os.environ:
+      additional_args.append("-amdgpu-target="+os.environ["HIPSYCL_GPU_ARCH"])
+
     # ToDo: What if the hcc include/library paths in cxxconfig and ldconfig
     # contain spaces?
     return cxxconfig.split()+ldconfig.split()+["-L"+hip_lib_path,
-                                               "-lhip_hcc","-lhip_device"]
+                                               "-lhip_hcc","-lhip_device"]+additional_args
 
   def is_available(self):
     return self.is_hcc_available

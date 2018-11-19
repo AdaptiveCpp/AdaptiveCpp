@@ -294,34 +294,31 @@ class hip_compiler:
       self.hcc_options = self._get_config()
 
   def run(self, args):
-    if len(args) == 1:
-      return -1
-    else:
-      source_processor = source_file_processor(self.config, ".cpp", args)
-      result = None
-      try:
-        if len(args) == 1:
-          return -1
-        else:
-          transformed_args = []
-          for arg in args[1:]:
-            if is_source_file(arg):
-              transformed_args.append(source_processor.process_file(arg))
-            else:
-              transformed_args += arg
+    source_processor = source_file_processor(self.config, ".cpp", args)
+    result = None
+    try:
+      if len(args) == 1:
+        return -1
+      else:
+        transformed_args = []
+        for arg in args[1:]:
+          if is_source_file(arg):
+            transformed_args.append(source_processor.process_file(arg))
+          else:
+            transformed_args.append(arg)
 
-          compiler_args = ["-Wno-unused-command-line-argument",
-                           "-Wno-ignored-attributes",
-                           "-std=c++14"]+self.hcc_options
-          compiler_args += get_hipsycl_default_options(use_bundled_hip = False)
-          compiler_args += transformed_args
+        compiler_args = ["-Wno-unused-command-line-argument",
+                         "-Wno-ignored-attributes",
+                         "-std=c++14"]+self.hcc_options
+        compiler_args += get_hipsycl_default_options(use_bundled_hip = False)
+        compiler_args += transformed_args
 
-          result = subprocess.call([self.device_compiler]+compiler_args)
+        result = subprocess.call([self.device_compiler]+compiler_args)
 
-      finally:
-        source_processor.release_files()
+    finally:
+      source_processor.release_files()
 
-      return result
+    return result
 
   def _get_config(self):
     cxxconfig = subprocess.check_output(["hcc-config","--cxxflags"]).decode("utf-8")

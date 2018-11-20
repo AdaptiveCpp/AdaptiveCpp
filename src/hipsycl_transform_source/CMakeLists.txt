@@ -1,8 +1,16 @@
+project(hipsycl_transform_source)
+cmake_minimum_required(VERSION 3.5)
 
 find_package(LLVM REQUIRED)
 #This seems to configure linkage incorrectly, so let's just assume clang is installed
 #find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
+
+if(NOT HIPSYCL_DEBUG_LEVEL)
+  set(HIPSYCL_DEBUG_LEVEL 1 CACHE INTEGER)
+endif()
+
+add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 add_executable(hipsycl_transform_source
   HipsyclTransformSource.cpp
@@ -14,7 +22,8 @@ add_executable(hipsycl_transform_source
 target_include_directories(hipsycl_transform_source PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${Boost_INCLUDE_DIRS})
+  ${Boost_INCLUDE_DIRS}
+  ../../include)
 
 #target_compile_options(hipsycl_transform_source PRIVATE
 #  --force-alternative-compiler=g++)

@@ -75,17 +75,24 @@ public:
                                 (Module *)Tok.getAnnotationValue()});
   }
 private:
+  virtual
   void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                    SrcMgr::CharacteristicKind FileType,
                    FileID PrevFID) override;
+
+  virtual
   void FileSkipped(const FileEntry &SkippedFile, const Token &FilenameTok,
                    SrcMgr::CharacteristicKind FileType) override;
+
+  virtual
   void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                           StringRef FileName, bool IsAngled,
                           CharSourceRange FilenameRange, const FileEntry *File,
                           StringRef SearchPath, StringRef RelativePath,
                           const Module *Imported,
                           SrcMgr::CharacteristicKind FileType) override;
+
+  virtual
   void WriteLineInfo(StringRef Filename, int Line,
                      SrcMgr::CharacteristicKind FileType,
                      StringRef Extra = StringRef());

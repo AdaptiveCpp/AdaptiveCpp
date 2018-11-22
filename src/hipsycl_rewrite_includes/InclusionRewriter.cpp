@@ -213,8 +213,13 @@ void InclusionRewriter::InclusionDirective(SourceLocation HashLoc,
                                            const FileEntry * /*File*/,
                                            StringRef /*SearchPath*/,
                                            StringRef /*RelativePath*/,
+#if LLVM_VERSION_MAJOR > 6
                                            const Module *Imported,
                                            SrcMgr::CharacteristicKind FileType){
+#else
+                                           const Module* Imported){
+#endif
+
   if (Imported) {
     auto P = ModuleIncludes.insert(
         std::make_pair(HashLoc.getRawEncoding(), Imported));

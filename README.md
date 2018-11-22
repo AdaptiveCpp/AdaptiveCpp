@@ -56,10 +56,13 @@ hipSYCL depends on:
 * `cmake`
 * `hcc` or `nvcc`
 * HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
-* llvm/clang (with development headers and libraries - hipSYCL is tested with llvm/clang 7.0)
+* llvm/clang (with development headers and libraries). LLVM/clang 6 and 7 are supported at the moment.
 * the Boost C++ library (only the preprocessor library at the moment)
 
-For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
+For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package. If you are using ROCm and would like to use singularity containers, you can also use the definition file `install/singularity/hipsycl-rocm.def` to build a singularity container with hipSYCL for ROCm:
+```
+$ sudo singularity build <image-name> install/singularity/hipsycl-rocm.def
+```
 
 All other users need to compile hipSYCL manually. First, make sure to clone the repository with all submodules:
 ```

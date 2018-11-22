@@ -2,6 +2,7 @@ BootStrap: docker
 From: rocm/rocm-terminal
 
 %post
+apt-get update
 apt-get install -y python3 libclang-6.0-dev clang-6.0 llvm-6.0-dev libboost-dev gcc
 git clone --recurse-submodules https://github.com/illuhad/hipSYCL
 cd hipSYCL

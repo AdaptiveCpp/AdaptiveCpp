@@ -168,7 +168,11 @@ CompilationTargetAnnotator::correctSharedMemoryAnnotations(
           HIPSYCL_DEBUG_INFO << "Marking variable as __shared__ in "
                              << kernelFunction->getAsFunction()->getQualifiedNameAsString()
                              << std::endl;
+#if LLVM_VERSION_MAJOR > 6
           _rewriter.InsertText((*currentStmt)->getBeginLoc(), " __shared__ ");
+#else
+          _rewriter.InsertText((*currentStmt)->getLocStart(), " __shared__ ");
+#endif
         }
       }
     }

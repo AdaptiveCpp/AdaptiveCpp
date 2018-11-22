@@ -89,8 +89,12 @@ private:
                           StringRef FileName, bool IsAngled,
                           CharSourceRange FilenameRange, const FileEntry *File,
                           StringRef SearchPath, StringRef RelativePath,
-                          const Module *Imported,
-                          SrcMgr::CharacteristicKind FileType) override;
+                          const Module *Imported
+#if LLVM_VERSION_MAJOR > 6
+                          ,SrcMgr::CharacteristicKind FileType) override;
+#else
+                          ) override;
+#endif
 
   virtual
   void WriteLineInfo(StringRef Filename, int Line,

@@ -1,0 +1,8 @@
+sudo: required
+
+services:
+  - docker
+
+install:
+  - docker build install/docker/CUDA
+  - docker build install/docker/ROCm

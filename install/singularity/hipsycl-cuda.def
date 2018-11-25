@@ -1,0 +1,13 @@
+BootStrap: docker
+From: nvidia/cuda:10.0-devel-ubuntu18.04
+
+%post
+apt-get update
+apt-get install -y git llvm-6.0-dev llvm-6.0 clang-6.0 cmake libboost-dev clang-6.0-dev python3 libclang-6.0-dev 
+git clone --recurse-submodules https://github.com/illuhad/hipSYCL
+mkdir build
+cd build
+export CXX=clang++-6.0
+export PATH=/usr/local/cuda/bin:$PATH
+cmake -DCMAKE_INSTALL_PREFIX=/usr ../hipSYCL
+make install

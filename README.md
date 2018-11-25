@@ -57,9 +57,9 @@ In order to successfully build and install hipSYCL, a working installation of ei
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
 
 ### Singularity container images
-hipSYCL comes with singularity definition files that allow you to create a working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
+hipSYCL comes with singularity definition files that allow you to create working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
 
-In order to build a ROCm based hipSYCL container image, simply run:
+In order to build a ROCm-based hipSYCL singularity container image, simply run:
 ```
 $ sudo singularity build <image-name> install/singularity/hipsycl-rocm.def
 ```
@@ -70,7 +70,7 @@ $ sudo singularity build <image-name> install/singularity/hipsycl-cuda.def
 ```
 
 ### Docker container images
-Dockerfiles for hipSYCL in conjunction with both CUDA and ROCm are also provided. To build a docker container for ROCm, run
+Dockerfiles for hipSYCL in conjunction with both CUDA and ROCm are also provided. To build a docker container image for ROCm, run
 ```
 $ sudo docker build install/docker/ROCm
 ```

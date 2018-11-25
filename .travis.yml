@@ -6,3 +6,6 @@ services:
 install:
   - docker build install/docker/CUDA
   - docker build install/docker/ROCm
+  
+script:
+  - docker images

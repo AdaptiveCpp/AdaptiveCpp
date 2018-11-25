@@ -1,4 +1,6 @@
 # hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
+[![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=master)](https://travis-ci.com/illuhad/hipSYCL)
+
 The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that is built upon NVIDIA CUDA/AMD HIP.
 
 hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applications are then compiled with the regular vendor compilers (nvcc for nvidia and hcc for AMD), and hence can enjoy full vendor support.

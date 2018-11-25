@@ -46,11 +46,39 @@ Still unimplemented/missing is in particular:
 * 2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
 * 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 
-## Building hipSYCL
+## Building and installing hipSYCL
 In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested:
-* On NVIDIA: with CUDA 9.2 and gcc 7.3
+* On NVIDIA: with CUDA 10.0 and gcc 7.3
 * On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware)
 
+### Packages
+For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
+
+### Singularity container images
+hipSYCL comes with singularity definition files that allow you to create a working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
+
+In order to build a ROCm based hipSYCL container image, simply run:
+```
+$ sudo singularity build <image-name> install/singularity/hipsycl-rocm.def
+```
+
+and for a CUDA based container image, execute:
+```
+$ sudo singularity build <image-name> install/singularity/hipsycl-cuda.def
+```
+
+### Docker container images
+Dockerfiles for hipSYCL in conjunction with both CUDA and ROCm are also provided. To build a docker container for ROCm, run
+```
+$ sudo docker build install/docker/ROCm
+```
+and
+```
+$ sudo docker build install/docker/CUDA
+```
+for CUDA.
+
+### Manual compilation
 hipSYCL depends on:
 * python 3 (for the `syclcc` compiler wrapper)
 * `cmake`
@@ -59,12 +87,7 @@ hipSYCL depends on:
 * llvm/clang (with development headers and libraries). LLVM/clang 6 and 7 are supported at the moment.
 * the Boost C++ library (only the preprocessor library at the moment)
 
-For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package. If you are using ROCm and would like to use singularity containers, you can also use the definition file `install/singularity/hipsycl-rocm.def` to build a singularity container with hipSYCL for ROCm:
-```
-$ sudo singularity build <image-name> install/singularity/hipsycl-rocm.def
-```
-
-All other users need to compile hipSYCL manually. First, make sure to clone the repository with all submodules:
+Once these requirements are met, clone the repository with all submodules:
 ```
 $ git clone --recurse-submodules https://github.com/illuhad/hipSYCL
 ```

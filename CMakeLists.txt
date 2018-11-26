@@ -24,10 +24,6 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 cmake_minimum_required (VERSION 3.5)
 
-
-find_program(CLANG_EXECUTABLE_PATH NAMES clang CACHE STRING)
-get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
-
 include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include)
 subdirs(src)
 

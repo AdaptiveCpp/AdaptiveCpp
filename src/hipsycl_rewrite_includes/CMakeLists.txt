@@ -6,6 +6,9 @@ find_package(LLVM REQUIRED)
 #find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
 
+find_program(CLANG_EXECUTABLE_PATH NAMES clang CACHE STRING)
+get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
+
 add_executable(hipsycl_rewrite_includes
   HipsyclRewriteIncludes.cpp
   InclusionRewriter.cpp)

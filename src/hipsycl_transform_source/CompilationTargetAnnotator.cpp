@@ -139,6 +139,7 @@ CompilationTargetAnnotator::addAnnotations()
   // with the second sweep
   this->_isFunctionProcessed.clear();
   // Second sweep - update host/device attributes based on called functions
+#ifdef HIPSYCL_TRANSFORM_INVESTIGATE_CALLEES
   for(auto decl : _callees)
   {
     bool isHost = false;
@@ -149,6 +150,7 @@ CompilationTargetAnnotator::addAnnotations()
                                  targetDeductionDirection::fromCallee);
     }
   }
+#endif
 
   // Write out attributes
   for(const Decl* f : _isFunctionCorrectedDevice)

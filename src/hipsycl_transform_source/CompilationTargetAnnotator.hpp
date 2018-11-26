@@ -43,6 +43,8 @@ class CompilationTargetAnnotator
 public:
   using CallerMapType =
       std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
+  using CalleeMapType =
+      std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
   CompilationTargetAnnotator(clang::Rewriter& rewriter,
                              CallGraph& callGraph);
@@ -53,6 +55,12 @@ public:
   void addAnnotations();
 
 private:
+
+  enum class targetDeductionDirection
+  {
+    fromCaller,
+    fromCallee
+  };
 
   template<class AttributeType>
   bool containsAttributeForCompilation(const clang::Decl* f) const
@@ -76,7 +84,11 @@ private:
   bool canCallHostFunctions(const clang::Decl* f) const;
   bool canCallDeviceFunctions(const clang::Decl* f) const;
 
-  void correctFunctionAnnotations(bool& host, bool& device, const clang::Decl* f);
+  void correctFunctionAnnotations(bool& host,
+                                  bool& device,
+                                  const clang::Decl* f,
+                                  targetDeductionDirection direction =
+                                    targetDeductionDirection::fromCaller);
   void correctSharedMemoryAnnotations(const clang::Decl* kernelFunction);
 
   // These functions add the corresponding attribute to the attribute lists
@@ -91,6 +103,8 @@ private:
   CallGraph& _callGraph;
 
   CallerMapType _callers;
+  // Will be generated on demand in addAnnotations()
+  CalleeMapType _callees;
 
   std::unordered_map<const clang::Decl*, bool> _isFunctionProcessed;
   std::unordered_set<const clang::Decl*> _isFunctionCorrectedDevice;

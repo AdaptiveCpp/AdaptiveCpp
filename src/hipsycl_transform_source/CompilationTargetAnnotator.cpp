@@ -94,6 +94,23 @@ CompilationTargetAnnotator::treatConstructsAsFunctionCalls(
 void
 CompilationTargetAnnotator::addAnnotations()
 {
+  // Build _callees
+  _callees.clear();
+  _isFunctionProcessed.clear();
+
+  for(auto decl : _callers)
+  {
+    for(auto caller : decl.second)
+      _callees[caller].push_back(decl.first);
+  }
+
+  // We do two sweeps: First, we correct the __host__/__device__
+  // attributes of all functions based on the functions that call a function;
+  // Afterwards we do a second sweep and update the attribute
+  // based on the functions called by a function.
+  // The second sweep also allows us to correctly treat device functions
+  // that are not actually called by a kernel (e.g. unused functions in libraries)
+  // but that make calls to __device__ functions (e.g. math functions, intrinsics etc)
   for(auto decl : _callers)
   {
     bool isHost = false;
@@ -102,7 +119,8 @@ CompilationTargetAnnotator::addAnnotations()
     if(decl.first)
     {
       // This corrects device, host attributes
-      correctFunctionAnnotations(isHost, isDevice, decl.first);
+      correctFunctionAnnotations(isHost, isDevice, decl.first,
+                                 targetDeductionDirection::fromCaller);
 
       // If this is a kernel function in a parallel hierarchical for,
       // we also need to add __shared__ attributes. This is the case
@@ -117,6 +135,22 @@ CompilationTargetAnnotator::addAnnotations()
     }
   }
 
+  // Forget which functions we have processed since we now start over
+  // with the second sweep
+  this->_isFunctionProcessed.clear();
+  // Second sweep - update host/device attributes based on called functions
+  for(auto decl : _callees)
+  {
+    bool isHost = false;
+    bool isDevice = false;
+    if(decl.first)
+    {
+      correctFunctionAnnotations(isHost, isDevice, decl.first,
+                                 targetDeductionDirection::fromCallee);
+    }
+  }
+
+  // Write out attributes
   for(const Decl* f : _isFunctionCorrectedDevice)
   {
     writeAnnotation(f, " __device__ ");
@@ -217,7 +251,8 @@ bool CompilationTargetAnnotator::canCallDeviceFunctions(
 /// Determines if a function is called by host or device functions.
 void
 CompilationTargetAnnotator::correctFunctionAnnotations(
-    bool& isHost, bool& isDevice, const clang::Decl* f)
+    bool& isHost, bool& isDevice, const clang::Decl* f,
+    CompilationTargetAnnotator::targetDeductionDirection direction)
 {
   if(!f)
     return;
@@ -244,7 +279,19 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
       isHost = isHostFunction(f);
       isDevice = isDeviceFunction(f);
 
-      const auto& callers = _callers[f];
+      // If the deduction direction is fromCaller, we investigate
+      // the functions that call this function and infer the host/device
+      // attributes from that
+      // [rationale: A function called by a device (host) function must also
+      //  be compiled for device (host)].
+      // Otherwise (if deduction direction is fromCallee), we investigate
+      // the functions called by this function.
+      // [rationale: A function calling device (host) functions must also
+      // be compiled for device (host)
+      const auto& investigatedFunctions =
+          (direction == targetDeductionDirection::fromCaller) ?
+            _callers[f] : _callees[f];
+
 #ifdef HIPSYCL_VERBOSE_DEBUG
       if(f->getAsFunction())
       {
@@ -253,25 +300,45 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
                            << f->getAsFunction()->getQualifiedNameAsString() << ": " << std::endl;
       }
 #endif
-      for(const clang::Decl* caller : callers)
+
+      for(const clang::Decl* callerOrCallee : investigatedFunctions)
       {
 #ifdef HIPSYCL_VERBOSE_DEBUG
-        if(caller->getAsFunction())
+        if(callerOrCallee->getAsFunction())
         {
-          HIPSYCL_DEBUG_INFO << "    called by "
-                             << caller->getAsFunction()->getQualifiedNameAsString() << std::endl;
+          auto functionName = callerOrCallee->getAsFunction()->getQualifiedNameAsString();
+
+          if(direction == targetDeductionDirection::fromCaller)
+          {
+            HIPSYCL_DEBUG_INFO << "    called by "
+                               << functionName
+                               << std::endl;
+          }
+          else
+          {
+            HIPSYCL_DEBUG_INFO << "    calling "
+                               << functionName
+                               << std::endl;
+          }
         }
 #endif
-        if(isHost && isDevice)
-          break;
+        // This does not really save us any work, we must go through
+        // the entire call graph anyway, and we won't visit the same
+        // node twice because of the _isFunctionProcessed map.
+        //if(isHost && isDevice)
+        //  break;
 
-        bool callerIsHostFunction = false;
-        bool callerIsDeviceFunction = false;
+        bool investigatedFunctionIsHostFunction = false;
+        bool investigatedFunctionIsDeviceFunction = false;
 
-        correctFunctionAnnotations(callerIsHostFunction, callerIsDeviceFunction, caller);
+        correctFunctionAnnotations(investigatedFunctionIsHostFunction,
+                                   investigatedFunctionIsDeviceFunction,
+                                   callerOrCallee,
+                                   direction);
 
-        isHost |= callerIsHostFunction;
-        isDevice |= callerIsDeviceFunction;  
+        isHost |= investigatedFunctionIsHostFunction;
+        isDevice |= investigatedFunctionIsDeviceFunction;
+
       }
 
       if(isHost)

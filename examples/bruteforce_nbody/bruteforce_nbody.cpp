@@ -26,8 +26,10 @@
  */
 
 #include <iostream>
+#include <string>
 #include <vector>
 #include <fstream>
+#include <cstdlib>
 #include "bruteforce_nbody.hpp"
 #include "model.hpp"
 
@@ -40,6 +42,14 @@ arithmetic_type mirror_position(const arithmetic_type mirror_pos,
         mirror_pos + delta : mirror_pos - delta;
 }
 
+int get_num_iterations_per_output_step()
+{
+  char* val = std::getenv("NBODY_ITERATIONS_PER_OUTPUT");
+  if(!val)
+    return 1;
+  return std::stoi(val);
+}
+
 template<class T, int Dim>
 using local_accessor =
   sycl::accessor<T,Dim,
@@ -48,6 +58,9 @@ using local_accessor =
 
 int main()
 {
+  const int iterations_per_output =
+      get_num_iterations_per_output_step();
+
   std::vector<particle_type> particles;
   std::vector<vector_type> velocities;
 
@@ -112,7 +125,9 @@ int main()
   auto forces_buffer =
       sycl::buffer<vector_type, 1>{sycl::range<1>{particles.size()}};
 
-  sycl::queue q;
+  sycl::gpu_selector selector
+  sycl::queue q{selector};
+
   auto execution_range = sycl::nd_range<1>{
       sycl::range<1>{((num_particles + local_size - 1) / local_size) * local_size},
       sycl::range<1>{local_size}
@@ -165,7 +180,7 @@ int main()
             // Actually we just calculate the acceleration, not the
             // force. We only need the acceleration anyway.
             if(global_id != offset + i)
-              force += p.w() * r_inv * r_inv * r_inv * R;
+              force += static_cast<arithmetic_type>(p.w()) * r_inv * r_inv * r_inv * R;
           }
 
           tid.barrier();
@@ -207,34 +222,34 @@ int main()
 
           // Reflect particle position and invert velocities
           // if particles exit the simulation cube
-          if(p.x() <= -half_cube_size)
+          if(static_cast<arithmetic_type>(p.x()) <= -half_cube_size)
           {
             v.x() = cl::sycl::fabs(v.x());
             p.x() = mirror_position(-half_cube_size, p.x());
           }
-          else if(p.x() >= half_cube_size)
+          else if(static_cast<arithmetic_type>(p.x()) >= half_cube_size)
           {
             v.x() = -cl::sycl::fabs(v.x());
             p.x() = mirror_position(half_cube_size, p.x());
           }
 
-          if(p.y() <= -half_cube_size)
+          if(static_cast<arithmetic_type>(p.y()) <= -half_cube_size)
           {
             v.y() = cl::sycl::fabs(v.y());
             p.y() = mirror_position(-half_cube_size, p.y());
           }
-          else if(p.y() >= half_cube_size)
+          else if(static_cast<arithmetic_type>(p.y()) >= half_cube_size)
           {
             v.y() = -cl::sycl::fabs(v.y());
             p.y() = mirror_position(half_cube_size, p.y());
           }
 
-          if(p.z() <= -half_cube_size)
+          if(static_cast<arithmetic_type>(p.z()) <= -half_cube_size)
           {
             v.z() = cl::sycl::fabs(v.z());
             p.z() = mirror_position(-half_cube_size, p.z());
           }
-          else if(p.z() >= half_cube_size)
+          else if(static_cast<arithmetic_type>(p.z()) >= half_cube_size)
           {
             v.z() = -cl::sycl::fabs(v.z());
             p.z() = mirror_position(half_cube_size, p.z());
@@ -246,14 +261,18 @@ int main()
       });
     });
 
-    auto particle_positions =
-        particles_buffer.get_access<sycl::access::mode::read>();
-
-    for(std::size_t i = 0; i < num_particles; ++i)
+    if(t % iterations_per_output == 0)
     {
-      outputfile << particle_positions[i].x() << " "
-                 << particle_positions[i].y() << " "
-                 << particle_positions[i].z() << " " << i << std::endl;
+      std::cout << "Writing output..."  << std::endl;
+      auto particle_positions =
+          particles_buffer.get_access<sycl::access::mode::read>();
+
+      for(std::size_t i = 0; i < num_particles; ++i)
+      {
+        outputfile << particle_positions[i].x() << " "
+                   << particle_positions[i].y() << " "
+                   << particle_positions[i].z() << " " << i << std::endl;
+      }
     }
   }
 }

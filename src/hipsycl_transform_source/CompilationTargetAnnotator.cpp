@@ -139,7 +139,7 @@ CompilationTargetAnnotator::addAnnotations()
   // with the second sweep
   this->_isFunctionProcessed.clear();
   // Second sweep - update host/device attributes based on called functions
-#ifdef HIPSYCL_TRANSFORM_INVESTIGATE_CALLEES
+
   for(auto decl : _callees)
   {
     bool isHost = false;
@@ -150,7 +150,7 @@ CompilationTargetAnnotator::addAnnotations()
                                  targetDeductionDirection::fromCallee);
     }
   }
-#endif
+
 
   // Write out attributes
   for(const Decl* f : _isFunctionCorrectedDevice)
@@ -261,25 +261,31 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
 
   if(isKernelFunction(f))
   {
-    // Treat kernels as device functions since they execute on the device
-    isDevice = true;
-    isHost = false;
+    if(direction == targetDeductionDirection::fromCaller)
+    {
+      // Treat kernels as device functions since they execute on the device
+      // and all functions called by kernels are device functions
+      isDevice = true;
+      isHost = false;
+    }
+    else
+    {
+      // If we are investigating callees, treat kernels as host functions
+      // since they are called on the host
+      isDevice = false;
+      isHost = true;
+    }
   }
   else
   {
-    if(_isFunctionProcessed[f])
-    {
-      isHost = isHostFunction(f);
-      isDevice = isDeviceFunction(f);
-    }
-    else
+    isHost = isHostFunction(f);
+    isDevice = isDeviceFunction(f);
+
+    if(!_isFunctionProcessed[f])
     {
       // Set this already in the beginning to avoid getting stuck in
       // cycles in the call graph
       _isFunctionProcessed[f] = true;
-
-      isHost = isHostFunction(f);
-      isDevice = isDeviceFunction(f);
 
       // If the deduction direction is fromCaller, we investigate
       // the functions that call this function and infer the host/device
@@ -338,8 +344,39 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
                                    callerOrCallee,
                                    direction);
 
-        isHost |= investigatedFunctionIsHostFunction;
-        isDevice |= investigatedFunctionIsDeviceFunction;
+
+        // If we are not looking for calls to __device__ functions,
+        // we need to become a __host__ function if we are called from
+        // other __host__ functions.
+        // But we don't necessarily need to become a __host__
+        // function if we're calling a __host__ __device__ function.
+        // So, the __host__ attribute should only be taken into
+        // account if we are deducing attributes based on our callers.
+        if(direction == targetDeductionDirection::fromCaller)
+          isHost |= investigatedFunctionIsHostFunction;
+
+        // If we are calling a kernel function and are trying
+        // to deduce our attributes based on the functions we call,
+        // we must ignore the returned results since we would otherwise
+        // wrongly conclude that a function calling a kernel must be
+        // compiled for __device__.
+        // But, if we're inferring the attributes from our callers,
+        // we must take kernels into account since a function called
+        // from a kernel definitely must be compiled for device.
+        // We therefore need two different code paths depending on the
+        // direction of deduction.
+        if(direction == targetDeductionDirection::fromCaller)
+          isDevice |= investigatedFunctionIsDeviceFunction;
+        else
+        {
+          // At the moment, we only mark callers as __device__ if the
+          // callees are 100% device functions. If they are also __host__,
+          // it is better to assume that the caller is is a __host__ function
+          // to avoid spamming everything (up to main()) with __device__ attributes
+          // as soon as one __host__ __device__ function is called.
+          if(!investigatedFunctionIsHostFunction && !isKernelFunction(callerOrCallee))
+            isDevice |= investigatedFunctionIsDeviceFunction;
+        }
 
       }
 
@@ -347,6 +384,8 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
         markAsHost(f);
       if(isDevice)
         markAsDevice(f);
+
+
     }
     // If device isn't explicitly marked as __host__ or __device__, treat it as
     // host

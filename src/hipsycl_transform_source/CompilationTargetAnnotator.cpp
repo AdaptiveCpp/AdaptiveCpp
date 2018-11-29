@@ -104,13 +104,29 @@ CompilationTargetAnnotator::addAnnotations()
       _callees[caller].push_back(decl.first);
   }
 
-  // We do two sweeps: First, we correct the __host__/__device__
-  // attributes of all functions based on the functions that call a function;
-  // Afterwards we do a second sweep and update the attribute
-  // based on the functions called by a function.
-  // The second sweep also allows us to correctly treat device functions
+  // We do two sweeps: The first sweep allows us to correctly treat device functions
   // that are not actually called by a kernel (e.g. unused functions in libraries)
   // but that make calls to __device__ functions (e.g. math functions, intrinsics etc)
+  // In a second sweep, we correct the __host__/__device__
+  // attributes of all functions based on the functions that call a function.
+
+
+  // First sweep - update host/device attributes based on called pure
+  // __device__ functions
+  for(auto decl : _callees)
+  {
+    bool isHost = false;
+    bool isDevice = false;
+    if(decl.first)
+    {
+      correctFunctionAnnotations(isHost, isDevice, decl.first,
+                                 targetDeductionDirection::fromCallee);
+    }
+  }
+  // Forget which functions we have processed since we now start over
+  // with the second sweep
+  this->_isFunctionProcessed.clear();
+
   for(auto decl : _callers)
   {
     bool isHost = false;
@@ -132,22 +148,6 @@ CompilationTargetAnnotator::addAnnotations()
              "cl::sycl::detail::dispatch::parallel_for_workgroup")
             this->correctSharedMemoryAnnotations(decl.first);
       }
-    }
-  }
-
-  // Forget which functions we have processed since we now start over
-  // with the second sweep
-  this->_isFunctionProcessed.clear();
-  // Second sweep - update host/device attributes based on called functions
-
-  for(auto decl : _callees)
-  {
-    bool isHost = false;
-    bool isDevice = false;
-    if(decl.first)
-    {
-      correctFunctionAnnotations(isHost, isDevice, decl.first,
-                                 targetDeductionDirection::fromCallee);
     }
   }
 

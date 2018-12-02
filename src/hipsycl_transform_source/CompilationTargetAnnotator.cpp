@@ -153,18 +153,18 @@ CompilationTargetAnnotator::addAnnotations()
 
 
   // Write out attributes
-  for(const Decl* f : _isFunctionCorrectedDevice)
+  for(auto f : _isFunctionCorrectedDevice)
   {
-    writeAnnotation(f, " __device__ ");
+    writeAnnotation(f.second, " __device__ ");
   }
 
-  for(const Decl* f: _isFunctionCorrectedHost)
+  for(auto f: _isFunctionCorrectedHost)
   {
     // Explicit __host__ annotation is only necessary if a __device__ annotation
     // is present as well
-    if(isDeviceFunction(f))
+    if(isDeviceFunction(f.second))
     {
-      writeAnnotation(f, " __host__ ");
+      writeAnnotation(f.second, " __host__ ");
     }
   }
 }
@@ -218,15 +218,17 @@ CompilationTargetAnnotator::correctSharedMemoryAnnotations(
 bool
 CompilationTargetAnnotator::isHostFunction(const clang::Decl* f) const
 {
+  auto declaration_key = this->getDeclKey(f);
   return this->containsAttributeForCompilation<HostAttribute>(f) ||
-      (_isFunctionCorrectedHost.find(f) != _isFunctionCorrectedHost.end());
+      (_isFunctionCorrectedHost.find(declaration_key) != _isFunctionCorrectedHost.end());
 }
 
 bool
 CompilationTargetAnnotator::isDeviceFunction(const clang::Decl* f) const
 {
+  auto declaration_key = this->getDeclKey(f);
   return this->containsAttributeForCompilation<DeviceAttribute>(f) ||
-      (_isFunctionCorrectedDevice.find(f) != _isFunctionCorrectedDevice.end());
+      (_isFunctionCorrectedDevice.find(declaration_key) != _isFunctionCorrectedDevice.end());
 }
 
 bool
@@ -235,7 +237,23 @@ CompilationTargetAnnotator::isKernelFunction(const clang::Decl* f) const
   return this->containsAttributeForCompilation<KernelAttribute>(f);
 }
 
-
+CompilationTargetAnnotator::FunctionLocationIdentifier
+CompilationTargetAnnotator::getDeclKey(const clang::Decl* f) const
+{
+  // In order to avoid having different Decl's as keys for different
+  // instantiations of the same template, we use the position
+  // in the source code of the body as key. This position
+  // is of course invariant under different template instantiations,
+  // which allows us treat Decl's in the call graph that are
+  // logically different (because they are different instantiations)
+  // as one actual Decl, as in the source.
+  // ToDo: Surely clang must have a better way to find the "general"
+  // Decl of template instantiations?
+  if(f->hasBody())
+    return f->getBody()->getLocStart().printToString(_rewriter.getSourceMgr());
+  else
+    return f->getLocStart().printToString(_rewriter.getSourceMgr());
+}
 
 bool CompilationTargetAnnotator::canCallHostFunctions(
     const clang::Decl* f) const
@@ -300,36 +318,8 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
           (direction == targetDeductionDirection::fromCaller) ?
             _callers[f] : _callees[f];
 
-#ifdef HIPSYCL_VERBOSE_DEBUG
-      if(f->getAsFunction())
-      {
-        HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: "
-                           << "call graph for "
-                           << f->getAsFunction()->getQualifiedNameAsString() << ": " << std::endl;
-      }
-#endif
-
       for(const clang::Decl* callerOrCallee : investigatedFunctions)
       {
-#ifdef HIPSYCL_VERBOSE_DEBUG
-        if(callerOrCallee->getAsFunction())
-        {
-          auto functionName = callerOrCallee->getAsFunction()->getQualifiedNameAsString();
-
-          if(direction == targetDeductionDirection::fromCaller)
-          {
-            HIPSYCL_DEBUG_INFO << "    called by "
-                               << functionName
-                               << std::endl;
-          }
-          else
-          {
-            HIPSYCL_DEBUG_INFO << "    calling "
-                               << functionName
-                               << std::endl;
-          }
-        }
-#endif
         // This does not really save us any work, we must go through
         // the entire call graph anyway, and we won't visit the same
         // node twice because of the _isFunctionProcessed map.
@@ -345,28 +335,47 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
                                    direction);
 
 
-        // If we are not looking for calls to __device__ functions,
-        // we need to become a __host__ function if we are called from
-        // other __host__ functions.
-        // But we don't necessarily need to become a __host__
-        // function if we're calling a __host__ __device__ function.
-        // So, the __host__ attribute should only be taken into
-        // account if we are deducing attributes based on our callers.
         if(direction == targetDeductionDirection::fromCaller)
-          isHost |= investigatedFunctionIsHostFunction;
+        {
+          // If we are not looking for calls to __device__ functions,
+          // we need to become a __host__ function if we are called from
+          // other __host__ functions.
+          // But we don't necessarily need to become a __host__
+          // function if we're calling a __host__ __device__ function.
+          // So, the __host__ attribute should only be taken into
+          // account if we are deducing attributes based on our callers.
 
-        // If we are calling a kernel function and are trying
-        // to deduce our attributes based on the functions we call,
-        // we must ignore the returned results since we would otherwise
-        // wrongly conclude that a function calling a kernel must be
-        // compiled for __device__.
-        // But, if we're inferring the attributes from our callers,
-        // we must take kernels into account since a function called
-        // from a kernel definitely must be compiled for device.
-        // We therefore need two different code paths depending on the
-        // direction of deduction.
-        if(direction == targetDeductionDirection::fromCaller)
-          isDevice |= investigatedFunctionIsDeviceFunction;
+          isHost = isHost || investigatedFunctionIsHostFunction;
+
+          // If we are calling a kernel function and are trying
+          // to deduce our attributes based on the functions we call,
+          // we must ignore the returned results since we would otherwise
+          // wrongly conclude that a function calling a kernel must be
+          // compiled for __device__.
+          // But, if we're inferring the attributes from our callers,
+          // we must take kernels into account since a function called
+          // from a kernel definitely must be compiled for device.
+          // We therefore need two different code paths depending on the
+          // direction of deduction.
+
+          isDevice = isDevice || investigatedFunctionIsDeviceFunction;
+
+#ifdef HIPSYCL_VERBOSE_DEBUG
+          HIPSYCL_DEBUG_INFO << "Execution space deduction of "
+                             << f->getAsFunction()->getQualifiedNameAsString()
+                             << "... " << std::endl;
+          if (investigatedFunctionIsHostFunction)
+            HIPSYCL_DEBUG_INFO
+                      << " ... is __host__ because: Called by __host__ function "
+                      << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
+                      << std::endl;
+          if (investigatedFunctionIsDeviceFunction)
+            HIPSYCL_DEBUG_INFO
+                      << " ... is __device__ because: Called by __device__ function "
+                      << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
+                      << std::endl;
+#endif
+        }
         else
         {
           // At the moment, we only mark callers as __device__ if the
@@ -374,23 +383,50 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
           // it is better to assume that the caller is is a __host__ function
           // to avoid spamming everything (up to main()) with __device__ attributes
           // as soon as one __host__ __device__ function is called.
-          if(!investigatedFunctionIsHostFunction && !isKernelFunction(callerOrCallee))
+
+          if(!isHostFunction(callerOrCallee)
+             && !isKernelFunction(callerOrCallee))
+          {
             isDevice |= investigatedFunctionIsDeviceFunction;
+
+#ifdef HIPSYCL_VERBOSE_DEBUG
+            HIPSYCL_DEBUG_INFO << "Execution space deduction of "
+                               << f->getAsFunction()->getQualifiedNameAsString()
+                               << "... " << std::endl;
+            if (investigatedFunctionIsDeviceFunction)
+            {
+              HIPSYCL_DEBUG_INFO
+                        << " ... is __device__ because: Calls __device__ function "
+                        << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
+                        << std::endl;
+            }
+#endif
+          }
         }
 
       }
 
-      if(isHost)
-        markAsHost(f);
+      // If we deduce from the callees, we can only deduce __device__
+      // attributes
+      if(direction == targetDeductionDirection::fromCaller)
+      {
+        if(isHost)
+          markAsHost(f);
+      }
       if(isDevice)
         markAsDevice(f);
-
-
     }
     // If device isn't explicitly marked as __host__ or __device__, treat it as
     // host
-    if(!isDevice && !isHost)
+    if(!isDevice && !isHost && direction == targetDeductionDirection::fromCaller)
     {
+#ifdef HIPSYCL_VERBOSE_DEBUG
+      HIPSYCL_DEBUG_INFO << "Execution space deduction of "
+                         << f->getAsFunction()->getQualifiedNameAsString()
+                         << "... " << std::endl;
+      HIPSYCL_DEBUG_INFO << " ... is __host__ because: No contrary evidence found."
+                         << std::endl;
+#endif
       isHost = true;
       markAsHost(f);
     }
@@ -451,9 +487,9 @@ void CompilationTargetAnnotator::markAsHost(const clang::Decl* f)
   if(isKernelFunction(f))
     return;
 
+  auto id = this->getDeclKey(f);
   if(!isHostFunction(f))
-    _isFunctionCorrectedHost.insert(f);
-
+    _isFunctionCorrectedHost[id] = f;
 }
 
 void CompilationTargetAnnotator::markAsDevice(const clang::Decl* f)
@@ -461,8 +497,9 @@ void CompilationTargetAnnotator::markAsDevice(const clang::Decl* f)
   if(isKernelFunction(f))
     return;
 
+  auto id = this->getDeclKey(f);
   if(!isDeviceFunction(f))
-    _isFunctionCorrectedDevice.insert(f);
+    _isFunctionCorrectedDevice[id] = f;
 }
 
 

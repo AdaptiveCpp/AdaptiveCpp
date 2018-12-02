@@ -125,7 +125,7 @@ int main()
   auto forces_buffer =
       sycl::buffer<vector_type, 1>{sycl::range<1>{particles.size()}};
 
-  sycl::gpu_selector selector
+  sycl::gpu_selector selector;
   sycl::queue q{selector};
 
   auto execution_range = sycl::nd_range<1>{

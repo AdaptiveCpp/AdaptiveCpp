@@ -40,14 +40,14 @@ class KernelAttribute
 {
 public:
   static std::string getString()
-  { return "__attribute__((section(\"kernel\")))"; }
+  { return "__attribute__((diagnose_if(false,\"kernel\",\"warning\")))"; }
 
   static bool describedBy(clang::Attr* attrib)
   {
-    if(clang::isa<clang::SectionAttr>(attrib))
+    if(clang::isa<clang::DiagnoseIfAttr>(attrib))
     {
-      clang::SectionAttr* sectionAttrib = clang::cast<clang::SectionAttr>(attrib);
-      if(sectionAttrib->getName().str() == "kernel")
+      clang::DiagnoseIfAttr* attr = clang::cast<clang::DiagnoseIfAttr>(attrib);
+      if(attr->getMessage() == "kernel")
         return true;
     }
     return false;
@@ -59,14 +59,14 @@ class DeviceAttribute
 {
 public:
   static std::string getString()
-  { return "__attribute__((section(\"device\")))"; }
+  { return "__attribute__((diagnose_if(false,\"device\",\"warning\")))"; }
 
   static bool describedBy(clang::Attr* attrib)
   {
-    if(clang::isa<clang::SectionAttr>(attrib))
+    if(clang::isa<clang::DiagnoseIfAttr>(attrib))
     {
-      clang::SectionAttr* sectionAttrib = clang::cast<clang::SectionAttr>(attrib);
-      if(sectionAttrib->getName().str() == "device")
+      clang::DiagnoseIfAttr* attr = clang::cast<clang::DiagnoseIfAttr>(attrib);
+      if(attr->getMessage() == "device")
         return true;
     }
     return false;
@@ -77,14 +77,14 @@ class HostAttribute
 {
 public:
   static std::string getString()
-  { return "__attribute__((visibility(\"default\")))"; }
+  { return "__attribute__((diagnose_if(false,\"host\",\"warning\")))"; }
 
   static bool describedBy(clang::Attr* attrib)
   {
-    if(clang::isa<clang::VisibilityAttr>(attrib))
+    if(clang::isa<clang::DiagnoseIfAttr>(attrib))
     {
-      clang::VisibilityAttr* vis = clang::cast<clang::VisibilityAttr>(attrib);
-      if(vis->getVisibility() == clang::VisibilityAttr::Default)
+      clang::DiagnoseIfAttr* attr = clang::cast<clang::DiagnoseIfAttr>(attrib);
+      if(attr->getMessage() == "host")
         return true;
     }
     return false;

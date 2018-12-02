@@ -267,7 +267,9 @@ class cuda_compiler:
           else:
             transformed_args += self.transform_argument(arg)
 
-        compiler_args = ["--expt-extended-lambda", "-Wno-deprecated-declarations"]
+        compiler_args = ["--expt-extended-lambda",
+                         "--expt-relaxed-constexpr",
+                         "-Wno-deprecated-declarations"]
         compiler_args += get_hipsycl_default_options(use_bundled_hip = True)
         compiler_args += transformed_args
 

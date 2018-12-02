@@ -46,6 +46,8 @@ public:
   using CalleeMapType =
       std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
+  using FunctionLocationIdentifier = std::string;
+
   CompilationTargetAnnotator(clang::Rewriter& rewriter,
                              CallGraph& callGraph);
 
@@ -55,6 +57,9 @@ public:
   void addAnnotations();
 
 private:
+
+  FunctionLocationIdentifier getDeclKey(
+      const clang::Decl* f) const;
 
   enum class targetDeductionDirection
   {
@@ -107,8 +112,11 @@ private:
   CalleeMapType _callees;
 
   std::unordered_map<const clang::Decl*, bool> _isFunctionProcessed;
-  std::unordered_set<const clang::Decl*> _isFunctionCorrectedDevice;
-  std::unordered_set<const clang::Decl*> _isFunctionCorrectedHost;
+  std::unordered_map<FunctionLocationIdentifier,const clang::Decl*>
+      _isFunctionCorrectedDevice;
+
+  std::unordered_map<FunctionLocationIdentifier,const clang::Decl*>
+      _isFunctionCorrectedHost;
 };
 
 }

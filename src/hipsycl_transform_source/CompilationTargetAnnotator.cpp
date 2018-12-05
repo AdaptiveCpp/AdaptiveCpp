@@ -42,23 +42,54 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
   : _rewriter{r},
     _callGraph{callGraph}
 {
+
+  // When dealing with multiple template instantiations, we may end up
+  // with several Decl's (and hence several nodes in the call graph) even
+  // if these functions refer to the same location in the source code.
+  // Since we are interested in transforming source code, we combine
+  // all graph nodes referring to the same source code in one.
+
+  // Maps a function key (obtained with getDeclKey(), which returns
+  // an id based on source location) to the decl.
+  std::unordered_map<FunctionLocationIdentifier, const clang::Decl*> funcs;
+
+  // Go through all nodes and assign the entry in funcs for the key the first
+  // decl with that key that we come accross
   for(CallGraph::iterator node = _callGraph.begin();
       node != _callGraph.end(); ++node)
   {
+    if(funcs.find(getDeclKey(node->getFirst())) == funcs.end())
+      funcs[getDeclKey(node->getFirst())] = node->getFirst();
+  }
+
+  // Now we actually start processing the graph - build
+  // the _callers map that maps _callers[i] to a vector of caller decls of
+  // Decl i.
+  for(CallGraph::iterator node = _callGraph.begin();
+      node != _callGraph.end(); ++node)
+  {
+    auto nodeDecl = funcs[getDeclKey(node->getFirst())];
     if(node->getFirst())
     {
       for(auto child : *(node->getSecond()))
       {
         if(child->getDecl())
-          _callers[child->getDecl()].push_back(node->getFirst());
+          _callers[funcs[getDeclKey(child->getDecl())]].push_back(nodeDecl);
       }
     }
     else
     {
+      // For decls that have no caller (node->getFirst() == nullptr)
+      // we end up in this branch.
+      // It is still important to consider these functions! There may
+      // be uncalled functions that call __device__ functions and hence
+      // must be __device__.
       for(auto child : *(node->getSecond()))
-        if(child->getDecl())
-          if(_callers.find(child->getDecl()) == _callers.end())
-            _callers[child->getDecl()] = std::vector<const clang::Decl*>();
+      {
+        auto childDecl = funcs[getDeclKey(child->getDecl())];
+        if(_callers.find(childDecl) == _callers.end())
+          _callers[childDecl] = std::vector<const clang::Decl*>();
+      }
     }
   }
 }
@@ -82,7 +113,7 @@ CompilationTargetAnnotator::treatConstructsAsFunctionCalls(
         {
           const CXXDestructorDecl* destructor = parent->getDestructor();
 
-          if(destructor)
+          if(destructor && !destructor->isDefaulted())
             _callers[destructor].push_back(caller);
         }
 
@@ -94,16 +125,60 @@ CompilationTargetAnnotator::treatConstructsAsFunctionCalls(
 void
 CompilationTargetAnnotator::addAnnotations()
 {
-  // Build _callees
+
+#if defined(HIPSYCL_VERBOSE_DEBUG) && defined(HIPSYCL_DUMP_CALLGRAPH)
+  for(auto decl : _callers)
+  {
+    if(decl.first)
+      HIPSYCL_DEBUG_INFO << decl.first->getAsFunction()->getQualifiedNameAsString() << " [" << decl.first <<"] called by: " << std::endl;
+    for(auto caller : decl.second)
+    {
+      if(caller)
+        HIPSYCL_DEBUG_INFO <<"\t" << caller->getAsFunction()->getQualifiedNameAsString() << std::endl;
+    }
+  }
+#endif
+  // Invert _callers map to build _callees
   _callees.clear();
   _isFunctionProcessed.clear();
 
   for(auto decl : _callers)
-  {
     for(auto caller : decl.second)
       _callees[caller].push_back(decl.first);
+
+
+  // First correct __shared__ attributes and mark
+  // all kernels as __device__
+  for(auto decl : _callers)
+  {
+    if(decl.first)
+    {
+      for(auto caller : decl.second)
+      {
+        if(caller && caller->getAsFunction())
+        {
+          std::string callerName = caller->getAsFunction()->getQualifiedNameAsString();
+          if(callerName.find("cl::sycl::detail::dispatch::") !=
+             std::string::npos)
+          {
+            // If this is a kernel function in a parallel hierarchical for,
+            // we need to add __shared__ attributes. This is the case
+            // if the function is called by cl::sycl::detail::dispatch::parallel_for_workgroup
+            if(callerName == "cl::sycl::detail::dispatch::parallel_for_workgroup")
+              this->correctSharedMemoryAnnotations(decl.first);
+
+            // In any way, mark all kernels as __device__ to
+            // make our life easier later on
+            this->markAsDevice(decl.first);
+          }
+
+        }
+      }
+    }
   }
 
+  // Now worry about __host__ and __device__ attributes of
+  // the remaining call graph:
   // We do two sweeps: The first sweep allows us to correctly treat device functions
   // that are not actually called by a kernel (e.g. unused functions in libraries)
   // but that make calls to __device__ functions (e.g. math functions, intrinsics etc)
@@ -119,6 +194,7 @@ CompilationTargetAnnotator::addAnnotations()
     bool isDevice = false;
     if(decl.first)
     {
+
       correctFunctionAnnotations(isHost, isDevice, decl.first,
                                  targetDeductionDirection::fromCallee);
     }
@@ -137,17 +213,6 @@ CompilationTargetAnnotator::addAnnotations()
       // This corrects device, host attributes
       correctFunctionAnnotations(isHost, isDevice, decl.first,
                                  targetDeductionDirection::fromCaller);
-
-      // If this is a kernel function in a parallel hierarchical for,
-      // we also need to add __shared__ attributes. This is the case
-      // if the function is called by cl::sycl::detail::dispatch::parallel_for_workgroup
-      for(auto caller : decl.second)
-      {
-        if(caller && caller->getAsFunction())
-          if(caller->getAsFunction()->getQualifiedNameAsString() ==
-             "cl::sycl::detail::dispatch::parallel_for_workgroup")
-            this->correctSharedMemoryAnnotations(decl.first);
-      }
     }
   }
 
@@ -216,10 +281,24 @@ CompilationTargetAnnotator::correctSharedMemoryAnnotations(
 }
 
 bool
+CompilationTargetAnnotator::isExplicitlyHostFunction(
+    const clang::Decl* f) const
+{
+  return this->containsAttributeForCompilation<HostAttribute>(f);
+}
+
+bool
+CompilationTargetAnnotator::isExplicitlyDeviceFunction(
+    const clang::Decl* f) const
+{
+  return this->containsAttributeForCompilation<DeviceAttribute>(f);
+}
+
+bool
 CompilationTargetAnnotator::isHostFunction(const clang::Decl* f) const
 {
   auto declaration_key = this->getDeclKey(f);
-  return this->containsAttributeForCompilation<HostAttribute>(f) ||
+  return isExplicitlyHostFunction(f) ||
       (_isFunctionCorrectedHost.find(declaration_key) != _isFunctionCorrectedHost.end());
 }
 
@@ -227,7 +306,7 @@ bool
 CompilationTargetAnnotator::isDeviceFunction(const clang::Decl* f) const
 {
   auto declaration_key = this->getDeclKey(f);
-  return this->containsAttributeForCompilation<DeviceAttribute>(f) ||
+  return isExplicitlyDeviceFunction(f) ||
       (_isFunctionCorrectedDevice.find(declaration_key) != _isFunctionCorrectedDevice.end());
 }
 
@@ -249,6 +328,8 @@ CompilationTargetAnnotator::getDeclKey(const clang::Decl* f) const
   // as one actual Decl, as in the source.
   // ToDo: Surely clang must have a better way to find the "general"
   // Decl of template instantiations?
+  if (!f)
+    return "<nullptr>";
   if(f->hasBody())
     return f->getBody()->getLocStart().printToString(_rewriter.getSourceMgr());
   else
@@ -296,6 +377,18 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
   }
   else
   {
+    // If the function has been marked explicitly as host
+    // or device, don't modify it further
+    isHost = isExplicitlyHostFunction(f);
+    isDevice = isExplicitlyDeviceFunction(f);
+    if(isHost || isDevice)
+    {
+      _isFunctionProcessed[f] = true;
+      return;
+    }
+
+    // Otherwise, we also retrieve the current information
+    // about the deduction state
     isHost = isHostFunction(f);
     isDevice = isDeviceFunction(f);
 
@@ -416,7 +509,7 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
       if(isDevice)
         markAsDevice(f);
     }
-    // If device isn't explicitly marked as __host__ or __device__, treat it as
+    // If function isn't explicitly marked as __host__ or __device__, treat it as
     // host
     if(!isDevice && !isHost && direction == targetDeductionDirection::fromCaller)
     {

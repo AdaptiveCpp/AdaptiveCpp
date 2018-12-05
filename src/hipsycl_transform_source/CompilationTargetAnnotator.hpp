@@ -84,6 +84,10 @@ private:
 
   bool isHostFunction(const clang::Decl*) const;
   bool isDeviceFunction(const clang::Decl*) const;
+
+  bool isExplicitlyHostFunction(const clang::Decl*) const;
+  bool isExplicitlyDeviceFunction(const clang::Decl*) const;
+
   bool isKernelFunction(const clang::Decl*) const;
 
   bool canCallHostFunctions(const clang::Decl* f) const;
@@ -112,6 +116,7 @@ private:
   CalleeMapType _callees;
 
   std::unordered_map<const clang::Decl*, bool> _isFunctionProcessed;
+
   std::unordered_map<FunctionLocationIdentifier,const clang::Decl*>
       _isFunctionCorrectedDevice;
 

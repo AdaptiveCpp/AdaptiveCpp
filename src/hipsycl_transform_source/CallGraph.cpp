@@ -38,6 +38,8 @@
 #include <memory>
 #include <string>
 
+#include <iostream>
+
 using namespace clang;
 using namespace hipsycl::transform;
 
@@ -55,9 +57,12 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
   CallGraphNode *CallerNode;
 
 public:
-  CGBuilder(CallGraph *g, CallGraphNode *N) : G(g), CallerNode(N) {}
+  CGBuilder(CallGraph *g, CallGraphNode *N) : G(g), CallerNode(N) {
+    std::cout << "CGBuilder for " << N->getDecl()->getAsFunction()->getQualifiedNameAsString()<<std::endl;
+  }
 
   void VisitStmt(Stmt *S) {
+
     // Only visit children if the statement is not a lambda expression -
     // otherwise we would falsely consider all functions called in the lambda
     // to be called from the function in which the lambda was declared.
@@ -75,8 +80,10 @@ public:
   }
 
   Decl *getDeclFromCall(CallExpr *CE) {
+
     if (FunctionDecl *CalleeDecl = CE->getDirectCallee())
       return CalleeDecl;
+
 
     // Simple detection of a call through a block.
     Expr *CEE = CE->getCallee()->IgnoreParenImpCasts();
@@ -92,12 +99,15 @@ public:
     // Don't ask CallGraph::includeInGraph() whether we should include that function
     // in the call graph since that would skip all templates even if they are instantiated
     // here
-
+    std::cout << CallerNode->getDecl()->getAsFunction()->getQualifiedNameAsString() <<
+                 " calls " << D->getAsFunction()->getQualifiedNameAsString() << std::endl;
     CallGraphNode *CalleeNode = G->getOrInsertNode(D);
     CallerNode->addCallee(CalleeNode);
   }
 
   void VisitCallExpr(CallExpr *CE) {
+    std::cout << "CGBuilder::VisitCallExpr for " << CallerNode->getDecl()->getAsFunction()->getQualifiedNameAsString()<<std::endl;
+    std::cout << "  CallExpr: " << getDeclFromCall(CE) << std::endl;
     if (Decl *D = getDeclFromCall(CE))
       addCalledDecl(D);
     VisitChildren(CE);
@@ -122,6 +132,7 @@ public:
   }
 
   void VisitChildren(Stmt *S) {
+
     for (Stmt *SubStmt : S->children())
       if (SubStmt)
         this->Visit(SubStmt);
@@ -134,6 +145,7 @@ namespace hipsycl {
 namespace transform {
 
 void CallGraph::addNodesForBlocks(DeclContext *D) {
+
   if (BlockDecl *BD = dyn_cast<BlockDecl>(D))
     addNodeForDecl(BD, true);
 
@@ -177,6 +189,22 @@ void CallGraph::addNodeForDecl(Decl* D, bool IsGlobal) {
   CGBuilder builder(this, Node);
   if (Stmt *Body = D->getBody())
     builder.Visit(Body);
+
+  // If we are looking at a constructor, we also must
+  // process its initializer list, and any function calls therein,
+  // as if they were located in the constructor body
+  if(clang::isa<CXXConstructorDecl>(D))
+  {
+    clang::CXXConstructorDecl* constructor =
+        clang::cast<clang::CXXConstructorDecl>(D);
+
+    for(auto initializer = constructor->init_begin();
+        initializer != constructor->init_end();
+        ++initializer)
+    {
+      builder.Visit((*initializer)->getInit());
+    }
+  }
 }
 
 CallGraphNode *CallGraph::getNode(const Decl *F) const {

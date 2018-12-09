@@ -65,6 +65,8 @@ CXXConstructCallerMatcher::run(
     {
       const clang::Decl* constructor = expr->getConstructor();
 
+      // Add found constructor call sites, but ignore constructors of
+      // lambda function objects
       if(constructor)
       {
         bool isLambda = false;
@@ -86,13 +88,20 @@ CXXConstructCallerMatcher::findCXXConstructExprs(const clang::Stmt* current,
 {
   if(current)
   {
+
     for(auto child = current->child_begin();
         child != current->child_end(); ++child)
     {
-      if(*child && clang::isa<clang::CXXConstructExpr>(*child))
-        out.push_back(clang::cast<clang::CXXConstructExpr>(*child));
+      if(*child)
+      {
+        if(clang::isa<clang::CXXConstructExpr>(*child))
+          out.push_back(clang::cast<clang::CXXConstructExpr>(*child));
 
-      findCXXConstructExprs(*child, out);
+        // Don't recurse into Lambda expressions since they must be treated
+        // as different functions
+        if(!clang::isa<clang::LambdaExpr>(*child))
+          findCXXConstructExprs(*child, out);
+      }
     }
   }
 }

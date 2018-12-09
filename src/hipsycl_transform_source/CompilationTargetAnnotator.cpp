@@ -31,6 +31,7 @@
 #include "Attributes.hpp"
 
 //#define HIPSYCL_VERBOSE_DEBUG
+//#define HIPSYCL_DUMP_CALLGRAPH
 
 using namespace clang;
 

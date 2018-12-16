@@ -46,7 +46,7 @@ public:
   using CalleeMapType =
       std::unordered_map<const clang::Decl*, std::vector<const clang::Decl*>>;
 
-  using FunctionLocationIdentifier = std::string;
+  using DeclIdentifier = std::string;
 
   CompilationTargetAnnotator(clang::Rewriter& rewriter,
                              CallGraph& callGraph);
@@ -58,7 +58,7 @@ public:
 
 private:
 
-  FunctionLocationIdentifier getDeclKey(
+  DeclIdentifier getDeclKey(
       const clang::Decl* f) const;
 
   enum class targetDeductionDirection
@@ -108,6 +108,8 @@ private:
 
   bool isPrivateMemory(const clang::DeclStmt* decl) const;
 
+  const clang::Decl* getMainDecl(const clang::Decl*) const;
+
   clang::Rewriter& _rewriter;
   CallGraph& _callGraph;
 
@@ -117,11 +119,16 @@ private:
 
   std::unordered_map<const clang::Decl*, bool> _isFunctionProcessed;
 
-  std::unordered_map<FunctionLocationIdentifier,const clang::Decl*>
+  std::unordered_map<DeclIdentifier,const clang::Decl*>
       _isFunctionCorrectedDevice;
 
-  std::unordered_map<FunctionLocationIdentifier,const clang::Decl*>
+  std::unordered_map<DeclIdentifier,const clang::Decl*>
       _isFunctionCorrectedHost;
+
+  std::unordered_map<DeclIdentifier, std::vector<const clang::Decl*>>
+      _synonymousDecls;
+
+  std::unordered_map<const clang::Decl*, bool> _containsUnresolvedCalls;
 };
 
 }

@@ -30,8 +30,8 @@
 #include "CompilationTargetAnnotator.hpp"
 #include "Attributes.hpp"
 
-//#define HIPSYCL_VERBOSE_DEBUG
-//#define HIPSYCL_DUMP_CALLGRAPH
+#define HIPSYCL_VERBOSE_DEBUG
+#define HIPSYCL_DUMP_CALLGRAPH
 
 using namespace clang;
 
@@ -43,24 +43,19 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
   : _rewriter{r},
     _callGraph{callGraph}
 {
-
   // When dealing with multiple template instantiations, we may end up
   // with several Decl's (and hence several nodes in the call graph) even
   // if these functions refer to the same location in the source code.
   // Since we are interested in transforming source code, we combine
   // all graph nodes referring to the same source code in one.
 
-  // Maps a function key (obtained with getDeclKey(), which returns
-  // an id based on source location) to the decl.
-  std::unordered_map<FunctionLocationIdentifier, const clang::Decl*> funcs;
-
-  // Go through all nodes and assign the entry in funcs for the key the first
-  // decl with that key that we come accross
+  // Go through all nodes and collect synonymous decls
   for(CallGraph::iterator node = _callGraph.begin();
       node != _callGraph.end(); ++node)
   {
-    if(funcs.find(getDeclKey(node->getFirst())) == funcs.end())
-      funcs[getDeclKey(node->getFirst())] = node->getFirst();
+    _synonymousDecls[getDeclKey(node->getFirst())].push_back(node->getFirst());
+    _containsUnresolvedCalls[node->getFirst()] = 
+        node->getSecond()->containsUnresolvedCallExpr();
   }
 
   // Now we actually start processing the graph - build
@@ -69,13 +64,13 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
   for(CallGraph::iterator node = _callGraph.begin();
       node != _callGraph.end(); ++node)
   {
-    auto nodeDecl = funcs[getDeclKey(node->getFirst())];
+    auto nodeDecl = this->getMainDecl(node->getFirst());
     if(node->getFirst())
     {
       for(auto child : *(node->getSecond()))
       {
         if(child->getDecl())
-          _callers[funcs[getDeclKey(child->getDecl())]].push_back(nodeDecl);
+          _callers[this->getMainDecl(child->getDecl())].push_back(nodeDecl);
       }
     }
     else
@@ -87,7 +82,7 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
       // must be __device__.
       for(auto child : *(node->getSecond()))
       {
-        auto childDecl = funcs[getDeclKey(child->getDecl())];
+        auto childDecl = getMainDecl(child->getDecl());
         if(_callers.find(childDecl) == _callers.end())
           _callers[childDecl] = std::vector<const clang::Decl*>();
       }
@@ -126,19 +121,6 @@ CompilationTargetAnnotator::treatConstructsAsFunctionCalls(
 void
 CompilationTargetAnnotator::addAnnotations()
 {
-
-#if defined(HIPSYCL_VERBOSE_DEBUG) && defined(HIPSYCL_DUMP_CALLGRAPH)
-  for(auto decl : _callers)
-  {
-    if(decl.first)
-      HIPSYCL_DEBUG_INFO << decl.first->getAsFunction()->getQualifiedNameAsString() << " [" << decl.first <<"] called by: " << std::endl;
-    for(auto caller : decl.second)
-    {
-      if(caller)
-        HIPSYCL_DEBUG_INFO <<"\t" << caller->getAsFunction()->getQualifiedNameAsString() << std::endl;
-    }
-  }
-#endif
   // Invert _callers map to build _callees
   _callees.clear();
   _isFunctionProcessed.clear();
@@ -147,6 +129,26 @@ CompilationTargetAnnotator::addAnnotations()
     for(auto caller : decl.second)
       _callees[caller].push_back(decl.first);
 
+#if defined(HIPSYCL_VERBOSE_DEBUG) && defined(HIPSYCL_DUMP_CALLGRAPH)
+  for(auto decl : _callees)
+  {
+    if (decl.first)
+    {
+      HIPSYCL_DEBUG_INFO
+          << decl.first->getAsFunction()->getQualifiedNameAsString() << " ["
+          << decl.first << "] calls: " << std::endl;
+    }
+    for(auto callee : decl.second)
+    {
+      if (callee) 
+      {
+        HIPSYCL_DEBUG_INFO
+            << " ---> " << callee->getAsFunction()->getQualifiedNameAsString()
+            << std::endl;
+      }
+    }
+  }
+#endif
 
   // First correct __shared__ attributes and mark
   // all kernels as __device__
@@ -233,6 +235,60 @@ CompilationTargetAnnotator::addAnnotations()
       writeAnnotation(f.second, " __host__ ");
     }
   }
+
+  // Prune uninstantiated templates
+  for(auto synonymousDeclGroup : _synonymousDecls)
+  {
+    bool allDeclsContainUnresolvedCalls = true;
+
+    for(auto decl : synonymousDeclGroup.second)
+    {
+      if (!this->_containsUnresolvedCalls[decl]) 
+      {
+        allDeclsContainUnresolvedCalls = false;
+        break;
+      }
+    }
+
+    if(allDeclsContainUnresolvedCalls)
+    {
+      const clang::Decl* d = synonymousDeclGroup.second.front();
+      HIPSYCL_DEBUG_INFO << "Removing function body of " 
+                         << d->getAsFunction()->getQualifiedNameAsString()
+                         << " (all declarations contain unresolved function calls)"
+                         << std::endl;
+
+      if (d->hasBody()) {
+        std::string prefix = ";";
+
+        const clang::Stmt *body = d->getBody();
+        auto bodyStart = d->getBody()->getLocStart();
+
+        if(clang::isa<CXXConstructorDecl>(d))
+        {
+          // If we are a constructor, instead of turning the definition
+          // into a declaration with a ';', we insert an empty definition.
+          // This also works if an initalizer list is present, where
+          // a ';' would be a syntax error.
+          prefix = "{}";
+        }
+
+        auto bodyEnd   = d->getEndLoc();
+      
+        _rewriter.InsertTextBefore(bodyStart,
+            prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");
+        _rewriter.InsertTextAfterToken(bodyEnd, "\n#endif\n");
+        //_rewriter.RemoveText(clang::SourceRange(bodyStart, bodyEnd));
+      }
+    }
+  } 
+}
+
+const clang::Decl*
+CompilationTargetAnnotator::getMainDecl(const clang::Decl* decl) const
+{
+  auto key = this->getDeclKey(decl);
+  return this->_synonymousDecls.at(key).front();
 }
 
 bool
@@ -317,7 +373,7 @@ CompilationTargetAnnotator::isKernelFunction(const clang::Decl* f) const
   return this->containsAttributeForCompilation<KernelAttribute>(f);
 }
 
-CompilationTargetAnnotator::FunctionLocationIdentifier
+CompilationTargetAnnotator::DeclIdentifier
 CompilationTargetAnnotator::getDeclKey(const clang::Decl* f) const
 {
   // In order to avoid having different Decl's as keys for different
@@ -327,7 +383,7 @@ CompilationTargetAnnotator::getDeclKey(const clang::Decl* f) const
   // which allows us treat Decl's in the call graph that are
   // logically different (because they are different instantiations)
   // as one actual Decl, as in the source.
-  // ToDo: Surely clang must have a better way to find the "general"
+  // TODO: Surely clang must have a better way to find the "general"
   // Decl of template instantiations?
   if (!f)
     return "<nullptr>";
@@ -458,16 +514,18 @@ CompilationTargetAnnotator::correctFunctionAnnotations(
           HIPSYCL_DEBUG_INFO << "Execution space deduction of "
                              << f->getAsFunction()->getQualifiedNameAsString()
                              << "... " << std::endl;
-          if (investigatedFunctionIsHostFunction)
+          if (investigatedFunctionIsHostFunction) {
             HIPSYCL_DEBUG_INFO
-                      << " ... is __host__ because: Called by __host__ function "
-                      << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
-                      << std::endl;
-          if (investigatedFunctionIsDeviceFunction)
+                << " ... is __host__ because: Called by __host__ function "
+                << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
+                << std::endl;
+          }
+          if (investigatedFunctionIsDeviceFunction) {
             HIPSYCL_DEBUG_INFO
-                      << " ... is __device__ because: Called by __device__ function "
-                      << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
-                      << std::endl;
+                << " ... is __device__ because: Called by __device__ function "
+                << callerOrCallee->getAsFunction()->getQualifiedNameAsString()
+                << std::endl;
+          }
 #endif
         }
         else

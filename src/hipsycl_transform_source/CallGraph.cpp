@@ -57,9 +57,7 @@ class CGBuilder : public StmtVisitor<CGBuilder> {
   CallGraphNode *CallerNode;
 
 public:
-  CGBuilder(CallGraph *g, CallGraphNode *N) : G(g), CallerNode(N) {
-    std::cout << "CGBuilder for " << N->getDecl()->getAsFunction()->getQualifiedNameAsString()<<std::endl;
-  }
+  CGBuilder(CallGraph *g, CallGraphNode *N) : G(g), CallerNode(N) {}
 
   void VisitStmt(Stmt *S) {
 
@@ -99,17 +97,17 @@ public:
     // Don't ask CallGraph::includeInGraph() whether we should include that function
     // in the call graph since that would skip all templates even if they are instantiated
     // here
-    std::cout << CallerNode->getDecl()->getAsFunction()->getQualifiedNameAsString() <<
-                 " calls " << D->getAsFunction()->getQualifiedNameAsString() << std::endl;
+
     CallGraphNode *CalleeNode = G->getOrInsertNode(D);
     CallerNode->addCallee(CalleeNode);
   }
 
   void VisitCallExpr(CallExpr *CE) {
-    std::cout << "CGBuilder::VisitCallExpr for " << CallerNode->getDecl()->getAsFunction()->getQualifiedNameAsString()<<std::endl;
-    std::cout << "  CallExpr: " << getDeclFromCall(CE) << std::endl;
+
     if (Decl *D = getDeclFromCall(CE))
       addCalledDecl(D);
+    else
+      CallerNode->setContainsUnresolvedCallExpr();
     VisitChildren(CE);
   }
 

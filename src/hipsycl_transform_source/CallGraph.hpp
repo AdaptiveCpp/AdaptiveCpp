@@ -164,8 +164,11 @@ private:
   /// The list of functions called from this node.
   llvm::SmallVector<CallRecord, 5> CalledFunctions;
 
+  bool containsUnresolvedCalls;
+
 public:
-  CallGraphNode(clang::Decl *D) : FD(D) {}
+  CallGraphNode(clang::Decl *D) : FD(D), containsUnresolvedCalls(false) 
+  {}
 
   using iterator = llvm::SmallVectorImpl<CallRecord>::iterator;
   using const_iterator = llvm::SmallVectorImpl<CallRecord>::const_iterator;
@@ -184,6 +187,9 @@ public:
   }
 
   clang::Decl *getDecl() const { return FD; }
+
+  bool containsUnresolvedCallExpr() const {return containsUnresolvedCalls; }
+  void setContainsUnresolvedCallExpr(bool flag = true){containsUnresolvedCalls = flag;}
 
   void print(llvm::raw_ostream &os) const;
 

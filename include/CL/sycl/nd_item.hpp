@@ -173,7 +173,7 @@ struct nd_item
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
-    get_group().async_work_group_copy(dest, src, numElements);
+    return get_group().async_work_group_copy(dest, src, numElements);
   }
 
   template <typename dataT>
@@ -181,7 +181,7 @@ struct nd_item
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
-    get_group().async_work_group_copy(dest, src, numElements);
+    return get_group().async_work_group_copy(dest, src, numElements);
   }
 
   template <typename dataT>
@@ -189,7 +189,7 @@ struct nd_item
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
-    get_group().async_work_group_copy(dest,
+    return get_group().async_work_group_copy(dest,
                                       src, numElements, srcStride);
   }
 
@@ -198,7 +198,7 @@ struct nd_item
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
-    get_group().async_work_group_copy(dest, src, numElements, destStride);
+    return get_group().async_work_group_copy(dest, src, numElements, destStride);
   }
 
   template <typename... eventTN>

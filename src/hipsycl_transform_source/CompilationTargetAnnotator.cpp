@@ -273,7 +273,7 @@ CompilationTargetAnnotator::addAnnotations()
           prefix = "{}";
         }
 
-        auto bodyEnd   = d->getEndLoc();
+        auto bodyEnd   = d->getLocEnd();
       
         _rewriter.InsertTextBefore(bodyStart,
             prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");

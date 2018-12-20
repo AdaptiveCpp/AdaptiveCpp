@@ -34,6 +34,7 @@
 #include <cstring>
 #include <cassert>
 #include <mutex>
+#include <algorithm>
 
 
 namespace cl {
@@ -194,25 +195,38 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
         // It's fine to capture this here, since we will wait
         // for this task anyway.
         auto task = [this, stream] () -> task_state{
-          // ToDo: if write_back_memory != host_memory
+          // TODO: if write_back_memory != host_memory
           // and !_monitor.is_host_outdated(), we can simply
           // use a memcpy().
-          if((_write_back_memory == _host_memory &&
-              _monitor.is_host_outdated())
-             || _write_back_memory != _host_memory)
+
+          // If host memory is outdated, we need to perform a device->host
+          // copy to the writeback memory buffer
+          if(_monitor.is_host_outdated())
           {
             HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
-                                  "Device->Host copy for writeback"
-                               << std::endl;
-
+                                "Device->Host copy for writeback to host buffer"
+                                << std::endl;
             detail::check_error(hipMemcpyAsync(_write_back_memory,
-                                               _buffer_pointer,
-                                               _size,
-                                               hipMemcpyDeviceToHost,
-                                               stream->get_stream()));
+                                              _buffer_pointer,
+                                              _size,
+                                              hipMemcpyDeviceToHost,
+                                              stream->get_stream()));
             return task_state::enqueued;
           }
-          else
+          // If host is updated, we only need a regular memcpy from internal
+          // to writeback buffer if we use a separate writeback buffer
+          else if (_write_back_memory != _host_memory) 
+          {
+            HIPSYCL_DEBUG_INFO << "buffer_impl: Copying host buffer content "
+                                  "to separate writeback buffer [host memory is already updated]"
+                               << std::endl;
+
+                std::copy(reinterpret_cast<char *>(_host_memory),
+                          reinterpret_cast<char *>(_host_memory) + _size,
+                          reinterpret_cast<char *>(_write_back_memory));
+            return task_state::complete;
+          } 
+          else 
           {
             HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, device memory and "
                                   "write-back memory are already in sync."
@@ -599,6 +613,16 @@ buffer_cleanup_trigger::~buffer_cleanup_trigger()
                         " triggering cleanup" << std::endl;
   auto stream = detail::stream_ptr{new detail::stream_manager()};
   _buff->finalize_host(stream);
+
+  for(auto callback : _callbacks)
+    callback();
+}
+
+void
+buffer_cleanup_trigger::add_cleanup_callback(
+    buffer_cleanup_trigger::cleanup_callback callback)
+{
+  this->_callbacks.push_back(callback);
 }
 
 }

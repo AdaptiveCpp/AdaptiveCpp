@@ -30,6 +30,9 @@
 #define HIPSYCL_BUFFER_HPP
 
 #include <cstddef>
+#include <iterator>
+#include <type_traits>
+#include <algorithm>
 
 #include "property.hpp"
 #include "types.hpp"
@@ -120,7 +123,7 @@ public:
          const property_list &propList = {})
     : buffer(bufferRange, propList)
   {
-    _alloc = allocator;;
+    _alloc = allocator;
   }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
@@ -158,24 +161,68 @@ public:
   // ToDo Implement these
   buffer(const shared_ptr_class<T> &hostData,
          const range<dimensions> &bufferRange, AllocatorT allocator,
-         const property_list &propList = {});
+         const property_list &propList = {})
+    : detail::property_carrying_object{propList},
+      _shared_host_data{hostData}
+  {
+    _alloc = allocator;
+
+    this->init(bufferRange, hostData.get());
+  }
 
   buffer(const shared_ptr_class<T> &hostData,
          const range<dimensions> &bufferRange,
-         const property_list &propList = {});
+         const property_list &propList = {})
+  : buffer(hostData, bufferRange, AllocatorT(), propList)
+  {}
 
   template <class InputIterator,
             int D = dimensions,
             typename = std::enable_if_t<D==1>>
   buffer(InputIterator first, InputIterator last,
          AllocatorT allocator,
-         const property_list &propList = {});
+         const property_list &propList = {})
+  : detail::property_carrying_object{propList}
+  {
+    constexpr bool is_const_iterator = 
+        std::is_const<
+          typename std::remove_reference<
+            typename std::iterator_traits<InputIterator>::reference
+          >::type
+        >::value;
 
-  template <class InputIterator,
-            int D = dimensions,
-            typename = std::enable_if_t<D==1>>
+    std::size_t num_elements = std::distance(first, last);
+    vector_class<T> contiguous_buffer(num_elements);
+    std::copy(first, last, contiguous_buffer.begin());
+
+    // Construct buffer
+    this->init(range<1>{num_elements});
+
+    // Only use hostData for initialization
+    _buffer->write(reinterpret_cast<const void*>(contiguous_buffer.data()), 0);
+    if(!is_const_iterator)
+    {
+      // If we are dealing with non-const iterators, we must also
+      // writeback the results.
+      // TODO: If first, last are random access iterators, we can directly
+      // the memory range [first, last) as writeback buffer
+      this->_buffer->enable_write_back(true);
+
+      const T* host_data = reinterpret_cast<T*>(_buffer->get_host_ptr());
+      this->_cleanup_trigger->add_cleanup_callback([first, last, host_data](){
+
+        std::copy(host_data, host_data + std::distance(first,last), first);
+      });
+      
+    }
+  }
+
+  template <class InputIterator, int D = dimensions,
+            typename = std::enable_if_t<D == 1>>
   buffer(InputIterator first, InputIterator last,
-         const property_list &propList = {});
+         const property_list &propList = {})
+  : buffer(first, last, AllocatorT(), propList) 
+  {}
 
   buffer(buffer<T, dimensions, AllocatorT> b,
          const id<dimensions> &baseIndex,
@@ -354,6 +401,8 @@ private:
   shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
   // Only used if a shared_ptr is passed to set_final_data()
   shared_ptr_class<T> _writeback_buffer;
+  // Only used if a shared_ptr is passed to the buffer constructor
+  shared_ptr_class<T> _shared_host_data;
 };
 
 namespace detail {

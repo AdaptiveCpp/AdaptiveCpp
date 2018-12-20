@@ -217,8 +217,14 @@ public:
   buffer_cleanup_trigger(buffer_ptr buff);
   ~buffer_cleanup_trigger();
 
+  using cleanup_callback = function_class<void ()>;
+
+  // Will be called after the writeback takes place
+  void add_cleanup_callback(cleanup_callback callback);
 private:
   buffer_ptr _buff;
+
+  vector_class<cleanup_callback> _callbacks;
 };
 
 

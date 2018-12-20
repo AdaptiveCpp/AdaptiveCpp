@@ -278,7 +278,7 @@ CompilationTargetAnnotator::addAnnotations()
         _rewriter.InsertTextBefore(bodyStart,
             prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");
         _rewriter.InsertTextAfterToken(bodyEnd, "\n#endif\n");
-        //_rewriter.RemoveText(clang::SourceRange(bodyStart, bodyEnd));
+        // TODO: Correct the current #line in the source
       }
     }
   } 

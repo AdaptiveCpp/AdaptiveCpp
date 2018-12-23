@@ -158,7 +158,6 @@ public:
     _alloc = allocator;
   }
 
-  // ToDo Implement these
   buffer(const shared_ptr_class<T> &hostData,
          const range<dimensions> &bufferRange, AllocatorT allocator,
          const property_list &propList = {})
@@ -184,6 +183,8 @@ public:
          const property_list &propList = {})
   : detail::property_carrying_object{propList}
   {
+    _alloc = allocator;
+
     constexpr bool is_const_iterator = 
         std::is_const<
           typename std::remove_reference<
@@ -397,12 +398,16 @@ private:
   AllocatorT _alloc;
   range<dimensions> _range;
 
-  detail::buffer_ptr _buffer;
-  shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
+  
   // Only used if a shared_ptr is passed to set_final_data()
   shared_ptr_class<T> _writeback_buffer;
   // Only used if a shared_ptr is passed to the buffer constructor
   shared_ptr_class<T> _shared_host_data;
+  // Must be defined after the shared_ptrs to ensure that they still
+  // exist once the cleanup trigger is executed!
+  shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
+  
+  detail::buffer_ptr _buffer;
 };
 
 namespace detail {

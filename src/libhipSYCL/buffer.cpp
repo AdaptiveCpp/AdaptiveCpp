@@ -195,9 +195,6 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
         // It's fine to capture this here, since we will wait
         // for this task anyway.
         auto task = [this, stream] () -> task_state{
-          // TODO: if write_back_memory != host_memory
-          // and !_monitor.is_host_outdated(), we can simply
-          // use a memcpy().
 
           // If host memory is outdated, we need to perform a device->host
           // copy to the writeback memory buffer
@@ -213,17 +210,18 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
                                               stream->get_stream()));
             return task_state::enqueued;
           }
-          // If host is updated, we only need a regular memcpy from internal
-          // to writeback buffer if we use a separate writeback buffer
           else if (_write_back_memory != _host_memory) 
           {
+            // If host is already up-to-date, we only need a regular memcpy from internal
+            // to writeback buffer if we use a separate writeback buffer
             HIPSYCL_DEBUG_INFO << "buffer_impl: Copying host buffer content "
                                   "to separate writeback buffer [host memory is already updated]"
                                << std::endl;
 
-                std::copy(reinterpret_cast<char *>(_host_memory),
-                          reinterpret_cast<char *>(_host_memory) + _size,
-                          reinterpret_cast<char *>(_write_back_memory));
+            // TODO Use memory_offset()
+            std::copy(reinterpret_cast<char *>(_host_memory),
+                      reinterpret_cast<char *>(_host_memory) + _size,
+                      reinterpret_cast<char *>(_write_back_memory));
             return task_state::complete;
           } 
           else 
@@ -240,14 +238,15 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
                          dependencies,
                          stream,
                          stream->get_error_handler());
+        // Write-back is logically always a read operation since
+        // it is executed at buffer destruction when the buffer cannot
+        // be changed anymore
         _dependency_manager.add_operation(node, access::mode::read);
       }
 
       assert(node != nullptr);
       node->wait();
       assert(node->is_done());
-
-
     }
     else
       HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, write-back was disabled "
@@ -611,7 +610,7 @@ buffer_cleanup_trigger::~buffer_cleanup_trigger()
 {
   HIPSYCL_DEBUG_INFO << "buffer_cleanup_trigger: Buffer went out of scope,"
                         " triggering cleanup" << std::endl;
-  auto stream = detail::stream_ptr{new detail::stream_manager()};
+  detail::stream_ptr stream = std::make_shared<detail::stream_manager>();
   _buff->finalize_host(stream);
 
   for(auto callback : _callbacks)

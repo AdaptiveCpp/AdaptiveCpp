@@ -205,12 +205,16 @@ public:
     {
       // If we are dealing with non-const iterators, we must also
       // writeback the results.
+      // TODO: The spec seems to be contradictory if writebacks also
+      // occur with iterators - investigate the desired behavior
       // TODO: If first, last are random access iterators, we can directly
       // the memory range [first, last) as writeback buffer
       this->_buffer->enable_write_back(true);
 
-      const T* host_data = reinterpret_cast<T*>(_buffer->get_host_ptr());
-      this->_cleanup_trigger->add_cleanup_callback([first, last, host_data](){
+      
+      auto buff = this->_buffer;
+      this->_cleanup_trigger->add_cleanup_callback([first, last, buff](){
+        const T* host_data = reinterpret_cast<T*>(buff->get_host_ptr());
 
         std::copy(host_data, host_data + std::distance(first,last), first);
       });
@@ -297,9 +301,11 @@ public:
     this->set_final_data(finalData.get());
   }
 
+  // TODO Add special handling of iterators for set_final_data()
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
   {
+    this->_cleanup_trigger->remove_cleanup_callbacks();
     _buffer->set_write_back(finalData);
     if(finalData != nullptr)
       _buffer->enable_write_back(true);
@@ -307,6 +313,7 @@ public:
 
   void set_write_back(bool flag = true)
   {
+    this->_cleanup_trigger->remove_cleanup_callbacks();
     this->_buffer->enable_write_back(flag);
   }
 

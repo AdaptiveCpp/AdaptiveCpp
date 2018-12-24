@@ -144,6 +144,9 @@ public:
   void set_write_back(void* ptr);
 
   void enable_write_back(bool writeback);
+  
+  bool is_writeback_enabled() const;
+  void* get_writeback_ptr() const;
 
   /// Finishes all enqueued host accesses, and executes
   /// possible write-back operations. After a call to this
@@ -221,6 +224,8 @@ public:
 
   // Will be called after the writeback takes place
   void add_cleanup_callback(cleanup_callback callback);
+  
+  void remove_cleanup_callbacks();
 private:
   buffer_ptr _buff;
 

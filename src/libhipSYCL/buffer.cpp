@@ -183,6 +183,7 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
       task_graph_node_ptr node;
 
       {
+        
         HIPSYCL_DEBUG_INFO << "buffer_impl: Preparing write-back"
                            << std::endl;
         std::lock_guard<mutex_class> lock(_mutex);
@@ -203,11 +204,13 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
             HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
                                 "Device->Host copy for writeback to host buffer"
                                 << std::endl;
+                                
             detail::check_error(hipMemcpyAsync(_write_back_memory,
                                               _buffer_pointer,
                                               _size,
                                               hipMemcpyDeviceToHost,
                                               stream->get_stream()));
+            
             return task_state::enqueued;
           }
           else if (_write_back_memory != _host_memory) 
@@ -247,12 +250,23 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
       assert(node != nullptr);
       node->wait();
       assert(node->is_done());
+      
     }
     else
       HIPSYCL_DEBUG_INFO << "buffer_impl: Skipping write-back, write-back was disabled "
                             "or target memory is NULL"
                          << std::endl;
   }
+}
+
+bool buffer_impl::is_writeback_enabled() const
+{
+  return _write_back;
+}
+
+void* buffer_impl::get_writeback_ptr() const
+{
+  return _write_back_memory;
 }
 
 void buffer_impl::finalize_host(detail::stream_ptr stream)
@@ -622,6 +636,12 @@ buffer_cleanup_trigger::add_cleanup_callback(
     buffer_cleanup_trigger::cleanup_callback callback)
 {
   this->_callbacks.push_back(callback);
+}
+
+void 
+buffer_cleanup_trigger::remove_cleanup_callbacks()
+{
+  this->_callbacks.clear();
 }
 
 }

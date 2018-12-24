@@ -336,7 +336,7 @@ class hip_compiler:
     # ToDo: What if the hcc include/library paths in cxxconfig and ldconfig
     # contain spaces?
     return cxxconfig.split()+ldconfig.split()+["-L"+hip_lib_path,
-                                               "-lhip_hcc","-lhip_device"]+additional_args
+                                               "-lhip_hcc"]+additional_args
 
   def is_available(self):
     return self.is_hcc_available

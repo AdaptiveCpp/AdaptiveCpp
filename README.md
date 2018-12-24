@@ -1,9 +1,7 @@
 # hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
 [![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=master)](https://travis-ci.com/illuhad/hipSYCL)
 
-The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that is built upon NVIDIA CUDA/AMD HIP.
-
-hipSYCL provides a SYCL interface to NVIDIA CUDA and AMD HIP. hipSYCL applications are then compiled with the regular vendor compilers (nvcc for nvidia and hcc for AMD), and hence can enjoy full vendor support.
+The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that builds upon NVIDIA CUDA/AMD HIP. hipSYCL consists of a source-to-source transformation toolchain to automatically convert SYCL code into CUDA/HIP code behind the scenes, and an implementation of a SYCL runtime that runs on top of CUDA/HIP. The actual compilation step is then carried out with the regular NVIDIA and AMD compilers nvcc/hcc, which allows hipSYCL applications to make use of all the latest nvcc/hcc features (e.g. intrinsics). This approach also guarantees compatibility of hipSYCL applications with established and well-supported vendor tools (e.g. profilers) and libraries in the NVIDIA and AMD ecosystems.
 
 ## Why use hipSYCL over raw CUDA/HIP?
 * hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls. Unlike CUDA/HIP, (hip)SYCL does not require explicitly marking functions as `__host__` or `__device__` - the SYCL compiler will figure that out on its own.
@@ -28,11 +26,11 @@ hipSYCL relies on the fact that that both HIP/CUDA and SYCL are single-source pr
 In reality, it is more complicated though because the HIP/CUDA programming model is more restrictive than SYCL. For example, CUDA and HIP require that functions should be explicitly marked by the programmer whether they should be compiled for device or host. SYCL doesn't require this. To fix such restrictions, hipSYCL performs a source-to-source transformation of the input source before it is fed into nvcc or hcc. At the moment, this step mostly focuses on automatically inserting `__shared__`, `__host__` and `__device__` attributes where needed.
 
 ## Current state
-hipSYCL is still in an experimental stage of development. It can successfully execute some SYCL programs; but parts of the specification are not yet implemented.
+hipSYCL is still in an early stage of development. It can successfully execute many SYCL programs; but parts of the specification are not yet implemented.
 
 Still unimplemented/missing is in particular:
 * hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
-* Explicit memory copy functions
+* Explicit memory copy functions (partially implemented)
 * Atomics
 * Device builtins (math library is mostly complete though)
 * Images
@@ -44,6 +42,7 @@ Still unimplemented/missing is in particular:
 
 
 ### News
+* 2018/12/24: hipSYCL is capable of compiling and running at least some SYCL parallel STL algorithms (more testing ongoing)
 * 2018/10/21: The source-to-source transformation step can now also correctly treat header files; the recommended input language for hipSYCL is now regular SYCL.
 * 2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
 * 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.

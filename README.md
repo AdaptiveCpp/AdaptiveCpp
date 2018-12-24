@@ -40,10 +40,14 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 * Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
 * Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
+* Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features are unimplemented and may very likely never be available in hipSYCL.
 
 #### Other limitations
 * On NVIDIA: In some cases, named kernels hit restrictions of NVIDIA's implementation of extended lambdas (lambdas that are used to instantiate templated kernels). NVIDIA does not allow kernel names to be local types in general. This especially affects names of execution policies in the SYCL parallel STL library. Workaround: Use unnamed kernels (or execution policies) or use global types. See [NVIDIA's official documentation of these restrictions](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#extended-lambda-restrictions).
 * functors (like std::plus) or other functions from the STL cannot be used in hipSYCL kernel code. This is because hipSYCL would need to mark these functions as `__device__` to make the CUDA/HIP compiler accept the code, but this is not possible since hipSYCL cannot (and should not) modify STL code [The clang-based source-to-source transformation tool in hipSYCL may use a different STL than the one used by CUDA/HIP compilers, so it is not possible to embed modified STL headers in the transformed source file due to incompatibilities.]
+* Due to lack of test hardware, hipSYCL is only compile-tested on AMDs compute stack. If you are using hipSYCL on AMD, feedback is greatly appreciated.
+* If the SYCL namespace is fully openend with a `using namespace cl::sycl` statement, bad name collisions can be expected since the SYCL spec requires the existence of SYCL vector types in that namespace with the same name as CUDA/HIP vector types which live in the global namespace.
+
 
 ## News
 * 2018/12/24: hipSYCL is capable of compiling and running at least some SYCL parallel STL algorithms (more testing ongoing)
@@ -103,11 +107,6 @@ $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <hipSYCL source directory>
 $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
-
-## Limitations
-* hipSYCL uses AMD HIP as backend, which in turn can target CUDA and AMD devices. Due to lack of hardware, unfortunately hipSYCL is untested on AMD at the moment. Bug reports (or better, reports of successes) are greatly appreciated.
-* Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features will very likely never be available in hipSYCL.
-* If the SYCL namespace is fully openend with a `using namespace cl::sycl` statement, bad name collisions can be expected since the SYCL spec requires the existence of SYCL vector types in that namespace with the same name as CUDA/HIP vector types which live in the global namespace.
 
 ## Compiling software with hipSYCL
 hipSYCL provides the `syclcc` compiler wrapper. `syclcc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `HIPSYCL_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `syclcc` also automatically sets a couple of compiler flags required for the compilation of hipSYCL programs. All other arguments are forwarded to hcc/nvcc.

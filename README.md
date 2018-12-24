@@ -28,7 +28,8 @@ In reality, it is more complicated though because the HIP/CUDA programming model
 ## Current state
 hipSYCL is still in an early stage of development. It can successfully execute many SYCL programs; but parts of the specification are not yet implemented.
 
-Still unimplemented/missing is in particular:
+### Limitations
+#### Unimplemented major features 
 * hierarchical kernel dispatch with flexible work group ranges (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
 * Explicit memory copy functions (partially implemented)
 * Atomics
@@ -40,8 +41,11 @@ Still unimplemented/missing is in particular:
 * Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 
+#### Other limitations
+* On NVIDIA: In some cases, named kernels hit restrictions of NVIDIA's implementation of extended lambdas (lambdas that are used to instantiate templated kernels). NVIDIA does not allow kernel names to be local types in general. This especially affects names of execution policies in the SYCL parallel STL library. Workaround: Use unnamed kernels (or execution policies) or use global types. See [NVIDIA's official documentation of these restrictions](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#extended-lambda-restrictions).
+* functors (like std::plus) or other functions from the STL cannot be used in hipSYCL kernel code. This is because hipSYCL would need to mark these functions as `__device__` to make the CUDA/HIP compiler accept the code, but this is not possible since hipSYCL cannot (and should not) modify STL code [The clang-based source-to-source transformation tool in hipSYCL may use a different STL than the one used by CUDA/HIP compilers, so it is not possible to embed modified STL headers in the transformed source file due to incompatibilities.]
 
-### News
+## News
 * 2018/12/24: hipSYCL is capable of compiling and running at least some SYCL parallel STL algorithms (more testing ongoing)
 * 2018/10/21: The source-to-source transformation step can now also correctly treat header files; the recommended input language for hipSYCL is now regular SYCL.
 * 2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
@@ -50,7 +54,7 @@ Still unimplemented/missing is in particular:
 ## Building and installing hipSYCL
 In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested:
 * On NVIDIA: with CUDA 10.0 and gcc 7.3
-* On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware)
+* On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware). If you try using hipSYCL with ROCm < 2.0, you will likely run into problems.
 
 ### Packages
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.

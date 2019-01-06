@@ -17,6 +17,18 @@ FORCE)
 FORCE)
   endif()
 endif()
+
+find_package(CUDA)
+
+set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
+set(WITH_CUDA_BACKEND false CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
+set(WITH_ROCM_BACKEND false CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+
+if(CUDA_FOUND)
+    set(WITH_CUDA_BACKEND true)
+endif()
+
+
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
@@ -24,13 +36,12 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 cmake_minimum_required (VERSION 3.5)
 
-include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/contrib/hipCPU/include)
 subdirs(src)
 
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/dummy_hip DESTINATION include/
-        FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY contrib/hipCPU/include/hipCPU DESTINATION include/hipSYCL/)
 
 install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 install(PROGRAMS bin/syclcc DESTINATION bin)

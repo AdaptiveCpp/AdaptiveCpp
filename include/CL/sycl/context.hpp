@@ -80,7 +80,11 @@ public:
 */
 
   bool is_host() const {
+#ifdef HIPSYCL_PLATFORM_CPU
+    return true;
+#else
     return false;
+#endif
   }
 
   platform get_platform() const {

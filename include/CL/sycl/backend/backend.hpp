@@ -29,30 +29,22 @@
 #ifndef HIPSYCL_BACKEND_HPP
 #define HIPSYCL_BACKEND_HPP
 
-
-#ifndef __HIPSYCL_TRANSFORM__
-#define __HIPSYCL__
-#include <hip/hip_runtime.h>
+#ifdef __HIPSYCL_TRANSFORM__
+ #include <hipCPU/hip/hip_runtime.h>
 #else
-// This is what will be included during the hipSYCL source-to-source transformation
-// before nvcc/hcc are invoked.
-#include <dummy_hip/hip_runtime.h>
-#endif
+ #define __HIPSYCL__
 
-
-#ifndef __HIPSYCL_TRANSFORM__
- #ifdef __HIP_PLATFORM_HCC__
-  #define HIPSYCL_PLATFORM_HCC
- #else
+ #if defined(__CUDACC__)
   #define HIPSYCL_PLATFORM_CUDA
+  #include <hip/hip_runtime.h>
+ #elif defined(__HIP__) || defined(__HCC__)
+  #define HIPSYCL_PLATFORM_HCC
+  #include <hip/hip_runtime.h>
+ #else
+  #define HIPSYCL_PLATFORM_CPU
+  #include <hipCPU/hip/hip_runtime.h>
  #endif
-#endif
 
-#if !defined(__NVCC__) && !defined(__HCC__) && !defined(__HIPSYCL_TRANSFORM__)
-#define __global__
-#define __device__
-#define __host__
-#define __shared__
 #endif
 
 

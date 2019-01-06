@@ -1,3 +1,6 @@
 [submodule "contrib/HIP"]
 	path = contrib/HIP
 	url = https://github.com/ROCm-Developer-Tools/HIP
+[submodule "contrib/hipCPU"]
+	path = contrib/hipCPU
+	url = https://github.com/illuhad/hipCPU

@@ -1,12 +1,15 @@
-project(hipsycl_transform_source)
 cmake_minimum_required(VERSION 3.5)
+project(hipsycl_transform_source)
 
-find_package(LLVM REQUIRED)
+find_package(LLVM REQUIRED CONFIG)
 #This seems to configure linkage incorrectly, so let's just assume clang is installed
-#find_package(Clang REQUIRED)
+#find_package(Clang REQUIRED CONFIG)
 find_package(Boost REQUIRED)
 
 find_program(CLANG_EXECUTABLE_PATH NAMES clang CACHE STRING)
+if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
+  message(SEND_ERROR "Could not find 'clang' executable in PATH")
+endif()
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 
 if(NOT HIPSYCL_DEBUG_LEVEL)
@@ -28,19 +31,12 @@ target_include_directories(hipsycl_transform_source PRIVATE
   ${Boost_INCLUDE_DIRS}
   ../../include)
 
-#target_compile_options(hipsycl_transform_source PRIVATE
-#  --force-alternative-compiler=g++)
-#set_target_properties(hipsycl_transform_source PROPERTIES LINK_FLAGS
-#  --force-alternative-compiler=gcc)
-
-link_directories(${LLVM_LIBRARY_DIRS})
-
 target_compile_definitions(hipsycl_transform_source PRIVATE
   ${LLVM_DEFINITIONS}
   HIPSYCL_TRANSFORM_CLANG_DIR=${CLANG_BINARY_PREFIX})
 
 target_link_libraries(hipsycl_transform_source
-  -lLLVM
+  LLVM
   clangFrontend
   clangSerialization
   clangDriver

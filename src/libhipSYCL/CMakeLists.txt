@@ -1,3 +1,6 @@
+project(libhipSYCL)
+
+set(CMAKE_CXX_COMPILER ${HIPSYCL_DEVICE_COMPILER})
 
 add_library(hipSYCL SHARED
   device.cpp
@@ -9,6 +12,9 @@ add_library(hipSYCL SHARED
   task_graph.cpp
   accessor.cpp
   async_worker.cpp)
+
+target_include_directories(hipSYCL PRIVATE
+  ../../include)
 
 install(TARGETS hipSYCL
         LIBRARY DESTINATION lib

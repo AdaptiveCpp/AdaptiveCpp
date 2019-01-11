@@ -41,7 +41,7 @@ namespace sycl {
 class device_selector
 {
 public:
-  virtual ~device_selector();
+  virtual ~device_selector() {};
   device select_device() const;
 
   virtual int operator()(const device& dev) const = 0;

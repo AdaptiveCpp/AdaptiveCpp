@@ -89,7 +89,7 @@ public:
     std::string strMessage(message.begin(), message.end());
     std::string location = "<unknown location>";
     if(info.hasSourceManager())
-      std::string location = info.getLocation().printToString(info.getSourceManager());
+      location = info.getLocation().printToString(info.getSourceManager());
 
     if(level == clang::DiagnosticsEngine::Ignored ||
        level == clang::DiagnosticsEngine::Note ||

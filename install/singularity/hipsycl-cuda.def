@@ -9,5 +9,5 @@ mkdir build
 cd build
 export CXX=clang++-6.0
 export PATH=/usr/local/cuda/bin:$PATH
-cmake -DCMAKE_INSTALL_PREFIX=/usr ../hipSYCL
+cmake -DCMAKE_INSTALL_PREFIX=/usr  -DWITH_CPU_BACKEND=ON -DWITH_CUDA_BACKEND=ON ../hipSYCL
 make install

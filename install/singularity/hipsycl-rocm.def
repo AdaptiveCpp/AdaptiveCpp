@@ -11,5 +11,5 @@ cd build
 export PATH=/opt/rocm/bin:$PATH
 export HIPSYCL_GPU_ARCH=gfx900
 export CXX=clang++-6.0
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_CXX_FLAGS="-std=c++14" ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_CXX_FLAGS="-std=c++14" -DWITH_CPU_BACKEND=ON -DWITH_ROCM_BACKEND=ON ..
 make install

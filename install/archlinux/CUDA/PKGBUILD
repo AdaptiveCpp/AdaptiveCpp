@@ -30,7 +30,8 @@ build() {
     mkdir -p ${srcdir}/hipSYCL/build
     cd "${srcdir}/hipSYCL/build"
     cmake -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/opt/hipSYCL/CUDA ..
+          -DCMAKE_INSTALL_PREFIX=/opt/hipSYCL/CUDA \
+          -DWITH_CPU_BACKEND=ON -DWITH_CUDA_BACKEND=ON ..
 }
 
 package() {

@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 3.5)
 project(hipsycl_transform_source)
 
 find_package(LLVM REQUIRED CONFIG)
-#This seems to configure linkage incorrectly, so let's just assume clang is installed
-#find_package(Clang REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
 find_package(Boost REQUIRED)
 
-find_program(CLANG_EXECUTABLE_PATH NAMES clang CACHE STRING)
+find_program(CLANG_EXECUTABLE_PATH NAMES ${Clang_EXECUTABLE} CACHE STRING)
 if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
-  message(SEND_ERROR "Could not find 'clang' executable in PATH")
+  message(SEND_ERROR "Could not find clang executable in PATH")
 endif()
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 

@@ -1,6 +1,12 @@
+cmake_minimum_required (VERSION 3.5)
 project(hipSYCL)
 
-set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
+# Make sure either hcc or nvcc can be found
+find_program(VENDOR_DEVICE_COMPILER NAMES hcc nvcc)
+if(VENDOR_DEVICE_COMPILER MATCHES "-NOTFOUND")
+  message(SEND_ERROR "Neither 'hcc' nor 'nvcc' was found in PATH")
+endif()
+set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -21,11 +27,7 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
-
-cmake_minimum_required (VERSION 3.5)
-
-include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include)
-subdirs(src)
+add_subdirectory(src)
 
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")

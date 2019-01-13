@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.5)
 project(hipsycl_rewrite_includes)
 
 find_package(LLVM REQUIRED CONFIG)
-find_package(Clang REQUIRED)
+#find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
 
-find_program(CLANG_EXECUTABLE_PATH NAMES ${Clang_EXECUTABLE} CACHE STRING)
+find_program(CLANG_EXECUTABLE_PATH NAMES clang-7.0 clang-7 clang-6.0 clang-6 clang CACHE STRING)
 if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
   message(SEND_ERROR "Could not find clang executable in PATH")
 endif()

@@ -16,6 +16,8 @@
 /// This file is almost entirely identical to clang's mainline InclusionRewriter.cpp.
 /// However, this version does not rewrite includes of system headers.
 
+#include <unordered_set>
+
 #include "clang/Rewrite/Frontend/Rewriters.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
@@ -53,6 +55,10 @@ class InclusionRewriter : public PPCallbacks {
   bool UseLineDirectives; ///< Use of line directives or line markers.
   /// Tracks where inclusions that change the file are found.
   std::map<unsigned, IncludedFile> FileIncludes;
+  /// hipSYCL: Keeps track of where skipped inclusions are found.
+  /// This is required so we can decide whether we want to comment out the
+  /// corresponding #include directive or not.
+  std::unordered_set<unsigned> SkippedIncludes;
   /// Tracks where inclusions that import modules are found.
   std::map<unsigned, const Module *> ModuleIncludes;
   /// Tracks where inclusions that enter modules (in a module build) are found.
@@ -195,6 +201,9 @@ void InclusionRewriter::FileSkipped(const FileEntry &/*SkippedFile*/,
                                     SrcMgr::CharacteristicKind /*FileType*/) {
   assert(LastInclusionLocation.isValid() &&
          "A file, that wasn't found via an inclusion directive, was skipped");
+  auto P = SkippedIncludes.insert(LastInclusionLocation.getRawEncoding());
+  (void)P;
+  assert(P.second && "Unexpected revisitation of the same skipped include directive");
   LastInclusionLocation = SourceLocation();
 }
 
@@ -501,13 +510,17 @@ void InclusionRewriter::Process(FileID FileId,
             const IncludedFile *Inc = FindIncludeAtLocation(Loc);
 
             bool rewrite = false;
-            if(Inc)
+            bool isSkipped = false;
+            if(Inc) {
               rewrite = fileSelector.shouldIncludeBeRewritten(this->SM,
                                                               Inc->Id,
                                                               Inc->FileType,
                                                               Inc->DirLookup);
+            } else {
+              isSkipped = SkippedIncludes.find(Loc.getRawEncoding()) != SkippedIncludes.end();
+            }
 
-            if(rewrite)
+            if(rewrite || isSkipped)
               CommentOutDirective(RawLex, HashToken, FromFile, LocalEOL, NextToWrite,
                 Line);
 

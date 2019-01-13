@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(hipsycl_transform_source)
 
 find_package(LLVM REQUIRED CONFIG)
-find_package(Clang REQUIRED CONFIG)
+find_package(Clang REQUIRED)
 find_package(Boost REQUIRED)
 
 find_program(CLANG_EXECUTABLE_PATH NAMES ${Clang_EXECUTABLE} CACHE STRING)

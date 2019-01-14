@@ -262,7 +262,7 @@ CompilationTargetAnnotator::addAnnotations()
         std::string prefix = ";";
 
         const clang::Stmt *body = d->getBody();
-        auto bodyStart = d->getBody()->getLocStart();
+        auto bodyStart = body->getSourceRange().getBegin();
 
         if(clang::isa<CXXConstructorDecl>(d))
         {
@@ -273,7 +273,7 @@ CompilationTargetAnnotator::addAnnotations()
           prefix = "{}";
         }
 
-        auto bodyEnd   = d->getLocEnd();
+        auto bodyEnd = body->getSourceRange().getEnd();
       
         _rewriter.InsertTextBefore(bodyStart,
             prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");

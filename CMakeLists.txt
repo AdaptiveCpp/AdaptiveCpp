@@ -18,15 +18,21 @@ FORCE)
   endif()
 endif()
 
-find_package(CUDA)
-
-set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
-set(WITH_CUDA_BACKEND false CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
-set(WITH_ROCM_BACKEND false CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+if(WITH_CUDA_BACKEND)
+  find_package(CUDA REQUIRED)
+else()
+  find_package(CUDA)
+endif()
 
 if(CUDA_FOUND)
-    set(WITH_CUDA_BACKEND true)
+  set(WITH_CUDA_BACKEND true CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
+else()
+  set(WITH_CUDA_BACKEND false CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 endif()
+
+set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
+# TODO Detect hcc
+set(WITH_ROCM_BACKEND false CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")

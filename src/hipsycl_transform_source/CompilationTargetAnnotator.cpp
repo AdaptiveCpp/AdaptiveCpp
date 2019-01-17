@@ -261,9 +261,6 @@ CompilationTargetAnnotator::addAnnotations()
       if (d->hasBody()) {
 
         const clang::Stmt *body = d->getBody();
-        auto range = body->getSourceRange();
-
-        const clang::FunctionDecl* function = clang::cast<clang::FunctionDecl>(d);
         
         for(auto child = body->child_begin(); child != body->child_end(); ++child)
         {

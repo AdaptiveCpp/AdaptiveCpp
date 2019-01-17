@@ -37,7 +37,7 @@ using namespace clang;
 
 namespace hipsycl {
 namespace transform {
-
+  
 CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
                                                        CallGraph& callGraph)
   : _rewriter{r},
@@ -259,26 +259,19 @@ CompilationTargetAnnotator::addAnnotations()
                          << std::endl;
 
       if (d->hasBody()) {
-        std::string prefix = ";";
 
         const clang::Stmt *body = d->getBody();
-        auto bodyStart = body->getSourceRange().getBegin();
+        auto range = body->getSourceRange();
 
-        if(clang::isa<CXXConstructorDecl>(d))
+        const clang::FunctionDecl* function = clang::cast<clang::FunctionDecl>(d);
+        
+        for(auto child = body->child_begin(); child != body->child_end(); ++child)
         {
-          // If we are a constructor, instead of turning the definition
-          // into a declaration with a ';', we insert an empty definition.
-          // This also works if an initalizer list is present, where
-          // a ';' would be a syntax error.
-          prefix = "{}";
+          auto range = (*child)->getSourceRange();
+          int size = _rewriter.getRangeSize(range);
+          if(range.isValid() && size > 0)
+            _rewriter.ReplaceText(range, std::string(size, ' '));
         }
-
-        auto bodyEnd = body->getSourceRange().getEnd();
-      
-        _rewriter.InsertTextBefore(bodyStart,
-            prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");
-        _rewriter.InsertTextAfterToken(bodyEnd, "\n#endif\n");
-        // TODO: Correct the current #line in the source
       }
     }
   } 

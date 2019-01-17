@@ -1,6 +1,9 @@
+cmake_minimum_required (VERSION 3.5)
 project(hipSYCL)
 
-set(CMAKE_CXX_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
+
+set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
+set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -18,21 +21,36 @@ FORCE)
   endif()
 endif()
 
+# Make sure either hcc or nvcc can be found
+find_program(NVCC_COMPILER NAMES nvcc)
+find_program(HCC_COMPILER NAMES hcc)
+
+if(NVCC_COMPILER MATCHES "-NOTFOUND")
+  set(CUDA_FOUND false)
+else()
+  set(CUDA_FOUND true)
+endif()
+
+if(HCC_COMPILER MATCHES "-NOTFOUND")
+  set(ROCM_FOUND false)
+else()
+  set(ROCM_FOUND true)
+endif()
+
 if(WITH_CUDA_BACKEND)
-  find_package(CUDA REQUIRED)
-else()
-  find_package(CUDA)
+  if(NOT CUDA_FOUND)
+    message(SEND_ERROR "nvcc was not found in PATH")
+  endif()
+endif()
+if(WITH_ROCM_BACKEND)
+  if(NOT ROCM_FOUND)
+    message(SEND_ERROR "hcc was not found in PATH")
+  endif()
 endif()
 
-if(CUDA_FOUND)
-  set(WITH_CUDA_BACKEND true CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
-else()
-  set(WITH_CUDA_BACKEND false CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
-endif()
-
+set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
+set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
-# TODO Detect hcc
-set(WITH_ROCM_BACKEND false CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
@@ -40,10 +58,9 @@ set(WITH_ROCM_BACKEND false CACHE BOOL "Build hipSYCL support for AMD GPUs with 
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
-cmake_minimum_required (VERSION 3.5)
 
-include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/contrib/hipCPU/include)
-subdirs(src)
+add_subdirectory(src)
+
 
 install(DIRECTORY include/CL DESTINATION include/
         FILES_MATCHING PATTERN "*.hpp")

@@ -40,6 +40,7 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 
 
 ## News
+* 2019/01/18: an implementation of a CPU backend based on OpenMP has been merged into hipSYCL's master branch!
 * 2018/12/24: hipSYCL is capable of compiling and running at least some SYCL parallel STL algorithms (more testing ongoing)
 * 2018/10/21: The source-to-source transformation step can now also correctly treat header files; the recommended input language for hipSYCL is now regular SYCL.
 * 2018/10/07: hipSYCL now comes with an experimental additional source-to-source transformation step during compilation which allows hipSYCL to ingest regular SYCL code.
@@ -112,6 +113,7 @@ where valid values for `<platform>` are
 * `cuda`, `nvidia` or `nvcc` for CUDA
 * `rocm`, `amd`, `hip` or `hcc` for ROCm
 * `cpu`, `host` or `hipcpu` for the CPU backend
+
 Note that the CPU backend is at the moment "static", i.e. there's no decision possible at runtime whether to run a kernel on GPU or CPU. Where a kernel is executed depends only on the setting for the hipSYCL platform at compile time.
 
 ## Example

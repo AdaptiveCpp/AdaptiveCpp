@@ -6,18 +6,8 @@ The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that b
 ## Why use hipSYCL over raw CUDA/HIP?
 * hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls. Unlike CUDA/HIP, (hip)SYCL does not require explicitly marking functions as `__host__` or `__device__` - the SYCL compiler will figure that out on its own.
 * Openness. hipSYCL applications are written against an API that is an open standard (SYCL) instead of being locked to one specific vendor.
-* Portability. hipSYCL can ingest regular SYCL code. A (hip-)SYCL application can hence run
-   * with hipSYCL:
-      * on AMD devices via AMD HIP on the ROCm platform
-      * on NVIDIA devices via CUDA
-      * on CPUs with OpenMP
-   * with triSYCL:
-      * on CPUs with OpenMP
-      * on Xilinx FPGAs (experimental)
-   * with Codeplay's ComputeCpp SYCL implementation:
-      * on any OpenCL device with SPIR support, including at least:
-         * on AMD devices
-         * on Intel devices
+* Portability. hipSYCL ingests regular SYCL code which can also be executed on a variety of other SYCL implementations targeting different hardware. This is illustrated in the following image:
+  ![SYCL implementations](/doc/img/sycl-targets.png)
 * Powerful, but intuitive programming model. SYCL (and by extension, hipSYCL) relies on an asynchronous task graph with support for out-of-order execution instead of the simple in-order queues (streams) provided by CUDA and HIP. This task graph is constructed based on the requirements (e.g. memory accesses) that the user specifies for one kernel. All data transfers between host and device are then executed automatically (if necessary) by the SYCL runtime. hipSYCL will optimize the execution order of the tasks and will for example automatically try to overlap kernels and data transfers, if possible. This allows for the development of highly optimized applications with little effort from the application developer.
 * All CUDA or HIP intrinsics or other features can still be used from within hipSYCL if desired. This is because an hipSYCL application is compiled like any regular CUDA/HIP application with nvcc/hcc. Since hipSYCL attempts to parse the input source as regular SYCL, you _must_ surround the use of CUDA or HIP specific features with `#ifdef HIPSYCL_PLATFORM_CUDA` or `#ifdef HIPSYCL_PLATFORM_HCC` constructs.
 
@@ -38,7 +28,6 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 * Images
 * vec<> class lacks convert(), as(), swizzled temporary vector objects lack operators
 * Some locks for multithreaded SYCL applications are missing.
-* Everything related to SYCL's OpenCL interoperability features. This is because hipSYCL uses HIP/CUDA as backend instead of OpenCL.
 * Error handling: wait_and_throw() and throw_asynchronous() do not invoke async handler
 * 0-dimensional objects (e.g 0D accessors) are mostly unimplemented
 * Because hipSYCL isn't based on OpenCL, all SYCL OpenCL interoperability features are unimplemented and may very likely never be available in hipSYCL.

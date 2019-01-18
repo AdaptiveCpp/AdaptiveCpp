@@ -15,7 +15,8 @@ The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that b
 hipSYCL relies on the fact that that both HIP/CUDA and SYCL are single-source programming models based on C++. In principle, this allows SYCL to be implemented as a HIP/CUDA library that simply wraps CUDA or HIP device or runtime functions (This wrapper could be very thin in practice with negligible performance impact due to aggressive inlining by nvcc and hcc). The SYCL application can then be compiled with the regular NVIDA or AMD compilers nvcc/hcc. As a side effect, this approach also brings access to CUDA and HIP specific features from SYCL code. This is exactly the idea behind hipSYCL.
 
 In reality, it is more complicated though because the HIP/CUDA programming model is more restrictive than SYCL. For example, CUDA and HIP require that functions should be explicitly marked by the programmer whether they should be compiled for device or host. SYCL doesn't require this. To fix such restrictions, hipSYCL performs a source-to-source transformation of the input source before it is fed into nvcc or hcc. In particular, during this step `__shared__`, `__host__` and `__device__` attributes are automatically inserted where needed. These steps are executed transparently for the user by hipSYCL's `syclcc` compilation driver. See below for an illustration of the individual steps for the compilation targets of hipSYCL.
-<img src="doc/img/hipsycl-compilation.png" width="600">
+
+<img src="doc/img/hipsycl-compilation.png" width="400">
 
 ## Current state
 hipSYCL is still in an early stage of development. It can successfully execute many SYCL programs; but parts of the specification are not yet implemented.

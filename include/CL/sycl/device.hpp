@@ -79,13 +79,33 @@ public:
   // OpenCL interop is not supported
   // cl_device_id get() const;
 
-  bool is_host() const {return false;}
+  bool is_host() const 
+  {
+#ifdef HIPSYCL_PLATFORM_CPU
+    return true;
+#else
+    return false;
+#endif
+  }
 
-  bool is_cpu() const {return false; }
+  bool is_cpu() const
+  {
+    return !is_gpu();
+  }
 
-  bool is_gpu() const {return true; }
+  bool is_gpu() const
+  {
+#ifdef HIPSYCL_PLATFORM_CPU
+    return false;
+#else
+    return true; 
+#endif
+  }
 
-  bool is_accelerator() const {return true; }
+  bool is_accelerator() const 
+  {
+    return is_gpu(); 
+  }
 
   platform get_platform() const;
 
@@ -376,7 +396,13 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, error_correction_support)
 { return false; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, host_unified_memory)
-{ return false; }
+{
+#ifdef HIPSYCL_PLATFORM_CPU
+  return true;
+#else
+  return false; 
+#endif
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, profiling_timer_resolution)
 { return 1; }
@@ -411,8 +437,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, vendor)
 {
 #ifdef HIPSYCL_PLATFORM_CUDA
   return string_class{"NVIDIA"};
-#else
+#elif defined(HIPSYCL_PLATFORM_HCC)
   return string_class{"AMD"};
+#else
+  return string_class{"hipCPU"};
 #endif
 }
 
@@ -428,8 +456,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, version)
 {
 #ifdef HIPSYCL_PLATFORM_CUDA
   return "1.2 "+detail::version_string()+", running on NVIDIA CUDA";
-#else
+#elif defined(HIPSYCL_PLATFORM_HCC)
   return "1.2 "+detail::version_string()+", running on AMD ROCm";
+#else
+  return "1.2 "+detail::version_string()+", running on hipCPU host device";
 #endif
 }
 

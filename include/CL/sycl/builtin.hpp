@@ -41,7 +41,7 @@ namespace sycl {
 // to the HCC/NVCC math libraries with calls to these placeholder functions.
 // This reduces the dependencies between hipSYCL and standard libraries and prevents
 // that the source-to-source transformation wants to change the declaration of
-// function from the standard library.
+// functions from the standard library.
 template<class T>
 __device__
 inline T __placeholder_function(T) {return T();}
@@ -97,14 +97,25 @@ inline T __placeholder_function(T, T, T) {return T();}
   template<class T> \
   __device__ inline T name(T x,T y) {return HIPSYCL_STD_FUNCTION(func)(x,y);}
 
-#define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(func) \
+#ifdef __HIPCPU__
+ #define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(func) \
+  HIPSYCL_DEFINE_BUILTIN(func, func) \
+  HIPSYCL_DEFINE_GENINTEGERN_FUNCTION(func, std::func)
+#else
+ #define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(func) \
   HIPSYCL_DEFINE_BUILTIN(func, func) \
   HIPSYCL_DEFINE_GENINTEGERN_FUNCTION(func, :: func)
+#endif
 
-
-#define HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(func) \
+#ifdef __HIPCPU__
+ #define HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(func) \
+  HIPSYCL_DEFINE_BINARY_BUILTIN(func, std::func) \
+  HIPSYCL_DEFINE_GENINTEGERN_BINARY_FUNCTION(func, func)
+#else
+ #define HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(func) \
   HIPSYCL_DEFINE_BINARY_BUILTIN(func, ::func) \
   HIPSYCL_DEFINE_GENINTEGERN_BINARY_FUNCTION(func, func)
+#endif
 
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(min)
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(max)

@@ -48,16 +48,15 @@ public:
 
 };
 
-
-class gpu_selector : public device_selector
+namespace detail {
+class select_all_selector : public device_selector
 {
 public:
-  virtual ~gpu_selector(){}
-  virtual int operator()(const device& dev) const
-  {
-    return 1;
-  }
+  virtual ~select_all_selector(){}
+  virtual int operator()(const device &dev) const { return 1; }
 };
+
+} // namespace detail
 
 class error_selector : public device_selector
 {
@@ -65,13 +64,30 @@ public:
   virtual ~error_selector(){}
   virtual int operator()(const device& dev) const
   {
-    throw unimplemented{"hipSYCL presently only supports GPU platforms and device selectors."};
+    throw unimplemented{"hipSYCL presently only supports GPU platforms when using the CUDA and ROCm "
+                        "backends, and CPU platforms when compiling against hipCPU"};
   }
 };
 
-using default_selector = gpu_selector;
+#ifdef __HIPCPU__
+using gpu_selector = error_selector;
+#else
+using gpu_selector = detail::select_all_selector;
+#endif
+
+#ifdef __HIPCPU__
+using cpu_selector = detail::select_all_selector;
+#else
 using cpu_selector = error_selector;
-using host_selector = error_selector;
+#endif
+
+using host_selector = cpu_selector;
+
+#ifdef __HIPCPU__
+using default_selector = host_selector;
+#else
+using default_selector = gpu_selector;
+#endif
 
 }  // namespace sycl
 }  // namespace cl

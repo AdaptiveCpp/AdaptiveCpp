@@ -101,7 +101,12 @@ public:
   __device__
   static T* get_ptr(const address addr)
   {
+#ifdef __HIPCPU__
+    local_memory_allocator::smallest_type* local_mem_data =
+      static_cast<local_memory_allocator::smallest_type*>(HIP_DYNAMIC_SHARED_MEMORY);
+#else
     extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
+#endif
     return reinterpret_cast<T*>(reinterpret_cast<char*>(local_mem_data) + addr);
   }
 };

@@ -108,8 +108,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 {
 #ifdef HIPSYCL_PLATFORM_CUDA
   return "hipSYCL [SYCL over CUDA/HIP] on NVIDIA CUDA";
-#else
+#elif defined HIPSYCL_PLATFORM_HCC
   return "hipSYCL [SYCL over CUDA/HIP] on AMD ROCm";
+#else
+  return "hipSYCL [SYCL over CUDA/HIP] on hipCPU host device";
 #endif
 }
 

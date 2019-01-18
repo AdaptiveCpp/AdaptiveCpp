@@ -73,6 +73,7 @@ int main(int argc, const char **argv) {
     modifiedArgs.push_back("-std=c++14");
 
     std::string clangIncludeDir = hipsycl::paths::getClangIncludePath();
+    
     if(!clangIncludeDir.empty())
       modifiedArgs.push_back("-I"+clangIncludeDir);
 

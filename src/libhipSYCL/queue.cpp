@@ -188,7 +188,7 @@ device queue::get_device() const {
 
 
 bool queue::is_host() const {
-  return false;
+  return get_device().is_host();
 }
 
 void queue::wait() {

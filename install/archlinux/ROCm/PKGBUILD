@@ -30,7 +30,8 @@ build() {
     mkdir -p ${srcdir}/hipSYCL/build
     cd "${srcdir}/hipSYCL/build"
     cmake -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/opt/hipSYCL/ROCm ..
+          -DCMAKE_INSTALL_PREFIX=/opt/hipSYCL/ROCm \
+          -DWITH_CPU_BACKEND=ON -DWITH_ROCM_BACKEND=ON ..
 }
 
 package() {

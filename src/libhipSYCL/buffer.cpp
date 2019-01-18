@@ -119,7 +119,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
       if(host_alloc_mode == host_alloc_mode::allow_pinned)
       {
         // Try pinned memory
-        if(hipHostMalloc(&_host_memory, _size) == hipSuccess)
+        if(hipHostMalloc(&_host_memory, _size, hipHostMallocDefault) == hipSuccess)
           _pinned_memory = true;
       }
 

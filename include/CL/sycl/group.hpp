@@ -146,6 +146,8 @@ struct group
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i];
     __syncthreads();
+
+    return device_event{};
   }
 
   template <typename dataT>
@@ -157,6 +159,8 @@ struct group
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i];
     __syncthreads();
+
+    return device_event{};
   }
 
   template <typename dataT>
@@ -168,6 +172,8 @@ struct group
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i * srcStride];
     __syncthreads();
+
+    return device_event{};
   }
 
   template <typename dataT>
@@ -179,6 +185,8 @@ struct group
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i * destStride] = src[i];
     __syncthreads();
+
+    return device_event{};
   }
 
   template <typename... eventTN>

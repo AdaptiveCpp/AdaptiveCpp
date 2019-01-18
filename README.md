@@ -10,6 +10,7 @@ The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that b
    * with hipSYCL:
       * on AMD devices via AMD HIP on the ROCm platform
       * on NVIDIA devices via CUDA
+      * on CPUs with OpenMP
    * with triSYCL:
       * on CPUs with OpenMP
       * on Xilinx FPGAs (experimental)
@@ -109,7 +110,20 @@ $ make install
 The default installation prefix is `/usr/local`. Change this to your liking.
 
 ## Compiling software with hipSYCL
-hipSYCL provides the `syclcc` compiler wrapper. `syclcc` will automatically call either nvcc or hcc, depending on what is installed. If both are installed, the `HIPSYCL_PLATFORM` environment variable can be used to select the compiler (set to "cuda" or "nvcc" for nvidia, and "hip", "rocm" or "hcc" for AMD). `syclcc` also automatically sets a couple of compiler flags required for the compilation of hipSYCL programs. All other arguments are forwarded to hcc/nvcc.
+hipSYCL provides the `syclcc` compiler driver. `syclcc` will automatically execute the hipSYCL source-to-source transformation toolchain and then invoke either nvcc (for the CUDA backend), hcc (for the ROCm backend) or an OpenMP-capable host compiler (for the CPU backend). If several backends are available,
+the backend to be used must be explicitly specified by the user. This can be done either by setting the environment variable
+```
+export HIPSYCL_PLATFORM=<platform>
+```
+or with a command line argument for `syclcc`:
+```
+syclcc --hipsycl-platform=<platform> ...
+```
+where valid values for `<platform>` are 
+* `cuda`, `nvidia` or `nvcc` for CUDA
+* `rocm`, `amd`, `hip` or `hcc` for ROCm
+* `cpu`, `host` or `hipcpu` for the CPU backend
+Note that the CPU backend is at the moment "static", i.e. there's no decision possible at runtime whether to run a kernel on GPU or CPU. Where a kernel is executed depends only on the setting for the hipSYCL platform at compile time.
 
 ## Example
 The following code adds two vectors:

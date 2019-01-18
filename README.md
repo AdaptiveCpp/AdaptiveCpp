@@ -47,7 +47,7 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 * 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 
 ## Building and installing hipSYCL
-In order to successfully build and install hipSYCL, a working installation of either CUDA or ROCm (with nvcc/hcc in `$PATH`) is required. At the moment, hipSYCL is tested:
+In order to successfully build and install hipSYCL, a working installation of either CUDA, ROCm (with nvcc/hcc in `$PATH`) or an OpenMP capable compiler is required. At the moment, hipSYCL is tested:
 * On NVIDIA: with CUDA 10.0 and gcc 7.3
 * On AMD: With the `rocm/rocm-terminal` docker image (only compile testing due to lack of hardware). If you try using hipSYCL with ROCm < 2.0, you will likely run into problems.
 

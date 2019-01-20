@@ -377,7 +377,9 @@ buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
 
     return task_state::enqueued;
   }
-
+  
+  HIPSYCL_DEBUG_INFO << "buffer_impl: <Optimizing buffer action to no-op>"
+                    << std::endl;
   return task_state::complete;
 }
 
@@ -385,7 +387,8 @@ buffer_impl::execute_buffer_action(buffer_action a, hipStream_t stream)
 void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStream_t stream)
 {
   HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
-                        "Device->Host copy"
+                        "Device->Host copy of size "
+                     << len
                      << std::endl;
 
   detail::check_error(hipMemcpyAsync(host, device, len,
@@ -396,7 +399,8 @@ void buffer_impl::memcpy_d2h(void* host, const void* device, size_t len, hipStre
 void buffer_impl::memcpy_h2d(void* device, const void* host, size_t len, hipStream_t stream)
 {
   HIPSYCL_DEBUG_INFO << "buffer_impl: Executing async "
-                        "Host->Device copy"
+                        "Host->Device copy of size " 
+                     << len
                      << std::endl;
 
   detail::check_error(hipMemcpyAsync(device, host, len,
@@ -488,12 +492,25 @@ buffer_action buffer_state_monitor::register_host_access(access::mode m)
   else
   {
     // Make sure host is up-to-date before reading
-    bool copy_required = _host_data_version < _device_data_version;
+    bool copy_required = this->is_host_outdated();
+    bool read_only = (m == access::mode::read);
 
-    if(m != access::mode::read)
-      _host_data_version = _device_data_version + 1;
+    HIPSYCL_DEBUG_INFO << "buffer_state_info: host access, current data versions: host-side is @"
+                       << _host_data_version
+                       << ", device side is @"
+                       << _device_data_version
+                       << std::endl;
+
+    size_t version_bump = read_only ? 0 : 1;
+    if(!copy_required)
+      _host_data_version += version_bump;
     else
-      _host_data_version = _device_data_version;
+      _host_data_version = _device_data_version + version_bump;
+
+    HIPSYCL_DEBUG_INFO << "buffer_state_info: (new state: host @"
+                       << _host_data_version << ", device @"
+                       << _device_data_version << ")"
+                       << std::endl;
 
     if(copy_required)
       return buffer_action::update_host;
@@ -511,9 +528,15 @@ buffer_action buffer_state_monitor::register_device_access(access::mode m)
   }
   else
   {
+     HIPSYCL_DEBUG_INFO << "buffer_state_info: device access, current data versions: host-side is @"
+                       << _host_data_version
+                       << ", device side is @"
+                       << _device_data_version
+                       << std::endl;
 
     // Make sure device is up-to-date before reading
-    bool copy_required = _device_data_version < _host_data_version;
+    bool copy_required = this->is_device_outdated();
+    bool read_only = (m == access::mode::read);
 
     // If we are discarding the previous content anyway,
     // a data transfer is never required
@@ -521,10 +544,16 @@ buffer_action buffer_state_monitor::register_device_access(access::mode m)
        m == access::mode::discard_read_write)
       copy_required = false;
 
-    if(m != access::mode::read)
-      _device_data_version = _host_data_version + 1;
+    size_t version_bump = read_only ? 0 : 1;
+    if(!copy_required)
+      _device_data_version += version_bump;
     else
-      _device_data_version = _host_data_version;
+      _device_data_version = _host_data_version + version_bump;
+
+    HIPSYCL_DEBUG_INFO << "buffer_state_info: (new state: host @"
+                       << _host_data_version << ", device @"
+                       << _device_data_version << ")"
+                       << std::endl;
 
     if(copy_required)
       return buffer_action::update_device;

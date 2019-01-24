@@ -235,7 +235,11 @@ CompilationTargetAnnotator::addAnnotations()
       writeAnnotation(f.second, " __host__ ");
     }
   }
+}
 
+void 
+CompilationTargetAnnotator::pruneUninstantiatedTemplates()
+{
   // Prune uninstantiated templates
   for(auto synonymousDeclGroup : _synonymousDecls)
   {

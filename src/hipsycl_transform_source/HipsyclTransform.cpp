@@ -36,6 +36,9 @@
 namespace hipsycl {
 namespace transform {
 
+CommandLineArgs::CommandLineArgs()
+: _enableTemplatePruning{false}
+{}
 
 std::string
 CommandLineArgs::extractArg(const std::string& optionString) const
@@ -57,6 +60,7 @@ CommandLineArgs::consumeHipsyclArgs(
 
   _transformDirectory = "";
   _mainFilename = "";
+  _enableTemplatePruning = false;
 
   for(std::size_t i = 0; i < args.size(); ++i)
   {
@@ -68,6 +72,10 @@ CommandLineArgs::consumeHipsyclArgs(
     {
       _mainFilename = extractArg(args[i]);
     }
+    else if(args[i] == "--with-template-pruning")
+    {
+      _enableTemplatePruning = true;
+    }
     else
       modifiedArgs.push_back(args[i]);
 
@@ -76,6 +84,12 @@ CommandLineArgs::consumeHipsyclArgs(
   }
 
   return modifiedArgs;
+}
+
+bool 
+CommandLineArgs::isTemplatePruningEnabled() const
+{
+  return _enableTemplatePruning;
 }
 
 std::string
@@ -136,6 +150,8 @@ void HipsyclTransformASTConsumer::HandleTranslationUnit(clang::ASTContext& ctx)
   CompilationTargetAnnotator annotationCorrector{_rewriter, _visitor};
   annotationCorrector.treatConstructsAsFunctionCalls(_constructMatcher);
   annotationCorrector.addAnnotations();
+  if(Application::getCommandLineArgs().isTemplatePruningEnabled())
+    annotationCorrector.pruneUninstantiatedTemplates();
 }
 
 HipsyclTransfromFrontendAction::HipsyclTransfromFrontendAction()

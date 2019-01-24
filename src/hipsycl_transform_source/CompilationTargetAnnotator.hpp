@@ -56,6 +56,8 @@ public:
 
   void addAnnotations();
 
+  void pruneUninstantiatedTemplates();
+
 private:
 
   DeclIdentifier getDeclKey(

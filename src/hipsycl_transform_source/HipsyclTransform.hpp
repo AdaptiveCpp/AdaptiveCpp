@@ -49,18 +49,22 @@ namespace transform {
 class CommandLineArgs
 {
 public:
+  CommandLineArgs();
 
   clang::tooling::CommandLineArguments
   consumeHipsyclArgs(const clang::tooling::CommandLineArguments& args);
 
   std::string getTransformDirectory() const;
   std::string getMainFilename() const;
+  bool isTemplatePruningEnabled() const;
 
 private:
   std::string extractArg(const std::string& optionString) const;
 
   std::string _transformDirectory;
   std::string _mainFilename;
+
+  bool _enableTemplatePruning;
 };
 
 class Application

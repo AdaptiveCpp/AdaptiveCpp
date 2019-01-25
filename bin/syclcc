@@ -80,14 +80,17 @@ class hip_installation:
 
 ## Represents the different supported hipSYCL platforms
 class hipsycl_platform:
-  CUDA = "cuda"
+  CUDA_CLANG = "cuda"
+  CUDA_NVCC = "nvcc"
   ROCM = "rocm"
   HIPCPU = "hipcpu"
 
   def from_string(platform_name):
     name = platform_name.lower()
-    if name == "cuda" or name == "nvidia" or name == "nvcc":
-      return hipsycl_platform.CUDA
+    if name == "cuda" or name == "nvidia":
+      return hipsycl_platform.CUDA_CLANG
+    elif name == "nvcc":
+      return hipsycl_platform.CUDA_NVCC
     elif name == "rocm" or name == "amd" or name == "hcc" or name == "hip":
       return hipsycl_platform.ROCM
     elif name == "cpu" or name == "host" or name == "hipcpu":
@@ -165,6 +168,7 @@ class source_file_processor:
          "-Wno-unused-command-line-argument",
          "--hipsycl-transform-dir="+output_dir,
          "--hipsycl-main-output-file="+output_filename]
+         +(["--with-template-pruning"] if self._config.platform_needs_template_pruning else [])
          +self._additional_args
          +self._config.hipsycl_common_arguments)
 
@@ -224,8 +228,62 @@ class source_file_processor:
 
 cpp_files = set([".cpp",".cxx",".c++",".cc",".c"])
 
-## Compiler backend using nvcc
-class cuda_compiler:
+## Compiler backend for CUDA using Clang
+class cuda_clang_compiler:
+  def __init__(self,config):
+    self.device_compiler = config.cuda_clang_compiler
+    self.config = config
+    self.is_clang_available = is_program_executable(self.device_compiler)
+
+  def includes_linking_stage(self, args):
+    for arg in args:
+      if (arg.startswith("-E") or
+          arg.startswith("-fsyntax-only") or
+          arg.startswith("-S") or
+          arg.startswith("-c")):
+        return False
+    return True
+
+  def run(self, args):
+    source_processor = source_file_processor(self.config, ".cu", args)
+    result = None
+    try:
+      transformed_args = []
+      for arg in args:
+        if is_source_file(arg):
+          transformed_args.append(source_processor.process_file(arg))
+        else:
+          transformed_args.append(arg)
+
+      compiler_args = ["--cuda-gpu-arch=sm_52",
+                        "-std=c++14",
+                        "-pthread",
+                        "-Wno-unused-command-line-argument",
+                        "-Wno-deprecated-declarations"]
+
+      compiler_args += self.config.hipsycl_common_arguments
+      compiler_args += transformed_args
+
+      # To avoid warnings only add linker flags if this run will invoke the linker
+      # TODO: This mechanism could also be used to conditionally link libhipSYCL
+      if self.includes_linking_stage(args):
+        compiler_args += ["-lcudart_static",
+                           "-ldl",
+                           "-lrt"]
+
+      result = subprocess.call([self.device_compiler]+compiler_args)
+
+    finally:
+      source_processor.release_files()
+
+    return result
+
+  def is_available(self):
+    return self.is_clang_available
+
+
+## Compiler backend for CUDA using nvcc
+class cuda_nvcc_compiler:
   def __init__(self,config):
     self.device_compiler = "nvcc"
     self.config = config
@@ -246,11 +304,6 @@ class cuda_compiler:
   def is_no_nvcc_argument(self,arg):
     return not arg in self.nvcc_option_output
 
-  def is_compilation_step(self,args):
-    for arg in args:
-      if is_source_file(arg):
-        return True
-    return False
 
   def obtain_linker_arguments(self, linker_args):
     if not linker_args.startswith("-Wl,"):
@@ -405,6 +458,8 @@ class hipcpu_compiler:
 #  Supported arguments are:
 #  --force-alternative-compiler=<compiler>  Use the specified compiler
 #               directly without going through the hipSYCL toolchain
+#  --cuda-clang-compiler=<compiler>  Use an alternative version of Clang
+#               for compiling CUDA (default: clang++)
 #  --keep-temporary-files Keep temporary files created by the hipSYCL
 #               source-to-source transformation; this can be useful
 #               for debugging
@@ -412,33 +467,31 @@ class hipcpu_compiler:
 #               source transformation. This is normally only required
 #               when building hipSYCL itself.
 #  --hipsycl-platform=<platform>  Build the program for the specified
-#               hipSYCL platform; valid values are: cuda,rocm,cpu
+#               hipSYCL platform; valid values are: cuda,nvcc,rocm,cpu
 #  --help       Print help message
 class syclcc_config:
   def __init__(self, argv):
     self._alternative_compiler = ""
+    self._cuda_clang_compiler = "clang++"
     self._forwarded_args = []
     self._keep_temporaries = False
     self._platform = None
     self._is_bootstrap = False
+
     self._try_get_platform_from_env()
+    self._try_get_cuda_clang_compiler_from_env()
 
     for arg in argv[1:]:
       if arg.startswith("--force-alternative-compiler="):
-        parsed_args = arg.split("=")
-        if len(parsed_args) != 2:
-          raise RuntimeError("Invalid argument: "+arg)
-
-        self._alternative_compiler = parsed_args[1]
+        self._alternative_compiler = self._parse_compound_argument(arg)
+      elif arg.startswith("--cuda-clang-compiler="):
+        self._cuda_clang_compiler = self._parse_compound_argument(arg)
       elif arg == "--keep-temporary-files":
         self._keep_temporaries = True
       elif arg == "--hipsycl-bootstrap":
         self._is_bootstrap = True
       elif arg.startswith("--hipsycl-platform="):
-        parts = arg.split("=")
-        if len(parts) != 2:
-          raise RuntimeError("Invalid argument: " + arg)
-        platform = hipsycl_platform.from_string(parts[1])
+        platform = hipsycl_platform.from_string(self._parse_compound_argument(arg))
         if platform == None:
           raise RuntimeError("Unrecognized hipSYCL platform: " + platform)
         if self._platform != None:
@@ -449,6 +502,8 @@ class syclcc_config:
         print(""" 
 --force-alternative-compiler=<compiler>  Use the specified compiler
                directly without going through the hipSYCL toolchain
+--cuda-clang-compiler=<compiler>  Use an alternative version of Clang
+               for compiling CUDA (default: clang++)
 --keep-temporary-files Keep temporary files created by the hipSYCL
                source-to-source transformation; this can be useful
                for debugging
@@ -456,11 +511,17 @@ class syclcc_config:
                source transformation. This is normally only required
                when building hipSYCL itself.
 --hipsycl-platform=<platform>  Build the program for the specified
-               hipSYCL platform; valid values are: cuda,rocm,cpu
+               hipSYCL platform; valid values are: cuda,nvcc,rocm,cpu
 --help Print help message """)
         sys.exit(0)
       else:
         self._forwarded_args.append(arg)
+
+  def _parse_compound_argument(self, arg):
+    parsed_args = arg.split("=")
+    if len(parsed_args) != 2:
+      raise RuntimeError("Invalid argument: "+arg)
+    return parsed_args[1]
 
   def _try_get_platform_from_env(self):
     if "HIPSYCL_PLATFORM" in os.environ:
@@ -469,6 +530,10 @@ class syclcc_config:
       if self._platform == None:
         raise RuntimeError("Invalid platform specification in HIPSYCL_PLATFORM environment variable: "
                           + envconfig)
+
+  def _try_get_cuda_clang_compiler_from_env(self):
+    if "HIPSYCL_CUDA_CLANG_COMPILER" in os.environ:
+      self._cuda_clang_compiler = os.environ["HIPSYCL_CUDA_CLANG_COMPILER"]
 
   def set_platform(self, platform):
     self._platform = platform
@@ -487,8 +552,16 @@ class syclcc_config:
       return self._alternative_compiler
 
   @property
+  def cuda_clang_compiler(self):
+    return self._cuda_clang_compiler
+
+  @property
   def platform(self):
     return self._platform
+
+  @property
+  def platform_needs_template_pruning(self):
+    return self._platform == hipsycl_platform.CUDA_NVCC
 
   def is_bootstrap(self):
     return self._is_bootstrap
@@ -523,7 +596,8 @@ class syclcc_config:
     args = ["-I" + self.hipsycl_include_path]
 
     libname = ""
-    if self._platform == hipsycl_platform.CUDA:
+    if (self._platform == hipsycl_platform.CUDA_CLANG or
+        self._platform == hipsycl_platform.CUDA_NVCC):
       libname = "hipSYCL_cuda"
     elif self._platform == hipsycl_platform.ROCM:
       libname = "hipSYCL_rocm"
@@ -539,7 +613,8 @@ class syclcc_config:
       args.append("-l" + libname)
 
     # For CUDA, we use the bundled HIP installation
-    if self._platform == hipsycl_platform.CUDA:
+    if (self._platform == hipsycl_platform.CUDA_CLANG or
+        self._platform == hipsycl_platform.CUDA_NVCC):
       if self._is_bootstrap:
         bundled_hip_preinstall_path = os.path.join(self.hipsycl_install_path,
                                       "contrib/HIP/include")
@@ -576,7 +651,8 @@ if __name__ == '__main__':
 
         compilers = {
           hipsycl_platform.ROCM : hip_compiler(config),
-          hipsycl_platform.CUDA : cuda_compiler(config),
+          hipsycl_platform.CUDA_CLANG : cuda_clang_compiler(config),
+          hipsycl_platform.CUDA_NVCC : cuda_nvcc_compiler(config),
           hipsycl_platform.HIPCPU : hipcpu_compiler(config)
         }
 

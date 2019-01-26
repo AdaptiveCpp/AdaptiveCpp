@@ -145,6 +145,7 @@ class source_file_processor:
          filename, "--",
          "-I" + os.path.dirname(filename),
          "-I" + hipcpu_include_dir,
+         "-DHIPCPU_NO_OPENMP",
          "-Wno-unused-command-line-argument"]
          +self._additional_args
          +self._config.hipsycl_common_arguments)
@@ -160,6 +161,7 @@ class source_file_processor:
          "--",
          "-I" + os.path.dirname(filename),
          "-I" + hipcpu_include_dir,
+         "-DHIPCPU_NO_OPENMP",
          "-Wno-unused-command-line-argument",
          "--hipsycl-transform-dir="+output_dir,
          "--hipsycl-main-output-file="+output_filename]

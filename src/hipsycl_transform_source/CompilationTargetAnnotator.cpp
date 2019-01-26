@@ -263,25 +263,15 @@ CompilationTargetAnnotator::pruneUninstantiatedTemplates()
                          << std::endl;
 
       if (d->hasBody()) {
-        std::string prefix = ";";
 
         const clang::Stmt *body = d->getBody();
         auto bodyStart = body->getSourceRange().getBegin();
 
-        if(clang::isa<CXXConstructorDecl>(d))
-        {
-          // If we are a constructor, instead of turning the definition
-          // into a declaration with a ';', we insert an empty definition.
-          // This also works if an initalizer list is present, where
-          // a ';' would be a syntax error.
-          prefix = "{}";
-        }
-
         auto bodyEnd = body->getSourceRange().getEnd();
       
-        _rewriter.InsertTextBefore(bodyStart,
-            prefix+"\n#if 0 // -- definition stripped by hipsycl_transform_source\n");
-        _rewriter.InsertTextAfterToken(bodyEnd, "\n#endif\n");
+        _rewriter.InsertTextAfterToken(bodyStart,
+            "\n#if 0 // -- definition stripped by hipsycl_transform_source\n");
+        _rewriter.InsertText(bodyEnd, "\n#endif\n");
         // TODO: Correct the current #line in the source
       }
     }

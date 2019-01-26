@@ -4,8 +4,9 @@ services:
   - docker
 
 install:
-  - docker build --build-arg hipsycl_branch=`git rev-parse --abbrev-ref HEAD` --build-arg hipsycl_origin=`git config --get remote.origin.url` install/docker/CUDA
-  - docker build --build-arg hipsycl_branch=`git rev-parse --abbrev-ref HEAD` --build-arg hipsycl_origin=`git config --get remote.origin.url` install/docker/ROCm
+  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+  - docker build --build-arg hipsycl_branch=$BRANCH --build-arg hipsycl_origin=`git config --get remote.origin.url` install/docker/CUDA
+  - docker build --build-arg hipsycl_branch=$BRANCH --build-arg hipsycl_origin=`git config --get remote.origin.url` install/docker/ROCm
   
 script:
   - docker images

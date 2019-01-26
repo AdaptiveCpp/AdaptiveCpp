@@ -4,8 +4,11 @@ services:
   - docker
 
 install:
-  - docker build install/docker/CUDA
-  - docker build install/docker/ROCm
+  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+  - export ORIGIN=`git config --get remote.origin.url`
+  - echo "Testing hipSYCL, branch $BRANCH from $ORIGIN"
+  - docker build --build-arg hipsycl_branch=$BRANCH --build-arg hipsycl_origin=$ORIGIN install/docker/CUDA
+  - docker build --build-arg hipsycl_branch=$BRANCH --build-arg hipsycl_origin=$ORIGIN install/docker/ROCm
   
 script:
   - docker images

@@ -248,8 +248,9 @@ class cuda_clang_compiler:
         else:
           transformed_args.append(arg)
 
-      compiler_args = ["--cuda-gpu-arch=sm_52",
-                        "-std=c++14",
+      gpu_target_arch = self._get_gpu_target_arch(args)
+      compiler_args = ["--cuda-gpu-arch="+gpu_target_arch] if gpu_target_arch else []
+      compiler_args += ["-std=c++14",
                         "-pthread",
                         "-Wno-unused-command-line-argument",
                         "-Wno-deprecated-declarations"]
@@ -271,11 +272,27 @@ class cuda_clang_compiler:
 
     return result
 
+  # Multiple architectures can be targeted with a single Clang invocation.
+  # If the HIPSYCL_GPU_ARCH environment variable is set, it is passed as
+  # an architecture alongside any additional arguments passed by the user.
+  # If no arguments are passed and the environment variable is not set,
+  # a default value is returned.
+  def _get_gpu_target_arch(self, args):
+    if self.config.gpu_target_arch != None:
+      return self.config.gpu_target_arch
+    has_arch_arg = False
+    for arg in args:
+      if arg.startswith("--cuda-gpu-arch="):
+        has_arch_arg = True
+        break
+    return "sm_52" if not has_arch_arg else None
+
   def is_available(self):
     return self.is_clang_available
 
 
 ## Compiler backend for CUDA using nvcc
+# TODO: Honor the HIPSYCL_GPU_ARCH environment variable
 class cuda_nvcc_compiler:
   def __init__(self,config):
     self.device_compiler = "nvcc"
@@ -397,8 +414,8 @@ class hip_compiler:
     hip_lib_path = os.path.join(rocmpath, "lib")
 
     additional_args = []
-    if "HIPSYCL_GPU_ARCH" in os.environ:
-      additional_args.append("-amdgpu-target="+os.environ["HIPSYCL_GPU_ARCH"])
+    if self.config.gpu_target_arch != None:
+      additional_args.append("-amdgpu-target="+self.config.gpu_target_arch)
 
     # ToDo: What if the hcc include/library paths in cxxconfig and ldconfig
     # contain spaces?
@@ -472,6 +489,7 @@ class syclcc_config:
   def __init__(self, argv):
     self._alternative_compiler = ""
     self._cuda_clang_compiler = None
+    self._gpu_target_arch = None
     self._forwarded_args = []
     self._keep_temporaries = False
     self._platform = None
@@ -479,6 +497,7 @@ class syclcc_config:
 
     self._try_get_platform_from_env()
     self._try_get_cuda_clang_compiler_from_env()
+    self._try_get_gpu_target_arch_from_env()
 
     for arg in argv[1:]:
       if arg.startswith("--force-alternative-compiler="):
@@ -538,6 +557,10 @@ class syclcc_config:
     if "HIPSYCL_CUDA_CLANG_COMPILER" in os.environ:
       self._cuda_clang_compiler = os.environ["HIPSYCL_CUDA_CLANG_COMPILER"]
 
+  def _try_get_gpu_target_arch_from_env(self):
+    if "HIPSYCL_GPU_ARCH" in os.environ:
+      self._gpu_target_arch = os.environ["HIPSYCL_GPU_ARCH"]
+
   def set_platform(self, platform):
     self._platform = platform
 
@@ -557,6 +580,10 @@ class syclcc_config:
   @property
   def cuda_clang_compiler(self):
     return self._cuda_clang_compiler
+
+  @property
+  def gpu_target_arch(self):
+    return self._gpu_target_arch
 
   @property
   def clang_versions_descending(self):

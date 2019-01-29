@@ -60,13 +60,6 @@ def get_first_working_command(command_list):
       return cmd
   return None
 
-def get_host_compiler():
-  if "CXX" in os.environ:
-    return os.environ["CXX"]
-  else:
-    return get_first_working_command(["g++", "clang++-7", "clang++-6","clang++"])
-
-
 
 
 ## Represents the different available HIP installations:
@@ -420,8 +413,7 @@ class hip_compiler:
 class hipcpu_compiler:
   def __init__(self, config):
     self.config = config
-
-    self.compiler = get_host_compiler()
+    self.compiler = self._get_host_compiler()
 
   def run(self, args):
     source_processor = source_file_processor(self.config, ".cpp", args)
@@ -447,6 +439,12 @@ class hipcpu_compiler:
       source_processor.release_files()
 
     return result
+
+  def _get_host_compiler(self):
+    if "CXX" in os.environ:
+      return os.environ["CXX"]
+    else:
+      return get_first_working_command(["g++"] + self.config.clang_versions_descending)
 
   def is_available(self):
     return self.compiler != None
@@ -520,9 +518,7 @@ class syclcc_config:
         self._forwarded_args.append(arg)
 
     if self._cuda_clang_compiler == None:
-      self._cuda_clang_compiler = get_first_working_command([
-      "clang++-8.0","clang++-8","clang++-7.0","clang++-7",
-      "clang++-6.0","clang++-6","clang++"])
+      self._cuda_clang_compiler = get_first_working_command(self.clang_versions_descending)
 
   def _parse_compound_argument(self, arg):
     parsed_args = arg.split("=")
@@ -561,6 +557,11 @@ class syclcc_config:
   @property
   def cuda_clang_compiler(self):
     return self._cuda_clang_compiler
+
+  @property
+  def clang_versions_descending(self):
+    return ["clang++-8.0","clang++-8","clang++-7.0","clang++-7",
+      "clang++-6.0","clang++-6","clang++"]
 
   @property
   def platform(self):

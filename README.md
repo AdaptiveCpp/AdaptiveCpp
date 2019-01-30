@@ -129,9 +129,9 @@ Command-line argument | Environment variable | Function
 --------------------- | -------------------- | --------
 `--hipsycl-platform=` | `HIPSYCL_PLATFORM`   | Selects the hipSYCL backend
 `--cuda-clang-compiler=` | `HIPSYCL_CUDA_CLANG_COMPILER` | Selects the clang compiler for CUDA compilation. If not specified, defaults to the newest version of clang that can be found in `$PATH`.
-`--keep-temporary-files` | | Do not remove results of the source-to-source transformation; can be useful for debugging.
-                    | `HIPSYCL_GPU_ARCH` | Selects the target GPU architecture for ROCm and CUDA (with clang as compiler). Can be combined with command line arguments of the respective compilers, in which case code will be compiled for all specified architectures. On clang: If no architecture is specified, `sm_52` is selected.
-                    | `CXX` | For the CPU backend: Selects compiler. If not specified, `g++` will be tried followed by the newest version of clang in `$PATH`.
+`--keep-temporary-files` | *(None)* | Do not remove results of the source-to-source transformation; can be useful for debugging.
+ *(None)* | `HIPSYCL_GPU_ARCH` | Selects the target GPU architecture for ROCm and CUDA (with clang as compiler). Can be combined with command line arguments of the respective compilers, in which case code will be compiled for all specified architectures. On clang: If no architecture is specified, `sm_52` is selected.
+ *(None)* | `CXX` | For the CPU backend: Selects compiler. If not specified, `g++` will be tried followed by the newest version of clang in `$PATH`.
 
 
 ## Example

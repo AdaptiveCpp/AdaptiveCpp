@@ -16,7 +16,8 @@ WORKDIR /tmp
 RUN git clone -b $hipsycl_branch --recurse-submodules $hipsycl_origin
 RUN mkdir /tmp/build
 WORKDIR /tmp/build
-ENV CXX=clang++-6.0
+ENV CXX=clang++-8
 ENV PATH=/usr/local/cuda/bin:$PATH
+ENV LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH
 RUN cmake -DCMAKE_INSTALL_PREFIX=/usr -DWITH_CPU_BACKEND=ON -DWITH_CUDA_BACKEND=ON /tmp/hipSYCL
 RUN make install

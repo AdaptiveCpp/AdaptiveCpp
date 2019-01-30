@@ -105,7 +105,7 @@ $ make install
 The default installation prefix is `/usr/local`. Change this to your liking.
 
 ## Compiling software with hipSYCL
-hipSYCL provides the `syclcc` compiler driver. `syclcc` will automatically execute the hipSYCL source-to-source transformation toolchain and then invoke either nvcc (for the CUDA backend), hcc (for the ROCm backend) or an OpenMP-capable host compiler (for the CPU backend). If several backends are available,
+hipSYCL provides the `syclcc` compiler driver. `syclcc` will automatically execute the hipSYCL source-to-source transformation toolchain and then invoke either clang or nvcc (for the CUDA backend), hcc (for the ROCm backend) or an OpenMP-capable host compiler (for the CPU backend). If several backends are available,
 the backend to be used must be explicitly specified by the user. This can be done either by setting the environment variable
 ```
 export HIPSYCL_PLATFORM=<platform>

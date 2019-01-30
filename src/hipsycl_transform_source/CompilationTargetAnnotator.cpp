@@ -38,6 +38,17 @@ using namespace clang;
 namespace hipsycl {
 namespace transform {
 
+template<class T>
+clang::SourceLocation getBegin(const T* ast_element)
+{
+#if LLVM_VERSION_MAJOR > 6
+  return ast_element->getBeginLoc();
+#else
+  return ast_element->getLocStart();
+#endif
+}
+
+
 CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
                                                        CallGraph& callGraph)
   : _rewriter{r},
@@ -320,11 +331,8 @@ CompilationTargetAnnotator::correctSharedMemoryAnnotations(
           HIPSYCL_DEBUG_INFO << "Marking variable as __shared__ in "
                              << kernelFunction->getAsFunction()->getQualifiedNameAsString()
                              << std::endl;
-#if LLVM_VERSION_MAJOR > 6
-          _rewriter.InsertText((*currentStmt)->getBeginLoc(), " __shared__ ");
-#else
-          _rewriter.InsertText((*currentStmt)->getLocStart(), " __shared__ ");
-#endif
+
+          _rewriter.InsertText(getBegin(*currentStmt), " __shared__ ");
         }
       }
     }
@@ -382,9 +390,9 @@ CompilationTargetAnnotator::getDeclKey(const clang::Decl* f) const
   if (!f)
     return "<nullptr>";
   if(f->hasBody())
-    return f->getBody()->getLocStart().printToString(_rewriter.getSourceMgr());
+    return getBegin(f->getBody()).printToString(_rewriter.getSourceMgr());
   else
-    return f->getLocStart().printToString(_rewriter.getSourceMgr());
+    return getBegin(f).printToString(_rewriter.getSourceMgr());
 }
 
 bool CompilationTargetAnnotator::canCallHostFunctions(
@@ -605,7 +613,7 @@ void CompilationTargetAnnotator::writeAnnotation(
       {
         if(isa<CXXConstructorDecl>(currentDecl) || isa<CXXDestructorDecl>(currentDecl))
         {
-          _rewriter.InsertText(f->getLocStart(), annotation);
+          _rewriter.InsertText(getBegin(f), annotation);
         }
         else
         {
@@ -623,7 +631,7 @@ void CompilationTargetAnnotator::writeAnnotation(
     }
     else
     {
-      _rewriter.InsertText(f->getLocStart(), annotation);
+      _rewriter.InsertText(getBegin(f), annotation);
     }
   }
 }

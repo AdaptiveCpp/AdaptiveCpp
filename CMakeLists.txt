@@ -24,7 +24,15 @@ endif()
 # Make sure either hcc or nvcc can be found
 find_program(NVCC_COMPILER NAMES nvcc)
 find_program(HCC_COMPILER NAMES hcc)
+find_program(CLANG_EXECUTABLE_PATH NAMES clang++-8 clang++-8.0 clang++-7.0 clang++-7 clang++-6.0 clang++-6 clang++ CACHE STRING)
+if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
+  message(SEND_ERROR "Could not find clang executable in PATH")
+endif()
 
+# Even if we compile with clang, this tests
+# for the existence of CUDA which is also required for clang.
+# TODO: A better approach would be to find_package(CUDA) if
+# we build with clang.
 if(NVCC_COMPILER MATCHES "-NOTFOUND")
   set(CUDA_FOUND false)
 else()
@@ -46,6 +54,10 @@ if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
     message(SEND_ERROR "hcc was not found in PATH")
   endif()
+endif()
+
+if(CUDA_FOUND)
+  set(USE_NVCC false CACHE BOOL "Build hipSYCL with nvcc instead of clang as CUDA compiler (not recommended!)")
 endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")

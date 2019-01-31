@@ -20,9 +20,16 @@ set(INCLUDE_DIRS
 
 if(WITH_CUDA_BACKEND)
   add_library(hipSYCL_cuda SHARED ${HIPSYCL_SOURCES})
-  target_compile_options(hipSYCL_cuda PRIVATE --hipsycl-platform=cuda --hipsycl-bootstrap)
+
+  if(USE_NVCC)
+    set(CUDA_PLATFORM nvcc)
+  else()
+    set(CUDA_PLATFORM cuda)
+  endif()
+
+  target_compile_options(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
   target_include_directories(hipSYCL_cuda PRIVATE ${INCLUDE_DIRS})
-  target_link_libraries(hipSYCL_cuda --hipsycl-platform=cuda --hipsycl-bootstrap)
+  target_link_libraries(hipSYCL_cuda --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
   install(TARGETS hipSYCL_cuda
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib/static)

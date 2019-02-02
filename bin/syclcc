@@ -144,7 +144,8 @@ class source_file_processor:
          "-DHIPCPU_NO_OPENMP",
          "-Wno-unused-command-line-argument"]
          +self._additional_args
-         +self._config.hipsycl_common_arguments)
+         +self._config.hipsycl_common_arguments
+         +["--rewrite-include-paths="+p for p in self._config.device_header_paths])
 
       if returnvalue != 0:
         raise RuntimeError("Error while rewriting includes, aborting compilation")
@@ -484,6 +485,10 @@ class hipcpu_compiler:
 #               when building hipSYCL itself.
 #  --hipsycl-platform=<platform>  Build the program for the specified
 #               hipSYCL platform; valid values are: cuda,nvcc,rocm,cpu
+#  --restrict-device-header-path=<path>,
+#  -RDI=<path>  Restrict the paths in which include
+#               files are allowed to contain device code. Can be specified
+#               several times.
 #  --help       Print help message
 class syclcc_config:
   def __init__(self, argv):
@@ -494,6 +499,7 @@ class syclcc_config:
     self._keep_temporaries = False
     self._platform = None
     self._is_bootstrap = False
+    self._device_header_paths = []
 
     self._try_get_platform_from_env()
     self._try_get_cuda_clang_compiler_from_env()
@@ -516,6 +522,8 @@ class syclcc_config:
           raise RuntimeError("hipSYCL platform has been specified multiple times")
 
         self._platform = platform
+      elif arg.startswith("--restrict-device-header-path=") or arg.startswith("-RDI="):
+        self._device_header_paths.append(self._parse_compound_argument(arg)) 
       elif arg == "--help":
         print(""" 
 --force-alternative-compiler=<compiler>  Use the specified compiler
@@ -531,6 +539,10 @@ class syclcc_config:
                when building hipSYCL itself.
 --hipsycl-platform=<platform>  Build the program for the specified
                hipSYCL platform; valid values are: cuda,nvcc,rocm,cpu
+--restrict-device-header-path=<path>,
+-RDI=<path>    Restrict the paths in which include
+               files are allowed to contain device code. Can be specified
+               several times.
 --help Print help message """)
         sys.exit(0)
       else:
@@ -625,6 +637,10 @@ class syclcc_config:
   @property
   def hipsycl_lib_path(self):
     return os.path.join(self.hipsycl_install_path,"lib")
+
+  @property
+  def device_header_paths(self):
+    return self._device_header_paths
 
   @property
   def hipsycl_common_arguments(self):    

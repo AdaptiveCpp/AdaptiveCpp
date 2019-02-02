@@ -54,6 +54,13 @@ CompilationTargetAnnotator::CompilationTargetAnnotator(Rewriter& r,
   : _rewriter{r},
     _callGraph{callGraph}
 {
+  this->_warningAttemptedExternalModificationID = 
+    _rewriter.getSourceMgr().getDiagnostics().getCustomDiagID(
+        clang::DiagnosticsEngine::Warning,
+        "Attempted to mark function %0 in non-inlined source file as __device__,"
+        " is the file in a path where device code is allowed?");
+
+
   // When dealing with multiple template instantiations, we may end up
   // with several Decl's (and hence several nodes in the call graph) even
   // if these functions refer to the same location in the source code.
@@ -611,22 +618,38 @@ void CompilationTargetAnnotator::writeAnnotation(
 
       if(!suppressAnnotation)
       {
+        clang::SourceLocation insertLoc;
+
         if(isa<CXXConstructorDecl>(currentDecl) || isa<CXXDestructorDecl>(currentDecl))
         {
-          _rewriter.InsertText(getBegin(f), annotation);
+          insertLoc = getBegin(f);
         }
         else
         {
           const clang::FunctionDecl* f = cast<const clang::FunctionDecl>(currentDecl);
-          _rewriter.InsertText(f->getTypeSpecStartLoc(), annotation);
+          insertLoc = f->getTypeSpecStartLoc();
         }
+
+        std::string functionName;
 
         if(f->getAsFunction())
         {
+          functionName = f->getAsFunction()->getQualifiedNameAsString();
           HIPSYCL_DEBUG_INFO << "hipsycl_transform_source: Marking function as '"
                              << annotation << "': "
-                             << f->getAsFunction()->getQualifiedNameAsString() << std::endl;
+                             << functionName << std::endl;
         }
+
+#ifdef ENABLE_WARNING_IF_EXTERNAL_MODIFICATION_ATTEMPTED
+        if(annotation != " __host__ " && 
+          (_rewriter.getSourceMgr().getMainFileID() !=
+           _rewriter.getSourceMgr().getFileID(insertLoc)))
+        {
+          _rewriter.getSourceMgr().getDiagnostics().Report(insertLoc, 
+                this->_warningAttemptedExternalModificationID).AddString(functionName);
+        }
+#endif
+        _rewriter.InsertText(insertLoc, annotation);  
       }
     }
     else

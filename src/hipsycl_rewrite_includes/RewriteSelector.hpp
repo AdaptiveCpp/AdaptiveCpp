@@ -32,6 +32,57 @@
 namespace hipsycl {
 namespace transform {
 
+class RewriteSelectorWhitelist
+{
+public:
+  static RewriteSelectorWhitelist&
+  get()
+  {
+    static RewriteSelectorWhitelist list;
+    return list;
+  }
+
+  void addToWhitelist(const std::string& path)
+  {
+    whiteList.push_back(path);
+  }
+
+  bool isPathAccepted(const std::string& path) const
+  {
+    if(!isActivated)
+      return true;
+
+    for(const auto& p : whiteList)
+    {
+      // TODO what about symbolic/hard links?
+      // Note: Since we just check if the file path
+      // begins with a whitelisted path, whitelisting
+      // one path will also whitelist all subpaths.
+      if(path.find(p) == 0)
+        return true;
+    }
+
+    return false;
+  } 
+
+  void enable(bool enabled = true)
+  {
+    this->isActivated = enabled;
+  }
+
+  bool isEnabled() const
+  {
+    return isActivated;
+  }
+private:
+  RewriteSelectorWhitelist()
+  : isActivated{false}
+  {}
+
+  bool isActivated;
+  std::vector<std::string> whiteList;
+};
+
 class RewriteSelector
 {
 public:
@@ -50,15 +101,20 @@ public:
       return false;
 #endif
 
+    auto headerName = mgr.getFileEntryForID(includedId)->getName();
+
     // Don't rewrite the standard library headers
     if(FileType == clang::SrcMgr::CharacteristicKind::C_System ||
        FileType == clang::SrcMgr::CharacteristicKind::C_ExternCSystem)
     {
-      if(endsWithStdHeader(mgr.getFileEntryForID(includedId)->getName()))
+      if(endsWithStdHeader(headerName))
         return false;
     }
 
-    return true;
+    if(RewriteSelectorWhitelist::get().isPathAccepted(headerName))
+      return true;
+
+    return false;
   }
 
 private:

@@ -28,6 +28,8 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/HeaderSearch.h"
 
+#include <boost/filesystem.hpp>
+
 #include <iostream>
 namespace hipsycl {
 namespace transform {
@@ -54,11 +56,7 @@ public:
 
     for(const auto& p : whiteList)
     {
-      // TODO what about symbolic/hard links?
-      // Note: Since we just check if the file path
-      // begins with a whitelisted path, whitelisting
-      // one path will also whitelist all subpaths.
-      if(path.find(p) == 0)
+      if(pathContainsFile(p, path))
         return true;
     }
 
@@ -75,6 +73,40 @@ public:
     return isActivated;
   }
 private:
+  bool pathContainsFile(const std::string& dir,
+                        const std::string& filename) const
+  {
+    auto checkIfFilepathStartsWithDir = 
+      [](std::string p, const std::string& f) -> bool{
+
+      if(p.empty())
+        return true;
+
+      if(f.empty())
+        return true;
+
+      if(p.back() != '/')
+        p += '/';
+
+      return f.find(p) == 0;
+    };
+
+    try 
+    {
+      auto canonicalDir = boost::filesystem::canonical(dir);
+      auto canonicalFile = boost::filesystem::canonical(filename);
+
+      return checkIfFilepathStartsWithDir(canonicalDir.string(),
+                                          canonicalFile.string());
+    }
+    catch(...)
+    {
+      // Happens if dir or filename do not exist -- in this case
+      // we just check if the filename starts with dir
+      return checkIfFilepathStartsWithDir(dir, filename);
+    }
+  }
+
   RewriteSelectorWhitelist()
   : isActivated{false}
   {}

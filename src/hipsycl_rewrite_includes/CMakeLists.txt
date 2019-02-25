@@ -3,7 +3,7 @@ project(hipsycl_rewrite_includes)
 
 find_package(LLVM REQUIRED CONFIG)
 #find_package(Clang REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 
@@ -42,7 +42,8 @@ target_link_libraries(hipsycl_rewrite_includes
   clangTooling
   clangRewrite
   clangRewriteFrontend
-  clangASTMatchers)
+  clangASTMatchers
+  ${Boost_LIBRARIES})
 
 install(TARGETS hipsycl_rewrite_includes
         RUNTIME DESTINATION bin/)

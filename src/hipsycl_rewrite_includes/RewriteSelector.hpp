@@ -30,6 +30,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include "CL/sycl/detail/debug.hpp"
+
 #include <iostream>
 namespace hipsycl {
 namespace transform {
@@ -54,9 +56,9 @@ public:
     if(!isActivated)
       return true;
 
-    for(const auto& p : whiteList)
+    for(const auto& dir : whiteList)
     {
-      if(pathContainsFile(p, path))
+      if(pathContainsFile(dir, path))
         return true;
     }
 
@@ -134,6 +136,14 @@ public:
 #endif
 
     auto headerName = mgr.getFileEntryForID(includedId)->getName();
+    if(boost::filesystem::path{headerName}.is_relative())
+    {
+      HIPSYCL_DEBUG_WARNING
+          << "hipsycl_rewrite_includes: Encountered "
+          << "relative include path " << std::string{headerName}
+          << ", this may lead to incorrect inlining of includes "
+          << "if --rewrite-include-paths is used." << std::endl;
+    }
 
     // Don't rewrite the standard library headers
     if(FileType == clang::SrcMgr::CharacteristicKind::C_System ||

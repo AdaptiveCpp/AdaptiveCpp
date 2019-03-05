@@ -131,6 +131,8 @@ private:
       _synonymousDecls;
 
   std::unordered_map<const clang::Decl*, bool> _containsUnresolvedCalls;
+
+  unsigned _warningAttemptedExternalModificationID;
 };
 
 }

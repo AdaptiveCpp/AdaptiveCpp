@@ -28,9 +28,94 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/HeaderSearch.h"
 
+#include <boost/filesystem.hpp>
+
+#include "CL/sycl/detail/debug.hpp"
+
 #include <iostream>
 namespace hipsycl {
 namespace transform {
+
+class RewriteSelectorWhitelist
+{
+public:
+  static RewriteSelectorWhitelist&
+  get()
+  {
+    static RewriteSelectorWhitelist list;
+    return list;
+  }
+
+  void addToWhitelist(const std::string& path)
+  {
+    whiteList.push_back(path);
+  }
+
+  bool isPathAccepted(const std::string& path) const
+  {
+    if(!isActivated)
+      return true;
+
+    for(const auto& dir : whiteList)
+    {
+      if(pathContainsFile(dir, path))
+        return true;
+    }
+
+    return false;
+  } 
+
+  void enable(bool enabled = true)
+  {
+    this->isActivated = enabled;
+  }
+
+  bool isEnabled() const
+  {
+    return isActivated;
+  }
+private:
+  bool pathContainsFile(const std::string& dir,
+                        const std::string& filename) const
+  {
+    auto checkIfFilepathStartsWithDir = 
+      [](std::string p, const std::string& f) -> bool{
+
+      if(p.empty())
+        return true;
+
+      if(f.empty())
+        return true;
+
+      if(p.back() != '/')
+        p += '/';
+
+      return f.find(p) == 0;
+    };
+
+    try 
+    {
+      auto canonicalDir = boost::filesystem::canonical(dir);
+      auto canonicalFile = boost::filesystem::canonical(filename);
+
+      return checkIfFilepathStartsWithDir(canonicalDir.string(),
+                                          canonicalFile.string());
+    }
+    catch(...)
+    {
+      // Happens if dir or filename do not exist -- in this case
+      // we just check if the filename starts with dir
+      return checkIfFilepathStartsWithDir(dir, filename);
+    }
+  }
+
+  RewriteSelectorWhitelist()
+  : isActivated{false}
+  {}
+
+  bool isActivated;
+  std::vector<std::string> whiteList;
+};
 
 class RewriteSelector
 {
@@ -50,15 +135,28 @@ public:
       return false;
 #endif
 
+    auto headerName = mgr.getFileEntryForID(includedId)->getName();
+    if(boost::filesystem::path{headerName}.is_relative())
+    {
+      HIPSYCL_DEBUG_WARNING
+          << "hipsycl_rewrite_includes: Encountered "
+          << "relative include path " << std::string{headerName}
+          << ", this may lead to incorrect inlining of includes "
+          << "if --rewrite-include-paths is used." << std::endl;
+    }
+
     // Don't rewrite the standard library headers
     if(FileType == clang::SrcMgr::CharacteristicKind::C_System ||
        FileType == clang::SrcMgr::CharacteristicKind::C_ExternCSystem)
     {
-      if(endsWithStdHeader(mgr.getFileEntryForID(includedId)->getName()))
+      if(endsWithStdHeader(headerName))
         return false;
     }
 
-    return true;
+    if(RewriteSelectorWhitelist::get().isPathAccepted(headerName))
+      return true;
+
+    return false;
   }
 
 private:

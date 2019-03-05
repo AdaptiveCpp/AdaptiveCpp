@@ -34,6 +34,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "InclusionRewriter.hpp"
+#include "RewriteSelector.hpp"
 #include "clang/Tooling/Tooling.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
@@ -115,7 +116,23 @@ int main(int argc, const char** argv)
   ArgumentsAdjuster adjuster =
       [](const CommandLineArguments& args,StringRef) -> CommandLineArguments
   {
-    CommandLineArguments modifiedArgs = args;
+    CommandLineArguments modifiedArgs;
+
+    for(const auto& arg : args)
+    {
+      if(arg.find("--rewrite-include-paths=")==0)
+      {
+        auto whitelistedPath = arg.substr(std::string("--rewrite-include-paths=").size());
+        
+        hipsycl::transform::RewriteSelectorWhitelist::get().addToWhitelist(whitelistedPath);
+        hipsycl::transform::RewriteSelectorWhitelist::get().enable();
+      }
+      else
+      {
+        modifiedArgs.push_back(arg);
+      }
+    }
+
 
     modifiedArgs.push_back("-D__HIPSYCL_TRANSFORM__");
 

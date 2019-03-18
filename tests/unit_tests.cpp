@@ -25,9 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <tuple>
+
+#define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE hipsycl unit tests
 #include <boost/test/unit_test.hpp>
+#include <boost/mpl/list_c.hpp>
 
 #define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
@@ -329,5 +333,194 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
 }
 
-BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
+using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
 
+template<int dimensions, template<int D> class T>
+void assert_array_equality(const T<dimensions>& a, const T<dimensions>& b) {
+  if(dimensions >= 1) BOOST_REQUIRE(a[0] == b[0]);
+  if(dimensions >= 2) BOOST_REQUIRE(a[1] == b[1]);
+  if(dimensions == 3) BOOST_REQUIRE(a[2] == b[2]);
+}
+
+template <template<int D> class T, int dimensions>
+auto make_test_value(const T<1>& a, const T<2>& b, const T<3>& c) {
+  return std::get<dimensions - 1>(std::make_tuple(a, b, c));
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions::type) {
+  namespace s = cl::sycl;
+  constexpr auto d = _dimensions::value;
+
+  const auto test_value = make_test_value<s::range, d>({ 5 }, { 5, 7 }, { 5, 7, 11 });
+
+  // --- Common by-value semantics ---
+
+  {
+    // Copy constructor
+    s::range<d> range(test_value);
+    assert_array_equality(range, test_value);
+  }
+  {
+    // Move constructor
+    s::range<d> range(([&]() {
+      s::range<d> copy(test_value);
+      return std::move(copy);
+    })());
+    assert_array_equality(range, test_value);
+  }
+  {
+    // Copy assignment
+    s::range<d> range;
+    range = test_value;
+    assert_array_equality(range, test_value);
+  }
+  {
+    // Move assignment
+    s::range<d> range;
+    range = ([&]() {
+      s::range<d> copy(test_value);
+      return std::move(copy);
+    })();
+    assert_array_equality(range, test_value);
+  }
+  {
+    // Equality operator
+    s::range<d> range;
+    BOOST_TEST(!(range == test_value));
+    range = test_value;
+    BOOST_TEST((range == test_value));
+  }
+  {
+    // Inequality operator
+    s::range<d> range;
+    BOOST_TEST((range != test_value));
+    range = test_value;
+    BOOST_TEST(!(range != test_value));
+  }
+
+  // --- range-specific API ---
+
+  {
+    // range::get()
+    const auto range = test_value;
+    if(d >= 1) BOOST_TEST(range.get(0) == 5);
+    if(d >= 2) BOOST_TEST(range.get(1) == 7);
+    if(d == 3) BOOST_TEST(range.get(2) == 11);
+  }
+  {
+    // range::operator[]
+    auto range = test_value;
+    if(d >= 1) range[0] += 2;
+    if(d >= 2) range[1] += 3;
+    if(d == 3) range[2] += 5;
+    assert_array_equality(range, make_test_value<s::range, d>(
+      { 7 }, { 7, 10 }, { 7, 10, 16 }));
+  }
+  {
+    // const range::operator[]
+    const auto range = test_value;
+    if(d >= 1) BOOST_TEST(range[0] == 5);
+    if(d >= 2) BOOST_TEST(range[1] == 7);
+    if(d == 3) BOOST_TEST(range[2] == 11);
+  }
+  {
+    // range::size()
+    const auto range = test_value;
+    BOOST_TEST(range.size() == 5 * (d >= 2 ? 7 : 1) * (d == 3 ? 11 : 1));
+  }
+
+  // TODO: In-place and binary operators
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
+  namespace s = cl::sycl;
+  constexpr auto d = _dimensions::value;
+
+  const auto test_value = make_test_value<s::id, d>(
+    { 5 }, { 5, 7 }, { 5, 7, 11 });
+
+  // --- Common by-value semantics ---
+
+  {
+    // Copy constructor
+    s::id<d> id(test_value);
+    assert_array_equality(id, test_value);
+  }
+  {
+    // Move constructor
+    s::id<d> id(([&]() {
+      s::id<d> copy(test_value);
+      return std::move(copy);
+    })());
+    assert_array_equality(id, test_value);
+  }
+  {
+    // Copy assignment
+    s::id<d> id;
+    id = test_value;
+    assert_array_equality(id, test_value);
+  }
+  {
+    // Move assignment
+    s::id<d> id;
+    id = ([&]() {
+      s::id<d> copy(test_value);
+      return std::move(copy);
+    })();
+    assert_array_equality(id, test_value);
+  }
+  {
+    // Equality operator
+    s::id<d> id;
+    BOOST_TEST(!(id == test_value));
+    id = test_value;
+    BOOST_TEST((id == test_value));
+  }
+  {
+    // Inequality operator
+    s::id<d> id;
+    BOOST_TEST((id != test_value));
+    id = test_value;
+    BOOST_TEST(!(id != test_value));
+  }
+
+  // --- id-specific API ---
+
+  {
+    const auto test_range = make_test_value<s::range, d>(
+      { 5 }, { 5, 7 }, { 5, 7, 11 });
+    s::id<d> id{test_range};
+    assert_array_equality(id, test_value);
+  }
+  {
+    // TODO: Test conversion from item
+    // (This is a bit annoying as items can only be constructed on a __device__)
+  }
+  {
+    // id::get()
+    const auto id = test_value;
+    if(d >= 1) BOOST_TEST(id.get(0) == 5);
+    if(d >= 2) BOOST_TEST(id.get(1) == 7);
+    if(d == 3) BOOST_TEST(id.get(2) == 11);
+  }
+  {
+    // id::operator[]
+    auto id = test_value;
+    if(d >= 1) id[0] += 2;
+    if(d >= 2) id[1] += 3;
+    if(d == 3) id[2] += 5;
+    assert_array_equality(id, make_test_value<s::id, d>(
+      { 7 }, { 7, 10 }, { 7, 10, 16 }));
+  }
+  {
+    // const id::operator[]
+    const auto id = test_value;
+    if(d >= 1) BOOST_TEST(id[0] == 5);
+    if(d >= 2) BOOST_TEST(id[1] == 7);
+    if(d == 3) BOOST_TEST(id[2] == 11);
+  }
+
+  // TODO: In-place and binary operators
+}
+
+BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

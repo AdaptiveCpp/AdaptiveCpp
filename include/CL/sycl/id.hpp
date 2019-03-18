@@ -79,10 +79,20 @@ struct id {
     : _data{dim0, dim1, dim2}
   {}
 
+  /* -- common interface members -- */
+
   __host__ __device__
   id(const id<dimensions>& other)
     : _data{other._data}
   {}
+
+  bool operator==(const id<dimensions>& rhs) const {
+    return _data == rhs._data;
+  }
+
+  bool operator!=(const id<dimensions>& rhs) const {
+    return _data != rhs._data;
+  }
 
   __host__ __device__
   id(const range<dimensions> &range) {
@@ -103,10 +113,13 @@ struct id {
   }
 
   __host__ __device__
-  size_t& operator[](int dimension) const {
-    // Spec requires that this method should be const, but return
-    // a non-const reference...
-    return const_cast<size_t&>(this->_data[dimension]);
+  size_t& operator[](int dimension) {
+    return this->_data[dimension];
+  }
+
+  __host__ __device__
+  size_t operator[](int dimension) const {
+    return this->_data[dimension];
   }
 
   // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;
@@ -168,7 +181,7 @@ struct id {
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE(op) \
   __host__ __device__ \
-  id<dimensions>& operator op(const id<dimensions> &rhs) const { \
+  id<dimensions>& operator op(const id<dimensions> &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs._data[i]; \
     return *this; \
@@ -187,7 +200,7 @@ struct id {
 
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op) \
   __host__ __device__ \
-  id<dimensions>& operator op(const std::size_t &rhs) const { \
+  id<dimensions>& operator op(const std::size_t &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs; \
     return *this; \

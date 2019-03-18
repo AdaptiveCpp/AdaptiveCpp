@@ -62,12 +62,28 @@ __global__ void single_task_kernel(Function f)
   f();
 }
 
+template<int dimensions, bool with_offset>
+__device__
+bool item_is_in_range(const item<dimensions, with_offset>& item,
+                      const sycl::range<dimensions>& execution_range,
+                      const id<dimensions>& offset)
+{
+  for(int i = 0; i < dimensions; ++i)
+  {
+    if(item.get_id(i) >= offset.get(i) + execution_range.get(i))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 template<int dimensions, class Function>
 __global__ void parallel_for_kernel(Function f,
                                     sycl::range<dimensions> execution_range)
 {
-  item<dimensions, false> this_item;
-  if(this_item.get_linear_id() < execution_range.size())
+  item<dimensions, false> this_item{item_impl<dimensions>{execution_range}};
+  if(item_is_in_range(this_item, execution_range, id<dimensions>{}))
     f(this_item);
 }
 
@@ -76,19 +92,8 @@ __global__ void parallel_for_kernel_with_offset(Function f,
                                                 sycl::range<dimensions> execution_range,
                                                 id<dimensions> offset)
 {
-  item<dimensions> this_item{offset};
-
-  bool item_is_in_range = true;
-  for(int i = 0; i < dimensions; ++i)
-  {
-    if(this_item.get_id(i) >= offset.get(i) + execution_range.get(i))
-    {
-      item_is_in_range = false;
-      break;
-    }
-  }
-
-  if(item_is_in_range)
+  item<dimensions> this_item{item_impl<dimensions>{execution_range}, offset};
+  if(item_is_in_range(this_item, execution_range, offset))
     f(this_item);
 }
 

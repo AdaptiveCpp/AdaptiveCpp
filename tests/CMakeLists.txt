@@ -34,7 +34,6 @@ cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 add_subdirectory(platform_api)
-#add_subdirectory(vector) # FIXME: This is currently broken
 
 add_executable(unit_tests unit_tests.cpp)
 target_include_directories(unit_tests PRIVATE ${Boost_HEADER_FILES} ${CMAKE_CURRENT_SOURCE_DIR})

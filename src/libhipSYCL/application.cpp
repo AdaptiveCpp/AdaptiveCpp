@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,54 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
-
-#include <memory>
-
-#include "runtime.hpp"
-#include "../backend/backend.hpp"
-#include "../device.hpp"
+#include "CL/sycl/detail/application.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class application
-{
-public:
-
-  static runtime& get_hipsycl_runtime()
-  {
-    return *rt;
-  }
-
-  static task_graph& get_task_graph()
-  {
-    return get_hipsycl_runtime().get_task_graph();
-  }
-
-  static void reset()
-  {
-    rt.reset();
-    rt = std::make_unique<runtime>();
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HCC)
-    const auto devices = device::get_devices(info::device_type::all);
-    for(auto& d : devices) {
-      detail::set_device(d);
-      hipDeviceReset();
-    }
-#endif
-  }
-
-  application() = delete;
-
-private:
-  static std::unique_ptr<runtime> rt;
-};
+std::unique_ptr<runtime> application::rt = std::make_unique<runtime>();
 
 }
 }
 }
 
-#endif

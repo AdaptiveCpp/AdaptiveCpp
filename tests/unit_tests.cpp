@@ -32,6 +32,14 @@
 #define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
 
+struct reset_device_fixture {
+  ~reset_device_fixture() {
+    cl::sycl::detail::application::reset();
+  }
+};
+
+BOOST_FIXTURE_TEST_SUITE(device_test_suite, reset_device_fixture)
+
 BOOST_AUTO_TEST_CASE(basic_single_task) {
   cl::sycl::queue queue;
   cl::sycl::buffer<int, 1> buf{cl::sycl::range<1>(1)};
@@ -320,4 +328,6 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({1.f, 2.f, 2.f, 1.f});                         // v9
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
 }
+
+BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

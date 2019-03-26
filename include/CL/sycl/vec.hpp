@@ -359,18 +359,21 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE2(name, i0, i1) \
   template<int n = numElements, \
            std::enable_if_t<(n == 2)>* = nullptr> \
+  __host__ __device__ \
   auto name() const \
   {return swizzle<i0,i1>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE3(name, i0, i1, i2) \
   template<int n = numElements, \
            std::enable_if_t<(n == 3)>* = nullptr> \
+  __host__ __device__ \
   auto name() const \
   {return swizzle<i0,i1,i2>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE4(name, i0, i1, i2, i3) \
   template<int n = numElements, \
            std::enable_if_t<(n == 4)>* = nullptr> \
+  __host__ __device__ \
   auto name() const \
   {return swizzle<i0,i1,i2,i3>(); }
 

@@ -28,7 +28,11 @@
 #ifndef HIPSYCL_APPLICATION_HPP
 #define HIPSYCL_APPLICATION_HPP
 
+#include <memory>
+
 #include "runtime.hpp"
+#include "../backend/backend.hpp"
+#include "../device.hpp"
 
 namespace cl {
 namespace sycl {
@@ -40,8 +44,7 @@ public:
 
   static runtime& get_hipsycl_runtime()
   {
-    static runtime rt;
-    return rt;
+    return *rt;
   }
 
   static task_graph& get_task_graph()
@@ -49,7 +52,23 @@ public:
     return get_hipsycl_runtime().get_task_graph();
   }
 
+  static void reset()
+  {
+    rt.reset();
+    rt = std::make_unique<runtime>();
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HCC)
+    const auto devices = device::get_devices(info::device_type::all);
+    for(auto& d : devices) {
+      detail::set_device(d);
+      hipDeviceReset();
+    }
+#endif
+  }
+
   application() = delete;
+
+private:
+  static std::unique_ptr<runtime> rt;
 };
 
 }

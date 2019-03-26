@@ -2,7 +2,8 @@ project(libhipSYCL)
 
 set(CMAKE_CXX_COMPILER ${HIPSYCL_DEVICE_COMPILER})
 
-set(HIPSYCL_SOURCES 
+set(HIPSYCL_SOURCES
+  application.cpp
   device.cpp
   device_selector.cpp
   exception.cpp

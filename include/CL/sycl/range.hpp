@@ -75,6 +75,14 @@ dimensions==3 */
 
   /* -- common interface members -- */
 
+  bool operator==(const range<dimensions>& rhs) const {
+    return _data == rhs._data;
+  }
+
+  bool operator!=(const range<dimensions>& rhs) const {
+    return _data != rhs._data;
+  }
+
   __host__ __device__
   size_t get(int dimension) const {
     return _data[dimension];
@@ -82,8 +90,11 @@ dimensions==3 */
 
   __host__ __device__
   size_t &operator[](int dimension) {
-    // Spec requires that this method should be const, but return
-    // a non-const reference...
+    return _data[dimension];
+  }
+
+  __host__ __device__
+  size_t operator[](int dimension) const {
     return _data[dimension];
   }
 
@@ -154,7 +165,7 @@ dimensions==3 */
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define HIPSYCL_RANGE_BINARY_OP_IN_PLACE(op) \
   __host__ __device__ \
-  range<dimensions>& operator op(const range<dimensions> &rhs) const { \
+  range<dimensions>& operator op(const range<dimensions> &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs._data[i]; \
     return *this; \
@@ -173,7 +184,7 @@ dimensions==3 */
 
 #define HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(op) \
   __host__ __device__ \
-  range<dimensions>& operator op(const std::size_t &rhs) const { \
+  range<dimensions>& operator op(const std::size_t &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs; \
     return *this; \
@@ -189,12 +200,6 @@ dimensions==3 */
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(&=)
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(|=)
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(^=)
-
-  bool operator==(const range<dimensions>& other) const
-  { return _data == other._data; }
-
-  bool operator!=(const range<dimensions>& other) const
-  { return !(_data == other._data); }
 private:
   detail::device_array<size_t, dimensions> _data;
 

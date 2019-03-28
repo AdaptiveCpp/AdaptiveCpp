@@ -754,6 +754,38 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
       }
     }
   }
+  {
+    // item::get_linear_id
+
+    // Make offset a range as it's easier to handle (and can be converted to id)
+    const auto test_offset = make_test_value<s::range, d>(
+      { 2 }, { 2, 3 }, { 2, 3, 5 });
+
+    s::buffer<size_t, d> result{test_range + test_offset};
+
+    queue.submit([&](s::handler& cgh) {
+      auto acc = result.template get_access<s::access::mode::discard_write>(cgh);
+      cgh.parallel_for<kernel_name<class item_get_linear_id, d>>(test_range,
+        s::id<d>(test_offset), [=](const s::item<d> item) {
+          acc[item] = item.get_linear_id();
+        });
+    });
+
+    auto acc = result.template get_access<s::access::mode::read>();
+    for(size_t i = test_offset[0]; i < test_range[0]; ++i) {
+      const auto ja = d >= 2 ? test_offset[1] : 0;
+      const auto jb = d >= 2 ? test_range[1] + ja : 1;
+      for(size_t j = ja; j < jb; ++j) {
+        const auto ka = d == 3 ? test_offset[2] : 0;
+        const auto kb = d == 3 ? test_range[2] + ka : 1;
+        for(size_t k = ka; k < kb; ++k) {
+          const auto id = make_test_value<s::id, d>({i}, {i, j}, {i, j, k});
+          const size_t linear_id = i * (jb - ja) * (kb - ka) + j * (kb - ka) + k;
+          BOOST_REQUIRE(acc[id] == linear_id);
+        }
+      }
+    }
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

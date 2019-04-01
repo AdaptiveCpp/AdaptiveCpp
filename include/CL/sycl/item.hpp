@@ -44,20 +44,16 @@ namespace detail {
 template<int dim>
 struct item_impl
 {
-  __device__ item_impl()
-    : global_id{detail::get_global_id<dim>()}
+  __device__ item_impl(const sycl::range<dim>& global_size)
+    : global_id{detail::get_global_id<dim>()}, global_size(global_size)
   {}
 
-  __device__ item_impl(id<dim> my_id)
-    : global_id{my_id}
+  __device__ item_impl(const id<dim>& my_id, const sycl::range<dim>& global_size)
+    : global_id{my_id}, global_size(global_size)
   {}
-
-  static __device__ sycl::range<dim> get_range()
-  {
-    return detail::get_global_size<dim>();
-  }
 
   id<dim> global_id;
+  sycl::range<dim> global_size;
 };
 
 template<int dimension, bool with_offset>
@@ -97,16 +93,15 @@ struct item_offset_storage<dimension,true>
 template <int dimensions = 1, bool with_offset = true>
 struct item
 {
-  __device__ item() {}
-
-  __device__ item(const id<dimensions>& offset)
-    : _offset_storage{offset}
-  {}
-
   __device__ item(const detail::item_impl<dimensions>& impl)
     : _impl{impl}
   {}
 
+  // only available if with_offset is true
+  template<bool O = with_offset, typename = std::enable_if_t<O == true>>
+  __device__ item(const detail::item_impl<dimensions>& impl, const id<dimensions>& offset)
+    : _impl{impl}, _offset_storage{offset}
+  {}
 
   /* -- common interface members -- */
   __device__ id<dimensions> get_id() const
@@ -121,12 +116,19 @@ struct item
           _impl.global_id[dimension], dimension);
   }
 
-  __device__ size_t &operator[](int dimension)
-  { return _impl.global_id[dimension]; }
+  __device__ size_t operator[](int dimension)
+  {
+    return _offset_storage.add_offset(_impl.global_id[dimension], dimension);
+  }
 
   __device__ range<dimensions> get_range() const
   {
-    return detail::item_impl<dimensions>::get_range();
+    return _impl.global_size;
+  }
+
+  __device__ size_t get_range(int dimension) const
+  {
+    return _impl.global_size[dimension];
   }
 
   // only available if with_offset is true
@@ -142,14 +144,14 @@ struct item
            typename = std::enable_if_t<O == false>>
   __device__ operator item<dimensions, true>() const
   {
-    return item<dimensions, true>(id<dimensions>{});
+    return item<dimensions, true>(_impl, id<dimensions>{});
   }
 
   __device__ size_t get_linear_id() const
   {
     return detail::linear_id<dimensions>::get(
           _offset_storage.add_offset(_impl.global_id),
-          get_range());
+          _impl.global_size);
   }
 
 private:

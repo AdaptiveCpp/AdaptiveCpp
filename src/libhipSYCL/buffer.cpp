@@ -491,21 +491,25 @@ buffer_action buffer_state_monitor::register_host_access(access::mode m)
   }
   else
   {
-    // Make sure host is up-to-date before reading
-    bool copy_required = this->is_host_outdated();
-    bool read_only = (m == access::mode::read);
-
     HIPSYCL_DEBUG_INFO << "buffer_state_info: host access, current data versions: host-side is @"
                        << _host_data_version
                        << ", device side is @"
                        << _device_data_version
                        << std::endl;
 
+    // Make sure host is up-to-date before reading
+    bool copy_required = this->is_host_outdated();
+    bool read_only = (m == access::mode::read);
+
+    // If we are discarding the previous content anyway,
+    // a data transfer is never required
+    if(m == access::mode::discard_write ||
+       m == access::mode::discard_read_write)
+      copy_required = false;
+
     size_t version_bump = read_only ? 0 : 1;
-    if(!copy_required)
-      _host_data_version += version_bump;
-    else
-      _host_data_version = _device_data_version + version_bump;
+    _host_data_version =
+      std::max(_host_data_version, _device_data_version) + version_bump;
 
     HIPSYCL_DEBUG_INFO << "buffer_state_info: (new state: host @"
                        << _host_data_version << ", device @"
@@ -545,10 +549,8 @@ buffer_action buffer_state_monitor::register_device_access(access::mode m)
       copy_required = false;
 
     size_t version_bump = read_only ? 0 : 1;
-    if(!copy_required)
-      _device_data_version += version_bump;
-    else
-      _device_data_version = _host_data_version + version_bump;
+    _device_data_version =
+      std::max(_host_data_version, _device_data_version) + version_bump;
 
     HIPSYCL_DEBUG_INFO << "buffer_state_info: (new state: host @"
                        << _host_data_version << ", device @"

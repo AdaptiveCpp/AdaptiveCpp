@@ -278,6 +278,34 @@ BOOST_AUTO_TEST_CASE(task_graph_synchronization) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_versioning) {
+  namespace s = cl::sycl;
+  constexpr size_t buf_size = 32;
+
+  s::queue queue;
+  s::buffer<int, 1> buf(buf_size);
+  {
+    auto acc = buf.get_access<s::access::mode::discard_write>();
+    for(int i = 0; i < buf_size; ++i) {
+      acc[i] = i;
+    }
+  }
+
+  queue.submit([&](s::handler& cgh) {
+    auto acc = buf.get_access<s::access::mode::discard_write>(cgh);
+    cgh.parallel_for<class buffer_versioning>(buf.get_range(), [=](s::id<1> id) {
+      acc[id] = buf_size - id[0];
+    });
+  });
+
+  {
+    auto acc = buf.get_access<s::access::mode::read>();
+    for(int i = 0; i < buf_size; ++i) {
+      BOOST_REQUIRE(acc[i] == buf_size - i);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(vec_api) {
   cl::sycl::queue queue;
   cl::sycl::buffer<float, 1> results{60};

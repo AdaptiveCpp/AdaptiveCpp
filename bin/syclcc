@@ -127,22 +127,25 @@ class source_file_processor:
         self._additional_args.append(arg)
 
 
-  def _run_source_transformation(self, filename, output_dir, output_filename):
-
+  def _run_source_transformation(self, input_file_path, output_dir):
     source_transform_tool = os.path.join(self._config.hipsycl_binary_path,"hipsycl_transform_source")
     inclusion_rewriter_tool = os.path.join(self._config.hipsycl_binary_path,"hipsycl_rewrite_includes")
-    hipcpu_include_dir = os.path.join(self._config.hipsycl_include_path,
-                                      "hipSYCL")
+    hipcpu_include_dir = os.path.join(self._config.hipsycl_include_path, "hipSYCL")
+
+    transform_filename = self._get_temp_filename(output_dir, self._suffix)
 
     if not self._config.is_bootstrap():
-      
+      rewrite_filename = self._get_temp_filename(output_dir, ".cpp")
+
       returnvalue = subprocess.call(
         [inclusion_rewriter_tool,
-         filename, "--",
-         "-I" + os.path.dirname(filename),
+         input_file_path, "--",
+         "-I" + os.path.dirname(input_file_path),
          "-I" + hipcpu_include_dir,
          "-DHIPCPU_NO_OPENMP",
-         "-Wno-unused-command-line-argument"]
+         "-Wno-unused-command-line-argument",
+         "--hipsycl-transform-dir="+output_dir,
+         "--hipsycl-main-output-file="+rewrite_filename]
          +self._additional_args
          +self._config.hipsycl_common_arguments
          +["--rewrite-include-paths="+p for p in self._config.device_header_paths])
@@ -150,18 +153,16 @@ class source_file_processor:
       if returnvalue != 0:
         raise RuntimeError("Error while rewriting includes, aborting compilation")
 
-      self._managed_files.append(filename+".inc.cpp")
-
       returnvalue = subprocess.call(
         [source_transform_tool,
-         filename+".inc.cpp",
+         os.path.join(output_dir, rewrite_filename),
          "--",
-         "-I" + os.path.dirname(filename),
+         "-I" + os.path.dirname(input_file_path),
          "-I" + hipcpu_include_dir,
          "-DHIPCPU_NO_OPENMP",
          "-Wno-unused-command-line-argument",
          "--hipsycl-transform-dir="+output_dir,
-         "--hipsycl-main-output-file="+output_filename]
+         "--hipsycl-main-output-file="+transform_filename]
          +(["--with-template-pruning"] if self._config.platform_needs_template_pruning else [])
          +self._additional_args
          +self._config.hipsycl_common_arguments)
@@ -169,22 +170,15 @@ class source_file_processor:
       if returnvalue != 0:
         raise RuntimeError("Error during source-to-source transformation, aborting compilation.")
     else:
-      self._copy_file(filename, os.path.join(output_dir,output_filename))
+      self._copy_file(input_file_path, os.path.join(output_dir,transform_filename))
 
+    return transform_filename
 
   def process_file(self,filename):
-    # We work in the file's directory itself - this
-    # is more robust with regards to resolving includes.
-    #working_dir = self._get_temp_directory()
-    #os.makedirs(working_dir)
-    #self._managed_directories.append(working_dir)
-    working_dir = os.path.dirname(filename)
+    working_dir = self._get_temp_directory()
+    os.makedirs(working_dir)
 
-    output_file = self._get_random_id()+self._suffix
-    self._managed_files.append(os.path.join(working_dir, output_file))
-
-    self._run_source_transformation(os.path.abspath(filename), working_dir, output_file)
-
+    output_file = self._run_source_transformation(os.path.abspath(filename), working_dir)
     full_output_path = os.path.join(working_dir, output_file)
 
     if not os.path.exists(full_output_path):
@@ -204,9 +198,15 @@ class source_file_processor:
     return "hipsycl_"+binascii.b2a_hex(os.urandom(8)).decode("utf-8")
 
   def _get_temp_directory(self):
-    tempdir = tempfile.gettempdir()
+    system_tempdir = tempfile.gettempdir()
+    tempdir = os.path.join(system_tempdir, self._get_random_id())
+    self._managed_directories.append(tempdir)
+    return tempdir
 
-    return os.path.join(tempdir, self._get_random_id())
+  def _get_temp_filename(self, parent_directory, suffix):
+    tempfile = self._get_random_id()+suffix
+    self._managed_files.append(os.path.join(parent_directory, tempfile))
+    return tempfile
 
   def _copy_file(self,filename,new_filename):
     prepend_data = "#line 1 \""+filename+"\"\n"
@@ -243,9 +243,11 @@ class cuda_clang_compiler:
     result = None
     try:
       transformed_args = []
+      extra_include_paths = set()
       for arg in args:
         if is_source_file(arg):
           transformed_args.append(source_processor.process_file(arg))
+          extra_include_paths.add(os.path.dirname(arg))
         else:
           transformed_args.append(arg)
 
@@ -255,6 +257,7 @@ class cuda_clang_compiler:
                         "-pthread",
                         "-Wno-unused-command-line-argument",
                         "-Wno-deprecated-declarations"]
+      compiler_args += ["-I%s" % path for path in extra_include_paths]
 
       compiler_args += self.config.hipsycl_common_arguments
       compiler_args += transformed_args
@@ -347,15 +350,18 @@ class cuda_nvcc_compiler:
     result = None
     try:
       transformed_args = []
+      extra_include_paths = set()
       for arg in args:
         if is_source_file(arg):
           transformed_args.append(source_processor.process_file(arg))
+          extra_include_paths.add(os.path.dirname(arg))
         else:
           transformed_args += self.transform_argument(arg)
 
       compiler_args = ["--expt-extended-lambda",
                         "--expt-relaxed-constexpr",
                         "-Wno-deprecated-declarations"]
+      compiler_args += ["-I%s" % path for path in extra_include_paths]
       compiler_args += self.config.hipsycl_common_arguments
       compiler_args += transformed_args
 
@@ -389,15 +395,18 @@ class hip_compiler:
     try:
     
       transformed_args = []
+      extra_include_paths = set()
       for arg in args:
         if is_source_file(arg):
           transformed_args.append(source_processor.process_file(arg))
+          extra_include_paths.add(os.path.dirname(arg))
         else:
           transformed_args.append(arg)
 
       compiler_args = ["-Wno-unused-command-line-argument",
                         "-Wno-ignored-attributes",
                         "-std=c++14"]+self.hcc_options
+      compiler_args += ["-I%s" % path for path in extra_include_paths]
       compiler_args += self.config.hipsycl_common_arguments
       compiler_args += transformed_args
 
@@ -438,9 +447,11 @@ class hipcpu_compiler:
     result = None
     try:
       transformed_args = []
+      extra_include_paths = set()
       for arg in args:
         if is_source_file(arg):
           transformed_args.append(source_processor.process_file(arg))
+          extra_include_paths.add(os.path.dirname(arg))
         else:
           transformed_args.append(arg)
 
@@ -448,6 +459,7 @@ class hipcpu_compiler:
                         "-Wno-ignored-attributes",
                         "-std=c++14",
                         "-fopenmp"]
+      compiler_args += ["-I%s" % path for path in extra_include_paths]
       compiler_args += self.config.hipsycl_common_arguments
       compiler_args += transformed_args
 

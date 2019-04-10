@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.5.1)
+
+set(HIPSYCL_SYCLCC "@HIPSYCL_INSTALL_LOCATION@/bin/syclcc")
+set(HIPSYCL_CPU_BACKEND_AVAILABLE "@WITH_CPU_BACKEND@")
+set(HIPSYCL_CUDA_BACKEND_AVAILABLE "@WITH_CUDA_BACKEND@")
+set(HIPSYCL_ROCM_BACKEND_AVAILABLE "@WITH_ROCM_BACKEND@")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+enable_language(SYCL)
+
+function(add_sycl_to_target)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(ADD_SYCL
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set_source_files_properties(${ADD_SYCL_SOURCES} PROPERTIES LANGUAGE SYCL)
+endfunction()
+

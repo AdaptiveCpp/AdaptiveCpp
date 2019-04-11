@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_HANDLER_HPP
 #define HIPSYCL_HANDLER_HPP
 
+#include <type_traits>
+
 #include "exception.hpp"
 #include "access.hpp"
 #include "accessor.hpp"
@@ -46,6 +48,7 @@
 #include "detail/application.hpp"
 #include "detail/stream.hpp"
 #include "detail/debug.hpp"
+#include "detail/util.hpp"
 
 namespace cl {
 namespace sycl {
@@ -113,6 +116,24 @@ __global__ void parallel_for_workgroup(Function f,
 }
 
 } // dispatch
+
+template <access::target srcTgt, access::target dstTgt>
+constexpr hipMemcpyKind get_copy_kind()
+{
+  if(srcTgt == access::target::global_buffer)
+  {
+    if(dstTgt == access::target::global_buffer) return hipMemcpyDeviceToDevice;
+    if(dstTgt == access::target::host_buffer) return hipMemcpyDeviceToHost;
+  }
+  if(srcTgt == access::target::host_buffer)
+  {
+    if(dstTgt == access::target::global_buffer) return hipMemcpyHostToDevice;
+    if(dstTgt == access::target::host_buffer) return hipMemcpyHostToHost;
+  }
+  assert(false && "Unsupported / unimplemented access targets");
+  return hipMemcpyDefault;
+}
+
 } // detail
 
 class queue;
@@ -176,7 +197,7 @@ void set_args(Ts &&... args);
       return detail::task_state::enqueued;
     };
 
-    this->submit_kernel(kernel_launch);
+    this->submit_task(kernel_launch);
   }
 
   template <typename KernelName = class _unnamed_kernel,
@@ -245,55 +266,75 @@ void set_args(Ts &&... args);
 
   //------ Explicit copy operations API
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, shared_ptr_class<T> dest);
 
   template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt> dest);
-
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, T * dest);
-
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(const T * src, accessor<T, dim, mode, tgt> dest);
-
-  /// \todo copy() can be optimized on host accessors with memcpy() calls
-  /// for contiguous memory regions
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, accessor<T, dim, mode, tgt> dest)
+  void copy(accessor<T, dim, mode, tgt> src, shared_ptr_class<T> dest)
   {
-    static_assert(mode != access::mode::read,
-                  "Copying to read-only accessors is not allowed.");
-    static_assert(tgt != access::target::host_image,
-                  "host_image targets are unsupported");
+    copy_ptr(src, dest);
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt> dest)
+  {
+    copy_ptr(src, dest);
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void copy(accessor<T, dim, mode, tgt> src, T * dest)
+  {
+    copy_ptr(src, dest);
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void copy(const T * src, accessor<T, dim, mode, tgt> dest)
+  {
+    copy_ptr(src, dest);
+  }
+
+  template <typename T, int dim, access::mode srcMode, access::mode dstMode,
+            access::target srcTgt, access::target destTgt>
+  void copy(accessor<T, dim, srcMode, srcTgt> src,
+            accessor<T, dim, dstMode, destTgt> dest)
+  {
+    using namespace detail;
+    validate_copy_src_accessor(src);
+    validate_copy_dest_accessor(dest);
 
     for(int i = 0; i < dim; ++i)
-      if(src.get_range().get(i) >= dest.get_range().get(i))
-        throw invalid_parameter_error{"sycl explicit copy operation: "
-                                      "Accessor sizes are incompatible."};
-
-    if(tgt == access::target::host_buffer)
     {
-      this->execute_host_range_iteration(src.get_range(),
-                                         id<dim>{},
-                                         [&](id<dim> tid){
-        dest[tid + dest.get_offset()] = src[tid + src.get_offset()];
-      });
-    }
-    else
-    {
-      this->parallel_for<class copy_kernel>(
-            dest.get_range(),
-            dest.get_offset(),
-#ifndef __HIPSYCL_TRANSFORM__
-            [dest,src] __device__ (cl::sycl::id<dim> tid)
-#else
-            [dest,src] (cl::sycl::id<dim> tid)
-#endif
+      if(src.get_range().get(i) > dest.get_range().get(i))
       {
-        dest[tid] = src;
-      });
+        throw invalid_parameter_error{"sycl explicit copy operation: "
+          "Accessor sizes are incompatible."};
+      }
     }
+
+    const auto src_ptr = src.get_pointer();
+    const auto src_ptr_offset = detail::accessor::get_pointer_offset(src);
+    const auto src_buffer_range = detail::accessor::get_buffer_range(src);
+    const auto src_acc_range = src.get_range();
+
+    auto dest_ptr = dest.get_pointer();
+    const auto dest_ptr_offset = detail::accessor::get_pointer_offset(dest);
+    const auto dest_buffer_range = detail::accessor::get_buffer_range(dest);
+
+    constexpr auto copy_kind = get_copy_kind<srcTgt, destTgt>();
+    task_graph_node_ptr graph_node = nullptr;
+
+    if(dim == 1) graph_node = dispatch_copy_1d(dest_ptr, dest_ptr_offset, src_ptr,
+      src_ptr_offset, detail::range::range_cast<1>(src_acc_range), copy_kind);
+
+    if(dim == 2) graph_node = dispatch_copy_2d(dest_ptr, dest_ptr_offset,
+      dest_buffer_range[1], src_ptr, src_ptr_offset, src_buffer_range[1],
+      detail::range::range_cast<2>(src_acc_range), copy_kind);
+
+    if(dim == 3) graph_node = dispatch_copy_3d(dest_ptr, dest_ptr_offset,
+      detail::range::range_cast<3>(dest_buffer_range), src_ptr, src_ptr_offset,
+      detail::range::range_cast<3>(src_buffer_range),
+      detail::range::range_cast<3>(src_acc_range), copy_kind);
+
+    maybe_register_copy_access(src, graph_node);
+    maybe_register_copy_access(dest, graph_node);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt>
@@ -498,7 +539,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_kernel(kernel_launch);
+    this->submit_task(kernel_launch);
 
   }
 
@@ -529,7 +570,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_kernel(kernel_launch);
+    this->submit_task(kernel_launch);
   }
 
 
@@ -567,7 +608,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_kernel(kernel_launch);
+    this->submit_task(kernel_launch);
   }
 
   template <typename WorkgroupFunctionType, int dimensions>
@@ -597,10 +638,214 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_kernel(kernel_launch);
+    this->submit_task(kernel_launch);
   }
 
-  void submit_kernel(detail::task_functor f)
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            typename destPtr>
+  void copy_ptr(accessor<T, dim, mode, tgt> src, destPtr dest)
+  {
+    validate_copy_src_accessor(src);
+
+    const auto src_ptr = src.get_pointer();
+    const auto src_ptr_offset = detail::accessor::get_pointer_offset(src);
+    const auto src_buffer_range = detail::accessor::get_buffer_range(src);
+    const auto src_acc_range = src.get_range();
+
+    constexpr auto copy_kind = detail::get_copy_kind<tgt, access::target::host_buffer>();
+    detail::task_graph_node_ptr graph_node = nullptr;
+
+    if(dim == 1) graph_node = dispatch_copy_1d(dest, 0, src_ptr, src_ptr_offset,
+      detail::range::range_cast<1>(src_acc_range), copy_kind);
+
+    if(dim == 2) graph_node = dispatch_copy_2d(dest, 0, src_acc_range[1], src_ptr,
+      src_ptr_offset, src_buffer_range[1],
+      detail::range::range_cast<2>(src_acc_range), copy_kind);
+
+    if(dim == 3) graph_node = dispatch_copy_3d(dest, 0,
+      detail::range::range_cast<3>(src_acc_range),
+      src_ptr, src_ptr_offset, detail::range::range_cast<3>(src_buffer_range),
+      detail::range::range_cast<3>(src_acc_range), copy_kind);
+
+    maybe_register_copy_access(src, graph_node);
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            typename srcPtr>
+  void copy_ptr(srcPtr src, accessor<T, dim, mode, tgt> dest)
+  {
+    validate_copy_dest_accessor(dest);
+
+    auto dest_ptr = dest.get_pointer();
+    const auto dest_ptr_offset = detail::accessor::get_pointer_offset(dest);
+    const auto dest_buffer_range = detail::accessor::get_buffer_range(dest);
+    const auto dest_acc_range = dest.get_range();
+
+    constexpr auto copy_kind = detail::get_copy_kind<access::target::host_buffer, tgt>();
+    detail::task_graph_node_ptr graph_node = nullptr;
+
+    if(dim == 1) graph_node = dispatch_copy_1d(dest_ptr, dest_ptr_offset, src,
+      0, detail::range::range_cast<1>(dest_acc_range), copy_kind);
+
+    if(dim == 2) graph_node = dispatch_copy_2d(dest_ptr, dest_ptr_offset,
+      dest_buffer_range[1], src, 0, dest_acc_range[1],
+      detail::range::range_cast<2>(dest_acc_range), copy_kind);
+
+    if(dim == 3) graph_node = dispatch_copy_3d(dest_ptr, dest_ptr_offset,
+      detail::range::range_cast<3>(dest_buffer_range), src, 0,
+      detail::range::range_cast<3>(dest_acc_range),
+      detail::range::range_cast<3>(dest_acc_range), copy_kind);
+
+    maybe_register_copy_access(dest, graph_node);
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void validate_copy_src_accessor(const accessor<T, dim, mode, tgt>&)
+  {
+    static_assert(dim != 0, "0-dimensional accessors are currently not supported");
+    static_assert(mode == access::mode::read || mode == access::mode::read_write,
+      "Only read or read_write accessors can be copied from");
+    static_assert(tgt == access::target::global_buffer ||
+      tgt == access::target::host_buffer,
+      "Only global_buffer or host_buffer accessors are currently "
+      "supported for copying");
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void validate_copy_dest_accessor(const accessor<T, dim, mode, tgt>&)
+  {
+    static_assert(dim != 0, "0-dimensional accessors are currently not supported");
+    static_assert(mode == access::mode::write ||
+      mode == access::mode::read_write ||
+      mode == access::mode::discard_write ||
+      mode == access::mode::discard_read_write,
+      "Only write, read_write, discard_write or "
+      "discard_read_write accessors can be copied to");
+    static_assert(tgt == access::target::global_buffer ||
+      tgt == access::target::host_buffer,
+      "Only global_buffer or host_buffer accessors are currently "
+      "supported for copying");
+  }
+
+  void debug_print_copy_kind(hipMemcpyKind kind) {
+    switch(kind) {
+      case hipMemcpyHostToHost:
+        HIPSYCL_DEBUG_INFO <<
+          "handler: Spawning async host to host copy task" << std::endl;
+        break;
+      case hipMemcpyHostToDevice:
+        HIPSYCL_DEBUG_INFO <<
+          "handler: Spawning async host to device copy task" << std::endl;
+        break;
+      case hipMemcpyDeviceToHost:
+        HIPSYCL_DEBUG_INFO <<
+          "handler: Spawning async device to host copy task" << std::endl;
+        break;
+      case hipMemcpyDeviceToDevice:
+        HIPSYCL_DEBUG_INFO <<
+          "handler: Spawning async device to device copy task" << std::endl;
+        break;
+      default: assert(false);
+    }
+  }
+
+  template <typename destPtr, typename srcPtr>
+  detail::task_graph_node_ptr dispatch_copy_1d(destPtr dest, size_t dest_offset,
+                                               const srcPtr src, size_t src_offset,
+                                               range<1> count, hipMemcpyKind kind)
+  {
+    using namespace detail;
+    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
+    debug_print_copy_kind(kind);
+    const auto stream = this->get_stream();
+    auto copy_launch = [=]() -> task_state
+    {
+      stream->activate_device();
+      hipMemcpyAsync(get_raw_pointer(dest) + dest_offset, get_raw_pointer(src) +
+        src_offset, count[0] * sizeof(T), kind, stream->get_stream());
+      return task_state::enqueued;
+    };
+    return this->submit_task(copy_launch);
+  }
+
+  template <typename destPtr, typename srcPtr>
+  detail::task_graph_node_ptr dispatch_copy_2d(destPtr dest, size_t dest_offset,
+                                               size_t dest_pitch, const srcPtr src,
+                                               size_t src_offset, size_t src_pitch,
+                                               range<2> count, hipMemcpyKind kind)
+  {
+    using namespace detail;
+    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
+    debug_print_copy_kind(kind);
+    const auto stream = this->get_stream();
+    auto copy_launch = [=]() -> task_state
+    {
+      stream->activate_device();
+      hipMemcpy2DAsync(get_raw_pointer(dest) + dest_offset, dest_pitch * sizeof(T),
+        get_raw_pointer(src) + src_offset, src_pitch * sizeof(T),
+        count[1] * sizeof(T), count[0], kind, stream->get_stream());
+      return task_state::enqueued;
+    };
+    return this->submit_task(copy_launch);
+  }
+
+  template <typename destPtr, typename srcPtr>
+  detail::task_graph_node_ptr dispatch_copy_3d(destPtr dest, size_t dest_offset,
+                                               range<3> dest_buffer_range,
+                                               const srcPtr src, size_t src_offset,
+                                               range<3> src_buffer_range,
+                                               range<3> count, hipMemcpyKind kind)
+  {
+#if defined(HIPSYCL_PLATFORM_CUDA)
+    using namespace detail;
+    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
+    debug_print_copy_kind(kind);
+    const auto stream = this->get_stream();
+
+    auto copy_launch = [=]() -> task_state
+    {
+      hipMemcpy3DParms params = {};
+      auto raw_src_ptr = const_cast<std::remove_const_t<T>*>(get_raw_pointer(src));
+      params.srcPtr = make_hipPitchedPtr(raw_src_ptr + src_offset,
+        src_buffer_range[2] * sizeof(T), src_buffer_range[2], src_buffer_range[1]);
+      params.dstPtr = make_hipPitchedPtr( get_raw_pointer(dest) + dest_offset,
+        dest_buffer_range[2] * sizeof(T), dest_buffer_range[2], dest_buffer_range[1]);
+      params.extent = {count[2] * sizeof(T), count[1], count[0]};
+      // hipMemcpy3DParms on CUDA is simply a typedef, so it actually requires a cudaMemcpyKind.
+      // Thankfully the enums are compatible.
+      params.kind = static_cast<cudaMemcpyKind>(
+        static_cast<std::underlying_type_t<hipMemcpyKind>>(kind));
+
+      stream->activate_device();
+      cudaMemcpy3DAsync(&params, stream->get_stream());
+      return task_state::enqueued;
+    };
+    return this->submit_task(copy_launch);
+#else
+    // It looks like HIP doesn't provide a hipMemcpy3DAsync as of April 2019.
+    // See https://github.com/ROCm-Developer-Tools/HIP/blob/master/docs/markdown/CUDA_Runtime_API_functions_supported_by_HIP.md
+    // TODO: We could fall back to hipMemcpy3D on HCC (however, that requires a different parameter struct).
+    throw feature_not_supported{"3D copy() is currently not supported on "
+      "this platform"};
+#endif
+  }
+
+  /// Registers an external access for host-accessed buffers, which is required
+  /// to ensure that subsequent host accesses wait for explicit copy operations.
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  void maybe_register_copy_access(accessor<T, dim, mode, tgt>& acc,
+                                  detail::task_graph_node_ptr task_node)
+  {
+    if(tgt != access::target::host_buffer) return;
+    detail::accessor_tracker& tracker =
+      detail::application::get_hipsycl_runtime().get_accessor_tracker();
+    detail::buffer_ptr buff = tracker.find_accessor(&acc);
+    buff->register_external_access(task_node, mode);
+    HIPSYCL_DEBUG_INFO << "handler: Registering external access via task "
+      << task_node << " for buffer " << buff << std::endl;
+  }
+
+  detail::task_graph_node_ptr submit_task(detail::task_functor f)
   {
     auto& task_graph = detail::application::get_task_graph();
 
@@ -608,7 +853,7 @@ private:
         task_graph.insert(f, _spawned_task_nodes, get_stream(), _handler);
 
     // Add new node to the access log of buffers. This guarantees that
-    // subsequent buffer accesses will wait for the kernels to complete,
+    // subsequent buffer accesses will wait for existing tasks to complete,
     // if necessary
     for(const auto& buffer_access : _accessed_buffers)
     {
@@ -618,6 +863,7 @@ private:
     }
 
     _spawned_task_nodes.push_back(graph_node);
+    return graph_node;
   }
 
   handler(const queue& q, async_handler handler);

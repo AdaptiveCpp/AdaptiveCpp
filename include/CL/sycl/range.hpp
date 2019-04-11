@@ -243,6 +243,16 @@ static sycl::range<1> omit_first_dimension(const sycl::range<2>& r)
   return sycl::range<1>{r.get(1)};
 }
 
+template <int dimsOut, int dimsIn>
+sycl::range<dimsOut> range_cast(const sycl::range<dimsIn>& other)
+{
+  sycl::range<dimsOut> result;
+  for(size_t o = 0; o < dimsOut; ++o) {
+    result[o] = o < dimsIn ? other[o] : 1;
+  }
+  return result;
+}
+
 }
 }
 

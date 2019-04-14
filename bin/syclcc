@@ -118,13 +118,20 @@ class source_file_processor:
     # regular clang. For the source transformation, the only
     # arguments that may play a role are preprocessor definitions,
     # include paths, std flags and filenames
+    includeNext = False;
     self._additional_args = []
     for arg in additional_args:
+      if(arg.startswith("-isystem")):
+        includeNext=True
+        self._additional_args.append(arg)
+        continue
       if (arg.startswith("-std=") or
           arg.startswith("-I") or
           arg.startswith("-D") or
-          not arg.startswith("-")):
+          not arg.startswith("-") or
+          includeNext):
         self._additional_args.append(arg)
+        includeNext = False
 
 
   def _run_source_transformation(self, input_file_path, output_dir):

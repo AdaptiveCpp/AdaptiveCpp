@@ -1,6 +1,6 @@
-# Maintainer: Aksel Alpay <aksel dot alpay at uni-heidelberg dot de>
+# Maintainer: Aksel Alpay <aksel.alpay at uni-heidelberg dot de>
 pkgname=hipsycl-rocm-git
-pkgver=0.7.0
+pkgver=0.7.9
 pkgrel=1
 pkgdesc="SYCL implementation over CUDA/HIP for AMD devices."
 arch=("x86_64")
@@ -8,7 +8,7 @@ url="https://github.com/illuhad/hipSYCL"
 makedepends=("cmake")
 provides=("hipSYCL" "SYCL")
 license=("BSD")
-depends=("llvm" "clang" "boost")
+depends=("llvm" "clang" "boost" "openmp")
 
 source=('hipSYCL::git+https://github.com/illuhad/hipSYCL.git')
 
@@ -26,7 +26,6 @@ prepare() {
 }
 
 build() {
-    export HIPSYCL_PLATFORM=rocm
     mkdir -p ${srcdir}/hipSYCL/build
     cd "${srcdir}/hipSYCL/build"
     cmake -DCMAKE_BUILD_TYPE=Release \
@@ -35,7 +34,6 @@ build() {
 }
 
 package() {
-    export HIPSYCL_PLATFORM=rocm
     cd "${srcdir}/hipSYCL/build"
     VERBOSE=1 DESTDIR=${pkgdir} make install
 }

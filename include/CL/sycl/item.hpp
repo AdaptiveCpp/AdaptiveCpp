@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,128 +38,138 @@
 namespace cl {
 namespace sycl {
 
+template <int dimensions, bool with_offset>
+struct item;
+
 namespace detail {
 
-
-template<int dim>
-struct item_impl
+template <int dimensions>
+struct item_base
 {
-  __device__ item_impl(const sycl::range<dim>& global_size)
-    : global_id{detail::get_global_id<dim>()}, global_size(global_size)
-  {}
-
-  __device__ item_impl(const id<dim>& my_id, const sycl::range<dim>& global_size)
+  __device__ item_base(const id<dimensions>& my_id,
+    const sycl::range<dimensions>& global_size)
     : global_id{my_id}, global_size(global_size)
   {}
 
-  id<dim> global_id;
-  sycl::range<dim> global_size;
+  /* -- common interface members -- */
+
+  __device__ sycl::range<dimensions> get_range() const
+  { return global_size; }
+
+  __device__ size_t get_range(int dimension) const
+  { return global_size[dimension]; }
+
+protected:
+  id<dimensions> global_id;
+  sycl::range<dimensions> global_size;
 };
 
-template<int dimension, bool with_offset>
-struct item_offset_storage
+template <int dimensions>
+__device__
+item<dimensions, true> make_item(const id<dimensions>& my_id,
+  const sycl::range<dimensions>& global_size, const id<dimensions>& offset)
 {
-  __device__ item_offset_storage(){}
-  __device__ item_offset_storage(const id<dimension>){}
-
-  __device__ size_t add_offset(size_t id, int) const
-  { return id; }
-
-  __device__ id<dimension> add_offset(const id<dimension>& idx) const
-  { return idx; }
-};
-
-
-template<int dimension>
-struct item_offset_storage<dimension,true>
-{
-  const id<dimension> offset;
-
-  __device__ item_offset_storage(){}
-  __device__ item_offset_storage(const id<dimension>& my_offset)
-    : offset{my_offset}
-  {}
-
-  __device__ size_t add_offset(size_t id, int dim) const
-  { return id + offset.get(dim); }
-
-  __device__ id<dimension> add_offset(const id<dimension>& idx) const
-  { return idx + offset; }
-};
-
+  return item<dimensions, true>{my_id, global_size, offset};
 }
 
+template <int dimensions>
+__device__
+item<dimensions, false> make_item(const id<dimensions>& my_id,
+  const sycl::range<dimensions>& global_size)
+{
+  return item<dimensions, false>{my_id, global_size};
+}
+
+} // namespace detail
 
 template <int dimensions = 1, bool with_offset = true>
-struct item
+struct item : detail::item_base<dimensions>
+{};
+
+template <int dimensions>
+struct item<dimensions, true> : detail::item_base<dimensions>
 {
-  __device__ item(const detail::item_impl<dimensions>& impl)
-    : _impl{impl}
-  {}
-
-  // only available if with_offset is true
-  template<bool O = with_offset, typename = std::enable_if_t<O == true>>
-  __device__ item(const detail::item_impl<dimensions>& impl, const id<dimensions>& offset)
-    : _impl{impl}, _offset_storage{offset}
-  {}
-
   /* -- common interface members -- */
+
   __device__ id<dimensions> get_id() const
   {
-    return _offset_storage.add_offset(
-          _impl.global_id);
+    return this->global_id + offset;
   }
 
   __device__ size_t get_id(int dimension) const
   {
-    return _offset_storage.add_offset(
-          _impl.global_id[dimension], dimension);
+    return this->global_id[dimension] + offset[dimension];
   }
 
   __device__ size_t operator[](int dimension)
   {
-    return _offset_storage.add_offset(_impl.global_id[dimension], dimension);
-  }
-
-  __device__ range<dimensions> get_range() const
-  {
-    return _impl.global_size;
-  }
-
-  __device__ size_t get_range(int dimension) const
-  {
-    return _impl.global_size[dimension];
-  }
-
-  // only available if with_offset is true
-  template<bool O = with_offset,
-           typename = std::enable_if_t<O == true>>
-  __device__ id<dimensions> get_offset() const
-  {
-    return _offset_storage.offset;
-  }
-
-  // only available if with_offset is false
-  template<bool O = with_offset,
-           typename = std::enable_if_t<O == false>>
-  __device__ operator item<dimensions, true>() const
-  {
-    return item<dimensions, true>(_impl, id<dimensions>{});
+    return this->global_id[dimension] + offset[dimension];
   }
 
   __device__ size_t get_linear_id() const
   {
-    return detail::linear_id<dimensions>::get(
-          _offset_storage.add_offset(_impl.global_id),
-          _impl.global_size);
+    return detail::linear_id<dimensions>::get(this->global_id + offset,
+      this->global_size);
+  }
+
+  __device__ id<dimensions> get_offset() const
+  {
+    return offset;
   }
 
 private:
-  detail::item_impl<dimensions> _impl;
-  detail::item_offset_storage<dimensions, with_offset> _offset_storage;
+  friend __device__ item<dimensions, true> detail::make_item<dimensions>(
+    const id<dimensions>&, const sycl::range<dimensions>&, const id<dimensions>&);
+
+  __device__ item(const id<dimensions>& my_id,
+    const sycl::range<dimensions>& global_size, const id<dimensions>& offset)
+    : detail::item_base<dimensions>(my_id, global_size), offset{offset}
+  {}
+
+  const id<dimensions> offset;
 };
 
+template <int dimensions>
+struct item<dimensions, false> : detail::item_base<dimensions>
+{
+  /* -- common interface members -- */
 
+  __device__ id<dimensions> get_id() const
+  {
+    return this->global_id;
+  }
+
+  __device__ size_t get_id(int dimension) const
+  {
+    return this->global_id[dimension];
+  }
+
+  __device__ size_t operator[](int dimension)
+  {
+    return this->global_id[dimension];
+  }
+
+  __device__ size_t get_linear_id() const
+  {
+    return detail::linear_id<dimensions>::get(this->global_id,
+      this->global_size);
+  }
+
+  __device__ operator item<dimensions, true>() const
+  {
+    return detail::make_item<dimensions>(this->global_id, this->global_size,
+      id<dimensions>{});
+  }
+
+private:
+  friend __device__ item<dimensions, false> detail::make_item<dimensions>(
+    const id<dimensions>&, const sycl::range<dimensions>&);
+
+  __device__ item(const id<dimensions>& my_id,
+    const sycl::range<dimensions>& global_size)
+    : detail::item_base<dimensions>(my_id, global_size)
+  {}
+};
 
 }
 }

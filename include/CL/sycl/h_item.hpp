@@ -56,7 +56,10 @@ public:
   __device__
   item<dimensions, false> get_global() const
   {
-    return item<dimensions, false>{};
+    return detail::make_item<dimensions>(
+      detail::get_global_id<dimensions>(),
+      detail::get_global_size<dimensions>()
+    );
   }
 
   __device__
@@ -78,10 +81,10 @@ public:
   __device__
   item<dimensions, false> get_physical_local() const
   {
-    return item<dimensions, false>{detail::item_impl<dimensions>{
-        detail::get_local_id<dimensions>()
-      }
-    };
+    return detail::make_item<dimensions>(
+      detail::get_local_id<dimensions>(),
+      detail::get_global_size<dimensions>()
+    );
   }
 
   __device__

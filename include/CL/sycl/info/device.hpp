@@ -38,7 +38,7 @@ namespace cl {
 namespace sycl {
 
 template<int>
-class id;
+struct id;
 
 class platform;
 class device;

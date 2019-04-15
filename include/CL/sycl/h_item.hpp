@@ -34,12 +34,12 @@ namespace cl {
 namespace sycl {
 
 template<int dimensions>
-class group;
+struct group;
 
 template <int dimensions>
 struct h_item
 {
-  friend class group<dimensions>;
+  friend struct group<dimensions>;
 
   __device__
   h_item(){}

@@ -38,32 +38,32 @@ namespace sycl {
 namespace detail {
 
 
-static __device__ size_t get_global_id_x()
+inline __device__ size_t get_global_id_x()
 {
   return hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
 }
 
-static __device__ size_t get_global_id_y()
+inline __device__ size_t get_global_id_y()
 {
   return hipBlockIdx_y * hipBlockDim_y + hipThreadIdx_y;
 }
 
-static __device__ size_t get_global_id_z()
+inline __device__ size_t get_global_id_z()
 {
   return hipBlockIdx_z * hipBlockDim_z + hipThreadIdx_z;
 }
 
-static __device__ size_t get_global_size_x()
+inline __device__ size_t get_global_size_x()
 {
   return hipGridDim_x * hipBlockDim_x;
 }
 
-static __device__ size_t get_global_size_y()
+inline __device__ size_t get_global_size_y()
 {
   return hipGridDim_y * hipBlockDim_y;
 }
 
-static __device__ size_t get_global_size_z()
+inline __device__ size_t get_global_size_z()
 {
   return hipGridDim_z * hipBlockDim_z;
 }
@@ -72,42 +72,42 @@ static __device__ size_t get_global_size_z()
 
 template<int dimensions>
 __device__
-static id<dimensions> get_local_id();
+id<dimensions> get_local_id();
 
 template<>
 __device__
-id<1> get_local_id<1>()
+inline id<1> get_local_id<1>()
 { return id<1>{hipThreadIdx_x}; }
 
 template<>
 __device__
-id<2> get_local_id<2>()
+inline id<2> get_local_id<2>()
 { return id<2>{hipThreadIdx_x, hipThreadIdx_y}; }
 
 template<>
 __device__
-id<3> get_local_id<3>()
+inline id<3> get_local_id<3>()
 { return id<3>{hipThreadIdx_x, hipThreadIdx_y, hipThreadIdx_z}; }
 
 template<int dimensions>
 __device__
-static id<dimensions> get_global_id();
+id<dimensions> get_global_id();
 
 template<>
 __device__
-id<1> get_global_id<1>()
+inline id<1> get_global_id<1>()
 { return id<1>{get_global_id_x()}; }
 
 template<>
 __device__
-id<2> get_global_id<2>()
+inline id<2> get_global_id<2>()
 {
   return id<2>{get_global_id_x(), get_global_id_y()};
 }
 
 template<>
 __device__
-id<3> get_global_id<3>()
+inline id<3> get_global_id<3>()
 {
   return id<3>{get_global_id_x(),
                get_global_id_y(),
@@ -116,16 +116,16 @@ id<3> get_global_id<3>()
 
 template<int dimensions>
 __device__
-static id<dimensions> get_group_id();
+id<dimensions> get_group_id();
 
 template<>
 __device__
-id<1> get_group_id<1>()
+inline id<1> get_group_id<1>()
 { return id<1>{hipBlockIdx_x}; }
 
 template<>
 __device__
-id<2> get_group_id<2>()
+inline id<2> get_group_id<2>()
 {
   return id<2>{hipBlockIdx_x,
                hipBlockIdx_y};
@@ -133,7 +133,7 @@ id<2> get_group_id<2>()
 
 template<>
 __device__
-id<3> get_group_id<3>()
+inline id<3> get_group_id<3>()
 {
   return id<3>{hipBlockIdx_x,
                hipBlockIdx_y,
@@ -142,25 +142,25 @@ id<3> get_group_id<3>()
 
 template<int dimensions>
 __device__
-static sycl::range<dimensions> get_grid_size();
+sycl::range<dimensions> get_grid_size();
 
 template<>
 __device__
-sycl::range<1> get_grid_size<1>()
+inline sycl::range<1> get_grid_size<1>()
 {
   return sycl::range<1>{hipGridDim_x};
 }
 
 template<>
 __device__
-sycl::range<2> get_grid_size<2>()
+inline sycl::range<2> get_grid_size<2>()
 {
   return sycl::range<2>{hipGridDim_x, hipGridDim_y};
 }
 
 template<>
 __device__
-sycl::range<3> get_grid_size<3>()
+inline sycl::range<3> get_grid_size<3>()
 {
   return sycl::range<3>{hipGridDim_x, hipGridDim_y, hipGridDim_z};
 }
@@ -168,38 +168,38 @@ sycl::range<3> get_grid_size<3>()
 
 template<int dimensions>
 __device__
-static sycl::range<dimensions> get_local_size();
+sycl::range<dimensions> get_local_size();
 
 template<>
 __device__
-sycl::range<1> get_local_size<1>()
+inline sycl::range<1> get_local_size<1>()
 {
   return sycl::range<1>{hipBlockDim_x};
 }
 
 template<>
 __device__
-sycl::range<2> get_local_size<2>()
+inline sycl::range<2> get_local_size<2>()
 {
   return sycl::range<2>{hipBlockDim_x, hipBlockDim_y};
 }
 
 template<>
 __device__
-sycl::range<3> get_local_size<3>()
+inline sycl::range<3> get_local_size<3>()
 {
   return sycl::range<3>{hipBlockDim_x, hipBlockDim_y, hipBlockDim_z};
 }
 
 template<int dimensions>
 __device__
-static sycl::range<dimensions> get_global_size()
+sycl::range<dimensions> get_global_size()
 {
   return get_local_size<dimensions>() * get_grid_size<dimensions>();
 }
 
 __device__
-static size_t get_global_size(int dimension)
+inline size_t get_global_size(int dimension)
 {
   switch(dimension)
   {
@@ -214,7 +214,7 @@ static size_t get_global_size(int dimension)
 }
 
 __device__
-static size_t get_grid_size(int dimension)
+inline size_t get_grid_size(int dimension)
 {
   switch (dimension)
   {
@@ -229,7 +229,7 @@ static size_t get_grid_size(int dimension)
 }
 
 __device__
-static size_t get_local_size(int dimension)
+inline size_t get_local_size(int dimension)
 {
   switch(dimension)
   {
@@ -244,7 +244,7 @@ static size_t get_local_size(int dimension)
 }
 
 __device__
-static size_t get_global_id(int dimension)
+inline size_t get_global_id(int dimension)
 {
   switch(dimension)
   {
@@ -259,7 +259,7 @@ static size_t get_global_id(int dimension)
 }
 
 __device__
-static size_t get_local_id(int dimension)
+inline size_t get_local_id(int dimension)
 {
   switch(dimension)
   {
@@ -274,7 +274,7 @@ static size_t get_local_id(int dimension)
 }
 
 __device__
-static size_t get_group_id(int dimension)
+inline size_t get_group_id(int dimension)
 {
   switch (dimension)
   {

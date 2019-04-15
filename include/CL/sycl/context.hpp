@@ -63,8 +63,10 @@ public:
 
     _platform = deviceList.front().get_platform();
 
-    for(const auto dev : deviceList)
+    for(const auto dev : deviceList) {
+      (void)(&dev);
       assert(dev.get_platform() == _platform);
+    }
   }
 
   /* CL Interop is not supported

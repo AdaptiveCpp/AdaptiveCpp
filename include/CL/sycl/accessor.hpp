@@ -301,10 +301,10 @@ access::target::constant_buffer)) && dimensions > 0 */
            int D = dimensions,
            std::enable_if_t<(P == access::placeholder::false_t &&
                              T == access::target::host_buffer) ||
-                            (P == access::placeholder::true_t &&
+                            ((P == access::placeholder::true_t &&
                             (T == access::target::global_buffer ||
                              T == access::target::constant_buffer)) &&
-                            (D > 0) >* = nullptr>
+                            (D > 0)) >* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})

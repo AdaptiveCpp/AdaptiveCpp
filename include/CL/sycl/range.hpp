@@ -232,13 +232,13 @@ namespace detail {
 namespace range {
 
 __host__ __device__
-static sycl::range<2> omit_first_dimension(const sycl::range<3>& r)
+inline sycl::range<2> omit_first_dimension(const sycl::range<3>& r)
 {
   return sycl::range<2>{r.get(1), r.get(2)};
 }
 
 __host__ __device__
-static sycl::range<1> omit_first_dimension(const sycl::range<2>& r)
+inline sycl::range<1> omit_first_dimension(const sycl::range<2>& r)
 {
   return sycl::range<1>{r.get(1)};
 }

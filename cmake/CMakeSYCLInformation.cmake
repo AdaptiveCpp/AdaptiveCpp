@@ -40,7 +40,7 @@ unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
 unset(HIPSYCL_DEFAULT_PLATFORM)
 unset(HIPSYCL_PLATFORM_ENV)
 
-set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --hipsycl-platform=${HIPSYCL_PLATFORM}")
+set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --hipsycl-platform=${HIPSYCL_PLATFORM}")
 
 # Less critical options
 
@@ -55,30 +55,30 @@ set(HIPSYCL_RESTRICT_DEVICE_HEADER_PATH "${HIPSYCL_RDHP_INIT}" CACHE STRING "Lis
 unset(HIPSYCL_RDHP_INIT)
 if(NOT HIPSYCL_RESTRICT_DEVICE_HEADER_PATH MATCHES "<no-restriction>")
   if(NOT HIPSYCL_RESTRICT_DEVICE_HEADER_PATH)
-    set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --restrict-device-header-path=\"\"")
+    set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --restrict-device-header-path=\"\"")
   endif()
   foreach(path ${HIPSYCL_RESTRICT_DEVICE_HEADER_PATH})
-    set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --restrict-device-header-path=\"${path}\"")
+    set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --restrict-device-header-path=\"${path}\"")
   endforeach()
 endif()
 
 set(HIPSYCL_CUDA_CLANG_COMPILER "" CACHE STRING "Clang compiler executable used for CUDA compilation.")
 if(HIPSYCL_CUDA_CLANG_COMPILER)
-  set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --cuda-clang-compiler=${HIPSYCL_CUDA_CLANG_COMPILER}")
+  set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --cuda-clang-compiler=${HIPSYCL_CUDA_CLANG_COMPILER}")
 endif()
 
 set(HIPSYCL_KEEP_TEMPORARY_FILES FALSE CACHE BOOL "Whether to keep temporary files after the compilation has finished.")
 if(HIPSYCL_KEEP_TEMPORARY_FILES)
-  set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --keep-temporary-files")
+  set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --keep-temporary-files")
 endif()
 
 set(HIPSYCL_GPU_ARCH "" CACHE STRING "GPU architecture used by ROCm / CUDA (when compiled with Clang).")
 if(HIPSYCL_GPU_ARCH)
   # TODO: We could avoid this by adding an explicit parameter for syclcc instead of using the native ones
   if(HIPSYCL_PLATFORM MATCHES "cuda|nvidia")
-    set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --cuda-gpu-arch=${HIPSYCL_GPU_ARCH}")
+    set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --cuda-gpu-arch=${HIPSYCL_GPU_ARCH}")
   elseif(HIPSYCL_PLATFORM MATCHES "rocm|amd|hip|hcc")
-    set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS} --amdgpu-target=${HIPSYCL_GPU_ARCH}")
+    set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --amdgpu-target=${HIPSYCL_GPU_ARCH}")
   else()
     message(WARNING "HIPSYCL_GPU_ARCH (${HIPSYCL_GPU_ARCH}) is ignored for current backend (${HIPSYCL_PLATFORM})")
   endif()
@@ -87,11 +87,35 @@ endif()
 # ---------------------
 # Compilation flags and rules
 # These are mostly based on https://github.com/Kitware/CMake/blob/master/Modules/CMakeCXXInformation.cmake
+# CMake is distributed under the BSD 3-clause License.
 # ---------------------
 
 if(NOT CMAKE_INCLUDE_FLAG_SYCL)
   set(CMAKE_INCLUDE_FLAG_SYCL ${CMAKE_INCLUDE_FLAG_CXX})
 endif()
+
+set(CMAKE_SYCL_FLAGS_INIT "$ENV{SYCLFLAGS} ${CMAKE_SYCL_FLAGS_INIT}")
+string(STRIP "${CMAKE_SYCL_FLAGS_INIT}" CMAKE_SYCL_FLAGS_INIT)
+
+foreach(c _DEBUG _RELEASE _MINSIZEREL _RELWITHDEBINFO)
+  string(STRIP "${CMAKE_CXX_FLAGS${c}_INIT}" CMAKE_SYCL_FLAGS${c}_INIT)
+endforeach()
+
+set(CMAKE_SYCL_FLAGS "${CMAKE_SYCL_FLAGS_INIT}" CACHE STRING
+    "Flags used by the compiler during all build types.")
+
+if(NOT CMAKE_NOT_USING_CONFIG_FLAGS)
+  set(CMAKE_SYCL_FLAGS_DEBUG "${CMAKE_SYCL_FLAGS_DEBUG_INIT}" CACHE STRING
+      "Flags used by the compiler during debug builds.")
+  set(CMAKE_SYCL_FLAGS_MINSIZEREL "${CMAKE_SYCL_FLAGS_MINSIZEREL_INIT}" CACHE STRING
+      "Flags used by the compiler during release builds for minimum size.")
+  set(CMAKE_SYCL_FLAGS_RELEASE "${CMAKE_SYCL_FLAGS_RELEASE_INIT}" CACHE STRING
+      "Flags used by the compiler during release builds.")
+  set(CMAKE_SYCL_FLAGS_RELWITHDEBINFO "${CMAKE_SYCL_FLAGS_RELWITHDEBINFO_INIT}" CACHE STRING
+      "Flags used by the compiler during release builds with debug info.")
+endif()
+
+include(CMakeCommonLanguageInclude)
 
 if(NOT CMAKE_SYCL_CREATE_SHARED_LIBRARY)
   set(CMAKE_SYCL_CREATE_SHARED_LIBRARY

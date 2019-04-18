@@ -85,7 +85,8 @@ template<int dimensions, class Function>
 __global__ void parallel_for_kernel(Function f,
                                     sycl::range<dimensions> execution_range)
 {
-  item<dimensions, false> this_item{item_impl<dimensions>{execution_range}};
+  auto this_item = detail::make_item<dimensions>(
+    detail::get_global_id<dimensions>(), execution_range);
   if(item_is_in_range(this_item, execution_range, id<dimensions>{}))
     f(this_item);
 }
@@ -95,7 +96,8 @@ __global__ void parallel_for_kernel_with_offset(Function f,
                                                 sycl::range<dimensions> execution_range,
                                                 id<dimensions> offset)
 {
-  item<dimensions> this_item{item_impl<dimensions>{execution_range}, offset};
+  auto this_item = detail::make_item<dimensions>(
+    detail::get_global_id<dimensions>(), execution_range, offset);
   if(item_is_in_range(this_item, execution_range, offset))
     f(this_item);
 }

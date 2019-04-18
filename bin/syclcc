@@ -537,8 +537,9 @@ class syclcc_config:
         platform = hipsycl_platform.from_string(self._parse_compound_argument(arg))
         if platform == None:
           raise RuntimeError("Unrecognized hipSYCL platform: " + platform)
-        if self._platform != None:
-          print("Overriding hipSYCL platform from system(" + self._platform + ") and using " + platform )
+        if self._platform != None and self._platform != platform:
+          print("Overriding hipSYCL platform specified through environment ("
+            + self._platform + "), using " + platform + " instead")
 
         self._platform = platform
       elif arg.startswith("--restrict-device-header-path=") or arg.startswith("-RDI="):

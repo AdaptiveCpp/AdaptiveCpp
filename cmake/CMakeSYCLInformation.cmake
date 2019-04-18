@@ -22,23 +22,26 @@ if(HIPSYCL_ROCM_BACKEND_AVAILABLE)
   endif()
 endif()
 
-set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
-if(HIPSYCL_PLATFORM_ENV)
-    message("Found HIPSYCL_PLATFORM from environment: ${HIPSYCL_PLATFORM_ENV}")
-    set(HIPSYCL_PLATFORM ${HIPSYCL_PLATFORM_ENV})
-endif()
+set(HIPSYCL_PLATFORM "" CACHE STRING "The hipSYCL backend to use. One of cpu|cuda|nvcc|rocm.")
 
+# If HIPSYCL_PLATFORM has not been explicitly set by the user, first try to find
+# the corresponding environment variable. If that isn't set either, and only
+# a single platform is available, default to it. Otherwise throw an error.
 if(NOT HIPSYCL_PLATFORM)
-  if(HIPSYCL_NUM_AVAILABLE_BACKENDS GREATER 1)
+  set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
+  if(HIPSYCL_PLATFORM_ENV)
+    message("Found HIPSYCL_PLATFORM from environment: ${HIPSYCL_PLATFORM_ENV}")
+    set(HIPSYCL_DEFAULT_PLATFORM ${HIPSYCL_PLATFORM_ENV})
+  elseif(HIPSYCL_NUM_AVAILABLE_BACKENDS GREATER 1)
     message(SEND_ERROR "More than one hipSYCL backend is available.\n"
             "Please specify HIPSYCL_PLATFORM=cpu|cuda|nvcc|rocm")
   endif()
   set(HIPSYCL_PLATFORM ${HIPSYCL_DEFAULT_PLATFORM})
+  unset(HIPSYCL_PLATFORM_ENV)
 endif()
 
 unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
 unset(HIPSYCL_DEFAULT_PLATFORM)
-unset(HIPSYCL_PLATFORM_ENV)
 
 set(CMAKE_SYCL_FLAGS_INIT "${CMAKE_SYCL_FLAGS_INIT} --hipsycl-platform=${HIPSYCL_PLATFORM}")
 

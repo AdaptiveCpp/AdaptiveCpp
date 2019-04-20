@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018,2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
+#include "extensions.hpp"
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -42,12 +43,19 @@
 #include "info/info.hpp"
 #include "detail/stream.hpp"
 
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+#include "extensions/queue_submission_hooks.hpp"
+#endif
+
 namespace cl {
 namespace sycl {
 
-
 class queue : public detail::property_carrying_object
 {
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+  template<typename, int, access::mode, access::target>
+  friend class detail::automatic_placeholder_requirement_impl;
+#endif
 public:
 
   explicit queue(const property_list &propList = {});
@@ -104,6 +112,9 @@ public:
     _stream->activate_device();
 
     handler cgh{*this, _handler};
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+    this->get_hooks()->run_hooks(cgh);
+#endif
     cgf(cgh);
 
     event evt = cgh._detail_get_event();
@@ -117,6 +128,10 @@ public:
 
     try {
       handler cgh{*this, _handler};
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+      this->get_hooks()->run_hooks(cgh);
+#endif
+
       cgf(cgh);
 
       // We need to wait to make sure everything is fine.
@@ -150,6 +165,18 @@ private:
   device _device;
   detail::stream_ptr _stream;
   async_handler _handler;
+
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+  detail::queue_submission_hooks_ptr _hooks =
+      detail::queue_submission_hooks_ptr{
+        new detail::queue_submission_hooks{}
+      };
+
+  detail::queue_submission_hooks_ptr get_hooks() const
+  {
+    return _hooks;
+  }
+#endif
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -166,6 +193,126 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 {
   return _stream.use_count();
 }
+
+
+
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+
+namespace detail{
+
+
+template<typename dataT, int dimensions, access::mode accessMode,
+            access::target accessTarget>
+class automatic_placeholder_requirement_impl
+{
+public:
+  automatic_placeholder_requirement_impl(sycl::queue &q, 
+      sycl::accessor<dataT, dimensions, accessMode, accessTarget,
+                access::placeholder::true_t> acc)
+    : _acc{acc}, _is_required{false}, _hooks{q.get_hooks()}
+  {
+    acquire();
+  }
+
+  void reacquire()
+  {
+    if(!_is_required)
+      acquire();
+  }
+
+  void release()
+  {
+    if(_is_required)
+      _hooks->remove(_hook_id);
+    _is_required = false;
+  }
+
+  ~automatic_placeholder_requirement_impl()
+  {
+    if(_is_required)
+      release();
+  }
+
+  bool is_required() const
+  {
+    return _is_required;
+  }
+private:
+  void acquire()
+  {
+    auto acc = _acc;
+    _hook_id = _hooks->add([acc](sycl::handler& cgh){
+      cgh.require(acc);
+    });
+
+    _is_required = true;
+  }
+
+  bool _is_required;
+
+  sycl::accessor<dataT, dimensions, accessMode, accessTarget,
+                                  access::placeholder::true_t> _acc;
+
+  std::size_t _hook_id;
+  detail::queue_submission_hooks_ptr _hooks;
+};
+
+}
+
+template<typename dataT, int dimensions, access::mode accessMode,
+            access::target accessTarget>
+class automatic_placeholder_requirement
+{
+public:
+  using impl_type = detail::automatic_placeholder_requirement_impl<
+    dataT,dimensions,accessMode,accessTarget>;
+
+  automatic_placeholder_requirement(queue &q, 
+      accessor<dataT, dimensions, accessMode, accessTarget,
+                access::placeholder::true_t> acc)
+  {
+    _impl = std::make_unique<impl_type>(q, acc);
+  }
+
+  automatic_placeholder_requirement(std::unique_ptr<impl_type> impl)
+  : _impl{std::move(impl)}
+  {}
+
+  void reacquire()
+  {
+    _impl->reacquire();
+  }
+
+  void release()
+  {
+    _impl->release();
+  }
+
+  bool is_required() const
+  {
+    return _impl->is_required();
+  }
+
+private:
+  std::unique_ptr<impl_type> _impl;
+};
+
+template<typename dataT, int dimensions, access::mode accessMode,
+            access::target accessTarget>
+inline auto automatic_require(queue &q, 
+    accessor<dataT, dimensions, accessMode, accessTarget,access::placeholder::true_t> acc)
+{
+  using requirement_type = automatic_placeholder_requirement<
+    dataT, dimensions, accessMode, accessTarget>;
+
+  using impl_type = typename requirement_type::impl_type;
+
+  return requirement_type{std::make_unique<impl_type>(q, acc)};
+}
+
+#endif // HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+
+
 
 }// namespace sycl
 }// namespace cl

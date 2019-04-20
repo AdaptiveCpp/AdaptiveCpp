@@ -232,8 +232,7 @@ void kernel_function()
 ```
 
 # Documentation
-
+* [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
-
 
 

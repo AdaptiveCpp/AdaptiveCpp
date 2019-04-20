@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,39 +25,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_HPP
-#define SYCL_HPP
+#ifndef HIPSYCL_QUEUE_SUBMISSION_HOOKS_HPP
+#define HIPSYCL_QUEUE_SUBMISSION_HOOKS_HPP
 
+#include <unordered_map>
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+namespace cl {
+namespace sycl {
 
-#include "sycl/extensions.hpp"
-#include "sycl/backend/backend.hpp"
-#include "sycl/version.hpp"
-#include "sycl/types.hpp"
-#include "sycl/exception.hpp"
-#include "sycl/device_selector.hpp"
-#include "sycl/device.hpp"
-#include "sycl/platform.hpp"
-#include "sycl/queue.hpp"
-#include "sycl/range.hpp"
-#include "sycl/id.hpp"
-#include "sycl/accessor.hpp"
-#include "sycl/buffer.hpp"
-#include "sycl/nd_item.hpp"
-#include "sycl/multi_ptr.hpp"
-#include "sycl/group.hpp"
-#include "sycl/h_item.hpp"
-#include "sycl/private_memory.hpp"
-#include "sycl/vec.hpp"
-#include "sycl/builtin.hpp"
-#include "sycl/math.hpp"
-#include "sycl/common_functions.hpp"
-#include "sycl/geometric_functions.hpp"
-#include "sycl/atomic.hpp"
-#include "sycl/program.hpp"
-#include "sycl/kernel.hpp"
+class handler;
+
+namespace detail {
+
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+
+class queue_submission_hooks
+{
+public:
+  using hook = function_class<void (sycl::handler&)>;
+  using hook_id = std::size_t;
+
+  void run_hooks(sycl::handler& cgh) const
+  {
+    for(const auto& element : _hooks)
+      element.second(cgh);
+  }
+
+  hook_id add(hook&& h)
+  {
+    hook_id new_id = static_cast<hook_id>(_hooks.size());
+    _hooks[new_id] = h;
+    return new_id;
+  }
+
+  void remove(hook_id id)
+  {
+    _hooks.erase(id);
+  }
+
+private:
+  using hook_list_type = 
+    std::unordered_map<hook_id, hook>;
+  
+  hook_list_type _hooks;
+};
+
+using queue_submission_hooks_ptr = shared_ptr_class<queue_submission_hooks>;
+
+template<typename, int, access::mode, access::target>
+class automatic_placeholder_requirement_impl;
+
+#endif // HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+
+}
+}
+}
 
 #endif
-

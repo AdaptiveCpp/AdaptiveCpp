@@ -134,6 +134,13 @@ task_graph_node::submit()
 
     _stream->activate_device();
     task_state state = _tf();
+    
+    // Remove the task functor after execution to avoid
+    // cyclic dependencies between buffer objects (that store
+    // task_graph_node_ptrs for dependency calculation) and
+    // the captured accessors
+    this->_tf = task_functor{};
+
     _submitted = true;
 
     if(state == task_state::enqueued)
@@ -158,6 +165,7 @@ task_graph_node::submit()
     // Submitted must be set to true to avoid
     // subsequent submissions
     _submitted = true;
+    this->_tf = task_functor{};
     // ToDo: Should we also consider the task as done here?
     // Or at least trigger the callback?
 

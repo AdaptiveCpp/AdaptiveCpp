@@ -118,8 +118,10 @@ struct item<dimensions, true> : detail::item_base<dimensions>
   }
 
 private:
+  template<int d>
+  using _range = sycl::range<d>; // workaround for nvcc
   friend __device__ item<dimensions, true> detail::make_item<dimensions>(
-    const id<dimensions>&, const sycl::range<dimensions>&, const id<dimensions>&);
+    const id<dimensions>&, const _range<dimensions>&, const id<dimensions>&);
 
   __device__ item(const id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size, const id<dimensions>& offset)
@@ -162,8 +164,10 @@ struct item<dimensions, false> : detail::item_base<dimensions>
   }
 
 private:
+  template<int d>
+  using _range = sycl::range<d>; // workaround for nvcc
   friend __device__ item<dimensions, false> detail::make_item<dimensions>(
-    const id<dimensions>&, const sycl::range<dimensions>&);
+    const id<dimensions>&, const _range<dimensions>&);
 
   __device__ item(const id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)

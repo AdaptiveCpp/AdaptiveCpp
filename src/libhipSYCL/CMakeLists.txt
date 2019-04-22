@@ -45,8 +45,13 @@ endif()
 
 if(WITH_ROCM_BACKEND)
   add_library(hipSYCL_rocm SHARED ${HIPSYCL_SOURCES})
+  #Try to peek if ROCM set itself through its /etc/profile.d/rocm.sh
+  set(ROCM_PATH $ENV{ROCM_PATH})
   target_compile_options(hipSYCL_rocm PRIVATE --hipsycl-platform=rocm --hipsycl-bootstrap)
   target_include_directories(hipSYCL_rocm PRIVATE ${INCLUDE_DIRS})
+  if(ROCM_PATH)
+      target_include_directories(hipSYCL_rocm PRIVATE ${ROCM_PATH}/include )
+  endif()
   target_link_libraries(hipSYCL_rocm --hipsycl-platform=rocm --hipsycl-bootstrap)
   install(TARGETS hipSYCL_rocm
           LIBRARY DESTINATION lib
@@ -61,5 +66,5 @@ if(WITH_CPU_BACKEND)
   install(TARGETS hipSYCL_cpu
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib/static)
-        
+
 endif()

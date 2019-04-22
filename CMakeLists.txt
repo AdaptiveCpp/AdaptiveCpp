@@ -70,6 +70,8 @@ set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execut
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(src)
 

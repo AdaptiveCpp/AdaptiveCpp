@@ -13,17 +13,24 @@ set(HIPSYCL_SOURCES
   task_graph.cpp
   accessor.cpp
   async_worker.cpp)
-  
+
 
 set(INCLUDE_DIRS
-  ${HIPSYCL_SOURCE_DIR}/include 
+  ${HIPSYCL_SOURCE_DIR}/include
   ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
 
 if(WITH_CUDA_BACKEND)
   add_library(hipSYCL_cuda SHARED ${HIPSYCL_SOURCES})
 
   if(USE_NVCC)
+      if(NOT CMAKE_CUDA_STANDARD)
+          set (CMAKE_CUDA_STANDARD 14)
+      endif()
     set(CUDA_PLATFORM nvcc)
+    target_compile_options(hipSYCL_cuda PRIVATE --std c++${CMAKE_CUDA_STANDARD})
+    if(CMAKE_CUDA_HOST_COMPILER)
+        target_compile_options(hipSYCL_cuda PRIVATE -ccbin ${CMAKE_CUDA_HOST_COMPILER})
+    endif()
   else()
     set(CUDA_PLATFORM cuda)
   endif()

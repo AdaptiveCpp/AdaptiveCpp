@@ -37,8 +37,9 @@ if(WITH_CUDA_BACKEND)
 
   target_compile_options(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
   target_include_directories(hipSYCL_cuda PRIVATE ${INCLUDE_DIRS})
-  target_link_libraries(hipSYCL_cuda --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
+  target_link_libraries(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
   install(TARGETS hipSYCL_cuda
+          EXPORT install_exports
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib/static)
 endif()
@@ -52,8 +53,9 @@ if(WITH_ROCM_BACKEND)
   if(ROCM_PATH)
       target_include_directories(hipSYCL_rocm PRIVATE ${ROCM_PATH}/include )
   endif()
-  target_link_libraries(hipSYCL_rocm --hipsycl-platform=rocm --hipsycl-bootstrap)
+  target_link_libraries(hipSYCL_rocm PRIVATE --hipsycl-platform=rocm --hipsycl-bootstrap)
   install(TARGETS hipSYCL_rocm
+          EXPORT install_exports
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib/static)
 endif()
@@ -62,9 +64,10 @@ if(WITH_CPU_BACKEND)
   add_library(hipSYCL_cpu SHARED ${HIPSYCL_SOURCES})
   target_compile_options(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu --hipsycl-bootstrap)
   target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS})
-  target_link_libraries(hipSYCL_cpu --hipsycl-platform=cpu --hipsycl-bootstrap)
+  target_link_libraries(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu --hipsycl-bootstrap)
   install(TARGETS hipSYCL_cpu
+          EXPORT install_exports
           LIBRARY DESTINATION lib
           ARCHIVE DESTINATION lib/static)
-
 endif()
+

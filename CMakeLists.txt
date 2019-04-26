@@ -90,4 +90,8 @@ install(FILES
         ${PROJECT_SOURCE_DIR}/cmake/CMakeTestSYCLCompiler.cmake
         ${CMAKE_BINARY_DIR}/hipsycl-config.cmake
         DESTINATION lib/cmake)
+install(EXPORT install_exports
+        FILE "hipsycl-targets.cmake"
+        NAMESPACE hipSYCL::
+        DESTINATION lib/cmake)
 

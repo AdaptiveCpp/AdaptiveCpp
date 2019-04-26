@@ -31,6 +31,7 @@
 
 #include "CL/sycl/detail/debug.hpp"
 
+#include "boost/filesystem.hpp"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "InclusionRewriter.hpp"
@@ -44,10 +45,24 @@
 using namespace clang;
 using namespace clang::driver;
 using namespace clang::tooling;
+namespace fs = boost::filesystem;
 
 class IncludeRewriter : public clang::PreprocessorFrontendAction
 {
 public:
+
+  IncludeRewriter(std::string transformDir, std::string outputFile) :
+    transformDir(transformDir), outputFile(outputFile) {
+    if(transformDir.empty())
+    {
+      this->transformDir = fs::temp_directory_path();
+    }
+    if(outputFile.empty())
+    {
+      const auto sourceFile = fs::path(this->getCurrentFile()).filename();
+      this->outputFile = (fs::path(sourceFile) += fs::path(".inc.cpp"));
+    }
+  }
 
   virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance&,
                                                          StringRef) override
@@ -62,9 +77,7 @@ public:
 
   virtual void EndSourceFileAction() override
   {
-
-    std::string sourceFile = this->getCurrentFile();
-    std::string transformedFile = sourceFile.append(".inc.cpp");
+    const std::string transformedFile = (transformDir /= outputFile).string();
 
     std::error_code error;
     llvm::raw_fd_ostream output{
@@ -79,6 +92,9 @@ public:
                                                 this->getCompilerInstance().getPreprocessorOutputOpts());
   }
 
+private:
+  fs::path transformDir;
+  fs::path outputFile;
 };
 
 class HipsyclDiagConsumer : public clang::DiagnosticConsumer {
@@ -107,14 +123,32 @@ public:
 };
 
 
+class IncludeRewriterFrontendActionFactory : public clang::tooling::FrontendActionFactory
+{
+public:
+  void setTransformDir(std::string dir) { transformDir = dir; }
+  void setMainOutputFile(std::string file) { outputFile = file; }
+
+  clang::FrontendAction *create() override
+  {
+    return new IncludeRewriter(transformDir, outputFile);
+  }
+
+private:
+  std::string transformDir;
+  std::string outputFile;
+};
+
 int main(int argc, const char** argv)
 {
   CommonOptionsParser op(argc, argv, llvm::cl::GeneralCategory);
 
   ClangTool tool(op.getCompilations(), op.getSourcePathList());
 
+  IncludeRewriterFrontendActionFactory includeRewriterFactory;
+
   ArgumentsAdjuster adjuster =
-      [](const CommandLineArguments& args,StringRef) -> CommandLineArguments
+      [&includeRewriterFactory](const CommandLineArguments& args,StringRef)
   {
     CommandLineArguments modifiedArgs;
 
@@ -123,14 +157,27 @@ int main(int argc, const char** argv)
       if(arg.find("--rewrite-include-paths=")==0)
       {
         auto whitelistedPath = arg.substr(std::string("--rewrite-include-paths=").size());
-        
+
         hipsycl::transform::RewriteSelectorWhitelist::get().addToWhitelist(whitelistedPath);
         hipsycl::transform::RewriteSelectorWhitelist::get().enable();
+        continue;
       }
-      else
+
+      if(arg.find("--hipsycl-transform-dir=")==0)
       {
-        modifiedArgs.push_back(arg);
+        auto transformDir = arg.substr(std::string("--hipsycl-transform-dir=").size());
+        includeRewriterFactory.setTransformDir(transformDir);
+        continue;
       }
+
+      if(arg.find("--hipsycl-main-output-file=")==0)
+      {
+        auto mainOutputFile = arg.substr(std::string("--hipsycl-main-output-file=").size());
+        includeRewriterFactory.setMainOutputFile(mainOutputFile);
+        continue;
+      }
+
+      modifiedArgs.push_back(arg);
     }
 
 
@@ -149,6 +196,6 @@ int main(int argc, const char** argv)
   HipsyclDiagConsumer* diag = new HipsyclDiagConsumer;
   tool.setDiagnosticConsumer(diag);
 
-  return tool.run(newFrontendActionFactory<IncludeRewriter>().get());
+  return tool.run(&includeRewriterFactory);
 
 }

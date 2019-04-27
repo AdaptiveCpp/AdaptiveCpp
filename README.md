@@ -1,7 +1,9 @@
-# hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
+# hipSYCL - an implementation of SYCL over NVIDIA CUDA, AMD HIP and OpenMP
 [![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=master)](https://travis-ci.com/illuhad/hipSYCL)
 
-The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that builds upon NVIDIA CUDA/AMD HIP. hipSYCL consists of a source-to-source transformation toolchain to automatically convert SYCL code into CUDA/HIP code behind the scenes, and an implementation of a SYCL runtime that runs on top of CUDA/HIP. The actual compilation step is then carried out with the regular NVIDIA and AMD compilers for CUDA and ROCm, which allows hipSYCL applications to make use of all the latest CUDA and ROCm features (e.g. intrinsics). This approach also guarantees compatibility of hipSYCL applications with established and well-supported vendor tools (e.g. profilers) and libraries in the NVIDIA and AMD ecosystems.
+The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that builds upon NVIDIA CUDA, AMD HIP and OpenMP. hipSYCL consists of a source-to-source transformation toolchain to automatically convert SYCL code into CUDA/HIP/OpenMP code behind the scenes, and an implementation of a SYCL runtime that runs on top of them. 
+
+The actual compilation step is then carried out with the regular NVIDIA and AMD compilers for CUDA and ROCm, which allows hipSYCL applications to make use of all the latest CUDA and ROCm features (e.g. intrinsics). This approach also guarantees compatibility of hipSYCL applications with established and well-supported vendor tools (e.g. profilers) and libraries in the NVIDIA and AMD ecosystems.
 
 ## Why use hipSYCL over raw CUDA/HIP?
 * hipSYCL provides a modern C++ API, including automatic resource management via reference counting semantics (see the SYCL spec for more details). No more worrying about missing cudaFree() calls. Unlike CUDA/HIP, (hip)SYCL does not require explicitly marking functions as `__host__` or `__device__` - the SYCL compiler will figure that out on its own.

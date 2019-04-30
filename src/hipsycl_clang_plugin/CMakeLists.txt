@@ -24,9 +24,9 @@ target_include_directories(hipSYCL_clang PRIVATE
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS})
 
-target_link_libraries(hipsycl_rewrite_includes
+target_link_libraries(hipSYCL_clang
   ${LLVM_LIBS}
-  ${Boost_LIBRARIES})
+  ${Boost_LIBRARIES} -Wl,-znodelete)
 
 install(TARGETS hipSYCL_clang
         LIBRARY DESTINATION lib

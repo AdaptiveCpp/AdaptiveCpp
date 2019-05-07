@@ -248,8 +248,11 @@ private:
                     << "AST Processing: Marking variable as __shared__ in "
                     << F->getAsFunction()->getQualifiedNameAsString()
                     << std::endl;
-                if (!V->hasAttr<clang::CUDASharedAttr>())
-                  V->addAttr(clang::CUDASharedAttr::CreateImplicit(Instance.getASTContext()));
+                if (!V->hasAttr<clang::CUDASharedAttr>()) {
+                  V->addAttr(clang::CUDASharedAttr::CreateImplicit(
+                      Instance.getASTContext()));
+                  V->setStorageClass(clang::SC_Static);
+                }
               }
               
             }

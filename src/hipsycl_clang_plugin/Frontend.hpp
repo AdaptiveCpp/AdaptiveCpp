@@ -171,7 +171,8 @@ private:
     }
     else if(f->hasAttr<clang::CUDADeviceAttr>())
     {
-      CompilationStateManager::getASTPassState().addExplicitDeviceFunction(MangledName);
+      if(!f->getAttr<clang::CUDADeviceAttr>()->isImplicit())
+        CompilationStateManager::getASTPassState().addExplicitDeviceFunction(MangledName);
     }
     else if(f->hasAttr<clang::CUDAGlobalAttr>())
     {

@@ -44,79 +44,99 @@ template <int dimensions = 1>
 struct group
 {
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id<dimensions>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id(dimension);
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size<dimensions>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size(dimension);
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#endif
   }
 
   // Note: This returns the number of groups
   // in each dimension - the spec wrongly claims that it should
   // return the range "of the current group", i.e. the local range
   // which makes no sense.
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_group_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size<dimensions>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_group_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size(dimension);
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t operator[](int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id(dimension);
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_linear() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(get_id(),
                                               get_group_range());
+#endif
   }
 
   template<typename workItemFunctionT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
     h_item<dimensions> idx;
     func(idx);
     // We need implicit synchonization semantics
-    __syncthreads();
+    mem_fence();
   }
 
   /// \todo Flexible ranges are currently unsupported.
@@ -129,68 +149,70 @@ struct group
 
 
   template <access::mode accessMode = access::mode::read_write>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     __syncthreads();
+#endif
   }
 
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
     size_t local_size = get_local_range().size();
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i];
-    __syncthreads();
+    mem_fence();
 
     return device_event{};
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
     size_t local_size = get_local_range().size();
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i];
-    __syncthreads();
+    mem_fence();
 
     return device_event{};
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
     size_t local_size = get_local_range().size();
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i] = src[i * srcStride];
-    __syncthreads();
+    mem_fence();
 
     return device_event{};
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
     size_t local_size = get_local_range().size();
     for(size_t i = get_linear(); i < numElements; i += local_size)
       dest[i * destStride] = src[i];
-    __syncthreads();
+    mem_fence();
 
     return device_event{};
   }
 
   template <typename... eventTN>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void wait_for(eventTN...) const {}
 
   //group(id<dimensions>* offset) = default;

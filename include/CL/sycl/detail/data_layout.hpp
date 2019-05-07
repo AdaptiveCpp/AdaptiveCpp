@@ -41,14 +41,14 @@ namespace sycl {
 namespace detail {
 
 
-inline __host__ __device__ size_t get_linear_id(const size_t id_x,
+inline HIPSYCL_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
                                                 const size_t id_y,
                                                 const size_t range_y)
 {
   return id_x * range_y + id_y;
 }
 
-inline __host__ __device__ size_t get_linear_id(const size_t id_x,
+inline HIPSYCL_UNIVERSAL_TARGET size_t get_linear_id(const size_t id_x,
                                                 const size_t id_y,
                                                 const size_t id_z,
                                                 const size_t range_y,
@@ -65,11 +65,11 @@ struct linear_id
 template<>
 struct linear_id<1>
 {
-  static __host__ __device__ size_t get(const id<1>& idx)
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<1>& idx)
   { return idx[0]; }
 
-  static __host__ __device__ size_t get(const id<1>& idx,
-                                        const sycl::range<1>& r)
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<1>& idx,
+                                            const sycl::range<1>& r)
   {
     return get(idx);
   }
@@ -78,7 +78,7 @@ struct linear_id<1>
 template<>
 struct linear_id<2>
 {
-  static __host__ __device__ size_t get(const id<2>& idx,
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<2>& idx,
                                         const sycl::range<2>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), r.get(1));
@@ -88,7 +88,7 @@ struct linear_id<2>
 template<>
 struct linear_id<3>
 {
-  static __host__ __device__ size_t get(const id<3>& idx,
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<3>& idx,
                                         const sycl::range<3>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), idx.get(2), r.get(1), r.get(2));

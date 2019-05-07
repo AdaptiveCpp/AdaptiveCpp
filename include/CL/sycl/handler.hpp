@@ -60,13 +60,13 @@ namespace dispatch {
 
 
 template<class Function>
-__global__ void single_task_kernel(Function f)
+__sycl_kernel void single_task_kernel(Function f)
 {
   f();
 }
 
 template<int dimensions, bool with_offset>
-__device__
+HIPSYCL_KERNEL_TARGET
 bool item_is_in_range(const item<dimensions, with_offset>& item,
                       const sycl::range<dimensions>& execution_range,
                       const id<dimensions>& offset)
@@ -81,37 +81,57 @@ bool item_is_in_range(const item<dimensions, with_offset>& item,
   return true;
 }
 
+// This helper function is necessary because we cannot
+// call device functions directly from __sycl_kernel functions
+// with the clang plugin, since they are initially treated
+// as host functions.
+// TODO: Find a nicer solution for that.
+template<int dimensions>
+HIPSYCL_KERNEL_TARGET
+inline id<dimensions> get_global_id_helper()
+{
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+  return detail::get_global_id<dimensions>();
+#else
+  return id<dimensions>{};
+#endif
+}
+
 template<int dimensions, class Function>
-__global__ void parallel_for_kernel(Function f,
-                                    sycl::range<dimensions> execution_range)
+__sycl_kernel 
+void parallel_for_kernel(Function f,
+                        sycl::range<dimensions> execution_range)
 {
   auto this_item = detail::make_item<dimensions>(
-    detail::get_global_id<dimensions>(), execution_range);
+    get_global_id_helper<dimensions>(), execution_range);
   if(item_is_in_range(this_item, execution_range, id<dimensions>{}))
     f(this_item);
 }
 
 template<int dimensions, class Function>
-__global__ void parallel_for_kernel_with_offset(Function f,
-                                                sycl::range<dimensions> execution_range,
-                                                id<dimensions> offset)
+__sycl_kernel 
+void parallel_for_kernel_with_offset(Function f,
+                                    sycl::range<dimensions> execution_range,
+                                    id<dimensions> offset)
 {
   auto this_item = detail::make_item<dimensions>(
-    detail::get_global_id<dimensions>(), execution_range, offset);
+    get_global_id_helper<dimensions>(), execution_range, offset);
   if(item_is_in_range(this_item, execution_range, offset))
     f(this_item);
 }
 
 template<int dimensions, class Function>
-__global__ void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
+__sycl_kernel
+void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
 {
   nd_item<dimensions> this_item{&offset};
   f(this_item);
 }
 
 template<int dimensions, class Function>
-__global__ void parallel_for_workgroup(Function f,
-                                       sycl::range<dimensions> work_group_size)
+__sycl_kernel 
+void parallel_for_workgroup(Function f,
+                            sycl::range<dimensions> work_group_size)
 {
   group<dimensions> this_group;
   f(this_group);
@@ -192,9 +212,9 @@ void set_args(Ts &&... args);
         -> detail::task_state
     {
       stream->activate_device();
-      hipLaunchKernelGGL(detail::dispatch::single_task_kernel,
-                        1,1,shared_mem_size,stream->get_stream(),
-                        kernelFunc);
+      __hipsycl_launch_kernel(detail::dispatch::single_task_kernel,
+                              1,1,shared_mem_size,stream->get_stream(),
+                              kernelFunc);
 
       return detail::task_state::enqueued;
     };
@@ -518,6 +538,7 @@ private:
   }
 
   template <typename KernelType, int dimensions>
+  __host__
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
                                       KernelType kernelFunc)
   {
@@ -534,9 +555,9 @@ private:
     {
       stream->activate_device();
 
-      hipLaunchKernelGGL(detail::dispatch::parallel_for_kernel,
-                        grid, block, shared_mem_size, stream->get_stream(),
-                        kernelFunc, numWorkItems);
+      __hipsycl_launch_kernel(detail::dispatch::parallel_for_kernel,
+                            grid, block, shared_mem_size, stream->get_stream(),
+                            kernelFunc, numWorkItems);
 
       return detail::task_state::enqueued;
     };
@@ -546,6 +567,7 @@ private:
   }
 
   template <typename KernelType, int dimensions>
+  __host__
   void dispatch_kernel_with_offset(range<dimensions> numWorkItems,
                                    id<dimensions> offset,
                                    KernelType kernelFunc)
@@ -564,7 +586,7 @@ private:
     {
       stream->activate_device();
 
-      hipLaunchKernelGGL(detail::dispatch::parallel_for_kernel_with_offset,
+      __hipsycl_launch_kernel(detail::dispatch::parallel_for_kernel_with_offset,
                         grid, block, shared_mem_size, stream->get_stream(),
                         kernelFunc, numWorkItems, offset);
 
@@ -577,6 +599,7 @@ private:
 
 
   template <typename KernelType, int dimensions>
+  __host__
   void dispatch_ndrange_kernel(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
     for(int i = 0; i < dimensions; ++i)
@@ -602,7 +625,7 @@ private:
     {
       stream->activate_device();
 
-      hipLaunchKernelGGL(detail::dispatch::parallel_for_ndrange_kernel,
+      __hipsycl_launch_kernel(detail::dispatch::parallel_for_ndrange_kernel,
                         grid, block, shared_mem_size, stream->get_stream(),
                         kernelFunc, offset);
 
@@ -614,6 +637,7 @@ private:
   }
 
   template <typename WorkgroupFunctionType, int dimensions>
+  __host__
   void dispatch_hierarchical_kernel(range<dimensions> numWorkGroups,
                                     range<dimensions> workGroupSize,
                                     WorkgroupFunctionType kernelFunc)
@@ -632,7 +656,7 @@ private:
     {
       stream->activate_device();
 
-      hipLaunchKernelGGL(detail::dispatch::parallel_for_workgroup,
+      __hipsycl_launch_kernel(detail::dispatch::parallel_for_workgroup,
                         grid, block, shared_mem_size, stream->get_stream(),
                         kernelFunc, workGroupSize);
 

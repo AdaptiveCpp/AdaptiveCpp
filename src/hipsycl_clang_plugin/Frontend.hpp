@@ -163,18 +163,25 @@ private:
       }
     }
   
-
+    std::string MangledName = getMangledName(f);
     if(CustomAttributes::SyclKernel.isAttachedTo(f))
     {
       markAsKernel(f); 
+      CompilationStateManager::getASTPassState().addKernelFunction(MangledName);
+    }
+    else if(f->hasAttr<clang::CUDADeviceAttr>())
+    {
+      CompilationStateManager::getASTPassState().addExplicitDeviceFunction(MangledName);
+    }
+    else if(f->hasAttr<clang::CUDAGlobalAttr>())
+    {
+      CompilationStateManager::getASTPassState().addKernelFunction(MangledName);
     }
     // If functions don't have any cuda attributes, implicitly
     // treat them as __host__ __device__ and let the IR transformation pass
     // later prune them if they are not called on device.
     // For this, we store each modified function in the CompilationStateManager.
-    else if(!f->hasAttr<clang::CUDAHostAttr>() && 
-            !f->hasAttr<clang::CUDAGlobalAttr>() &&
-            !f->hasAttr<clang::CUDADeviceAttr>())
+    else if(!f->hasAttr<clang::CUDAHostAttr>())
     {
 
       if(!f->isVariadic() /*&& 
@@ -185,8 +192,6 @@ private:
 
                           
         markAsHostDevice(f);
-
-        std::string MangledName = getMangledName(f);
         CompilationStateManager::getASTPassState().addImplicitHostDeviceFunction(
           MangledName);
       }

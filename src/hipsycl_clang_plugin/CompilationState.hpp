@@ -35,8 +35,9 @@ namespace hipsycl {
 
 class ASTPassState
 {
-
   std::unordered_set<std::string> ImplicitlyMarkedHostDeviceFunctions;
+  std::unordered_set<std::string> ExplicitDeviceFunctions;
+  std::unordered_set<std::string> KernelFunctions;
   bool IsDeviceCompilation;
 public:
   ASTPassState()
@@ -58,10 +59,32 @@ public:
     ImplicitlyMarkedHostDeviceFunctions.insert(Name);
   }
 
+  void addKernelFunction(const std::string& Name)
+  {
+    KernelFunctions.insert(Name);
+  }
+
+  void addExplicitDeviceFunction(const std::string& Name)
+  {
+    ExplicitDeviceFunctions.insert(Name);
+  }
+
   bool isImplicitlyHostDevice(const std::string& FunctionName) const
   {
     return ImplicitlyMarkedHostDeviceFunctions.find(FunctionName) 
       != ImplicitlyMarkedHostDeviceFunctions.end();
+  }
+
+  bool isExplicitlyDevice(const std::string& FunctionName) const
+  {
+    return ExplicitDeviceFunctions.find(FunctionName)
+      != ExplicitDeviceFunctions.end();
+  }
+
+  bool isKernel(const std::string& FunctionName) const
+  {
+    return KernelFunctions.find(FunctionName)
+      != KernelFunctions.end();
   }
 
 };

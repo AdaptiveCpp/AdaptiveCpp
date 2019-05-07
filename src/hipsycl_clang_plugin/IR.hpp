@@ -131,8 +131,10 @@ private:
     // code due to explicit attributes and not due to us
     // marking the function implicitly as __host__ __device__
     if (const llvm::Function *F = llvm::dyn_cast<llvm::Function>(U)) {
-      if (!CompilationStateManager::getASTPassState().isImplicitlyHostDevice(
-              F->getName().str())) {
+      HIPSYCL_DEBUG_INFO << "   -> depends on " << F->getName().str() << std::endl;
+      if (CompilationStateManager::getASTPassState().isKernel(F->getName().str()) 
+        || CompilationStateManager::getASTPassState().isExplicitlyDevice(F->getName().str())) {
+        HIPSYCL_DEBUG_INFO << "    (is kernel or explicitly __device__, keeping function)" << std::endl;
         return false;
       }
     } 
@@ -147,6 +149,7 @@ private:
 
   bool canFunctionBeRemoved(const llvm::Function& F) const
   {
+    HIPSYCL_DEBUG_INFO << "Investigating function: " << F.getName().str() << std::endl;
     return canUserBeRemoved(&F);
   }
 

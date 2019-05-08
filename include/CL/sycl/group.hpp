@@ -49,6 +49,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
   }
 
@@ -57,6 +59,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -65,6 +69,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -73,6 +79,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -81,6 +89,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -89,6 +99,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -101,6 +113,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -109,6 +123,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -117,6 +133,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -126,6 +144,8 @@ struct group
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(get_id(),
                                               get_group_range());
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -155,6 +175,8 @@ struct group
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     __syncthreads();
+#else
+    detail::invalid_host_call();
 #endif
   }
 

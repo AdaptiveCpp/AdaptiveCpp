@@ -61,6 +61,13 @@ public:
       detail::get_global_id<dimensions>(),
       detail::get_global_size<dimensions>()
     );
+#else
+    assert(false && "Host execution when compiling for CUDA/HIP is unsupported");
+    return detail::invalid_host_call_dummy_return(
+      detail::make_item<dimensions>(
+        id<dimensions>{},
+        range<dimensions>{}));
+    
 #endif
   }
 
@@ -88,6 +95,11 @@ public:
       detail::get_local_id<dimensions>(),
       detail::get_global_size<dimensions>()
     );
+#else
+    return detail::invalid_host_call_dummy_return(
+      detail::make_item<dimensions>(
+        id<dimensions>{},
+        range<dimensions>{}));
 #endif
   }
 
@@ -96,6 +108,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -104,6 +118,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -112,6 +128,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
   }
 
@@ -120,6 +138,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -128,6 +148,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -136,6 +158,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -144,6 +168,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
   }
 
@@ -152,6 +178,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -161,6 +189,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -170,6 +200,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -179,6 +211,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
   }
 
@@ -187,6 +221,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -195,6 +231,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
 #endif
   }
 
@@ -203,6 +241,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 
@@ -211,6 +251,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
   }
 
@@ -219,6 +261,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 };

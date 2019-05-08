@@ -93,7 +93,7 @@ inline id<dimensions> get_global_id_helper()
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
   return detail::get_global_id<dimensions>();
 #else
-  return id<dimensions>{};
+  return detail::invalid_host_call_dummy_return<id<dimensions>>();
 #endif
 }
 

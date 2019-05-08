@@ -72,6 +72,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicExch(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -91,6 +93,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAdd(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -103,6 +107,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicSub(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -115,6 +121,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAnd(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -127,6 +135,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicOr(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -139,6 +149,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicXor(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -151,6 +163,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicMin(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -163,6 +177,8 @@ public:
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicMax(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 

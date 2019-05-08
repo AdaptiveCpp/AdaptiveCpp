@@ -116,6 +116,8 @@ size_t get_pointer_offset(const sycl::accessor<dataT, dimensions,
 
 } // accessor
 
+
+
 class accessor_base
 {
 public:

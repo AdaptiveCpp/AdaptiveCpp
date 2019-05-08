@@ -208,7 +208,7 @@ public:
 
   using element_type = dataT;
 
-#ifdef __SYCL_DEVICE_ONLY__
+#ifdef SYCL_DEVICE_ONLY
   using vector_t = vec<dataT, numElements>;
 #endif
   HIPSYCL_UNIVERSAL_TARGET
@@ -241,10 +241,11 @@ public:
 
   vec(const vec<dataT, numElements> &rhs) = default;
 
-#ifdef __SYCL_DEVICE_ONLY__
-  vec(vector_t openclVector);
-  operator vector_t() const;
-#endif
+  // OpenCL interop is unsupported
+//#ifdef SYCL_DEVICE_ONLY
+  //vec(vector_t openclVector);
+  //operator vector_t() const;
+//#endif
 
   // Available only when: numElements == 1
   template<int N = numElements,

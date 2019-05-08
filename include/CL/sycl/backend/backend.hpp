@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_BACKEND_HPP
 #define HIPSYCL_BACKEND_HPP
 
+#include <cassert>
+
 // Use this macro to detect hipSYCL from SYCL code
 #define __HIPSYCL__
 
@@ -87,4 +89,30 @@
  #define __hipsycl_launch_kernel hipLaunchKernelGGL
 #endif
 
-#endif
+namespace cl {
+namespace sycl {
+namespace detail {
+
+
+inline void invalid_host_call()
+{
+  assert(false && "Host execution when compiling for CUDA/HIP is unsupported");
+}
+
+template <class T> inline T invalid_host_call_dummy_return(const T& t)
+{
+  invalid_host_call();
+  return t;
+}
+
+template <class T> inline T invalid_host_call_dummy_return()
+{
+  invalid_host_call();
+  return T{};
+}
+
+} // namespace detail
+} // namespace sycl
+} // namespace cl
+
+#endif // HIPSYCL_BACKEND_HPP

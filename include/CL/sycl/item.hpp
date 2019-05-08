@@ -159,6 +159,8 @@ struct item<dimensions, false> : detail::item_base<dimensions>
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(this->global_id,
       this->global_size);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
 #endif
   }
 

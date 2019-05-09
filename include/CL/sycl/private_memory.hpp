@@ -38,11 +38,11 @@ template<typename T, int Dimensions = 1>
 class private_memory
 {
 public:
-  __device__
+  HIPSYCL_KERNEL_TARGET
   private_memory(const group<Dimensions>&)
   {}
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   T& operator()(const h_item<Dimensions>&)
   {
     return _data;

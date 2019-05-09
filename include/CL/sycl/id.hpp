@@ -47,7 +47,7 @@ struct item;
 template <int dimensions = 1>
 struct id {
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id()
     : _data{}
   {}
@@ -56,7 +56,7 @@ struct id {
    * specialization where: dimensions==1 */
   template<int D = dimensions,
            typename = std::enable_if_t<D == 1>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0)
     : _data{dim0}
   {}
@@ -65,7 +65,7 @@ struct id {
    * specialization where: dimensions==2 */
   template<int D = dimensions,
            typename = std::enable_if_t<D == 2>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0, size_t dim1)
     : _data{dim0, dim1}
   {}
@@ -74,50 +74,52 @@ struct id {
    * specialization where: dimensions==3 */
   template<int D = dimensions,
            typename = std::enable_if_t<D == 3>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0, size_t dim1, size_t dim2)
     : _data{dim0, dim1, dim2}
   {}
 
   /* -- common interface members -- */
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(const id<dimensions>& other)
     : _data{other._data}
   {}
 
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator==(const id<dimensions>& rhs) const {
     return _data == rhs._data;
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator!=(const id<dimensions>& rhs) const {
     return _data != rhs._data;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(const range<dimensions> &range) {
     for(std::size_t i = 0; i < dimensions; ++i)
       this->_data[i] = range[i];
   }
 
   template<bool with_offset>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id(const item<dimensions, with_offset> &item) {
     for(std::size_t i = 0; i < dimensions; ++i)
       this->_data[i] = item.get_id(i);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get(int dimension) const {
     return this->_data[dimension];
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t& operator[](int dimension) {
     return this->_data[dimension];
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t operator[](int dimension) const {
     return this->_data[dimension];
   }
@@ -125,7 +127,7 @@ struct id {
   // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(op) \
-  __host__ __device__  \
+  HIPSYCL_UNIVERSAL_TARGET  \
   id<dimensions> operator op(const id<dimensions> &rhs) const { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
@@ -151,7 +153,7 @@ struct id {
   HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(>=)
 
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(op) \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   id<dimensions> operator op(const std::size_t &rhs) const { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
@@ -180,7 +182,7 @@ struct id {
   // Implementation of id<dimensions> &operatorOP(const id<dimensions> &rhs);
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE(op) \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   id<dimensions>& operator op(const id<dimensions> &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs._data[i]; \
@@ -199,7 +201,7 @@ struct id {
   HIPSYCL_ID_BINARY_OP_IN_PLACE(^=)
 
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op) \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   id<dimensions>& operator op(const std::size_t &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       _data[i] op rhs; \
@@ -222,7 +224,7 @@ private:
 
 #define HIPSYCL_ID_BINARY_OP_SIZE_T(op) \
   template<int dimensions> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   id<dimensions> operator op(const size_t &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \

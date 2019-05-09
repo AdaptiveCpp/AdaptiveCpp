@@ -42,12 +42,14 @@ enum class memory_order : int
   relaxed
 };
 
+/// \todo Atomics are only partially implemented. In particular, there's no
+/// code path on host at the moment!
 template <typename T, access::address_space addressSpace =
           access::address_space::global_space>
 class atomic {
 public:
   template <typename pointerT>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   atomic(multi_ptr<pointerT, addressSpace> ptr)
     : _ptr{reinterpret_cast<T*>(ptr.get())}
   {
@@ -56,24 +58,28 @@ public:
   }
 
   /// \todo unimplemented
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile;
 
   /// \todo unimplemented
-  __device__
+  HIPSYCL_KERNEL_TARGET
   T load(memory_order memoryOrder = memory_order::relaxed) const volatile;
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicExch(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   /// \todo unimplemented
-  __device__
+  HIPSYCL_KERNEL_TARGET
   bool compare_exchange_strong(T &expected, T desired,
                                memory_order successMemoryOrder = memory_order::relaxed,
                                memory_order failMemoryOrder = memory_order::relaxed) volatile;
@@ -81,71 +87,99 @@ public:
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_add(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAdd(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_sub(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicSub(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_and(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAnd(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_or(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicOr(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_xor(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicXor(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   t fetch_min(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicMin(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
   /* Available only when: T != float */
   template<class t = T,
            std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicMax(_ptr.get(), operand);
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
   }
 
 private:
@@ -154,7 +188,7 @@ private:
 
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 void atomic_store(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                   memory_order::relaxed)
 {
@@ -162,7 +196,7 @@ void atomic_store(atomic<T, addressSpace> object, T operand, memory_order memory
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_load(atomic<T, addressSpace> object, memory_order memoryOrder =
               memory_order::relaxed)
 {
@@ -170,7 +204,7 @@ T atomic_load(atomic<T, addressSpace> object, memory_order memoryOrder =
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_exchange(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                   memory_order::relaxed)
 {
@@ -178,7 +212,7 @@ T atomic_exchange(atomic<T, addressSpace> object, T operand, memory_order memory
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 bool atomic_compare_exchange_strong(atomic<T, addressSpace> object, T &expected, T desired,
                                     memory_order successMemoryOrder = memory_order::relaxed,
                                     memory_order failMemoryOrder = memory_order::relaxed)
@@ -188,7 +222,7 @@ bool atomic_compare_exchange_strong(atomic<T, addressSpace> object, T &expected,
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_add(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {
@@ -196,7 +230,7 @@ T atomic_fetch_add(atomic<T, addressSpace> object, T operand, memory_order memor
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_sub(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {
@@ -204,7 +238,7 @@ T atomic_fetch_sub(atomic<T, addressSpace> object, T operand, memory_order memor
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_and(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {
@@ -212,7 +246,7 @@ T atomic_fetch_and(atomic<T, addressSpace> object, T operand, memory_order memor
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_or(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                   memory_order::relaxed)
 {
@@ -220,7 +254,7 @@ T atomic_fetch_or(atomic<T, addressSpace> object, T operand, memory_order memory
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_xor(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {
@@ -228,7 +262,7 @@ T atomic_fetch_xor(atomic<T, addressSpace> object, T operand, memory_order memor
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_min(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {
@@ -236,7 +270,7 @@ T atomic_fetch_min(atomic<T, addressSpace> object, T operand, memory_order memor
 }
 
 template <typename T, access::address_space addressSpace>
-__device__
+HIPSYCL_KERNEL_TARGET
 T atomic_fetch_max(atomic<T, addressSpace> object, T operand, memory_order memoryOrder =
                    memory_order::relaxed)
 {

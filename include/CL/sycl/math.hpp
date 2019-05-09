@@ -41,25 +41,25 @@ namespace sycl {
   std::enable_if_t<std::is_floating_point<template_param>::value>* = nullptr
 
 #define HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x) { return HIPSYCL_STD_FUNCTION(float_func)(x); } \
-  __device__ inline double name(double x) { return HIPSYCL_STD_FUNCTION(double_func)(x); }
+  HIPSYCL_KERNEL_TARGET inline float name(float x) { return HIPSYCL_STD_FUNCTION(float_func)(x); } \
+  HIPSYCL_KERNEL_TARGET inline double name(double x) { return HIPSYCL_STD_FUNCTION(double_func)(x); }
 
 #define HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x, float y){ return HIPSYCL_STD_FUNCTION(float_func)(x,y); } \
-  __device__ inline double name(double x, double y){ return HIPSYCL_STD_FUNCTION(double_func)(x,y); }
+  HIPSYCL_KERNEL_TARGET inline float name(float x, float y){ return HIPSYCL_STD_FUNCTION(float_func)(x,y); } \
+  HIPSYCL_KERNEL_TARGET inline double name(double x, double y){ return HIPSYCL_STD_FUNCTION(double_func)(x,y); }
 
 #define HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  __device__ inline float name(float x, float y, float z)\
+  HIPSYCL_KERNEL_TARGET inline float name(float x, float y, float z)\
   { return HIPSYCL_STD_FUNCTION(float_func)(x,y,z); } \
   \
-  __device__ inline double name(double x, double y, double z)\
+  HIPSYCL_KERNEL_TARGET inline double name(double x, double y, double z)\
   { return HIPSYCL_STD_FUNCTION(double_func)(x,y,z); }
 
 
 #define HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(name, func) \
   template<class float_type, int N,\
            HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)> \
-  __device__ \
+  HIPSYCL_KERNEL_TARGET \
   inline vec<float_type,N> name(const vec<float_type, N>& v) {\
     vec<float_type,N> result = v; \
     detail::transform_vector(result, \
@@ -70,7 +70,7 @@ namespace sycl {
 #define HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(name, func) \
   template<class float_type, int N, \
            HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)> \
-  __device__ \
+  HIPSYCL_KERNEL_TARGET \
   inline vec<float_type, N> name(const vec<float_type, N>& a, \
                                  const vec<float_type, N>& b) {\
     return detail::binary_vector_operation(a,b,\
@@ -80,7 +80,7 @@ namespace sycl {
 #define HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(name, func) \
   template<class float_type, int N, \
            HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)> \
-  __device__ \
+  HIPSYCL_KERNEL_TARGET \
   inline vec<float_type, N> name(const vec<float_type, N>& a, \
                                  const vec<float_type, N>& b, \
                                  const vec<float_type, N>& c) {\
@@ -105,23 +105,27 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acos)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acosh)
 
 template<class T>
-inline __device__ T acospi(const T& x) { return acos(x)/M_PI; }
+inline HIPSYCL_KERNEL_TARGET T acospi(const T& x) 
+{ return acos(x)/M_PI; }
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(asin)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(asinh)
 
 template<class T>
-inline __device__ T asinpi(const T& x) { return asin(x)/M_PI; }
+inline HIPSYCL_KERNEL_TARGET T asinpi(const T& x) 
+{ return asin(x)/M_PI; }
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(atan)
 HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(atan2)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(atanh)
 
 template<class T>
-inline __device__ T atanpi(const T& x) { return atan(x)/M_PI; }
+inline HIPSYCL_KERNEL_TARGET T atanpi(const T& x) 
+{ return atan(x)/M_PI; }
 
 template<class T>
-inline __device__ T atan2pi(const T& x, const T& y) { return atan2(x,y)/M_PI; }
+inline HIPSYCL_KERNEL_TARGET T atan2pi(const T& x, const T& y) 
+{ return atan2(x,y)/M_PI; }
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(cbrt)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(ceil)
@@ -130,7 +134,8 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(cos)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(cosh)
 
 template<class T>
-inline __device__ T cospi(const T& x) { return cos(M_PI * x); }
+inline HIPSYCL_KERNEL_TARGET T cospi(const T& x) 
+{ return cos(M_PI * x); }
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(erf)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(erfc)
@@ -149,7 +154,7 @@ HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(fmax)
 
 template<class float_type, int N,
          HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
-__device__
+HIPSYCL_KERNEL_TARGET
 inline vec<float_type, N> fmin(const vec<float_type, N>& a,
                                float_type b) {
   return fmin(a, vec<float_type,N>{b});
@@ -157,7 +162,7 @@ inline vec<float_type, N> fmin(const vec<float_type, N>& a,
 
 template<class float_type, int N,
          HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
-__device__
+HIPSYCL_KERNEL_TARGET
 inline vec<float_type, N> fmax(const vec<float_type, N>& a,
                                float_type b) {
   return fmax(a, vec<float_type,N>{b});
@@ -211,14 +216,15 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sin)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sinh)
 
 template<class T>
-inline __device__ T sinpi(const T& x) { return sin(M_PI * x); }
+inline HIPSYCL_KERNEL_TARGET 
+T sinpi(const T& x) { return sin(M_PI * x); }
 
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(sqrt)
 
 template<typename float_type,
          HIPSYCL_ENABLE_IF_FLOATING_POINT(float_type)>
-__device__
+HIPSYCL_KERNEL_TARGET
 inline float_type rsqrt(float_type x)
 { return static_cast<float_type>(1.f) / sqrt(x); }
 
@@ -228,7 +234,8 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tan)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tanh)
 
 template<class T>
-inline __device__ T tanpi(const T& x) { return tan(M_PI * x); }
+inline HIPSYCL_KERNEL_TARGET 
+T tanpi(const T& x) { return tan(M_PI * x); }
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(tgamma)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(trunc)

@@ -41,7 +41,7 @@ struct h_item
 {
   friend struct group<dimensions>;
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   h_item(){}
 public:
   /* -- common interface members -- */
@@ -53,16 +53,25 @@ public:
   /// does this imply that we have one "global id" per group? Or should
   /// it take into account the number of threads that the implementation
   /// internally spawns? For the moment, we use the latter interpretation.
-  __device__
+  HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_global() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::make_item<dimensions>(
       detail::get_global_id<dimensions>(),
       detail::get_global_size<dimensions>()
     );
+#else
+    assert(false && "Host execution when compiling for CUDA/HIP is unsupported");
+    return detail::invalid_host_call_dummy_return(
+      detail::make_item<dimensions>(
+        id<dimensions>{},
+        range<dimensions>{}));
+    
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_local() const
   {
     return get_logical_local();
@@ -72,118 +81,189 @@ public:
   ///
   /// \todo This currently always returns the physical local id
   /// since flexible work group ranges are currently unsupported.
-  __device__
+  HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_logical_local() const
   {
     return get_physical_local();
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_physical_local() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::make_item<dimensions>(
       detail::get_local_id<dimensions>(),
       detail::get_global_size<dimensions>()
     );
+#else
+    return detail::invalid_host_call_dummy_return(
+      detail::make_item<dimensions>(
+        id<dimensions>{},
+        range<dimensions>{}));
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_global_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
   /// \todo This always returns the physical range.
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_logical_local_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
   /// \todo This always returns the physical range.
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_logical_local_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
   /// \todo This always returns the physical id
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_logical_local_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_logical_local_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_physical_local_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_physical_local_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 };
 

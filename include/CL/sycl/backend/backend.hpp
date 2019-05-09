@@ -29,11 +29,20 @@
 #ifndef HIPSYCL_BACKEND_HPP
 #define HIPSYCL_BACKEND_HPP
 
+#include <cassert>
+
+// Use this macro to detect hipSYCL from SYCL code
+#define __HIPSYCL__
+
+// First, make sure the right HIP headers are included
 #ifdef __HIPSYCL_TRANSFORM__
+// During legacy source-to-source transformation,
+// include hipCPU since we treat all SYCL code as host
+// code during parsing.
  #include <hipCPU/hip/hip_runtime.h>
 #else
- #define __HIPSYCL__
-
+// Otherwise include regular HIP headers if compiling
+// for GPU, and hipCPU if compiling for CPU
  #if defined(__CUDACC__)
   #define HIPSYCL_PLATFORM_CUDA
   #include <hip/hip_runtime.h>
@@ -44,12 +53,66 @@
   #define HIPSYCL_PLATFORM_CPU
   #include <hipCPU/hip/hip_runtime.h>
  #endif
-
 #endif
 
+// Use this macro to mark functions that should be available
+// everywhere - kernels and host.
+#define HIPSYCL_UNIVERSAL_TARGET __host__ __device__
 
-//#ifdef __HIP_DEVICE_COMPILE__
-//#define __HIPSYCL_DEVICE__
-//#endif
+// Use this macro to mark function that should be available
+// in kernel code.
+//
+// On nvcc, there are more restrictions for __host__ __device__
+// lambdas - do we want to have __device__ as kernel target
+// in manual mode?
+#define HIPSYCL_KERNEL_TARGET __host__ __device__
 
+
+#ifdef __HIP_DEVICE_COMPILE__
+ #define __HIPSYCL_DEVICE__
+ #define SYCL_DEVICE_ONLY
 #endif
+
+#if defined(__HIPCPU__) || defined(SYCL_DEVICE_ONLY)
+ // Use this to check if __device__ functions are available.
+ // This is not the same as SYCL_DEVICE_ONLY, since hipCPU when
+ // compiling for host also exposes __device__ functions!
+ #define __HIPSYCL_DEVICE_CALLABLE__
+#endif
+
+// This macro _must_ be defined when compiling with the hipSYCL
+// clang plugin.
+#ifdef HIPSYCL_CLANG
+ #include "clang.hpp"
+#else
+ #define __sycl_kernel __global__
+ #define __hipsycl_launch_kernel hipLaunchKernelGGL
+#endif
+
+namespace cl {
+namespace sycl {
+namespace detail {
+
+
+inline void invalid_host_call()
+{
+  assert(false && "Host execution when compiling for CUDA/HIP is unsupported");
+}
+
+template <class T> inline T invalid_host_call_dummy_return(const T& t)
+{
+  invalid_host_call();
+  return t;
+}
+
+template <class T> inline T invalid_host_call_dummy_return()
+{
+  invalid_host_call();
+  return T{};
+}
+
+} // namespace detail
+} // namespace sycl
+} // namespace cl
+
+#endif // HIPSYCL_BACKEND_HPP

@@ -39,7 +39,7 @@ template<int dimensions = 1>
 struct nd_range
 {
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   nd_range(range<dimensions> globalSize,
            range<dimensions> localSize,
            id<dimensions> offset = id<dimensions>())
@@ -49,27 +49,27 @@ struct nd_range
       _offset{offset}
   {}
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_global() const
   { return _global_range; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_global_range() const
   { return get_global(); }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_local() const
   { return _local_range; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_local_range() const
   { return get_local(); }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_group() const
   { return _num_groups; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id<dimensions> get_offset() const
   { return _offset; }
 

@@ -26,10 +26,35 @@
  */
 
 #include "CL/sycl/detail/application.hpp"
+#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/device.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
+
+runtime& application::get_hipsycl_runtime()
+{
+  return *rt;
+}
+
+task_graph& application::get_task_graph()
+{
+  return get_hipsycl_runtime().get_task_graph();
+}
+
+void application::reset()
+{
+  rt.reset();
+  rt = std::make_unique<runtime>();
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HCC)
+  const auto devices = device::get_devices(info::device_type::all);
+  for(auto& d : devices) {
+    detail::set_device(d);
+    hipDeviceReset();
+  }
+#endif
+}
 
 std::unique_ptr<runtime> application::rt = std::make_unique<runtime>();
 

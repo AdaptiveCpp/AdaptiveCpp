@@ -448,9 +448,15 @@ bool InclusionRewriter::HandleHasInclude(
       Includers;
   Includers.push_back(std::make_pair(FileEnt, FileEnt->getDir()));
   // FIXME: Why don't we call PP.LookupFile here?
+#if LLVM_VERSION_MAJOR > 8
+  const FileEntry *File = PP.getHeaderSearchInfo().LookupFile(
+      Filename, SourceLocation(), isAngled, Lookup, CurDir, Includers, nullptr,
+      nullptr, nullptr, nullptr, nullptr, nullptr);
+#else
   const FileEntry *File = PP.getHeaderSearchInfo().LookupFile(
       Filename, SourceLocation(), isAngled, Lookup, CurDir, Includers, nullptr,
       nullptr, nullptr, nullptr, nullptr);
+#endif
 
   FileExists = File != nullptr;
   return true;

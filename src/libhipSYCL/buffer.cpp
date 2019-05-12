@@ -77,7 +77,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
 buffer_impl::buffer_impl(size_t buffer_size,
                          device_alloc_mode device_mode,
-                         host_alloc_mode host_alloc_mode)
+                         host_alloc_mode host_mode)
   : _svm{false},
     _pinned_memory{false},
     _owns_host_memory{false},
@@ -87,8 +87,8 @@ buffer_impl::buffer_impl(size_t buffer_size,
     _write_back_memory{nullptr}
 {
   if((device_mode == device_alloc_mode::svm &&
-      host_alloc_mode != host_alloc_mode::svm) ||
-     (host_alloc_mode == host_alloc_mode::svm &&
+      host_mode != host_alloc_mode::svm) ||
+     (host_mode == host_alloc_mode::svm &&
       device_mode != device_alloc_mode::svm))
     throw invalid_parameter_error{"buffer_impl: SVM allocation must be enabled on both host and device side"};
 
@@ -100,7 +100,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
     throw unimplemented{"SVM allocation is currently only supported on CUDA"};
 #endif
 
-  if(host_alloc_mode != host_alloc_mode::svm)
+  if(host_mode != host_alloc_mode::svm)
     _owns_host_memory = true;
 
   if(_svm)
@@ -116,7 +116,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
   {
     if(_owns_host_memory)
     {
-      if(host_alloc_mode == host_alloc_mode::allow_pinned)
+      if(host_mode == host_alloc_mode::allow_pinned)
       {
         // Try pinned memory
         if(hipHostMalloc(&_host_memory, _size, hipHostMallocDefault) == hipSuccess)

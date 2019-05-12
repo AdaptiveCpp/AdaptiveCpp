@@ -98,16 +98,20 @@ public:
   using address = local_memory_allocator::address;
 
   template<class T>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
-#ifdef __HIPCPU__
+#ifdef SYCL_DEVICE_ONLY
+    extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
+    return reinterpret_cast<T*>(reinterpret_cast<char*>(local_mem_data) + addr);
+#elif defined(__HIPCPU__)
     local_memory_allocator::smallest_type* local_mem_data =
       static_cast<local_memory_allocator::smallest_type*>(HIP_DYNAMIC_SHARED_MEMORY);
-#else
-    extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
-#endif
     return reinterpret_cast<T*>(reinterpret_cast<char*>(local_mem_data) + addr);
+#else
+    // The __host__ case without hipCPU is not yet supported
+    return nullptr;
+#endif
   }
 };
 

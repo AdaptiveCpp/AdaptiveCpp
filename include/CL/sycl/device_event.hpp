@@ -28,16 +28,18 @@
 #ifndef HIPSYCL_DEVICE_EVENT_HPP
 #define HIPSYCL_DEVICE_EVENT_HPP
 
+#include "backend/backend.hpp"
+
 namespace cl {
 namespace sycl {
 
 class device_event
 {
 public:
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event(){}
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void wait(){}
 };
 

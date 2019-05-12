@@ -168,11 +168,11 @@ struct vector_accessor
 template<class T, int N>                 \
 struct vector_accessor<T,N,index> \
 { \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   static T& get(typename intrinsic_vector<T,N>::type& v) \
   { return v.element_name; } \
 \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   static T get(const typename intrinsic_vector<T,N>::type& v) \
   { return v.element_name; } \
 }
@@ -367,7 +367,7 @@ HIPSYCL_DEFINE_VECTOR_ACCESSOR(3, w);
   lhs.data3.w op scalar
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR1(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP1(result, (*this), rhs, op); \
@@ -375,7 +375,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR2(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP2(result, (*this), rhs, op); \
@@ -383,7 +383,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR3(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP3(result, (*this), rhs, op); \
@@ -391,7 +391,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR4(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP4(result, (*this), rhs, op); \
@@ -399,7 +399,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR8(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP8(result, (*this), rhs, op); \
@@ -407,7 +407,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_OPERATOR16(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const vector_impl& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_OP16(result, (*this), rhs, op); \
@@ -415,7 +415,7 @@ vector_impl operator op(const vector_impl& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR1(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP1(result, (*this), rhs, op); \
@@ -423,7 +423,7 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR2(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP2(result, (*this), rhs, op); \
@@ -431,7 +431,7 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR3(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP3(result, (*this), rhs, op); \
@@ -439,7 +439,7 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR4(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP4(result, (*this), rhs, op); \
@@ -447,7 +447,7 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR8(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP8(result, (*this), rhs, op); \
@@ -455,7 +455,7 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_VECTOR_SCALAR_OPERATOR16(T,op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl operator op(const T& rhs) const { \
   vector_impl result; \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_OP16(result, (*this), rhs, op); \
@@ -463,42 +463,42 @@ vector_impl operator op(const T& rhs) const { \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR1(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR2(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP2((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR3(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP3((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR4(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP4((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR8(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP8((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_INPLACE_OPERATOR16(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const vector_impl& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_INPLACE_OP16((*this), rhs, op); \
   return *this; \
@@ -506,42 +506,42 @@ vector_impl& operator op(const vector_impl& rhs) { \
 
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR1(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR2(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP2((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR3(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP3((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR4(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP4((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR8(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP1((*this), rhs, op); \
   return *this; \
 }
 
 #define HIPSYCL_DEFINE_BINARY_COMPONENTWISE_SCALAR_INPLACE_OPERATOR16(op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 vector_impl& operator op(const T& rhs) { \
   HIPSYCL_BINARY_COMPONENTWISE_VECTOR_SCALAR_INPLACE_OP16((*this), rhs, op); \
   return *this; \
@@ -550,7 +550,7 @@ vector_impl& operator op(const T& rhs) { \
 #define HIPSYCL_DEFINE_BINARY_LOGICAL_OPERATOR(helper_name, op) \
 private: \
 template<int... Indices> \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 auto helper_name(vector_index_sequence<Indices...>, \
                  const vector_impl& rhs) const { \
   using result_type = typename logical_vector_op_result<T>::type; \
@@ -562,19 +562,19 @@ auto helper_name(vector_index_sequence<Indices...>, \
   return result; \
 } \
 public: \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 auto operator op(const vector_impl& rhs) const { \
   return helper_name(indices(), rhs); \
 }
 
 #define HIPSYCL_DEFINE_UNARY_OPERATOR(helper_name, return_type, op) \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 auto operator op() const { \
   return helper_name(indices()); \
 } \
 private: \
 template<int... Indices> \
-__host__ __device__ \
+HIPSYCL_UNIVERSAL_TARGET \
 auto helper_name(vector_index_sequence<Indices...>) const { \
   vector_impl<return_type, dimension> result; \
   auto dummy_initializer = { \
@@ -604,7 +604,7 @@ struct vector_impl<T,1>
                  "Required intrinsic type does not exist");
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     static_assert (component < 1, "Component must be smaller than "
@@ -613,7 +613,7 @@ struct vector_impl<T,1>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     static_assert (component < 1, "Component must be smaller than "
@@ -622,19 +622,19 @@ struct vector_impl<T,1>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data.x = f(data.x);
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -643,7 +643,7 @@ struct vector_impl<T,1>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,
@@ -808,7 +808,7 @@ struct vector_impl<T,2>
                  "Required intrinsic type does not exist");
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     static_assert (component < 2, "Component must be smaller than "
@@ -817,7 +817,7 @@ struct vector_impl<T,2>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     static_assert (component < 2, "Component must be smaller than "
@@ -826,12 +826,12 @@ struct vector_impl<T,2>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data.x = f(data.x);
@@ -839,7 +839,7 @@ struct vector_impl<T,2>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -849,7 +849,7 @@ struct vector_impl<T,2>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,
@@ -1013,7 +1013,7 @@ struct vector_impl<T,3>
                  "Required intrinsic type does not exist");
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     static_assert (component < 3, "Component must be smaller than "
@@ -1022,7 +1022,7 @@ struct vector_impl<T,3>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     static_assert (component < 3, "Component must be smaller than "
@@ -1031,12 +1031,12 @@ struct vector_impl<T,3>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data.x = f(data.x);
@@ -1045,7 +1045,7 @@ struct vector_impl<T,3>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -1056,7 +1056,7 @@ struct vector_impl<T,3>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,
@@ -1221,7 +1221,7 @@ struct vector_impl<T,4>
                  "Required intrinsic type does not exist");
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     static_assert (component < 4, "Component must be smaller than "
@@ -1230,7 +1230,7 @@ struct vector_impl<T,4>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     static_assert (component < 4, "Component must be smaller than "
@@ -1239,12 +1239,12 @@ struct vector_impl<T,4>
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data.x = f(data.x);
@@ -1254,7 +1254,7 @@ struct vector_impl<T,4>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -1266,7 +1266,7 @@ struct vector_impl<T,4>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,
@@ -1426,12 +1426,12 @@ template<class T> \
 struct vector_multi_accessor<T,Index> \
 { \
   template<class Vector_type>   \
-  __host__ __device__           \
+  HIPSYCL_UNIVERSAL_TARGET           \
   static T& get(Vector_type& v) \
   { return v.value; }           \
                                 \
   template<class Vector_type>   \
-  __host__ __device__           \
+  HIPSYCL_UNIVERSAL_TARGET           \
   static T get(const Vector_type& v) \
   { return v.value; } \
 }
@@ -1469,26 +1469,26 @@ struct vector_impl<T,8>
   static constexpr int dimension = 8;
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     return vector_multi_accessor<T, component>::get(*this);
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     return vector_multi_accessor<T, component>::get(*this);
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data0.x = f(data0.x);
@@ -1503,7 +1503,7 @@ struct vector_impl<T,8>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -1521,7 +1521,7 @@ struct vector_impl<T,8>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,
@@ -1696,26 +1696,26 @@ struct vector_impl<T,16>
   static constexpr int dimension = 16;
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& get()
   {
     return vector_multi_accessor<T, component>::get(*this);
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T get() const
   {
     return vector_multi_accessor<T, component>::get(*this);
   }
 
   template<int component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const T& x)
   { get<component>() = x; }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void transform(Function f)
   {
     data0.x = f(data0.x);
@@ -1740,7 +1740,7 @@ struct vector_impl<T,16>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl binary_operation(Function f, const vector_impl& other) const
   {
     vector_impl result;
@@ -1768,7 +1768,7 @@ struct vector_impl<T,16>
   }
 
   template<class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static vector_impl trinary_operation(Function f,
                                        const vector_impl& a,
                                        const vector_impl& b,

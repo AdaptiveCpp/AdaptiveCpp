@@ -63,45 +63,45 @@ struct vec_swizzled_access
   using linear_indices_container =
     typename vector_impl<dataT, swizzled_vec_size>::indices;
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec_swizzled_access(vector_impl<dataT, Original_vec_size>& vector_ref)
     : _data{vector_ref}
   {}
 
   /// Sets the original vector to the given vector by applying the swizzle
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(const vector_impl<dataT, swizzled_vec_size>& data)
   { set(linear_indices_container{}, data); }
 
   /// Get a swizzled vector from the original vector
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl<dataT, swizzled_vec_size>
   get() const
   { return get(linear_indices_container{}); }
 
   /// \return The vector object that this swizzle refers to
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl<dataT, Original_vec_size>& get_vector() const
   { return _data; }
 
   template<int Component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_swizzle_index()
   { return swizzle_index_accessor<Component, Access_indices...>::value; }
 
   template<int Component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT& get_component()
   { return _data.template get<get_swizzle_index<Component>()>(); }
 
   template<int Component>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT get_component() const
   { return _data.template get<get_swizzle_index<Component>()>(); }
 
 private:
   template<int... Linear_sequence>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vector_impl<dataT, swizzled_vec_size>
   get(vector_index_sequence<Linear_sequence...>) const
   {
@@ -115,7 +115,7 @@ private:
   }
 
   template<int... Linear_sequence>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void set(vector_index_sequence<Linear_sequence...>,
            const vector_impl<dataT, swizzled_vec_size>& new_data)
   {
@@ -134,7 +134,7 @@ template<class T,
 class vec_swizzle
 {
   template<int... swizzleIndices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto swizzle_index_sequence(detail::vector_index_sequence<swizzleIndices...>) const
   {
     return swizzle<swizzleIndices...>();
@@ -153,11 +153,11 @@ public:
   using swizzled_access_type =
       vec_swizzled_access<T, Original_vec_size, Access_indices...>;
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   swizzled_access_type& swizzled_access() const
   { return const_cast<swizzled_access_type&>(_swizzled_access); }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   explicit vec_swizzle(vector_impl<T,Original_vec_size>& vector_ref)
     : _swizzled_access{vector_ref}
   {}
@@ -165,12 +165,12 @@ public:
   vec_swizzle() = delete;
   vec_swizzle& operator=(const vec_swizzle&) = delete;
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec_swizzle& operator=(const vec<T,N>&);
 
   template<int Rhs_original_vec_size,
            int... Rhs_access_indices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec_swizzle& operator=(vec_swizzle<T, Rhs_original_vec_size, Rhs_access_indices...>&& rhs)
   {
     _swizzled_access.set(rhs.swizzled_access().get());
@@ -179,15 +179,15 @@ public:
 
   template<int n = N,
            std::enable_if_t<n == 1>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   operator T() const
   { return _swizzled_access.get_vector().template get<0>(); }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_count() const
   { return N; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_size() const
   { return get_count() * sizeof(T); }
 
@@ -202,13 +202,13 @@ public:
 #define HIPSYCL_DEFINE_SWIZZLE_ACCESS_IF(condition, name, id) \
   template<int n = N, \
            std::enable_if_t<(id < n) && (condition)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   T& name() \
   { return _swizzled_access.template get_component<id>(); } \
   \
   template<int n = N, \
            std::enable_if_t<(id < n) && (condition)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   T name() const \
   { return _swizzled_access.template get_component<id>(); }
 
@@ -241,7 +241,7 @@ public:
 
   // ToDo Think about constness
   template<int... swizzleIndices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto swizzle() const
   {
     return vec_swizzle<T, Original_vec_size,
@@ -252,7 +252,7 @@ public:
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto lo() const
   {
     return swizzle_index_sequence(
@@ -261,7 +261,7 @@ public:
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto hi() const
   {
     return swizzle_index_sequence(
@@ -270,7 +270,7 @@ public:
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto even() const
   {
     return swizzle_index_sequence(
@@ -279,7 +279,7 @@ public:
 
   template<int n = N,
            std::enable_if_t<(n > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto odd() const
   {
     return swizzle_index_sequence(
@@ -852,11 +852,11 @@ public:
 
   // ToDo: load and store member functions
   template <access::address_space addressSpace>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void load(size_t offset, multi_ptr<T, addressSpace> ptr);
 
   template <access::address_space addressSpace>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void store(size_t offset, multi_ptr<T, addressSpace> ptr) const;
 
 private:

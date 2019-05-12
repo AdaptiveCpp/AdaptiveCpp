@@ -46,26 +46,26 @@ struct device_array
   // There seem to be problems with aggregate initialization with hcc?
   template<size_t n = N,
            std::enable_if_t<n == 1>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   explicit device_array(T x)
     : _data{x}
   {}
 
   template<size_t n = N,
            std::enable_if_t<n == 2>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   device_array(T x, T y)
     : _data{x,y}
   {}
 
   template<size_t n = N,
            std::enable_if_t<n == 3>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   device_array(T x, T y, T z)
     : _data{x,y,z}
   {}
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   device_array()
     : _data{}
   {}
@@ -73,7 +73,7 @@ struct device_array
 #endif
 
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   device_array& operator=(const device_array& other) noexcept
   {
     for(size_t i = 0; i < N; ++i)
@@ -81,49 +81,49 @@ struct device_array
     return *this;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& operator[] (size_t i) noexcept
   {
     return _data[i];
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const T& operator[] (size_t i) const noexcept
   {
     return _data[i];
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t size() const noexcept
   {
     return N;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   iterator begin() noexcept
   {
     return &(_data[0]);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const_iterator begin() const noexcept
   {
     return &(_data[0]);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   iterator end() noexcept
   {
     return begin() + N;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const_iterator end() const noexcept
   {
     return begin() + N;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator== (const device_array& other) const noexcept
   {
     for(size_t i = 0; i < N; ++i)
@@ -132,7 +132,7 @@ struct device_array
     return true;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
@@ -149,59 +149,59 @@ struct device_array<T, 0>
   using const_iterator = const T*;
 
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   device_array& operator=(const device_array&) noexcept
   {}
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t size() const noexcept
   {
     return 0;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator== (const device_array&) const noexcept
   {
     return true;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   T& operator[] (size_t) noexcept
   {
     return *reinterpret_cast<T*>(0);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const T& operator[] (size_t) const noexcept
   {
     return *reinterpret_cast<T*>(0);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   iterator begin() noexcept
   {
     return nullptr;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const_iterator begin() const noexcept
   {
     return nullptr;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   iterator end() noexcept
   {
     return nullptr;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   const_iterator end() const noexcept
   {
     return nullptr;

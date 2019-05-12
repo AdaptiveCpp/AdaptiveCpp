@@ -44,17 +44,17 @@ namespace detail {
 
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline void transform_vector(vec<T,N>& v, Function f);
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline vec<T,N> binary_vector_operation(const vec<T,N>& a,
                                         const vec<T,N>& b,
                                         Function f);
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline vec<T,N> trinary_vector_operation(const vec<T,N>& a,
                                          const vec<T,N>& b,
                                          const vec<T,N>& c,
@@ -99,18 +99,18 @@ template <typename dataT, int numElements>
 class vec
 {
   template<class T, int N, class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   friend void detail::transform_vector(vec<T,N>& v,
                                        Function f);
 
   template<class T, int N, class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   friend vec<T,N> detail::binary_vector_operation(const vec<T,N>& a,
                                                   const vec<T,N>& b,
                                                   Function f);
 
   template<class T, int N, class Function>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   friend vec<T,N> detail::trinary_vector_operation(const vec<T,N>& a,
                                                    const vec<T,N>& b,
                                                    const vec<T,N>& c,
@@ -119,14 +119,14 @@ class vec
   template<class T, int N>
   friend class vec;
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   explicit vec(const detail::vector_impl<dataT,numElements>& v)
     : _impl{v}
   {}
 
   /// Initialization from numElements scalars
   template<int... Indices, typename... Args>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void scalar_init(detail::vector_index_sequence<Indices...>, Args... args)
   {
     static_assert(sizeof...(args) == numElements,
@@ -138,14 +138,14 @@ class vec
 
   /// Initialization from single scalar
   template<int... Indices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void broadcast_scalar_init(detail::vector_index_sequence<Indices...>, dataT x)
   {
     auto dummy_initializer = { ((_impl.template set<Indices>(x)), 0)... };
   }
 
   template<int Start_index, int N, int... Indices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr void init_from_vec(detail::vector_index_sequence<Indices...>,
                      const vec<dataT,N>& other)
   {
@@ -157,7 +157,7 @@ class vec
   }
 
   template<int Start_index, int N>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr void init_from_vec(const vec<dataT,N>& other)
   {
     init_from_vec<Start_index>(typename detail::vector_impl<dataT,N>::indices(),
@@ -165,7 +165,7 @@ class vec
   }
 
   template<int Position>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr void init_from_argument()
   {
     static_assert (Position == numElements, "Invalid number of vector "
@@ -173,7 +173,7 @@ class vec
   }
 
   template<int Position, typename... Args>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr void init_from_argument(dataT scalar,
                                     const Args&... args)
   {
@@ -182,7 +182,7 @@ class vec
   }
 
   template<int Position, int N, typename... Args>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr void init_from_argument(const vec<dataT,N>& v,
                                     const Args&... args)
   {
@@ -191,7 +191,7 @@ class vec
   }
 
   template<int... swizzleIndices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto swizzle_index_sequence(detail::vector_index_sequence<swizzleIndices...>) const
   {
     return swizzle<swizzleIndices...>();
@@ -208,23 +208,23 @@ public:
 
   using element_type = dataT;
 
-#ifdef __SYCL_DEVICE_ONLY__
+#ifdef SYCL_DEVICE_ONLY
   using vector_t = vec<dataT, numElements>;
 #endif
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec()
     : _impl {}
   {}
 
   template<int Original_vector_size,
            int... Swizzle_indices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec(const detail::vec_swizzle<dataT, Original_vector_size, Swizzle_indices...>&
       swizzled_vec)
     : _impl{swizzled_vec.swizzled_access().get()}
   {}
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   explicit vec(const dataT &arg)
   {
     broadcast_scalar_init(typename detail::vector_impl<dataT,numElements>::indices(),
@@ -232,7 +232,7 @@ public:
   }
 
   template <typename... argTN>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec(const argTN&... args)
   {
     init_from_argument<0>(args...);
@@ -241,23 +241,24 @@ public:
 
   vec(const vec<dataT, numElements> &rhs) = default;
 
-#ifdef __SYCL_DEVICE_ONLY__
-  vec(vector_t openclVector);
-  operator vector_t() const;
-#endif
+  // OpenCL interop is unsupported
+//#ifdef SYCL_DEVICE_ONLY
+  //vec(vector_t openclVector);
+  //operator vector_t() const;
+//#endif
 
   // Available only when: numElements == 1
   template<int N = numElements,
            std::enable_if_t<N == 1>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   operator dataT() const
   { return _impl.template get<0>(); }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_count() const
   { return numElements; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_size() const
   { return numElements * sizeof (dataT); }
 
@@ -272,13 +273,13 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_ACCESS_IF(condition, name, id) \
   template<int N = numElements, \
            std::enable_if_t<(id < N) && (condition)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   dataT& name() \
   { return _impl.template get<id>(); } \
   \
   template<int N = numElements, \
            std::enable_if_t<(id < N) && (condition)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   dataT name() const \
   { return _impl.template get<id>(); }
 
@@ -311,7 +312,7 @@ public:
 
 
   template<int... swizzleIndexes>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto swizzle() const
   {
     return detail::vec_swizzle<dataT, numElements, swizzleIndexes...>{
@@ -321,7 +322,7 @@ public:
 
   template<int N = numElements,
            std::enable_if_t<(N > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto lo() const
   {
     return swizzle_index_sequence(
@@ -330,7 +331,7 @@ public:
 
   template<int N = numElements,
            std::enable_if_t<(N > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto hi() const
   {
     return swizzle_index_sequence(
@@ -339,7 +340,7 @@ public:
 
   template<int N = numElements,
            std::enable_if_t<(N > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto even() const
   {
     return swizzle_index_sequence(
@@ -348,7 +349,7 @@ public:
 
   template<int N = numElements,
            std::enable_if_t<(N > 1)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto odd() const
   {
     return swizzle_index_sequence(
@@ -359,21 +360,21 @@ public:
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE2(name, i0, i1) \
   template<int n = numElements, \
            std::enable_if_t<(n == 2)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE3(name, i0, i1, i2) \
   template<int n = numElements, \
            std::enable_if_t<(n == 3)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1,i2>(); }
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE4(name, i0, i1, i2, i3) \
   template<int n = numElements, \
            std::enable_if_t<(n == 4)>* = nullptr> \
-  __host__ __device__ \
+  HIPSYCL_UNIVERSAL_TARGET \
   auto name() const \
   {return swizzle<i0,i1,i2,i3>(); }
 
@@ -926,50 +927,50 @@ public:
 
   // ToDo: load and store member functions
   template <access::address_space addressSpace>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void load(size_t offset, multi_ptr<dataT, addressSpace> ptr);
   template <access::address_space addressSpace>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   void store(size_t offset, multi_ptr<dataT, addressSpace> ptr) const;
 
   // OP is: +, -, *, /, %
   /* When OP is % available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator+(const vec<dataT, numElements> &rhs) const
   { return vec<dataT,numElements>{_impl + rhs._impl}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator-(const vec<dataT, numElements> &rhs) const
   { return vec<dataT,numElements>{_impl - rhs._impl}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator*(const vec<dataT, numElements> &rhs) const
   { return vec<dataT,numElements>{_impl * rhs._impl}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator/(const vec<dataT, numElements> &rhs) const
   { return vec<dataT,numElements>{_impl / rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator%(const vec<dataT, numElements> &rhs) const
   { return vec<dataT,numElements>{_impl % rhs._impl}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator+(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl + rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator-(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl - rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator*(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl * rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator/(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl / rhs}; }
 
@@ -977,62 +978,62 @@ public:
   // OP is: +=, -=, *=, /=, %=
   /* When OP is %= available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator+=(const vec<dataT, numElements> &rhs)
   { _impl += rhs._impl; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator-=(const vec<dataT, numElements> &rhs)
   { _impl -= rhs._impl; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator*=(const vec<dataT, numElements> &rhs)
   { _impl *= rhs._impl; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator/=(const vec<dataT, numElements> &rhs)
   { _impl /= rhs._impl; return *this; }
 
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator%=(const vec<dataT, numElements> &rhs)
   { _impl %= rhs._impl; return *this; }
 
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator+=(const dataT &rhs)
   { _impl += rhs; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator-=(const dataT &rhs)
   { _impl -= rhs; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator*=(const dataT &rhs)
   { _impl *= rhs; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator/=(const dataT &rhs)
   { _impl /= rhs; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator%=(const dataT &rhs)
   { _impl %= rhs; return *this; }
 
   // OP is: ++, --
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator++()
   { *this += 1; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator--()
   { *this -= 1; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator++(int)
   {
     vec<dataT, numElements> old = *this;
@@ -1040,7 +1041,7 @@ public:
     return old;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator--(int)
   {
     vec<dataT, numElements> old = *this;
@@ -1054,37 +1055,37 @@ public:
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator&(const vec<dataT,numElements> &rhs) const
   { return vec<dataT,numElements>{_impl & rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator|(const vec<dataT,numElements> &rhs) const
   { return vec<dataT,numElements>{_impl | rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator^(const vec<dataT,numElements> &rhs) const
   { return vec<dataT,numElements>{_impl ^ rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator&(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl & rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator|(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl | rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> operator^(const dataT &rhs) const
   { return vec<dataT,numElements>{_impl ^ rhs}; }
 
@@ -1093,41 +1094,41 @@ public:
 && dataT != cl_half. */
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator&=(const vec<dataT,numElements>& rhs) const
   { _impl &= rhs._impl; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator|=(const vec<dataT,numElements>& rhs) const
   { _impl |= rhs._impl; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator^=(const vec<dataT,numElements>& rhs) const
   { _impl ^= rhs._impl; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator&=(const dataT& rhs) const
   { _impl &= rhs; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator|=(const dataT& rhs) const
   { _impl |= rhs; return *this; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator^=(const dataT& rhs) const
   { _impl ^= rhs; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator&& (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1138,7 +1139,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator|| (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1150,11 +1151,11 @@ public:
   }
 
   // OP is: &&, ||
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator&& (const dataT &rhs) const
   { return (*this) && vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator|| (const dataT &rhs) const
   { return (*this) || vec<dataT,numElements>{rhs}; }
 
@@ -1164,25 +1165,25 @@ public:
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT,numElements> operator <<(const vec<dataT, numElements>& rhs) const
   { return vec<dataT,numElements>{_impl << rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT,numElements> operator >>(const vec<dataT, numElements>& rhs) const
   { return vec<dataT,numElements>{_impl >> rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT,numElements> operator <<(const dataT& rhs) const
   { return vec<dataT,numElements>{_impl << rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT,numElements> operator >>(const dataT& rhs) const
   { return vec<dataT,numElements>{_impl >> rhs}; }
 
@@ -1191,29 +1192,29 @@ public:
 && dataT != cl_half. */
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator<<=(const vec<dataT, numElements> &rhs)
   { _impl <<= rhs._impl; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator>>=(const vec<dataT, numElements> &rhs)
   { _impl >>= rhs._impl; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator<<=(const dataT &rhs)
   { _impl <<= rhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator>>=(const dataT &rhs)
   { _impl >>= rhs; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator== (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1224,7 +1225,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator!= (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1235,7 +1236,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator< (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1246,7 +1247,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator> (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1257,7 +1258,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator<= (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1268,7 +1269,7 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator>= (const vec<dataT, numElements>& rhs) const
   {
     using result_type =
@@ -1279,27 +1280,27 @@ public:
     };
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator== (const dataT &rhs) const
   { return (*this) == vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator!= (const dataT &rhs) const
   { return (*this) != vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator< (const dataT &rhs) const
   { return (*this) < vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator> (const dataT &rhs) const
   { return (*this) > vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator<= (const dataT &rhs) const
   { return (*this) <= vec<dataT,numElements>{rhs}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator>= (const dataT &rhs) const
   { return (*this) >= vec<dataT,numElements>{rhs}; }
 
@@ -1308,21 +1309,21 @@ public:
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator~()
   { return vec<dataT, numElements>{~_impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   auto operator!()
   { return vec<dataT, numElements>{!_impl}; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator=(const vec<dataT, numElements> &rhs)
   { _impl = rhs._impl; return *this; }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator=(const dataT &rhs)
   {
     broadcast_scalar_init(typename detail::vector_impl<dataT,numElements>::indices(),
@@ -1332,7 +1333,7 @@ public:
 
   template<int Original_vec_size,
            int... Access_indices>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements>& operator=(
       const detail::vec_swizzle<dataT, Original_vec_size, Access_indices...>& swizzled_vec)
   {
@@ -1348,21 +1349,21 @@ private:
 
 // OP is: +, -, *, /, %
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator+ (const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
 { return rhs + lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator* (const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
 { return rhs * lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator- (const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
@@ -1370,7 +1371,7 @@ vec<dataT, numElements> operator- (const dataT &lhs,
 
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator/ (const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
@@ -1378,7 +1379,7 @@ vec<dataT, numElements> operator/ (const dataT &lhs,
 
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator% (const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
@@ -1390,7 +1391,7 @@ vec<dataT, numElements> operator% (const dataT &lhs,
 // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator&(const dataT& lhs,
                                   const vec<dataT, numElements>& rhs)
@@ -1398,7 +1399,7 @@ vec<dataT, numElements> operator&(const dataT& lhs,
 
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator|(const dataT& lhs,
                                   const vec<dataT, numElements>& rhs)
@@ -1406,7 +1407,7 @@ vec<dataT, numElements> operator|(const dataT& lhs,
 
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator^(const dataT& lhs,
                                   const vec<dataT, numElements>& rhs)
@@ -1415,14 +1416,14 @@ vec<dataT, numElements> operator^(const dataT& lhs,
 
 // OP is: &&, ||
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator&&(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs && lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator||(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
@@ -1433,7 +1434,7 @@ vec<dataT, numElements> operator||(const dataT& lhs,
 // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator<<(const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
@@ -1441,7 +1442,7 @@ vec<dataT, numElements> operator<<(const dataT &lhs,
 
 template <typename dataT, int numElements,
           std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator>>(const dataT &lhs,
                                    const vec<dataT, numElements> &rhs)
@@ -1450,42 +1451,42 @@ vec<dataT, numElements> operator>>(const dataT &lhs,
 
 // OP is: ==, !=, <, >, <=, >=
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator==(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs == lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator!=(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs != lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator< (const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs >= lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator<=(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs > lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator> (const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
 { return rhs <= lhs; }
 
 template <typename dataT, int numElements>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 inline
 vec<dataT, numElements> operator>=(const dataT& lhs,
                                    const vec<dataT, numElements>& rhs)
@@ -1529,14 +1530,14 @@ HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned long long, ulonglong);
 namespace detail {
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 void transform_vector(vec<T,N>& v, Function f)
 {
   v._impl.transform(f);
 }
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 vec<T,N> binary_vector_operation(const vec<T,N>& a,
                                  const vec<T,N>& b,
                                  Function f)
@@ -1545,7 +1546,7 @@ vec<T,N> binary_vector_operation(const vec<T,N>& a,
 }
 
 template<class T, int N, class Function>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 vec<T,N> trinary_vector_operation(const vec<T,N>& a,
                                   const vec<T,N>& b,
                                   const vec<T,N>& c,
@@ -1559,7 +1560,7 @@ vec<T,N> trinary_vector_operation(const vec<T,N>& a,
 template<class T,
          int Original_vec_size,
          int... Access_indices>
-__host__ __device__
+HIPSYCL_UNIVERSAL_TARGET
 vec_swizzle<T,Original_vec_size,Access_indices...>&
 vec_swizzle<T,Original_vec_size,Access_indices...>::operator=(
     const vec<T, vec_swizzle<T,Original_vec_size,Access_indices...>::N>& rhs)

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,63 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "clang/Frontend/FrontendPluginRegistry.h"
 
-#ifndef HIPSYCL_ND_RANGE_HPP
-#define HIPSYCL_ND_RANGE_HPP
+#include "FrontendPlugin.hpp"
+#include "IR.hpp"
 
-#include "range.hpp"
-#include "id.hpp"
+namespace hipsycl {
 
-namespace cl {
-namespace sycl {
+// Register and activate passes
 
-template<int dimensions = 1>
-struct nd_range
-{
-
-  HIPSYCL_UNIVERSAL_TARGET
-  nd_range(range<dimensions> globalSize,
-           range<dimensions> localSize,
-           id<dimensions> offset = id<dimensions>())
-    : _global_range{globalSize},
-      _local_range{localSize},
-      _num_groups{globalSize / localSize},
-      _offset{offset}
-  {}
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global() const
-  { return _global_range; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global_range() const
-  { return get_global(); }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local() const
-  { return _local_range; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local_range() const
-  { return get_local(); }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_group() const
-  { return _num_groups; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  id<dimensions> get_offset() const
-  { return _offset; }
-
-private:
-  const range<dimensions> _global_range;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
-  const id<dimensions> _offset;
+static clang::FrontendPluginRegistry::Add<hipsycl::FrontendASTAction> HipsyclFrontendPlugin{
+  "hipsycl_frontend", 
+  "enable hipSYCL frontend action"
 };
 
-
+static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &,
+                                          llvm::legacy::PassManagerBase &PM) {
+  PM.add(new FunctionPruningIRPass{});
 }
-}
 
-#endif
+static llvm::RegisterStandardPasses
+  RegisterFunctionPruningIRPass(llvm::PassManagerBuilder::EP_EarlyAsPossible,
+                                registerFunctionPruningIRPass);
+
+
+} // namespace hipsycl
+

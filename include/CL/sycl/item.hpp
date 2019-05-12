@@ -46,17 +46,20 @@ namespace detail {
 template <int dimensions>
 struct item_base
 {
-  __device__ item_base(const id<dimensions>& my_id,
+  HIPSYCL_KERNEL_TARGET 
+  item_base(const id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)
     : global_id{my_id}, global_size(global_size)
   {}
 
   /* -- common interface members -- */
 
-  __device__ sycl::range<dimensions> get_range() const
+  HIPSYCL_KERNEL_TARGET 
+  sycl::range<dimensions> get_range() const
   { return global_size; }
 
-  __device__ size_t get_range(int dimension) const
+  HIPSYCL_KERNEL_TARGET 
+  size_t get_range(int dimension) const
   { return global_size[dimension]; }
 
 protected:
@@ -65,7 +68,7 @@ protected:
 };
 
 template <int dimensions>
-__device__
+HIPSYCL_KERNEL_TARGET
 item<dimensions, true> make_item(const id<dimensions>& my_id,
   const sycl::range<dimensions>& global_size, const id<dimensions>& offset)
 {
@@ -73,7 +76,7 @@ item<dimensions, true> make_item(const id<dimensions>& my_id,
 }
 
 template <int dimensions>
-__device__
+HIPSYCL_KERNEL_TARGET
 item<dimensions, false> make_item(const id<dimensions>& my_id,
   const sycl::range<dimensions>& global_size)
 {
@@ -91,28 +94,28 @@ struct item<dimensions, true> : detail::item_base<dimensions>
 {
   /* -- common interface members -- */
 
-  __device__ id<dimensions> get_id() const
+  HIPSYCL_KERNEL_TARGET id<dimensions> get_id() const
   {
     return this->global_id + offset;
   }
 
-  __device__ size_t get_id(int dimension) const
+  HIPSYCL_KERNEL_TARGET size_t get_id(int dimension) const
   {
     return this->global_id[dimension] + offset[dimension];
   }
 
-  __device__ size_t operator[](int dimension)
+  HIPSYCL_KERNEL_TARGET size_t operator[](int dimension)
   {
     return this->global_id[dimension] + offset[dimension];
   }
 
-  __device__ size_t get_linear_id() const
+  HIPSYCL_KERNEL_TARGET size_t get_linear_id() const
   {
     return detail::linear_id<dimensions>::get(this->global_id + offset,
       this->global_size);
   }
 
-  __device__ id<dimensions> get_offset() const
+  HIPSYCL_KERNEL_TARGET id<dimensions> get_offset() const
   {
     return offset;
   }
@@ -120,10 +123,10 @@ struct item<dimensions, true> : detail::item_base<dimensions>
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc
-  friend __device__ item<dimensions, true> detail::make_item<dimensions>(
+  friend HIPSYCL_KERNEL_TARGET item<dimensions, true> detail::make_item<dimensions>(
     const id<dimensions>&, const _range<dimensions>&, const id<dimensions>&);
 
-  __device__ item(const id<dimensions>& my_id,
+  HIPSYCL_KERNEL_TARGET item(const id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size, const id<dimensions>& offset)
     : detail::item_base<dimensions>(my_id, global_size), offset{offset}
   {}
@@ -136,28 +139,32 @@ struct item<dimensions, false> : detail::item_base<dimensions>
 {
   /* -- common interface members -- */
 
-  __device__ id<dimensions> get_id() const
+  HIPSYCL_KERNEL_TARGET id<dimensions> get_id() const
   {
     return this->global_id;
   }
 
-  __device__ size_t get_id(int dimension) const
+  HIPSYCL_KERNEL_TARGET size_t get_id(int dimension) const
   {
     return this->global_id[dimension];
   }
 
-  __device__ size_t operator[](int dimension)
+  HIPSYCL_KERNEL_TARGET size_t operator[](int dimension)
   {
     return this->global_id[dimension];
   }
 
-  __device__ size_t get_linear_id() const
+  HIPSYCL_KERNEL_TARGET size_t get_linear_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(this->global_id,
       this->global_size);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__ operator item<dimensions, true>() const
+  HIPSYCL_KERNEL_TARGET operator item<dimensions, true>() const
   {
     return detail::make_item<dimensions>(this->global_id, this->global_size,
       id<dimensions>{});
@@ -166,10 +173,10 @@ struct item<dimensions, false> : detail::item_base<dimensions>
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc
-  friend __device__ item<dimensions, false> detail::make_item<dimensions>(
+  friend HIPSYCL_KERNEL_TARGET item<dimensions, false> detail::make_item<dimensions>(
     const id<dimensions>&, const _range<dimensions>&);
 
-  __device__ item(const id<dimensions>& my_id,
+  HIPSYCL_KERNEL_TARGET item(const id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)
     : detail::item_base<dimensions>(my_id, global_size)
   {}

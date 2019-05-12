@@ -48,128 +48,186 @@ struct nd_item
 {
   /* -- common interface members -- */
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_global() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id<dimensions>() + (*_offset);
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_id(dimension) + _offset->get(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global_id(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return get_global(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(get_global(), get_global_range());
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
     return get_local(dimension);
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
     return detail::linear_id<dimensions>::get(get_local(), get_local_range());
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   group<dimensions> get_group() const
   {
     return group<dimensions>{};
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_group(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_group_id(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::linear_id<dimensions>::get(detail::get_group_id<dimensions>(),
                                               detail::get_grid_size<dimensions>());
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_num_groups() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_num_groups(int dimension) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_grid_size(dimension);
+#else
+    return detail::invalid_host_call_dummy_return<size_t>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_global_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_size<dimensions>();
+#else
+    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   id<dimensions> get_offset() const
   {
     return *_offset;
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   nd_range<dimensions> get_nd_range() const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return nd_range<dimensions>{detail::get_global_size<dimensions>(),
                                 detail::get_local_size<dimensions>(),
                                 get_offset()};
+#else
+    return detail::invalid_host_call_dummy_return(nd_range<dimensions>{
+      range<dimensions>{}, range<dimensions>{}, id<dimensions>{}
+    });
+#endif
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void barrier(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
     __syncthreads();
+#else
+    detail::invalid_host_call();
+#endif
   }
 
   template <access::mode accessMode = access::mode::read_write>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
-    __syncthreads();
+    barrier(accessSpace);
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
@@ -177,7 +235,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
@@ -185,7 +243,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
@@ -194,7 +252,7 @@ struct nd_item
   }
 
   template <typename dataT>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
@@ -202,13 +260,13 @@ struct nd_item
   }
 
   template <typename... eventTN>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   void wait_for(eventTN... events) const
   {
     get_group().wait_for(events...);
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   nd_item(id<dimensions>* offset)
     : _offset{offset}
   {}

@@ -122,10 +122,10 @@ class accessor_base
 {
 public:
   // Should we allow default-constructing placeholder accessors?
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor_base()
   {
-#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
+#if !defined(SYCL_DEVICE_ONLY) && !defined(__HIPSYCL_TRANSFORM__)
     detail::accessor_tracker& tracker =
         application::get_hipsycl_runtime().get_accessor_tracker();
 
@@ -133,10 +133,10 @@ public:
 #endif
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor_base(const detail::buffer_ptr& buff)
   {
-#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
+#if !defined(SYCL_DEVICE_ONLY) && !defined(__HIPSYCL_TRANSFORM__)
     detail::accessor_tracker& tracker =
         application::get_hipsycl_runtime().get_accessor_tracker();
 
@@ -144,10 +144,10 @@ public:
 #endif
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor_base(const accessor_base& other)
   {
-#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
+#if !defined(SYCL_DEVICE_ONLY) && !defined(__HIPSYCL_TRANSFORM__)
     detail::accessor_tracker& tracker =
         application::get_hipsycl_runtime().get_accessor_tracker();
 
@@ -158,10 +158,10 @@ public:
 #endif
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor_base& operator=(const accessor_base& other)
   {
-#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
+#if !defined(SYCL_DEVICE_ONLY) && !defined(__HIPSYCL_TRANSFORM__)
     detail::accessor_tracker& tracker =
         application::get_hipsycl_runtime().get_accessor_tracker();
 
@@ -173,10 +173,10 @@ public:
     return *this;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   ~accessor_base()
   {
-#if !defined(__HIP_DEVICE_COMPILE__) && !defined(__HIPSYCL_TRANSFORM__)
+#if !defined(SYCL_DEVICE_ONLY) && !defined(__HIPSYCL_TRANSFORM__)
     detail::accessor_tracker& tracker =
         application::get_hipsycl_runtime().get_accessor_tracker();
 
@@ -342,7 +342,7 @@ access::target::constant_buffer)) && dimensions > 0 */
     _offset = accessOffset;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor(const accessor& other)
     : detail::accessor_base{other},
       _ptr{other._ptr},
@@ -351,7 +351,7 @@ access::target::constant_buffer)) && dimensions > 0 */
       _offset{other._offset}
   {}
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor& operator=(const accessor& other)
   {
     detail::accessor_base::operator=(other);
@@ -364,13 +364,13 @@ access::target::constant_buffer)) && dimensions > 0 */
 
 
   /* -- common interface members -- */
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr bool is_placeholder() const
   {
     return isPlaceholder == access::placeholder::true_t;
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_size() const
   {
     return get_count() * sizeof(dataT);
@@ -378,7 +378,7 @@ access::target::constant_buffer)) && dimensions > 0 */
 
   template<int D = dimensions,
            typename = std::enable_if_t<(D > 0)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_count() const
   {
     return _range.size();
@@ -386,14 +386,14 @@ access::target::constant_buffer)) && dimensions > 0 */
 
   template<int D = dimensions,
            std::enable_if_t<D == 0>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   size_t get_count() const
   { return 1; }
 
   /* Available only when: dimensions > 0 */
   template<int D = dimensions,
            std::enable_if_t<(D > 0)>* = nullptr>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   range<dimensions> get_range() const
   {
     return _range;
@@ -402,7 +402,7 @@ access::target::constant_buffer)) && dimensions > 0 */
   /* Available only when: dimensions > 0 */
   template<int D = dimensions,
            typename = std::enable_if_t<(D > 0)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   id<dimensions> get_offset() const
   {
     return _offset;
@@ -417,7 +417,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 0) */
                                         M == access::mode::discard_write ||
                                         M == access::mode::discard_read_write) &&
                                        (D == 0)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   operator dataT &() const
   {
     return *_ptr;
@@ -433,7 +433,7 @@ accessMode == access::mode::discard_read_write) && dimensions > 0) */
                                         M == access::mode::discard_write ||
                                         M == access::mode::discard_read_write) &&
                                        (D > 0)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](id<dimensions> index) const
   {
     return _ptr[detail::linear_id<dimensions>::get(index, _buffer_range)];
@@ -450,7 +450,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
                                         M == access::mode::discard_write ||
                                         M == access::mode::discard_read_write)
                                     && (D == 1)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](size_t index) const
   {
     return _ptr[index];
@@ -461,7 +461,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<access::mode M = accessmode,
            int D = dimensions,
            typename = std::enable_if_t<M == access::mode::read && D == 0>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   operator dataT() const
   {
     return *_ptr;
@@ -471,7 +471,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](id<dimensions> index) const
   { return _ptr[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
 
@@ -479,7 +479,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](size_t index) const
   { return _ptr[index]; }
 
@@ -497,7 +497,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   /* Available only when: dimensions > 1 */
   template<int D = dimensions,
            typename = std::enable_if_t<(D > 1)>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor<dataT, dimensions-1, accessmode, accessTarget, isPlaceholder>
   operator[](size_t index) const
   {
@@ -521,7 +521,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   /* Available only when: accessTarget == access::target::global_buffer */
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::global_buffer>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   global_ptr<dataT> get_pointer() const
   {
     return global_ptr<dataT>{const_cast<dataT*>(_ptr)};
@@ -530,7 +530,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   /* Available only when: accessTarget == access::target::constant_buffer */
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::constant_buffer>>
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   constant_ptr<dataT> get_pointer() const
   {
     return constant_ptr<dataT>{const_cast<dataT*>(_ptr)};
@@ -569,7 +569,7 @@ private:
     this->_buffer_range = detail::buffer::get_buffer_range(bufferRef);
   }
 
-  __host__ __device__
+  HIPSYCL_UNIVERSAL_TARGET
   accessor(){}
 
   pointer_type _ptr;
@@ -621,13 +621,13 @@ public:
 
 
   /* -- common interface members -- */
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_size() const
   {
     return get_count() * sizeof(dataT);
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   size_t get_count() const
   {
     return _num_elements.size();
@@ -638,7 +638,7 @@ public:
            int D = dimensions,
            std::enable_if_t<M == access::mode::read_write &&
                             D == 0>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   operator dataT &() const
   {
     return *detail::local_memory::get_ptr<dataT>(_addr);
@@ -649,7 +649,7 @@ public:
            int D = dimensions,
            std::enable_if_t<M == access::mode::read_write &&
                             (D > 0)>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   dataT &operator[](id<dimensions> index) const
   {
     *(detail::local_memory::get_ptr<dataT>(_addr) +
@@ -661,7 +661,7 @@ public:
            int D = dimensions,
            std::enable_if_t<M == access::mode::read_write &&
                             D == 1>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   dataT &operator[](size_t index) const
   {
     return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
@@ -681,7 +681,7 @@ public:
   /* Available only when: dimensions > 1 */
   template<int D = dimensions,
            std::enable_if_t<(D > 1)>* = nullptr>
-  __device__
+  HIPSYCL_KERNEL_TARGET
   accessor<dataT, dimensions-1, accessmode, access::target::local, isPlaceholder>&
   operator[](size_t index) const
   {
@@ -702,7 +702,7 @@ public:
     return subaccessor_type{subaddr, subrange};
   }
 
-  __device__
+  HIPSYCL_KERNEL_TARGET
   local_ptr<dataT> get_pointer() const
   {
     return local_ptr<dataT>{
@@ -711,7 +711,7 @@ public:
   }
 
 private:
-  __device__
+  HIPSYCL_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)
     : _addr{addr}, _num_elements{r}
   {}

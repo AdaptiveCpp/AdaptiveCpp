@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,63 +25,61 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_ATTRIBUTES_HPP
+#define HIPSYCL_ATTRIBUTES_HPP
 
-#ifndef HIPSYCL_ND_RANGE_HPP
-#define HIPSYCL_ND_RANGE_HPP
+#include "clang/Sema/Sema.h"
 
-#include "range.hpp"
-#include "id.hpp"
+#include <string>
 
-namespace cl {
-namespace sycl {
+namespace hipsycl {
 
-template<int dimensions = 1>
-struct nd_range
+
+class AddonAttribute
 {
-
-  HIPSYCL_UNIVERSAL_TARGET
-  nd_range(range<dimensions> globalSize,
-           range<dimensions> localSize,
-           id<dimensions> offset = id<dimensions>())
-    : _global_range{globalSize},
-      _local_range{localSize},
-      _num_groups{globalSize / localSize},
-      _offset{offset}
+  std::string Name;
+public:
+  AddonAttribute(const std::string& name)
+  : Name(name)
   {}
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global() const
-  { return _global_range; }
+  std::string getString() const
+  { return "__attribute__((diagnose_if(false,\""+ Name +",\"warning\")))"; }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global_range() const
-  { return get_global(); }
+  bool describedBy(clang::Attr* attrib) const
+  {
+    if(clang::isa<clang::DiagnoseIfAttr>(attrib))
+    {
+      clang::DiagnoseIfAttr* attr = clang::cast<clang::DiagnoseIfAttr>(attrib);
+      if(attr->getMessage() == Name)
+        return true;
+    }
+    return false;
+  }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local() const
-  { return _local_range; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local_range() const
-  { return get_local(); }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_group() const
-  { return _num_groups; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  id<dimensions> get_offset() const
-  { return _offset; }
-
-private:
-  const range<dimensions> _global_range;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
-  const id<dimensions> _offset;
+  bool isAttachedTo(clang::FunctionDecl *F) const {
+    if (clang::Attr *A = F->getAttr<clang::DiagnoseIfAttr>())
+      return describedBy(A);
+    return false;
+  }
 };
 
+class KernelAttribute : public AddonAttribute
+{
+public:
+  KernelAttribute()
+  : AddonAttribute{"hipsycl_kernel"}
+  {}
+};
 
-}
+class CustomAttributes
+{
+public:
+  static const KernelAttribute SyclKernel;
+};
+
+const KernelAttribute CustomAttributes::SyclKernel = KernelAttribute{};
+
 }
 
 #endif

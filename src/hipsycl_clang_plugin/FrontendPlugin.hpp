@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,63 +25,53 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_FRONTEND_PLUGIN_HPP
+#define HIPSYCL_FRONTEND_PLUGIN_HPP
 
-#ifndef HIPSYCL_ND_RANGE_HPP
-#define HIPSYCL_ND_RANGE_HPP
+#include "Frontend.hpp"
 
-#include "range.hpp"
-#include "id.hpp"
+#include "clang/AST/AST.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 
-namespace cl {
-namespace sycl {
+namespace hipsycl {
 
-template<int dimensions = 1>
-struct nd_range
-{
 
-  HIPSYCL_UNIVERSAL_TARGET
-  nd_range(range<dimensions> globalSize,
-           range<dimensions> localSize,
-           id<dimensions> offset = id<dimensions>())
-    : _global_range{globalSize},
-      _local_range{localSize},
-      _num_groups{globalSize / localSize},
-      _offset{offset}
-  {}
+class FrontendASTAction : public clang::PluginASTAction {
+  
+protected:
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI,
+                                                        llvm::StringRef) override 
+  { 
+    return llvm::make_unique<FrontendASTConsumer>(CI);
+  }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global() const
-  { return _global_range; }
+  bool ParseArgs(const clang::CompilerInstance &CI,
+                 const std::vector<std::string> &args) override 
+  {
+    return true;
+  }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global_range() const
-  { return get_global(); }
+  bool BeginInvocation (clang::CompilerInstance &CI) override
+  {
+    // Unfortunately BeginInvocation does not seem to be called :(
+    CI.getInvocation().getPreprocessorOpts().addMacroDef(
+      "__sycl_kernel=__attribute__((diagnose_if(false,\"hipsycl_kernel\",\"warning\")))");
+    CI.getInvocation().getPreprocessorOpts().addMacroDef("HIPSYCL_CLANG=1");
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local() const
-  { return _local_range; }
+    return true;
+  }
+  
+  void PrintHelp(llvm::raw_ostream& ros) {}
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local_range() const
-  { return get_local(); }
+  clang::PluginASTAction::ActionType getActionType() override 
+  {
+    return AddBeforeMainAction;
+  }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_group() const
-  { return _num_groups; }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  id<dimensions> get_offset() const
-  { return _offset; }
-
-private:
-  const range<dimensions> _global_range;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
-  const id<dimensions> _offset;
 };
 
-
-}
 }
 
 #endif

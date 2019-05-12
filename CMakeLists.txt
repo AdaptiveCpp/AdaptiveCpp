@@ -22,7 +22,7 @@ FORCE)
 endif()
 
 # Make sure either hcc or nvcc can be found
-find_program(NVCC_COMPILER NAMES nvcc)
+find_package(CUDA)
 find_program(HCC_COMPILER NAMES hcc)
 find_program(CLANG_EXECUTABLE_PATH NAMES clang++-8 clang++-8.0 clang++-7.0 clang++-7 clang++-6.0 clang++-6 clang++ CACHE STRING)
 if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
@@ -33,11 +33,11 @@ endif()
 # for the existence of CUDA which is also required for clang.
 # TODO: A better approach would be to find_package(CUDA) if
 # we build with clang.
-if(NVCC_COMPILER MATCHES "-NOTFOUND")
-  set(CUDA_FOUND false)
-else()
-  set(CUDA_FOUND true)
-endif()
+#if(NVCC_COMPILER MATCHES "-NOTFOUND")
+#  set(CUDA_FOUND false)
+#else()
+#  set(CUDA_FOUND true)
+#endif()
 
 if(HCC_COMPILER MATCHES "-NOTFOUND")
   set(ROCM_FOUND false)
@@ -47,7 +47,7 @@ endif()
 
 if(WITH_CUDA_BACKEND)
   if(NOT CUDA_FOUND)
-    message(SEND_ERROR "nvcc was not found in PATH")
+    message(SEND_ERROR "CUDA was not found")
   endif()
 endif()
 if(WITH_ROCM_BACKEND)
@@ -64,6 +64,13 @@ set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
 
+if(WITH_CUDA_BACKEND)
+  set(DEFAULT_PLATFORM "cuda")
+elseif(WITH_ROCM_BACKEND)
+  set(DEFAULT_PLATFORM "rocm")
+else()
+  set(DEFAULT_PLATFORM "cpu")
+endif()
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
@@ -77,11 +84,31 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(src)
 
+set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
+
+set(SYCLCC_CONFIG_FILE "{
+  \"default-clang\" : \"${CLANG_EXECUTABLE_PATH}\",
+  \"default-platform\" : \"${DEFAULT_PLATFORM}\",
+  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
+  \"default-gpu-arch\" : \"${DEFAULT_GPU_ARCH}\",
+  \"default-cpu-cxx\" : \"${CMAKE_CXX_COMPILER}\",
+  \"default-rocm-path\" : \"/opt/rocm/\",
+  \"default-use-bootstrap-mode\" : \"false\",
+  \"default-is-dryrun\" : \"false\"
+}
+")
+
+file(WRITE "${PROJECT_BINARY_DIR}/syclcc.json" ${SYCLCC_CONFIG_FILE})
+
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY contrib/hipCPU/include/hipCPU DESTINATION include/hipSYCL/)
 install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
+
 install(PROGRAMS bin/syclcc DESTINATION bin)
+install(PROGRAMS bin/syclcc-clang DESTINATION bin)
+
+install(FILES ${PROJECT_BINARY_DIR}/syclcc.json DESTINATION etc/hipSYCL/)
 
 set(HIPSYCL_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX})
 configure_file(${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in

@@ -37,8 +37,8 @@
 // called hipConfigureCall() that we can use instead.
 #ifdef __CUDA__
 extern "C" unsigned __cudaPushCallConfiguration(dim3 gridDim, dim3 blockDim,
-                                                size_t sharedMem = 0,
-                                                void *stream = 0);
+                                                size_t sharedMem,
+                                                void *stream);
 
 extern "C" unsigned __cudaPopCallConfiguration();
 

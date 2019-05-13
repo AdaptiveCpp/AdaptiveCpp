@@ -49,7 +49,7 @@ hipError_t hipConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, hipSt
 #endif // __CUDA__
 
 
-void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
+static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
 {
 #ifdef __CUDA__
   __cudaPushCallConfiguration(grid, block, shared, stream);
@@ -58,7 +58,7 @@ void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_
 #endif
 }
 
-void __hipsycl_pop_kernel_call()
+static inline void __hipsycl_pop_kernel_call()
 {
 #ifdef __CUDA__
   __cudaPopCallConfiguration();

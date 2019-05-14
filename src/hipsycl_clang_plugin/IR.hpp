@@ -42,7 +42,66 @@
 
 #include "CL/sycl/detail/debug.hpp"
 
+#include <unordered_set>
+#include <unordered_map>
+#include <vector>
+
 namespace hipsycl {
+
+class CallGraph
+{
+public:
+  void addNodeIfNotPresent(llvm::Function* F)
+  {
+    if(Callees.find(F) == Callees.end())
+    {
+      Callees[F] = std::vector<llvm::Function *>{};
+    }
+  }
+
+  void addCallee(llvm::Function* Node, llvm::Function* Callee)
+  {
+    Callees[Node].push_back(Callee);
+  }
+
+  const std::vector<llvm::Function*>& getCallees(llvm::Function* Node) const
+  {
+    return Callees.at(Node);
+  }
+
+  /// Finds all nodes in the subgraph reachable from F and stores
+  /// the result in \c Children.
+  /// If \c Children is non-empty, its contents will be interpreted
+  /// as functions of which we are already certain that they are children.
+  ///
+  /// This behaviour can be used to use several calls to this function
+  /// to obtain a set of all children of several functions.
+  void findChildrenOf(llvm::Function* F, 
+                      std::unordered_set<llvm::Function*>& Children)
+  {
+    if(Callees.find(F) == Callees.end())
+      return;
+    
+    this->findChildrenOfImpl(F, Children);
+  }                                
+
+private:
+  void findChildrenOfImpl(llvm::Function* Current,
+                    std::unordered_set<llvm::Function*>& Children)
+  {
+    // If this function has already been found by a previous invocation,
+    // abort to avoit getting stuck in cycles of the call graph.
+    if(Children.find(Current) != Children.end())
+      return;
+    
+    Children.insert(Current);
+
+    for(auto Child : Callees[Current])
+      findChildrenOfImpl(Child, Children);
+  }
+
+  std::unordered_map<llvm::Function*, std::vector<llvm::Function*>> Callees;
+};
 
 struct FunctionPruningIRPass : public llvm::FunctionPass {
   static char ID;
@@ -55,16 +114,30 @@ struct FunctionPruningIRPass : public llvm::FunctionPass {
   {
     if(CompilationStateManager::getASTPassState().isDeviceCompilation())
     {
-      if(canFunctionBeRemoved(F))
+      Functions.push_back(&F);
+      // Make sure that all functions are represented in the call graph,
+      // even if they are not actually used.
+      CG.addNodeIfNotPresent(&F);
+
+      for(llvm::User* U : F.users())
       {
-        HIPSYCL_DEBUG_INFO << "IR Processing: Stripping unneeded function from device code: " 
-                          << F.getName().str() << std::endl;;
-        FunctionsScheduledForRemoval.insert(&F);
+        if (llvm::Function* Caller = llvm::dyn_cast<llvm::Function>(U))
+          CG.addCallee(Caller, &F);
+        else if (llvm::Instruction* I = llvm::dyn_cast<llvm::Instruction>(U)) {
+          // If we're looking at an Instruction, look at the containing function instead
+          // since we're interested if we're used by a kernel *function*
+          CG.addCallee(I->getFunction(), &F);
+        }
       }
-      else
-        HIPSYCL_DEBUG_INFO << "IR Processing: Keeping function " << F.getName().str() << std::endl;
+      // If this function has been marked as a kernel or explicit device function,
+      // add it to our list of "entrypoints" that must remain present in the code
+      if (CompilationStateManager::getASTPassState().isKernel(F.getName().str()) 
+        || CompilationStateManager::getASTPassState().isExplicitlyDevice(F.getName().str()))
+      {
+        Entrypoints.push_back(&F);
+      }
     }
-    
+  
     return false;
   }
 
@@ -72,13 +145,34 @@ struct FunctionPruningIRPass : public llvm::FunctionPass {
   {
     if(CompilationStateManager::getASTPassState().isDeviceCompilation())
     {
-      for(llvm::Function* F : FunctionsScheduledForRemoval)
-      {
-        F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
-        F->eraseFromParent();
+      // Find all functions depending on entrypoints (kernels or functions with
+      // explicit __device__ attributes)
+      std::unordered_set<llvm::Function*> FunctionsToKeep;
+      for(llvm::Function* F : Entrypoints)
+        CG.findChildrenOf(F, FunctionsToKeep);
+
+      for(llvm::Function* F: FunctionsToKeep){
+        HIPSYCL_DEBUG_INFO << "IR Processing: Keeping function " << F->getName().str() << std::endl;
       }
+
+      std::size_t NumRemovedFunctions = 0;
+      // Remove all functions that are not in FunctionsToKeep
+      for(llvm::Function* F : Functions)
+      {
+        if (FunctionsToKeep.find(F) == FunctionsToKeep.end())
+        {
+          HIPSYCL_DEBUG_INFO
+              << "IR Processing: Stripping unneeded function from device code: "
+              << F->getName().str() << std::endl;
+          
+          F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
+          F->eraseFromParent();
+          ++NumRemovedFunctions;
+        }
+      }
+      
       HIPSYCL_DEBUG_INFO << "===> IR Processing: Function pruning complete, removed " 
-                        << FunctionsScheduledForRemoval.size() << " function(s)."
+                        << NumRemovedFunctions << " function(s)."
                         << std::endl;
 
       HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******" 
@@ -88,8 +182,6 @@ struct FunctionPruningIRPass : public llvm::FunctionPass {
 
       for(auto G =  M.global_begin(); G != M.global_end(); ++G)
       {
-        
-
         llvm::GlobalVariable* GPtr = &(*G);
         if(canGlobalVariableBeRemoved(GPtr))
         {
@@ -118,42 +210,10 @@ private:
     return G->getNumUses() == 0;
   }
 
-  bool canUserBeRemoved(const llvm::User* U) const
-  {
-    if (const llvm::Instruction* I = llvm::dyn_cast<llvm::Instruction>(U)) {
-      // If we're looking at an Instruction, look at the containing function instead
-      // since we're interested if we're used by a kernel *function*
-      const llvm::Function* F = I->getFunction();
-      return canUserBeRemoved(F);
-    }
 
-    // A function can never be removed if it ended in device
-    // code due to explicit attributes and not due to us
-    // marking the function implicitly as __host__ __device__
-    if (const llvm::Function *F = llvm::dyn_cast<llvm::Function>(U)) {
-      HIPSYCL_DEBUG_INFO << "   -> depends on " << F->getName().str() << std::endl;
-      if (CompilationStateManager::getASTPassState().isKernel(F->getName().str()) 
-        || CompilationStateManager::getASTPassState().isExplicitlyDevice(F->getName().str())) {
-        HIPSYCL_DEBUG_INFO << "    (is kernel or explicitly __device__, keeping function)" << std::endl;
-        return false;
-      }
-    } 
-    for(const llvm::User* NextLevelUser : U->users())
-    {
-      if(!canUserBeRemoved(NextLevelUser))
-        return false;
-    }
-
-    return true;
-  }
-
-  bool canFunctionBeRemoved(const llvm::Function& F) const
-  {
-    HIPSYCL_DEBUG_INFO << "Investigating function: " << F.getName().str() << std::endl;
-    return canUserBeRemoved(&F);
-  }
-
-  std::unordered_set<llvm::Function*> FunctionsScheduledForRemoval;
+  std::vector<llvm::Function*> Entrypoints;
+  std::vector<llvm::Function*> Functions;
+  CallGraph CG;
 };
 
 char FunctionPruningIRPass::ID = 0;

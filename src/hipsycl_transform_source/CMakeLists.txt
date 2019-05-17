@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(hipsycl_transform_source)
 
 find_package(LLVM REQUIRED CONFIG)
-#find_package(Clang REQUIRED)
+find_package(Clang REQUIRED CONFIG)
 find_package(Boost REQUIRED)
 
 
@@ -32,7 +32,7 @@ target_compile_definitions(hipsycl_transform_source PRIVATE
   HIPSYCL_TRANSFORM_CLANG_DIR=${CLANG_BINARY_PREFIX})
 
 target_link_libraries(hipsycl_transform_source
-  LLVM
+  ${LLVM_LIBS}
   clangFrontend
   clangSerialization
   clangDriver

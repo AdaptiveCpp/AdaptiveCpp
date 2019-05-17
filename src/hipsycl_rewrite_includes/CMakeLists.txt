@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(hipsycl_rewrite_includes)
 
 find_package(LLVM REQUIRED CONFIG)
-#find_package(Clang REQUIRED)
+find_package(Clang REQUIRED CONFIG)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
@@ -28,7 +28,7 @@ target_compile_definitions(hipsycl_rewrite_includes PRIVATE
   HIPSYCL_TRANSFORM_CLANG_DIR=${CLANG_BINARY_PREFIX})
 
 target_link_libraries(hipsycl_rewrite_includes
-  LLVM
+  ${LLVM_LIBS}
   clangFrontend
   clangSerialization
   clangDriver

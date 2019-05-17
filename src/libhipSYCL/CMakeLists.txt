@@ -36,6 +36,7 @@ if(WITH_CUDA_BACKEND)
   endif()
 
   target_compile_options(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
+  target_compile_options(hipSYCL_cuda PRIVATE ${HIPSYCL_DEVICE_COMPILER_CXXFLAGS})
   target_include_directories(hipSYCL_cuda PRIVATE ${INCLUDE_DIRS})
   target_link_libraries(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-bootstrap)
   install(TARGETS hipSYCL_cuda
@@ -49,6 +50,7 @@ if(WITH_ROCM_BACKEND)
   #Try to peek if ROCM set itself through its /etc/profile.d/rocm.sh
   set(ROCM_PATH $ENV{ROCM_PATH})
   target_compile_options(hipSYCL_rocm PRIVATE --hipsycl-platform=rocm --hipsycl-bootstrap)
+  target_compile_options(hipSYCL_rocm PRIVATE ${HIPSYCL_DEVICE_COMPILER_CXXFLAGS})
   target_include_directories(hipSYCL_rocm PRIVATE ${INCLUDE_DIRS})
   if(ROCM_PATH)
       target_include_directories(hipSYCL_rocm PRIVATE ${ROCM_PATH}/include )
@@ -63,6 +65,7 @@ endif()
 if(WITH_CPU_BACKEND)
   add_library(hipSYCL_cpu SHARED ${HIPSYCL_SOURCES})
   target_compile_options(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu --hipsycl-bootstrap)
+  target_compile_options(hipSYCL_cpu PRIVATE ${HIPSYCL_DEVICE_COMPILER_CXXFLAGS})
   target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS})
   target_link_libraries(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu --hipsycl-bootstrap)
   install(TARGETS hipSYCL_cpu

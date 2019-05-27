@@ -45,9 +45,12 @@ static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &,
 }
 
 static llvm::RegisterStandardPasses
-  RegisterFunctionPruningIRPass(llvm::PassManagerBuilder::EP_EarlyAsPossible,
-                                registerFunctionPruningIRPass);
+  RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                         registerFunctionPruningIRPass);
 
+static llvm::RegisterStandardPasses
+  RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
+                                             registerFunctionPruningIRPass);
 
 } // namespace hipsycl
 

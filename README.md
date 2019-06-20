@@ -1,3 +1,5 @@
+![Project logo](/doc/img/logo/logo-color.png)
+
 # hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
 [![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=master)](https://travis-ci.com/illuhad/hipSYCL)
 

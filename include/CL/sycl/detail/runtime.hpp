@@ -88,6 +88,8 @@ public:
   buffer_ptr find_accessor(
       const accessor_base* accessor_ptr) const
   {
+    std::lock_guard<mutex_class> lock{_lock};
+
     const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
     auto it = _buffer_map.find(object_ptr);
 
@@ -98,7 +100,7 @@ public:
   }
 
 private:
-  mutex_class _lock;
+  mutable mutex_class _lock;
   std::unordered_map<const void*, buffer_ptr> _buffer_map;
 };
 

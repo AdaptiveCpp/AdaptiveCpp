@@ -1,4 +1,7 @@
-set(CMAKE_SYCL_COMPILER ${HIPSYCL_SYCLCC})
+include(${CMAKE_ROOT}/Modules/CMakeDetermineCompiler.cmake)
+
+set(CMAKE_SYCL_COMPILER_INIT ${HIPSYCL_SYCLCC})
+_cmake_find_compiler(SYCL)
 
 # We could set this, but prefer to set the LANGUAGE per source file
 # individiually in order to avoid conflicts with pure CXX executables.

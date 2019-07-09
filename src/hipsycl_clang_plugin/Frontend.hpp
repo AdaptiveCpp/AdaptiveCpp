@@ -48,6 +48,69 @@
 
 namespace hipsycl {
 
+namespace detail {
+
+///
+/// Utility type to generate the set of all function declarations
+/// implictly or explictly reachable from some initial declaration.
+///
+class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
+  public:
+    using FunctionSet = std::unordered_set<clang::FunctionDecl*>;
+
+    CompleteCallSet(clang::Decl* D)
+    {
+      TraverseDecl(D);
+    }
+
+    bool VisitFunctionDecl(clang::FunctionDecl* FD)
+    {
+      visitedDecls.insert(FD);
+      return true;
+    }
+
+    bool VisitCallExpr(clang::CallExpr* CE)
+    {
+      if(auto Callee = CE->getDirectCallee())
+        TraverseDecl(Callee);
+      return true;
+    }
+
+    bool VisitCXXConstructExpr(clang::CXXConstructExpr* CE)
+    {
+      if(auto Callee = CE->getConstructor())
+      {
+        TraverseDecl(Callee);
+        // Since for destructor calls no explicit AST nodes are created, we simply use this opportunity to
+        // find the corresponding destructor for all constructed types (since we assume that every
+        // type that can be constructed on the GPU also can and will be destructed).
+        if(auto Ptr = llvm::dyn_cast_or_null<clang::PointerType>(Callee->getThisType()->getCanonicalTypeUnqualified()))
+          if(auto Record = llvm::dyn_cast<clang::RecordType>(Ptr->getPointeeType()))
+            if(auto RecordDecl = llvm::dyn_cast<clang::CXXRecordDecl>(Record->getDecl()))
+              if(auto DtorDecl = RecordDecl->getDestructor())
+                TraverseDecl(DtorDecl);
+      }
+      return true;
+    }
+
+    bool TraverseDecl(clang::Decl* D)
+    {
+      if(visitedDecls.find(llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) == visitedDecls.end())
+        return clang::RecursiveASTVisitor<CompleteCallSet>::TraverseDecl(D);
+      return true;
+    }
+
+    bool shouldWalkTypesOfTypeLocs() const { return false; }
+    bool shouldVisitTemplateInstantiations() const { return true; }
+    bool shouldVisitImplicitCode() const { return true; }
+
+    const FunctionSet& getReachableDecls() const { return visitedDecls; }
+
+  private:
+    FunctionSet visitedDecls;
+};
+
+}
 
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
@@ -94,6 +157,26 @@ public:
     return true;
   }
 
+  bool VisitCallExpr(clang::CallExpr *Call) {
+    // Find user kernel functions
+    if(auto F = llvm::dyn_cast_or_null<clang::FunctionDecl>(Call->getDirectCallee()))
+    {
+      if(CustomAttributes::SyclKernel.isAttachedTo(F))
+      {
+        auto KernelFunctor = Call->getArg(0)->getType()->getCanonicalTypeUnqualified();
+        if(auto Type = llvm::dyn_cast<clang::RecordType>(KernelFunctor))
+        {
+          auto Methods = llvm::dyn_cast<clang::CXXRecordDecl>(Type->getDecl())->methods();
+          for(auto&& M : Methods)
+          {
+            if(M->getNameAsString() == "operator()")
+              UserKernels.insert(M);
+          }
+        }
+      }
+    }
+    return true;
+  }
 
   void applyAttributes()
   {
@@ -117,6 +200,25 @@ public:
         F->addAttr(NewAttr);
       }
     }
+
+    for(auto F : UserKernels)
+    {
+      std::unordered_set<clang::FunctionDecl*> UserKernels;
+
+      // Mark all functions called by user kernels as host / device.
+      detail::CompleteCallSet CCS(F);
+      for (auto&& RD : CCS.getReachableDecls())
+      {
+        HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
+                           << RD->getQualifiedNameAsString() << std::endl;
+        CompilationStateManager::getASTPassState().addImplicitHostDeviceFunction(getMangledName(RD));
+        markAsHostDevice(RD);
+        if (!RD->hasAttr<clang::CUDAHostAttr>())
+          RD->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
+        if (!RD->hasAttr<clang::CUDADeviceAttr>())
+          RD->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));
+      }
+    }
   }
 
   std::unordered_set<clang::FunctionDecl*>& getMarkedHostDeviceFunctions()
@@ -132,6 +234,7 @@ public:
 private:
   std::unordered_set<clang::FunctionDecl*> MarkedHostDeviceFunctions;
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
+  std::unordered_set<clang::FunctionDecl*> UserKernels;
 
   void markAsHostDevice(clang::FunctionDecl* F)
   {
@@ -177,25 +280,6 @@ private:
     else if(f->hasAttr<clang::CUDAGlobalAttr>())
     {
       CompilationStateManager::getASTPassState().addKernelFunction(MangledName);
-    }
-    // If functions don't have any cuda attributes, implicitly
-    // treat them as __host__ __device__ and let the IR transformation pass
-    // later prune them if they are not called on device.
-    // For this, we store each modified function in the CompilationStateManager.
-    else if(!f->hasAttr<clang::CUDAHostAttr>())
-    {
-
-      if(!f->isVariadic() /*&& 
-        !Instance.getSourceManager().isInSystemHeader(f->getLocation())*/)
-      {
-        HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: " 
-                          << f->getQualifiedNameAsString() << std::endl;
-
-                          
-        markAsHostDevice(f);
-        CompilationStateManager::getASTPassState().addImplicitHostDeviceFunction(
-          MangledName);
-      }
     }
   }
 

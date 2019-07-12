@@ -297,7 +297,7 @@ BOOST_AUTO_TEST_CASE(vec_api) {
 
   queue.submit([&](cl::sycl::handler& cgh) {
     auto acc = results.get_access<cl::sycl::access::mode::discard_write>(cgh);
-    cgh.single_task([=]() {
+    cgh.single_task<class vec_api>([=]() {
       size_t offset = 0;
       const auto store_results = [=, &offset](
         const std::initializer_list<float>& results) {

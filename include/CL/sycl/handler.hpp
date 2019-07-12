@@ -138,13 +138,13 @@ inline sycl::range<dimensions> get_grid_size_helper()
 #endif
 }
 
-template<class Function>
+template<typename KernelName, class Function>
 __sycl_kernel void single_task_kernel(Function f)
 {
   f();
 }
 
-template<int dimensions, class Function>
+template<typename KernelName, int dimensions, class Function>
 __sycl_kernel 
 void parallel_for_kernel(Function f,
                         sycl::range<dimensions> execution_range)
@@ -155,7 +155,7 @@ void parallel_for_kernel(Function f,
     f(this_item);
 }
 
-template<int dimensions, class Function>
+template<typename KernelName, int dimensions, class Function>
 __sycl_kernel 
 void parallel_for_kernel_with_offset(Function f,
                                     sycl::range<dimensions> execution_range,
@@ -167,7 +167,7 @@ void parallel_for_kernel_with_offset(Function f,
     f(this_item);
 }
 
-template<int dimensions, class Function>
+template<typename KernelName, int dimensions, class Function>
 __sycl_kernel
 void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
 {
@@ -185,7 +185,7 @@ void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
   f(this_item);
 }
 
-template<int dimensions, class Function>
+template<typename KernelName, int dimensions, class Function>
 __sycl_kernel 
 void parallel_for_workgroup(Function f,
                             // The logical group size is not yet used,
@@ -487,8 +487,7 @@ void set_args(Ts &&... args);
   //------ Kernel dispatch API
 
 
-  template <typename KernelName = class _unnamed_kernel,
-            typename KernelType>
+  template <typename KernelName, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     // TODO If shared_mem_size != 0, we can raise an error -
@@ -515,7 +514,7 @@ void set_args(Ts &&... args);
       else
 #endif
       {
-        __hipsycl_launch_kernel(detail::dispatch::device::single_task_kernel,
+        __hipsycl_launch_kernel(detail::dispatch::device::single_task_kernel<KernelName>,
                                 1,1,shared_mem_size,stream->get_stream(),
                                 kernelFunc);
       }
@@ -526,26 +525,26 @@ void set_args(Ts &&... args);
     this->submit_task(kernel_launch);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName,
             typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
   {
-    dispatch_kernel_without_offset(numWorkItems, kernelFunc);
+    dispatch_kernel_without_offset<KernelName>(numWorkItems, kernelFunc);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName,
             typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset, KernelType kernelFunc)
   {
-    dispatch_kernel_with_offset(numWorkItems, workItemOffset, kernelFunc);
+    dispatch_kernel_with_offset<KernelName>(numWorkItems, workItemOffset, kernelFunc);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName,
             typename KernelType, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
-    dispatch_ndrange_kernel(executionRange, kernelFunc);
+    dispatch_ndrange_kernel<KernelName>(executionRange, kernelFunc);
   }
 
 
@@ -564,13 +563,13 @@ void set_args(Ts &&... args);
   }
   */
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName,
             typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
                                WorkgroupFunctionType kernelFunc)
   {
-    dispatch_hierarchical_kernel(numWorkGroups,
+    dispatch_hierarchical_kernel<KernelName>(numWorkGroups,
                                  workGroupSize,
                                  kernelFunc);
   }
@@ -841,7 +840,7 @@ private:
         }
   }
 
-  template <typename KernelType, int dimensions>
+  template <typename KernelName, typename KernelType, int dimensions>
   __host__
   void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
                                       KernelType kernelFunc)
@@ -872,7 +871,7 @@ private:
       else
 #endif
       {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel,
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel<KernelName>,
                               grid, block, shared_mem_size, stream->get_stream(),
                               kernelFunc, numWorkItems);
       }
@@ -884,7 +883,7 @@ private:
 
   }
 
-  template <typename KernelType, int dimensions>
+  template <typename KernelName, typename KernelType, int dimensions>
   __host__
   void dispatch_kernel_with_offset(range<dimensions> numWorkItems,
                                    id<dimensions> offset,
@@ -918,7 +917,7 @@ private:
       else
 #endif
       {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel_with_offset,
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel_with_offset<KernelName>,
                         grid, block, shared_mem_size, stream->get_stream(),
                         kernelFunc, numWorkItems, offset);
       }
@@ -930,7 +929,7 @@ private:
   }
 
 
-  template <typename KernelType, int dimensions>
+  template <typename KernelName, typename KernelType, int dimensions>
   __host__
   void dispatch_ndrange_kernel(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
@@ -970,7 +969,7 @@ private:
       else
 #endif
       {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel,
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel<KernelName>,
                           grid, block, shared_mem_size, stream->get_stream(),
                           kernelFunc, offset);
       }
@@ -981,7 +980,7 @@ private:
     this->submit_task(kernel_launch);
   }
 
-  template <typename WorkgroupFunctionType, int dimensions>
+  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
   __host__
   void dispatch_hierarchical_kernel(range<dimensions> numWorkGroups,
                                     range<dimensions> workGroupSize,
@@ -1012,7 +1011,7 @@ private:
       else
 #endif
       {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_workgroup,
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_workgroup<KernelName>,
                           grid, block, shared_mem_size, stream->get_stream(),
                           kernelFunc, workGroupSize);
       }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,13 @@
 #define HIPSYCL_FRONTEND_HPP
 
 #include <unordered_set>
+#include <cassert>
+#include <regex>
+#include <sstream>
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Mangle.h"
@@ -110,6 +114,77 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
     FunctionSet visitedDecls;
 };
 
+///
+/// Builds a kernel name from a RecordDecl, taking into account template specializations.
+/// Returns an empty string if the name is not a valid kernel name.
+///
+inline std::string buildKernelNameFromRecordDecl(const clang::RecordDecl *Decl) {
+  std::stringstream SS;
+  SS << "$" << Decl->getNameAsString();
+
+  if(auto TD = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(Decl))
+  {
+    for(auto arg : TD->getTemplateArgs().asArray())
+    {
+      switch (arg.getKind())
+      {
+        case clang::TemplateArgument::Type:
+        {
+          if(arg.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+             arg.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
+          {
+            return ""; // Lambdas are not supported
+          }
+
+          auto RecordType = llvm::dyn_cast<clang::RecordType>(arg.getAsType().getTypePtr());
+          auto RecordDecl = llvm::dyn_cast_or_null<clang::RecordDecl>(
+            RecordType ? RecordType->getDecl() : nullptr);
+
+          if(RecordDecl)
+          {
+            auto declName = buildKernelNameFromRecordDecl(RecordDecl);
+            if(declName.empty()) return "";
+            SS << "_" << declName;
+          }
+          else
+          {
+            SS << "_" << arg.getAsType().getAsString();
+          }
+          break;
+        }
+        case clang::TemplateArgument::Integral:
+          SS << "_" << arg.getAsIntegral().toString(10);
+          break;
+        case clang::TemplateArgument::NullPtr:
+          SS << "_nullptr";
+          break;
+        case clang::TemplateArgument::Template:
+        {
+          std::string QualifiedName = arg.getAsTemplate().getAsTemplateDecl()->getTemplatedDecl()->getQualifiedNameAsString();
+          SS << "__" << std::regex_replace(QualifiedName, std::regex("::"), "__");
+          break;
+        }
+        default: return ""; // Everything else is not supported
+      }
+    }
+  }
+
+  return SS.str();
+}
+
+inline std::string buildKernelName(clang::TemplateArgument SyclTagType) {
+  assert(SyclTagType.getKind() == clang::TemplateArgument::ArgKind::Type);
+  auto RecordType = llvm::dyn_cast<clang::RecordType>(SyclTagType.getAsType().getTypePtr());
+  if(RecordType == nullptr || !llvm::isa<clang::RecordDecl>(RecordType->getDecl()))
+  {
+    // We only support structs/classes as kernel names
+    return "";
+  }
+  auto DeclName = buildKernelNameFromRecordDecl(RecordType->getAsRecordDecl());
+  if(DeclName.empty()) return "";
+  return "__hipsycl_kernel_" + DeclName;
+}
+
 }
 
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
@@ -158,23 +233,53 @@ public:
   }
 
   bool VisitCallExpr(clang::CallExpr *Call) {
-    // Find user kernel functions
-    if(auto F = llvm::dyn_cast_or_null<clang::FunctionDecl>(Call->getDirectCallee()))
+    auto F = llvm::dyn_cast_or_null<clang::FunctionDecl>(Call->getDirectCallee());
+    if(!F) return true;
+    if(!CustomAttributes::SyclKernel.isAttachedTo(F)) return true;
+
+    auto KernelFunctorType = llvm::dyn_cast<clang::RecordType>(Call->getArg(0)
+      ->getType()->getCanonicalTypeUnqualified());
+
+    // Store user kernel for it to be marked as device code later on
+    if(KernelFunctorType)
     {
-      if(CustomAttributes::SyclKernel.isAttachedTo(F))
+      auto Methods = llvm::dyn_cast<clang::CXXRecordDecl>(
+        KernelFunctorType->getDecl())->methods();
+      for(auto&& M : Methods)
       {
-        auto KernelFunctor = Call->getArg(0)->getType()->getCanonicalTypeUnqualified();
-        if(auto Type = llvm::dyn_cast<clang::RecordType>(KernelFunctor))
-        {
-          auto Methods = llvm::dyn_cast<clang::CXXRecordDecl>(Type->getDecl())->methods();
-          for(auto&& M : Methods)
-          {
-            if(M->getNameAsString() == "operator()")
-              UserKernels.insert(M);
-          }
-        }
+        if(M->getNameAsString() == "operator()")
+          UserKernels.insert(M);
       }
     }
+
+    // Determine unique kernel name to be used for symbol name in device IR
+    clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
+    auto KernelName = detail::buildKernelName(Info->TemplateArguments->get(0));
+
+    // Abort with error diagnostic if no kernel name could be built
+    if(KernelName.empty())
+    {
+      // Since we cannot easily get the source location of the template
+      // specialization where the name is passed by the user (e.g. a
+      // parallel_for call), we attach the diagnostic to the kernel
+      // functor instead.
+      // TODO: Improve on this.
+      auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+        KernelFunctorType->getDecl())->getSourceRange().getBegin();
+      auto ID = Instance.getASTContext().getDiagnostics()
+        .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
+          "Not a valid kernel name: %0");
+      Instance.getASTContext().getDiagnostics().Report(SL, ID) <<
+        Info->TemplateArguments->get(0);
+    }
+
+    // Add the AsmLabel attribute which, if present,
+    // is used by Clang instead of the function's mangled name.
+    F->addAttr(clang::AsmLabelAttr::CreateImplicit(Instance.getASTContext(),
+      KernelName));
+    HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
+      << KernelName << "\n";
+
     return true;
   }
 
@@ -381,9 +486,8 @@ public:
   }
 
   bool HandleTopLevelDecl(clang::DeclGroupRef DG) override {
-    // Do not add code here, or at least not without considering
-    // that this function will be called again for the same DGs
-    // in HandleTranslationUnit() (see the comment there)
+    for (auto&& D : DG)
+      Visitor.TraverseDecl(D);
     return true;
   }
 
@@ -397,7 +501,6 @@ public:
     else
       HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __host__ ****** " << std::endl;
 
-    Visitor.TraverseDecl(context.getTranslationUnitDecl());
     Visitor.applyAttributes();
 
     // The following part is absolutely crucial:

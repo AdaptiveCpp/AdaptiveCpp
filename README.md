@@ -107,7 +107,7 @@ hipSYCL depends on:
 * `cmake`
 * An appropriate compiler for the backends that you wish to compile (see above, section *Building and installing hipSYCL*)
 * HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
-* llvm/clang (with development headers and libraries). LLVM/clang 6, 7 and 8 are supported at the moment.
+* llvm/clang (with development headers and libraries). LLVM/clang 8 and 9 are supported at the moment.
 * the Boost C++ library (preprocessor, filesystem)
 
 Once these requirements are met, clone the repository with all submodules:

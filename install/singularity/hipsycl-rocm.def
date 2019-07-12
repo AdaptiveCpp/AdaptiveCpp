@@ -3,14 +3,19 @@ From: rocm/rocm-terminal
 
 %post
 apt-get update
-apt-get install -y python3 libclang-6.0-dev clang-6.0 llvm-6.0-dev libboost-all-dev gcc
-git clone --recurse-submodules https://github.com/illuhad/hipSYCL
+apt-get install -y python3 libboost-all-dev gcc wget git
+echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main" >> /etc/apt/sources.list.d/llvm.list
+echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main" >> /etc/apt/sources.list.d/llvm.list
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+apt-get update
+apt-get install -y libllvm8 llvm-8 llvm-8-dev llvm-8-runtime clang-8 clang-tools-8 libclang-common-8-dev libclang-8-dev libclang1-8 libomp-8-dev
+git clone --recurse-submodules -b fix-nvptx-debug-symbols https://github.com/psalz/hipSYCL
 cd hipSYCL
 mkdir build
 cd build
-export CC=clang-6.0
-export CXX=clang++-6.0
+export CC=clang-8
+export CXX=clang++-8
 export PATH=/opt/rocm/bin:$PATH
 export HIPSYCL_GPU_ARCH=gfx900
-cmake -DCMAKE_C_COMPILER=clang-6.0 -DCMAKE_CXX_COMPILER=clang++-6.0 -DCMAKE_INSTALL_PREFIX=/usr -DWITH_CPU_BACKEND=ON -DWITH_ROCM_BACKEND=ON ..
+cmake -DCMAKE_C_COMPILER=clang-8 -DCMAKE_CXX_COMPILER=clang++-8 -DCMAKE_INSTALL_PREFIX=/usr -DWITH_CPU_BACKEND=ON -DWITH_ROCM_BACKEND=ON ..
 make -j$(($(nproc) -1)) install

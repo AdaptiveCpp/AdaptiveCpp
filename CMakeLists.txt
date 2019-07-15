@@ -1,8 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
 project(hipSYCL)
 
-
-set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc)
+set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -82,6 +81,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
+
 add_subdirectory(src)
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
@@ -98,8 +99,7 @@ set(SYCLCC_CONFIG_FILE "{
 }
 ")
 
-file(WRITE "${PROJECT_BINARY_DIR}/syclcc.json" ${SYCLCC_CONFIG_FILE})
-
+file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY contrib/hipCPU/include/hipCPU DESTINATION include/hipSYCL/)
@@ -108,7 +108,7 @@ install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
 
-install(FILES ${PROJECT_BINARY_DIR}/syclcc.json DESTINATION etc/hipSYCL/)
+install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION etc/hipSYCL/)
 
 set(HIPSYCL_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX})
 configure_file(${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in

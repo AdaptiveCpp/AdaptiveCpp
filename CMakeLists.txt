@@ -21,10 +21,20 @@ FORCE)
   endif()
 endif()
 
+find_package(LLVM 9 CONFIG)
+if(NOT LLVM_FOUND)
+  find_package(LLVM 8 CONFIG)
+endif()
+
+if(NOT LLVM_FOUND)
+  message(SEND_ERROR "hipSYCL requires LLVM 8 or newer.")
+endif()
+#find_package(Clang REQUIRED)
+
 # Make sure either hcc or nvcc can be found
 find_package(CUDA)
 find_program(HCC_COMPILER NAMES hcc)
-find_program(CLANG_EXECUTABLE_PATH NAMES clang++-8 clang++-8.0 clang++-7.0 clang++-7 clang++-6.0 clang++-6 clang++ CACHE STRING)
+find_program(CLANG_EXECUTABLE_PATH NAMES clang++-9 clang++-9.0 clang++-8 clang++-8.0 clang++ CACHE STRING)
 if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
   message(SEND_ERROR "Could not find clang executable in PATH")
 endif()

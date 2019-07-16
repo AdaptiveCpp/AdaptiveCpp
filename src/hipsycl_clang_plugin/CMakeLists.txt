@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 project(hipSYCL_clang)
 
-find_package(LLVM REQUIRED CONFIG)
-#find_package(Clang REQUIRED)
-
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 

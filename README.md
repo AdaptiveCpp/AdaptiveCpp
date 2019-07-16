@@ -64,15 +64,15 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 
 ## Building and installing hipSYCL
 In order to successfully build and install hipSYCL, the following major requirements must be met:
-* **LLVM and clang >= 7** must be installed, including development files. 
+* **LLVM and clang >= 8** must be installed, including development files. 
 * *For the CUDA backend*: 
   * **CUDA >= 9.0** must be installed.
-  * For the legacy toolchain, either **clang or nvcc** must be in `$PATH`. The default (and recommended) CUDA compiler is clang due to known limitations and restrictions in nvcc's support of modern C++ features (see above). clang usually produces CUDA programs with very competitive performance compared to nvcc. Note that for CUDA 10 support, you need at least clang 8. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
-  Our internal testing is conducted with CUDA 10 and clang 8 or nvcc from CUDA 10 with gcc 7.3.
+  * For the legacy toolchain, either **clang or nvcc** must be in `$PATH`. The default (and recommended) CUDA compiler is clang due to known limitations and restrictions in nvcc's support of modern C++ features (see above). clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
+  Our internal testing is conducted with CUDA 10 and clang 8.
 * *For the ROCm backend*: 
   * **ROCm >= 2.0** must be installed. HIP must be installed and working. We test with the `rocm/rocm-terminal` docker image. For the legacy toolchain, **hcc** must be in `$PATH`. 
-  * In order to use the new clang-based toolchain, **hipSYCL must be compiled against the same clang version used by ROCm** (at the moment clang 9)
-* *For the CPU backend*: Any C++ compiler with **OpenMP** support should do. We test with clang 7, 8 and gcc 8.2.
+  * In order to use the new clang-based toolchain, **hipSYCL must be compiled against the same clang version used by ROCm**. This requires what AMD calls `hip-clang`.
+* *For the CPU backend*: Any C++ compiler with **OpenMP** support should do. We test with clang 8, 9 and gcc 8.2.
 
 ### Packages
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
@@ -107,7 +107,7 @@ hipSYCL depends on:
 * `cmake`
 * An appropriate compiler for the backends that you wish to compile (see above, section *Building and installing hipSYCL*)
 * HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
-* llvm/clang (with development headers and libraries). LLVM/clang 6, 7 and 8 are supported at the moment.
+* llvm/clang (with development headers and libraries). LLVM/clang 8 and 9 are supported at the moment.
 * the Boost C++ library (preprocessor, filesystem)
 
 Once these requirements are met, clone the repository with all submodules:

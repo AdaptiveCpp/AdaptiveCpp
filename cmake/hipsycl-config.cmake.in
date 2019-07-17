@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 
-set(HIPSYCL_SYCLCC "@HIPSYCL_INSTALL_LOCATION@/bin/syclcc")
+set(HIPSYCL_SYCLCC "@HIPSYCL_INSTALL_LOCATION@/bin/syclcc-clang")
 set(HIPSYCL_CPU_BACKEND_AVAILABLE "@WITH_CPU_BACKEND@")
 set(HIPSYCL_CUDA_BACKEND_AVAILABLE "@WITH_CUDA_BACKEND@")
 set(HIPSYCL_ROCM_BACKEND_AVAILABLE "@WITH_ROCM_BACKEND@")
@@ -23,7 +23,7 @@ function(add_sycl_to_target)
 
   if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cpu")
     target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cpu)
-  elseif(HIPSYCL_PLATFORM_CANONICAL MATCHES "cuda|nvcc")
+  elseif(HIPSYCL_PLATFORM_CANONICAL MATCHES "cuda")
     target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cuda)
   else()
     target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_rocm)

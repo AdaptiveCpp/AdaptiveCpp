@@ -3,14 +3,13 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
-find_program(SYCLCC NAMES syclcc CACHE STRING)
+find_program(SYCLCC NAMES syclcc-clang CACHE STRING)
 if(SYCLCC MATCHES SYCLCC-NOTFOUND)
-  message(SEND_ERROR "hipSYCL syclcc compiler not found, exiting.")
+  message(SEND_ERROR "hipSYCL syclcc-clang compiler not found, exiting.")
   return()
 endif()
 
 set(CMAKE_CXX_COMPILER ${SYCLCC})
-set(CMAKE_CXX_FLAGS "--restrict-device-header-path=")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)

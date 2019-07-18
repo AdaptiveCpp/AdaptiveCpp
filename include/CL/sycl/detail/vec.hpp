@@ -46,35 +46,35 @@ template<class T>
 struct logical_vector_op_result
 {};
 
-template<> struct logical_vector_op_result<cl_char>
-{ using type = cl_char; };
+template<> struct logical_vector_op_result<detail::s_char>
+{ using type = detail::s_char; };
 
-template<> struct logical_vector_op_result<cl_uchar>
-{ using type = cl_char; };
+template<> struct logical_vector_op_result<detail::u_char>
+{ using type = detail::s_char; };
 
-template<> struct logical_vector_op_result<cl_short>
-{ using type = cl_short; };
+template<> struct logical_vector_op_result<detail::s_short>
+{ using type = detail::s_short; };
 
-template<> struct logical_vector_op_result<cl_ushort>
-{ using type = cl_short; };
+template<> struct logical_vector_op_result<detail::u_short>
+{ using type = detail::s_short; };
 
-template<> struct logical_vector_op_result<cl_int>
-{ using type = cl_int; };
+template<> struct logical_vector_op_result<detail::s_int>
+{ using type = detail::s_int; };
 
-template<> struct logical_vector_op_result<cl_uint>
-{ using type = cl_int; };
+template<> struct logical_vector_op_result<detail::u_int>
+{ using type = detail::s_int; };
 
-template<> struct logical_vector_op_result<cl_float>
-{ using type = cl_int; };
+template<> struct logical_vector_op_result<detail::sp_float>
+{ using type = detail::s_int; };
 
-template<> struct logical_vector_op_result<cl_long>
-{ using type = cl_long; };
+template<> struct logical_vector_op_result<detail::s_long>
+{ using type = detail::s_long; };
 
-template<> struct logical_vector_op_result<cl_ulong>
-{ using type = cl_long; };
+template<> struct logical_vector_op_result<detail::u_long>
+{ using type = detail::s_long; };
 
-template<> struct logical_vector_op_result<cl_double>
-{ using type = cl_long; };
+template<> struct logical_vector_op_result<detail::dp_float>
+{ using type = detail::s_long; };
 
 template<int ...>
 struct vector_index_sequence { };

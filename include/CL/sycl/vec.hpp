@@ -1506,18 +1506,21 @@ HIPSYCL_DEFINE_VECTOR_ALIAS(int, int);
 HIPSYCL_DEFINE_VECTOR_ALIAS(long, long);
 HIPSYCL_DEFINE_VECTOR_ALIAS(float, float);
 HIPSYCL_DEFINE_VECTOR_ALIAS(double, double);
-// ToDo: half
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_char, cl_char);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_uchar, cl_uchar);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_short, cl_short);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_ushort, cl_ushort);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_int, cl_int);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_uint, cl_uint);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_long, cl_long);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_ulong, cl_ulong);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_float, cl_float);
-HIPSYCL_DEFINE_VECTOR_ALIAS(cl_double, cl_double);
-// ToDo: half
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::hp_float, half);
+
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::s_char, cl_char);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::u_char, cl_uchar);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::s_short, cl_short);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::u_short, cl_ushort);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::s_int, cl_int);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::u_int, cl_uint);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::s_long, cl_long);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::u_long, cl_ulong);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::sp_float, cl_float);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::dp_float, cl_double);
+HIPSYCL_DEFINE_VECTOR_ALIAS(detail::hp_float, cl_half);
+
+
 HIPSYCL_DEFINE_VECTOR_ALIAS(signed char, schar);
 HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned char, uchar);
 HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned short, ushort);
@@ -1525,6 +1528,7 @@ HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned int, uint);
 HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned long, ulong);
 HIPSYCL_DEFINE_VECTOR_ALIAS(long long, longlong);
 HIPSYCL_DEFINE_VECTOR_ALIAS(unsigned long long, ulonglong);
+
 
 
 namespace detail {

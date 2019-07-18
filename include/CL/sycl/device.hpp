@@ -179,7 +179,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_uint>(props.multiProcessorCount);
+  return static_cast<detail::u_int>(props.multiProcessorCount);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
@@ -238,7 +238,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_clock_frequency)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_uint>(props.clockRate / 1000);
+  return static_cast<detail::u_int>(props.clockRate / 1000);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, address_bits)
@@ -249,7 +249,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_mem_alloc_size)
   // return global memory size for now
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_ulong>(props.totalGlobalMem);
+  return static_cast<detail::u_long>(props.totalGlobalMem);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, image_support)
@@ -293,7 +293,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, image_max_array_size)
 
 /// \todo Find out actual value
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_samplers)
-{ return std::numeric_limits<cl_uint>::max(); }
+{ return std::numeric_limits<detail::u_int>::max(); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_parameter_size)
 { return std::numeric_limits<size_t>::max(); }
@@ -361,25 +361,25 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_size)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_ulong>(props.l2CacheSize);
+  return static_cast<detail::u_long>(props.l2CacheSize);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_size)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_ulong>(props.totalGlobalMem);
+  return static_cast<detail::u_long>(props.totalGlobalMem);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_buffer_size)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_ulong>(props.totalConstMem);
+  return static_cast<detail::u_long>(props.totalConstMem);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_args)
-{ return std::numeric_limits<cl_uint>::max(); }
+{ return std::numeric_limits<detail::u_int>::max(); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_type)
 { return info::local_mem_type::local; }
@@ -388,7 +388,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_size)
 {
   hipDeviceProp_t props;
   detail::check_error(hipGetDeviceProperties(&props, _device_id));
-  return static_cast<cl_ulong>(props.sharedMemPerBlock);
+  return static_cast<detail::u_long>(props.sharedMemPerBlock);
 }
 
 /// \todo actually check support

@@ -48,7 +48,7 @@ enum class context : int {
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
                                  context::reference_count,
-                                 cl_uint);
+                                 detail::u_int);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
                                  context::platform,

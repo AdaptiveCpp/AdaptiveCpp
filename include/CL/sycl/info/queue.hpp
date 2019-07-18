@@ -49,7 +49,7 @@ enum class queue : int
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::context, sycl::context);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::device, sycl::device);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::reference_count, cl_uint);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::reference_count, detail::u_int);
 
 }
 }

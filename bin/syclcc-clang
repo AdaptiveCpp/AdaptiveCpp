@@ -111,7 +111,15 @@ class syclcc_config:
     config_file_path = os.path.abspath(
       os.path.join(self.hipsycl_installation_path,
                   "etc/hipSYCL/syclcc.json"))
-    self._config_file = config_file(config_file_path)
+    
+    self._config_file = None
+    # First check silently if we can open the default config file.
+    # If that fails, we try later on after argument parsing if a
+    # custom location for the config file has been supplied.
+    # (This happens when compiling hipSYCL)
+    if os.path.exists(config_file_path):
+      self._config_file = config_file(config_file_path)
+      
     self._args = args
 
     # Describes different representations of options:
@@ -140,7 +148,11 @@ class syclcc_config:
 """  The GPU architecture that should be targeted when compiling for GPUs."""),
 
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
-"""  The compiler that should be used when targeting only CPUs.""")
+"""  The compiler that should be used when targeting only CPUs."""),
+      
+      'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
+"""  Select an alternative path for the config file containing the default hipSYCL settings.
+    It is normally not necessary for the user to change this setting.""")
     }
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
@@ -159,6 +171,16 @@ class syclcc_config:
         self._hipsycl_args.append(arg)
       else:
         self._forwarded_args.append(arg)
+        
+    if self._is_option_set_to_non_default_value("config-file"):
+      self._config_file = config_file(self._retrieve_option("config-file"))
+      
+    if self._config_file == None:
+      # If the config file is still None at this point, probably no alternative
+      # config file was supplied and the default one doesn't exist.
+      # Opening the default config file explicitly here will print a warning
+      # for the user if it doesn't exist and set the config file content to {}.
+      self._config_file = config_file(config_file_path)
 
   def _is_hipsycl_arg(self, arg):
     accepted_args = [self._options[opt].commandline for opt in self._options]
@@ -227,6 +249,18 @@ class syclcc_config:
       "environment variable {} or config file.".format(
         flag.commandline, flag.environment
     ))
+      
+  def _is_option_set_to_non_default_value(self, option_name):
+    opt = self._options[option_name]
+    
+    for arg in self._hipsycl_args:
+      if arg.startswith(opt.commandline+"="):
+        return True
+      
+    if opt.environment in os.environ:
+      return True
+    
+    return False
 
   def _retrieve_option(self, option_name):
     opt = self._options[option_name]

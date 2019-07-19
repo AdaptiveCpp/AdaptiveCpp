@@ -85,40 +85,45 @@ using exception_list = vector_class<exception_ptr>;
 using async_handler = function_class<void(cl::sycl::exception_list)>;
 
 // \todo Better use uint32_t etc
-using cl_uchar = unsigned char;
-using cl_ushort = unsigned short;
-using cl_uint = unsigned;
-using cl_ulong = unsigned long long;
+namespace detail {
+// Define types in analogy to OpenCL cl_* types
+using u_char = unsigned char;
+using u_short = unsigned short;
+using u_int = unsigned;
+using u_long = unsigned long long;
 
-using cl_char = char;
-using cl_short = short;
-using cl_int = int;
-using cl_long = long long;
+using s_char = char;
+using s_short = short;
+using s_int = int;
+using s_long = long long;
 
-using cl_float = float;
-using cl_double = double;
 // ToDo: Proper half type
-using cl_half = cl_ushort;
+using hp_float = u_short;
+using sp_float = float;
+using dp_float = double;
+} //detail
 
-}
-}
+} // sycl
+} // cl
 
 // Only pull typedefs into global namespace if the OpenCL headers
 // defining them haven't yet been pulled in
 #ifndef CL_TARGET_OPENCL_VERSION
-using cl::sycl::cl_uchar;
-using cl::sycl::cl_ushort;
-using cl::sycl::cl_uint;
-using cl::sycl::cl_ulong;
+#ifdef HIPSYCL_DEFINE_OPENCL_TYPES
+using cl_uchar  = cl::sycl::detail::u_char;
+using cl_ushort = cl::sycl::detail::u_short;
+using cl_uint   = cl::sycl::detail::u_int;
+using cl_ulong  = cl::sycl::detail::u_long;
 
-using cl::sycl::cl_char;
-using cl::sycl::cl_short;
-using cl::sycl::cl_int;
-using cl::sycl::cl_long;
+using cl_char  = cl::sycl::detail::s_char;
+using cl_short = cl::sycl::detail::s_short;
+using cl_int   = cl::sycl::detail::s_int;
+using cl_long  = cl::sycl::detail::s_long;
 
-using cl::sycl::cl_float;
-using cl::sycl::cl_double;
-using cl::sycl::cl_half;
+using cl_float  = cl::sycl::detail::sp_float;
+using cl_double = cl::sycl::detail::dp_float;
+using cl_half   = cl::sycl::detail::hp_float;
+#endif
 #endif
 
 #endif

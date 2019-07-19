@@ -53,6 +53,8 @@
 #include "sycl/builtin.hpp"
 #include "sycl/math.hpp"
 #include "sycl/atomic.hpp"
+#include "sycl/program.hpp"
+#include "sycl/kernel.hpp"
 
 #endif
 

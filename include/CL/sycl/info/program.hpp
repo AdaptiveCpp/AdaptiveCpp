@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018,2019 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,21 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_INFO_HPP
-#define HIPSYCL_INFO_HPP
+#ifndef HIPSYCL_INFO_PROGRAM_HPP
+#define HIPSYCL_INFO_PROGRAM_HPP
 
+#include "../types.hpp"
 #include "param_traits.hpp"
-#include "context.hpp"
-#include "device.hpp"
-#include "event.hpp"
-#include "platform.hpp"
-#include "queue.hpp"
-#include "kernel.hpp"
-#include "program.hpp"
 
-#define HIPSYCL_SPECIALIZE_GET_INFO(class_name, specialization)\
-  template<> \
-  inline typename info::param_traits<info::class_name,info::class_name::specialization>::return_type \
-  sycl::class_name::get_info<info::class_name::specialization>() const
+namespace cl {
+namespace sycl {
+
+class device;
+class context;
+
+namespace info {
+
+enum class program : int
+{
+  reference_count,
+  context,
+  devices
+};
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::reference_count, detail::u_int);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::context, sycl::context);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::devices, vector_class<sycl::device>);
+
+} // info
+} // sycl
+} // cl
 
 #endif

@@ -132,12 +132,12 @@ HIPSYCL_SPECIALIZE_KERNEL_GET_WORK_GROUP_INFO(private_mem_size)
 
 
 template <typename kernelT>
-kernel program::get_kernel() const
+inline kernel program::get_kernel() const
 {
   return kernel{"dummy-parameter", _ctx};
 }
 
-kernel program::get_kernel(string_class kernelName) const
+inline kernel program::get_kernel(string_class kernelName) const
 {
   return kernel{"dummy-parameter", _ctx};
 }

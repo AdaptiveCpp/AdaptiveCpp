@@ -42,6 +42,14 @@ enum class memory_order : int
   relaxed
 };
 
+#ifdef HIPSYCL_EXT_FP_ATOMICS
+  #define HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(template_param) \
+    std::enable_if_t<std::is_integral<template_param>::value || std::is_floating_point<t>::value>* = nullptr
+#else
+  #define HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(template_param) \
+    std::enable_if_t<std::is_integral<template_param>::value>* = nullptr
+#endif
+
 /// \todo Atomics are only partially implemented. In particular, there's no
 /// code path on host at the moment!
 template <typename T, access::address_space addressSpace =
@@ -71,7 +79,7 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicExch(_ptr.get(), operand);
+    return atomicExch(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -86,13 +94,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_add(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicAdd(_ptr.get(), operand);
+    return atomicAdd(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -100,13 +108,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_sub(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicSub(_ptr.get(), operand);
+    return atomicSub(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -114,13 +122,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_and(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicAnd(_ptr.get(), operand);
+    return atomicAnd(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -128,13 +136,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_or(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicOr(_ptr.get(), operand);
+    return atomicOr(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -142,13 +150,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_xor(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicXor(_ptr.get(), operand);
+    return atomicXor(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -156,13 +164,13 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   t fetch_min(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicMin(_ptr.get(), operand);
+    return atomicMin(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -170,20 +178,20 @@ public:
 
   /* Available only when: T != float */
   template<class t = T,
-           std::enable_if_t<!std::is_floating_point<t>::value>* = nullptr>
+           HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return atomicMax(_ptr.get(), operand);
+    return atomicMax(_ptr, operand);
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
 private:
-  multi_ptr<T, addressSpace> _ptr;
+  T* _ptr;
 };
 
 

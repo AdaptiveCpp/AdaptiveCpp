@@ -720,6 +720,10 @@ private:
   const range<dimensions> _num_elements;
 };
 
+template <typename dataT, int dimensions = 1>
+using local_accessor = accessor<dataT, dimensions, access::mode::read_write,
+  access::target::local>;
+
 namespace detail {
 namespace accessor {
 

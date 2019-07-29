@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018,2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -243,6 +243,32 @@ HIPSYCL_ID_BINARY_OP_SIZE_T(>>)
 HIPSYCL_ID_BINARY_OP_SIZE_T(&)
 HIPSYCL_ID_BINARY_OP_SIZE_T(|)
 HIPSYCL_ID_BINARY_OP_SIZE_T(^)
+
+namespace detail {
+namespace id{
+
+template<int dimensions>
+HIPSYCL_UNIVERSAL_TARGET
+inline sycl::id<dimensions> construct_from_first_n(size_t x, size_t y, size_t z);
+
+template<>
+HIPSYCL_UNIVERSAL_TARGET
+inline sycl::id<3> construct_from_first_n(size_t x, size_t y, size_t z)
+{ return sycl::id<3>{x,y,z}; }
+
+template<>
+HIPSYCL_UNIVERSAL_TARGET
+inline sycl::id<2> construct_from_first_n(size_t x, size_t y, size_t z)
+{ return sycl::id<2>{x,y}; }
+
+template<>
+HIPSYCL_UNIVERSAL_TARGET
+inline sycl::id<1> construct_from_first_n(size_t x, size_t y, size_t z)
+{ return sycl::id<1>{x}; }
+
+
+} // namespace id
+} // namespace detail
 
 } // namespace sycl
 } // namespace cl

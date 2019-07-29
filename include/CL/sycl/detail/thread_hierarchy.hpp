@@ -72,72 +72,72 @@ inline __device__ size_t get_global_size_z()
 
 template<int dimensions>
 __device__
-id<dimensions> get_local_id();
+sycl::id<dimensions> get_local_id();
 
 template<>
 __device__
-inline id<1> get_local_id<1>()
-{ return id<1>{hipThreadIdx_x}; }
+inline sycl::id<1> get_local_id<1>()
+{ return sycl::id<1>{hipThreadIdx_x}; }
 
 template<>
 __device__
-inline id<2> get_local_id<2>()
-{ return id<2>{hipThreadIdx_x, hipThreadIdx_y}; }
+inline sycl::id<2> get_local_id<2>()
+{ return sycl::id<2>{hipThreadIdx_x, hipThreadIdx_y}; }
 
 template<>
 __device__
-inline id<3> get_local_id<3>()
-{ return id<3>{hipThreadIdx_x, hipThreadIdx_y, hipThreadIdx_z}; }
+inline sycl::id<3> get_local_id<3>()
+{ return sycl::id<3>{hipThreadIdx_x, hipThreadIdx_y, hipThreadIdx_z}; }
 
 template<int dimensions>
 __device__
-id<dimensions> get_global_id();
+sycl::id<dimensions> get_global_id();
 
 template<>
 __device__
-inline id<1> get_global_id<1>()
-{ return id<1>{get_global_id_x()}; }
+inline sycl::id<1> get_global_id<1>()
+{ return sycl::id<1>{get_global_id_x()}; }
 
 template<>
 __device__
-inline id<2> get_global_id<2>()
+inline sycl::id<2> get_global_id<2>()
 {
-  return id<2>{get_global_id_x(), get_global_id_y()};
+  return sycl::id<2>{get_global_id_x(), get_global_id_y()};
 }
 
 template<>
 __device__
-inline id<3> get_global_id<3>()
+inline sycl::id<3> get_global_id<3>()
 {
-  return id<3>{get_global_id_x(),
-               get_global_id_y(),
-               get_global_id_z()};
+  return sycl::id<3>{get_global_id_x(),
+                    get_global_id_y(),
+                    get_global_id_z()};
 }
 
 template<int dimensions>
 __device__
-id<dimensions> get_group_id();
+sycl::id<dimensions> get_group_id();
 
 template<>
 __device__
-inline id<1> get_group_id<1>()
-{ return id<1>{hipBlockIdx_x}; }
+inline sycl::id<1> get_group_id<1>()
+{ return sycl::id<1>{hipBlockIdx_x}; }
 
 template<>
 __device__
-inline id<2> get_group_id<2>()
+inline sycl::id<2> get_group_id<2>()
 {
-  return id<2>{hipBlockIdx_x,
+  return sycl::id<2>{hipBlockIdx_x,
                hipBlockIdx_y};
 }
 
 template<>
 __device__
-inline id<3> get_group_id<3>()
+inline sycl::id<3> get_group_id<3>()
 {
-  return id<3>{hipBlockIdx_x,
-               hipBlockIdx_y,
-               hipBlockIdx_z};
+  return sycl::id<3>{hipBlockIdx_x,
+                    hipBlockIdx_y,
+                    hipBlockIdx_z};
 }
 
 template<int dimensions>

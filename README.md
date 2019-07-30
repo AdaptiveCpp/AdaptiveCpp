@@ -3,9 +3,9 @@
 # hipSYCL - an implementation of SYCL over NVIDIA CUDA/AMD HIP
 [![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=master)](https://travis-ci.com/illuhad/hipSYCL)
 
-The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that builds upon NVIDIA CUDA/AMD HIP. hipSYCL consists of a SYCL runtime that runs on top of CUDA/HIP and a compiler portion in the form of a clang plugin. This plugin allows clang to directly compile SYCL code using its CUDA/HIP frontend for AMD GPUs using ROCm and NVIDIA GPUs using CUDA.
+The goal of the hipSYCL project is to develop a SYCL 1.2.1 implementation that builds upon NVIDIA CUDA/AMD HIP. hipSYCL consists of a SYCL runtime that runs on top of CUDA/HIP and a compiler portion in the form of a clang plugin. This plugin allows clang to directly compile SYCL code using its CUDA/HIP frontend for AMD GPUs using ROCm and NVIDIA GPUs using CUDA. Additionally, a CPU backend based on OpenMP is available.
 
-There is also a legacy source-to-source transformation toolchain available which automatically converts SYCL code into CUDA/HIP code behind the scenes. With this toolchain, it is even possible to use vendor compilers (like nvcc) to compile SYCL code. Due to limitations in nvcc this is however only recommended for very specific use cases.
+If users want to use vendor compilers nvcc/hcc instead of clang to compile SYCL code, this is also possible if users manually make sure that the input SYCL code is valid CUDA/HIP (e.g. by marking kernel functions as `__device__`. Due to limitations in nvcc this is however only recommended for very specific use cases.
 
 hipSYCL's approach of running directly on top of the platforms best supported by GPU hardware vendors (ROCm/CUDA) allows applications to make use of all the latest CUDA and ROCm features (e.g. intrinsics). It also guarantees compatibility of hipSYCL applications with established and well-supported vendor tools (e.g. profilers) and libraries in the NVIDIA and AMD ecosystems.
 
@@ -15,10 +15,10 @@ hipSYCL's approach of running directly on top of the platforms best supported by
 * Portability. hipSYCL ingests regular SYCL code which can also be executed on a variety of other SYCL implementations targeting different hardware. This is illustrated in the following image:
   ![SYCL implementations](/doc/img/sycl-targets.png)
 * Powerful, but intuitive programming model. SYCL (and by extension, hipSYCL) relies on an asynchronous task graph with support for out-of-order execution instead of the simple in-order queues (streams) provided by CUDA and HIP. This task graph is constructed based on the requirements (e.g. memory accesses) that the user specifies for one kernel. All data transfers between host and device are then executed automatically (if necessary) by the SYCL runtime. hipSYCL will optimize the execution order of the tasks and will for example automatically try to overlap kernels and data transfers, if possible. This allows for the development of highly optimized applications with little effort from the application developer.
-* All CUDA or HIP intrinsics or other hardware specific features can still be used from within hipSYCL if desired. This is because an hipSYCL application is compiled with a regular CUDA/HIP compiler. Since hipSYCL attempts to parse the input source as regular SYCL, you _must_ surround the use of CUDA or HIP specific features with appropriate preprocessor guards. For more deatils, see the dedicated section *Using CUDA/HIP specific features in hipSYCL* below.
+* All CUDA or HIP intrinsics or other hardware specific features can still be used from within hipSYCL if desired. This is because an hipSYCL application is compiled with a regular CUDA/HIP compiler. Since hipSYCL attempts to parse the input source as regular SYCL, you _must_ surround the use of CUDA or HIP specific features with appropriate preprocessor guards. For more details, see the dedicated section *Using CUDA/HIP specific features in hipSYCL* below.
 
 ## How it works
-hipSYCL relies on the fact that that both HIP/CUDA and SYCL are single-source programming models based on C++. In principle, this allows SYCL to be implemented as a HIP/CUDA library that simply wraps CUDA or HIP device or runtime functions. This wrapper could be very thin in practice with negligible performance impact due to aggressive inlining by device compilers. The SYCL application can then be compiled with the regular CUDA or ROCm compilers. As a side effect, this approach also brings access to CUDA and HIP specific features from SYCL code. This is exactly the idea behind hipSYCL.
+hipSYCL relies on the fact that that both HIP/CUDA and SYCL are single-source programming models based on C++. In principle, this allows SYCL to be implemented as a HIP/CUDA library that simply wraps CUDA or HIP device or runtime functions. This wrapper could be very thin in practice with negligible performance impact due to aggressive inlining by device compilers. The SYCL application can then be compiled with regular CUDA or ROCm compilers. As a side effect, this approach also brings access to CUDA and HIP specific features from SYCL code. This is exactly the idea behind hipSYCL.
 
 Reality is unfortunately more complicated because the HIP/CUDA programming model is more restrictive than SYCL. For example, CUDA and HIP require that functions should be explicitly marked by the programmer whether they should be compiled for device or host. SYCL doesn't require this. To fix such restrictions, hipSYCL offers two approaches:
 * The recommended approach is to use the clang-based hipSYCL toolchain. Using a clang plugin, hipSYCL adds additional AST and IR passes that augment clang's CUDA/HIP support to also compile SYCL code.
@@ -63,54 +63,31 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 * 2018/9/24: hipSYCL now compiles cleanly on ROCm as well.
 
 ## Building and installing hipSYCL
+
+### Prerequisites
 In order to successfully build and install hipSYCL, the following major requirements must be met:
-* **LLVM and clang >= 8** must be installed, including development files. 
+
+#### Hardware and OS
+* We support CPUs and NVIDIA CUDA GPUs and AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
+* hipSYCL currently does not support other operating systems besides Linux due to a lack of maintainers for other platforms. While the AMD backend can only work on Linux since AMD doesn't support ROCm on other platforms, the CUDA and CPU backends should in principle be portable. If you are interested in porting and maintaining hipSYCL on other platforms, feel encouraged to do so and get in touch with us.
+
+#### Software dependencies
+* **LLVM and clang >= 8** must be installed, including development files.
 * *For the CUDA backend*: 
   * **CUDA >= 9.0** must be installed.
-  * For the legacy toolchain, either **clang or nvcc** must be in `$PATH`. The default (and recommended) CUDA compiler is clang due to known limitations and restrictions in nvcc's support of modern C++ features (see above). clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
-  Our internal testing is conducted with CUDA 10 and clang 8.
+  * hipSYCL requires clang for CUDA compilation. clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
+  Our internal testing is conducted with CUDA 10 and clang 8. Note that CUDA 10.1 requires clang 9 or newer.
 * *For the ROCm backend*: 
-  * **ROCm >= 2.0** must be installed. HIP must be installed and working. We test with the `rocm/rocm-terminal` docker image. For the legacy toolchain, **hcc** must be in `$PATH`. 
-  * In order to use the new clang-based toolchain, **hipSYCL must be compiled against the same clang version used by ROCm**. This requires what AMD calls `hip-clang`.
+  * **ROCm >= 2.0** must be installed. HIP-clang must be installed as described by AMD [here](https://github.com/ROCm-Developer-Tools/HIP/blob/master/INSTALL.md#hip-clang). Unfortunately, AMD does not yet provide binary packages, so you will have to compile the compiler stack from source. hipSYCL must be compiled against this clang/llvm distribution.
 * *For the CPU backend*: Any C++ compiler with **OpenMP** support should do. We test with clang 8, 9 and gcc 8.2.
-
-### Packages
-For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
-
-### Singularity container images
-hipSYCL comes with singularity definition files that allow you to create working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
-
-In order to build a ROCm-based hipSYCL singularity container image, simply run:
-```
-$ sudo singularity build <image-name> install/singularity/hipsycl-rocm.def
-```
-
-and for a CUDA based container image, execute:
-```
-$ sudo singularity build <image-name> install/singularity/hipsycl-cuda.def
-```
-
-### Docker container images
-Dockerfiles for hipSYCL in conjunction with both CUDA and ROCm are also provided. To build a docker container image for ROCm, run
-```
-$ sudo docker build install/docker/ROCm
-```
-and
-```
-$ sudo docker build install/docker/CUDA
-```
-for CUDA.
-
-### Manual compilation
-hipSYCL depends on:
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
 * `cmake`
-* An appropriate compiler for the backends that you wish to compile (see above, section *Building and installing hipSYCL*)
-* HIP. On CUDA, it is not necessary to install HIP explicitly since the required headers are bundled with hipSYCL. On AMD, the system-wide HIP installation will be used instead and must be installed and working.
-* llvm/clang (with development headers and libraries). LLVM/clang 8 and 9 are supported at the moment.
+* hipSYCL also depends on HIP, but already comes bundled with a version of the HIP headers for the CUDA backend. The ROCm backend will use the HIP installation that is installed as part of ROCm.
 * the Boost C++ library (preprocessor, filesystem)
 
-Once these requirements are met, clone the repository with all submodules:
+### Manual compilation
+
+Once the software requirements mentioned above are met, clone the repository with all submodules:
 ```
 $ git clone --recurse-submodules https://github.com/illuhad/hipSYCL
 ```
@@ -122,42 +99,32 @@ $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
 
-## Compilation with clang-based toolchain: Using syclcc-clang
+### Packages
+For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
+
+### Singularity container images
+hipSYCL comes with singularity definition files that allow you to create working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
+
+For a CUDA based container image, execute:
+```
+$ sudo singularity build <image-name> install/singularity/hipsycl-cuda.def
+```
+
+On ROCm, containers are currently not available due to the lack of binary packages for HIP-clang from AMD.
+
+### Docker container images
+Dockerfiles for hipSYCL are also provided. For a CUDA-based docker image, run
+```
+$ sudo docker build install/docker/CUDA
+```
+
+On ROCm, containers are currently not available due to the lack of binary packages for HIP-clang from AMD.
+
+
+## Compilation with hipSYCL: Using syclcc-clang
 In order to compile software with hipSYCL, it is recommended to use `syclcc-clang` which automatically adds all required compiler arguments to the CUDA/HIP compiler. `syclcc-clang` can be used like a regular compiler, i.e. you can use `syclcc-clang -o test test.cpp` to compile your SYCL application called `test.cpp` with hipSYCL.
 
 `syclcc-clang` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target platform CUDA/ROCm/CPU to compile for). See `syclcc-clang --help` for a comprehensive list of options.
-
-## Legacy compilation toolchain: Using syclcc
-**Note: `syclcc` will be replaced in the near future by `syclcc-clang` from the new toolchain!**
-
-`hipSYCL's `syclcc` compiler wrapper will automatically execute the hipSYCL source-to-source transformation toolchain and then invoke either clang or nvcc (for the CUDA backend), hcc (for the ROCm backend) or an OpenMP-capable host compiler (for the CPU backend). If several backends are available,
-the backend to be used must be explicitly specified by the user. This can be done either by setting the environment variable
-```
-export HIPSYCL_PLATFORM=<platform>
-```
-or with a command line argument for `syclcc`:
-```
-syclcc --hipsycl-platform=<platform> ...
-```
-where valid values for `<platform>` are 
-* `cuda`, `nvidia` for CUDA, using clang as CUDA compiler
-* `nvcc` for CUDA, using nvcc as CUDA compiler (not recommended unless you need specific features only available in nvcc)
-* `rocm`, `amd`, `hip` or `hcc` for ROCm
-* `cpu`, `host` or `hipcpu` for the CPU backend
-
-Note that the CPU backend is at the moment "static", i.e. there's no decision possible at runtime whether to run a kernel on GPU or CPU. Where a kernel is executed depends only on the setting for the hipSYCL platform at compile time.
-
-`syclcc` understands the following arguments or environment variables:
-
-
-Command-line argument | Environment variable | Function
---------------------- | -------------------- | --------
-`--hipsycl-platform=` | `HIPSYCL_PLATFORM`   | Selects the hipSYCL backend
-`--cuda-clang-compiler=` | `HIPSYCL_CUDA_CLANG_COMPILER` | Selects the clang compiler for CUDA compilation. If not specified, defaults to the newest version of clang that can be found in `$PATH`.
-`--keep-temporary-files` | *(None)* | Do not remove results of the source-to-source transformation; can be useful for debugging.
- *(None)* | `HIPSYCL_GPU_ARCH` | Selects the target GPU architecture for ROCm and CUDA (with clang as compiler). Can be combined with command line arguments of the respective compilers, in which case code will be compiled for all specified architectures. On clang: If no architecture is specified, `sm_52` is selected.
- *(None)* | `CXX` | For the CPU backend: Selects compiler. If not specified, `g++` will be tried followed by the newest version of clang in `$PATH`.
-
 
 ## Example
 The following code adds two vectors:
@@ -212,7 +179,7 @@ int main()
 ```
 
 ## Using CUDA/HIP specific features in hipSYCL
-### clang-based toolchain
+### `syclcc-clang` toolchain
 Assume `kernel_function` is a function used in a SYCL kernel. Platform specific features can be used as follows:
 ```cpp
 __host__ __device__
@@ -238,8 +205,8 @@ void kernel_function()
 ```
 This construct may seem slightly complicated. The reason for this is that clang initially parses all SYCL code as host code, so only `__host__ __device__` functions can be called from kernels. Additionally, clang requires that host code must be present and correct even when compiling for device.
 
-### Manual mode / legacy toolchain
-Assume again `kernel_function` is a function used in a SYCL kernel. Using the legacy toolchain, platform specific features can be used like shown here:
+### Manual mode
+Assume again `kernel_function` is a function used in a SYCL kernel. If you do not rely on `syclcc-clang` you can also take over responsibility yourself to make sure that CUDA/HIP compilers can compile your SYCL code (e.g, by marking kernel lambdas as `__device__`). In that case, platform specific features can be used like shown here:
 
 ```cpp
 

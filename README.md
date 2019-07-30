@@ -223,5 +223,9 @@ void kernel_function()
 
 ```
 
+# Documentation
+
+* [Macros used by hipSYCL](doc/macros.md)
+
 
 

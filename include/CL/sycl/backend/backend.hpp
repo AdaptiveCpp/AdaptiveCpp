@@ -69,6 +69,7 @@
 
 
 #ifdef __HIP_DEVICE_COMPILE__
+ // These macros are set if we are currently compiling for GPU.
  #define __HIPSYCL_DEVICE__
  #define SYCL_DEVICE_ONLY
 #endif
@@ -89,8 +90,42 @@
  #define __hipsycl_launch_kernel hipLaunchKernelGGL
 #endif
 
+
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_CPU)
   #define HIPSYCL_SVM_SUPPORTED
+#endif
+
+#if defined(SYCL_DEVICE_ONLY)
+ // If HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO is defined,
+ // information about the iteration space like thread id, block id
+ // block size, grid size will be queried on demand instead of being
+ // stored inside the item, nd_item, etc SYCL classes.
+ // Depending on the quality of compiler optimizations, this may or may
+ // not help to reduce register pressure.
+ // TODO: We need benchmarks to check the impact! Code could be simplified
+ // if it turns out that we don't need it and compiler optimizations are
+ // reliably good enough.
+ //
+ // HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO is only available on GPU.
+ #define HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#endif
+
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+ #if !defined (__HIPSYCL_DEVICE_CALLABLE__)
+  // On demand iteration space info is in particular unavailable on CPU
+  #error Ondemand iteration space querying cannot be activated, __device__ functions are unavailable!
+ #endif
+#endif
+
+#ifdef HIPSYCL_PLATFORM_CPU
+ // This enables kernel invocation via the OpenMP host kernel
+ // execution model (instead of plain HIP/hipCPU).
+ // Ultimately, for runtime device selection between host/gpu
+ // this should always be active. However, currently it is not
+ // not yet possible to use hipCPU at the same time as regular GPU HIP,
+ // so we can only enable compiling for host when the platform is
+ // pure CPU.
+ #define HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
 #endif
 
 namespace cl {

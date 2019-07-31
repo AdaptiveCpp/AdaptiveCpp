@@ -12,7 +12,8 @@ set(HIPSYCL_SOURCES
   buffer.cpp
   task_graph.cpp
   accessor.cpp
-  async_worker.cpp)
+  async_worker.cpp
+  local_memory.cpp)
 
 
 set(INCLUDE_DIRS

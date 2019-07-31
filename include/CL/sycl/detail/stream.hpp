@@ -79,6 +79,9 @@ public:
   /// \return The error handler associated with this
   /// stream
   async_handler get_error_handler() const;
+
+  /// \return The device to which this stream is bound
+  device get_device() const;
 private:
   hipStream_t _stream;
 

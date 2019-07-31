@@ -179,13 +179,13 @@ CompilationTargetAnnotator::addAnnotations()
         if(caller && caller->getAsFunction())
         {
           std::string callerName = caller->getAsFunction()->getQualifiedNameAsString();
-          if(callerName.find("cl::sycl::detail::dispatch::") !=
+          if(callerName.find("cl::sycl::detail::dispatch::device::") !=
              std::string::npos)
           {
             // If this is a kernel function in a parallel hierarchical for,
             // we need to add __shared__ attributes. This is the case
-            // if the function is called by cl::sycl::detail::dispatch::parallel_for_workgroup
-            if(callerName == "cl::sycl::detail::dispatch::parallel_for_workgroup")
+            // if the function is called by cl::sycl::detail::dispatch::device::parallel_for_workgroup
+            if(callerName == "cl::sycl::detail::dispatch::device::parallel_for_workgroup")
               this->correctSharedMemoryAnnotations(decl.first);
 
             // In any way, mark all kernels as __device__ to

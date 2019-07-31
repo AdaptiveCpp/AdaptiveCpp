@@ -252,7 +252,7 @@ private:
       return;
 
     if(f->getQualifiedNameAsString() 
-        == "cl::sycl::detail::dispatch::parallel_for_workgroup")
+        == "cl::sycl::detail::dispatch::device::parallel_for_workgroup")
     {
       clang::FunctionDecl* Kernel = 
         this->getKernelFromHierarchicalParallelFor(f);

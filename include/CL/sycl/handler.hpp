@@ -332,22 +332,35 @@ void parallel_for_ndrange_kernel(Function&& f, sycl::id<dimensions> offset)
     detail::get_local_size<dimensions>(),
     detail::get_grid_size<dimensions>()
   };
+
+  host_local_memory::request_from_hipcpu_pool();
   f(this_item);
+  host_local_memory::release();
 }
 
 template<class Function>
 inline 
 void parallel_for_workgroup(Function&& f,
                             const sycl::range<1> num_groups,
-                            const sycl::range<1> local_size)
+                            const sycl::range<1> local_size,
+                            size_t num_local_mem_bytes)
 {
 #ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for
+  #pragma omp parallel
 #endif
-  for(size_t i = 0; i < num_groups.get(0); ++i)
   {
-    group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
-    f(this_group);
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+    {
+      group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
+      f(this_group);
+    }
+
+    host_local_memory::release();
   }
 }
 
@@ -355,35 +368,55 @@ template<class Function>
 inline 
 void parallel_for_workgroup(Function&& f,
                             const sycl::range<2> num_groups,
-                            const sycl::range<2> local_size)
+                            const sycl::range<2> local_size,
+                            size_t num_local_mem_bytes)
 {
 #ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(2)
+  #pragma omp parallel
 #endif
-  for(size_t i = 0; i < num_groups.get(0); ++i)
-    for(size_t j = 0; j < num_groups.get(1); ++j)
-    {
-      group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
-      f(this_group);
-    }
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(2)
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+      for(size_t j = 0; j < num_groups.get(1); ++j)
+      {
+        group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
+        f(this_group);
+      }
+
+    host_local_memory::release();
+  }
 }
 
 template<class Function>
 inline 
 void parallel_for_workgroup(Function&& f,
                             const sycl::range<3> num_groups,
-                            const sycl::range<3> local_size)
+                            const sycl::range<3> local_size,
+                            size_t num_local_mem_bytes)
 {
 #ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(3)
+  #pragma omp parallel
 #endif
-  for(size_t i = 0; i < num_groups.get(0); ++i)
-    for(size_t j = 0; j < num_groups.get(1); ++j)
-      for(size_t k = 0; k < num_groups.get(2); ++k)
-      {
-        group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
-        f(this_group);
-      }
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(3)
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+      for(size_t j = 0; j < num_groups.get(1); ++j)
+        for(size_t k = 0; k < num_groups.get(2); ++k)
+        {
+          group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
+          f(this_group);
+        }
+    
+    host_local_memory::release();
+  }
 }
 
 #endif // HIPSYCL_PLATFORM_CPU
@@ -458,6 +491,8 @@ void set_args(Ts &&... args);
             typename KernelType>
   void single_task(KernelType kernelFunc)
   {
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for single_task!
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
     detail::stream_ptr stream = this->get_stream();
 
@@ -814,6 +849,8 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for simple parallel_for!
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
@@ -856,6 +893,8 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for single_task!
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
@@ -966,8 +1005,9 @@ private:
       if(stream->get_device().is_host())
       {
         hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_workgroup,
-                                  stream->get_stream(), shared_mem_size,
-                                  kernelFunc, numWorkGroups, workGroupSize);
+                                  stream->get_stream(), 0,
+                                  kernelFunc, numWorkGroups, workGroupSize, 
+                                  shared_mem_size);
       }
       else
 #endif

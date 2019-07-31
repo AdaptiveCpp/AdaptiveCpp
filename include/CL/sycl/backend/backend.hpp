@@ -89,6 +89,10 @@
  #define __hipsycl_launch_kernel hipLaunchKernelGGL
 #endif
 
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_CPU)
+  #define HIPSYCL_SVM_SUPPORTED
+#endif
+
 namespace cl {
 namespace sycl {
 namespace detail {

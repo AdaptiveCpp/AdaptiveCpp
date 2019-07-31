@@ -40,6 +40,37 @@
 namespace cl {
 namespace sycl {
 namespace detail {
+    
+    
+#ifdef HIPSYCL_SVM_SUPPORTED
+
+static void* svm_alloc(size_t size)
+{
+#ifdef HIPSYCL_PLATFORM_CUDA
+  void* ptr = nullptr;
+  if(cudaMallocManaged(&ptr, size) != cudaSuccess)
+    throw memory_allocation_error{"Couldn't allocate cuda managed memory"};
+  return ptr;
+#elif defined(HIPSYCL_PLATFORM_CPU)
+  return new char [size];
+#else
+  raise unimplemented{"Invalid platform for call to svm_alloc()"};
+#endif
+}
+
+static void svm_free(void* ptr)
+{
+#ifdef HIPSYCL_PLATFORM_CUDA
+  cudaFree(ptr);
+#elif defined(HIPSYCL_PLATFORM_CPU)
+  delete [] reinterpret_cast<char*>(ptr);
+#else
+  raise unimplemented{"Invalid platform for call to svm_alloc()"};
+#endif
+}
+  
+  
+#endif
 
 struct max_aligned_vector
 {
@@ -58,8 +89,9 @@ static void* memory_offset(void* ptr, size_t bytes)
 }
 
 buffer_impl::buffer_impl(size_t buffer_size,
-                         void* host_ptr)
-  : _svm{false},
+                         void* host_ptr,
+                         bool is_svm_ptr)
+  : _svm{is_svm_ptr},
     _pinned_memory{false},
     _owns_host_memory{false},
     _host_memory{host_ptr},
@@ -94,10 +126,10 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
 
   if(device_mode == device_alloc_mode::svm)
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifdef HIPSYCL_SVM_SUPPORTED
     _svm = true;
 #else
-    throw unimplemented{"SVM allocation is currently only supported on CUDA"};
+    throw unimplemented{"SVM allocation is currently only supported on CUDA and CPU backends"};
 #endif
 
   if(host_mode != host_alloc_mode::svm)
@@ -105,10 +137,9 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
-    if(cudaMallocManaged(&_buffer_pointer, buffer_size) != cudaSuccess)
-      throw memory_allocation_error{"Couldn't allocate cuda managed memory"};
-
+#ifdef HIPSYCL_SVM_SUPPORTED
+    _buffer_pointer = svm_alloc(buffer_size);
+    
     _host_memory = _buffer_pointer;
 #endif
   }
@@ -142,8 +173,8 @@ buffer_impl::~buffer_impl()
 
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
-    cudaFree(this->_buffer_pointer);
+#ifdef HIPSYCL_SVM_SUPPORTED
+    svm_free(this->_buffer_pointer);
 #endif
   }
   else
@@ -164,7 +195,7 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
 {
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifdef HIPSYCL_SVM_SUPPORTED
     HIPSYCL_DEBUG_INFO << "buffer_impl: Running implicit SVM write-back"
                        << std::endl;
     if(_write_back &&

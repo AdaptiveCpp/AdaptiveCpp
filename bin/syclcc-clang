@@ -111,7 +111,7 @@ class syclcc_config:
     config_file_path = os.path.abspath(
       os.path.join(self.hipsycl_installation_path,
                   "etc/hipSYCL/syclcc.json"))
-    
+
     self._config_file = None
     # First check silently if we can open the default config file.
     # If that fails, we try later on after argument parsing if a
@@ -119,7 +119,7 @@ class syclcc_config:
     # (This happens when compiling hipSYCL)
     if os.path.exists(config_file_path):
       self._config_file = config_file(config_file_path)
-      
+
     self._args = args
 
     # Describes different representations of options:
@@ -128,14 +128,14 @@ class syclcc_config:
     # 3.) the field in the config file.
     self._options = {
       'platform': option("--hipsycl-platform", "HIPSYCL_PLATFORM", "default-platform",
-"""  The platform that hipSYCL should target. Valid values: 
+"""  The platform that hipSYCL should target. Valid values:
     * cuda: Target NVIDIA CUDA GPUs
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs"""),
 
       'clang': option("--hipsycl-clang", "HIPSYCL_CLANG", "default-clang",
 """  The path to the clang executable that should be used for compilation
-    (Note: *must* be compatible with the clang version that the 
+    (Note: *must* be compatible with the clang version that the
      hipSYCL clang plugin was compiled against!)"""),
 
       'cuda-path': option("--hipsycl-cuda-path", "HIPSYCL_CUDA_PATH", "default-cuda-path",
@@ -149,32 +149,32 @@ class syclcc_config:
 
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
-      
+
       'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting.""")
     }
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
-"""  If set, only shows compilation commands that would be executed, 
+"""  If set, only shows compilation commands that would be executed,
   but does not actually execute it."""),
       'is-bootstrap': option("--hipsycl-bootstrap", "HIPSYCL_BOOTSTRAP", "default-use-bootstrap-mode",
-"""  Enter bootstrap mode. This is only required when building hipSYCL itself and 
+"""  Enter bootstrap mode. This is only required when building hipSYCL itself and
   should not be set by the user.""")
     }
 
     self._hipsycl_args = []
     self._forwarded_args = []
-    
+
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
         self._hipsycl_args.append(arg)
       else:
         self._forwarded_args.append(arg)
-        
+
     if self._is_option_set_to_non_default_value("config-file"):
       self._config_file = config_file(self._retrieve_option("config-file"))
-      
+
     if self._config_file == None:
       # If the config file is still None at this point, probably no alternative
       # config file was supplied and the default one doesn't exist.
@@ -230,7 +230,7 @@ class syclcc_config:
         v == "false"):
       return False
     return True
-      
+
 
   def _is_flag_set(self, flag_name):
     flag = self._flags[flag_name]
@@ -249,17 +249,17 @@ class syclcc_config:
       "environment variable {} or config file.".format(
         flag.commandline, flag.environment
     ))
-      
+
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
-    
+
     for arg in self._hipsycl_args:
       if arg.startswith(opt.commandline+"="):
         return True
-      
+
     if opt.environment in os.environ:
       return True
-    
+
     return False
 
   def _retrieve_option(self, option_name):
@@ -322,7 +322,7 @@ class syclcc_config:
   def hipsycl_installation_path(self):
     syclcc_path = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(syclcc_path, "..")
-    
+
   @property
   def forwarded_compiler_arguments(self):
     return self._forwarded_args
@@ -393,7 +393,7 @@ class clang_plugin_compiler:
                              "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")]
     elif target == hipsycl_platform.HIP:
       self._target = "hip"
-      
+
       self._linker_args = [
         "-L" + os.path.join(config.rocm_path, "lib"),
         "-lhip_hcc"
@@ -405,8 +405,8 @@ class clang_plugin_compiler:
           "-L"+hipsycl_library_path,
           "-lhipSYCL_rocm"
         ]
-      
-      
+
+
       self._compiler_args = [
         "-x", "hip",
         "--cuda-gpu-arch=" + config.target_arch,
@@ -431,7 +431,9 @@ class clang_plugin_compiler:
       ]
 
   def _get_rocm_clang_include_path(self, rocm_path):
-    base_dir = os.path.join(rocm_path, "hcc/lib/clang")
+    # try to find clang includes from whichever clang we're using
+    clang_dir = os.path.dirname(self._clang)
+    base_dir = os.path.abspath(os.path.join(clang_dir, "../lib/clang"))
     subdirs = [subdir for subdir in os.listdir(base_dir)
               if os.path.isdir(os.path.join(base_dir, subdir))]
 
@@ -440,7 +442,6 @@ class clang_plugin_compiler:
 
     # There is usually only one subdirectory
     return os.path.join(base_dir, subdirs[0], "include")
-
   def run(self):
 
     command = [self._clang] + self._common_compiler_args
@@ -450,12 +451,12 @@ class clang_plugin_compiler:
 
     if self._contains_linking_stage:
       command += self._linker_args
-    
+
     command += self._args
-    
+
     return run_or_print(command, self._is_dry_run)
-    
-    
+
+
 
 class pure_cpu_compiler:
   def __init__(self, config):
@@ -470,7 +471,7 @@ class pure_cpu_compiler:
     except:
       # if not, fall back to clang
       self._compiler = config.clang_path
-      
+
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     self._linker_args = []
@@ -489,7 +490,7 @@ class pure_cpu_compiler:
     command = [self._compiler] + self._compiler_args
     if self._contains_linking_stage:
       command += self._linker_args
-    
+
     command += self._args
     return run_or_print(command, self._is_dry_run)
 
@@ -506,7 +507,7 @@ if __name__ == '__main__':
   if sys.version_info[0] < 3:
     print("syclcc requires python 3.")
     sys.exit(-1)
-  
+
   args = sys.argv[1:]
 
   try:

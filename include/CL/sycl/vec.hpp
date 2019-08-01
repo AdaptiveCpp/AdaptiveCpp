@@ -1546,7 +1546,7 @@ vec<T,N> binary_vector_operation(const vec<T,N>& a,
                                  const vec<T,N>& b,
                                  Function f)
 {
-  return a._impl.binary_operation(f, b);
+  return vec<T,N>(a._impl.binary_operation(f, b._impl));
 }
 
 template<class T, int N, class Function>

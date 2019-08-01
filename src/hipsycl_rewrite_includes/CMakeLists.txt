@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(hipsycl_rewrite_includes)
 
+find_package(LLVM REQUIRED CONFIG)
+find_package(Clang REQUIRED CONFIG)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)

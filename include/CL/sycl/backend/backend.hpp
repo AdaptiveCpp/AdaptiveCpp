@@ -90,6 +90,11 @@
  #define __hipsycl_launch_kernel hipLaunchKernelGGL
 #endif
 
+
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_CPU)
+  #define HIPSYCL_SVM_SUPPORTED
+#endif
+
 #if defined(SYCL_DEVICE_ONLY)
  // If HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO is defined,
  // information about the iteration space like thread id, block id

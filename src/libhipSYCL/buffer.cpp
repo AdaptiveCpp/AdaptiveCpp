@@ -40,6 +40,37 @@
 namespace cl {
 namespace sycl {
 namespace detail {
+    
+    
+#ifdef HIPSYCL_SVM_SUPPORTED
+
+static void* svm_alloc(size_t size)
+{
+#ifdef HIPSYCL_PLATFORM_CUDA
+  void* ptr = nullptr;
+  if(cudaMallocManaged(&ptr, size) != cudaSuccess)
+    throw memory_allocation_error{"Couldn't allocate cuda managed memory"};
+  return ptr;
+#elif defined(HIPSYCL_PLATFORM_CPU)
+  return new char [size];
+#else
+  raise unimplemented{"Invalid platform for call to svm_alloc()"};
+#endif
+}
+
+static void svm_free(void* ptr)
+{
+#ifdef HIPSYCL_PLATFORM_CUDA
+  cudaFree(ptr);
+#elif defined(HIPSYCL_PLATFORM_CPU)
+  delete [] reinterpret_cast<char*>(ptr);
+#else
+  raise unimplemented{"Invalid platform for call to svm_alloc()"};
+#endif
+}
+  
+  
+#endif
 
 struct max_aligned_vector
 {
@@ -58,8 +89,9 @@ static void* memory_offset(void* ptr, size_t bytes)
 }
 
 buffer_impl::buffer_impl(size_t buffer_size,
-                         void* host_ptr)
-  : _svm{false},
+                         void* host_ptr,
+                         bool is_svm_ptr)
+  : _svm{is_svm_ptr},
     _pinned_memory{false},
     _owns_host_memory{false},
     _host_memory{host_ptr},
@@ -67,8 +99,20 @@ buffer_impl::buffer_impl(size_t buffer_size,
     _write_back{true},
     _write_back_memory{host_ptr}
 {
-  detail::check_error(hipMalloc(&_buffer_pointer, buffer_size));
-
+  if(is_svm_ptr)
+  {
+#ifdef HIPSYCL_SVM_SUPPORTED
+    // If SVM is supported and the provided pointer is an SVM pointer,
+    // we can just use it directly as internal data buffer
+    _buffer_pointer = host_ptr;
+#else
+    throw unimplemented{"Attempted to force a buffer to interpret pointer as SVM, but backend does not support SVM pointers"};
+#endif
+  }
+  else
+  {
+    detail::check_error(hipMalloc(&_buffer_pointer, buffer_size));
+  }
   // This tells the buffer state monitor that the host pointer
   // may already have been modified, and guarantees that it will
   // be copied to the device before being used.
@@ -94,21 +138,19 @@ buffer_impl::buffer_impl(size_t buffer_size,
 
 
   if(device_mode == device_alloc_mode::svm)
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifdef HIPSYCL_SVM_SUPPORTED
     _svm = true;
 #else
-    throw unimplemented{"SVM allocation is currently only supported on CUDA"};
+    throw unimplemented{"SVM allocation is currently only supported on CUDA and CPU backends"};
 #endif
 
-  if(host_mode != host_alloc_mode::svm)
-    _owns_host_memory = true;
+  _owns_host_memory = true;
 
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
-    if(cudaMallocManaged(&_buffer_pointer, buffer_size) != cudaSuccess)
-      throw memory_allocation_error{"Couldn't allocate cuda managed memory"};
-
+#ifdef HIPSYCL_SVM_SUPPORTED
+    _buffer_pointer = svm_alloc(buffer_size);
+    
     _host_memory = _buffer_pointer;
 #endif
   }
@@ -142,8 +184,12 @@ buffer_impl::~buffer_impl()
 
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
-    cudaFree(this->_buffer_pointer);
+#ifdef HIPSYCL_SVM_SUPPORTED
+    // In SVM mode, host memory is the same as buffer memory,
+    // so _owns_host_memory tells us if we have allocated buffer
+    // memory
+    if(_owns_host_memory)
+      svm_free(this->_buffer_pointer);
 #endif
   }
   else
@@ -164,7 +210,7 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
 {
   if(_svm)
   {
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifdef HIPSYCL_SVM_SUPPORTED
     HIPSYCL_DEBUG_INFO << "buffer_impl: Running implicit SVM write-back"
                        << std::endl;
     if(_write_back &&

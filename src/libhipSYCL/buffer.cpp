@@ -99,8 +99,20 @@ buffer_impl::buffer_impl(size_t buffer_size,
     _write_back{true},
     _write_back_memory{host_ptr}
 {
-  detail::check_error(hipMalloc(&_buffer_pointer, buffer_size));
-
+  if(is_svm_ptr)
+  {
+#ifdef HIPSYCL_SVM_SUPPORTED
+    // If SVM is supported and the provided pointer is an SVM pointer,
+    // we can just use it directly as internal data buffer
+    _buffer_pointer = host_ptr;
+#else
+    throw unimplemented{"Attempted to force a buffer to interpret pointer as SVM, but backend does not support SVM pointers"};
+#endif
+  }
+  else
+  {
+    detail::check_error(hipMalloc(&_buffer_pointer, buffer_size));
+  }
   // This tells the buffer state monitor that the host pointer
   // may already have been modified, and guarantees that it will
   // be copied to the device before being used.
@@ -132,8 +144,7 @@ buffer_impl::buffer_impl(size_t buffer_size,
     throw unimplemented{"SVM allocation is currently only supported on CUDA and CPU backends"};
 #endif
 
-  if(host_mode != host_alloc_mode::svm)
-    _owns_host_memory = true;
+  _owns_host_memory = true;
 
   if(_svm)
   {
@@ -174,7 +185,11 @@ buffer_impl::~buffer_impl()
   if(_svm)
   {
 #ifdef HIPSYCL_SVM_SUPPORTED
-    svm_free(this->_buffer_pointer);
+    // In SVM mode, host memory is the same as buffer memory,
+    // so _owns_host_memory tells us if we have allocated buffer
+    // memory
+    if(_owns_host_memory)
+      svm_free(this->_buffer_pointer);
 #endif
   }
   else

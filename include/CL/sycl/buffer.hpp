@@ -347,7 +347,7 @@ private:
 #if !defined(HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY) && defined(HIPSYCL_PLATFORM_CPU)
     // force svm allocation
     device_mode = detail::device_alloc_mode::svm;
-    host_mode = detail::device_host_mode::svm;
+    host_mode = detail::host_alloc_mode::svm;
 #endif
     
     _buffer = detail::buffer_ptr{

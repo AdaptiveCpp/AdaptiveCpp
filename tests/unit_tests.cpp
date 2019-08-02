@@ -1035,6 +1035,17 @@ namespace {
   constexpr int vector_length_v = vector_length<T>::value;
 
   template<typename T>
+  struct vector_dim {
+    static constexpr int value = 0;
+  };
+  template<typename DT, int N>
+  struct vector_dim<vec<DT, N>> {
+    static constexpr int value = 1;
+  };
+  template<typename T>
+  constexpr int vector_dim_v = vector_dim<T>::value;
+
+  template<typename T>
   struct vector_elem {
     using type = T;
   };
@@ -1044,6 +1055,17 @@ namespace {
   };
   template<typename T>
   using vector_elem_t = typename vector_elem<T>::type;
+
+  template<typename TARGET_DT, typename T>
+  struct vector_coerce_elem {
+    using type = TARGET_DT;
+  };
+  template<typename TARGET_DT, typename DT, int D>
+  struct vector_coerce_elem<TARGET_DT, vec<DT, D>> {
+    using type = vec<TARGET_DT, D>;
+  };
+  template<typename TARGET_DT, typename T>
+  using vector_coerce_elem_t = typename vector_coerce_elem<TARGET_DT, T>::type;
 
   // utility functions for generic testing
 
@@ -1055,6 +1077,39 @@ namespace {
       vec<DT, 2>(v.x(), v.y()),
       vec<DT, 3>(v.x(), v.y(), v.z()),
       vec<DT, 4>(v.x(), v.y(), v.z(), v.w())));
+  }
+
+  // runtime indexed access to vector elements
+  template<typename T, std::enable_if_t<vector_length_v<T> == 0, int> = 0>
+  auto comp(T v, size_t idx) {
+    assert(idx == 0);
+    return v;
+  }
+  template<typename T, std::enable_if_t<vector_length_v<T> == 1, int> = 0>
+  auto comp(T v, size_t idx) {
+    assert(idx < vector_length_v<T>);
+    return v.x();
+  }
+  template<typename T, std::enable_if_t<vector_length_v<T> == 2, int> = 0>
+  auto comp(T v, size_t idx) {
+    assert(idx < vector_length_v<T>);
+    if(idx==0) return v.x();
+    return v.y();
+  }
+  template<typename T, std::enable_if_t<vector_length_v<T> == 3, int> = 0>
+  auto comp(T v, size_t idx) {
+    assert(idx < vector_length_v<T>);
+    if(idx==0) return v.x();
+    if(idx==1) return v.y();
+    return v.z();
+  }
+  template<typename T, std::enable_if_t<vector_length_v<T> == 4, int> = 0>
+  auto comp(T v, size_t idx) {
+    assert(idx < vector_length_v<T>);
+    if(idx==0) return v.x();
+    if(idx==1) return v.y();
+    if(idx==2) return v.z();
+    return v.w();
   }
 
   template<typename T, typename F>
@@ -1084,6 +1139,45 @@ namespace {
     BOOST_TEST(result.w() == host_fun(a.w(), b.w()), tolerance);
   }
 
+  // reference functions
+
+  double ref_clamp(double a, double min, double max) { // in C++17 <algorithm>, remove on upgrade
+    if(a < min) return min;
+    if(a > max) return max;
+    return a;
+  }
+
+  static constexpr double pi = 3.1415926535897932385;
+  double ref_degrees(double v) {
+    return 180.0/pi * v;
+  }
+  double ref_radians(double v) {
+    return pi/180.0 * v;
+  }
+
+  double ref_mix(double x, double y, double a) {
+    return x + (y - x) * a;
+  }
+
+  double ref_step(double edge, double x) {
+    if(x < edge) return 0.0;
+    return 1.0;
+  }
+
+  double ref_smoothstep(double edge0, double edge1, double x) {
+    BOOST_REQUIRE(edge0 < edge1); // Standard: results are undefined if edge0 >= edge1
+    if(x <= edge0) return 0.0;
+    if(x >= edge1) return 1.0;
+    double t = ref_clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+  }
+
+  double ref_sign(double x) {
+    if(x > 0.0) return 1.0;
+    if(x < 0.0) return -1.0;
+    if(std::isnan(x)) return 0.0;
+    return x;
+  }
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
@@ -1146,6 +1240,86 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
     GENFLOAT_ASSERT(hypot);
     GENFLOAT_ASSERT(pow);
     #undef GENFLOAT_ASSERT
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
+    math_test_genfloats::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 20;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  constexpr DT input_scalar = 3.5f;
+  constexpr DT mix_input_1 = 0.5f;
+  constexpr DT mix_input_2 = 0.8f;
+  {
+    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0});
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = get_math_input<DT, D>({0.0, 0.0, 0.0, 0.0});
+    }
+  }
+
+  // run functions
+  // some of these are tested multiple times to ensure that all overloads are covered
+  // (e.g. combinations of vec and scalar input)
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<class math_binary>([=]() {
+      int i = 2;
+      acc[i++] = s::clamp(acc[0], acc[1], acc[1] + static_cast<DT>(10));
+      acc[i++] = s::clamp(acc[0], input_scalar, static_cast<DT>(input_scalar + 10));
+      acc[i++] = s::degrees(acc[0]);
+      acc[i++] = s::max(acc[0], acc[1]);
+      acc[i++] = s::max(acc[0], input_scalar);
+      acc[i++] = s::min(acc[0], acc[1]);
+      acc[i++] = s::min(acc[0], input_scalar);
+      acc[i++] = s::mix(acc[0], acc[1], T{mix_input_1});
+      acc[i++] = s::mix(acc[0], acc[1], T{mix_input_2});
+      acc[i++] = s::mix(acc[0], acc[1], mix_input_1);
+      acc[i++] = s::radians(acc[0]);
+      acc[i++] = s::step(acc[0], acc[1]);
+      acc[i++] = s::step(input_scalar, acc[0]);
+      acc[i++] = s::smoothstep(acc[0], acc[0] + static_cast<DT>(10), acc[1]);
+      acc[i++] = s::smoothstep(input_scalar, input_scalar + 1, acc[0]);
+      acc[i++] = s::sign(acc[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+
+    for(int c = vector_dim_v<T>; c <= D; ++c) {
+      int i = 2;
+      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), comp(acc[1], c), comp(acc[1], c) + 10), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), input_scalar, input_scalar + 10), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_degrees(comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), input_scalar), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), input_scalar), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_2), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_mix(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_radians(comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_step(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_step(input_scalar, comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(comp(acc[0], c), comp(acc[0], c) + 10, comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(input_scalar, input_scalar + 1, comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == ref_sign(comp(acc[0], c)), tolerance);
+    }
   }
 }
 

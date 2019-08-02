@@ -50,6 +50,15 @@
 
 #include "CL/sycl/detail/debug.hpp"
 
+// Whether to use SYCL kernel name template parameters to
+// generate unique mangled names for device entrypoints.
+// While not strictly necessary in hipSYCL, this is currently
+// required to work around a bug with CUDA compilation in Clang.
+// See https://github.com/illuhad/hipSYCL/issues/49
+#ifndef HIPSYCL_USE_KERNEL_NAMES
+#define HIPSYCL_USE_KERNEL_NAMES 1
+#endif
+
 namespace hipsycl {
 
 namespace detail {
@@ -252,6 +261,7 @@ public:
       }
     }
 
+#if HIPSYCL_USE_KERNEL_NAMES
     // Determine unique kernel name to be used for symbol name in device IR
     clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
     auto KernelName = detail::buildKernelName(Info->TemplateArguments->get(0));
@@ -279,6 +289,7 @@ public:
       KernelName));
     HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
       << KernelName << "\n";
+#endif
 
     return true;
   }

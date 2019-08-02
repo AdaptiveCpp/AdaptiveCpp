@@ -32,6 +32,7 @@
 #define BOOST_TEST_MODULE hipsycl unit tests
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/list_c.hpp>
+#include <boost/mpl/list.hpp>
 
 #define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
@@ -985,6 +986,167 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2h,
       copy_range, s::id<d>(dst_offset));
     cgh.copy(src_acc, dst_acc);
   });
+}
+
+/// Math function tests ///////////////////////////////////////////////////////
+
+// list of types classified as "genfloat" in the SYCL standard
+using math_test_genfloats = boost::mpl::list<
+  float,
+  cl::sycl::vec<float, 1>,
+  cl::sycl::vec<float, 2>,
+  cl::sycl::vec<float, 3>,
+  cl::sycl::vec<float, 4>,
+  double,
+  cl::sycl::vec<double, 1>,
+  cl::sycl::vec<double, 2>,
+  cl::sycl::vec<double, 3>,
+  cl::sycl::vec<double, 4>>;
+
+namespace {
+
+  template<typename DT, int N>
+  using vec = cl::sycl::vec<DT, N>;
+  auto tolerance = boost::test_tools::tolerance(0.0001);
+
+  // utility type traits for generic testing
+
+  template<typename T>
+  struct vector_length {
+    static constexpr int value = 0;
+  };
+  template<typename DT>
+  struct vector_length<vec<DT, 1>> {
+    static constexpr int value = 1;
+  };
+  template<typename DT>
+  struct vector_length<vec<DT, 2>> {
+    static constexpr int value = 2;
+  };
+  template<typename DT>
+  struct vector_length<vec<DT, 3>> {
+    static constexpr int value = 3;
+  };
+  template<typename DT>
+  struct vector_length<vec<DT, 4>> {
+    static constexpr int value = 4;
+  };
+  template<typename T>
+  constexpr int vector_length_v = vector_length<T>::value;
+
+  template<typename T>
+  struct vector_elem {
+    using type = T;
+  };
+  template<typename DT, int D>
+  struct vector_elem<vec<DT, D>> {
+    using type = DT;
+  };
+  template<typename T>
+  using vector_elem_t = typename vector_elem<T>::type;
+
+  // utility functions for generic testing
+
+  template<typename DT, int D>
+  auto get_math_input(cl::sycl::vec<DT, 4> v) {
+    return std::get<D>(std::make_tuple(
+      v.x(),
+      vec<DT, 1>(v.x()),
+      vec<DT, 2>(v.x(), v.y()),
+      vec<DT, 3>(v.x(), v.y(), v.z()),
+      vec<DT, 4>(v.x(), v.y(), v.z(), v.w())));
+  }
+
+  template<typename T, typename F>
+  void math_assert(T result, T a, T b, F host_fun) {
+    BOOST_TEST(result == host_fun(a, b), tolerance);
+  }
+  template<typename DT, typename F>
+  void math_assert(const vec<DT, 1>& result, const vec<DT, 1>& a, const vec<DT, 1>& b, F host_fun) {
+    BOOST_TEST(result.x() == host_fun(a.x(), b.x()), tolerance);
+  }
+  template<typename DT, typename F>
+  void math_assert(const vec<DT, 2>& result, const vec<DT, 2>& a, const vec<DT, 2>& b, F host_fun) {
+    BOOST_TEST(result.x() == host_fun(a.x(), b.x()), tolerance);
+    BOOST_TEST(result.y() == host_fun(a.y(), b.y()), tolerance);
+  }
+  template<typename DT, typename F>
+  void math_assert(const vec<DT, 3>& result, const vec<DT, 3>& a, const vec<DT, 3>& b, F host_fun) {
+    BOOST_TEST(result.x() == host_fun(a.x(), b.x()), tolerance);
+    BOOST_TEST(result.y() == host_fun(a.y(), b.y()), tolerance);
+    BOOST_TEST(result.z() == host_fun(a.z(), b.z()), tolerance);
+  }
+  template<typename DT, typename F>
+  void math_assert(const vec<DT, 4>& result, const vec<DT, 4>& a, const vec<DT, 4>& b, F host_fun) {
+    BOOST_TEST(result.x() == host_fun(a.x(), b.x()), tolerance);
+    BOOST_TEST(result.y() == host_fun(a.y(), b.y()), tolerance);
+    BOOST_TEST(result.z() == host_fun(a.z(), b.z()), tolerance);
+    BOOST_TEST(result.w() == host_fun(a.w(), b.w()), tolerance);
+  }
+
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
+                              math_test_genfloats::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 8;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  {
+    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0});
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = get_math_input<DT, D>({0.0, 0.0, 0.0, 0.0});
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<class math_binary>([=]() {
+      int i = 2;
+      acc[i++] = s::atan2(acc[0], acc[1]);
+      acc[i++] = s::copysign(acc[0], acc[1]);
+      acc[i++] = s::fdim(acc[0], acc[1]);
+      acc[i++] = s::fmin(acc[0], acc[1]);
+      acc[i++] = s::fmax(acc[0], acc[1]);
+      acc[i++] = s::fmod(acc[0], acc[1]);
+      acc[i++] = s::hypot(acc[0], acc[1]);
+      acc[i++] = s::pow(acc[0], acc[1]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+    int i = 2;
+
+    #define GENFLOAT_ASSERT(_fun) \
+    BOOST_TEST_CONTEXT(#_fun) { \
+      math_assert(acc[i++], acc[0], acc[1], \
+                  [](DT a, DT b) { return ::_fun(a, b); }); \
+    }
+    GENFLOAT_ASSERT(atan2);
+    GENFLOAT_ASSERT(copysign);
+    GENFLOAT_ASSERT(fdim);
+    GENFLOAT_ASSERT(fmin);
+    GENFLOAT_ASSERT(fmax);
+    GENFLOAT_ASSERT(fmod);
+    GENFLOAT_ASSERT(hypot);
+    GENFLOAT_ASSERT(pow);
+    #undef GENFLOAT_ASSERT
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

@@ -161,22 +161,7 @@ struct group
     // We need implicit synchonization semantics
     mem_fence();
 #else
-    const range<3> range3d = detail::range::range_cast<3>(_local_range);
-
-  #ifndef HIPCPU_NO_OPENMP
-    #pragma omp simd
-  #endif
-    for(size_t i = 0; i < range3d.get(0); ++i)
-      for(size_t j = 0; j < range3d.get(1); ++j)
-        for(size_t k = 0; k < range3d.get(2); ++k)
-        {
-          h_item<dimensions> idx{
-            detail::id::construct_from_first_n<dimensions>(i,j,k),
-            _local_range, _group_id, _num_groups
-          };
-          func(idx);
-        }
-    // No memfence is needed here, because on CPU we only have one physical thread per work group.
+    iterate_over_work_items(_local_range, func);
 #endif
   }
 
@@ -185,42 +170,11 @@ struct group
   void parallel_for_work_item(range<dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
-    const range<3> logical_range3d = detail::range::range_cast<3>(flexibleRange);
-
 #ifdef SYCL_DEVICE_ONLY
-    const range<3> physical_range3d = detail::range::range_cast<3>(this->get_local_range());
-    for(size_t i = 0; i < logical_range3d.get(0); i += physical_range3d.get(0))
-      for(size_t j = 0; j < logical_range3d.get(1); j += physical_range3d.get(1))
-        for(size_t k = 0; k < logical_range3d.get(2); k += physical_range3d.get(2))
-        {
-  #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-          h_item<dimensions> idx{
-            detail::id::construct_from_first_n<dimensions>(i,j,k), flexibleRange};
-  #else
-          h_item<dimensions> idx{
-            detail::id::construct_from_first_n<dimensions>(i,j,k), 
-            flexibleRange, _group_id, _num_groups
-          };
-  #endif
-          func(idx);
-        }
+    parallelize_over_work_items(flexibleRange, func);
     mem_fence();
 #else
-  #ifndef HIPCPU_NO_OPENMP
-    #pragma omp simd 
-  #endif
-    for(size_t i = 0; i < logical_range3d.get(0); ++i)
-      for(size_t j = 0; j < logical_range3d.get(1); ++j)
-        for(size_t k = 0; k < logical_range3d.get(2); ++k)
-        {
-          h_item<dimensions> idx{
-            detail::id::construct_from_first_n<dimensions>(i,j,k), 
-            flexibleRange, _group_id, _num_groups
-          };
-
-          func(idx);
-        }
-    // No memfence is needed here, because on CPU we only have one physical thread per work group.
+    iterate_over_work_items(flexibleRange, func);
 #endif
   }
 
@@ -340,6 +294,128 @@ private:
   const range<dimensions> _local_range;
   const range<dimensions> _num_groups;
 #endif
+
+#ifdef SYCL_DEVICE_ONLY
+
+
+  template<typename workItemFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void parallelize_over_work_items(const range<1> flexibleRange,
+                                  workItemFunctionT&& func) const
+  {
+    const range<1> physical_range = this->get_local_range();
+    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
+    {
+  #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+      h_item<1> idx{id<1>{i}, flexibleRange};
+  #else
+      h_item<1> idx{id<1>{i}, flexibleRange, _group_id, _num_groups};
+  #endif
+      func(idx);
+    }
+  }
+
+  template<typename workItemFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void parallelize_over_work_items(const range<2> flexibleRange,
+                                  workItemFunctionT&& func) const
+  {
+    const range<2> physical_range = this->get_local_range();
+    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = hipThreadIdx_y; j < flexibleRange.get(1); j += physical_range.get(1))
+      {
+  #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+        h_item<2> idx{id<2>{i,j}, flexibleRange};
+  #else
+        h_item<2> idx{id<2>{i,j}, flexibleRange, _group_id, _num_groups};
+  #endif
+        func(idx);
+      }
+  }
+
+  template<typename workItemFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void parallelize_over_work_items(const range<3> flexibleRange,
+                                  workItemFunctionT&& func) const
+  { 
+    const range<3> physical_range = this->get_local_range();
+    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = hipThreadIdx_y; j < flexibleRange.get(1); j += physical_range.get(1))
+        for(size_t k = hipThreadIdx_z; k < flexibleRange.get(2); k += physical_range.get(2))
+        {
+  #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+          h_item<3> idx{id<3>{i,j,k}, flexibleRange};
+  #else
+          h_item<3> idx{id<3>{i,j,k}, flexibleRange, _group_id, _num_groups};
+  #endif
+          func(idx);
+        }
+  }
+
+#else
+  template<typename workItemFunctionT>
+  void iterate_over_work_items(const range<1> iteration_range,
+                              workItemFunctionT&& func) const
+  {
+    #ifndef HIPCPU_NO_OPENMP
+      #pragma omp simd 
+    #endif
+    for(size_t i = 0; i < iteration_range.get(0); ++i)
+    {
+      h_item<1> idx{
+        id<1>{i}, 
+        iteration_range, _group_id, _num_groups
+      };
+
+      func(idx);
+    }
+  // No memfence is needed here, because on CPU we only have one physical thread per work group.
+  }
+
+
+  template<typename workItemFunctionT>
+  void iterate_over_work_items(const range<2> iteration_range,
+                              workItemFunctionT&& func) const
+  {
+    for(size_t i = 0; i < iteration_range.get(0); ++i)
+    #ifndef HIPCPU_NO_OPENMP
+      #pragma omp simd 
+    #endif
+      for(size_t j = 0; j < iteration_range.get(1); ++j)
+      {
+        h_item<2> idx{
+          id<2>{i,j}, 
+          iteration_range, _group_id, _num_groups
+        };
+
+        func(idx);
+      }
+  // No memfence is needed here, because on CPU we only have one physical thread per work group.
+  }
+
+  template<typename workItemFunctionT>
+  void iterate_over_work_items(const range<3> iteration_range,
+                              workItemFunctionT&& func) const
+  {
+    for(size_t i = 0; i < iteration_range.get(0); ++i)
+      for(size_t j = 0; j < iteration_range.get(1); ++j)
+  #ifndef HIPCPU_NO_OPENMP
+    #pragma omp simd 
+  #endif
+        for(size_t k = 0; k < iteration_range.get(2); ++k)
+        {
+          h_item<3> idx{
+            id<3>{i,j,k}, 
+            iteration_range, _group_id, _num_groups
+          };
+
+          func(idx);
+        }
+    // No memfence is needed here, because on CPU we only have one physical thread per work group.
+  }
+
+#endif // SYCL_DEVICE_ONLY
+
 };
 
 }

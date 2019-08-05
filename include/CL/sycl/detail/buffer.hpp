@@ -127,7 +127,8 @@ public:
               host_alloc_mode host_alloc_mode = host_alloc_mode::regular);
 
   buffer_impl(size_t buffer_size,
-              void* host_ptr);
+              void* host_ptr,
+              bool is_svm_ptr = false);
 
   ~buffer_impl();
 

@@ -10,6 +10,7 @@ Most of these are managed by `detail/backend/backend.hpp`.
 * `__HIPSYCL_DEVICE__` - defined if generating code for GPU
 * `SYCL_DEVICE_ONLY` - defined if generating code for GPU
 * `HIPSYCL_CLANG` - defined by `syclcc-clang` when compiling with the clang plugin
+* `HIPSYCL_SVM_SUPPORTED` - defined when the backend supports unified memory
 
 ## Mainly for hipSYCL developers
 * `__HIPSYCL_TRANSFORM__` defined by legacy `syclcc` during the source-to-source transformation step
@@ -19,3 +20,4 @@ Most of these are managed by `detail/backend/backend.hpp`.
 
 # Configuration macros
 * `HIPSYCL_EXT_FP_ATOMICS` - define before including `sycl.hpp` to enable the hipSYCL extension to allow atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
+* `HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY` - define during compilation of hipSYCL and SYCL programs to force the CPU backend to consider host and device memory as separate memory regions that require data transfers in between. This can be useful for debugging since it recreates what happens when targeting GPUs.

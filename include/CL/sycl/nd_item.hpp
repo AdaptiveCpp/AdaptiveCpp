@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018,2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,141 +49,133 @@ struct nd_item
   /* -- common interface members -- */
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_global() const
+  id<dimensions> get_global_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_id<dimensions>() + (*_offset);
 #else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
-#endif
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_global(int dimension) const
-  {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_global_id(dimension) + _offset->get(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return this->_global_id + (*_offset);
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_global_id(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return get_global(dimension);
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_global_id(dimension) + _offset->get(dimension);
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return this->_global_id[dimension] + (*_offset)[dimension];
 #endif
+  }
+
+  [[deprecated]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_global(int dimension) const
+  {
+    return this->get_global_id(dimension);
+  }
+
+  [[deprecated]]
+  HIPSYCL_KERNEL_TARGET
+  id<dimensions> get_global() const
+  {
+    return this->get_global_id();
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::linear_id<dimensions>::get(get_global(), get_global_range());
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
+    return detail::linear_id<dimensions>::get(get_global_id(), get_global_range());
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
-#endif
   }
 
+  [[deprecated]] 
   HIPSYCL_KERNEL_TARGET
   size_t get_local(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::get_local_id(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
-    return get_local(dimension);
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_local_id(dimension);
+#else
+    return this->_local_id[dimension];
+#endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  id<dimensions> get_local_id() const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_local_id<dimensions>();
+#else
+    return this->_local_id;
+#endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
-    return detail::linear_id<dimensions>::get(get_local(), get_local_range());
+    return detail::linear_id<dimensions>::get(get_local_id(), get_local_range());
   }
 
   HIPSYCL_KERNEL_TARGET
   group<dimensions> get_group() const
   {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return group<dimensions>{};
+#else
+    return group<dimensions>{_group_id, _local_range, _num_groups};
+#endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_group(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id(dimension);
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return this->_group_id[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_group_linear_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::linear_id<dimensions>::get(detail::get_group_id<dimensions>(),
                                               detail::get_grid_size<dimensions>());
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_num_groups() const
-  {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_grid_size<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
-#endif
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_num_groups(int dimension) const
-  {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_grid_size(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return detail::linear_id<dimensions>::get(this->_group_id, this->_num_groups);
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_global_size<dimensions>();
 #else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+    return this->_num_groups * this->_local_range;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<dimensions>();
 #else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+    return this->_local_range;
 #endif
   }
 
@@ -196,14 +188,16 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   nd_range<dimensions> get_nd_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return nd_range<dimensions>{detail::get_global_size<dimensions>(),
                                 detail::get_local_size<dimensions>(),
                                 get_offset()};
 #else
-    return detail::invalid_host_call_dummy_return(nd_range<dimensions>{
-      range<dimensions>{}, range<dimensions>{}, id<dimensions>{}
-    });
+    return nd_range<dimensions>{
+      this->_num_groups * this->_local_range,
+      this->_local_range,
+      this->get_offset()
+    };
 #endif
   }
 
@@ -266,13 +260,36 @@ struct nd_item
     get_group().wait_for(events...);
   }
 
+  
+#if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   HIPSYCL_KERNEL_TARGET
   nd_item(id<dimensions>* offset)
     : _offset{offset}
   {}
+#else
+  HIPSYCL_KERNEL_TARGET
+  nd_item(id<dimensions>* offset, 
+          id<dimensions> group_id, id<dimensions> local_id, 
+          range<dimensions> local_range, range<dimensions> num_groups)
+    : _offset{offset}, 
+      _group_id{group_id}, 
+      _local_id{local_id}, 
+      _local_range{local_range},
+      _num_groups{num_groups},
+      _global_id{group_id * local_range + local_id}
+  {}
+#endif
+
 private:
   const id<dimensions>* _offset;
 
+#if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+  const id<dimensions> _group_id;
+  const id<dimensions> _local_id;
+  const range<dimensions> _local_range;
+  const range<dimensions> _num_groups;
+  const id<dimensions> _global_id;
+#endif
 };
 
 } // namespace sycl

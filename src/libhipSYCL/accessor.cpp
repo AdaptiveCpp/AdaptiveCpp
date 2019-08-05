@@ -66,17 +66,45 @@ void* obtain_device_access(buffer_ptr buff,
                            sycl::handler& cgh,
                            access::mode access_mode)
 {
-  void* ptr = buff->get_buffer_ptr();
+  void* access_ptr = nullptr;
 
-  auto task_graph_node =
-      detail::buffer_impl::access_device(buff,
+#ifndef HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY
+  if(cgh.get_stream()->get_device().is_host())
+  {
+    // The "device" access that we make is actually a "host" access
+    // since we are running on the host device!
+    // This happens when we construct an accessor for a kernel (which by definition runs
+    // on "device") for a host device.
+    //
+    // Treat this as host access to avoid unecessary data copies.
+    // Note that in this case, it may actually hold that 
+    // buff->get_host_ptr() == buff->get_buffer_ptr() if we run on pure CPU,
+    // since then a separate device data buffer is not needed.
+    access_ptr = buff->get_host_ptr();
+    
+    auto task_graph_node =
+        detail::buffer_impl::access_host(buff,
                                          access_mode,
                                          cgh.get_stream(),
                                          cgh.get_stream()->get_error_handler());
 
-  cgh._detail_add_access(buff, access_mode, task_graph_node);
+    cgh._detail_add_access(buff, access_mode, task_graph_node);
+  }
+  else
+#endif
+  {
+    access_ptr = buff->get_buffer_ptr();
 
-  return ptr;
+    auto task_graph_node =
+        detail::buffer_impl::access_device(buff,
+                                            access_mode,
+                                            cgh.get_stream(),
+                                            cgh.get_stream()->get_error_handler());
+
+    cgh._detail_add_access(buff, access_mode, task_graph_node);
+
+  }
+  return access_ptr;
 }
 
 

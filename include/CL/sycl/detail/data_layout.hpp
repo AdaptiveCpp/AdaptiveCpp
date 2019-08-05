@@ -65,10 +65,10 @@ struct linear_id
 template<>
 struct linear_id<1>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<1>& idx)
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx)
   { return idx[0]; }
 
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<1>& idx,
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<1>& idx,
                                             const sycl::range<1>& r)
   {
     return get(idx);
@@ -78,7 +78,7 @@ struct linear_id<1>
 template<>
 struct linear_id<2>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<2>& idx,
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<2>& idx,
                                         const sycl::range<2>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), r.get(1));
@@ -88,7 +88,7 @@ struct linear_id<2>
 template<>
 struct linear_id<3>
 {
-  static HIPSYCL_UNIVERSAL_TARGET size_t get(const id<3>& idx,
+  static HIPSYCL_UNIVERSAL_TARGET size_t get(const sycl::id<3>& idx,
                                         const sycl::range<3>& r)
   {
     return get_linear_id(idx.get(0), idx.get(1), idx.get(2), r.get(1), r.get(2));
@@ -162,7 +162,7 @@ private:
           x < end;
           ++x)
       {
-        f(linear_data_range{linear_id<2>::get(id<2>{x,_offset.get(1)},_shape),
+        f(linear_data_range{linear_id<2>::get(sycl::id<2>{x,_offset.get(1)},_shape),
                             _access_range.get(1)});
       }
     }
@@ -196,7 +196,7 @@ private:
             ++x)
         {
           f(linear_data_range{
-              linear_id<3>::get(id<3>{x,_offset.get(1),_offset.get(2)},_shape),
+              linear_id<3>::get(sycl::id<3>{x,_offset.get(1),_offset.get(2)},_shape),
               _access_range.get(1) * _access_range.get(2)
             });
         }
@@ -217,7 +217,7 @@ private:
             ++y)
         {
           f(linear_data_range{
-              linear_id<3>::get(id<3>{x,y,_offset.get(2)},_shape),
+              linear_id<3>::get(sycl::id<3>{x,y,_offset.get(2)},_shape),
               _access_range.get(2)
             });
         }

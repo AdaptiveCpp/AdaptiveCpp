@@ -487,10 +487,12 @@ class pure_cpu_compiler:
 
   def run(self):
     command = [self._compiler] + self._compiler_args
+
+    command += self._args
+    # For GCC, linked libraries must follow the object files
     if self._contains_linking_stage:
       command += self._linker_args
     
-    command += self._args
     return run_or_print(command, self._is_dry_run)
 
 def print_usage(config):

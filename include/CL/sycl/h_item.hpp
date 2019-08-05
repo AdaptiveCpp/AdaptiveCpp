@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018,2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,27 +48,12 @@ public:
 
   /// \return The global id with respect to the parallel_for_work_group
   /// invocation. Flexlible local ranges are not taken into account.
-  ///
-  /// \todo Since parallel_for_work_group is processed per group,
-  /// does this imply that we have one "global id" per group? Or should
-  /// it take into account the number of threads that the implementation
-  /// internally spawns? For the moment, we use the latter interpretation.
   HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_global() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
     return detail::make_item<dimensions>(
-      detail::get_global_id<dimensions>(),
-      detail::get_global_size<dimensions>()
-    );
-#else
-    assert(false && "Host execution when compiling for CUDA/HIP is unsupported");
-    return detail::invalid_host_call_dummy_return(
-      detail::make_item<dimensions>(
-        id<dimensions>{},
-        range<dimensions>{}));
-    
-#endif
+      this->get_global_id(),
+      this->get_global_range());
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -78,193 +63,192 @@ public:
   }
 
   /// \return The local id in the logical iteration space.
-  ///
-  /// \todo This currently always returns the physical local id
-  /// since flexible work group ranges are currently unsupported.
   HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_logical_local() const
   {
-    return get_physical_local();
+    return detail::make_item<dimensions>(this->_logical_local_id,
+                                         this->_logical_range);
   }
 
   HIPSYCL_KERNEL_TARGET
   item<dimensions, false> get_physical_local() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::make_item<dimensions>(
-      detail::get_local_id<dimensions>(),
-      detail::get_global_size<dimensions>()
-    );
-#else
-    return detail::invalid_host_call_dummy_return(
-      detail::make_item<dimensions>(
-        id<dimensions>{},
-        range<dimensions>{}));
-#endif
+    return detail::make_item<dimensions>(this->get_physical_local_id(),
+                                         this->get_physical_local_range());
   }
 
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_global_size<dimensions>();
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_grid_size<dimensions>() * this->_logical_range;
 #else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+    return this->_num_groups * this->_logical_range;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_global_size(dimension);
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_grid_size(dimension) * this->_logical_range[dimension];
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return this->_num_groups[dimension] * this->_logical_range[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_global_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_global_id<dimensions>();
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_group_id<dimensions>() * this->_logical_range + this->_logical_local_id;
 #else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+    return this->_group_id * this->_logical_range + this->_logical_local_id;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_global_id(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_global_id(dimension);
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_group_id(dimension) * _logical_range[dimension] + _logical_local_id[dimension];
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return _group_id[dimension] * _logical_range[dimension] + _logical_local_id[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_size<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
-#endif
+    return get_logical_local_range();
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_local_range(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_size(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
-#endif
+    return get_logical_local_range(dimension);
   }
 
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_id<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
-#endif
+    return get_logical_local_id();
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_id(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
+    return get_logical_local_id(dimension);
   }
 
-  /// \todo This always returns the physical range.
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_logical_local_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_size<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
-#endif
+    return _logical_range;
   }
 
-  /// \todo This always returns the physical range.
   HIPSYCL_KERNEL_TARGET
   size_t get_logical_local_range(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_size(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
+    return _logical_range[dimension];
   }
 
-  /// \todo This always returns the physical id
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_logical_local_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_id<dimensions>();
-#else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
-#endif
+    return _logical_local_id;
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_logical_local_id(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-    return detail::get_local_id(dimension);
-#else
-    return detail::invalid_host_call_dummy_return<size_t>();
-#endif
+    return _logical_local_id[dimension];
   }
 
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_physical_local_range() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return detail::get_local_size<dimensions>();
 #else
-    return detail::invalid_host_call_dummy_return<range<dimensions>>();
+    range<dimensions> size;
+    for(int i = 0; i < dimensions; ++i)
+      size[i] = 1; 
+    return size;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return detail::get_local_size(dimension);
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return 1;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_physical_local_id() const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return detail::get_local_id<dimensions>();
 #else
-    return detail::invalid_host_call_dummy_return<id<dimensions>>();
+    id<dimensions> local_id;
+    for(int i = 0; i < dimensions; ++i)
+      local_id[i] = 0; 
+    return local_id;
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return detail::get_local_id(dimension);
 #else
-    return detail::invalid_host_call_dummy_return<size_t>();
+    return 0;
 #endif
   }
+
+#if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+  // TODO Make this private and group<> a friend
+  h_item(id<dimensions> logical_local_id,
+        range<dimensions> logical_range,
+        id<dimensions> group_id,
+        range<dimensions> num_groups)
+    : _logical_local_id{logical_local_id},
+      _logical_range{logical_range},
+      _group_id{group_id},
+      _num_groups{num_groups}
+  {}
+#else
+  // TODO Make this private and group<> a friend
+  h_item(id<dimensions> logical_local_id,
+        range<dimensions> logical_range)
+    : _logical_local_id{logical_local_id},
+      _logical_range{logical_range}
+  {}
+#endif
+private:
+  // We do not really have to store both the physical and logical ids.
+  // * On GPU, the physical size can be retrieved from hipThreadIdx_x/y/z
+  // * On CPU, we want to parallelize across the work groups and have (hopefully)
+  //   vectorized loops over the work items, so the physical id is always 0.
+  // The same reasoning holds for the local sizes:
+  // * On GPU, we get the physical range from hipBlockDim_x/y/z
+  // * On CPU, the physical range is always 1.
+  //
+  // Note that for the support of flexible work group sizes,
+  // we have to explicitly store logical ids/ranges even
+  // if HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO is defined.
+  const id<dimensions> _logical_local_id;
+  const range<dimensions> _logical_range;
+
+#if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+  const id<dimensions> _group_id;
+  const range<dimensions> _num_groups;
+#endif
 };
 
 }

@@ -344,6 +344,12 @@ private:
                      detail::host_alloc_mode host_mode,
                      const range<dimensions>& range)
   {
+#if !defined(HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY) && defined(HIPSYCL_PLATFORM_CPU)
+    // force svm allocation
+    device_mode = detail::device_alloc_mode::svm;
+    host_mode = detail::host_alloc_mode::svm;
+#endif
+    
     _buffer = detail::buffer_ptr{
       new detail::buffer_impl{
         sizeof(T) * range.size(), device_mode, host_mode
@@ -355,10 +361,17 @@ private:
   void create_buffer(T* host_memory,
                      const range<dimensions>& range)
   {
+#if !defined(HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY) && defined(HIPSYCL_PLATFORM_CPU)
+    bool force_svm = true;
+#else
+    bool force_svm = false;
+#endif
+      
     _buffer = detail::buffer_ptr{
       new detail::buffer_impl{
         sizeof(T) * range.size(),
-        reinterpret_cast<void*>(host_memory)
+        reinterpret_cast<void*>(host_memory),
+        force_svm
       }
     };
     _range = range;
@@ -381,6 +394,7 @@ private:
     if(this->has_property<hipsycl::property::buffer::try_pinned_memory>())
       host_mode = detail::host_alloc_mode::allow_pinned;
 
+    
     if(this->has_property<hipsycl::property::buffer::use_svm>())
     {
       device_mode = detail::device_alloc_mode::svm;

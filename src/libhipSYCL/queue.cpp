@@ -87,6 +87,12 @@ async_handler stream_manager::get_error_handler() const
   return this->_handler;
 }
 
+
+device stream_manager::get_device() const
+{
+  return this->_dev; 
+}
+
 }
 
 

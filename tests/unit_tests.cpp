@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(basic_parallel_for_nd) {
       cl::sycl::range<1>(group_size)};
     cgh.parallel_for<class basic_parallel_for_nd>(kernel_range,
       [=](cl::sycl::nd_item<1> tid) {
-        acc[tid.get_global()[0]] = tid.get_group(0);
+        acc[tid.get_global_id()[0]] = tid.get_group(0);
       });
   });
   auto acc = buf.get_access<cl::sycl::access::mode::read>();
@@ -182,14 +182,14 @@ BOOST_AUTO_TEST_CASE(dynamic_local_memory) {
       cgh.parallel_for<class dynamic_local_memory_reduction>(
         cl::sycl::nd_range<1>{global_size, local_size},
         [=](cl::sycl::nd_item<1> item) {
-          const auto lid = item.get_local(0);
-          scratch[lid] = acc[item.get_global()];
+          const auto lid = item.get_local_id(0);
+          scratch[lid] = acc[item.get_global_id()];
           item.barrier();
           for(size_t i = local_size/2; i > 0; i /= 2) {
             if(lid < i) scratch[lid] += scratch[lid + i];
             item.barrier();
           }
-          if(lid == 0) acc[item.get_global()] = scratch[0];
+          if(lid == 0) acc[item.get_global_id()] = scratch[0];
         });
     });
   }

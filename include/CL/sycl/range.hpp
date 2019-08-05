@@ -244,6 +244,7 @@ inline sycl::range<1> omit_first_dimension(const sycl::range<2>& r)
 }
 
 template <int dimsOut, int dimsIn>
+HIPSYCL_UNIVERSAL_TARGET
 sycl::range<dimsOut> range_cast(const sycl::range<dimsIn>& other)
 {
   sycl::range<dimsOut> result;

@@ -59,17 +59,11 @@ namespace detail {
 namespace dispatch {
 
 
-template<class Function>
-__sycl_kernel void single_task_kernel(Function f)
-{
-  f();
-}
-
 template<int dimensions, bool with_offset>
 HIPSYCL_KERNEL_TARGET
-bool item_is_in_range(const item<dimensions, with_offset>& item,
+bool item_is_in_range(const sycl::item<dimensions, with_offset>& item,
                       const sycl::range<dimensions>& execution_range,
-                      const id<dimensions>& offset)
+                      const sycl::id<dimensions>& offset)
 {
   for(int i = 0; i < dimensions; ++i)
   {
@@ -81,20 +75,73 @@ bool item_is_in_range(const item<dimensions, with_offset>& item,
   return true;
 }
 
-// This helper function is necessary because we cannot
+
+namespace device {
+
+// These helper functions are necessary because we cannot
 // call device functions directly from __sycl_kernel functions
 // with the clang plugin, since they are initially treated
 // as host functions.
 // TODO: Find a nicer solution for that.
 template<int dimensions>
 HIPSYCL_KERNEL_TARGET
-inline id<dimensions> get_global_id_helper()
+inline sycl::id<dimensions> get_global_id_helper()
 {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
   return detail::get_global_id<dimensions>();
 #else
-  return detail::invalid_host_call_dummy_return<id<dimensions>>();
+  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
 #endif
+}
+
+template<int dimensions>
+HIPSYCL_KERNEL_TARGET
+inline sycl::id<dimensions> get_local_id_helper()
+{
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+  return detail::get_local_id<dimensions>();
+#else
+  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
+#endif
+}
+
+template<int dimensions>
+HIPSYCL_KERNEL_TARGET
+inline sycl::id<dimensions> get_group_id_helper()
+{
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+  return detail::get_group_id<dimensions>();
+#else
+  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
+#endif
+}
+
+template<int dimensions>
+HIPSYCL_KERNEL_TARGET
+inline sycl::range<dimensions> get_local_size_helper()
+{
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+  return detail::get_local_size<dimensions>();
+#else
+  return detail::invalid_host_call_dummy_return<sycl::range<dimensions>>();
+#endif
+}
+
+template<int dimensions>
+HIPSYCL_KERNEL_TARGET
+inline sycl::range<dimensions> get_grid_size_helper()
+{
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+  return detail::get_grid_size<dimensions>();
+#else
+  return detail::invalid_host_call_dummy_return<sycl::range<dimensions>>();
+#endif
+}
+
+template<class Function>
+__sycl_kernel void single_task_kernel(Function f)
+{
+  f();
 }
 
 template<int dimensions, class Function>
@@ -104,7 +151,7 @@ void parallel_for_kernel(Function f,
 {
   auto this_item = detail::make_item<dimensions>(
     get_global_id_helper<dimensions>(), execution_range);
-  if(item_is_in_range(this_item, execution_range, id<dimensions>{}))
+  if(item_is_in_range(this_item, execution_range, sycl::id<dimensions>{}))
     f(this_item);
 }
 
@@ -112,30 +159,268 @@ template<int dimensions, class Function>
 __sycl_kernel 
 void parallel_for_kernel_with_offset(Function f,
                                     sycl::range<dimensions> execution_range,
-                                    id<dimensions> offset)
+                                    sycl::id<dimensions> offset)
 {
   auto this_item = detail::make_item<dimensions>(
-    get_global_id_helper<dimensions>(), execution_range, offset);
+    get_global_id_helper<dimensions>() + offset, execution_range, offset);
   if(item_is_in_range(this_item, execution_range, offset))
     f(this_item);
 }
 
 template<int dimensions, class Function>
 __sycl_kernel
-void parallel_for_ndrange_kernel(Function f, id<dimensions> offset)
+void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
 {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
   nd_item<dimensions> this_item{&offset};
+#else
+  nd_item<dimensions> this_item{
+    &offset, 
+    get_group_id_helper<dimensions>(), 
+    get_local_id_helper<dimensions>(),
+    get_local_size_helper<dimensions>(),
+    get_grid_size_helper<dimensions>()
+  };
+#endif
   f(this_item);
 }
 
 template<int dimensions, class Function>
 __sycl_kernel 
 void parallel_for_workgroup(Function f,
-                            sycl::range<dimensions> work_group_size)
+                            // The logical group size is not yet used,
+                            // but it's still useful to already have it here
+                            // since it allows the compiler to infer 'dimensions'
+                            sycl::range<dimensions> logical_group_size)
 {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
   group<dimensions> this_group;
+#else
+  group<dimensions> this_group{
+    get_group_id_helper<dimensions>(), 
+    get_local_size_helper<dimensions>(),
+    get_grid_size_helper<dimensions>()
+  };
+#endif
   f(this_group);
 }
+
+} // device
+
+namespace host {
+
+#ifdef HIPSYCL_PLATFORM_CPU
+
+namespace offset{
+struct with_offset{};
+struct without_offset{};
+}
+
+template<int dimensions>
+inline item<dimensions, true> make_item_maybe_with_offset(
+                    sycl::id<dimensions> effective_id, 
+                    sycl::range<dimensions> size,
+                    sycl::id<dimensions> offset,
+                    offset::with_offset)
+{
+  return make_item(effective_id, size, offset);
+}
+
+template<int dimensions>
+inline item<dimensions, true> make_item_maybe_with_offset(
+                    sycl::id<dimensions> effective_id, 
+                    sycl::range<dimensions> size,
+                    sycl::id<dimensions> offset,
+                    offset::without_offset)
+{
+  return make_item(effective_id, size);
+}
+
+
+// On CPU, we can use references for the kernel lambdas. This is because
+// they are already copied as a closure to the task graph, which already
+// stores all necessary captures etc until the lambda is executed.
+template<class Function>
+inline 
+void single_task_kernel(Function&& f) noexcept
+{
+  f();
+}
+
+template<class Function, class Offset_mode> 
+inline
+void parallel_for_kernel(Function&& f,
+                        const sycl::range<1> execution_range,
+                        Offset_mode,
+                        const sycl::id<1> offset = sycl::id<1>{}) noexcept
+{
+  const size_t max_id = offset.get(0) + execution_range.get(0);
+
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel for
+#endif
+  for(size_t i = offset.get(0); i < max_id; ++i)
+  {
+    auto this_item = 
+      make_item_maybe_with_offset(sycl::id<1>{i}, 
+                                  execution_range,
+                                  offset, Offset_mode{});
+
+    f(this_item);
+  }
+}
+
+template<class Function, class Offset_mode> 
+inline 
+void parallel_for_kernel(Function&& f,
+                        const sycl::range<2> execution_range,
+                        Offset_mode,
+                        const sycl::id<2> offset = sycl::id<2>{}) noexcept
+{
+  const sycl::id<2> max_id = offset + execution_range;
+
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel for collapse(2)
+#endif
+  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
+    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
+    {
+      auto this_item = 
+        make_item_maybe_with_offset(sycl::id<2>{i,j}, 
+                                    execution_range, 
+                                    offset, Offset_mode{});
+
+      f(this_item);
+    }
+}
+
+template<class Function, class Offset_mode> 
+inline 
+void parallel_for_kernel(Function&& f,
+                        const sycl::range<3> execution_range,
+                        Offset_mode,
+                        const sycl::id<3> offset = sycl::id<3>{}) noexcept
+{
+  const sycl::id<3> max_id = offset + execution_range;
+
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel for collapse(3)
+#endif
+  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
+    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
+      for(size_t k = offset.get(2); k < max_id.get(2); ++k)
+    {
+      auto this_item = 
+        make_item_maybe_with_offset(sycl::id<3>{i,j,k}, 
+                                    execution_range, 
+                                    offset, Offset_mode{});
+        
+      f(this_item);
+    }
+}
+
+// This must still be executed by hipCPU's hipLaunchKernel for correct
+// synchronization semantics
+template<int dimensions, class Function>
+inline
+void parallel_for_ndrange_kernel(Function&& f, sycl::id<dimensions> offset) noexcept
+{
+  nd_item<dimensions> this_item{
+    &offset,
+    detail::get_group_id<dimensions>(),
+    detail::get_local_id<dimensions>(),
+    detail::get_local_size<dimensions>(),
+    detail::get_grid_size<dimensions>()
+  };
+
+  host_local_memory::request_from_hipcpu_pool();
+  f(this_item);
+  host_local_memory::release();
+}
+
+template<class Function>
+inline 
+void parallel_for_workgroup(Function&& f,
+                            const sycl::range<1> num_groups,
+                            const sycl::range<1> local_size,
+                            size_t num_local_mem_bytes) noexcept
+{
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel
+#endif
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+    {
+      group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
+      f(this_group);
+    }
+
+    host_local_memory::release();
+  }
+}
+
+template<class Function>
+inline 
+void parallel_for_workgroup(Function&& f,
+                            const sycl::range<2> num_groups,
+                            const sycl::range<2> local_size,
+                            size_t num_local_mem_bytes) noexcept
+{
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel
+#endif
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(2)
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+      for(size_t j = 0; j < num_groups.get(1); ++j)
+      {
+        group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
+        f(this_group);
+      }
+
+    host_local_memory::release();
+  }
+}
+
+template<class Function>
+inline 
+void parallel_for_workgroup(Function&& f,
+                            const sycl::range<3> num_groups,
+                            const sycl::range<3> local_size,
+                            size_t num_local_mem_bytes) noexcept
+{
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel
+#endif
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(3)
+#endif
+    for(size_t i = 0; i < num_groups.get(0); ++i)
+      for(size_t j = 0; j < num_groups.get(1); ++j)
+        for(size_t k = 0; k < num_groups.get(2); ++k)
+        {
+          group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
+          f(this_group);
+        }
+    
+    host_local_memory::release();
+  }
+}
+
+#endif // HIPSYCL_PLATFORM_CPU
+} // host
 
 } // dispatch
 
@@ -155,6 +440,7 @@ constexpr hipMemcpyKind get_copy_kind()
   assert(false && "Unsupported / unimplemented access targets");
   return hipMemcpyDefault;
 }
+
 
 } // detail
 
@@ -205,6 +491,8 @@ void set_args(Ts &&... args);
             typename KernelType>
   void single_task(KernelType kernelFunc)
   {
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for single_task!
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
     detail::stream_ptr stream = this->get_stream();
 
@@ -212,9 +500,25 @@ void set_args(Ts &&... args);
         -> detail::task_state
     {
       stream->activate_device();
-      __hipsycl_launch_kernel(detail::dispatch::single_task_kernel,
-                              1,1,shared_mem_size,stream->get_stream(),
-                              kernelFunc);
+
+      // Legacy toolchain does not support __host__ __device__
+      // kernel, also we cannot yet enable runtime selection
+      // of backends due to name collisions between hipCPU and
+      // actual HIP
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        hipLaunchSequentialKernel(detail::dispatch::host::single_task_kernel,
+                                  stream->get_stream(), shared_mem_size,
+                                  kernelFunc);
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::single_task_kernel,
+                                1,1,shared_mem_size,stream->get_stream(),
+                                kernelFunc);
+      }
 
       return detail::task_state::enqueued;
     };
@@ -545,6 +849,8 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for simple parallel_for!
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
@@ -555,9 +861,21 @@ private:
     {
       stream->activate_device();
 
-      __hipsycl_launch_kernel(detail::dispatch::parallel_for_kernel,
-                            grid, block, shared_mem_size, stream->get_stream(),
-                            kernelFunc, numWorkItems);
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_kernel,
+                                  stream->get_stream(), shared_mem_size,
+                                  kernelFunc, numWorkItems, 
+                                  detail::dispatch::host::offset::without_offset{});
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel,
+                              grid, block, shared_mem_size, stream->get_stream(),
+                              kernelFunc, numWorkItems);
+      }
 
       return detail::task_state::enqueued;
     };
@@ -575,6 +893,8 @@ private:
     dim3 grid, block;
     determine_grid_configuration(numWorkItems, grid, block);
 
+    // TODO If shared_mem_size != 0, we can raise an error -
+    // local memory doesn't make sense for single_task!
     std::size_t shared_mem_size =
         _local_mem_allocator.get_allocation_size();
 
@@ -586,10 +906,22 @@ private:
     {
       stream->activate_device();
 
-      __hipsycl_launch_kernel(detail::dispatch::parallel_for_kernel_with_offset,
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_kernel,
+                                  stream->get_stream(), shared_mem_size,
+                                  kernelFunc, numWorkItems, 
+                                  detail::dispatch::host::offset::with_offset{}, 
+                                  offset);
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel_with_offset,
                         grid, block, shared_mem_size, stream->get_stream(),
                         kernelFunc, numWorkItems, offset);
-
+      }
 
       return detail::task_state::enqueued;
     };
@@ -625,10 +957,23 @@ private:
     {
       stream->activate_device();
 
-      __hipsycl_launch_kernel(detail::dispatch::parallel_for_ndrange_kernel,
-                        grid, block, shared_mem_size, stream->get_stream(),
-                        kernelFunc, offset);
-
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        // We still need the hipCPU kernel launch semantics
+        // for ndrange kernels until we have support in the clang
+        // plugin for dealing with barriers
+        __hipsycl_launch_kernel(detail::dispatch::host::parallel_for_ndrange_kernel,
+                          grid, block, shared_mem_size, stream->get_stream(),
+                          kernelFunc, offset);
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel,
+                          grid, block, shared_mem_size, stream->get_stream(),
+                          kernelFunc, offset);
+      }
 
       return detail::task_state::enqueued;
     };
@@ -656,9 +1001,21 @@ private:
     {
       stream->activate_device();
 
-      __hipsycl_launch_kernel(detail::dispatch::parallel_for_workgroup,
-                        grid, block, shared_mem_size, stream->get_stream(),
-                        kernelFunc, workGroupSize);
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_workgroup,
+                                  stream->get_stream(), 0,
+                                  kernelFunc, numWorkGroups, workGroupSize, 
+                                  shared_mem_size);
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_workgroup,
+                          grid, block, shared_mem_size, stream->get_stream(),
+                          kernelFunc, workGroupSize);
+      }
 
 
       return detail::task_state::enqueued;

@@ -36,12 +36,26 @@
 namespace cl {
 namespace sycl {
 
-template<typename T>
+namespace traits {
+  template<typename T>
+  struct is_genfloat {
+	  static constexpr bool value = std::is_floating_point<T>::value;
+  };
+  template<typename E, int N>
+  struct is_genfloat<vec<E, N>> {
+	  static constexpr bool value = std::is_floating_point<E>::value;
+  };
+  template<typename T>
+  constexpr bool is_genfloat_v = is_genfloat<T>::value;
+}
+
+template<typename T, std::enable_if_t<traits::is_genfloat_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto clamp(T x, T minval, T maxval) {
   return fmin(fmax(x, minval), maxval);
 }
-template<typename T, typename D, std::enable_if_t<!std::is_same<D,T>::value, int> = 0>
+template<typename T, typename D,
+  std::enable_if_t<!std::is_same<D,T>::value && traits::is_genfloat_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto clamp(T x, D minval, D maxval) {
   return fmin(fmax(x, T{minval}), T{maxval});
@@ -52,29 +66,32 @@ HIPSYCL_KERNEL_TARGET
 inline T degrees(T radians) {
   return T{180}/T{M_PI} * radians;
 }
-template<typename T, typename E = typename T::element_type, std::enable_if_t<!std::is_floating_point<T>::value, int> = 0>
+template<typename T, typename E = typename T::element_type,
+  std::enable_if_t<!std::is_floating_point<T>::value, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline T degrees(T radians) {
   return E{180}/E{M_PI} * radians;
 }
 
-template<typename T>
+template<typename T, std::enable_if_t<traits::is_genfloat_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto max(T x, T y) {
   return fmax(x, y);
 }
-template<typename T, typename D, std::enable_if_t<!std::is_same<D,T>::value, int> = 0>
+template<typename T, typename D,
+  std::enable_if_t<!std::is_same<D,T>::value && std::is_floating_point<D>::value, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto max(T x, D y) {
   return fmax(x, T{y});
 }
 
-template<typename T>
+template<typename T, std::enable_if_t<traits::is_genfloat_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto min(T x, T y) {
   return fmin(x, y);
 }
-template<typename T, typename D, std::enable_if_t<!std::is_same<D,T>::value, int> = 0>
+template<typename T, typename D,
+  std::enable_if_t<!std::is_same<D,T>::value && std::is_floating_point<D>::value, int> = 0>
 HIPSYCL_KERNEL_TARGET
 inline auto min(T x, D y) {
   return fmin(x, T{y});

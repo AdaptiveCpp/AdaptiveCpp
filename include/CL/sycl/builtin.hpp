@@ -70,7 +70,7 @@ inline T __placeholder_function(T, T, T) {return T();}
 #define HIPSYCL_DEFINE_GENINTEGERN_FUNCTION(name, func) \
   template<class int_type, int N, \
            HIPSYCL_ENABLE_IF_INTEGRAL(int_type)> \
-  __device__ \
+  HIPSYCL_KERNEL_TARGET \
   inline vec<int_type, N> name(const vec<int_type, N>& a) {\
     vec<int_type,N> result = a; \
     detail::transform_vector(result, \
@@ -82,7 +82,7 @@ inline T __placeholder_function(T, T, T) {return T();}
 #define HIPSYCL_DEFINE_GENINTEGERN_BINARY_FUNCTION(name, func) \
   template<class int_type, int N, \
            HIPSYCL_ENABLE_IF_INTEGRAL(int_type)> \
-  __device__ \
+  HIPSYCL_KERNEL_TARGET \
   inline vec<int_type, N> name(const vec<int_type, N>& a, \
                                  const vec<int_type, N>& b) {\
     return detail::binary_vector_operation(a,b,\
@@ -90,12 +90,12 @@ inline T __placeholder_function(T, T, T) {return T();}
   }
 
 #define HIPSYCL_DEFINE_BUILTIN(name, func) \
-  template<class T> \
-  __device__ inline T name(T x) {return HIPSYCL_STD_FUNCTION(func)(x);}
+  template<class T, HIPSYCL_ENABLE_IF_INTEGRAL(T)> \
+  HIPSYCL_KERNEL_TARGET inline T name(T x) {return HIPSYCL_STD_FUNCTION(func)(x);}
 
 #define HIPSYCL_DEFINE_BINARY_BUILTIN(name, func) \
-  template<class T> \
-  __device__ inline T name(T x,T y) {return HIPSYCL_STD_FUNCTION(func)(x,y);}
+  template<class T, HIPSYCL_ENABLE_IF_INTEGRAL(T)> \
+  HIPSYCL_KERNEL_TARGET inline T name(T x,T y) {return HIPSYCL_STD_FUNCTION(func)(x,y);}
 
 #ifdef __HIPCPU__
  #define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(func) \

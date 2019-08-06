@@ -30,6 +30,7 @@
 #define HIPSYCL_HANDLER_HPP
 
 #include <type_traits>
+#include <unordered_map>
 
 #include "exception.hpp"
 #include "access.hpp"
@@ -441,6 +442,57 @@ constexpr hipMemcpyKind get_copy_kind()
   return hipMemcpyDefault;
 }
 
+/// Used by the command group handler to associate accessors with their buffers.
+class accessor_buffer_mapper
+{
+public:
+  accessor_id insert(buffer_ptr buff)
+  {
+    accessor_id id = static_cast<accessor_id>(_acc_data.size());
+    _acc_data[id] = buff;
+    return id;
+  }
+
+  buffer_ptr find_accessor(accessor_id id) const
+  {
+    return _acc_data.at(id);
+  }
+
+  template<
+    class T, 
+    int D, 
+    access::mode Mode, 
+    access::target Target,
+    access::placeholder IsPlaceholder,
+    HIPSYCL_ENABLE_IF_ACCESSOR_STORES_BUFFER_PTR(Target, IsPlaceholder)>
+  buffer_ptr find_accessor(
+    const sycl::accessor<T, D, Mode, Target, IsPlaceholder>& acc) const
+  {
+#ifndef SYCL_DEVICE_ONLY
+    // This function is not available when compiling for device,
+    // so we need preprocessor guards.
+    return acc._buff.get_shared_ptr();
+#else
+    // Silences warning about missing return value
+    return buffer_ptr{};
+#endif
+  }
+
+  template<
+    class T, 
+    int D, 
+    access::mode Mode, 
+    access::target Target,
+    access::placeholder IsPlaceholder,
+    HIPSYCL_ENABLE_IF_ACCESSOR_STORES_ACCESSOR_ID(Target, IsPlaceholder)>
+  buffer_ptr find_accessor(
+    const sycl::accessor<T, D, Mode, Target, IsPlaceholder>& acc) const
+  {
+    return find_accessor(acc._accessor_id);
+  }
+private:
+  std::unordered_map<accessor_id, buffer_ptr> _acc_data;
+};
 
 } // detail
 
@@ -463,10 +515,7 @@ public:
                   "Only placeholder accessors for global and constant buffers are "
                   "supported.");
 
-    detail::accessor_tracker& placeholder_tracker =
-        detail::application::get_hipsycl_runtime().get_accessor_tracker();
-
-    detail::buffer_ptr buff = placeholder_tracker.find_accessor(&acc);
+    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
 
 
     detail::accessor::obtain_device_access(buff,
@@ -665,10 +714,7 @@ void set_args(Ts &&... args);
   template <typename T, int dim, access::mode mode, access::target tgt>
   void update_host(accessor<T, dim, mode, tgt> acc)
   {
-    detail::accessor_tracker& placeholder_tracker =
-        detail::application::get_hipsycl_runtime().get_accessor_tracker();
-
-    detail::buffer_ptr buff = placeholder_tracker.find_accessor(&acc);
+    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
 
     detail::stream_ptr stream = this->get_stream();
 
@@ -681,7 +727,7 @@ void set_args(Ts &&... args);
           stream,
           stream->get_error_handler());
 
-    this->_detail_add_access(buff, mode, task_graph_node);
+    this->add_access(buff, mode, task_graph_node);
   }
 
   /// \todo fill() on host accessors can be optimized to use
@@ -724,13 +770,6 @@ void set_args(Ts &&... args);
     return _local_mem_allocator;
   }
 
-  void _detail_add_access(detail::buffer_ptr buff,
-                          access::mode access_mode,
-                          detail::task_graph_node_ptr task)
-  {
-    this->_spawned_task_nodes.push_back(task);
-    this->_accessed_buffers.push_back({access_mode, buff, task});
-  }
 
   event _detail_get_event() const
   {
@@ -743,7 +782,13 @@ void set_args(Ts &&... args);
 
   detail::stream_ptr get_stream() const;
 private:
-
+  void add_access(detail::buffer_ptr buff,
+                  access::mode access_mode,
+                  detail::task_graph_node_ptr task)
+  {
+    this->_spawned_task_nodes.push_back(task);
+    this->_accessed_buffers.push_back({access_mode, buff, task});
+  }
 
   struct buffer_access
   {
@@ -1219,9 +1264,8 @@ private:
                                   detail::task_graph_node_ptr task_node)
   {
     if(tgt != access::target::host_buffer) return;
-    detail::accessor_tracker& tracker =
-      detail::application::get_hipsycl_runtime().get_accessor_tracker();
-    detail::buffer_ptr buff = tracker.find_accessor(&acc);
+    
+    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
     buff->register_external_access(task_node, mode);
     HIPSYCL_DEBUG_INFO << "handler: Registering external access via task "
       << task_node << " for buffer " << buff << std::endl;
@@ -1248,9 +1292,19 @@ private:
     return graph_node;
   }
 
+  detail::accessor_id request_accessor_id(detail::buffer_ptr buff)
+  {
+    return _accessor_buffer_map.insert(buff);
+  }
+
   handler(const queue& q, async_handler handler);
 
   friend class queue;
+  friend void* detail::accessor::obtain_device_access(
+    detail::buffer_ptr, sycl::handler&, access::mode);
+  friend detail::accessor_id detail::accessor::request_accessor_id(
+    detail::buffer_ptr, sycl::handler&);
+
   const queue* _queue;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;
@@ -1258,6 +1312,7 @@ private:
 
   vector_class<detail::task_graph_node_ptr> _spawned_task_nodes;
   vector_class<buffer_access> _accessed_buffers;
+  detail::accessor_buffer_mapper _accessor_buffer_map;
 };
 
 namespace detail {

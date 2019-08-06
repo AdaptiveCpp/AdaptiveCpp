@@ -57,6 +57,7 @@ public:
   {}
 #endif
 
+  HIPSYCL_UNIVERSAL_TARGET
   const T* get() const
   { 
 #ifdef SYCL_DEVICE_ONLY
@@ -67,6 +68,7 @@ public:
 #endif
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   T* get()
   { 
 #ifdef SYCL_DEVICE_ONLY

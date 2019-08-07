@@ -45,7 +45,11 @@
 // for GPU, and hipCPU if compiling for CPU
  #if defined(__CUDACC__)
   #define HIPSYCL_PLATFORM_CUDA
+  // Silence deprecation warnings in hip which occur for newer CUDA versions
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   #include <hip/hip_runtime.h>
+  #pragma clang diagnostic pop
  #elif defined(__HIP__) || defined(__HCC__)
   #define HIPSYCL_PLATFORM_HCC
   #include <hip/hip_runtime.h>

@@ -53,6 +53,7 @@
 #include "sycl/builtin.hpp"
 #include "sycl/math.hpp"
 #include "sycl/common_functions.hpp"
+#include "sycl/geometric_functions.hpp"
 #include "sycl/atomic.hpp"
 #include "sycl/program.hpp"
 #include "sycl/kernel.hpp"

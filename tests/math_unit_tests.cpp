@@ -27,6 +27,8 @@
 
 #include "unit_tests.hpp"
 
+#include <boost/mpl/joint_view.hpp>
+
 BOOST_FIXTURE_TEST_SUITE(device_test_suite, reset_device_fixture)
 
 // list of types classified as "genfloat" in the SYCL standard
@@ -229,6 +231,44 @@ namespace {
     if(std::isnan(x)) return 0.0;
     return x;
   }
+
+  template<typename DT, int N>
+  DT ref_dot(vec<DT, N> a, vec<DT, N> b) {
+    DT ret = DT{0};
+    for(int c = 0; c < N; ++c) {
+      ret += comp(a, c) * comp(b, c);
+    }
+    return ret;
+  }
+  double ref_dot(double a, double b) {
+    return a * b;
+  }
+
+  double ref_length(double v) {
+    return std::abs(v);
+  }
+  template<typename DT>
+  DT ref_length(vec<DT, 2> v) {
+    return sqrt(v.x()*v.x() + v.y()*v.y());
+  }
+  template<typename DT>
+  DT ref_length(vec<DT, 3> v) {
+    return sqrt(v.x()*v.x() + v.y()*v.y() + v.z()*v.z());
+  }
+  template<typename DT>
+  DT ref_length(vec<DT, 4> v) {
+    return sqrt(v.x()*v.x() + v.y()*v.y() + v.z()*v.z() + v.w()*v.w());
+  }
+
+  template<typename T>
+  auto ref_distance(T a, T b) {
+    return ref_length(a - b);
+  }
+
+  template<typename T>
+  auto ref_normalize(T v) {
+    return v / ref_length(v);
+  }
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
@@ -276,7 +316,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
   {
     auto acc = buf.template get_access<s::access::mode::read>();
 
-    for(int c = vector_dim_v<T>; c <= D; ++c) {
+    for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
       BOOST_TEST(comp(acc[i++], c) == atan2(comp(acc[0], c), comp(acc[1], c)), tolerance);
       BOOST_TEST(comp(acc[i++], c) == copysign(comp(acc[0], c), comp(acc[1], c)), tolerance);
@@ -348,7 +388,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   {
     auto acc = buf.template get_access<s::access::mode::read>();
 
-    for(int c = vector_dim_v<T>; c <= D; ++c) {
+    for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
       BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), comp(acc[1], c), comp(acc[1], c) + 10), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), input_scalar, input_scalar + 10), tolerance);
@@ -400,7 +440,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
     auto acc = buf.template get_access<cl::sycl::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3});
     acc[1] = get_math_input<DT, D>({17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1});
-    for (int i = 2; i < FUN_COUNT + 2; ++i) {
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
       acc[i] = T{DT{0}};
     }
   }
@@ -421,10 +461,185 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
   {
     auto acc = buf.template get_access<s::access::mode::read>();
 
-    for (int c = vector_dim_v<T>; c <= D; ++c) {
+    for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
+    }
+  }
+}
+
+
+// types allowed for the "cross" function
+using math_test_crossinputs = boost::mpl::list<
+  cl::sycl::vec<float, 3>,
+  cl::sycl::vec<float, 4>,
+  cl::sycl::vec<double, 3>,
+  cl::sycl::vec<double, 4>>;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 1;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  {
+    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    for (int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = T{DT{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<kernel_name<class geometric_cross, D, DT>>([=]() {
+      int i = 2;
+      acc[i++] = s::cross(acc[0], acc[1]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+
+    int i = 2;
+    const auto& res = acc[i++], a = acc[0], b = acc[1];
+    BOOST_TEST(res.x() == a.y()*b.z() - a.z()*b.y());
+    BOOST_TEST(res.y() == a.z()*b.x() - a.x()*b.z());
+    BOOST_TEST(res.z() == a.x()*b.y() - a.y()*b.x());
+    if(D==4) BOOST_TEST(comp(res,3) == DT{0});
+  }
+}
+
+// type classes as per SYCL standard
+
+using math_test_gengeofloats = boost::mpl::list<
+  float,
+  cl::sycl::vec<float, 2>,
+  cl::sycl::vec<float, 3>,
+  cl::sycl::vec<float, 4>>;
+
+using math_test_gengeodoubles = boost::mpl::list<
+  double,
+  cl::sycl::vec<double, 2>,
+  cl::sycl::vec<double, 3>,
+  cl::sycl::vec<double, 4>>;
+
+using math_test_gengeo = boost::mpl::joint_view<math_test_gengeofloats, math_test_gengeodoubles>;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 4;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  {
+    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = T{DT{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<kernel_name<class geometric, D, DT>>([=]() {
+      int i = 2;
+      acc[i++] = s::dot(acc[0], acc[1]);
+      acc[i++] = s::length(acc[0]);
+      acc[i++] = s::distance(acc[0], acc[1]);
+      acc[i++] = s::normalize(acc[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+
+    auto dot_ref_result = ref_dot(acc[0], acc[1]);
+    auto length_ref_result = ref_length(acc[0]);
+    auto distance_ref_result = ref_distance(acc[0], acc[1]);
+    auto normalize_ref_result = ref_normalize(acc[0]);
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 2;
+      BOOST_TEST(comp(acc[i++], c) == dot_ref_result, tolerance);
+      BOOST_TEST(comp(acc[i++], c) == length_ref_result, tolerance);
+      BOOST_TEST(comp(acc[i++], c) == distance_ref_result, tolerance);
+      BOOST_TEST(comp(acc[i++], c) == comp(normalize_ref_result, c), tolerance);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 3;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  {
+    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = T{DT{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<kernel_name<class fast_geometric, D, DT>>([=]() {
+      int i = 2;
+      acc[i++] = s::fast_length(acc[0]);
+      acc[i++] = s::fast_distance(acc[0], acc[1]);
+      acc[i++] = s::fast_normalize(acc[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+
+    auto length_ref_result = ref_length(acc[0]);
+    auto distance_ref_result = ref_distance(acc[0], acc[1]);
+    auto normalize_ref_result = ref_normalize(acc[0]);
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 2;
+      BOOST_TEST(comp(acc[i++], c) == length_ref_result, tolerance);
+      BOOST_TEST(comp(acc[i++], c) == distance_ref_result, tolerance);
+      BOOST_TEST(comp(acc[i++], c) == comp(normalize_ref_result, c), tolerance);
     }
   }
 }

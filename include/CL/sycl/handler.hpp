@@ -242,14 +242,14 @@ inline item<dimensions, true> make_item_maybe_with_offset(
 // stores all necessary captures etc until the lambda is executed.
 template<class Function>
 inline 
-void single_task_kernel(Function&& f) noexcept
+void single_task_kernel(Function f) noexcept
 {
   f();
 }
 
 template<class Function, class Offset_mode> 
 inline
-void parallel_for_kernel(Function&& f,
+void parallel_for_kernel(Function f,
                         const sycl::range<1> execution_range,
                         Offset_mode,
                         const sycl::id<1> offset = sycl::id<1>{}) noexcept
@@ -272,7 +272,7 @@ void parallel_for_kernel(Function&& f,
 
 template<class Function, class Offset_mode> 
 inline 
-void parallel_for_kernel(Function&& f,
+void parallel_for_kernel(Function f,
                         const sycl::range<2> execution_range,
                         Offset_mode,
                         const sycl::id<2> offset = sycl::id<2>{}) noexcept
@@ -296,7 +296,7 @@ void parallel_for_kernel(Function&& f,
 
 template<class Function, class Offset_mode> 
 inline 
-void parallel_for_kernel(Function&& f,
+void parallel_for_kernel(Function f,
                         const sycl::range<3> execution_range,
                         Offset_mode,
                         const sycl::id<3> offset = sycl::id<3>{}) noexcept
@@ -323,7 +323,7 @@ void parallel_for_kernel(Function&& f,
 // synchronization semantics
 template<int dimensions, class Function>
 inline
-void parallel_for_ndrange_kernel(Function&& f, sycl::id<dimensions> offset) noexcept
+void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset) noexcept
 {
   nd_item<dimensions> this_item{
     &offset,
@@ -340,7 +340,7 @@ void parallel_for_ndrange_kernel(Function&& f, sycl::id<dimensions> offset) noex
 
 template<class Function>
 inline 
-void parallel_for_workgroup(Function&& f,
+void parallel_for_workgroup(Function f,
                             const sycl::range<1> num_groups,
                             const sycl::range<1> local_size,
                             size_t num_local_mem_bytes) noexcept
@@ -366,7 +366,7 @@ void parallel_for_workgroup(Function&& f,
 
 template<class Function>
 inline 
-void parallel_for_workgroup(Function&& f,
+void parallel_for_workgroup(Function f,
                             const sycl::range<2> num_groups,
                             const sycl::range<2> local_size,
                             size_t num_local_mem_bytes) noexcept
@@ -393,7 +393,7 @@ void parallel_for_workgroup(Function&& f,
 
 template<class Function>
 inline 
-void parallel_for_workgroup(Function&& f,
+void parallel_for_workgroup(Function f,
                             const sycl::range<3> num_groups,
                             const sycl::range<3> local_size,
                             size_t num_local_mem_bytes) noexcept

@@ -27,6 +27,14 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
   endif()
 endif()
 
+if(CMAKE_GENERATOR STREQUAL "Ninja" AND
+    ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9) OR
+    (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5)))
+  # Force colored warnings in Ninja's output, if the compiler has -fdiagnostics-color support.
+  # Rationale in https://github.com/ninja-build/ninja/issues/814
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
+endif()
+
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
@@ -37,4 +45,8 @@ add_subdirectory(platform_api)
 add_executable(unit_tests unit_tests.cpp)
 target_include_directories(unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(unit_tests PRIVATE ${Boost_LIBRARIES})
+
+add_executable(math_unit_tests math_unit_tests.cpp)
+target_include_directories(math_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(math_unit_tests PRIVATE ${Boost_LIBRARIES})
 

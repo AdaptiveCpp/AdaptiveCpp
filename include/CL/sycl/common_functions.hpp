@@ -38,15 +38,31 @@ namespace sycl {
 
 namespace traits {
   template<typename T>
-  struct is_genfloat {
-	  static constexpr bool value = std::is_floating_point<T>::value;
-  };
+  struct is_genfloat : std::is_floating_point<T> {};
   template<typename E, int N>
   struct is_genfloat<vec<E, N>> {
-	  static constexpr bool value = std::is_floating_point<E>::value;
+    static constexpr bool value = std::is_floating_point<E>::value;
   };
   template<typename T>
   constexpr bool is_genfloat_v = is_genfloat<T>::value;
+
+  template<typename T>
+  struct is_geo : std::is_floating_point<T> {};
+  template<typename E, int N>
+  struct is_geo<vec<E, N>> {
+    static constexpr bool value = std::is_floating_point<E>::value && N <= 4;
+  };
+  template<typename T>
+  constexpr bool is_geo_v = is_geo<T>::value;
+
+  template<typename T>
+  struct is_gengeofloat : std::is_same<T, float> {};
+  template<int N>
+  struct is_gengeofloat<vec<float, N>> {
+    static constexpr bool value = N <= 4;
+  };
+  template<typename T>
+  constexpr bool is_gengeofloat_v = is_gengeofloat<T>::value;
 }
 
 template<typename T, std::enable_if_t<traits::is_genfloat_v<T>, int> = 0>

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_HPP
-#define SYCL_HPP
+#ifndef HIPSYCL_UNIT_TESTS_HPP
+#define HIPSYCL_UNIT_TESTS_HPP
 
+#include <tuple>
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+#define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MODULE hipsycl unit tests
+#include <boost/test/unit_test.hpp>
+#include <boost/mpl/list_c.hpp>
+#include <boost/mpl/list.hpp>
 
-#include "sycl/backend/backend.hpp"
-#include "sycl/version.hpp"
-#include "sycl/types.hpp"
-#include "sycl/exception.hpp"
-#include "sycl/device_selector.hpp"
-#include "sycl/device.hpp"
-#include "sycl/platform.hpp"
-#include "sycl/queue.hpp"
-#include "sycl/range.hpp"
-#include "sycl/id.hpp"
-#include "sycl/accessor.hpp"
-#include "sycl/buffer.hpp"
-#include "sycl/nd_item.hpp"
-#include "sycl/multi_ptr.hpp"
-#include "sycl/group.hpp"
-#include "sycl/h_item.hpp"
-#include "sycl/private_memory.hpp"
-#include "sycl/vec.hpp"
-#include "sycl/builtin.hpp"
-#include "sycl/math.hpp"
-#include "sycl/common_functions.hpp"
-#include "sycl/geometric_functions.hpp"
-#include "sycl/atomic.hpp"
-#include "sycl/program.hpp"
-#include "sycl/kernel.hpp"
+#define SYCL_SIMPLE_SWIZZLES
+#include <CL/sycl.hpp>
 
-#endif
+struct reset_device_fixture {
+  ~reset_device_fixture() {
+    cl::sycl::detail::application::reset();
+  }
+};
 
+// Helper type to construct unique kernel names for all instantiations of
+// a templated test case.
+template<typename T, int dimensions, typename extra=T>
+struct kernel_name {};
+
+#endif // HIPSYCL_UNIT_TESTS_HPP

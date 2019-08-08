@@ -130,6 +130,13 @@ int main() {
 
   // Test some more exotic kernel names
 
+  // Qualified / modified types
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <templated_kn<const unsigned int>>
+        ([](){});
+  });
+
   queue.submit([&](cl::sycl::handler& cgh) {
     cgh.single_task
         <templated_kn<complex_kn<32, nullptr, enum_kn<my_enum::HELLO>>>>

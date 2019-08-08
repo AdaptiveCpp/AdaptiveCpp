@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_FRONTEND_HPP
 #define HIPSYCL_FRONTEND_HPP
 
+#include <algorithm>
 #include <unordered_set>
 #include <cassert>
 #include <regex>
@@ -157,7 +158,9 @@ inline std::string buildKernelNameFromRecordDecl(const clang::RecordDecl *Decl) 
           }
           else
           {
-            SS << "_" << arg.getAsType().getAsString();
+            auto qualifiedName = arg.getAsType().getAsString();
+            std::replace(qualifiedName.begin(), qualifiedName.end(), ' ', '_');
+            SS << "_" << qualifiedName;
           }
           break;
         }

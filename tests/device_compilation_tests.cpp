@@ -117,6 +117,12 @@ class enum_kn;
 template<template <typename, int, typename> class T>
 class templated_template_kn;
 
+struct KernelFunctor {
+  void operator()(cl::sycl::id<1> idx) {
+    printf("Hi from functor %ld\n", idx[0]);
+  }
+};
+
 int main() {
   cl::sycl::queue queue;
   cl::sycl::buffer<float, 1> buf(10);
@@ -160,6 +166,15 @@ int main() {
     cgh.single_task
         <class templated_kn_collision>
         ([](){});
+  });
+
+  // It's allowed to provide no name if the functor is globally visible
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.parallel_for(cl::sycl::range<1>(10), KernelFunctor());
+  });
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.parallel_for(cl::sycl::range<1>(10), cl::sycl::id<1>(5), KernelFunctor());
   });
 
   return 0;

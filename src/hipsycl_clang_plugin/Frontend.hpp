@@ -267,31 +267,61 @@ public:
 #if HIPSYCL_USE_KERNEL_NAMES
     // Determine unique kernel name to be used for symbol name in device IR
     clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
-    auto KernelName = detail::buildKernelName(Info->TemplateArguments->get(0));
 
-    // Abort with error diagnostic if no kernel name could be built
-    if(KernelName.empty())
-    {
-      // Since we cannot easily get the source location of the template
-      // specialization where the name is passed by the user (e.g. a
-      // parallel_for call), we attach the diagnostic to the kernel
-      // functor instead.
-      // TODO: Improve on this.
-      auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
-        KernelFunctorType->getDecl())->getSourceRange().getBegin();
-      auto ID = Instance.getASTContext().getDiagnostics()
-        .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
-          "Not a valid kernel name: %0");
-      Instance.getASTContext().getDiagnostics().Report(SL, ID) <<
-        Info->TemplateArguments->get(0);
+    // Check whether a unique kernel name is required. If no name is provided and the
+    // functor is not a lambda, we allow it and simply do nothing.
+    bool NameRequired = true;
+    const auto KernelNameArgument = Info->TemplateArguments->get(0);
+    if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
+      if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
+        const auto RecordDecl = RecordType->getDecl();
+        if (RecordDecl->getNameAsString() == "_unnamed_kernel") {
+          // If no name is provided, ensure that the kernel functor is not a lambda
+          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
+          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+              KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
+          {
+            auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+                KernelFunctorType->getDecl())->getSourceRange().getBegin();
+            auto ID = Instance.getASTContext().getDiagnostics()
+              .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
+                  "A unique kernel name has to be provided");
+            Instance.getASTContext().getDiagnostics().Report(SL, ID);
+          }
+          else
+            NameRequired = false;
+        }
+      }
     }
 
-    // Add the AsmLabel attribute which, if present,
-    // is used by Clang instead of the function's mangled name.
-    F->addAttr(clang::AsmLabelAttr::CreateImplicit(Instance.getASTContext(),
-      KernelName));
-    HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
-      << KernelName << "\n";
+    if (NameRequired)
+    {
+      auto KernelName = detail::buildKernelName(KernelNameArgument);
+
+      // Abort with error diagnostic if no kernel name could be built
+      if(KernelName.empty())
+      {
+        // Since we cannot easily get the source location of the template
+        // specialization where the name is passed by the user (e.g. a
+        // parallel_for call), we attach the diagnostic to the kernel
+        // functor instead.
+        // TODO: Improve on this.
+        auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+            KernelFunctorType->getDecl())->getSourceRange().getBegin();
+        auto ID = Instance.getASTContext().getDiagnostics()
+          .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
+              "Not a valid kernel name: %0");
+        Instance.getASTContext().getDiagnostics().Report(SL, ID) <<
+          Info->TemplateArguments->get(0);
+      }
+
+      // Add the AsmLabel attribute which, if present,
+      // is used by Clang instead of the function's mangled name.
+      F->addAttr(clang::AsmLabelAttr::CreateImplicit(Instance.getASTContext(),
+            KernelName));
+      HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
+        << KernelName << "\n";
+    }
 #endif
 
     return true;

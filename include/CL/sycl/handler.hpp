@@ -144,7 +144,7 @@ __sycl_kernel void single_task_kernel(Function f)
   f();
 }
 
-template<typename KernelName, int dimensions, class Function>
+template<typename KernelName, class Function, int dimensions>
 __sycl_kernel 
 void parallel_for_kernel(Function f,
                         sycl::range<dimensions> execution_range)
@@ -155,7 +155,7 @@ void parallel_for_kernel(Function f,
     f(this_item);
 }
 
-template<typename KernelName, int dimensions, class Function>
+template<typename KernelName, class Function, int dimensions>
 __sycl_kernel 
 void parallel_for_kernel_with_offset(Function f,
                                     sycl::range<dimensions> execution_range,
@@ -167,7 +167,7 @@ void parallel_for_kernel_with_offset(Function f,
     f(this_item);
 }
 
-template<typename KernelName, int dimensions, class Function>
+template<typename KernelName, class Function, int dimensions>
 __sycl_kernel
 void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
 {
@@ -185,7 +185,7 @@ void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
   f(this_item);
 }
 
-template<typename KernelName, int dimensions, class Function>
+template<typename KernelName, class Function, int dimensions>
 __sycl_kernel 
 void parallel_for_workgroup(Function f,
                             // The logical group size is not yet used,
@@ -487,7 +487,7 @@ void set_args(Ts &&... args);
   //------ Kernel dispatch API
 
 
-  template <typename KernelName, typename KernelType>
+  template <typename KernelName = class _unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     // TODO If shared_mem_size != 0, we can raise an error -
@@ -525,14 +525,14 @@ void set_args(Ts &&... args);
     this->submit_task(kernel_launch);
   }
 
-  template <typename KernelName,
+  template <typename KernelName = class _unnamed_kernel,
             typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
   {
     dispatch_kernel_without_offset<KernelName>(numWorkItems, kernelFunc);
   }
 
-  template <typename KernelName,
+  template <typename KernelName = class _unnamed_kernel,
             typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset, KernelType kernelFunc)
@@ -540,7 +540,7 @@ void set_args(Ts &&... args);
     dispatch_kernel_with_offset<KernelName>(numWorkItems, workItemOffset, kernelFunc);
   }
 
-  template <typename KernelName,
+  template <typename KernelName = class _unnamed_kernel,
             typename KernelType, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
@@ -563,7 +563,7 @@ void set_args(Ts &&... args);
   }
   */
 
-  template <typename KernelName,
+  template <typename KernelName = class _unnamed_kernel,
             typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,

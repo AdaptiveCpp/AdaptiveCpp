@@ -34,6 +34,8 @@
 // The hipSYCL Clang plugin must recognize that each of these is being called
 // by the user-provided kernel functor, and mark them as __device__ functions
 // accordingly.
+//
+// Additionally, we test that complex kernel names are correctly supported.
 
 void foo4(int v) {
   printf("foo4: %d\n", v);
@@ -101,6 +103,26 @@ float some_fn() {
   return template_fn<MyStruct>();
 }
 
+template<int T, int* I, typename U>
+class complex_kn;
+
+template<typename T>
+class templated_kn;
+
+enum class my_enum { HELLO = 42, WORLD };
+
+template<my_enum E>
+class enum_kn;
+
+template<template <typename, int, typename> class T>
+class templated_template_kn;
+
+struct KernelFunctor {
+  void operator()(cl::sycl::id<1> idx) {
+    printf("Hi from functor %ld\n", idx[0]);
+  }
+};
+
 int main() {
   cl::sycl::queue queue;
   cl::sycl::buffer<float, 1> buf(10);
@@ -110,6 +132,49 @@ int main() {
     cgh.parallel_for<class some_kernel>(buf.get_range(), [=](cl::sycl::item<1> item) {
         acc[item] = some_fn();
       });
+  });
+
+  // Test some more exotic kernel names
+
+  // Qualified / modified types
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <templated_kn<const unsigned int>>
+        ([](){});
+  });
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <templated_kn<complex_kn<32, nullptr, enum_kn<my_enum::HELLO>>>>
+        ([](){});
+  });
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <templated_template_kn<cl::sycl::buffer>>
+        ([](){});
+  });
+
+  // No collision happens between the following two names
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <templated_kn<class collision>>
+        ([](){});
+  });
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.single_task
+        <class templated_kn_collision>
+        ([](){});
+  });
+
+  // It's allowed to provide no name if the functor is globally visible
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.parallel_for(cl::sycl::range<1>(10), KernelFunctor());
+  });
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.parallel_for(cl::sycl::range<1>(10), cl::sycl::id<1>(5), KernelFunctor());
   });
 
   return 0;

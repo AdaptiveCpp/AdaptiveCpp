@@ -86,7 +86,11 @@ struct FunctionPruningIRPass : public llvm::ModulePass
       }
     }
 
-    pruneUnusedFunctions(M);
+    // Disable function pruning as it breaks standard math functions such as
+    // fmin, which are distributed over vector types using a function pointer.
+    // TODO: If no other issues come up, we should be able to remove function
+    // pruning for good.
+    // pruneUnusedFunctions(M);
     pruneUnusedGlobals(M);
 
     return true;

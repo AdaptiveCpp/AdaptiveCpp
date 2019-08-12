@@ -215,7 +215,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i];
     mem_fence();
 
@@ -238,7 +238,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i * srcStride];
     mem_fence();
 
@@ -261,7 +261,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i * destStride] = src[i];
     mem_fence();
 
@@ -296,7 +296,11 @@ private:
 #endif
 
 #ifdef SYCL_DEVICE_ONLY
-
+  size_t get_linear_local_id() const
+  {
+    return detail::linear_id<dimensions>::get(detail::get_local_id<dimensions>(),
+                                              detail::get_local_size<dimensions>());
+  }
 
   template<typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET

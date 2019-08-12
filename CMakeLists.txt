@@ -20,11 +20,11 @@ FORCE)
   endif()
 endif()
 
-find_package(LLVM 10 CONFIG)
+find_package(LLVM 10 CONFIG QUIET)
 if(NOT LLVM_FOUND)
-  find_package(LLVM 9 CONFIG)
+  find_package(LLVM 9 CONFIG QUIET)
   if(NOT LLVM_FOUND)
-    find_package(LLVM 8 CONFIG)
+    find_package(LLVM 8 CONFIG QUIET)
   endif()
 endif()
 
@@ -34,7 +34,7 @@ endif()
 #find_package(Clang REQUIRED)
 
 # Make sure either hcc or nvcc can be found
-find_package(CUDA)
+find_package(CUDA QUIET)
 find_program(HCC_COMPILER NAMES hcc)
 find_program(CLANG_EXECUTABLE_PATH NAMES clang++-10 clang++-10.0 clang++-9 clang++-9.0 clang++-8 clang++-8.0 clang++ CACHE STRING)
 if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
@@ -50,6 +50,8 @@ endif()
 #else()
 #  set(CUDA_FOUND true)
 #endif()
+
+set(COMPILE_SOURCE_TRANSFORMATION_TOOLS false CACHE BOOL "Build optional source-to-source transformation tools for the legacy hipSYCL toolchain")
 
 if(HCC_COMPILER MATCHES "-NOTFOUND")
   set(ROCM_FOUND false)

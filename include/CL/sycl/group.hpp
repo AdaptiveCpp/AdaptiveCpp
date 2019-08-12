@@ -197,20 +197,14 @@ struct group
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    const size_t physical_local_size = get_local_range().size();
-#else
-    const size_t physical_local_size = 1;
-#endif
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp simd
-#endif
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
-      dest[i] = src[i];
-    mem_fence();
-
-    return device_event{};
+    // in hipSYCL, we do not need to distinguish between global and local pointers,
+    // so we can just call the async_work_group_copy() variant that has
+    // global_ptr as dest and local_ptr as source.
+    
+    global_ptr<dataT> global_dest{dest.get()};
+    local_ptr<dataT> local_src{src.get()};
+    
+    return async_work_group_copy(global_dest, local_src, numElements);
   }
 
   template <typename dataT>
@@ -220,16 +214,18 @@ struct group
   {
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
-#else
-    const size_t physical_local_size = 1;
-#endif
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp simd
-#endif
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i];
     mem_fence();
+
+#else
+ #ifndef HIPCPU_NO_OPENMP
+   #pragma omp simd
+ #endif
+   for(size_t i = 0; i < numElements; ++i)
+      dest[i] = src[i];
+#endif
 
     return device_event{};
   }
@@ -241,16 +237,18 @@ struct group
   {
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
-#else
-    const size_t physical_local_size = 1;
-#endif
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp simd
-#endif
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i * srcStride];
     mem_fence();
+
+#else
+ #ifndef HIPCPU_NO_OPENMP
+   #pragma omp simd
+ #endif
+   for(size_t i = 0; i < numElements; ++i)
+      dest[i] = src[i * srcStride];
+#endif
 
     return device_event{};
   }
@@ -262,16 +260,18 @@ struct group
   {
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
-#else
-    const size_t physical_local_size = 1;
-#endif
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp simd
-#endif
-    for(size_t i = get_linear(); i < numElements; i += physical_local_size)
+    
+    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i * destStride] = src[i];
     mem_fence();
+
+#else
+ #ifndef HIPCPU_NO_OPENMP
+   #pragma omp simd
+ #endif
+   for(size_t i = 0; i < numElements; ++i)
+      dest[i * destStride] = src[i];
+#endif
 
     return device_event{};
   }
@@ -296,7 +296,11 @@ private:
 #endif
 
 #ifdef SYCL_DEVICE_ONLY
-
+  size_t get_linear_local_id() const
+  {
+    return detail::linear_id<dimensions>::get(detail::get_local_id<dimensions>(),
+                                              detail::get_local_size<dimensions>());
+  }
 
   template<typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET

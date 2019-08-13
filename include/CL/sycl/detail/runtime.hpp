@@ -29,80 +29,13 @@
 #ifndef HIPSYCL_RUNTIME_HPP
 #define HIPSYCL_RUNTIME_HPP
 
-#include <unordered_map>
-#include <cassert>
-
 #include "task_graph.hpp"
-#include "buffer.hpp"
-#include "../access.hpp"
-#include "../types.hpp"
 
+#include <iostream>
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class accessor_base;
-
-class accessor_tracker
-{
-public:
-
-  void new_accessor(
-      const accessor_base* accessor_ptr,
-      buffer_ptr buff)
-  {
-    std::lock_guard<mutex_class> lock{_lock};
-
-    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_buffer_map.find(object_ptr) ==
-           _buffer_map.end());
-
-    _buffer_map[object_ptr] = buff;
-  }
-
-  void set_accessor_buffer(
-      const accessor_base* accessor_ptr,
-      buffer_ptr buff)
-  {
-    std::lock_guard<mutex_class> lock{_lock};
-
-    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_buffer_map.find(object_ptr) !=
-           _buffer_map.end());
-
-    _buffer_map[object_ptr] = buff;
-  }
-
-  void release_accessor(
-      const accessor_base* accessor_ptr)
-  {
-    std::lock_guard<mutex_class> lock{_lock};
-
-    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    assert(_buffer_map.find(object_ptr) !=
-           _buffer_map.end());
-
-    _buffer_map.erase(object_ptr);
-  }
-
-  buffer_ptr find_accessor(
-      const accessor_base* accessor_ptr) const
-  {
-    std::lock_guard<mutex_class> lock{_lock};
-
-    const void* object_ptr = reinterpret_cast<const void*>(accessor_ptr);
-    auto it = _buffer_map.find(object_ptr);
-
-    if(it == _buffer_map.end())
-      return nullptr;
-
-    return it->second;
-  }
-
-private:
-  mutable mutex_class _lock;
-  std::unordered_map<const void*, buffer_ptr> _buffer_map;
-};
 
 class runtime
 {
@@ -114,18 +47,10 @@ public:
   const task_graph& get_task_graph() const
   { return _task_graph; }
 
-  accessor_tracker&
-  get_accessor_tracker()
-  { return _accessor_tracker; }
-
-  const accessor_tracker&
-  get_accessor_tracker() const
-  { return _accessor_tracker; }
-
 private:
   task_graph _task_graph;
-  accessor_tracker _accessor_tracker;
 };
+
 
 }
 }

@@ -88,7 +88,7 @@ void* obtain_device_access(buffer_ptr buff,
                                          cgh.get_stream(),
                                          cgh.get_stream()->get_error_handler());
 
-    cgh._detail_add_access(buff, access_mode, task_graph_node);
+    cgh.add_access(buff, access_mode, task_graph_node);
   }
   else
 #endif
@@ -101,12 +101,16 @@ void* obtain_device_access(buffer_ptr buff,
                                             cgh.get_stream(),
                                             cgh.get_stream()->get_error_handler());
 
-    cgh._detail_add_access(buff, access_mode, task_graph_node);
+    cgh.add_access(buff, access_mode, task_graph_node);
 
   }
   return access_ptr;
 }
 
+accessor_id request_accessor_id(buffer_ptr buff, sycl::handler& cgh)
+{
+  return cgh.request_accessor_id(buff);
+}
 
 }
 }

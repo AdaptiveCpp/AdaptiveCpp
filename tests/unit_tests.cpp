@@ -375,6 +375,8 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({1.f, 4.f, 2.f, 1.f});                         // v8
   verify_results({1.f, 2.f, 2.f, 1.f});                         // v9
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
+  verify_results({1.f, 3.f, 4.f, 4.f});                         // v11
+  verify_results({3.f, 2.f, 1.f, 3.f});                         // v12
 }
 
 using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;

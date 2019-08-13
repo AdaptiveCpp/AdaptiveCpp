@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(buffer_versioning) {
 
 BOOST_AUTO_TEST_CASE(vec_api) {
   cl::sycl::queue queue;
-  cl::sycl::buffer<float, 1> results{60};
+  cl::sycl::buffer<float, 1> results{68};
 
   queue.submit([&](cl::sycl::handler& cgh) {
     auto acc = results.get_access<cl::sycl::access::mode::discard_write>(cgh);

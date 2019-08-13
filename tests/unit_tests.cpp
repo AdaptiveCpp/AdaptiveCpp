@@ -345,6 +345,15 @@ BOOST_AUTO_TEST_CASE(vec_api) {
       cl::sycl::vec<float, 4> v10(4.f);
       v10.zxyw().lo() = v7.xxyy().hi();
       store_results({v10.x(), v10.y(), v10.z(), v10.w()});
+
+      // N - n swizzles
+      cl::sycl::vec<float, 4> v11(3.f);
+      v11.xzw() = v8.xyy();
+      store_results({ v11.x(), v11.y(), v11.z(), v11.w() });
+
+      cl::sycl::vec<float, 4> v12(3.f);
+      v12.zy() = v8.hi();
+      store_results({ v12.x(), v12.y(), v12.z(), v12.w() });
     });
   });
 

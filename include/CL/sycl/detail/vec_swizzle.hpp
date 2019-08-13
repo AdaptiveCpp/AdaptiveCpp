@@ -289,13 +289,13 @@ public:
 #ifdef SYCL_SIMPLE_SWIZZLES
 #define HIPSYCL_DEFINE_SWIZZLE2(name, i0, i1) \
   template<int n = N, \
-           std::enable_if_t<(n == 2)>* = nullptr> \
+           std::enable_if_t<(n > 1 && n <= 4)>* = nullptr> \
   auto name() const \
   {return swizzle<i0,i1>(); }
 
 #define HIPSYCL_DEFINE_SWIZZLE3(name, i0, i1, i2) \
   template<int n = N, \
-           std::enable_if_t<(n == 3)>* = nullptr> \
+           std::enable_if_t<(n == 3 || n == 4)>* = nullptr> \
   auto name() const \
   {return swizzle<i0,i1,i2>(); }
 

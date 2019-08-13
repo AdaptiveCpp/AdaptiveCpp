@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(buffer_versioning) {
 
 BOOST_AUTO_TEST_CASE(vec_api) {
   cl::sycl::queue queue;
-  cl::sycl::buffer<float, 1> results{60};
+  cl::sycl::buffer<float, 1> results{68};
 
   queue.submit([&](cl::sycl::handler& cgh) {
     auto acc = results.get_access<cl::sycl::access::mode::discard_write>(cgh);
@@ -345,6 +345,15 @@ BOOST_AUTO_TEST_CASE(vec_api) {
       cl::sycl::vec<float, 4> v10(4.f);
       v10.zxyw().lo() = v7.xxyy().hi();
       store_results({v10.x(), v10.y(), v10.z(), v10.w()});
+
+      // N - n swizzles
+      cl::sycl::vec<float, 4> v11(3.f);
+      v11.xzw() = v8.xyy();
+      store_results({ v11.x(), v11.y(), v11.z(), v11.w() });
+
+      cl::sycl::vec<float, 4> v12(3.f);
+      v12.zy() = v8.hi();
+      store_results({ v12.x(), v12.y(), v12.z(), v12.w() });
     });
   });
 
@@ -366,6 +375,8 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({1.f, 4.f, 2.f, 1.f});                         // v8
   verify_results({1.f, 2.f, 2.f, 1.f});                         // v9
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
+  verify_results({1.f, 3.f, 4.f, 4.f});                         // v11
+  verify_results({3.f, 1.f, 2.f, 3.f});                         // v12
 }
 
 using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;

@@ -381,6 +381,14 @@ BOOST_AUTO_TEST_CASE(vec_api) {
 
 using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
 
+#ifdef HIPSYCL_PLATFORM_CUDA
+using explicit_copy_test_dimensions = test_dimensions;
+#else
+// explicit buffer copies in 3D are currently not supported on
+// ROCm and CPU.
+using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
+#endif
+
 template<int dimensions, template<int D> class T>
 void assert_array_equality(const T<dimensions>& a, const T<dimensions>& b) {
   if(dimensions >= 1) BOOST_REQUIRE(a[0] == b[0]);
@@ -808,7 +816,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
-  test_dimensions::type) {
+  explicit_copy_test_dimensions::type) {
   namespace s = cl::sycl;
   constexpr auto d = _dimensions::value;
 
@@ -919,7 +927,7 @@ void run_two_accessors_copy_test(const callback& copy_cb) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2d,
-  _dimensions, test_dimensions::type) {
+  _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,
@@ -934,7 +942,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2d,
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2d,
-  _dimensions, test_dimensions::type) {
+  _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,
@@ -949,7 +957,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2d,
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2h,
-  _dimensions, test_dimensions::type) {
+  _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,
@@ -964,7 +972,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2h,
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2h,
-  _dimensions, test_dimensions::type) {
+  _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
   run_two_accessors_copy_test<d>([](s::handler& cgh, s::range<d> copy_range,

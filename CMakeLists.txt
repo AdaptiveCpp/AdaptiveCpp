@@ -31,29 +31,45 @@ endif()
 if(NOT LLVM_FOUND)
   message(SEND_ERROR "hipSYCL requires LLVM 8 or newer.")
 endif()
+message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
 #find_package(Clang REQUIRED)
 
-# Make sure either hcc or nvcc can be found
+# Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
-find_program(HCC_COMPILER NAMES hcc)
-find_program(CLANG_EXECUTABLE_PATH NAMES clang++-10 clang++-10.0 clang++-9 clang++-9.0 clang++-8 clang++-8.0 clang++ CACHE STRING)
-if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
-  message(SEND_ERROR "Could not find clang executable in PATH")
-endif()
+# We currently search for hipcc to check for ROCm installation
+find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH})
+set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
 
-# Even if we compile with clang, this tests
-# for the existence of CUDA which is also required for clang.
-# TODO: A better approach would be to find_package(CUDA) if
-# we build with clang.
-#if(NVCC_COMPILER MATCHES "-NOTFOUND")
-#  set(CUDA_FOUND false)
-#else()
-#  set(CUDA_FOUND true)
-#endif()
+find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
+if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
+  message(SEND_ERROR "Could not find clang executable")
+endif()
+message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
+
+get_filename_component(LLVM_BIN_DIR ${CLANG_EXECUTABLE_PATH} DIRECTORY)
+get_filename_component(LLVM_PREFIX_DIR ${LLVM_BIN_DIR} DIRECTORY)
+# The path to the internal clang includes is currently required on ROCm
+# to let syclcc-clang fix a wrong order of system includes (clang's internal 
+# includes are not of high enough priority in the include path search order).
+# We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
+# which is a clang-specific header file.
+find_path(CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
+  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
+  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
+  DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
+
+if(NOT EXISTS ${CLANG_INCLUDE_PATH})
+    message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
+endif()
+message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 
 set(COMPILE_SOURCE_TRANSFORMATION_TOOLS false CACHE BOOL "Build optional source-to-source transformation tools for the legacy hipSYCL toolchain")
 
-if(HCC_COMPILER MATCHES "-NOTFOUND")
+if(HIPCC_COMPILER MATCHES "-NOTFOUND")
   set(ROCM_FOUND false)
 else()
   set(ROCM_FOUND true)
@@ -66,7 +82,15 @@ if(WITH_CUDA_BACKEND)
 endif()
 if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
-    message(SEND_ERROR "hcc was not found in PATH")
+    #  message(SEND_ERROR "hipcc was not found")
+  
+    # User has requested ROCm, but we could not find hipcc.
+    # this is not necessarily a reason to abort,
+    # since we only need libhip_hcc, the HIP includes,
+    # and the ROCm device headers. It could be that we
+    # are faced with a minimal/incomplete ROCm installation
+    # that could still be enough for us.
+    # Let's assume the user knows what he/she is doing.
   endif()
 endif()
 
@@ -108,9 +132,10 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-gpu-arch\" : \"${DEFAULT_GPU_ARCH}\",
   \"default-cpu-cxx\" : \"${CMAKE_CXX_COMPILER}\",
-  \"default-rocm-path\" : \"/opt/rocm/\",
+  \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
-  \"default-is-dryrun\" : \"false\"
+  \"default-is-dryrun\" : \"false\",
+  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\"
 }
 ")
 

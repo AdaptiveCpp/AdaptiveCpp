@@ -150,6 +150,9 @@ class syclcc_config:
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
       
+      'clang-include-path' : option("--hipsycl-clang-include-path", "HIPSYCL_CLANG_INCLUDE_PATH", "default-clang-include-path",
+"""  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
+      
       'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting.""")
@@ -296,7 +299,7 @@ class syclcc_config:
     elif platform in pure_cpu_platform_synonyms:
       return hipsycl_platform.PURE_CPU
 
-    raise RuntimeError("Invalid hipSYCL platform: "+platform)
+    raise RuntimeError("Invalid hipSYCL platform: '{}'".format(platform))
 
   @property
   def target_arch(self):
@@ -319,10 +322,14 @@ class syclcc_config:
     return self._retrieve_option("cpu-compiler")
 
   @property
+  def clang_include_path(self):
+    return self._retrieve_option("clang-include-path")
+
+  @property
   def hipsycl_installation_path(self):
     syclcc_path = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(syclcc_path, "..")
-    
+  
   @property
   def forwarded_compiler_arguments(self):
     return self._forwarded_args
@@ -337,6 +344,7 @@ class syclcc_config:
       return self._is_flag_set("is-dryrun")
     except OptionNotSet:
       return False
+  
 
   def contains_linking_stage(self):
     for arg in self.forwarded_compiler_arguments:
@@ -412,7 +420,12 @@ class clang_plugin_compiler:
         "--cuda-gpu-arch=" + config.target_arch,
         "--hip-device-lib-path=" + os.path.join(config.rocm_path, "lib"),
         "-I" + os.path.join(config.rocm_path, "include"),
-        "-isystem", self._get_rocm_clang_include_path(config.rocm_path)
+        # This here is necessary because some distributions of clang
+        # incorrectly have the gcc/system headers *before* clangs own
+        # include path. This causes "file not found" errors when the
+        # clang CUDA wrapper headers try to include the system headers
+        # with #include_next <...>
+        "-isystem", self._get_rocm_clang_include_path(config)
       ]
 
     self._common_compiler_args = ["-std=c++14"]
@@ -430,16 +443,8 @@ class clang_plugin_compiler:
         "-I"+os.path.join(config.hipsycl_installation_path, "contrib/HIP/include")
       ]
 
-  def _get_rocm_clang_include_path(self, rocm_path):
-    base_dir = os.path.join(rocm_path, "hcc/lib/clang")
-    subdirs = [subdir for subdir in os.listdir(base_dir)
-              if os.path.isdir(os.path.join(base_dir, subdir))]
-
-    if len(subdirs) == 0:
-      raise RuntimeError("Could not find internal ROCm clang headers")
-
-    # There is usually only one subdirectory
-    return os.path.join(base_dir, subdirs[0], "include")
+  def _get_rocm_clang_include_path(self, config):
+    return config.clang_include_path
 
   def run(self):
 
@@ -452,7 +457,6 @@ class clang_plugin_compiler:
       command += self._linker_args
     
     command += self._args
-    
     return run_or_print(command, self._is_dry_run)
     
     

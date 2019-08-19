@@ -1,0 +1,64 @@
+BootStrap: docker
+From: nvidia/cuda:10.0-devel-ubuntu18.04
+
+%post
+# You may want to use a mirror better suited for your particlar
+# location. TODO: Automatically pick best mirror
+sed 's@archive.ubuntu.com@ftp.fau.de/ubuntu/@' -i /etc/apt/sources.list
+echo "Using sources:"
+cat /etc/apt/sources.list
+apt-get update
+apt-get install -y wget git unzip g++ python3 libicu-dev
+
+# ROCm
+wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | apt-key add -
+echo 'deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main' | tee /etc/apt/sources.list.d/rocm.list
+apt-get update
+apt install -y rocm-dev rocm-utils rocm-opencl-dev hip_base hip_hcc
+# aomp
+#wget https://github.com/ROCm-Developer-Tools/aomp/releases/download/rel_0.7-0/aomp_Ubuntu1804_0.7-0_amd64.deb
+#dpkg -i aomp_Ubuntu1804_0.7-0_amd64.deb
+
+#mkdir -p ~/aomp-build
+#cd ~/aomp-build
+#wget https://github.com/ROCm-Developer-Tools/aomp/archive/rel_0.7-0.tar.gz
+#tar xf rel_0.7-0.tar.gz
+#cd aomp-rel_0.7-0
+#cd bin
+#./clone_aomp.sh
+#./build_aomp.sh
+
+# LLVM 10
+echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main" >> /etc/apt/sources.list.d/llvm.list
+echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic main" >> /etc/apt/sources.list.d/llvm.list
+## LLVM 9
+echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main" >> /etc/apt/sources.list.d/llvm.list
+echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main" >> /etc/apt/sources.list.d/llvm.list
+## LLVM 8
+echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" >> /etc/apt/sources.list.d/llvm.list
+echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main" >> /etc/apt/sources.list.d/llvm.list
+
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+apt-get update
+
+
+# LLVM 10
+apt-get install -y cmake git libllvm10 llvm-10 llvm-10-dev llvm-10-runtime clang-10 clang-tools-10 libclang-common-10-dev libclang-10-dev libclang1-10 libomp-10-dev llvm-10-tools lldb-10 lld-10
+
+# LLVM 9
+# currently there's a bug in the packaging preventing us from installing lldb and llvm-tools, which causes the cmake module to error.
+#apt-get install -y cmake git libllvm9 llvm-9 llvm-9-dev llvm-9-runtime clang-9 clang-tools-9 libclang-common-9-dev libclang-9-dev libclang1-9 libomp-9-dev llvm-9-tools lldb-9 lld-9
+
+# LLVM 8
+# LLVM conflicts with lldb-10 (which is required for the llvm cmake module), so we cannot install both simultaneously
+# apt-get install -y cmake git libllvm8 llvm-8 llvm-8-dev llvm-8-runtime clang-8 clang-tools-8 libclang-common-8-dev libclang-8-dev libclang1-8 libomp-8-dev llvm-8-tools lldb-8 lld-8
+
+
+# We need a recent version of boost for the unit tests
+wget https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip
+unzip boost_1_70_0.zip
+cd boost_1_70_0
+./bootstrap.sh --prefix=/usr
+# Need the || true because some targets are expected to not compile (e.g. boost.mpi)
+# due to missing dependencies (such as mpi) in which case a non-zero exit code is returned.
+./b2 install -j$(nproc) || true

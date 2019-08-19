@@ -68,7 +68,7 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 In order to successfully build and install hipSYCL, the following major requirements must be met:
 
 #### Hardware and OS
-* We support CPUs and NVIDIA CUDA GPUs and AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
+* We support CPUs, NVIDIA CUDA GPUs and AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
 * hipSYCL currently does not support other operating systems besides Linux due to a lack of maintainers for other platforms. While the AMD backend can only work on Linux since AMD doesn't support ROCm on other platforms, the CUDA and CPU backends should in principle be portable. If you are interested in porting and maintaining hipSYCL on other platforms, feel encouraged to do so and get in touch with us.
 
 #### Software dependencies
@@ -76,14 +76,20 @@ In order to successfully build and install hipSYCL, the following major requirem
 * *For the CUDA backend*: 
   * **CUDA >= 9.0** must be installed.
   * hipSYCL requires clang for CUDA compilation. clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
-  Our internal testing is conducted with CUDA 10 and clang 8. Note that CUDA 10.1 requires clang 9 or newer.
+  * Read more about [compatible clang and CUDA versions for the CUDA backend](doc/install-cuda.md).
 * *For the ROCm backend*: 
-  * **ROCm >= 2.0** must be installed. HIP-clang must be installed as described by AMD [here](https://github.com/ROCm-Developer-Tools/HIP/blob/master/INSTALL.md#hip-clang). Unfortunately, AMD does not yet provide binary packages, so you will have to compile the compiler stack from source. hipSYCL must be compiled against this clang/llvm distribution.
+  * **ROCm >= 2.0** must be installed. 
+  * hipSYCL requires clang for ROCm compilation. While AMD's clang forks can in principle be used, regular clang is usually easier to set up. Read more about [compatible clang versions for the ROCm backend](doc/install-rocm.md).
 * *For the CPU backend*: Any C++ compiler with **OpenMP** support should do. We test with clang 8, 9 and gcc 8.2.
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
 * `cmake`
 * hipSYCL also depends on HIP, but already comes bundled with a version of the HIP headers for the CUDA backend. The ROCm backend will use the HIP installation that is installed as part of ROCm.
 * the Boost C++ library (preprocessor, filesystem)
+
+If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
+* `LLVM_DIR` must be pointed to your LLVM installation (specifically, the subdirectory containing the LLVM cmake files)
+* `CLANG_EXECUTABLE_PATH` must be pointed to the clang executable from this LLVM installation.
+* `CLANG_INCLUDE_PATH` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`.
 
 ### Manual compilation
 
@@ -100,6 +106,8 @@ $ make install
 The default installation prefix is `/usr/local`. Change this to your liking.
 
 ### Packages
+** Note: hipSYCL packaging is currently being reworked - the following may or may not work. **
+
 For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
 
 ### Singularity container images

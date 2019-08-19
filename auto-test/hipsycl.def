@@ -1,0 +1,35 @@
+BootStrap: localimage
+From: ../../hipsycl-singularity-build/hipsycl-base.sif
+
+%setup
+cp -R $SRCPATH ${SINGULARITY_ROOTFS}/src
+
+%post
+mkdir -p /build
+cd /build
+export PATH=/usr/local/cuda/bin:$PATH
+export LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH
+cmake -DCMAKE_CXX_COMPILER=$HIPSYCL_CPU_CXX -DCMAKE_C_COMPILER=$HIPSYCL_CPU_CC -DCLANG_EXECUTABLE_PATH=$HIPSYCL_CLANG -DLLVM_DIR=$HIPSYCL_LLVM_DIR -DCMAKE_INSTALL_PREFIX=/usr  -DWITH_CPU_BACKEND=ON -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON /src
+#echo "Building hipSYCL with the following cmake configuration:"
+#cmake -LA /src
+make -j$(($(nproc) -1)) install
+echo "Installed hipSYCL with configuration:"
+cat /usr/etc/hipSYCL/syclcc.json
+
+mkdir -p /usr/share/hipSYCL/tests/cpu
+mkdir -p /usr/share/hipSYCL/tests/cuda
+mkdir -p /usr/share/hipSYCL/tests/rocm
+
+cd /usr/share/hipSYCL/tests/cpu
+# For some reason, cmake does not correctly link with libboost_unit_test_framework
+# so we use this hardcoded fix..
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=cpu make
+
+cd /usr/share/hipSYCL/tests/cuda
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=cuda HIPSYCL_GPU_ARCH=$HIPSYCL_CUDA_GPU_ARCH make -j
+
+cd /usr/share/hipSYCL/tests/rocm
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=rocm HIPSYCL_GPU_ARCH=$HIPSYCL_ROCM_GPU_ARCH make -j

@@ -92,14 +92,14 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local() const
   {
-    return detail::get_local_id<dimensions>();
+    return this->get_local_id();
   }
 
   [[deprecated]] 
   HIPSYCL_KERNEL_TARGET
   size_t get_local(int dimension) const
   {
-    return detail::get_local_id(dimension);
+    return this->get_local_id(dimension);
   }
 
   HIPSYCL_KERNEL_TARGET

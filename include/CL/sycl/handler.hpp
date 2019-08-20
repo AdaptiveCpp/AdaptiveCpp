@@ -754,7 +754,7 @@ void set_args(Ts &&... args);
       this->parallel_for<class fill_kernel>(
             dest.get_range(),
             dest.get_offset(),
-#ifndef __HIPSYCL_TRANSFORM__
+#ifdef __HIPSYCL_TRANSFORM__
             [dest,src] __device__ (cl::sycl::id<dim> tid)
 #else
             [dest,src] (cl::sycl::id<dim> tid)

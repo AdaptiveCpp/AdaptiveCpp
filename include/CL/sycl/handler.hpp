@@ -751,17 +751,33 @@ void set_args(Ts &&... args);
     }
     else
     {
-      this->parallel_for<class fill_kernel>(
+      // Use a function object instead of lambda to avoid
+      // requiring a unique kernel name for each fill call
+      class fill_kernel
+      {
+      public:
+        fill_kernel(accessor<T, dim, mode, tgt> dest,
+                    const T& src)
+        : _dest{dest}, _src{src}
+        {}
+
+        #ifdef __HIPSYCL_TRANSFORM__
+        __device__
+        #endif
+        void operator()(cl::sycl::id<dim> tid)
+        {
+          _dest[tid] = _src;
+        }
+
+      private:
+        accessor<T, dim, mode, tgt> _dest;
+        T _src;
+      };
+
+      this->parallel_for(
             dest.get_range(),
             dest.get_offset(),
-#ifndef __HIPSYCL_TRANSFORM__
-            [dest,src] __device__ (cl::sycl::id<dim> tid)
-#else
-            [dest,src] (cl::sycl::id<dim> tid)
-#endif
-      {
-        dest[tid] = src;
-      });
+            fill_kernel{dest, src});
     }
   }
 

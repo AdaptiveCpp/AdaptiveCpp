@@ -1204,8 +1204,11 @@ private:
     auto copy_launch = [=]() -> task_state
     {
       stream->activate_device();
-      hipMemcpyAsync(get_raw_pointer(dest) + dest_offset, get_raw_pointer(src) +
-        src_offset, count[0] * sizeof(T), kind, stream->get_stream());
+
+      detail::check_error(
+        hipMemcpyAsync(get_raw_pointer(dest) + dest_offset, get_raw_pointer(src) +
+          src_offset, count[0] * sizeof(T), kind, stream->get_stream()));
+
       return task_state::enqueued;
     };
     return this->submit_task(copy_launch);
@@ -1224,9 +1227,12 @@ private:
     auto copy_launch = [=]() -> task_state
     {
       stream->activate_device();
-      hipMemcpy2DAsync(get_raw_pointer(dest) + dest_offset, dest_pitch * sizeof(T),
-        get_raw_pointer(src) + src_offset, src_pitch * sizeof(T),
-        count[1] * sizeof(T), count[0], kind, stream->get_stream());
+
+      detail::check_error(
+        hipMemcpy2DAsync(get_raw_pointer(dest) + dest_offset, dest_pitch * sizeof(T),
+          get_raw_pointer(src) + src_offset, src_pitch * sizeof(T),
+          count[1] * sizeof(T), count[0], kind, stream->get_stream()));
+
       return task_state::enqueued;
     };
     return this->submit_task(copy_launch);
@@ -1260,7 +1266,10 @@ private:
         static_cast<std::underlying_type_t<hipMemcpyKind>>(kind));
 
       stream->activate_device();
-      cudaMemcpy3DAsync(&params, stream->get_stream());
+
+      auto err = cudaMemcpy3DAsync(&params, stream->get_stream());
+      detail::check_error(hipCUDAErrorTohipError(err));
+
       return task_state::enqueued;
     };
     return this->submit_task(copy_launch);

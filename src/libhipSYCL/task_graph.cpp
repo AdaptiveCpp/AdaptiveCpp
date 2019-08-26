@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "CL/sycl/exception.hpp"
 #include "CL/sycl/detail/task_graph.hpp"
 #include "CL/sycl/detail/debug.hpp"
 
@@ -169,6 +170,10 @@ task_graph_node::submit()
   {
     HIPSYCL_DEBUG_ERROR << "task_graph: submit() caught async error, "
                            " invoking async handler." << std::endl;
+
+    exception_ptr e = std::current_exception();
+    detail::dump_exception_info(e);
+
     // Submitted must be set to true to avoid
     // subsequent submissions
     _submitted = true;
@@ -176,7 +181,6 @@ task_graph_node::submit()
     // ToDo: Should we also consider the task as done here?
     // Or at least trigger the callback?
 
-    exception_ptr e = std::current_exception();
     _handler(sycl::exception_list{e});
   }
 
@@ -389,6 +393,8 @@ void task_graph::invoke_async_submission(async_handler error_handler)
       HIPSYCL_DEBUG_ERROR << "task_graph: caught error in invoke_async_submission, "
                              " invoking async handler." << std::endl;
       exception_ptr e = std::current_exception();
+      detail::dump_exception_info(e);
+
       error_handler(sycl::exception_list{e});
     }
   });

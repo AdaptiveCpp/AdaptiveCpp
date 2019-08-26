@@ -134,6 +134,13 @@ task_graph_node::submit()
 
     _stream->activate_device();
     task_state state = _tf();
+
+    // Remove unnecessary dependencies to allow task graph nodes
+    // to be destroyed.
+    // We know that we don't need the dependencies anymore, because
+    // we know that assert(is_ready()) passes - so all dependencies
+    // are satisified anyway, and do not need to be considered anymore.
+    _requirements = std::vector<task_graph_node_ptr>{};
     
     // Remove the task functor after execution to avoid
     // cyclic dependencies between buffer objects (that store

@@ -43,8 +43,8 @@ class FrontendASTAction : public clang::PluginASTAction {
 protected:
   std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI,
                                                         llvm::StringRef) override 
-  { 
-    return llvm::make_unique<FrontendASTConsumer>(CI);
+  {
+    return std::make_unique<FrontendASTConsumer>(CI);
   }
 
   bool ParseArgs(const clang::CompilerInstance &CI,

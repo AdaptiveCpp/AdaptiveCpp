@@ -180,7 +180,7 @@ HipsyclTransfromFrontendAction::CreateASTConsumer(clang::CompilerInstance &CI,
                                                   clang::StringRef)
 {
   _rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
-  return llvm::make_unique<HipsyclTransformASTConsumer>(_rewriter);
+  return std::make_unique<HipsyclTransformASTConsumer>(_rewriter);
 }
 
 }

@@ -132,7 +132,28 @@ void check_error(hipError_t e) {
 
 }
 
+void dump_exception_info(exception_ptr eptr)
+{
+  try
+  {
+    std::rethrow_exception(eptr);
+  }
+  catch(sycl::exception& e)
+  {
+    HIPSYCL_DEBUG_ERROR << "SYCL exception details: '" << e.what() 
+      << "', HIP error code = " << e.get_cl_code() << std::endl;
+  }
+  catch(std::exception& e)
+  {
+    HIPSYCL_DEBUG_ERROR << "std exception details: " << e.what()
+      << std::endl;
+  }
+  catch(...)
+  {
+    HIPSYCL_DEBUG_ERROR << "Unknown exception type." << std::endl;
+  }
 }
 
-}
-}
+} // detail
+} // sycl
+} // cl

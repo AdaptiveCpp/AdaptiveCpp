@@ -120,6 +120,7 @@ class feature_not_supported : public device_error {
 namespace detail {
 
 void check_error(hipError_t e);
+void dump_exception_info(exception_ptr eptr);
 
 }
 

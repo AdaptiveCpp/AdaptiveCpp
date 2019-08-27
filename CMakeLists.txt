@@ -121,6 +121,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
+set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
+  "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
+
+if(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION)
+  set(SYCLCC_CONFIG_FILE_INSTALL_DIR /etc/hipSYCL/)
+else()
+  set(SYCLCC_CONFIG_FILE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/hipSYCL/)
+endif()
 
 add_subdirectory(src)
 
@@ -148,7 +156,7 @@ install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
 
-install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION etc/hipSYCL/)
+install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
 
 set(HIPSYCL_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX})
 configure_file(${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in

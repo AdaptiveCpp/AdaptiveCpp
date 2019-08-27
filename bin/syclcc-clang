@@ -181,9 +181,16 @@ class syclcc_config:
     if self._config_file == None:
       # If the config file is still None at this point, probably no alternative
       # config file was supplied and the default one doesn't exist.
-      # Opening the default config file explicitly here will print a warning
-      # for the user if it doesn't exist and set the config file content to {}.
-      self._config_file = config_file(config_file_path)
+      # As a last resort, we check if there is a global config file
+      # TODO try using some more portable path here
+      global_config_file = '/etc/hipSYCL/syclcc.json'
+      if os.path.exists(global_config_file):
+        self._config_file = config_file(global_config_file)
+      else:
+        # The main purpose of opening the default config file explicitly 
+        # here is that it will print a warning for the user
+        # if it doesn't exist and set the config file content to {}.
+        self._config_file = config_file(config_file_path)
 
   def _is_hipsycl_arg(self, arg):
     accepted_args = [self._options[opt].commandline for opt in self._options]

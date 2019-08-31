@@ -20,6 +20,14 @@ target_include_directories(hipSYCL_clang PRIVATE
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS})
+  
+if(NOT ${LLVM_ENABLE_EH})
+  target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
+endif()
+
+if(NOT ${LLVM_ENABLE_RTTI})
+  target_compile_options(hipSYCL_clang PRIVATE -fno-rtti)
+endif()
 
 target_link_libraries(hipSYCL_clang
   ${LLVM_LIBS}

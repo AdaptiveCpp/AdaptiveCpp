@@ -394,7 +394,7 @@ void buffer_impl::write(const void* host_data, hipStream_t stream, bool async)
   }
   else
   {
-    memcpy(_buffer_pointer, _host_memory, _size);
+    memcpy(_buffer_pointer, host_data, _size);
   }
 }
 

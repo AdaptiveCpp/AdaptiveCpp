@@ -62,7 +62,6 @@ stream_manager::~stream_manager()
 {
   if(_stream != 0)
   {
-    hipStreamSynchronize(_stream);
     hipStreamDestroy(_stream);
   }
 }

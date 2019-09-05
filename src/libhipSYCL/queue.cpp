@@ -100,8 +100,7 @@ queue::queue(const property_list &propList)
     _device{device{}},
     _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr(new detail::stream_manager{_device,
-                                                          _handler});
+  this->init();
 }
 
 /// \todo constructors do not yet use asyncHandler
@@ -111,8 +110,7 @@ queue::queue(const async_handler &asyncHandler,
     _device{device{}},
     _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device,
-                                                          _handler}};
+  this->init();
 }
 
 
@@ -122,8 +120,7 @@ queue::queue(const device_selector &deviceSelector,
     _device{deviceSelector.select_device()},
     _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device,
-                                                          _handler}};
+  this->init();
 }
 
 
@@ -133,8 +130,7 @@ queue::queue(const device_selector &deviceSelector,
     _device{deviceSelector.select_device()},
     _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device,
-                                                          _handler}};
+  this->init();
 }
 
 
@@ -143,8 +139,7 @@ queue::queue(const device &syclDevice, const property_list &propList)
     _device{syclDevice},
     _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device,
-                                                          _handler}};
+  this->init();
 }
 
 
@@ -154,8 +149,7 @@ queue::queue(const device &syclDevice, const async_handler &asyncHandler,
     _device{syclDevice},
     _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{_device,
-                                                          _handler}};
+  this->init();
 }
 
 
@@ -165,9 +159,7 @@ queue::queue(const context &syclContext, const device_selector &deviceSelector,
     _device{deviceSelector.select_device()},
     _handler{[](exception_list){}}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{
-      _device,
-      _handler}};
+  this->init();
 }
 
 
@@ -177,11 +169,18 @@ queue::queue(const context &syclContext, const device_selector &deviceSelector,
     _device{deviceSelector.select_device()},
     _handler{asyncHandler}
 {
-  _stream = detail::stream_ptr{new detail::stream_manager{
-      _device,
-      _handler}};
+  this->init();
 }
 
+void queue::init()
+{
+  this->_stream = detail::stream_ptr{new detail::stream_manager{
+      _device,
+      _handler}};
+
+  this->_hooks = detail::queue_submission_hooks_ptr{
+        new detail::queue_submission_hooks{}};
+}
 
 context queue::get_context() const {
   return context{this->_device.get_platform()};

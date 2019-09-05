@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,39 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_HPP
-#define SYCL_HPP
+#ifndef HIPSYCL_FUNCTION_SET_HPP
+#define HIPSYCL_FUNCTION_SET_HPP
+
+#include <unordered_map>
+#include "../types.hpp"
+
+namespace cl {
+namespace sycl {
+
+class handler;
+
+namespace detail {
+
+template<class Arg>
+class function_set
+{
+public:
+  using function_type = function_class<void (Arg)>;
+  using id = std::size_t;
+
+  void run_all(Arg arg) const
+  {
+    for(const auto& element : _functions)
+      element.second(arg);
+  }
+
+  id add(function_type&& f)
+  {
+    id new_id = static_cast<id>(_functions.size());
+    _functions[new_id] = f;
+    return new_id;
+  }
+
+  void remove(id function_id)
+  {
+    _functions.erase(function_id);
+  }
+
+private:
+  using function_map_type = 
+    std::unordered_map<id, function_type>;
+  
+  function_map_type _functions;
+};
 
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
-
-#include "sycl/extensions.hpp"
-#include "sycl/backend/backend.hpp"
-#include "sycl/version.hpp"
-#include "sycl/types.hpp"
-#include "sycl/exception.hpp"
-#include "sycl/device_selector.hpp"
-#include "sycl/device.hpp"
-#include "sycl/platform.hpp"
-#include "sycl/queue.hpp"
-#include "sycl/range.hpp"
-#include "sycl/id.hpp"
-#include "sycl/accessor.hpp"
-#include "sycl/buffer.hpp"
-#include "sycl/nd_item.hpp"
-#include "sycl/multi_ptr.hpp"
-#include "sycl/group.hpp"
-#include "sycl/h_item.hpp"
-#include "sycl/private_memory.hpp"
-#include "sycl/vec.hpp"
-#include "sycl/builtin.hpp"
-#include "sycl/math.hpp"
-#include "sycl/common_functions.hpp"
-#include "sycl/geometric_functions.hpp"
-#include "sycl/atomic.hpp"
-#include "sycl/program.hpp"
-#include "sycl/kernel.hpp"
+}
+}
+}
 
 #endif
-

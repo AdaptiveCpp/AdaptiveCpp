@@ -986,44 +986,103 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2h,
   });
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
+  test_dimensions::type) {
+  
+  constexpr auto d = _dimensions::value;
+  namespace s = cl::sycl;
 
+  cl::sycl::queue q;
 
-  BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
-    test_dimensions::type) {
-    
-    constexpr auto d = _dimensions::value;
-    namespace s = cl::sycl;
-
-    cl::sycl::queue q;
-
-    auto buff_size = make_test_value<s::range, d>({64}, {64, 64}, {64, 64, 64});
-    s::buffer<s::id<d>, d> buff{buff_size};
-    
-    q.submit([&](s::handler& cgh){
-      auto buff_acc = buff.template get_access<s::access::mode::discard_write>(cgh);
-      cgh.parallel_for<kernel_name<class fill_init_kernel, d>>(buff_size,
-        [=](s::id<d> idx){
-        buff_acc[idx] = idx;
-      });
+  auto buff_size = make_test_value<s::range, d>({64}, {64, 64}, {64, 64, 64});
+  s::buffer<s::id<d>, d> buff{buff_size};
+  
+  q.submit([&](s::handler& cgh){
+    auto buff_acc = buff.template get_access<s::access::mode::discard_write>(cgh);
+    cgh.parallel_for<kernel_name<class fill_init_kernel, d>>(buff_size,
+      [=](s::id<d> idx){
+      buff_acc[idx] = idx;
     });
+  });
 
-    auto fill_value = make_test_value<s::id, d>({3}, {3,3}, {3,3,3});
-    q.submit([&](s::handler& cgh){
-      auto buff_acc = buff.template get_access<s::access::mode::write>(cgh);
-      cgh.fill(buff_acc, fill_value);
+  auto fill_value = make_test_value<s::id, d>({3}, {3,3}, {3,3,3});
+  q.submit([&](s::handler& cgh){
+    auto buff_acc = buff.template get_access<s::access::mode::write>(cgh);
+    cgh.fill(buff_acc, fill_value);
+  });
+
+  auto buff_host = buff.template get_access<s::access::mode::read>();
+
+  size_t j_validation_range = (d >= 2) ? buff_size[1] : 1;
+  size_t k_validation_range = (d == 3) ? buff_size[2] : 1;
+
+  for(size_t i = 0; i < buff_size[0]; ++i)
+    for(size_t j = 0; j < j_validation_range; ++j)
+      for(size_t k = 0; k < k_validation_range; ++k)
+      {
+        auto idx = make_test_value<s::id, d>({i}, {i,j}, {i,j,k});
+        assert_array_equality(buff_host[idx], fill_value);
+      }
+}
+#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
+  namespace s = cl::sycl;
+
+  s::queue q;
+  s::buffer<int, 1> buff{1};
+  s::accessor<int, 1, s::access::mode::read_write, 
+    s::access::target::global_buffer, s::access::placeholder::true_t> acc{buff};
+
+  // This will call handler::require(acc) for each
+  // subsequently launched command group
+  auto automatic_requirement = s::vendor::hipsycl::automatic_require(q, acc);
+  BOOST_CHECK(automatic_requirement.is_required());
+
+  q.submit([&] (s::handler& cgh) {
+    cgh.single_task<class auto_require_kernel0>([=] (){
+      acc[0] = 1;
     });
+  });
 
-    auto buff_host = buff.template get_access<s::access::mode::read>();
-
-    size_t j_validation_range = (d >= 2) ? buff_size[1] : 1;
-    size_t k_validation_range = (d == 3) ? buff_size[2] : 1;
-
-    for(size_t i = 0; i < buff_size[0]; ++i)
-      for(size_t j = 0; j < j_validation_range; ++j)
-        for(size_t k = 0; k < k_validation_range; ++k)
-        {
-          auto idx = make_test_value<s::id, d>({i}, {i,j}, {i,j,k});
-          assert_array_equality(buff_host[idx], fill_value);
-        }
+  { 
+    auto host_acc = buff.get_access<s::access::mode::read>(); 
+    BOOST_CHECK(host_acc[0] == 1);
   }
+
+
+  q.submit([&] (s::handler& cgh) {
+    cgh.single_task<class auto_require_kernel1>([=] (){
+      acc[0] = 2;
+    });
+  });
+
+  { 
+    auto host_acc = buff.get_access<s::access::mode::read>(); 
+    BOOST_CHECK(host_acc[0] == 2);
+  }
+
+  automatic_requirement.release();
+  BOOST_CHECK(!automatic_requirement.is_required());
+
+  { 
+    auto host_acc = buff.get_access<s::access::mode::read_write>(); 
+    host_acc[0] = 3;
+  }
+
+  automatic_requirement.reacquire();
+  BOOST_CHECK(automatic_requirement.is_required());
+
+  q.submit([&] (s::handler& cgh) {
+    cgh.single_task<class auto_require_kernel2>([=] (){
+      acc[0] += 1;
+    });
+  });
+
+  { 
+    auto host_acc = buff.get_access<s::access::mode::read>(); 
+    BOOST_CHECK(host_acc[0] == 4);
+  }
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

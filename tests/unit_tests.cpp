@@ -1084,5 +1084,71 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   }
 }
 #endif
+#ifdef HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
+BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
+  namespace sync = cl::sycl::vendor::hipsycl::synchronization;
+
+  constexpr size_t local_size = 256;
+  constexpr size_t global_size = 1024;
+
+  cl::sycl::queue queue;
+  std::vector<int> host_buf;
+  for(size_t i = 0; i < global_size; ++i) {
+    host_buf.push_back(static_cast<int>(i));
+  }
+
+  {
+    cl::sycl::buffer<int, 1> buf{host_buf.data(), host_buf.size()};
+
+    queue.submit([&](cl::sycl::handler& cgh) {
+
+      auto acc = buf.get_access<cl::sycl::access::mode::read_write>(cgh);
+
+      cgh.parallel_for_work_group<class pfwi_dispatch>(
+        cl::sycl::range<1>{global_size / local_size},
+        cl::sycl::range<1>{local_size},
+        [=](cl::sycl::group<1> wg) {
+
+          int scratch[local_size];
+
+          wg.parallel_for_work_item<sync::local_barrier>(
+            [&](cl::sycl::h_item<1> item) {
+            scratch[item.get_local_id()[0]] = acc[item.get_global_id()];
+          });
+
+          // By default, a barrier is used
+          wg.parallel_for_work_item(
+            [&](cl::sycl::h_item<1> item) {
+            scratch[item.get_local_id()[0]] *= 2;
+          });
+
+          // Testing the behavior of mem_fence() or 
+          // that there is no synchronization is difficult,
+          // so let's just test that things compile for now.
+          wg.parallel_for_work_item<sync::none>(
+            [&](cl::sycl::h_item<1> item) {
+            acc[item.get_global_id()] = scratch[item.get_local_id()[0]];
+          });
+
+          wg.parallel_for_work_item<sync::local_mem_fence>(
+            [&](cl::sycl::h_item<1> item) {
+          });
+
+          wg.parallel_for_work_item<sync::global_mem_fence>(
+            [&](cl::sycl::h_item<1> item) {
+          });
+
+          wg.parallel_for_work_item<sync::global_and_local_mem_fence>(
+            [&](cl::sycl::h_item<1> item) {
+          });
+        });
+    });
+  }
+
+  for(size_t i = 0; i < global_size; ++i) {
+    BOOST_TEST(host_buf[i] == 2*i);
+  }
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

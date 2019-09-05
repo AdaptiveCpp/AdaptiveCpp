@@ -72,3 +72,36 @@ q.submit([&] (cl::sycl::handler& cgh) {
 This extension serves two purposes:
 1. Avoid having to call `require()` again and again if the same accessor is used in many subsequent kernels. This can lead to a significant reduction of boilerplate code.
 2. Simplify code when working with SYCL libraries that accept lambda functions or function objects. For example, for a `sort()` function in a SYCL library a custom comparator may be desired. Currently, there is no easy way to access some independent data in that comparator because accessors must be requested in the command group handler. This would not be possible in that case since the command group would be spawned internally by `sort`, and the user has no means of accessing it.
+
+## `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION`
+This extension allows for the user to specify what/if synchronization should happen at the end of a `parallel_for_work_item` call.
+This extension is always enabled and does not need to be enabled explicitly.
+
+Example:
+```cpp
+// By default, a barrier() will be executed at the end of
+// a parallel for work item call, as defined by the spec and shown here:
+group.parallel_for_work_item([&](cl::sycl::h_item<1> item) {
+  ...
+});
+// The extension allows the user to specify custom 'finalizers' to
+// alter synchronization behavior:
+namespace sync = cl::sycl::vendor::hipsycl::synchronization;
+group.parallel_for_work_item<sync::none>(
+  [&](cl::sycl::h_item<1> item) {
+  // No synchronization will be done after this call
+});
+
+group.parallel_for_work_item<sync::local_mem_fence>(
+  [&](cl::sycl::h_item<1> item) {
+  // local mem_fence will be done after this call
+});
+```
+The following 'finalizers' are supported:
+* `cl::sycl::vendor::hipsycl::synchronization::none` - no Operation
+* `cl::sycl::vendor::hipsycl::synchronization::barrier<access::fence_space>` - barrier
+* `cl::sycl::vendor::hipsycl::synchronization::local_barrier` - same as `barrier<access::fence_space::local_space>`
+* `cl::sycl::vendor::hipsycl::synchronization::mem_fence<access::fence_space, access::mode = access::mode::read_write>` - memory fence
+* `cl::sycl::vendor::hipsycl::synchronization::local_mem_fence` - same as `mem_fence<access::fence_space::local_space>`
+* `cl::sycl::vendor::hipsycl::synchronization::global_mem_fence` - same as `mem_fence<access::fence_space::global_space>`
+* `cl::sycl::vendor::hipsycl::synchronization::global_and_local_mem_fence` - same as `mem_fence<access::fence_space::global_and_local>`

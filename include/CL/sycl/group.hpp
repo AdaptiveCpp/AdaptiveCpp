@@ -36,6 +36,7 @@
 #include "detail/thread_hierarchy.hpp"
 #include "multi_ptr.hpp"
 #include "h_item.hpp"
+#include "detail/mem_fence.hpp"
 
 namespace cl {
 namespace sycl {
@@ -159,7 +160,7 @@ struct group
   #endif
     func(idx);
     // We need implicit synchonization semantics
-    mem_fence();
+    __syncthreads();
 #else
     iterate_over_work_items(_local_range, func);
 #endif
@@ -172,7 +173,7 @@ struct group
   {
 #ifdef SYCL_DEVICE_ONLY
     parallelize_over_work_items(flexibleRange, func);
-    mem_fence();
+    __syncthreads();
 #else
     iterate_over_work_items(flexibleRange, func);
 #endif
@@ -184,11 +185,7 @@ struct group
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
-    // On CPU, mem_fence() can be skipped since there is only one physical thread
-    // per work group
-#ifdef SYCL_DEVICE_ONLY
-    __syncthreads();
-#endif
+    detail::mem_fence<accessMode>(accessSpace);
   }
 
 
@@ -217,7 +214,7 @@ struct group
     
     for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i];
-    mem_fence();
+    __syncthreads();
 
 #else
  #ifndef HIPCPU_NO_OPENMP
@@ -240,7 +237,7 @@ struct group
     
     for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i * srcStride];
-    mem_fence();
+    __syncthreads();
 
 #else
  #ifndef HIPCPU_NO_OPENMP
@@ -263,7 +260,7 @@ struct group
     
     for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
       dest[i * destStride] = src[i];
-    mem_fence();
+    __syncthreads();
 
 #else
  #ifndef HIPCPU_NO_OPENMP

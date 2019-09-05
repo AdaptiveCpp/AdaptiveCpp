@@ -36,6 +36,7 @@
 #include "group.hpp"
 #include "device_event.hpp"
 #include "detail/thread_hierarchy.hpp"
+#include "detail/mem_fence.hpp"
 
 namespace cl {
 namespace sycl {
@@ -217,7 +218,7 @@ struct nd_item
   void mem_fence(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
-    barrier(accessSpace);
+    detail::mem_fence<accessMode>(accessSpace);
   }
 
   template <typename dataT>

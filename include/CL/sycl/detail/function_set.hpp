@@ -25,10 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_QUEUE_SUBMISSION_HOOKS_HPP
-#define HIPSYCL_QUEUE_SUBMISSION_HOOKS_HPP
+#ifndef HIPSYCL_FUNCTION_SET_HPP
+#define HIPSYCL_FUNCTION_SET_HPP
 
 #include <unordered_map>
+#include "../types.hpp"
 
 namespace cl {
 namespace sycl {
@@ -37,45 +38,38 @@ class handler;
 
 namespace detail {
 
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-
-class queue_submission_hooks
+template<class Arg>
+class function_set
 {
 public:
-  using hook = function_class<void (sycl::handler&)>;
-  using hook_id = std::size_t;
+  using function_type = function_class<void (Arg)>;
+  using id = std::size_t;
 
-  void run_hooks(sycl::handler& cgh) const
+  void run_all(Arg arg) const
   {
-    for(const auto& element : _hooks)
-      element.second(cgh);
+    for(const auto& element : _functions)
+      element.second(arg);
   }
 
-  hook_id add(hook&& h)
+  id add(function_type&& f)
   {
-    hook_id new_id = static_cast<hook_id>(_hooks.size());
-    _hooks[new_id] = h;
+    id new_id = static_cast<id>(_functions.size());
+    _functions[new_id] = f;
     return new_id;
   }
 
-  void remove(hook_id id)
+  void remove(id function_id)
   {
-    _hooks.erase(id);
+    _functions.erase(function_id);
   }
 
 private:
-  using hook_list_type = 
-    std::unordered_map<hook_id, hook>;
+  using function_map_type = 
+    std::unordered_map<id, function_type>;
   
-  hook_list_type _hooks;
+  function_map_type _functions;
 };
 
-using queue_submission_hooks_ptr = shared_ptr_class<queue_submission_hooks>;
-
-template<typename, int, access::mode, access::target>
-class automatic_placeholder_requirement_impl;
-
-#endif // HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 
 }
 }

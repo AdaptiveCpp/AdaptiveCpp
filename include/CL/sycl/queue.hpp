@@ -29,7 +29,6 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
-#include "extensions.hpp"
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -42,20 +41,31 @@
 #include "handler.hpp"
 #include "info/info.hpp"
 #include "detail/stream.hpp"
+#include "detail/function_set.hpp"
 
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#include "extensions/queue_submission_hooks.hpp"
-#endif
 
 namespace cl {
 namespace sycl {
 
+namespace detail {
+
+template<typename, int, access::mode, access::target>
+class automatic_placeholder_requirement_impl;
+
+using queue_submission_hooks =
+  function_set<sycl::handler&>;
+using queue_submission_hooks_ptr = 
+  shared_ptr_class<queue_submission_hooks>;
+
+}
+
+
 class queue : public detail::property_carrying_object
 {
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+
   template<typename, int, access::mode, access::target>
   friend class detail::automatic_placeholder_requirement_impl;
-#endif
+
 public:
 
   explicit queue(const property_list &propList = {});
@@ -112,9 +122,9 @@ public:
     _stream->activate_device();
 
     handler cgh{*this, _handler};
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-    this->get_hooks()->run_hooks(cgh);
-#endif
+
+    this->get_hooks()->run_all(cgh);
+
     cgf(cgh);
 
     event evt = cgh._detail_get_event();
@@ -128,9 +138,8 @@ public:
 
     try {
       handler cgh{*this, _handler};
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-      this->get_hooks()->run_hooks(cgh);
-#endif
+
+      this->get_hooks()->run_all(cgh);
 
       cgf(cgh);
 
@@ -162,21 +171,18 @@ public:
 
 private:
 
-  device _device;
-  detail::stream_ptr _stream;
-  async_handler _handler;
-
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-  detail::queue_submission_hooks_ptr _hooks =
-      detail::queue_submission_hooks_ptr{
-        new detail::queue_submission_hooks{}
-      };
+  void init();
 
   detail::queue_submission_hooks_ptr get_hooks() const
   {
     return _hooks;
   }
-#endif
+
+  device _device;
+  detail::stream_ptr _stream;
+  async_handler _handler;
+  detail::queue_submission_hooks_ptr _hooks;
+
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -196,7 +202,6 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 
 
 
-#ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 
 namespace detail{
 
@@ -259,6 +264,9 @@ private:
 
 }
 
+namespace vendor {
+namespace hipsycl {
+
 template<typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
 class automatic_placeholder_requirement
@@ -310,7 +318,8 @@ inline auto automatic_require(queue &q,
   return requirement_type{std::make_unique<impl_type>(q, acc)};
 }
 
-#endif // HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
+} // hipsycl
+} // vendor
 
 
 

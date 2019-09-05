@@ -16,7 +16,9 @@ Alternatively, instead of activating individual extensions, all extensions can b
 This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
 
 ### `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE`
-This SYCL extension allows to `require()` placeholder accessors automatically, as seen in the following example:
+This SYCL extension allows to `require()` placeholder accessors automatically. This extension does not need to be enabled explicitly and is always available.
+
+The following example illustrates the use of this extension:
 
 ```cpp
 
@@ -28,7 +30,8 @@ cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write,
 // This will call handler::require(acc) for each command group subsequently
 // launched in the queue, until the `automatic_requirement` object is destroyed
 // or `automatic_requirement.release()` is called.
-auto automatic_requirement = cl::sycl::automatic_require(q, acc);
+auto automatic_requirement = 
+   cl::sycl::vendor::hipsycl::automatic_require(q, acc);
 // The member function `is_required()` can be used to check if
 // if the automatic requirement object is active:
 assert(automatic_requirement.is_required());

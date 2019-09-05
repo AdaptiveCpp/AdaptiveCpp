@@ -38,7 +38,6 @@
 #include <boost/mpl/list.hpp>
 
 #define SYCL_SIMPLE_SWIZZLES
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 #include <CL/sycl.hpp>
 
 struct reset_device_fixture {

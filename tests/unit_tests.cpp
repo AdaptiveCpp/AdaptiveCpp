@@ -20,8 +20,7 @@
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY,
- *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
@@ -1036,7 +1035,7 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
 
   // This will call handler::require(acc) for each
   // subsequently launched command group
-  auto automatic_requirement = s::automatic_require(q, acc);
+  auto automatic_requirement = s::vendor::hipsycl::automatic_require(q, acc);
   BOOST_CHECK(automatic_requirement.is_required());
 
   q.submit([&] (s::handler& cgh) {
@@ -1047,7 +1046,6 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
 
   { 
     auto host_acc = buff.get_access<s::access::mode::read>(); 
-    std::cout << "host acc = " << host_acc[0] << std::endl;
     BOOST_CHECK(host_acc[0] == 1);
   }
 

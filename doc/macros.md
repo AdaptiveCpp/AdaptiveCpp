@@ -12,6 +12,7 @@ Most of these are managed by `detail/backend/backend.hpp`.
 * `HIPSYCL_CLANG` - defined by `syclcc-clang` when compiling with the clang plugin
 * `HIPSYCL_SVM_SUPPORTED` - defined when the backend supports unified memory
 * `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE` - defined if hipSYCL supports (and has enabled) the extension for automatically requiring placeholder accessors.
+* `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION` - defined if the hipSYCL custom `parallel_for_work_item` synchronization extension is supported.
 
 ## Mainly for hipSYCL developers
 * `__HIPSYCL_TRANSFORM__` defined by legacy `syclcc` during the source-to-source transformation step

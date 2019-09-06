@@ -41,6 +41,56 @@
 namespace cl {
 namespace sycl {
 
+namespace vendor {
+namespace hipsycl {
+namespace synchronization {
+
+struct none
+{
+  HIPSYCL_KERNEL_TARGET
+  static void run() {}
+};
+
+template<access::fence_space Fence_space>
+struct barrier
+{
+  HIPSYCL_KERNEL_TARGET
+  static void run()
+  {
+#ifdef SYCL_DEVICE_ONLY
+    __syncthreads();
+#endif
+  }
+};
+
+using local_barrier = barrier<access::fence_space::local_space>;
+
+template <
+  access::fence_space Fence_space,
+  access::mode Mode = access::mode::read_write
+>
+struct mem_fence
+{
+  HIPSYCL_KERNEL_TARGET
+  static void run()
+  {
+    detail::mem_fence<Fence_space, Mode>();
+  }
+};
+
+using local_mem_fence = mem_fence<
+  access::fence_space::local_space>;
+
+using global_mem_fence = mem_fence<
+  access::fence_space::global_space>;
+
+using global_and_local_mem_fence = mem_fence<
+  access::fence_space::global_and_local>;
+
+}
+}
+}
+
 template <int dimensions = 1>
 struct group
 {
@@ -148,7 +198,9 @@ struct group
                                               get_group_range());
   }
 
-  template<typename workItemFunctionT>
+  template<
+    typename Finalizer,
+    typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
@@ -159,11 +211,32 @@ struct group
     h_item<dimensions> idx{detail::get_local_id<dimensions>(), _local_range, _group_id, _num_groups};
   #endif
     func(idx);
-    // We need implicit synchonization semantics
-    __syncthreads();
 #else
     iterate_over_work_items(_local_range, func);
 #endif
+    Finalizer::run();
+  }
+
+  template<typename workItemFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void parallel_for_work_item(workItemFunctionT func) const
+  {
+    parallel_for_work_item<vendor::hipsycl::synchronization::local_barrier>(func);
+  }
+
+  template<
+    typename Finalizer,
+    typename workItemFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void parallel_for_work_item(range<dimensions> flexibleRange,
+                              workItemFunctionT func) const
+  {
+#ifdef SYCL_DEVICE_ONLY
+    parallelize_over_work_items(flexibleRange, func);
+#else
+    iterate_over_work_items(flexibleRange, func);
+#endif
+    Finalizer::run();
   }
 
   template<typename workItemFunctionT>
@@ -171,12 +244,8 @@ struct group
   void parallel_for_work_item(range<dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    parallelize_over_work_items(flexibleRange, func);
-    __syncthreads();
-#else
-    iterate_over_work_items(flexibleRange, func);
-#endif
+    parallel_for_work_item<vendor::hipsycl::synchronization::local_barrier>(
+      flexibleRange, func);
   }
 
 

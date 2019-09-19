@@ -34,8 +34,9 @@
 #include "types.hpp"
 
 #define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 7
-#define HIPSYCL_VERSION_PATCH 9
+#define HIPSYCL_VERSION_MINOR 8
+#define HIPSYCL_VERSION_PATCH 0
+#define HIPSYCL_VERSION_TYPE "rc1"
 
 namespace cl {
 namespace sycl {
@@ -49,7 +50,8 @@ static string_class version_string()
 
   string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
       + "." + std::to_string(HIPSYCL_VERSION_MINOR)
-      + "." + std::to_string(HIPSYCL_VERSION_PATCH);
+      + "." + std::to_string(HIPSYCL_VERSION_PATCH)
+      + "-" + std::string(HIPSYCL_VERSION_TYPE);
 
   return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
 }

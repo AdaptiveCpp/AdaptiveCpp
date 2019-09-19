@@ -145,16 +145,22 @@ add_subdirectory(src)
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 
+set(ROCM_LINK_LINE "-rpath $HIPSYCL_ROCM_LIB_PATH -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+
+
 set(SYCLCC_CONFIG_FILE "{
-  \"default-clang\" : \"${CLANG_EXECUTABLE_PATH}\",
-  \"default-platform\" : \"${DEFAULT_PLATFORM}\",
+  \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
+  \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-  \"default-gpu-arch\" : \"${DEFAULT_GPU_ARCH}\",
-  \"default-cpu-cxx\" : \"${CMAKE_CXX_COMPILER}\",
+  \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
+  \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
-  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\"
+  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
+  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
+  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\"
 }
 ")
 

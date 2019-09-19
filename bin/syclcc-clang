@@ -34,6 +34,7 @@ import os
 import os.path
 import sys
 import subprocess
+import string
 
 class hipsycl_platform:
   PURE_CPU = "cpu"
@@ -67,9 +68,10 @@ class config_file:
   def contains_key(self, key):
     if not key in self._data:
       return False
-    if(self._data[key].endswith("-NOTFOUND") or
-       self._data[key] == ""):
-      return False
+    if isinstance(self._data[key], str):
+      if(self._data[key].endswith("-NOTFOUND") or
+        self._data[key] == ""):
+        return False
     return True
 
   def get(self, key):
@@ -152,7 +154,13 @@ class syclcc_config:
       
       'clang-include-path' : option("--hipsycl-clang-include-path", "HIPSYCL_CLANG_INCLUDE_PATH", "default-clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
+
+      'rocm-link-line' : option("--hipsycl-rocm-link-line", "HIPSYCL_ROCM_LINK_LINE", "default-rocm-link-line",
+""" The arguments passed to the compiler to link with ROCm libraries."""),
       
+      'cuda-link-line' : option("--hipsycl-cuda-link-line", "HIPSYCL_CUDA_LINK_LINE", "default-cuda-link-line",
+""" The arguments passed to the compiler to link with CUDA libraries."""),
+
       'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting.""")
@@ -259,6 +267,20 @@ class syclcc_config:
       "environment variable {} or config file.".format(
         flag.commandline, flag.environment
     ))
+
+  def _substitute_template_string(self, template_string):
+    template = string.Template(template_string)
+
+    substitution_dict = {
+      'HIPSYCL_CUDA_PATH' : self.cuda_path,
+      'HIPSYCL_ROCM_PATH' : self.rocm_path,
+      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
+      'HIPSYCL_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
+      'HIPSYCL_PATH' : self.hipsycl_installation_path,
+      'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
+    }
+
+    return template.substitute(substitution_dict)
       
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
@@ -336,7 +358,17 @@ class syclcc_config:
   def hipsycl_installation_path(self):
     syclcc_path = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(syclcc_path, "..")
+
+  @property
+  def rocm_link_line(self):
+    components = self._retrieve_option("rocm-link-line").split(' ')
+    return [self._substitute_template_string(arg) for arg in components]
   
+  @property
+  def cuda_link_line(self):
+    components = self._retrieve_option("cuda-link-line").split(' ')
+    return [self._substitute_template_string(arg) for arg in components]
+
   @property
   def forwarded_compiler_arguments(self):
     return self._forwarded_args
@@ -391,13 +423,12 @@ class clang_plugin_compiler:
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     if target == hipsycl_platform.CUDA:
-      self._linker_args = [
-        "-L"+os.path.join(config.cuda_path, "lib64/"),
-        "-lcudart"
-      ]
+      self._linker_args = config.cuda_link_line
+
       # In non-bootstrap mode, automatically link hipSYCL
       if not config.is_bootstrap:
         self._linker_args += [
+          "-rpath", hipsycl_library_path,
           "-L"+hipsycl_library_path,
           "-lhipSYCL_cuda"
         ]
@@ -409,14 +440,12 @@ class clang_plugin_compiler:
     elif target == hipsycl_platform.HIP:
       self._target = "hip"
       
-      self._linker_args = [
-        "-L" + os.path.join(config.rocm_path, "lib"),
-        "-lhip_hcc"
-      ]
+      self._linker_args = config.rocm_link_line
 
       # In non-bootstrap mode, automatically link hipSYCL
       if not config.is_bootstrap:
         self._linker_args += [
+          "-rpath", hipsycl_library_path,
           "-L"+hipsycl_library_path,
           "-lhipSYCL_rocm"
         ]
@@ -491,6 +520,9 @@ class pure_cpu_compiler:
         "-L"+hipsycl_library_path,
         "-lhipSYCL_cpu"
       ]
+      if "clang" in os.path.basename(self._compiler):
+        self._linker_args += ["-rpath",hipsycl_library_path]
+
       self._compiler_args += [
         "-I"+os.path.join(config.hipsycl_installation_path, "include/"),
         "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")

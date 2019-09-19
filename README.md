@@ -106,27 +106,7 @@ $ make install
 The default installation prefix is `/usr/local`. Change this to your liking.
 
 ### Packages
-** Note: hipSYCL packaging is currently being reworked - the following may or may not work. **
-
-For Arch Linux users, it is recommended to simply use the `PKGBUILD` provided in `install/archlinux`. A simple `makepkg` in this directory should be enough to build an Arch Linux package.
-
-### Singularity container images
-hipSYCL comes with singularity definition files that allow you to create working hipSYCL distributions with a single command, no matter which Linux distribution you are using.
-
-For a CUDA based container image, execute:
-```
-$ sudo singularity build <image-name> install/singularity/hipsycl-cuda.def
-```
-
-On ROCm, containers are currently not available due to the lack of binary packages for HIP-clang from AMD.
-
-### Docker container images
-Dockerfiles for hipSYCL are also provided. For a CUDA-based docker image, run
-```
-$ sudo docker build install/docker/CUDA
-```
-
-On ROCm, containers are currently not available due to the lack of binary packages for HIP-clang from AMD.
+We are currently in the process of preparing binary packages for the entire hipSYCL stack - stay tuned.
 
 
 ## Compilation with hipSYCL: Using syclcc-clang

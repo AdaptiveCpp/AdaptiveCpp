@@ -12,17 +12,20 @@ export CXX=${HIPSYCL_BASE_CXX:-clang++}
 export SUDO=${SUDO:-"disable"}
 export AOMP=$INSTALL_PREFIX/rocm
 export BUILD_TYPE=Release
-export NVPTXGPUS=60,61,62,70
-export AOMP_BUILD_HIPSYCL_ESSENTIAL=1
+#export NVPTXGPUS=60,61,62,70
+#export AOMP_BUILD_HIPSYCL_ESSENTIAL=1
 export AOMP_BUILD_HIP=1
 export CUDA=${CUDA:-$INSTALL_PREFIX/cuda}
-export AOMP_BUILD_CUDA=1
+#export AOMP_BUILD_CUDA=1
 
 ./clone_aomp.sh
-#sed -i 's/atmi//g' $BUILD_DIR/aomp/bin/build_aomp.sh
 sed -i 's/openmp pgmath flang flang_runtime//g' $BUILD_DIR/aomp/bin/build_aomp.sh
 sed -i 's/exit 1//g' $BUILD_DIR/aomp/bin/build_hcc.sh
+# This aomp patch to support HIP in conjunction with OpenMP breaks HIP clang printf,
+# so we remove it
+sed -i 's/patch -p1 < $thisdir\/hip.patch//g' $BUILD_DIR/aomp/bin/build_hip.sh
 
+# Remove problematic -Werror compilation arguments
 sed -i 's/ -Werror//g' $BUILD_DIR/aomp-extras/hostcall/lib/CMakeLists.txt
 sed -i 's/ -Werror//g' $BUILD_DIR/rocr-runtime/src/CMakeLists.txt
 

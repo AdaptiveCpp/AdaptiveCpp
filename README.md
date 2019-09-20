@@ -22,10 +22,8 @@ hipSYCL relies on the fact that that both HIP/CUDA and SYCL are single-source pr
 
 Reality is unfortunately more complicated because the HIP/CUDA programming model is more restrictive than SYCL. For example, CUDA and HIP require that functions should be explicitly marked by the programmer whether they should be compiled for device or host. SYCL doesn't require this. To fix such restrictions, hipSYCL offers two approaches:
 * The recommended approach is to use the clang-based hipSYCL toolchain. Using a clang plugin, hipSYCL adds additional AST and IR passes that augment clang's CUDA/HIP support to also compile SYCL code.
-  This process is fully integrated in the `syclcc-clang` compiler wrapper, so users can just call `syclcc-clang` like a regular compiler and do not need to
-  worry about the details. *Note:* `syclcc-clang` will be renamed to `syclcc` in the near future.
+  This process is fully integrated in the `syclcc-clang` compiler wrapper, so users can just call `syclcc-clang` like a regular compiler and do not need to worry about the details. Users can also use `syclcc` (an alias for `syclcc-clang`) if they wish to save a couple of letters when typing.
 * Additionally, *manual mode* is available. In manual mode, users need to manually make sure that the input SYCL code is acceptable by a CUDA/HIP compiler. In particular, this means that users will need to make sure that all functions used in kernels are `__device__`. As an aid, hipSYCL contains source-to-source transformation tools that automatically add such attributes to the code as needed.
-  This is *at the moment* still fully integrated in the `syclcc` compiler wrapper, which will do this transformation behind the scenes and then invoke the CUDA/HIP compiler. However, `syclcc` will be replaced by `syclcc-clang` in the near future, so users needing source-to-source transformation should not rely on it.
 
 See below for an illustration of the hipSYCL compilation model.
 

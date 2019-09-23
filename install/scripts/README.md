@@ -45,3 +45,8 @@ This script will generate three packages:
 * `hipSYCL` contains the actual hipSYCL libraries, headers and tools
 
 Creating CUDA packages is also possible, but this functionality is separate since we do not distribute CUDA binary packages for legal reasons. In order to create a CUDA package, just run the `make-ubuntu-cuda.sh` (for Ubuntu, analogously for other distributions) script. This script can be run on its own and does not require the building the entire stack including container image.
+Note: If you only intend to install hipSYCL's CUDA stack on a single machine for home use, it may be easier and faster to just install it directly using the install script: Run
+```
+sudo sh install-cuda.sh 
+```
+which will install it directly to `/opt/hipSYCL/cuda` where hipSYCL expects it.

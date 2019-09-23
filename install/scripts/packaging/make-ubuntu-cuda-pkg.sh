@@ -17,8 +17,7 @@ Depends: hipSYCL
 Description: CUDA stack for hipSYCL
  Provides CUDA toolkit for hipSYCL
 EOF
-echo `pwd`
-ls ..
+
 INSTALL_PREFIX=${CUDA_DIR}/opt/hipSYCL sh ../install-cuda.sh
 
 cd ${BUILD_DIR}

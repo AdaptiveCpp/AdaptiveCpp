@@ -1,8 +1,6 @@
 #!/bin/bash
 # Intended to be executed inside the built singularity container
 
-set -e
-
 # define variables - version and build paths
 HIPSYCL_VERSION=0.8.0
 HIPSYCL_BUILD=`date +%Y%m%d`
@@ -36,11 +34,11 @@ mkdir -p ${COMMON_DIR}/opt/hipSYCL/llvm
 mkdir -p ${HIPSYCL_DIR}/opt/hipSYCL
 
 # sort installed binaries into build paths
-cp -R /opt/hipSYCL/rocm/* ${ROCM_DIR}/opt/hipSYCL/rocm
-cp -R /opt/hipSYCL/llvm/* ${COMMON_DIR}/opt/hipSYCL/llvm
+cp -R /opt/hipSYCL/rocm/* ${ROCM_DIR}/opt/hipSYCL/rocm || true
+cp -R /opt/hipSYCL/llvm/* ${COMMON_DIR}/opt/hipSYCL/llvm || true
 
-cp -R /opt/hipSYCL/bin     ${HIPSYCL_DIR}/opt/hipSYCL
-cp -R /opt/hipSYCL/etc     ${HIPSYCL_DIR}/opt/hipSYCL
-cp -R /opt/hipSYCL/include ${HIPSYCL_DIR}/opt/hipSYCL
-cp -R /opt/hipSYCL/lib     ${HIPSYCL_DIR}/opt/hipSYCL
+cp -R /opt/hipSYCL/bin     ${HIPSYCL_DIR}/opt/hipSYCL || true
+cp -R /opt/hipSYCL/etc     ${HIPSYCL_DIR}/opt/hipSYCL || true
+cp -R /opt/hipSYCL/include ${HIPSYCL_DIR}/opt/hipSYCL || true
+cp -R /opt/hipSYCL/lib     ${HIPSYCL_DIR}/opt/hipSYCL || true
 

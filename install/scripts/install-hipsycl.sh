@@ -25,7 +25,7 @@ cmake \
 -DROCM_PATH=$INSTALL_PREFIX/rocm \
 -DCUDA_TOOLKIT_ROOT_DIR=$INSTALL_PREFIX/cuda \
 -DCLANG_EXECUTABLE_PATH=$INSTALL_PREFIX/llvm/bin/clang++ \
--DCLANG_INCLUDE_PATH=$INSTALL_PREFIX/llvm/lib/clang/9.0.0/include \
+-DCLANG_INCLUDE_PATH=$INSTALL_PREFIX/llvm/lib/clang/10.0.0/include \
 -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
 -DROCM_LINK_LINE='-rpath $HIPSYCL_ROCM_LIB_PATH -rpath $HIPSYCL_ROCM_PATH/hsa/lib -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lamd_hostcall -lhsa-runtime64 -latmi_runtime -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am' \
 -DDISABLE_LLVM_VERSION_CHECK=ON \

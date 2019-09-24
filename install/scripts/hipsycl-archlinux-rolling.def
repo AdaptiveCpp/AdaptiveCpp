@@ -1,0 +1,8 @@
+BootStrap: localimage
+From: base-archlinux-rolling.sif
+
+%setup
+cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
+
+%post
+HIPSYCL_REPO_BRANCH=master sh /install-hipsycl.sh

@@ -62,14 +62,27 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 
 ## Building and installing hipSYCL
 
-### Prerequisites
-In order to successfully build and install hipSYCL, the following major requirements must be met:
-
-#### Hardware and OS
+### Hardware and OS requirements
 * We support CPUs, NVIDIA CUDA GPUs and AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
 * hipSYCL currently does not support other operating systems besides Linux due to a lack of maintainers for other platforms. While the AMD backend can only work on Linux since AMD doesn't support ROCm on other platforms, the CUDA and CPU backends should in principle be portable. If you are interested in porting and maintaining hipSYCL on other platforms, feel encouraged to do so and get in touch with us.
 
+### Packages
+The easiest way to install hipSYCL is to use our binary packages. We provide packages for several distributions (currently Ubuntu, CentOS, Arch Linux) on the [releases page](https://github.com/illuhad/hipSYCL/releases). In the future, it is planned to host these packages in actual repositories to further simplfy the installation.
+
+Our packages cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm and CUDA stacks. The following packages are provided:
+* `hipSYCL` - contains the actual hipSYCL libraries, tools and headers
+* `hipSYCL-base` - contains the LLVM/clang stack used by hipSYCL. Installation of this package is mandatory.
+* `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
+* `hipSYCL-cuda` - provides a CUDA stack. This package is only required if you wish to target CUDA GPUs. **Note: For legal reasons, we do not redistribute the hipSYCL-cuda pacakge**. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
+
+For more information on packaging and how to create hipSYCL packages yourself, please see the [documentation](install/scripts/README.md).
+
+
+### Manual installation
+
 #### Software dependencies
+In order to successfully build and install hipSYCL, the following major requirements must be met:
+
 * **LLVM and clang >= 8** must be installed, including development files.
 * *For the CUDA backend*: 
   * **CUDA >= 9.0** must be installed.
@@ -89,7 +102,7 @@ If hipSYCL does not automatically configure the build for the desired clang/LLVM
 * `CLANG_EXECUTABLE_PATH` must be pointed to the clang executable from this LLVM installation.
 * `CLANG_INCLUDE_PATH` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`.
 
-### Manual compilation
+#### Building and installing 
 
 Once the software requirements mentioned above are met, clone the repository with all submodules:
 ```
@@ -102,9 +115,6 @@ $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <hipSYCL source directory>
 $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
-
-### Packages
-We are currently in the process of preparing binary packages for the entire hipSYCL stack - stay tuned.
 
 
 ## Compilation with hipSYCL: Using syclcc-clang

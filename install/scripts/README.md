@@ -19,12 +19,12 @@ Note that the installation scripts may require the installation of some packages
 * `sudo sh install-hipsycl.sh` - installs hipSYCL.
 
 Unless you have a massive machine, you can expect this to run for half an eternity, so patience is a prerequisite for this installation approach. The easier way is certainly to use our provided binary packages.
-The installation prefix can be changed using the environment variable `INSTALL_PREFIX` (default is `/opt/hipSYCL`). Note that the `install-hipsycl.sh` script installs hipSYCL with support for both CUDA and ROCm backends, which means you need to have both installed. At the moment, the installation script does not have an option to disable backends, however this can be easily achieved by editing the `cmake` command inside `install-hipsycl.sh`.
+The installation prefix can be changed using the environment variable `INSTALL_PREFIX` (default is `/opt/hipSYCL`). Note that the `install-hipsycl.sh` script builds hipSYCL with support for both CUDA and ROCm backends by default, which means you need to have both installed. If you wish to disable support for CUDA/ROCm, set the `HIPSYCL_WITH_CUDA` or `HIPSYCL_WITH_ROCM` environment variables to `OFF`.
 
 If you change the `INSTALL_PREFIX` to a directory that is writable by your user, `sudo` is not required.
 
 ## Building a singularity container
-We also provide singularity definition files in order to create singularity container images. Build an image is a two step process. First, create the base image which contains LLVM, ROCm and CUDA stacks, e.g.
+We also provide singularity definition files in order to create singularity container images. Building an image is a two step process. First, create the base image which contains LLVM, ROCm and CUDA stacks, e.g.
 ```
 sudo singularity build base-image.sif base-ubuntu-18.04.def
 ```

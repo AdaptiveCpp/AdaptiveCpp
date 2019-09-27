@@ -25,26 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "unit_tests.hpp"
+
 #include <initializer_list>
 
-#include <CL/sycl.hpp>
+// NOTE: Since these tests are concerned with device compilation, the first
+// and arguably most important "test" is that this file compiles at all. We
+// then also include a few unit tests to assert the correct behavior of the
+// resulting programs.
 
-// What we're testing here is different forms of function calls, including
-// implicit and templated functions and constructors as well as destructors.
-// The hipSYCL Clang plugin must recognize that each of these is being called
-// by the user-provided kernel functor, and mark them as __device__ functions
-// accordingly.
-//
-// Additionally, we test that complex kernel names are correctly supported.
+BOOST_FIXTURE_TEST_SUITE(device_compilation_test_suite, reset_device_fixture)
 
-void foo4(int v) {
-  printf("foo4: %d\n", v);
+int add_five(int v) {
+  return v + 5;
 }
 
-struct Conversion {
-  Conversion(float value) : value(value) {
-    foo4(*this);
+void call_lambda(int& v) {
+  ([&](){ v = add_five(v); })();
+}
+
+struct MyParent {
+  MyParent(std::initializer_list<int> init) {
+    for(auto&& e : init) {
+      parent_value += e;
+    }
+    call_lambda(parent_value);
   }
+
+  virtual ~MyParent() {
+    *increment_in_dtor += parent_value + 7;
+  };
+
+  int parent_value = 0;
+  int* increment_in_dtor;
+};
+
+struct Conversion {
+  Conversion(float value) : value(value) {}
 
   operator int() {
     return static_cast<int>(value);
@@ -53,54 +70,50 @@ struct Conversion {
   float value;
 };
 
-void foo3(int v) {
-  printf("foo3: %d\n", v);
+int convert(Conversion conv) {
+  return add_five(conv);
 }
-
-void foo2(Conversion foo) {
-  printf("foo2: %f\n", foo.value);
-}
-
-void foo1(int v) {
-  printf("foo1: %d\n", v + 5);
-  ([=](){ foo3(v); })();
-}
-
-struct MyParent {
-  MyParent(std::initializer_list<int> init) {
-    for(auto&& e : init) {
-      parent_value += e;
-    }
-    foo1(parent_value);
-  }
-
-  virtual ~MyParent() {
-    printf("~MyParent: %d\n", parent_value);
-  };
-
-  int parent_value = 0;
-};
 
 struct MyStruct : MyParent {
-  MyStruct(int value) : MyParent::MyParent({value, 4, 5, 7}),
-    value(value) {
+  MyStruct(int& value) : MyParent::MyParent{value, 4, 5, 7}, value(value) {
+    increment_in_dtor = &value;
   }
 
   ~MyStruct() {
-    foo2(static_cast<float>(value));
+    value = convert(static_cast<float>(value));
   }
 
-  int value;
+  int& value;
 };
 
-template<typename T>
-int template_fn() {
-  T t(42);
-  return t.value;
+template<typename T, typename U>
+void template_fn(U& u) {
+  T t(u);
 }
 
-float some_fn() {
-  return template_fn<MyStruct>();
+float some_fn(int value) {
+  template_fn<MyStruct>(value);
+  return value;
+}
+
+// What we're testing here is different forms of function calls, including
+// implicit and templated functions and constructors as well as destructors.
+// The hipSYCL Clang plugin must recognize that each of these is being called
+// by the user-provided kernel functor, and mark them as __device__ functions
+// accordingly.
+BOOST_AUTO_TEST_CASE(complex_device_call_graph) {
+  cl::sycl::queue queue;
+  cl::sycl::buffer<float, 1> buf(1);
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+    cgh.single_task<class some_kernel>([=]() {
+        acc[0] = some_fn(2);
+      });
+  });
+
+  auto acc = buf.get_access<cl::sycl::access::mode::read>();
+  BOOST_REQUIRE(acc[0] == 37);
 }
 
 template<int T, int* I, typename U>
@@ -117,24 +130,8 @@ class enum_kn;
 template<template <typename, int, typename> class T>
 class templated_template_kn;
 
-struct KernelFunctor {
-  void operator()(cl::sycl::id<1> idx) {
-    printf("Hi from functor %ld\n", idx[0]);
-  }
-};
-
-int main() {
+BOOST_AUTO_TEST_CASE(kernel_name_mangling) {
   cl::sycl::queue queue;
-  cl::sycl::buffer<float, 1> buf(10);
-
-  queue.submit([&](cl::sycl::handler& cgh) {
-    auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
-    cgh.parallel_for<class some_kernel>(buf.get_range(), [=](cl::sycl::item<1> item) {
-        acc[item] = some_fn();
-      });
-  });
-
-  // Test some more exotic kernel names
 
   // Qualified / modified types
   queue.submit([&](cl::sycl::handler& cgh) {
@@ -167,16 +164,42 @@ int main() {
         <class templated_kn_collision>
         ([](){});
   });
-
-  // It's allowed to provide no name if the functor is globally visible
-  queue.submit([&](cl::sycl::handler& cgh) {
-    cgh.parallel_for(cl::sycl::range<1>(10), KernelFunctor());
-  });
-
-  queue.submit([&](cl::sycl::handler& cgh) {
-    cgh.parallel_for(cl::sycl::range<1>(10), cl::sycl::id<1>(5), KernelFunctor());
-  });
-
-  return 0;
 }
+
+struct KernelFunctor {
+  using Accessor = cl::sycl::accessor<size_t, 1, cl::sycl::access::mode::discard_write>;
+  KernelFunctor(Accessor acc) : acc(acc) {};
+
+  void operator()(cl::sycl::item<1> item) {
+    acc[0] = 300 + item.get_linear_id();
+  }
+
+  Accessor acc;
+};
+
+// It's allowed to omit the name if the functor is globally visible
+BOOST_AUTO_TEST_CASE(omit_kernel_name) {
+  cl::sycl::queue queue;
+  cl::sycl::buffer<size_t, 1> buf(1);
+
+  {
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::range<1>(1), KernelFunctor(acc));
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
+  {
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for(cl::sycl::range<1>(1), cl::sycl::id<1>(1), KernelFunctor(acc));
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 301);
+  }
+}
+
+BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

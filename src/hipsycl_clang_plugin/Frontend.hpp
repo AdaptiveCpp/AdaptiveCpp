@@ -410,8 +410,26 @@ private:
       {
         HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
                           << Kernel->getQualifiedNameAsString() << std::endl;
-                          
-        this->storeLocalVariablesInLocalMemory(Kernel);
+
+        // Mark local variables as shared memory, unless they are explicitly marked private.
+        // Do this not only for the kernel itself, but consider all functions called by the kernel.
+        detail::CompleteCallSet CCS(Kernel);
+        for(auto&& RD : CCS.getReachableDecls())
+        {
+          // To prevent every local variable in any function being marked as shared,
+          // we only consider functions that receive a cl::sycl::group as their parameter.
+          for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
+          {
+            auto Type = (*Param)->getOriginalType().getTypePtr();
+            if(auto DeclType = Type->getAsCXXRecordDecl()) {
+              if(DeclType->getQualifiedNameAsString() == "cl::sycl::group")
+              {
+                storeLocalVariablesInLocalMemory(RD->getBody(), RD);
+                break;
+              }
+            }
+          }
+        }
       }
     }
   
@@ -460,38 +478,45 @@ private:
     return false;
   }
 
-  void storeLocalVariablesInLocalMemory(clang::FunctionDecl* F) const
+  ///
+  /// Marks all variable declarations within a given block statement as shared memory,
+  /// unless they are explicitly declared as a private memory type.
+  ///
+  /// Recurses into compound statements (i.e., a set of braces {}).
+  ///
+  /// NOTE TODO: It is unclear how certain other statement types should be handled.
+  /// For example, should the loop variable of a for-loop be marked as shared? Probably not.
+  ///
+  void storeLocalVariablesInLocalMemory(clang::Stmt* BlockStmt, clang::FunctionDecl* F) const
   {
-    if(auto* Body = F->getBody())
+    for(auto S = BlockStmt->child_begin(); S != BlockStmt->child_end(); ++S)
     {
-      // TODO Actually we need to this recursively for nested statements
-      for(auto CurrentStmt = Body->child_begin();
-          CurrentStmt != Body->child_end(); ++CurrentStmt)
+      if(auto D = clang::dyn_cast<clang::DeclStmt>(*S))
       {
-        if(clang::DeclStmt* D = clang::dyn_cast<clang::DeclStmt>(*CurrentStmt))
+        for(auto decl = D->decl_begin(); decl != D->decl_end(); ++decl)
         {
-          for(auto decl = D->decl_begin();
-              decl != D->decl_end();
-              ++decl)
+          if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(*decl))
           {
-            if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(*decl))
+            if(!isPrivateMemory(V))
             {
-              if (!isPrivateMemory(V)) 
-              {
-                HIPSYCL_DEBUG_INFO
-                    << "AST Processing: Marking variable as __shared__ in "
-                    << F->getAsFunction()->getQualifiedNameAsString()
-                    << std::endl;
-                if (!V->hasAttr<clang::CUDASharedAttr>()) {
-                  V->addAttr(clang::CUDASharedAttr::CreateImplicit(
-                      Instance.getASTContext()));
-                  V->setStorageClass(clang::SC_Static);
-                }
+              HIPSYCL_DEBUG_INFO
+                  << "AST Processing: Marking variable "
+                  << V->getNameAsString()
+                  << " as __shared__ in "
+                  << F->getAsFunction()->getQualifiedNameAsString()
+                  << std::endl;
+              if (!V->hasAttr<clang::CUDASharedAttr>()) {
+                V->addAttr(clang::CUDASharedAttr::CreateImplicit(
+                    Instance.getASTContext()));
+                V->setStorageClass(clang::SC_Static);
               }
-              
             }
           }
         }
+      }
+      else if(auto C = clang::dyn_cast<clang::CompoundStmt>(*S))
+      {
+        storeLocalVariablesInLocalMemory(*S, F);
       }
     }
   }

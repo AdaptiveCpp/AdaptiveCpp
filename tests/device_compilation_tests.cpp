@@ -201,5 +201,70 @@ BOOST_AUTO_TEST_CASE(omit_kernel_name) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(hierarchical_invoke_shared_memory) {
+  cl::sycl::queue queue;
+
+  // The basic case, as outlined in the SYCL spec.
+  {
+    cl::sycl::buffer<size_t, 1> buf(4);
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for_work_group<class shmem_one>(
+        cl::sycl::range<1>(2), cl::sycl::range<1>(2), [=](cl::sycl::group<1> group) {
+          { // Do this in a block to make sure the Clang plugin handles this correctly.
+            size_t shmem[2]; // Should be shared
+            group.parallel_for_work_item([&](cl::sycl::h_item<1> h_item) {
+              shmem[h_item.get_local().get_linear_id()] = h_item.get_global().get_linear_id();
+            });
+            group.parallel_for_work_item([&](cl::sycl::h_item<1> h_item) {
+              if(h_item.get_local().get_linear_id() == 0) {
+                auto offset = h_item.get_global().get_linear_id();
+                acc[offset + 0] = shmem[0];
+                acc[offset + 1] = shmem[1];
+              }
+            });
+          }
+        });
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    for(size_t i = 0; i < 4; ++i) {
+      BOOST_REQUIRE(acc[i] == i);
+    }
+  }
+
+  // In this case the functionality remains the same, but
+  // is moved into a separate function. We expect it to still
+  // behave as before.
+  {
+    auto operate_on_shmem = [](cl::sycl::group<1> group,
+      cl::sycl::accessor<size_t, 1, cl::sycl::access::mode::discard_write> acc) {
+      size_t shmem[2]; // Should be shared
+      group.parallel_for_work_item([&](cl::sycl::h_item<1> h_item) {
+        shmem[h_item.get_local().get_linear_id()] = h_item.get_global().get_linear_id();
+      });
+      group.parallel_for_work_item([&](cl::sycl::h_item<1> h_item) {
+        if(h_item.get_local().get_linear_id() == 0) {
+          auto offset = h_item.get_global().get_linear_id();
+          acc[offset + 0] = shmem[0];
+          acc[offset + 1] = shmem[1];
+        }
+      });
+    };
+
+    cl::sycl::buffer<size_t, 1> buf(4);
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for_work_group<class shmem_two>(
+        cl::sycl::range<1>(2), cl::sycl::range<1>(2), [=](cl::sycl::group<1> group) {
+          operate_on_shmem(group, acc);
+        });
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    for(size_t i = 0; i < 4; ++i) {
+      BOOST_REQUIRE(acc[i] == i);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

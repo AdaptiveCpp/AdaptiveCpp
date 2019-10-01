@@ -65,7 +65,7 @@ vector_class<device> device::get_devices(
 int device::get_num_devices()
 {
   int num_devices = 0;
-  detail::check_error(hipGetDeviceCount(&num_devices));
+  hipGetDeviceCount(&num_devices);
   return num_devices;
 }
 

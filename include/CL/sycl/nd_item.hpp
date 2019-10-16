@@ -63,7 +63,7 @@ struct nd_item
   size_t get_global_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_id(dimension) + _offset->get(dimension);
+    return detail::get_global_id<dimensions>(dimension) + _offset->get(dimension);
 #else
     return this->_global_id[dimension] + (*_offset)[dimension];
 #endif
@@ -107,7 +107,7 @@ struct nd_item
   size_t get_local_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_id(dimension);
+    return detail::get_local_id<dimensions>(dimension);
 #else
     return this->_local_id[dimension];
 #endif
@@ -143,7 +143,7 @@ struct nd_item
   size_t get_group(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id(dimension);
+    return detail::get_group_id<dimensions>(dimension);
 #else
     return this->_group_id[dimension];
 #endif

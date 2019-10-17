@@ -268,20 +268,34 @@ class syclcc_config:
         flag.commandline, flag.environment
     ))
 
-  def _substitute_template_string(self, template_string):
-    template = string.Template(template_string)
-
-    substitution_dict = {
-      'HIPSYCL_CUDA_PATH' : self.cuda_path,
+  def _get_rocm_substitution_vars(self):
+    return {
       'HIPSYCL_ROCM_PATH' : self.rocm_path,
-      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
       'HIPSYCL_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
       'HIPSYCL_PATH' : self.hipsycl_installation_path,
       'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
     }
 
+  def _get_cuda_substitution_vars(self):
+    return {
+      'HIPSYCL_CUDA_PATH' : self.cuda_path,
+      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
+      'HIPSYCL_PATH' : self.hipsycl_installation_path,
+      'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
+    }
+
+  def _substitute_template_string(self, template_string, substitution_dict):
+    template = string.Template(template_string)
     return template.substitute(substitution_dict)
+
+  def _substitute_rocm_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_rocm_substitution_vars())
       
+  def _substitute_cuda_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_cuda_substitution_vars())
+
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
     
@@ -362,12 +376,12 @@ class syclcc_config:
   @property
   def rocm_link_line(self):
     components = self._retrieve_option("rocm-link-line").split(' ')
-    return [self._substitute_template_string(arg) for arg in components]
+    return [self._substitute_rocm_template_string(arg) for arg in components]
   
   @property
   def cuda_link_line(self):
     components = self._retrieve_option("cuda-link-line").split(' ')
-    return [self._substitute_template_string(arg) for arg in components]
+    return [self._substitute_cuda_template_string(arg) for arg in components]
 
   @property
   def forwarded_compiler_arguments(self):

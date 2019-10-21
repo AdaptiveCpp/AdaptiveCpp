@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,6 +178,10 @@ void queue::init()
       _device,
       _handler}};
 
+  this->_transfer_stream = detail::stream_ptr{new detail::stream_manager{
+      _device,
+      _handler}};
+
   this->_hooks = detail::queue_submission_hooks_ptr{
         new detail::queue_submission_hooks{}};
 }
@@ -216,6 +220,9 @@ hipStream_t queue::get_hip_stream() const
 
 detail::stream_ptr queue::get_stream() const
 { return _stream; }
+
+detail::stream_ptr queue::get_transfer_stream() const
+{ return _transfer_stream; }
 
 }// namespace sycl
 }// namespace cl

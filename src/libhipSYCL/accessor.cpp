@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ void* obtain_device_access(buffer_ptr buff,
   void* access_ptr = nullptr;
 
 #ifndef HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY
-  if(cgh.get_stream()->get_device().is_host())
+  if(cgh.get_transfer_stream()->get_device().is_host())
   {
     // The "device" access that we make is actually a "host" access
     // since we are running on the host device!
@@ -85,8 +85,8 @@ void* obtain_device_access(buffer_ptr buff,
     auto task_graph_node =
         detail::buffer_impl::access_host(buff,
                                          access_mode,
-                                         cgh.get_stream(),
-                                         cgh.get_stream()->get_error_handler());
+                                         cgh.get_transfer_stream(),
+                                         cgh.get_transfer_stream()->get_error_handler());
 
     cgh.add_access(buff, access_mode, task_graph_node);
   }
@@ -98,8 +98,8 @@ void* obtain_device_access(buffer_ptr buff,
     auto task_graph_node =
         detail::buffer_impl::access_device(buff,
                                             access_mode,
-                                            cgh.get_stream(),
-                                            cgh.get_stream()->get_error_handler());
+                                            cgh.get_transfer_stream(),
+                                            cgh.get_transfer_stream()->get_error_handler());
 
     cgh.add_access(buff, access_mode, task_graph_node);
 

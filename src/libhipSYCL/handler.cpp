@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,11 @@ hipStream_t handler::get_hip_stream() const
 detail::stream_ptr handler::get_stream() const
 {
   return _queue->get_stream();
+}
+
+detail::stream_ptr handler::get_transfer_stream() const
+{
+  return _queue->get_transfer_stream();
 }
 
 void handler::select_device() const

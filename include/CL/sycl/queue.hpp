@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018,2019 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -168,6 +168,8 @@ public:
 
   hipStream_t get_hip_stream() const;
   detail::stream_ptr get_stream() const;
+  /// Secondary stream used for data transfers (concurrent copy and execution).
+  detail::stream_ptr get_transfer_stream() const;
 
 private:
 
@@ -180,6 +182,7 @@ private:
 
   device _device;
   detail::stream_ptr _stream;
+  detail::stream_ptr _transfer_stream;
   async_handler _handler;
   detail::queue_submission_hooks_ptr _hooks;
 

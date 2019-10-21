@@ -571,7 +571,7 @@ void set_args(Ts &&... args);
       return detail::task_state::enqueued;
     };
 
-    this->submit_task(kernel_launch);
+    this->submit_task(kernel_launch, stream);
   }
 
   template <typename KernelName = class _unnamed_kernel,
@@ -797,6 +797,7 @@ void set_args(Ts &&... args);
 
 
   detail::stream_ptr get_stream() const;
+  detail::stream_ptr get_transfer_stream() const;
 private:
   void add_access(detail::buffer_ptr buff,
                   access::mode access_mode,
@@ -940,7 +941,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_task(kernel_launch);
+    this->submit_task(kernel_launch, stream);
 
   }
 
@@ -986,7 +987,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_task(kernel_launch);
+    this->submit_task(kernel_launch, stream);
   }
 
 
@@ -1038,7 +1039,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_task(kernel_launch);
+    this->submit_task(kernel_launch, stream);
   }
 
   template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
@@ -1081,7 +1082,7 @@ private:
       return detail::task_state::enqueued;
     };
 
-    this->submit_task(kernel_launch);
+    this->submit_task(kernel_launch, stream);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -1200,7 +1201,7 @@ private:
     using namespace detail;
     using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
     debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
+    const auto stream = this->get_transfer_stream();
     auto copy_launch = [=]() -> task_state
     {
       stream->activate_device();
@@ -1211,7 +1212,7 @@ private:
 
       return task_state::enqueued;
     };
-    return this->submit_task(copy_launch);
+    return this->submit_task(copy_launch, stream);
   }
 
   template <typename destPtr, typename srcPtr>
@@ -1223,7 +1224,7 @@ private:
     using namespace detail;
     using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
     debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
+    const auto stream = this->get_transfer_stream();
     auto copy_launch = [=]() -> task_state
     {
       stream->activate_device();
@@ -1235,7 +1236,7 @@ private:
 
       return task_state::enqueued;
     };
-    return this->submit_task(copy_launch);
+    return this->submit_task(copy_launch, stream);
   }
 
   template <typename destPtr, typename srcPtr>
@@ -1249,7 +1250,7 @@ private:
     using namespace detail;
     using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
     debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
+    const auto stream = this->get_transfer_stream();
 
     auto copy_launch = [=]() -> task_state
     {
@@ -1272,7 +1273,7 @@ private:
 
       return task_state::enqueued;
     };
-    return this->submit_task(copy_launch);
+    return this->submit_task(copy_launch, stream);
 #else
     // It looks like HIP doesn't provide a hipMemcpy3DAsync as of April 2019.
     // See https://github.com/ROCm-Developer-Tools/HIP/blob/master/docs/markdown/CUDA_Runtime_API_functions_supported_by_HIP.md
@@ -1296,12 +1297,12 @@ private:
       << task_node << " for buffer " << buff << std::endl;
   }
 
-  detail::task_graph_node_ptr submit_task(detail::task_functor f)
+  detail::task_graph_node_ptr submit_task(detail::task_functor f, detail::stream_ptr stream)
   {
     auto& task_graph = detail::application::get_task_graph();
 
     auto graph_node =
-        task_graph.insert(f, _spawned_task_nodes, get_stream(), _handler);
+        task_graph.insert(f, _spawned_task_nodes, stream, _handler);
 
     // Add new node to the access log of buffers. This guarantees that
     // subsequent buffer accesses will wait for existing tasks to complete,

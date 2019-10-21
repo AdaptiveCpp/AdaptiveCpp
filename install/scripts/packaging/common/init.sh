@@ -2,7 +2,7 @@
 # Intended to be executed inside the built singularity container
 
 # define variables - version and build paths
-HIPSYCL_VERSION=0.8.0
+HIPSYCL_VERSION=0.8.1
 HIPSYCL_BUILD=`date +%Y%m%d`
 HIPSYCL_VERSION_STRING=${HIPSYCL_VERSION}-${HIPSYCL_BUILD}
 

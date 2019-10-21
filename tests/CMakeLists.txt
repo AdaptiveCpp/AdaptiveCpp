@@ -43,6 +43,8 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 add_subdirectory(platform_api)
 
 add_executable(device_compilation_tests device_compilation_tests.cpp)
+target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(device_compilation_tests PRIVATE ${Boost_LIBRARIES})
 
 add_executable(unit_tests unit_tests.cpp)
 target_include_directories(unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})

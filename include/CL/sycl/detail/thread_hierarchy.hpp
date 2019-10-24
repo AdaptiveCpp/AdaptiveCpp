@@ -41,7 +41,7 @@ namespace detail {
 // should only be used in the implementation of more 
 // high-level functions in this file since they do
 // not take into the transformation needed to map
-// the fastest sycl index to the fastest hardware index:
+// the fastest SYCL index to the fastest hardware index:
 // Per SYCL spec, the highest dimension (e.g. dim=2 for 3D)
 // is the fastest moving spec. In HIP/CUDA, it is x.
 // Consequently, any id or range that is actually used
@@ -401,7 +401,7 @@ inline size_t get_group_id<3>(int dimension)
 
 /// Flips dimensions such that the range is consistent with the mapping
 /// of SYCL index dimensions to backend dimensions.
-/// When launching a sycl kernel, grid and blocksize should be transformed
+/// When launching a SYCL kernel, grid and blocksize should be transformed
 /// using this function.
 template<int dimensions>
 inline dim3 make_kernel_launch_range(dim3 range);

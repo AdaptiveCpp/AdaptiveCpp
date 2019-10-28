@@ -109,7 +109,7 @@ struct group
   size_t get_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id(dimension);
+    return detail::get_group_id<dimensions>(dimension);
 #else
     return _group_id[dimension];
 #endif
@@ -129,7 +129,7 @@ struct group
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_size(dimension);
+    return detail::get_global_size<dimensions>(dimension);
 #else
     return _num_groups[dimension] * _local_range[dimension];
 #endif
@@ -151,7 +151,7 @@ struct group
   size_t get_local_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_size(dimension);
+    return detail::get_local_size<dimensions>(dimension);
 #else
     return _local_range[dimension];
 #endif
@@ -175,7 +175,7 @@ struct group
   size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size(dimension);
+    return detail::get_grid_size<dimensions>(dimension);
 #else
     return _num_groups[dimension];
 #endif
@@ -185,7 +185,7 @@ struct group
   size_t operator[](int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id(dimension);
+    return detail::get_group_id<dimensions>(dimension);
 #else
     return _group_id[dimension];
 #endif
@@ -391,8 +391,11 @@ private:
                                   workItemFunctionT&& func) const
   {
     const range<2> physical_range = this->get_local_range();
-    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
-      for(size_t j = hipThreadIdx_y; j < flexibleRange.get(1); j += physical_range.get(1))
+    // Reverse dimensions of hipThreadIdx_* compared to flexibleRange.get()
+    // to make sure that the fastest index in SYCL terminology is mapped
+    // to the fastest index of the backend
+    for(size_t i = hipThreadIdx_y; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = hipThreadIdx_x; j < flexibleRange.get(1); j += physical_range.get(1))
       {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{id<2>{i,j}, flexibleRange};
@@ -409,9 +412,9 @@ private:
                                   workItemFunctionT&& func) const
   { 
     const range<3> physical_range = this->get_local_range();
-    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
+    for(size_t i = hipThreadIdx_z; i < flexibleRange.get(0); i += physical_range.get(0))
       for(size_t j = hipThreadIdx_y; j < flexibleRange.get(1); j += physical_range.get(1))
-        for(size_t k = hipThreadIdx_z; k < flexibleRange.get(2); k += physical_range.get(2))
+        for(size_t k = hipThreadIdx_x; k < flexibleRange.get(2); k += physical_range.get(2))
         {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{id<3>{i,j,k}, flexibleRange};

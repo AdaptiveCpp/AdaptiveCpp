@@ -37,7 +37,15 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-
+// The get_global_id_* and get_global_size_* functions 
+// should only be used in the implementation of more 
+// high-level functions in this file since they do
+// not take into the transformation needed to map
+// the fastest SYCL index to the fastest hardware index:
+// Per SYCL spec, the highest dimension (e.g. dim=2 for 3D)
+// is the fastest moving spec. In HIP/CUDA, it is x.
+// Consequently, any id or range that is actually used
+// must be reversed before it can be used in a performant manner!
 inline __device__ size_t get_global_id_x()
 {
   return hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
@@ -82,12 +90,12 @@ inline sycl::id<1> get_local_id<1>()
 template<>
 __device__
 inline sycl::id<2> get_local_id<2>()
-{ return sycl::id<2>{hipThreadIdx_x, hipThreadIdx_y}; }
+{ return sycl::id<2>{hipThreadIdx_y, hipThreadIdx_x}; }
 
 template<>
 __device__
 inline sycl::id<3> get_local_id<3>()
-{ return sycl::id<3>{hipThreadIdx_x, hipThreadIdx_y, hipThreadIdx_z}; }
+{ return sycl::id<3>{hipThreadIdx_z, hipThreadIdx_y, hipThreadIdx_x}; }
 
 template<int dimensions>
 __device__
@@ -102,18 +110,19 @@ template<>
 __device__
 inline sycl::id<2> get_global_id<2>()
 {
-  return sycl::id<2>{get_global_id_x(), get_global_id_y()};
+  return sycl::id<2>{get_global_id_y(), get_global_id_x()};
 }
 
 template<>
 __device__
 inline sycl::id<3> get_global_id<3>()
 {
-  return sycl::id<3>{get_global_id_x(),
+  return sycl::id<3>{get_global_id_z(),
                     get_global_id_y(),
-                    get_global_id_z()};
+                    get_global_id_x()};
 }
 
+// For the sake of consistency, we also reverse group ids
 template<int dimensions>
 __device__
 sycl::id<dimensions> get_group_id();
@@ -127,17 +136,17 @@ template<>
 __device__
 inline sycl::id<2> get_group_id<2>()
 {
-  return sycl::id<2>{hipBlockIdx_x,
-               hipBlockIdx_y};
+  return sycl::id<2>{hipBlockIdx_y,
+               hipBlockIdx_x};
 }
 
 template<>
 __device__
 inline sycl::id<3> get_group_id<3>()
 {
-  return sycl::id<3>{hipBlockIdx_x,
+  return sycl::id<3>{hipBlockIdx_z,
                     hipBlockIdx_y,
-                    hipBlockIdx_z};
+                    hipBlockIdx_x};
 }
 
 template<int dimensions>
@@ -155,14 +164,14 @@ template<>
 __device__
 inline sycl::range<2> get_grid_size<2>()
 {
-  return sycl::range<2>{hipGridDim_x, hipGridDim_y};
+  return sycl::range<2>{hipGridDim_y, hipGridDim_x};
 }
 
 template<>
 __device__
 inline sycl::range<3> get_grid_size<3>()
 {
-  return sycl::range<3>{hipGridDim_x, hipGridDim_y, hipGridDim_z};
+  return sycl::range<3>{hipGridDim_z, hipGridDim_y, hipGridDim_x};
 }
 
 
@@ -181,14 +190,14 @@ template<>
 __device__
 inline sycl::range<2> get_local_size<2>()
 {
-  return sycl::range<2>{hipBlockDim_x, hipBlockDim_y};
+  return sycl::range<2>{hipBlockDim_y, hipBlockDim_x};
 }
 
 template<>
 __device__
 inline sycl::range<3> get_local_size<3>()
 {
-  return sycl::range<3>{hipBlockDim_x, hipBlockDim_y, hipBlockDim_z};
+  return sycl::range<3>{hipBlockDim_z, hipBlockDim_y, hipBlockDim_x};
 }
 
 template<int dimensions>
@@ -198,97 +207,222 @@ sycl::range<dimensions> get_global_size()
   return get_local_size<dimensions>() * get_grid_size<dimensions>();
 }
 
+template<int dimensions>
 __device__
-inline size_t get_global_size(int dimension)
+inline size_t get_global_size(int dimension);
+
+template<>
+__device__
+inline size_t get_global_size<1>(int dimension)
+{
+  return get_global_size_x();
+}
+
+template<>
+__device__
+inline size_t get_global_size<2>(int dimension)
+{
+  return dimension == 0 ? get_global_size_y() : get_global_size_x();
+}
+
+template<>
+__device__
+inline size_t get_global_size<3>(int dimension)
 {
   switch(dimension)
   {
   case 0:
-    return hipBlockDim_x * hipGridDim_x;
+    return get_global_size_z();
   case 1:
-    return hipBlockDim_y * hipGridDim_y;
+    return get_global_size_y();
   case 2:
-    return hipBlockDim_z * hipGridDim_z;
+    return get_global_size_x();
   }
   return 1;
 }
 
+template<int dimensions>
 __device__
-inline size_t get_grid_size(int dimension)
+inline size_t get_grid_size(int dimension);
+
+template<>
+__device__
+inline size_t get_grid_size<1>(int dimension)
+{ return hipGridDim_x; }
+
+template<>
+__device__
+inline size_t get_grid_size<2>(int dimension)
+{
+  return dimension == 0 ? hipGridDim_y : hipGridDim_x;
+}
+
+template<>
+__device__
+inline size_t get_grid_size<3>(int dimension)
 {
   switch (dimension)
   {
   case 0:
-    return hipGridDim_x;
+    return hipGridDim_z;
   case 1:
     return hipGridDim_y;
   case 2:
-    return hipGridDim_z;
+    return hipGridDim_x;
   }
   return 1;
 }
 
+template<int dimensions>
 __device__
-inline size_t get_local_size(int dimension)
+inline size_t get_local_size(int dimension);
+
+template<>
+__device__
+inline size_t get_local_size<1>(int dimension)
+{ return hipBlockDim_x; }
+
+template<>
+__device__
+inline size_t get_local_size<2>(int dimension)
 {
-  switch(dimension)
-  {
-  case 0:
-    return hipThreadIdx_x;
-  case 1:
-    return hipThreadIdx_y;
-  case 2:
-    return hipThreadIdx_z;
-  }
-  return 1;
+  return dimension == 0 ? hipBlockDim_y : hipBlockDim_x;
 }
 
+template<>
 __device__
-inline size_t get_global_id(int dimension)
-{
-  switch(dimension)
-  {
-  case 0:
-    return get_global_id_x();
-  case 1:
-    return get_global_id_y();
-  case 2:
-    return get_global_id_z();
-  }
-  return 0;
-}
-
-__device__
-inline size_t get_local_id(int dimension)
-{
-  switch(dimension)
-  {
-  case 0:
-    return hipThreadIdx_x;
-  case 1:
-    return hipThreadIdx_y;
-  case 2:
-    return hipThreadIdx_z;
-  }
-  return 0;
-}
-
-__device__
-inline size_t get_group_id(int dimension)
+inline size_t get_local_size<3>(int dimension)
 {
   switch (dimension)
   {
   case 0:
-    return hipBlockIdx_x;
+    return hipBlockDim_z;
   case 1:
-    return hipBlockIdx_y;
+    return hipBlockDim_y;
   case 2:
-    return hipBlockIdx_z;
+    return hipBlockDim_x;
+  }
+  return 1;
+}
+
+template<int dimensions>
+__device__
+inline size_t get_global_id(int dimension);
+
+template<>
+__device__
+inline size_t get_global_id<1>(int dimension)
+{ return get_global_id_x(); }
+
+template<>
+__device__
+inline size_t get_global_id<2>(int dimension)
+{ return dimension==0 ? get_global_id_y() : get_global_id_x();}
+
+template<>
+__device__
+inline size_t get_global_id<3>(int dimension)
+{
+  switch(dimension)
+  {
+  case 0:
+    return get_global_id_z();
+  case 1:
+    return get_global_id_y();
+  case 2:
+    return get_global_id_x();
   }
   return 0;
 }
 
+template<int dimensions>
+__device__
+inline size_t get_local_id(int dimension);
 
+template<>
+__device__
+inline size_t get_local_id<1>(int dimension)
+{ return hipThreadIdx_x; }
+
+template<>
+__device__
+inline size_t get_local_id<2>(int dimension)
+{ return dimension == 0 ? hipThreadIdx_y : hipThreadIdx_x; }
+
+template<>
+__device__
+inline size_t get_local_id<3>(int dimension)
+{
+  switch(dimension)
+  {
+  case 0:
+    return hipThreadIdx_z;
+  case 1:
+    return hipThreadIdx_y;
+  case 2:
+    return hipThreadIdx_x;
+  }
+  return 0;
+}
+
+template<int dimensions>
+__device__
+inline size_t get_group_id(int dimension);
+
+template<>
+__device__
+inline size_t get_group_id<1>(int dimension)
+{
+  return hipBlockIdx_x;
+}
+
+template<>
+__device__
+inline size_t get_group_id<2>(int dimension)
+{
+  return dimension == 0 ? hipBlockIdx_y : hipBlockIdx_x;
+}
+
+template<>
+__device__
+inline size_t get_group_id<3>(int dimension)
+{
+  switch (dimension)
+  {
+  case 0:
+    return hipBlockIdx_z;
+  case 1:
+    return hipBlockIdx_y;
+  case 2:
+    return hipBlockIdx_x;
+  }
+  return 0;
+}
+
+/// Flips dimensions such that the range is consistent with the mapping
+/// of SYCL index dimensions to backend dimensions.
+/// When launching a SYCL kernel, grid and blocksize should be transformed
+/// using this function.
+template<int dimensions>
+inline dim3 make_kernel_launch_range(dim3 range);
+
+template<>
+inline dim3 make_kernel_launch_range<1>(dim3 range)
+{
+  return dim3(range.x, 1, 1);
+}
+
+template<>
+inline dim3 make_kernel_launch_range<2>(dim3 range)
+{
+  return dim3(range.y, range.x, 1);
+}
+
+template<>
+inline dim3 make_kernel_launch_range<3>(dim3 range)
+{
+  return dim3(range.z, range.y, range.x);
+}
 
 }
 }

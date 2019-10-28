@@ -91,7 +91,7 @@ public:
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size(dimension) * this->_logical_range[dimension];
+    return detail::get_grid_size<dimensions>(dimension) * this->_logical_range[dimension];
 #else
     return this->_num_groups[dimension] * this->_logical_range[dimension];
 #endif
@@ -111,7 +111,7 @@ public:
   size_t get_global_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id(dimension) * _logical_range[dimension] + _logical_local_id[dimension];
+    return detail::get_group_id<dimensions>(dimension) * _logical_range[dimension] + _logical_local_id[dimension];
 #else
     return _group_id[dimension] * _logical_range[dimension] + _logical_local_id[dimension];
 #endif
@@ -182,7 +182,7 @@ public:
   size_t get_physical_local_range(int dimension) const
   {
 #ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_size(dimension);
+    return detail::get_local_size<dimensions>(dimension);
 #else
     return 1;
 #endif
@@ -205,7 +205,7 @@ public:
   size_t get_physical_local_id(int dimension) const
   {
 #ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_id(dimension);
+    return detail::get_local_id<dimensions>(dimension);
 #else
     return 0;
 #endif

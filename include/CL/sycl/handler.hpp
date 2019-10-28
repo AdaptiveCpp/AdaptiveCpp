@@ -933,8 +933,10 @@ private:
 #endif
       {
         __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel<KernelName>,
-                              grid, block, shared_mem_size, stream->get_stream(),
-                              kernelFunc, numWorkItems);
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, numWorkItems);
       }
 
       return detail::task_state::enqueued;
@@ -979,8 +981,10 @@ private:
 #endif
       {
         __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel_with_offset<KernelName>,
-                        grid, block, shared_mem_size, stream->get_stream(),
-                        kernelFunc, numWorkItems, offset);
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, numWorkItems, offset);
       }
 
       return detail::task_state::enqueued;
@@ -1024,15 +1028,19 @@ private:
         // for ndrange kernels until we have support in the clang
         // plugin for dealing with barriers
         __hipsycl_launch_kernel(detail::dispatch::host::parallel_for_ndrange_kernel,
-                          grid, block, shared_mem_size, stream->get_stream(),
-                          kernelFunc, offset);
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, offset);
       }
       else
 #endif
       {
         __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel<KernelName>,
-                          grid, block, shared_mem_size, stream->get_stream(),
-                          kernelFunc, offset);
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, offset);
       }
 
       return detail::task_state::enqueued;
@@ -1073,8 +1081,10 @@ private:
 #endif
       {
         __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_workgroup<KernelName>,
-                          grid, block, shared_mem_size, stream->get_stream(),
-                          kernelFunc, workGroupSize);
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, workGroupSize);
       }
 
 

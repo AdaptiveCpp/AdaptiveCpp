@@ -136,6 +136,12 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
+enum class backend
+{
+  cuda,
+  rocm,
+  cpu
+};
 
 inline void invalid_host_call()
 {

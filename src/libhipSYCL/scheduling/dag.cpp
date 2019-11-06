@@ -74,6 +74,12 @@ dag::get_kernels() const
   return _kernels;
 }
 
+const std::vector<dag_node_ptr>& 
+dag::get_memory_requirements() const
+{
+  return _memory_requirements;
+}
+
 // Registers the dependencies of all requirements in this DAG with
 // the dependency trackers associated with the data buffers
 void dag::commit_node_dependencies()
@@ -135,6 +141,18 @@ bool dag::contains_node(dag_node_ptr node) const
   if(std::find(_prefetches.begin(), _prefetches.end(), node) != _prefetches.end())
     return true;
   return false;
+}
+
+void dag::for_each_node(std::function<void(dag_node_ptr)> handler) const
+{
+  std::for_each(_kernels.begin(), 
+                _kernels.end(), handler);
+  std::for_each(_memcopies.begin(), 
+                _memcopies.end(), handler);
+  std::for_each(_fills.begin(), 
+                _fills.end(), handler);
+  std::for_each(_prefetches.begin(), 
+                _prefetches.end(), handler);
 }
 
 }

@@ -52,6 +52,7 @@ public:
   virtual ~operation(){}
 
   virtual cost_type get_runtime_costs() { return 1.; }
+  virtual bool is_requirement() const { return false; };
 };
 
 
@@ -59,6 +60,9 @@ class requirement : public operation
 {
 public:
   virtual bool is_memory_requirement() const = 0;
+
+  virtual bool is_requirement() const final override
+  { return true; }
 
   virtual ~requirement(){}
 };

@@ -27,6 +27,7 @@
 
 #include <vector>
 #include <memory>
+#include <functional>
 
 #include "hints.hpp"
 #include "operations.hpp"
@@ -59,20 +60,6 @@ public:
 
 class dag;
 
-class dag_expander
-{
-public:
-  dag_expander(dag& d);
-
-private:
-  bool can_mem_requirements_be_merged(memory_requirement* a, memory_requirement* b) const;
-
-  std::unordered_map<dag_node_ptr, std::vector<dag_node_ptr>> parents;
-  // Maps a node that is scheduled for removal to all nodes having it as requirement
-  std::vector<dag_node_ptr> nodes_for_removal;
-  std::vector<dag_node_ptr> nodes_for_replacement;
-  std::vector<std::vector<dag_node_ptr>> node_groups_for_merging;
-};
 
 class dag_scheduler
 {
@@ -103,6 +90,7 @@ public:
   void add_memory_requirement(dag_node_ptr requirement);
 
   const std::vector<dag_node_ptr>& get_kernels() const;
+  const std::vector<dag_node_ptr>& get_memory_requirements() const;
   
   bool is_executable() const { return _memory_requirements.empty(); }
 
@@ -115,6 +103,8 @@ public:
   using node_iterator = std::vector<dag_node_ptr>::iterator;
 
   bool contains_node(dag_node_ptr node) const;
+
+  void for_each_node(std::function<void(dag_node_ptr)> handler) const;
 private:
   void commit_dependencies(const std::vector<dag_node_ptr>& nodes);
   bool is_requirement_from_this_dag(const dag_node_ptr& node) const;

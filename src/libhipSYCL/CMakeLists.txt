@@ -14,12 +14,14 @@ set(HIPSYCL_SOURCES
   accessor.cpp
   async_worker.cpp
   local_memory.cpp
+  scheduling/hints.cpp
   scheduling/device_id.cpp
   scheduling/operations.cpp
   scheduling/data.cpp
   scheduling/executor.cpp
   scheduling/dag.cpp
   scheduling/dag_builder.cpp
+  scheduling/dag_expander.cpp
   scheduling/hip/hip_event.cpp
   scheduling/hip/hip_queue.cpp)
 

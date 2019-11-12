@@ -230,6 +230,9 @@ public:
 class memcpy_operation1d : public memcpy_operation
 {
 public:
+  // TODO: We need to change the constructor - it should also be possible
+  // to construct a memcpy operation with an accessor/requirement instead
+  // of a dest ptr
   memcpy_operation1d(
     device_id source_device, 
     device_id dest_device,

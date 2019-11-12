@@ -47,10 +47,15 @@ public:
   backend get_backend() const;
   int get_id() const;
 
-  bool operator==(const device_id& other) const
+  friend bool operator==(const device_id& a, const device_id& b)
   {
-    return _backend == other._backend && 
-          _device_id == other._device_id;
+    return a._backend == b._backend && 
+           a._device_id == b._device_id;
+  }
+
+  friend bool operator!=(const device_id& a, const device_id& b)
+  {
+    return !(a == b);
   }
 private:
   backend _backend;

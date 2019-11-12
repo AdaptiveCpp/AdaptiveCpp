@@ -146,7 +146,7 @@ public:
   execution_hint* get_hint(execution_hint_type type) const;
 
   template<class Hint_type>
-  execution_hint* get_hint() const
+  Hint_type* get_hint() const
   {
     return cast<Hint_type>(get_hint(Hint_type::type));
   }

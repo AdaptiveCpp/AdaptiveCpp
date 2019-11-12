@@ -26,6 +26,7 @@
  */
 
 #include "CL/sycl/detail/scheduling/hints.hpp"
+#include "CL/sycl/detail/scheduling/operations.hpp"
 
 namespace cl {
 namespace sycl {
@@ -143,7 +144,7 @@ execution_hint* execution_hints::get_hint(execution_hint_type type) const
 {
   for(const auto& hint : _hints)
     if(hint->get_hint_type() == type)
-      return hint;
+      return hint.get();
   return nullptr;
 }
 

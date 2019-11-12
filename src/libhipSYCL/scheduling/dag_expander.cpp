@@ -30,6 +30,7 @@
 
 #include "CL/sycl/detail/scheduling/dag_expander.hpp"
 #include "CL/sycl/detail/scheduling/util.hpp"
+#include "CL/sycl/detail/debug.hpp"
 
 namespace cl {
 namespace sycl {
@@ -44,6 +45,43 @@ bool is_memory_requirement(const dag_node_ptr& node)
 
   if(!cast<requirement>(node->get_operation())->is_memory_requirement())
     return false;
+
+  return true;
+}
+
+bool access_ranges_overlap(sycl::id<3> offset_a, sycl::range<3> range_a,
+                          sycl::id<3> offset_b, sycl::range<3> range_b)
+{
+  sycl::id<3> a_min = offset_a;
+  sycl::id<3> a_max = offset_a + sycl::id<3>{range_a[0],range_a[1],range_a[2]};
+
+  sycl::id<3> b_min = offset_b;
+  sycl::id<3> b_max = offset_b + sycl::id<3>{range_b[0],range_b[1],range_b[2]};
+
+  for(int dim = 0; dim < 3; ++dim){
+    if(std::max(a_min[dim], b_min[dim]) > std::min(a_max[dim], b_max[dim]))
+      return false;
+  }
+  return true;
+}
+
+// Tests if the access range a is >= the access range described by b.
+bool access_range_is_greater_or_equal(sycl::id<3> offset_a, sycl::range<3> range_a,
+                                    sycl::id<3> offset_b, sycl::range<3> range_b)
+
+{
+  sycl::id<3> a_min = offset_a;
+  sycl::id<3> b_min = offset_b;
+  sycl::id<3> a_max = a_min + sycl::id<3>{range_a[0],range_a[1],range_a[2]};
+  sycl::id<3> b_max = b_min + sycl::id<3>{range_b[0],range_b[1],range_b[2]};
+
+  for(int dim = 0; dim < 3; ++dim) {
+    if(a_min[dim] > b_min[dim])
+      return false;
+
+    if(a_max[dim] < b_max[dim])
+      return false;
+  }
 
   return true;
 }
@@ -74,24 +112,63 @@ bool is_overlapping_memory_requirement(
   return false;
 }
 
-
-/// Check if \c preceding_node has an equivalent memory access
-/// (e.g., memory requirement) compared to \c node, such that
-/// the memory access in \c node can be optimized away.
-bool is_equivalent_memory_access(
-  dag_node_ptr node,
-  dag_node_ptr preceding_node)
+device_id get_assigned_device(dag_node_ptr node)
 {
-  if(is_memory_requirement(node)){
+  // We require that the scheduler has already bound 
+  // all nodes to devices
+  assert(node->get_execution_hints().has_hint(
+    execution_hint_type::bind_to_device));
 
+  return node->get_execution_hints()
+    .get_hint<hints::bind_to_device>()->get_device_id();
+}
+
+/// Check if \c requirement has an equivalent memory access
+/// (e.g., memory requirement) compared to \c other, such that
+/// the memory access in \c node can be optimized away.
+bool is_requirement_satisfied_by(
+  dag_node_ptr requirement,
+  dag_node_ptr other)
+{
+  if(is_memory_requirement(requirement) && is_memory_requirement(other)){
+    if(get_assigned_device(requirement) == get_assigned_device(other)) {
+
+      if(cast<memory_requirement>(requirement->get_operation())
+          ->is_buffer_requirement() &&
+         cast<memory_requirement>(other->get_operation())
+          ->is_buffer_requirement()){
+
+        auto buff_req = cast<buffer_memory_requirement>(requirement->get_operation());
+        auto other_buff_req = cast<buffer_memory_requirement>(other->get_operation());
+
+        auto region = buff_req->get_data_region();
+        auto other_region = other_buff_req->get_data_region();
+
+        // Check if both requirements are referring to the same underlying
+        // buffer
+        if(region == other_region) {
+          // If the access range of the other requirement covers the access range
+          // of \c requirement (or is larger), then \c requirement can also
+          // be satisfied by the other requirement
+          if(access_range_is_greater_or_equal(other_buff_req->get_access_offset3d(),
+                                              other_buff_req->get_access_range3d(),
+                                              buff_req->get_access_offset3d(),
+                                              buff_req->get_access_range3d()))
+            return true;
+
+        }
+
+      }
+    }
   }
   else {
     // TODO Check for superfluous explicit copy operations?
-    return false;
+    // TODO Explicit copy operations may also satisfy a requirement
   }
+  return false;
 }
 
-void order_by_requirements(
+void order_by_requirements_recursively(
   dag_node_ptr current,
   std::vector<dag_node_ptr>& nodes_to_process,
   std::vector<dag_node_ptr>& out)
@@ -122,12 +199,13 @@ void order_by_requirements(
     // First, process any requirements to make sure
     // they are listed in the output before this node
     for(auto req : current->get_requirements())
-      order_by_requirements(req, nodes_to_process, out);
+      order_by_requirements_recursively(req, nodes_to_process, out);
 
     out.push_back(current);
   }
 
 }
+
 
 
 /// In a given range in a ordered memory requirements list, 
@@ -136,16 +214,13 @@ void order_by_requirements(
 /// Inside the range given by \c begin and the return value of this function,
 /// it is guaranteed that requirement nodes pointing to the the same memory
 /// can be safely merged.
-std::vector<dag_node_ptr>::iterator
-find_max_merge_candidate_range(std::vector<dag_node_ptr>::iterator begin,
-                              std::vector<dag_node_ptr>::iterator end)
+std::vector<dag_node_ptr>::const_iterator
+find_max_merge_candidate_range(std::vector<dag_node_ptr>::const_iterator begin,
+                              std::vector<dag_node_ptr>::const_iterator end)
 {
   assert(is_memory_requirement(*begin));
-  // We require that all nodes have the bind_to_device hint
-  assert((*begin)->get_execution_hints().has_hint(execution_hint_type::bind_to_device));
-
-  device_id begin_device = 
-    (*begin)->get_execution_hints().get_hint<hints::bind_to_device>()->get_device_id();
+  
+  device_id begin_device = get_assigned_device(*begin);
 
   buffer_memory_requirement* begin_mem_req = 
     cast<buffer_memory_requirement>((*begin)->get_operation());
@@ -164,10 +239,8 @@ find_max_merge_candidate_range(std::vector<dag_node_ptr>::iterator begin,
       auto buff_mem_req = cast<buffer_memory_requirement>(mem_req);
 
       if(is_overlapping_memory_requirement(buff_mem_req, begin_mem_req)){
-        // We require that all nodes have the bind_to_device hint
-        assert((*it)->get_execution_hints().has_hint(execution_hint_type::bind_to_device));
-        device_id current_device = 
-          (*it)->get_execution_hints().get_hint<hints::bind_to_device>()->get_device_id();
+
+        device_id current_device = get_assigned_device(*it);
 
         if(current_device != begin_device)
           return it;
@@ -193,7 +266,7 @@ hints::dag_expander_annotation* get_or_create_hint(dag_node_ptr node)
     execution_hint_ptr new_hint = make_execution_hint<hints::dag_expander_annotation>();
     hints.add_hint(new_hint);
 
-    return new_hint.get();
+    return cast<hints::dag_expander_annotation>(new_hint.get());
   }
 }
 
@@ -232,9 +305,12 @@ void mark_mergeable_nodes(const std::vector<dag_node_ptr>& ordered_nodes)
           // If we can merge the node with the candidate,
           // mark the candidate as "forwarding" to the node
           if(is_overlapping_memory_requirement(
-            cast<memory_requirement>((*mem_req_it)->get_operation())),
-            cast<memory_requirement>((*merge_candidate)->get_operation()))
+            cast<memory_requirement>((*mem_req_it)->get_operation()),
+            cast<memory_requirement>((*merge_candidate)->get_operation())))
           {
+            HIPSYCL_DEBUG_INFO << "dag_expander: Marking requirement "
+                << mem_req_it->get() << " for merging with node "
+                << merge_candidate->get() << std::endl;
 
             hints::dag_expander_annotation* expander_hint = 
               get_or_create_hint(*merge_candidate);
@@ -249,6 +325,90 @@ void mark_mergeable_nodes(const std::vector<dag_node_ptr>& ordered_nodes)
     
     }
   }
+}
+
+
+
+/// Checks if a requirement node is superfluous and can be removed.
+/// This is the case, if
+/// * A requirement or explicit copy operation precedes 
+///   that alredy accesses the same (or larger)
+///   data region on the same device;
+/// * No requirement of the same memory precedes, but the
+///   data is already up-to-date on the target device
+///
+/// \param ordered_nodes The nodes in the DAG ordered such that
+/// the requirements of all nodes precede the nodes in terms of
+/// their index in the std::vector.
+/// \param node_index The index of the requirement node.
+bool can_requirement_be_removed(const std::vector<dag_node_ptr>& ordered_nodes, 
+                                int node_index)
+{
+  assert_is<memory_requirement>(ordered_nodes[node_index]->get_operation());
+
+  // If a node already has a dag_expander hint, it must be
+  // because it has been decided in the previous phase
+  // that this node should be merged into another one.
+  // In this case, we cannot remove/replace it, so we skip it.
+  if(!ordered_nodes[node_index]->get_execution_hints().has_hint(
+    execution_hint_type::dag_expander_annotation)){
+
+    // Obtain the device to which this requirement has
+    // been bound by the scheduler
+    device_id assigned_device = 
+      get_assigned_device(ordered_nodes[node_index]);
+
+    // Check if a requirement precedes this requirement
+    // that makes it superfluous
+    for(int j=node_index-1; j >= 0; --j) {
+      // Also check here for dag_expander_annotation hint in
+      // ordered_nodes[j] - if the hint is present it means
+      // the node has already been processed.
+      if(!ordered_nodes[j]->get_execution_hints().has_hint(
+        execution_hint_type::dag_expander_annotation)) {
+
+        if(is_memory_requirement(ordered_nodes[j])){
+          // If the data is used on a different device, with
+          // no requirements on the same device before,
+          // this memory requirement certainly cannot be removed.
+          if(assigned_device != get_assigned_device(ordered_nodes[j])) {
+            if(is_overlapping_memory_requirement(
+              cast<memory_requirement>(ordered_nodes[node_index]->get_operation()),
+              cast<memory_requirement>(ordered_nodes[j]->get_operation()))) {
+              return false;
+            }
+          }
+
+          if(is_requirement_satisfied_by(ordered_nodes[node_index], 
+                                        ordered_nodes[j]))
+            return true;
+        }
+
+      }
+    }
+    // There's no equivalent requirement preceding - check
+    // if data is already up-to-date on device
+    if(cast<memory_requirement>(ordered_nodes[node_index]->get_operation())
+      ->is_buffer_requirement()){
+
+      auto data_region = 
+        cast<buffer_memory_requirement>(ordered_nodes[node_index]->get_operation())
+        ->get_data_region();
+
+      // TODO: We do not yet have an efficient means of querying
+      // whether data regions are current on a device,
+      // so just force the copy for now...
+
+      HIPSYCL_DEBUG_WARNING << "dag_expander: Scheduling potentially "
+        "superfluous memory transfer due to unimplemented query for data version "
+        "in n-dimensional ranges in data_range" << std::endl;
+      return false;
+      
+      // return true;
+    }
+  }
+  
+  return false;
 }
 
 } // anonymous namespace
@@ -299,11 +459,16 @@ dag_expander::dag_expander(dag* d)
       if(!ordered_nodes[i]->get_execution_hints().has_hint(
         execution_hint_type::dag_expander_annotation)){
 
-        for(int j=i; j >= 0; --j) {
-          // Also check here for dag_expander_annotation hint in
-          // ordered_nodes[j]
-        }
+        if(can_requirement_be_removed(ordered_nodes, i)) {
+          HIPSYCL_DEBUG_INFO << "dag_expander: Marking requirement "
+                << ordered_nodes[i].get() << " for removal"
+                << std::endl;
 
+          hints::dag_expander_annotation* expander_hint = 
+              get_or_create_hint(ordered_nodes[i]);
+
+          expander_hint->set_optimized_away();
+        }
       }
     }
     else {
@@ -313,24 +478,8 @@ dag_expander::dag_expander(dag* d)
   }
 }
 
-bool access_ranges_overlap(sycl::id<3> offset_a, sycl::range<3> range_a,
-                          sycl::id<3> offset_b, sycl::range<3> range_b)
-{
-  sycl::id<3> a_min = offset_a;
-  sycl::id<3> a_max = offset_a + sycl::id<3>{range_a[0],range_a[1],range_a[2]};
 
-  sycl::id<3> b_min = offset_b;
-  sycl::id<3> b_max = offset_b + sycl::id<3>{range_b[0],range_b[1],range_b[2]};
-
-  for(int dim = 0; dim < 3; ++dim){
-    if(std::max(a_min[dim], b_min[dim]) > std::min(a_max[dim], b_max[dim]))
-      return false;
-  }
-  return true;
-}
-
-void order_by_requirements(
-    const std::vector<dag_node_ptr>& nodes_to_process,
+void dag_expander::order_by_requirements(
     std::vector<dag_node_ptr>& ordered_nodes) const
 {
   ordered_nodes.clear();
@@ -342,8 +491,10 @@ void order_by_requirements(
   });
 
   for(dag_node_ptr node : nodes_to_process)
-    order_memory_requirement(nodes, nodes_to_process, ordered_nodes);
+    order_by_requirements_recursively(node, nodes_to_process, ordered_nodes);
 }
+
+
 
 }
 }

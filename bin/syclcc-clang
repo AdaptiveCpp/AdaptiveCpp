@@ -173,9 +173,10 @@ class syclcc_config:
 """  Enter bootstrap mode. This is only required when building hipSYCL itself and 
   should not be set by the user.""")
     }
-
+    self._insufficient_cpp_standards = ['98', '03', '11', '0x']
     self._hipsycl_args = []
     self._forwarded_args = []
+    self._common_compiler_args = self._get_common_compiler_args()
     
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
@@ -327,6 +328,23 @@ class syclcc_config:
     raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
             opt.commandline, opt.environment))
 
+  # Make sure that at least c++14 is added to the common args
+  def _get_common_compiler_args(self):
+    std_args=[]
+    for arg in self._args:
+      split_arg = arg.split("=")
+      if split_arg[0]=="-std":
+        std_args.append(split_arg[1])
+    if not std_args:
+       return ["-std=c++14"]
+    else:
+        if len(std_args) > 1:
+            raise RuntimeError("Multiple c++ standards defined")
+        std_version = std_args[0].strip("c++").strip("gnu++")
+        if std_version in self._insufficient_cpp_standards:
+            raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
+        return []
+
   @property
   def target_platform(self):
     platform = self._retrieve_option("platform")
@@ -398,7 +416,10 @@ class syclcc_config:
     except OptionNotSet:
       return False
   
-
+  @property
+  def common_compiler_args(self):
+      return self._common_compiler_args
+  
   def contains_linking_stage(self):
     for arg in self.forwarded_compiler_arguments:
       if (arg == "-E" or
@@ -476,9 +497,9 @@ class clang_plugin_compiler:
         # clang CUDA wrapper headers try to include the system headers
         # with #include_next <...>
         "-isystem", self._get_rocm_clang_include_path(config)
-      ]
+      ]  
+    self._common_compiler_args = config.common_compiler_args
 
-    self._common_compiler_args = ["-std=c++14"]
     if not config.is_bootstrap:
       self._common_compiler_args += [
         "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
@@ -528,7 +549,8 @@ class pure_cpu_compiler:
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     self._linker_args = []
-    self._compiler_args = ["-fopenmp", "-std=c++14"]
+    self._compiler_args = ["-fopenmp"]
+    self._compiler_args += config.common_compiler_args
     if not config.is_bootstrap:
       self._linker_args += [
         "-L"+hipsycl_library_path,

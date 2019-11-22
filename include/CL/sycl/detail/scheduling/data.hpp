@@ -43,11 +43,172 @@ namespace sycl {
 namespace detail {
 
 
-enum class data_state : char
+
+class range_store
 {
-  unitialized = 0,
-  outdated,
-  current
+public:
+  using rect = std::pair<sycl::id<3>,sycl::range<3>>;
+
+  enum class data_state : char
+  {
+    empty = 0,
+    available,
+  };
+
+  range_store(sycl::range<3> size);
+
+  void add(const rect& r);
+  
+  void remove(const rect& r);
+
+  sycl::range<3> get_size() const;
+
+  void intersections_with(const rect& r, 
+                          data_state desired_state,
+                          std::vector<rect>& out) const;
+
+  void intersections_with(const rect& r, 
+                          std::vector<rect>& out) const
+  { intersections_with(r, data_state::available, out); }
+
+  void inverted_intersections_with(const rect& r, 
+                                  std::vector<rect>& out) const
+  { intersections_with(r, data_state::empty, out); }                             
+    
+  bool entire_range_equals(const rect&, data_state desired_state) const;
+
+  bool entire_range_filled(const rect& r) const
+  { return entire_range_equals(r, data_state::available); }
+
+  bool entire_range_empty(const rect& r) const
+  { return entire_range_equals(r, data_state::empty); }
+
+private:
+  template<class Entry_selection_predicate>
+  sycl::range<3> find_max_contiguous_rect_extent(
+    sycl::id<3> begin,
+    sycl::id<3> search_range_end,
+    Entry_selection_predicate p) const
+  {
+    // Find out length of longest contiguous row
+    size_t z_size = 
+      find_z_size(begin, search_range_end, p);
+
+    // Now go to 2D and find out width of surface
+    size_t y_size = 1;
+    if(_size[1] > 1)
+      y_size = find_y_size(begin, search_range_end, z_size, p);
+
+    // Now 3D
+    size_t x_size = 1;
+    if(_size[0] > 1)
+      x_size = find_x_size(begin, search_range_end, z_size, y_size, p);
+
+    return sycl::range<3>{x_size, y_size, z_size};
+    
+  }
+
+  template<class Entry_selection_predicate>
+  size_t find_x_size(sycl::id<3> begin,
+                     sycl::id<3> search_range_end,
+                     size_t z_size,
+                     size_t y_size,
+                     Entry_selection_predicate p) const
+  {
+    for(size_t x_offset = 0; x_offset < search_range_end[0]-begin[0]; ++x_offset){
+      sycl::id<3> surface_begin = begin;
+      surface_begin[0] += x_offset;
+
+      if(find_y_size(surface_begin, search_range_end, z_size, p) != y_size){
+        return x_offset;
+      }
+    }
+    return search_range_end[0] - begin[0];
+  }
+
+  template<class Entry_selection_predicate>
+  size_t find_y_size(sycl::id<3> begin,
+                    sycl::id<3> search_range_end,
+                    size_t z_size,
+                    Entry_selection_predicate p) const
+  {
+    for(size_t y_offset = 0; y_offset < search_range_end[1]-begin[1]; ++y_offset){
+      sycl::id<3> row_begin = begin;
+      row_begin[1] += y_offset;
+
+      if(find_z_size(row_begin, search_range_end, p) != z_size){
+        return y_offset;
+      }
+    }
+    return search_range_end[1] - begin[1];
+  }
+
+  template<class Entry_selection_predicate>
+  size_t find_z_size(sycl::id<3> begin,
+                    sycl::id<3> search_range_end,
+                    Entry_selection_predicate p) const
+  {
+    size_t base_pos = get_index(begin);
+    size_t max_length = search_range_end[2] - begin[2];
+    for(size_t offset = 0; offset < max_length; ++offset)
+    {
+      if(!p(base_pos + offset))
+        return offset;
+    }
+    return max_length;
+  }
+
+  template<class Function>
+  void for_each_element_in_range(const rect& r,
+    std::vector<data_state>& v,
+    Function f) const
+  {
+    for(size_t x = r.first[0]; x < r.second[0]+r.first[0]; ++x){
+      for(size_t y = r.first[1]; y < r.second[1]+r.first[1]; ++y){
+        for(size_t z = r.first[2]; z < r.second[2]+r.first[2]; ++z){
+
+          sycl::id<3> idx{x,y,z};
+          size_t pos = get_index(idx);
+          assert(pos < v.size());
+          f(sycl::id<3>{x,y,z}, v[pos]);
+        }
+      }
+    }
+  }
+
+  template<class Function>
+  void for_each_element_in_range(const rect& r, 
+    const std::vector<data_state>& v, 
+    Function f) const
+  {
+    for(size_t x = r.first[0]; x < r.second[0]+r.first[0]; ++x){
+      for(size_t y = r.first[1]; y < r.second[1]+r.first[1]; ++y){
+        for(size_t z = r.first[2]; z < r.second[2]+r.first[2]; ++z){
+
+          sycl::id<3> idx{x,y,z};
+          size_t pos = get_index(idx);
+          assert(pos < v.size());
+          f(sycl::id<3>{x,y,z}, v[pos]);
+        }
+      }
+    }
+  }
+
+  template<class Function>
+  void for_each_element_in_range(const rect& r, Function f) const
+  { for_each_element_in_range(r, _contained_data, f); }
+
+  template<class Function>
+  void for_each_element_in_range(const rect& r, Function f)
+  { for_each_element_in_range(r, _contained_data, f); }
+
+  size_t get_index(sycl::id<3> pos) const
+  {
+    return pos[0] * _size[1] * _size[2] + pos[1] * _size[2] + pos[2]; 
+  }
+
+  std::vector<data_state> _contained_data;
+  sycl::range<3> _size;
 };
 
 
@@ -59,6 +220,7 @@ struct data_user
   sycl::id<3> offset;
   sycl::range<3> range;
 };
+
 
 class data_user_tracker
 {
@@ -87,16 +249,28 @@ private:
   std::vector<data_user> _users;
 };
 
+/// Manages data regions on different devices under
+/// the assumptions:
+/// * different devices may have copies of the same data regions
+/// * data is managed at a "page" granularity
+/// * data accesses cover a 3D (sub-)range of the whole buffer
+/// * data ranges on some devices may be outdated due to writes on
+///   other devices
 template<class Memory_descriptor = void*>
 class data_region
 {
 public:
-  using page_range = std::pair<std::size_t, std::size_t>;
+  using page_range = std::pair<sycl::id<3>, sycl::range<3>>;
 
-  data_region(std::size_t size, std::size_t page_size)
-  : _size{size}, _page_size{page_size}, _most_recent_data_version{-1}
+  data_region(sycl::range<3> size, std::size_t page_size)
+  : _size{size}, _page_size{page_size}
   {
-    _num_pages = (_size + page_size - 1) / page_size;
+    assert(page_size > 0);
+
+    for(int i = 0; i < 3; ++i)
+      assert(_size[i] % page_size == 0)
+
+    _num_pages = _size / page_size;
   }
 
   bool has_allocation(const device_id& d) const
@@ -104,13 +278,26 @@ public:
     return find_allocation(d) != _allocations.end();
   }
 
-  void add_allocation(const device_id& d, Memory_descriptor memory_context)
+  void add_empty_allocation(const device_id& d, Memory_descriptor memory_context)
   {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
     _allocations.push_back(data_allocation{
-      d, memory_context, std::vector<int>(_num_pages, -1)});
+      d, memory_context, range_store{_num_pages}});
+    _allocations.back().invalid_pages.add(
+        std::make_pair(sycl::id<3>{0,0,0},_num_pages));
+  }
+
+  void add_nonempty_allocation(const device_id& d, Memory_descriptor memory_context)
+  {
+    // Make sure that there isn't already an allocation on the given device
+    assert(!has_allocation(d));
+
+    _allocations.push_back(data_allocation{
+      d, memory_context, range_store{_num_pages}});
+    _allocations.back().invalid_pages.remove(
+        std::make_pair(sycl::id<3>{0,0,0},_num_pages));
   }
 
   void remove_allocation(const device_id& d)
@@ -121,72 +308,98 @@ public:
 
   /// Converts an offset into the data buffer (in bytes) and the
   /// data length (in bytes) into an equivalent \c page_range.
-  page_range get_page_range(size_t data_offset, std::size_t data_size) const
+  page_range get_page_range(sycl::id<3> data_offset, sycl::range<3> data_size) const
   {
-    std::size_t page_begin = (data_offset + _page_size - 1) / _page_size;
-    std::size_t num_pages = (data_size + _page_size - 1) / _page_size;
-    return std::make_pair(page_begin, num_pages);
+    sycl::id<3> page_begin{0,0,0};
+    sycl::range<3> page_range{1,1,1};
+
+    for(int i = 0; i < 3; ++i){
+      page_begin[i] =  data_offset[i] / _page_size;
+      page_range[i] = (data_size  [i] + _page_size - 1) / _page_size;
+      
+    }
+
+    return std::make_pair(page_begin, page_range);
   }
 
   /// Marks an allocation range on a given device most recent
   void mark_range_current(const device_id& d,
-      std::size_t data_offset,
-      std::size_t data_size)
+      sycl::id<3> data_offset,
+      sycl::range<3> data_size)
   {
     page_range pr = get_page_range(data_offset, data_size);
-    std::size_t first_page = pr.first;
-    std::size_t num_pages = pr.second;
+    sycl::id<3> first_page = pr.first;
+    sycl::range<3> num_pages = pr.second;
 
-    ++_most_recent_data_version;
+    for(auto it = _allocations.begin(); 
+      it != _allocations.end(); ++it){
+      
+      if(it->dev == d)
+        it->invalid_pages.remove(first_page, num_pages);
+      else
+        it->invalid_pages.add(first_page, num_pages);
+    }
+  }
 
+  void get_outdated_regions(const device_id& d,
+                            sycl::id<3> data_offset,
+                            sycl::range<3> data_size,
+                            std::vector<range_store::rect>& out) const
+  {
+    assert(has_allocation(d));
+
+    // Convert byte offsets/sizes to page ranges
+    page_range pr = get_page_range(data_offset, data_size);
+    sycl::id<3> first_page = pr.first;
+    sycl::range<3> num_pages = pr.second;
+
+    // Find outdated regions among pages
     auto allocation = find_allocation(d);
+    allocation->invalid_pages.intersections_with(
+      std::make_pair(first_page, num_pages), out);
 
-    for(std::size_t i = 0; i < num_pages; ++i)
-    {
-      std::size_t page_index = first_page + i;
-      assert(page_index < _num_pages);
-      assert(page_index < allocation->data_version.size());
-      allocation->data_version[page_index] = _most_recent_data_version;
+    // Convert back to bytes
+    for(range_store::rect& r : out) {
+      for(int i = 0; i < 3; ++i) {
+        r.first[i] *= _page_size;
+        r.second[i] *= _page_size;
+      }
+    }
+  }
+
+  void get_update_source_candidates(
+              const device_id& d,
+              const range_store::rect& data_range,
+              std::vector<std::pair<device_id, range_store::rect>>& update_sources) const
+  {
+    update_sources.clear();
+
+    page_range pr = get_page_range(data_range);
+
+    for(const auto& alloc : _allocations) {
+      if(alloc.dev != d){
+        if(alloc.invalid_pages.entire_range_empty(pr)) {
+          update_sources.push_back(std::make_pair(alloc.dev, data_range));
+        }
+      }
+    }
+    if(update_sources.empty()){
+      assert(false && "Could not find valid data source for updating data buffer - "
+              "this can happen if several data transfers are required to update on access range, "
+              "which is not yet supported.");
     }
   }
 
   bool is_range_current(const device_id& d,
-      std::size_t data_offset,
-      std::size_t data_size) const
+      sycl::id<3> data_offset,
+      sycl::range<3> data_size) const
   {
-    page_range pr = get_page_range(data_offset, data_size);
-    std::size_t first_page = pr.first;
-    std::size_t num_pages = pr.second;
-
-    assert(has_allocation(d));
-    auto allocation = find_allocation(d);
-    for(std::size_t page_index = first_page;
-        page_index < first_page+num_pages;
-        ++page_index)
-    {
-      assert(page_index < allocation->data_version.size());
-      assert(allocation->data_version[page_index] <= _most_recent_data_version);
-
-      if(allocation->data_version[page_index] < _most_recent_data_version)
-        return false;
-    }
-    return true;
-  }
-
-  std::size_t get_number_of_consecutive_current_pages(const device_id& d,
-      std::size_t data_offset,
-      std::size_t data_size) const
-  {
-    page_range pr = get_page_range(data_offset, data_size);
-    std::size_t first_page = pr.first;
-    std::size_t num_pages = pr.second;
-
     assert(has_allocation(d));
     auto allocation = find_allocation(d);
 
-    // TBD
+    return allocation->invalid_pages.entire_range_empty(
+      std::make_pair(data_offset, data_size));
   }
-
 
   data_user_tracker& get_users()
   { return _user_tracker; }
@@ -200,11 +413,10 @@ private:
   {
     device_id dev;
     Memory_descriptor memory;
-    std::vector<int> data_version;
+    range_store invalid_pages;
   };
 
   std::vector<data_allocation> _allocations;
-  int _most_recent_data_version;
 
   typename std::vector<data_allocation>::iterator
   find_allocation(device_id dev)
@@ -224,9 +436,9 @@ private:
     });
   }
 
-  std::size_t _page_size;
-  std::size_t _num_pages;
-  const std::size_t _size;
+  const std::size_t _page_size;
+  sycl::range<3> _num_pages;
+  const sycl::range<3> _size;
 
   data_user_tracker _user_tracker;
 };

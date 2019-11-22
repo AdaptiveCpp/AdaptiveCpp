@@ -43,6 +43,11 @@ task_graph& application::get_task_graph()
   return get_hipsycl_runtime().get_task_graph();
 }
 
+dag& application::dag()
+{
+  return get_hipsycl_runtime().dag();
+}
+
 void application::reset()
 {
   rt.reset();

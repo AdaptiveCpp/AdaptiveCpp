@@ -30,21 +30,38 @@
 
 #include <functional>
 
-#include "../../backend/backend.hpp"
-
 namespace cl {
 namespace sycl {
 namespace detail {
+
+enum class hardware_platform
+{
+  rocm,
+  cuda,
+  cpu
+};
+
+enum class api_platform
+{
+  hip,
+  openmp_cpu
+};
+
+enum class backend_id
+{
+  hip,
+  openmp_cpu
+};
 
 class device_id
 {
 public:
   device_id() = default;
   device_id(const device_id&) = default;
-  device_id(backend b, int id);
+  device_id(backend_id b, int id);
   
   bool is_host() const;
-  backend get_backend() const;
+  backend_id get_backend() const;
   int get_id() const;
 
   friend bool operator==(const device_id& a, const device_id& b)
@@ -58,7 +75,7 @@ public:
     return !(a == b);
   }
 private:
-  backend _backend;
+  backend_id _backend;
   int _device_id;
 };
 

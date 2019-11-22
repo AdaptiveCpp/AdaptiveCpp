@@ -29,17 +29,39 @@
 #define HIPSYCL_RUNTIME_BACKEND_HPP
 
 #include "hardware.hpp"
+#include "executor.hpp"
+#include "allocator.hpp"
+
+#include <unordered_map>
+#include <memory>
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class runtime_backend
+class backend
 {
 public:
-  virtual hardware_manager* get_hardware_manager() const = 0;
+  virtual api_platform get_api_platform() const = 0;
+  virtual hardware_platform get_hardware_platform() const = 0;
+  virtual backend_id get_unique_backend_id() const = 0;
+  
+  virtual backend_hardware_manager* get_hardware_manager() const = 0;
+  virtual backend_executor* get_executor(device_id dev) const = 0;
+  virtual backend_allocator* get_allocator(device_id dev) const = 0;
+};
 
-  virtual ~runtime_backend(){}
+class backend_manager
+{
+public:
+  backend* get(backend_id) const;
+
+private:
+  std::unordered_map
+  <
+    backend_id, 
+    std::unique_ptr<backend>
+  > _backends;
 };
 
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,31 +25,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_RUNTIME_ALLOCATOR_HPP
+#define HIPSYCL_RUNTIME_ALLOCATOR_HPP
 
-#include <memory>
-
-#include "runtime.hpp"
+#include "device_id.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class application
+class backend_allocator
 {
 public:
-  static runtime& get_hipsycl_runtime();
+  virtual void* allocate_mem(size_t min_alignment, size_t size_bytes) = 0;
+  virtual void  free_mem(void* mem) = 0;
+};
 
-  static task_graph& get_task_graph();
-  static dag& dag();
+class usm_allocator
+{
 
-  static void reset();
-
-  application() = delete;
-
-private:
-  static std::unique_ptr<runtime> rt;
 };
 
 }

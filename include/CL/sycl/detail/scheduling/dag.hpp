@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_DAG_HPP
+#define HIPSYCL_DAG_HPP
+
 #include <vector>
 #include <memory>
 #include <functional>
@@ -38,25 +41,6 @@ namespace sycl {
 namespace detail {
 
 
-class inorder_queue_execution_backend
-{
-public:
-  /// \return the backend queue this object operates on
-  virtual inorder_queue* get_queue() const = 0;
-
-  /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
-
-  virtual void submit_memcpy(const memcpy_operation&) = 0;
-  virtual void submit_kernel(const kernel_operation&) = 0;
-  virtual void submit_prefetch(const prefetch_operation&) = 0;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue may be from the same or a different backend.
-  virtual void submit_queue_wait_for(dag_node_event*) = 0;
-
-  virtual ~inorder_queue_execution_backend() {}
-};
 
 class dag;
 
@@ -120,3 +104,5 @@ private:
 }
 }
 }
+
+#endif

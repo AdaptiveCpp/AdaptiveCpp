@@ -25,18 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSEUDO_QUEUE_HPP
-#define HIPSYCL_PSEUDO_QUEUE_HPP
+#ifndef HIPSYCL_DAG_MANAGER_HPP
+#define HIPSYCL_DAG_MANAGER_HPP
 
+#include "dag.hpp"
+#include "dag_builder.hpp"
+#include "../async_worker.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class pseudo_queue_factory
+class dag_manager
 {
 public:
-  
+  dag_manager();
+
+  dag_builder* builder() const;
+
+  void flush();
+  void wait();
+private:
+  std::unique_ptr<dag_builder> _builder;
+  worker_thread _worker;
 };
 
 }

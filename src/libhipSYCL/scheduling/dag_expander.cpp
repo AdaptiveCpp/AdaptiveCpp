@@ -459,15 +459,21 @@ dag_expander::dag_expander(dag* d)
       if(!ordered_nodes[i]->get_execution_hints().has_hint(
         execution_hint_type::dag_expander_annotation)){
 
+        hints::dag_expander_annotation* expander_hint = 
+              get_or_create_hint(ordered_nodes[i]);
+
         if(can_requirement_be_removed(ordered_nodes, i)) {
           HIPSYCL_DEBUG_INFO << "dag_expander: Marking requirement "
                 << ordered_nodes[i].get() << " for removal"
                 << std::endl;
 
-          hints::dag_expander_annotation* expander_hint = 
-              get_or_create_hint(ordered_nodes[i]);
-
           expander_hint->set_optimized_away();
+        }
+        else {
+          HIPSYCL_DEBUG_INFO << "dag_expander: Replacing requirement with "
+            "data transfer" << std::endl;
+            
+          expander_hint->set_replacement_operation();
         }
       }
     }

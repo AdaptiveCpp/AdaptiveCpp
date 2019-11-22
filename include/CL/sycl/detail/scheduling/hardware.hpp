@@ -28,6 +28,9 @@
 #ifndef HIPSYCL_HARDWARE_HPP
 #define HIPSYCL_HARDWARE_HPP
 
+
+#include "device_id.hpp"
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -38,8 +41,8 @@ public:
   virtual bool is_cpu() const = 0;
   virtual bool is_gpu() const = 0;
 
-  virtual std::size_t get_num_kernel_concurrency() const = 0;
-  virtual std::size_t get_num_memcpy_concurrency() const = 0;
+  virtual std::size_t get_max_kernel_concurrency() const = 0;
+  virtual std::size_t get_max_memcpy_concurrency() const = 0;
 
   virtual ~hardware_context(){}
 };
@@ -51,6 +54,8 @@ public:
   virtual hardware_context* get_device(std::size_t index) = 0;
   virtual ~backend_hardware_manager(){}
 };
+
+
 
 }
 }

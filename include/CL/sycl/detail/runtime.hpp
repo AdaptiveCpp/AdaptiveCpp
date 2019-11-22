@@ -30,6 +30,7 @@
 #define HIPSYCL_RUNTIME_HPP
 
 #include "task_graph.hpp"
+#include "scheduling/dag_manager.hpp"
 
 #include <iostream>
 namespace cl {
@@ -47,8 +48,16 @@ public:
   const task_graph& get_task_graph() const
   { return _task_graph; }
 
+  dag_manager& dag()
+  { return _dag_manager; }
+
+  const dag_manager& dag() const
+  { return _dag_manager; }
+
 private:
   task_graph _task_graph;
+
+  dag_manager _dag_manager;
 };
 
 

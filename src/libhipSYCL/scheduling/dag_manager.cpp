@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
-
 #include <memory>
 
-#include "runtime.hpp"
+#include "CL/sycl/detail/scheduling/dag_manager.hpp"
+#include "CL/sycl/detail/scheduling/hints.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class application
+dag_manager::dag_manager()
+: _builder{std::make_unique<dag_builder>(execution_hints{})}
+{}
+
+dag_builder* 
+dag_manager::builder() const
 {
-public:
-  static runtime& get_hipsycl_runtime();
+  return _builder.get();
+}
 
-  static task_graph& get_task_graph();
-  static dag& dag();
+void flush()
+{
+  _worker([this](){
+    dag new_dag = _builder->finish_and_reset();
+    
+  });
+}
 
-  static void reset();
-
-  application() = delete;
-
-private:
-  static std::unique_ptr<runtime> rt;
-};
+void wait()
+{
+  flush();
+}
 
 }
 }
 }
-
-#endif

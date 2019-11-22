@@ -50,7 +50,6 @@ class dag_expander
 public:
   dag_expander(dag* d);
 
-  void mark_nodes();
   void undo_mark_nodes();
 
   void transform_dag();

@@ -28,13 +28,9 @@
 #ifndef HIPSYCL_EXECUTOR_HPP
 #define HIPSYCL_EXECUTOR_HPP
 
-#include <unordered_map>
-#include <memory>
-#include <vector>
-#include "device_id.hpp"
+
 #include "hints.hpp"
 
-#include "../../backend/backend.hpp"
 
 namespace cl {
 namespace sycl {
@@ -58,29 +54,25 @@ public:
   bool is_inorder_queue() const final override;
   bool is_outoforder_queue() const final override;
   bool is_taskgraph() const final override;
+
+
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
+
+  virtual void submit_memcpy(const memcpy_operation&) = 0;
+  virtual void submit_kernel(const kernel_operation&) = 0;
+  virtual void submit_prefetch(const prefetch_operation&) = 0;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue may be from the same or a different backend.
+  virtual void submit_queue_wait_for(dag_node_event*) = 0;
 };
 
 
 
-using execution_context_ptr = std::unique_ptr<backend_executor>;
 
-class executor_manager
-{
-public:
-  void initialize_device(device_id d);
 
-  std::size_t get_num_executors(device_id d)
-  {
-    // ToDo: Maybe initialize device when no queues are yet present?
-    return _executors[d].size();
-  }
 
-  backend_executor* get_queue(device_id d, std::size_t index) const
-  {
-    
-  }
-private:
-  std::unordered_map<device_id, std::vector<execution_context_ptr>> _executors;
 };
 
 }

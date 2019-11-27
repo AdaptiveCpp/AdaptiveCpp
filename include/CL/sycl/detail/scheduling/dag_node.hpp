@@ -32,13 +32,14 @@
 
 #include "hints.hpp"
 #include "event.hpp"
-#include "executor.hpp"
+
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
 class operation;
+class backend_executor;
 
 class dag_node;
 using dag_node_ptr = std::shared_ptr<dag_node>;

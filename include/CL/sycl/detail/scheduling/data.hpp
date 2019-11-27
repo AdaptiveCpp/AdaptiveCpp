@@ -277,7 +277,7 @@ public:
     assert(page_size > 0);
 
     for(int i = 0; i < 3; ++i)
-      assert(_size[i] % page_size == 0)
+      assert(_size[i] % page_size == 0);
 
     _num_pages = _size / page_size;
   }
@@ -346,13 +346,11 @@ public:
                         sycl::range<3> data_size)
   {
     page_range pr = get_page_range(data_offset, data_size);
-    sycl::id<3> first_page = pr.first;
-    sycl::range<3> num_pages = pr.second;
 
     assert(has_allocation(d));
 
     auto alloc = find_allocation(d);
-    alloc->invalid_pages.remove(first_page, num_pages);
+    alloc->invalid_pages.remove(pr);
   }
   
   /// Marks an allocation range on a given device most recent
@@ -361,16 +359,14 @@ public:
       sycl::range<3> data_size)
   {
     page_range pr = get_page_range(data_offset, data_size);
-    sycl::id<3> first_page = pr.first;
-    sycl::range<3> num_pages = pr.second;
 
     for(auto it = _allocations.begin(); 
       it != _allocations.end(); ++it){
       
       if(it->dev == d)
-        it->invalid_pages.remove(first_page, num_pages);
+        it->invalid_pages.remove(pr);
       else
-        it->invalid_pages.add(first_page, num_pages);
+        it->invalid_pages.add(pr);
     }
   }
 
@@ -407,7 +403,7 @@ public:
   {
     update_sources.clear();
 
-    page_range pr = get_page_range(data_range);
+    page_range pr = get_page_range(data_range.first, data_range.second);
 
     for(const auto& alloc : _allocations) {
       if(alloc.dev != d){
@@ -440,7 +436,7 @@ public:
   const data_user_tracker& get_users() const
   { return _user_tracker; }
 
-  std::unique_ptr<data_region> *create_fork() const
+  std::unique_ptr<data_region> create_fork() const
   {
     return std::make_unique<data_region>(*this);  
   }

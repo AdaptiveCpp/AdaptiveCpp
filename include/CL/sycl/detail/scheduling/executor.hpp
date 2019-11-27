@@ -28,7 +28,8 @@
 #ifndef HIPSYCL_EXECUTOR_HPP
 #define HIPSYCL_EXECUTOR_HPP
 
-
+#include "dag_node.hpp"
+#include "operations.hpp"
 #include "hints.hpp"
 
 
@@ -68,12 +69,6 @@ public:
   virtual void submit_queue_wait_for(dag_node_event*) = 0;
 };
 
-
-
-
-
-
-};
 
 }
 }

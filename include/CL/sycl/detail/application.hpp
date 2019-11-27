@@ -30,6 +30,7 @@
 
 #include <memory>
 
+#include "CL/sycl/detail/scheduling/dag_manager.hpp"
 #include "runtime.hpp"
 
 namespace cl {
@@ -42,7 +43,7 @@ public:
   static runtime& get_hipsycl_runtime();
 
   static task_graph& get_task_graph();
-  static dag& dag();
+  static dag_manager& dag();
 
   static void reset();
 

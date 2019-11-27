@@ -405,8 +405,8 @@ void dag_expander::expand(
           std::size_t data_region_id = mem_req->get_data_region()->get_id();
 
           if (out.memory_state(data_region_id) == nullptr)
-            out.memory_state(data_region_id) =
-                std::move(mem_req->get_data_region()->create_fork());
+            out.add_data_region_fork(data_region_id,
+                std::move(mem_req->get_data_region()->create_fork()));
 
           buffer_data_region *data = out.memory_state(data_region_id);
 
@@ -553,11 +553,9 @@ dag_expansion_result::dag_expansion_result(
 
 void dag_expansion_result::reset()
 {
-  
   _node_annotations = std::vector<dag_expander_annotation>(_num_nodes);
-  _forked_memory_states = std::vector<std::unique_ptr<buffer_data_region>>(
-      _num_memory_buffers, nullptr);
-  
+  _forked_memory_states.resize(_num_memory_buffers);
+  std::fill(_forked_memory_states.begin(), _forked_memory_states.end(), nullptr);
 }
 
 dag_expander_annotation &

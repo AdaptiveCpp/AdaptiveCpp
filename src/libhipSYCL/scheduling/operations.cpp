@@ -26,6 +26,7 @@
  */
 
 #include "CL/sycl/detail/scheduling/operations.hpp"
+#include "CL/sycl/detail/scheduling/dag_node.hpp"
 
 namespace cl {
 namespace sycl {
@@ -161,6 +162,22 @@ kernel_operation::get_launcher() const
 const std::vector<memory_requirement*>& 
 kernel_operation::get_memory_requirements() const
 { return _memory_requirements; }
+
+
+
+void requirements_list::add_requirement(std::unique_ptr<requirement> req)
+{
+  auto node = std::make_shared<dag_node>(
+    execution_hints{}, 
+    std::vector<dag_node_ptr>{},
+    std::move(req));
+  
+  _reqs.push_back(node);
+}
+
+const std::vector<dag_node_ptr>& requirements_list::get() const
+{ return _reqs; }
+
 
 
 }

@@ -53,12 +53,24 @@ enum class backend_id
   openmp_cpu
 };
 
+struct backend_descriptor
+{
+  backend_id id;
+  api_platform sw_platform;
+  hardware_platform hw_platform;
+
+  friend bool operator==(const backend_descriptor &a,
+                         const backend_descriptor &b) {
+    return a.id == b.id;
+  }
+};
+
 class device_id
 {
 public:
   device_id() = default;
   device_id(const device_id&) = default;
-  device_id(backend_id b, int id);
+  device_id(backend_descriptor b, int id);
   
   bool is_host() const;
   backend_id get_backend() const;
@@ -75,7 +87,7 @@ public:
     return !(a == b);
   }
 private:
-  backend_id _backend;
+  backend_descriptor _backend;
   int _device_id;
 };
 

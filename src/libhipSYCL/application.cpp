@@ -27,6 +27,7 @@
 
 #include "CL/sycl/detail/application.hpp"
 #include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/detail/scheduling/dag_manager.hpp"
 #include "CL/sycl/device.hpp"
 
 namespace cl {
@@ -43,7 +44,7 @@ task_graph& application::get_task_graph()
   return get_hipsycl_runtime().get_task_graph();
 }
 
-dag& application::dag()
+dag_manager& application::dag()
 {
   return get_hipsycl_runtime().dag();
 }

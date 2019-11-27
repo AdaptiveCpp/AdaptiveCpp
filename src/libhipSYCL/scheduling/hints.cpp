@@ -27,6 +27,7 @@
 
 #include "CL/sycl/detail/scheduling/hints.hpp"
 #include "CL/sycl/detail/scheduling/operations.hpp"
+#include "CL/sycl/detail/scheduling/dag_node.hpp"
 
 namespace cl {
 namespace sycl {

@@ -26,24 +26,25 @@
  */
 
 #include "CL/sycl/detail/scheduling/device_id.hpp"
+#include "CL/sycl/detail/scheduling/backend.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
 
-device_id::device_id(backend b, int id)
+device_id::device_id(backend_descriptor b, int id)
 : _backend{b}, _device_id{id}
 {}
 
 bool device_id::is_host() const
 {
-  return _backend == backend::cpu;
+  return _backend.hw_platform == hardware_platform::cpu;
 }
 
-backend device_id::get_backend() const
+backend_id device_id::get_backend() const
 {
-  return _backend;
+  return _backend.id;
 }
 
 int device_id::get_id() const

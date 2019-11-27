@@ -27,13 +27,18 @@
 
 
 #include "CL/sycl/detail/scheduling/util.hpp"
+#include "CL/sycl/detail/scheduling/operations.hpp"
 #include "CL/sycl/detail/scheduling/dag_builder.hpp"
 #include "CL/sycl/exception.hpp"
+
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
+class kernel_operation;
+class memcpy_operation;
+class prefetch_operation;
 
 dag_builder::dag_builder(const execution_hints& dag_hints)
 : _hints{dag_hints}
@@ -101,7 +106,7 @@ dag_node_ptr dag_builder::add_kernel(std::unique_ptr<operation> op,
                                     const requirements_list& requirements,
                                     const execution_hints& hints)
 {
-  assert_is<kernel_operation*>(op.get());
+  assert_is<kernel_operation>(op.get());
 
   std::lock_guard<std::mutex> lock{_mutex};
   
@@ -115,7 +120,7 @@ dag_node_ptr dag_builder::add_memcpy(std::unique_ptr<operation> op,
                                     const requirements_list& requirements,
                                     const execution_hints& hints)
 {
-  assert_is<memcpy_operation*>(op.get());
+  assert_is<memcpy_operation>(op.get());
 
   std::lock_guard<std::mutex> lock{_mutex};
   
@@ -129,7 +134,7 @@ dag_node_ptr dag_builder::add_fill(std::unique_ptr<operation> op,
                                   const requirements_list& requirements,
                                   const execution_hints& hints)
 {
-  assert_is<kernel_operation*>(op.get());
+  assert_is<kernel_operation>(op.get());
 
   std::lock_guard<std::mutex> lock{_mutex};
   
@@ -143,7 +148,7 @@ dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
                                       const requirements_list& requirements,
                                       const execution_hints& hints)
 {
-  assert_is<prefetch_operation*>(op.get());
+  assert_is<prefetch_operation>(op.get());
 
   std::lock_guard<std::mutex> lock{_mutex};
   

@@ -33,9 +33,8 @@
 #include "../../range.hpp"
 #include "../../access.hpp"
 
+#include "CL/sycl/detail/scheduling/data.hpp"
 #include "device_id.hpp"
-#include "data.hpp"
-#include "executor.hpp"
 
 #include <functional>
 #include <memory>
@@ -45,6 +44,13 @@ namespace sycl {
 namespace detail {
 
 using cost_type = double;
+
+template<class T> class data_region;
+using buffer_data_region = data_region<void *>;
+
+class backend_executor;
+class dag_node;
+using dag_node_ptr = std::shared_ptr<dag_node>;
 
 class operation
 {
@@ -341,18 +347,9 @@ public:
     this->add_requirement(std::move(req));
   }
 
-  void add_requirement(std::unique_ptr<requirement> req)
-  {
-    auto node = std::make_shared<dag_node>(
-      execution_hints{}, 
-      std::vector<dag_node_ptr>{},
-      std::move(req));
-    
-    _reqs.push_back(node);
-  }
+  void add_requirement(std::unique_ptr<requirement> req);
 
-  const std::vector<dag_node_ptr>& get() const
-  { return _reqs; }
+  const std::vector<dag_node_ptr>& get() const;
   
 private:
   std::vector<dag_node_ptr> _reqs;

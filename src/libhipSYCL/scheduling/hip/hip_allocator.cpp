@@ -25,45 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
-
-#include <string>
-
-#include "device_id.hpp"
+#include "CL/sycl/detail/scheduling/hip/hip_allocator.hpp"
+#include "CL/sycl/detail/scheduling/hip/hip_device_manager.hpp"
+#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/exception.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+hip_allocator::hip_allocator(int hip_device)
+    : _dev{hip_device}
+{}
+      
+void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
-public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
+  void *ptr;
+  hip_device_manager::get().activate_device(_dev);
+  detail::check_error(hipMalloc(&ptr, size_bytes));
 
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
+  return ptr;
+}
 
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
-
-  virtual ~hardware_context(){}
-};
-
-class backend_hardware_manager
+void hip_allocator::free(void *mem)
 {
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
-  
-  virtual ~backend_hardware_manager(){}
-};
+  detail::check_error(hipFree(mem));
+}
 
+void * hip_allocator::allocate_usm(size_t bytes)
+{
+  void *ptr;
+  detail::check_error(hipMallocManaged(&ptr, bytes));
 
+  return ptr;
+}
+
+bool hip_allocator::is_usm_accessible_from(backend_id b) const
+{
+  // TODO: Formulate this better - this assumes that either CUDA+CPU or
+  // ROCm + CPU are active at the same time
+  return true;
+}
 
 }
 }
 }
-
-#endif

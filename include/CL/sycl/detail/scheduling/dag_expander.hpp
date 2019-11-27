@@ -28,14 +28,74 @@
 #ifndef HIPSYCL_DAG_EXPANDER_HPP
 #define HIPSYCL_DAG_EXPANDER_HPP
 
+#include "data.hpp"
 #include "dag.hpp"
 #include "dag_node.hpp"
+#include "dag_enumerator.hpp"
 #include "operations.hpp"
+#include <bits/c++config.h>
 #include <vector>
 
 namespace cl {
 namespace sycl {
 namespace detail {
+
+
+class dag_expander_annotation
+{
+public:
+
+  dag_expander_annotation();
+
+  void set_optimized_away();
+  void add_replacement_operation(std::unique_ptr<operation> op);
+  void set_forward_to_node(dag_node_ptr forward_to_node);
+
+  bool is_optimized_away() const;
+  bool is_operation_replaced() const;
+  bool is_node_forwarded() const;
+
+  const std::vector<std::unique_ptr<operation>> &
+  get_replacement_operations() const;
+  
+  dag_node_ptr get_forwarding_target() const;
+
+private:
+  bool _optimized_away;
+  std::vector<std::unique_ptr<operation>> _replacement_operations;
+  dag_node_ptr _forwarding_target;
+};
+
+
+class dag_expansion_result
+{
+public:
+  dag_expansion_result(const dag_enumerator& object_enumeration);
+
+  void reset();
+
+  dag_expander_annotation &node_annotations(std::size_t node_id);
+  const dag_expander_annotation& node_annotations(std::size_t node_id) const;
+
+  buffer_data_region *memory_state(std::size_t data_region_id);
+  const buffer_data_region *memory_state(std::size_t data_region_id) const;
+
+  void add_data_region_fork(std::size_t data_region_id,
+                            std::unique_ptr<buffer_data_region> fork);
+private:
+  std::size_t _num_nodes;
+  std::size_t _num_memory_buffers;
+  std::vector<dag_expander_annotation> _node_annotations;
+  std::vector<std::unique_ptr<buffer_data_region>> _forked_memory_states;
+};
+
+class node_scheduling_annotation {
+public:
+  device_id get_target_device() const
+  { return _execution_device; }
+private:
+  device_id _execution_device;
+};
 
 /// "Expands" a DAG by removing requirements or replacing
 /// requirements with actual memory transfer operations.
@@ -43,25 +103,27 @@ namespace detail {
 ///
 /// Note: In order for the \c dag_expander to correctly decide
 /// if memory transfers are required, the scheduler must already
-/// have attached hints to all dag_nodes on which device operations
+/// have decided for all dag_nodes on which device operations
 /// are scheduled to execute.
 class dag_expander
 {
 public:
-  dag_expander(dag* d);
+  /// Initializes the expander by performing preprocessing steps
+  /// that can be reused for several expansions.
+  dag_expander(const dag* d, const dag_enumerator& enumerator);
 
-  void undo_mark_nodes();
-
-  void transform_dag();
+  void expand(const std::vector<node_scheduling_annotation> &sched_node_properties,
+              dag_expansion_result& out) const;
 
 private:
+  dag_enumerator _enumerator;
+
+  std::vector<dag_node_ptr> _ordered_nodes;
 
   void order_by_requirements(
     std::vector<dag_node_ptr>& ordered_nodes) const;
 
-  std::unordered_map<dag_node_ptr, std::vector<dag_node_ptr>> _parents;
-
-  dag* _dag;
+  const dag* _dag;
 };
 
 }

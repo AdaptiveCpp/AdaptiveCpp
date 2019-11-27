@@ -25,45 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
+#include "../backend.hpp"
 
-#include <string>
-
-#include "device_id.hpp"
+#ifndef HIPSYCL_HIP_BACKEND_HPP
+#define HIPSYCL_HIP_BACKEND_HPP
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+
+class hip_backend : public backend
 {
 public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
-
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
-
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
-
-  virtual ~hardware_context(){}
-};
-
-class backend_hardware_manager
-{
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
+  virtual api_platform get_api_platform() const override;
+  virtual hardware_platform get_hardware_platform() const override;
+  virtual backend_id get_unique_backend_id() const override;
   
-  virtual ~backend_hardware_manager(){}
+  virtual backend_hardware_manager* get_hardware_manager() const override;
+  virtual backend_executor* get_executor(device_id dev) const override;
+  virtual backend_allocator *get_allocator(device_id dev) const override;
+
+  virtual ~hip_backend(){}
 };
 
+} // namespace detail
+} // namespace sycl
+} // namespace cl
 
-
-}
-}
-}
 
 #endif

@@ -25,45 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
+#ifndef HIPSYCL_HIP_RUNTIME_HPP
+#define HIPSYCL_HIP_RUNTIME_HPP
 
-#include <string>
-
-#include "device_id.hpp"
+#include "../allocator.hpp"
+#include "../../../backend/backend.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+class hip_allocator : public backend_allocator 
 {
 public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
+  hip_allocator(int hip_device);
 
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+  virtual void free(void *mem) override;
 
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
+  virtual void *allocate_usm(size_t bytes) override;
+  virtual bool is_usm_accessible_from(backend_id b) const override;
 
-  virtual ~hardware_context(){}
+private:
+  int _dev;
 };
 
-class backend_hardware_manager
-{
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
-  
-  virtual ~backend_hardware_manager(){}
-};
-
-
-
 }
 }
-}
+} // namespace cl
 
 #endif

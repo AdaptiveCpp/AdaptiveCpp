@@ -171,6 +171,7 @@ bool dag_builder::is_conflicting_access(
     return false;
 
   // TODO Take other parameters into account for moaar performance!
+  // Check if the page ranges do not intersect
 
   return true;
 }

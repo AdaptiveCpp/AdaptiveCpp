@@ -25,45 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
-
-#include <string>
-
-#include "device_id.hpp"
+#ifndef HIPSYCL_HIP_DEVICE_MANAGER_HPP
+#define HIPSYCL_HIP_DEVICE_MANAGER_HPP
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+/// Manages setting the active device *in the hipSYCL worker thread*
+/// It assumes:
+/// * There are no external calls to hipSetDevice() from the user in the calling thread
+/// * It is only called by one thread, i.e. no thread-safety required
+class hip_device_manager
 {
 public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
+  hip_device_manager();
+  void activate_device(int device_id);
+  int get_active_device() const;
 
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
-
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
-
-  virtual ~hardware_context(){}
+  static hip_device_manager &get() {
+    static hip_device_manager instance;
+    return instance;
+  }
+private:
+  int _device;
 };
 
-class backend_hardware_manager
-{
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
-  
-  virtual ~backend_hardware_manager(){}
-};
+} // namespace detail
+} // namespace sycl
+} // namespace cl
 
-
-
-}
-}
-}
 
 #endif

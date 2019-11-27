@@ -28,9 +28,12 @@
 #ifndef HIPSYCL_DATA_HPP
 #define HIPSYCL_DATA_HPP
 
+#include <bits/c++config.h>
+#include <limits>
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <limits>
 
 #include "../../access.hpp"
 #include "../../id.hpp"
@@ -261,10 +264,16 @@ class data_region
 {
 public:
   using page_range = std::pair<sycl::id<3>, sycl::range<3>>;
+  using allocation_function = std::function<Memory_descriptor(sycl::range<3>)>;
 
+  /// Construct object
+  /// \param size The 3D size in bytes for each dimension of this data region
+  /// \param page_size The size in bytes of the granularity of data management
   data_region(sycl::range<3> size, std::size_t page_size)
-  : _size{size}, _page_size{page_size}
-  {
+      : _size{size}, _page_size{page_size} {
+
+    unset_id();
+
     assert(page_size > 0);
 
     for(int i = 0; i < 3; ++i)
@@ -276,6 +285,16 @@ public:
   bool has_allocation(const device_id& d) const
   {
     return find_allocation(d) != _allocations.end();
+  }
+
+  void add_placeholder_allocation(const device_id &d,  allocation_function f)
+  {
+    assert(!has_allocation(d));
+
+    this->add_empty_allocation(d, nullptr);
+
+    auto alloc = this->find_allocation(d);
+    alloc->delayed_allocator = f;
   }
 
   void add_empty_allocation(const device_id& d, Memory_descriptor memory_context)
@@ -322,6 +341,20 @@ public:
     return std::make_pair(page_begin, page_range);
   }
 
+  /// Marks an allocation range on a give device as not invalidated
+  void mark_range_valid(const device_id &d, sycl::id<3> data_offset,
+                        sycl::range<3> data_size)
+  {
+    page_range pr = get_page_range(data_offset, data_size);
+    sycl::id<3> first_page = pr.first;
+    sycl::range<3> num_pages = pr.second;
+
+    assert(has_allocation(d));
+
+    auto alloc = find_allocation(d);
+    alloc->invalid_pages.remove(first_page, num_pages);
+  }
+  
   /// Marks an allocation range on a given device most recent
   void mark_range_current(const device_id& d,
       sycl::id<3> data_offset,
@@ -385,7 +418,7 @@ public:
     }
     if(update_sources.empty()){
       assert(false && "Could not find valid data source for updating data buffer - "
-              "this can happen if several data transfers are required to update on access range, "
+              "this can happen if several data transfers are required to update accessed range, "
               "which is not yet supported.");
     }
   }
@@ -407,17 +440,51 @@ public:
   const data_user_tracker& get_users() const
   { return _user_tracker; }
 
+  std::unique_ptr<data_region> *create_fork() const
+  {
+    return std::make_unique<data_region>(*this);  
+  }
+
+  void apply_fork(data_region *fork)
+  {
+    fork->materialize_placeholder_allocations();
+    *this = *fork;
+  }
+
+  /// Set an id for this data region. This is used by the \c dag_enumerator
+  /// to efficiently identify this object during dag expansion/scheduling
+  void set_enumerated_id(std::size_t id) { _enumerated_id = id; }
+  std::size_t get_id() const { return _enumerated_id; }
+
+  void unset_id()
+  { _enumerated_id = std::numeric_limits<std::size_t>::max(); }
+
+  bool has_id() const
+  { return _enumerated_id != std::numeric_limits<std::size_t>::max(); }
+  
 private:
+  std::size_t _enumerated_id;
 
   struct data_allocation
   {
     device_id dev;
     Memory_descriptor memory;
     range_store invalid_pages;
+    allocation_function delayed_allocator;
   };
 
   std::vector<data_allocation> _allocations;
 
+  void materialize_placeholder_allocations()
+  {
+    for (data_allocation &alloc : _allocations) {
+      if (alloc.memory == nullptr) {
+        alloc.memory = alloc.delayed_allocator(_size);
+        alloc.delayed_allocator = allocation_function{};
+      }
+    }  
+  }
+  
   typename std::vector<data_allocation>::iterator
   find_allocation(device_id dev)
   {

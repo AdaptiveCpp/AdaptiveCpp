@@ -50,13 +50,11 @@ enum class execution_hint_type
   // mark a DAG node as bound to a particular device for execution
   bind_to_device,
   use_pseudo_queue_id,
-  // Mark a DAG node as explicitly requiring another node 
+  // Mark a DAG node as explicitly requiring another node
   // (TODO: not yet implemented)
   explicit_require,
-  // Annotations from the DAG expander, containing information
-  // on whether the dag expander has decided to remove this node
-  // or replace it with a different one
-  dag_expander_annotation
+  // an id used to identify a node within a dag
+  dag_enumeration_id
 };
 
 class execution_hint
@@ -110,28 +108,20 @@ private:
   dag_node_ptr _dag_node;
 };
 
-class dag_expander_annotation : public execution_hint
+class dag_enumeration_id : public execution_hint 
 {
 public:
-  static constexpr execution_hint_type type = 
-    execution_hint_type::dag_expander_annotation;
+  static constexpr execution_hint_type type =
+    execution_hint_type::dag_enumeration_id;
+  
+  dag_enumeration_id(std::size_t id);
 
-  dag_expander_annotation();
-
-  void set_optimized_away();
-  void set_replacement_operation(std::unique_ptr<operation> op);
-  void set_forward_to_node(dag_node_ptr forward_to_node);
-
-  bool is_optimized_away() const;
-  bool is_operation_replaced() const;
-  bool is_node_forwarded() const;
-
-  operation* get_replacement_operation() const;
-  dag_node_ptr get_forwarding_target() const;
+  std::size_t id() const;
+      
 private:
-  std::unique_ptr<operation> _replacement_operation;
-  dag_node_ptr _forwarding_target;
+  std::size_t _id;
 };
+
 
 } // hints
 

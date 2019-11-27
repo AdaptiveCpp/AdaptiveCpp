@@ -25,45 +25,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
-
-#include <string>
-
-#include "device_id.hpp"
+#include "CL/sycl/detail/scheduling/hip/hip_device_manager.hpp"
+#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/exception.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+hip_device_manager::hip_device_manager()
 {
-public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
+  detail::check_error(hipGetDevice(&_device));
+}
 
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
-
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
-
-  virtual ~hardware_context(){}
-};
-
-class backend_hardware_manager
+void hip_device_manager::activate_device(int device_id)
 {
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
-  
-  virtual ~backend_hardware_manager(){}
-};
+  if (_device != device_id) {
+    detail::check_error(hipSetDevice(device_id));
+  }
+}
 
-
+int hip_device_manager::get_active_device() const
+{
+  return _device;
+}
 
 }
 }
 }
-
-#endif

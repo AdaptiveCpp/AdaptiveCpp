@@ -25,45 +25,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HARDWARE_HPP
-#define HIPSYCL_HARDWARE_HPP
+#ifndef HIPSYCL_DAG_ENUMERATOR_HPP
+#define HIPSYCL_DAG_ENUMERATOR_HPP
 
-#include <string>
-
-#include "device_id.hpp"
+#include <vector>
+#include "dag.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hardware_context
+/// The dag_enumerator enumerates all nodes and
+/// data regions from the DAG by assigning them an id.
+/// This allows us to efficiently store additional data
+/// relating to objects inside the DAG by refering to them
+/// via their id (and using the id as an index in a vector)
+/// instead of using a more complex associative data structure.
+class dag_enumerator
 {
 public:
-  virtual bool is_cpu() const = 0;
-  virtual bool is_gpu() const = 0;
+  dag_enumerator(dag *d);
 
-  virtual std::size_t get_max_kernel_concurrency() const = 0;
-  virtual std::size_t get_max_memcpy_concurrency() const = 0;
+  std::size_t get_node_index_space_size() const;
+  std::size_t get_data_region_index_space_size() const;
 
-  virtual std::string get_device_name() const = 0;
-  virtual std::string get_vendor_name() const = 0;
+private:
+  void enumerate_nodes(dag* d);
+  void enumerate_data_regions(dag *d);
 
-  virtual ~hardware_context(){}
+  std::size_t _num_nodes;
+  std::size_t _num_data_regions;
 };
 
-class backend_hardware_manager
-{
-public:
-  virtual std::size_t get_num_devices() const = 0;
-  virtual hardware_context *get_device(std::size_t index) = 0;
-  
-  virtual ~backend_hardware_manager(){}
-};
-
-
-
-}
-}
-}
+} // namespace detail
+} // namespace sycl
+} // namespace cl
 
 #endif

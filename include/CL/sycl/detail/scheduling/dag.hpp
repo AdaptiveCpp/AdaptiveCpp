@@ -70,7 +70,7 @@ public:
   void add_prefetch(dag_node_ptr prefetch);
   // memory requirements. DAGs that have requirements are not
   // executable until all requirements have been translated
-  // into actual operations or removed.
+  // into actual operations or are removed.
   void add_memory_requirement(dag_node_ptr requirement);
 
   const std::vector<dag_node_ptr>& get_kernels() const;

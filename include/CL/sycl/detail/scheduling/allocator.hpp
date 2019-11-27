@@ -37,14 +37,16 @@ namespace detail {
 class backend_allocator
 {
 public:
-  virtual void* allocate_mem(size_t min_alignment, size_t size_bytes) = 0;
-  virtual void  free_mem(void* mem) = 0;
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) = 0;
+  virtual void free(void *mem) = 0;
+
+  /// Allocate memory accessible both from the host and the backend
+  virtual void *allocate_usm(size_t bytes) = 0;
+  virtual bool is_usm_accessible_from(backend_id b) const = 0;
+  
+  virtual ~backend_allocator(){}
 };
 
-class usm_allocator
-{
-
-};
 
 }
 }

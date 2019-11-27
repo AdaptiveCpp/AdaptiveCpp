@@ -23,7 +23,9 @@ set(HIPSYCL_SOURCES
   scheduling/dag_builder.cpp
   scheduling/dag_expander.cpp
   scheduling/hip/hip_event.cpp
-  scheduling/hip/hip_queue.cpp)
+  scheduling/hip/hip_queue.cpp
+  scheduling/hip/hip_allocator.cpp
+  scheduling/hip/hip_device_manager.cpp)
 
 
 

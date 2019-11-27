@@ -64,52 +64,14 @@ dag_node_ptr explicit_require::get_requirement() const
 }
 
 
-dag_expander_annotation::dag_expander_annotation()
-: execution_hint{execution_hint_type::dag_expander_annotation}
-{}
 
-void dag_expander_annotation::set_optimized_away()
-{
-  _replacement_operation = nullptr;
-  _forwarding_target = nullptr;
-}
 
-void dag_expander_annotation::set_replacement_operation(std::unique_ptr<operation> op)
-{
-  _replacement_operation = std::move(op);
-  _forwarding_target = nullptr;
-}
+dag_enumeration_id::dag_enumeration_id(std::size_t id)
+    : execution_hint{execution_hint_type::dag_enumeration_id}, _id{id} {}
 
-void dag_expander_annotation::set_forward_to_node(dag_node_ptr forward_to_node)
-{
-  _replacement_operation = nullptr;
-  _forwarding_target = forward_to_node;
-}
+std::size_t dag_enumeration_id::id() const
+{ return _id; }
 
-bool dag_expander_annotation::is_optimized_away() const
-{
-  return _replacement_operation == nullptr && _forwarding_target == nullptr;
-}
-
-bool dag_expander_annotation::is_operation_replaced() const
-{
-  return _replacement_operation != nullptr;
-}
-
-bool dag_expander_annotation::is_node_forwarded() const
-{
-  return _forwarding_target != nullptr;
-}
-
-operation* dag_expander_annotation::get_replacement_operation() const
-{
-  return _replacement_operation.get();
-}
-
-dag_node_ptr dag_expander_annotation::get_forwarding_target() const
-{
-  return _forwarding_target;
-}
 
 } // hints
 

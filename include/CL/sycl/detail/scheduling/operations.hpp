@@ -120,12 +120,12 @@ public:
       "dimension of buffer memory requirement must be between 1 and 3");
 
     if(Dim == 1){
-      _offset = sycl::id<3>{offset[0], 0, 0};
-      _range = sycl::range<3>{range[0], 1, 1};
+      _offset = sycl::id<3>{0, 0, offset[0]};
+      _range = sycl::range<3>{1, 1, range[0]};
     }
     else if(Dim == 2){
-      _offset = sycl::id<3>{offset[0], offset[1], 0};
-      _range = sycl::range<3>{range[0], range[1], 1};
+      _offset = sycl::id<3>{0, offset[0], offset[1]};
+      _range = sycl::range<3>{1, range[0], range[1]};
     }
     else {
       _offset = offset;
@@ -136,12 +136,7 @@ public:
 
   std::size_t get_required_size() const override
   {
-    std::size_t num_elements = _range[0];
-    if(_dimensions > 1)
-      num_elements *= _range[1];
-    if(_dimensions > 2)
-      num_elements *= _range[2];
-    return num_elements * _element_size;
+    return _range.size() * get_element_size();
   }
 
   bool is_image_requirement() const override

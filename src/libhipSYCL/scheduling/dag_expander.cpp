@@ -29,6 +29,7 @@
 #include <algorithm>
 
 #include "CL/sycl/access.hpp"
+#include "CL/sycl/detail/application.hpp"
 #include "CL/sycl/detail/scheduling/dag_enumerator.hpp"
 #include "CL/sycl/detail/scheduling/dag_expander.hpp"
 #include "CL/sycl/detail/scheduling/data.hpp"
@@ -415,9 +416,13 @@ void dag_expander::expand(
           // Make sure an allocation exists on the target device
           if (!data->has_allocation(target_device)) {
             buffer_data_region::allocation_function allocator =
-                [](sycl::range<3> allocation_size) -> void * {
-              // TODO
-              assert(false);
+                [target_device](sycl::range<3> num_elements,
+                                std::size_t element_size) -> void * {
+              
+              // TODO: Find out optimal minimum alignment
+              return application::backend(target_device.get_backend())
+                  .get_allocator(target_device)
+                  ->allocate(128, num_elements.size() * element_size);
             };
 
             HIPSYCL_DEBUG_INFO
@@ -438,10 +443,9 @@ void dag_expander::expand(
 
             std::vector<range_store::rect> outdated_regions;
             data->get_outdated_regions(
-                target_device,
-                mem_req->get_access_offset3d() * mem_req->get_element_size(),
-                mem_req->get_access_range3d() * mem_req->get_element_size(),
-                outdated_regions);
+                target_device, mem_req->get_access_offset3d(),
+                mem_req->get_access_range3d(), outdated_regions);
+            
 
             if (outdated_regions.empty()) {
               // Yay, no outdated regions, so we can just optimize this access
@@ -459,6 +463,7 @@ void dag_expander::expand(
                 data->get_update_source_candidates(target_device, r,
                                                    update_sources);
                 // TODO Construct memcpy operation
+                out.node_annotations(node_id).add_replacement_operation(std::unique_ptr<operation> op);
               }
             }
           }
@@ -467,16 +472,16 @@ void dag_expander::expand(
           // * mark the range as invalid on all other devices
           //   if it was a write access
           if (mem_req->get_access_mode() == access::mode::read) {
-            data->mark_range_valid(
-                target_device,
-                mem_req->get_access_offset3d() * mem_req->get_element_size(),
-                mem_req->get_access_range3d() * mem_req->get_element_size());
-          }
-          else {
-            data->mark_range_current(
-                target_device,
-                mem_req->get_access_offset3d() * mem_req->get_element_size(),
-                mem_req->get_access_range3d() * mem_req->get_element_size());
+            data->mark_range_valid(target_device,
+                                   mem_req->get_access_offset3d(),
+                                   mem_req->get_access_range3d());
+            
+          } else {
+            // This not only marks the range as valid, it marks the same range
+            // on all other devices as invalid
+            data->mark_range_current(target_device,
+                                     mem_req->get_access_offset3d(),
+                                     mem_req->get_access_range3d());
           }
           
         } else {

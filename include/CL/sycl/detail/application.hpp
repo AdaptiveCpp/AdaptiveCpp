@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "CL/sycl/detail/scheduling/dag_manager.hpp"
+#include "CL/sycl/detail/scheduling/device_id.hpp"
 #include "runtime.hpp"
 
 namespace cl {
@@ -43,7 +44,8 @@ public:
   static runtime& get_hipsycl_runtime();
 
   static task_graph& get_task_graph();
-  static dag_manager& dag();
+  static dag_manager &dag();
+  static backend &backend(backend_id id);
 
   static void reset();
 

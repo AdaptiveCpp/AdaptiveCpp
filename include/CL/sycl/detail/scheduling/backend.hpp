@@ -56,6 +56,8 @@ public:
 class backend_manager
 {
 public:
+  backend_manager();
+  
   backend* get(backend_id) const;
 
 private:

@@ -255,31 +255,40 @@ private:
 /// Manages data regions on different devices under
 /// the assumptions:
 /// * different devices may have copies of the same data regions
-/// * data is managed at a "page" granularity
+/// * data is managed at a "page" granularity (a 3D subrange of the data region)
 /// * data accesses cover a 3D (sub-)range of the whole buffer
 /// * data ranges on some devices may be outdated due to writes on
 ///   other devices
+///
+/// The interface of this class works in terms of numbers of elements, not
+/// bytes!
 template<class Memory_descriptor = void*>
 class data_region
 {
 public:
   using page_range = std::pair<sycl::id<3>, sycl::range<3>>;
-  using allocation_function = std::function<Memory_descriptor(sycl::range<3>)>;
+  using allocation_function = std::function<Memory_descriptor(
+      sycl::range<3> num_elements, std::size_t element_size)>;
+  
 
   /// Construct object
-  /// \param size The 3D size in bytes for each dimension of this data region
-  /// \param page_size The size in bytes of the granularity of data management
-  data_region(sycl::range<3> size, std::size_t page_size)
-      : _size{size}, _page_size{page_size} {
+  /// \param num_elements The 3D number of elements in each dimension. Each
+  /// dimension must be a multiple of the page size
+  /// \param page_size The size (numbers of elements) of the granularity of data
+  /// management
+  data_region(sycl::range<3> num_elements, std::size_t element_size,
+              std::size_t page_size)
+      : _element_size{element_size}, _num_elements{num_elements},
+        _page_size{page_size} {
 
     unset_id();
 
     assert(page_size > 0);
 
     for(int i = 0; i < 3; ++i)
-      assert(_size[i] % page_size == 0);
-
-    _num_pages = _size / page_size;
+      assert(num_elements[i] % page_size == 0);
+    
+    _num_pages = num_elements / page_size;
   }
 
   bool has_allocation(const device_id& d) const
@@ -325,18 +334,26 @@ public:
     _allocations.erase(find_allocation(d));
   }
 
-  /// Converts an offset into the data buffer (in bytes) and the
-  /// data length (in bytes) into an equivalent \c page_range.
-  page_range get_page_range(sycl::id<3> data_offset, sycl::range<3> data_size) const
+  /// Converts an offset into the data buffer (in element numbers) and the
+  /// data length (in element numbers) into an equivalent \c page_range.
+  page_range get_page_range(sycl::id<3> data_offset,
+                            sycl::range<3> data_range) const
   {
     sycl::id<3> page_begin{0,0,0};
-    sycl::range<3> page_range{1,1,1};
-
-    for(int i = 0; i < 3; ++i){
+    
+    for(int i = 0; i < 3; ++i)
       page_begin[i] =  data_offset[i] / _page_size;
-      page_range[i] = (data_size  [i] + _page_size - 1) / _page_size;
-      
-    }
+
+    sycl::id<3> page_end = page_begin;
+
+    for (int i = 0; i < 3; ++i)
+      page_end[i] =
+          (data_offset[i] + data_range[i] + _page_size - 1) / _page_size;
+    
+
+    sycl::range<3> page_range{1,1,1};
+    for (int i = 0; i < 3; ++i)
+      page_range[i] = page_end[i] - page_begin[i];
 
     return std::make_pair(page_begin, page_range);
   }
@@ -387,7 +404,7 @@ public:
     allocation->invalid_pages.intersections_with(
       std::make_pair(first_page, num_pages), out);
 
-    // Convert back to bytes
+    // Convert back to num elements
     for(range_store::rect& r : out) {
       for(int i = 0; i < 3; ++i) {
         r.first[i] *= _page_size;
@@ -457,9 +474,19 @@ public:
 
   bool has_id() const
   { return _enumerated_id != std::numeric_limits<std::size_t>::max(); }
-  
+
+  std::size_t get_element_size() const { return _element_size; }
+
+  sycl::range<3> get_num_elements() const { return _num_elements; }
+
+  Memory_descriptor get_memory(device_id dev) const
+  {
+    assert(has_allocation(dev));
+    return find_allocation(dev)->memory;
+  }
 private:
   std::size_t _enumerated_id;
+  std::size_t _element_size;
 
   struct data_allocation
   {
@@ -475,7 +502,9 @@ private:
   {
     for (data_allocation &alloc : _allocations) {
       if (alloc.memory == nullptr) {
-        alloc.memory = alloc.delayed_allocator(_size);
+        alloc.memory =
+            alloc.delayed_allocator(_num_elements, _element_size);
+        
         alloc.delayed_allocator = allocation_function{};
       }
     }  
@@ -501,7 +530,7 @@ private:
 
   const std::size_t _page_size;
   sycl::range<3> _num_pages;
-  const sycl::range<3> _size;
+  const sycl::range<3> _num_elements;
 
   data_user_tracker _user_tracker;
 };

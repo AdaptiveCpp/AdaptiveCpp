@@ -36,6 +36,7 @@
 #include "CL/sycl/detail/scheduling/data.hpp"
 #include "device_id.hpp"
 
+#include <cstring>
 #include <functional>
 #include <memory>
 
@@ -215,114 +216,66 @@ private:
   std::vector<memory_requirement*> _memory_requirements;
 };
 
+// To describe memcpy operations, we need an abstract
+// representations of memory locations. This is because,
+// due to lazy allocation, we may not have allocated
+// the target memcpy location, so we cannot know it in general.
+class memory_location
+{
+public:
+  memory_location(device_id d, sycl::id<3> access_offset,
+                  std::shared_ptr<buffer_data_region> data_region);
+
+
+  memory_location(device_id d, void *base_ptr, sycl::id<3> access_offset,
+                  sycl::range<3> allocation_shape, std::size_t element_size);
+
+  device_id get_device() const;
+
+  sycl::id<3> get_access_offset() const;
+  sycl::range<3> get_allocation_shape() const;
+
+  std::size_t get_element_size() const;
+
+  bool has_data_region() const;
+  bool has_raw_pointer() const;
+
+  // Note: Before materializing allocations after completion of the
+  // dag_expander phase, the pointers returned here will be invalid
+  // if the object was constructed from a data_region!
+  void* get_base_ptr() const;
+  void* get_access_ptr() const;
+private:
+  device_id _dev;
+
+  sycl::id<3> _offset;
+  sycl::range<3> _allocation_shape;
+  std::size_t _element_size;
+
+  bool _has_data_region;
+
+  // Only valid if constructed with raw pointer constructor
+  void *_raw_data;
+  // Only valid if constructed data_region constructor
+  std::shared_ptr<buffer_data_region> _data_region;
+};
 
 /// An explicit memory operation
 class memcpy_operation : public operation
 {
 public:
-  virtual ~memcpy_operation(){}
-  virtual std::size_t get_num_dimensions() const = 0;
-  virtual std::size_t get_transferred_size() const = 0;
-  virtual device_id get_source_device() const = 0;
-  virtual device_id get_dest_device() const = 0;
-  virtual void* get_dest_memory() const = 0;
-  virtual const void* get_source_memory() const = 0;
-
-  bool is_memcpy1d() const { return get_num_dimensions() == 1; }
-  bool is_memcpy2d() const { return get_num_dimensions() == 2; }
-  bool is_memcpy3d() const { return get_num_dimensions() == 3; }
-};
-
-class memcpy_operation1d : public memcpy_operation
-{
-public:
-  // TODO: We need to change the constructor - it should also be possible
-  // to construct a memcpy operation with an accessor/requirement instead
-  // of a dest ptr
-  memcpy_operation1d(
-    device_id source_device, 
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t element_size,
-    sycl::range<1> num_elements);
-
-  std::size_t get_num_dimensions() const override;
-  std::size_t get_transferred_size() const override;
-  device_id get_source_device() const override;
-  device_id get_dest_device() const override;
-  void* get_dest_memory() const override;
-  const void* get_source_memory() const override;
+  memcpy_operation(const memory_location &source, const memory_location &dest,
+                   sycl::range<3> num_source_elements);
+  
+  
+  std::size_t get_num_transferred_bytes() const;
+  const memory_location &source() const;
+  const memory_location &dest() const;
 
 private:
-  device_id _source_dev;
-  device_id _dest_dev;
-  const void* _src;
-  void* _dest;
-  std::size_t _element_size;
-  sycl::range<1> _count;
-};
-
-class memcpy_operation2d : public memcpy_operation
-{
-public:
-  memcpy_operation2d(
-    device_id source_device,
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t src_pitch_in_bytes,
-    std::size_t dest_pitch_in_bytes,
-    std::size_t element_size,
-    sycl::range<2> num_elements);
-
-  std::size_t get_num_dimensions() const override;
-  std::size_t get_transferred_size() const override;
-  device_id get_source_device() const override;
-  device_id get_dest_device() const override;
-  void* get_dest_memory() const override;
-  const void* get_source_memory() const override;
-
-private:
-  device_id _source_dev;
-  device_id _dest_dev;
-  const void* _src;
-  void* _dest;
-  std::size_t _src_pitch;
-  std::size_t _dest_pitch;
-  std::size_t _element_size;
-  sycl::range<2> _count;
-};
-
-class memcpy_operation3d : public memcpy_operation
-{
-public:
-  memcpy_operation3d(
-    device_id source_device,
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t element_size,
-    sycl::range<3> source_buffer_range,
-    sycl::range<3> dest_buffer_range,
-    sycl::range<3> num_elements);
-
-  std::size_t get_num_dimensions() const override;
-  std::size_t get_transferred_size() const override;
-  device_id get_source_device() const override;
-  device_id get_dest_device() const override;
-  void* get_dest_memory() const override;
-  const void* get_source_memory() const override;
-
-private:
-  device_id _source_dev;
-  device_id _dest_dev;
-  const void* _src;
-  void* _dest;
-  std::size_t _element_size;
-  sycl::range<3> _source_buffer_range;
-  sycl::range<3> _dest_buffer_range;
-  sycl::range<3> _count;
+  memory_location _source;
+  memory_location _dest;
+  sycl::range<3> _num_elements;
 };
 
 /// A prefetch operation on SVM/USM memory

@@ -44,9 +44,12 @@ task_graph& application::get_task_graph()
   return get_hipsycl_runtime().get_task_graph();
 }
 
-dag_manager& application::dag()
+dag_manager &application::dag()
+{ return get_hipsycl_runtime().dag(); }
+
+backend &application::backend(backend_id id)
 {
-  return get_hipsycl_runtime().dag();
+  return *(get_hipsycl_runtime().backends().get(id));
 }
 
 void application::reset()

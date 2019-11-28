@@ -33,118 +33,6 @@ namespace sycl {
 namespace detail {
 
 
-memcpy_operation1d::memcpy_operation1d(
-    device_id source_device, 
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t element_size,
-    sycl::range<1> num_elements)
-  : _source_dev{source_device},
-    _dest_dev{dest_device},
-    _src{src_ptr},
-    _dest{dest_ptr},
-    _element_size{element_size},
-    _count{num_elements}
-{}
-
-
-std::size_t memcpy_operation1d::get_num_dimensions() const
-{ return 1; }
-
-std::size_t memcpy_operation1d::get_transferred_size() const
-{ return _count[0] * _element_size; }
-
-device_id memcpy_operation1d::get_source_device() const
-{ return _source_dev; }
-
-device_id memcpy_operation1d::get_dest_device() const
-{ return _dest_dev; }
-
-void* memcpy_operation1d::get_dest_memory() const
-{ return _dest; }
-
-const void* memcpy_operation1d::get_source_memory() const
-{ return _src; }
-
-
-
-memcpy_operation2d::memcpy_operation2d(
-    device_id source_device,
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t src_pitch_in_bytes,
-    std::size_t dest_pitch_in_bytes,
-    std::size_t element_size,
-    sycl::range<2> num_elements)
-  : _source_dev{source_device},
-    _dest_dev{dest_device},
-    _src{src_ptr},
-    _dest{dest_ptr},
-    _src_pitch{src_pitch_in_bytes},
-    _dest_pitch{dest_pitch_in_bytes},
-    _element_size{element_size},
-    _count{num_elements}
-{}
-
-
-std::size_t memcpy_operation2d::get_num_dimensions() const
-{ return 2; }
-
-std::size_t memcpy_operation2d::get_transferred_size() const
-{ return _count[0] * _count[1] * _element_size; }
-
-device_id memcpy_operation2d::get_source_device() const
-{ return _source_dev; }
-
-device_id memcpy_operation2d::get_dest_device() const
-{ return _dest_dev; }
-
-void* memcpy_operation2d::get_dest_memory() const
-{ return _dest; }
-
-const void* memcpy_operation2d::get_source_memory() const
-{ return _src; }
-
-
-memcpy_operation3d::memcpy_operation3d(
-    device_id source_device,
-    device_id dest_device,
-    const void* src_ptr,
-    void* dest_ptr,
-    std::size_t element_size,
-    sycl::range<3> source_buffer_range,
-    sycl::range<3> dest_buffer_range,
-    sycl::range<3> num_elements)
-  : _source_dev{source_device},
-    _dest_dev{dest_device},
-    _src{src_ptr},
-    _dest{dest_ptr},
-    _element_size{element_size},
-    _source_buffer_range{source_buffer_range},
-    _dest_buffer_range{dest_buffer_range},
-    _count{num_elements}
-{}
-
-std::size_t memcpy_operation3d::get_num_dimensions() const
-{ return 3; }
-
-std::size_t memcpy_operation3d::get_transferred_size() const
-{ return _count[0] * _count[1] * _count[2] * _element_size; }
-
-device_id memcpy_operation3d::get_source_device() const
-{ return _source_dev; }
-
-device_id memcpy_operation3d::get_dest_device() const
-{ return _dest_dev; }
-
-void* memcpy_operation3d::get_dest_memory() const
-{ return _dest; }
-
-const void* memcpy_operation3d::get_source_memory() const
-{ return _src; }
-
 kernel_operation::kernel_operation(kernel_launcher launcher, 
                   const std::vector<memory_requirement*>& memory_requirements)
   : _launcher{launcher},
@@ -178,6 +66,81 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
 const std::vector<dag_node_ptr>& requirements_list::get() const
 { return _reqs; }
 
+memory_location::memory_location(
+    device_id d, sycl::id<3> access_offset,
+    std::shared_ptr<buffer_data_region> data_region)
+    : _dev{d}, _offset{access_offset},
+      _allocation_shape{data_region->get_num_elements()},
+      _element_size{data_region->get_element_size()}, _has_data_region{true},
+      _data_region{data_region} 
+{}
+
+
+memory_location::memory_location(device_id d, void *base_ptr,
+                                 sycl::id<3> access_offset,
+                                 sycl::range<3> allocation_shape,
+                                 std::size_t element_size)
+    : _dev{d}, _offset{access_offset}, _allocation_shape{allocation_shape},
+      _element_size{element_size}, _has_data_region{false}, _raw_data{base_ptr}
+{}
+
+device_id memory_location::get_device() const
+{ return _dev; }
+
+sycl::id<3> memory_location::get_access_offset() const { return _offset; }
+
+sycl::range<3> memory_location::get_allocation_shape() const
+{ return _allocation_shape; }
+
+std::size_t memory_location::get_element_size() const { return _element_size; }
+
+
+bool memory_location::has_data_region() const
+{ return _has_data_region; }
+
+bool memory_location::has_raw_pointer() const
+{ return !_has_data_region; }
+
+void *memory_location::get_base_ptr() const {
+  if (_has_data_region) {
+    if (_data_region->has_allocation(_dev)) {
+      return _data_region->get_memory(_dev);
+    }
+    else
+      return nullptr;
+  } else
+    return _raw_data;
+}
+
+void *memory_location::get_access_ptr() const {
+  void *base_ptr = this->get_base_ptr();
+
+  if (base_ptr == nullptr)
+    return nullptr;
+
+  return static_cast<void *>(
+      static_cast<char *>(base_ptr) +
+      _element_size *
+          (_offset[2] + _offset[1] * _allocation_shape[2] +
+           _offset[0] * _allocation_shape[1] * _allocation_shape[2]));
+  
+  
+}
+
+memcpy_operation::memcpy_operation(const memory_location &source,
+                                   const memory_location &dest,
+                                   sycl::range<3> num_source_elements)
+    : _source{source}, _dest{dest}, _num_elements{num_source_elements} {}
+
+
+std::size_t memcpy_operation::get_num_transferred_bytes() const
+{
+  return _source.get_element_size() * _num_elements.size();
+}
+
+const memory_location& memcpy_operation::source() const { return _source; }
+
+const memory_location& memcpy_operation::dest() const { return _dest; }
 
 
 }

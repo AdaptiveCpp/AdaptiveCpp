@@ -31,6 +31,7 @@
 
 #include "task_graph.hpp"
 #include "scheduling/dag_manager.hpp"
+#include "scheduling/backend.hpp"
 
 #include <iostream>
 namespace cl {
@@ -54,10 +55,15 @@ public:
   const dag_manager& dag() const
   { return _dag_manager; }
 
+  backend_manager &backends() { return _backends; }
+
+  const backend_manager &backends() const { return _backends; }
+  
 private:
   task_graph _task_graph;
 
   dag_manager _dag_manager;
+  backend_manager _backends;
 };
 
 

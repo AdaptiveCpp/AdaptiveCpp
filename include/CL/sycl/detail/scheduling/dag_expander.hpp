@@ -93,6 +93,12 @@ class node_scheduling_annotation {
 public:
   device_id get_target_device() const
   { return _execution_device; }
+
+  void set_target_device(device_id target)
+  {
+    _execution_device = target;
+  }
+
 private:
   device_id _execution_device;
 };

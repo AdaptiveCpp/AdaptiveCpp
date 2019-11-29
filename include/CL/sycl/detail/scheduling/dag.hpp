@@ -40,19 +40,6 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-
-
-class dag;
-
-
-class dag_scheduler
-{
-public:
-  virtual cost_type estimate_runtime_cost() = 0;
-  virtual void submit() = 0;
-};
-
-
 /// Represents a DAG that can be transformed for execution (e.g., turning 
 /// by requirements into actual operations).
 ///

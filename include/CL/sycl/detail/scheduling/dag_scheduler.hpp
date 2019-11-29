@@ -25,59 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_RUNTIME_BACKEND_HPP
-#define HIPSYCL_RUNTIME_BACKEND_HPP
 
-#include "hardware.hpp"
-#include "executor.hpp"
-#include "allocator.hpp"
-#include "hw_model/hw_model.hpp"
+#ifndef HIPSYCL_DAG_SCHEDULER_HPP
+#define HIPSYCL_DAG_SCHEDULER_HPP
 
-#include <unordered_map>
-#include <memory>
+#include <vector>
+
+#include "device_id.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class backend
+class dag;
+
+class dag_scheduler
 {
 public:
-  virtual api_platform get_api_platform() const = 0;
-  virtual hardware_platform get_hardware_platform() const = 0;
-  virtual backend_id get_unique_backend_id() const = 0;
+  dag_scheduler();
 
-  virtual backend_hardware_manager* get_hardware_manager() const = 0;
-  virtual backend_executor* get_executor(device_id dev) const = 0;
-  virtual backend_allocator *get_allocator(device_id dev) const = 0;
-
-  virtual ~backend(){}
-};
-
-class backend_manager
-{
-public:
-  using backend_map_type =
-      std::unordered_map<backend_id, std::unique_ptr<backend>>;
-
-  backend_manager();
-  
-  backend* get(backend_id) const;
-  hw_model& hardware_model();
-  const hw_model& hardware_model() const;
-
-  template<class F>
-  void for_each_backend(F f)
-  {
-    for(auto& b : _backends){
-      f(b.second.get());
-    }
-  }
+  void submit(dag* d);
 private:
-  backend_map_type _backends;
-
-  hw_model _hw_model;
+  std::vector<device_id> _available_devices;
 };
+
 }
 }
 }

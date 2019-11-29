@@ -151,8 +151,9 @@ device_id get_assigned_device(
 /// Check if \c requirement has an equivalent memory access
 /// (e.g., memory requirement) compared to \c other, such that
 /// the memory access in \c requirement can be optimized away.
-bool is_requirement_satisfied_by(dag_node_ptr requirement, dag_node_ptr other,
-                                 const std::vector<node_scheduling_annotation>& scheduling_data)
+bool is_requirement_satisfied_by(
+    dag_node_ptr requirement, dag_node_ptr other,
+    const std::vector<node_scheduling_annotation> &scheduling_data) 
 {
   if(is_memory_requirement(requirement) && is_memory_requirement(other)){
     if (get_assigned_device(requirement, scheduling_data) ==

@@ -56,7 +56,8 @@ class backend_hardware_manager
 public:
   virtual std::size_t get_num_devices() const = 0;
   virtual hardware_context *get_device(std::size_t index) = 0;
-  
+  virtual device_id get_device_id(std::size_t index) const = 0;
+
   virtual ~backend_hardware_manager(){}
 };
 

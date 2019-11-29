@@ -31,6 +31,7 @@
 #include "hardware.hpp"
 #include "executor.hpp"
 #include "allocator.hpp"
+#include "hw_model/hw_model.hpp"
 
 #include <unordered_map>
 #include <memory>
@@ -45,7 +46,7 @@ public:
   virtual api_platform get_api_platform() const = 0;
   virtual hardware_platform get_hardware_platform() const = 0;
   virtual backend_id get_unique_backend_id() const = 0;
-  
+
   virtual backend_hardware_manager* get_hardware_manager() const = 0;
   virtual backend_executor* get_executor(device_id dev) const = 0;
   virtual backend_allocator *get_allocator(device_id dev) const = 0;
@@ -59,6 +60,8 @@ public:
   backend_manager();
   
   backend* get(backend_id) const;
+  hw_model& hardware_model();
+  const hw_model& hardware_model() const;
 
 private:
   std::unordered_map
@@ -66,8 +69,9 @@ private:
     backend_id, 
     std::unique_ptr<backend>
   > _backends;
-};
 
+  hw_model _hw_model;
+};
 }
 }
 }

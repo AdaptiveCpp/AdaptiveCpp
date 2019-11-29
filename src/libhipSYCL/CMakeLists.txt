@@ -27,7 +27,8 @@ set(HIPSYCL_SOURCES
   scheduling/hip/hip_event.cpp
   scheduling/hip/hip_queue.cpp
   scheduling/hip/hip_allocator.cpp
-  scheduling/hip/hip_device_manager.cpp)
+  scheduling/hip/hip_device_manager.cpp
+  scheduling/hw_model/memcpy.cpp)
 
 
 

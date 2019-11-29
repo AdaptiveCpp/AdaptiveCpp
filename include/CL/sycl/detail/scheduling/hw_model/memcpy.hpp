@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,37 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_MEMCPY_HPP
+#define HIPSYCL_MEMCPY_HPP
 
-#include <memory>
-
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
-#include "runtime.hpp"
+#include <vector>
+#include "../operations.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class backend;
+class backend_manager;
 
-class application
+class memcpy_model
 {
 public:
-  static runtime& get_hipsycl_runtime();
+  memcpy_model(backend_manager* mgr){}
 
-  static task_graph& get_task_graph();
-  static dag_manager &dag();
-  static backend &get_backend(backend_id id);
+  cost_type estimate_runtime_cost(const memory_location &source,
+                                  const memory_location &dest,
+                                  sycl::range<3> num_elements) const;
 
-  static void reset();
+  memory_location
+  choose_source(const std::vector<memory_location> &candidate_sources,
+                const memory_location &target, sycl::range<3> num_elements) const;
 
-  application() = delete;
-
-private:
-  static std::unique_ptr<runtime> rt;
 };
+
 
 }
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,36 +25,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_HW_MODEL_HPP
+#define HIPSYCL_HW_MODEL_HPP
 
 #include <memory>
-
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
-#include "runtime.hpp"
+#include "memcpy.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class backend;
-
-class application
+class backend_manager;
+class hw_model
 {
 public:
-  static runtime& get_hipsycl_runtime();
+  hw_model(backend_manager* backends)
+  : _memcpy_model{std::make_unique<memcpy_model>(backends)}
+  {}
 
-  static task_graph& get_task_graph();
-  static dag_manager &dag();
-  static backend &get_backend(backend_id id);
-
-  static void reset();
-
-  application() = delete;
+  memcpy_model *get_memcpy_model() const
+  {
+    return _memcpy_model.get();
+  }
 
 private:
-  static std::unique_ptr<runtime> rt;
+  std::unique_ptr<memcpy_model> _memcpy_model;
 };
 
 }

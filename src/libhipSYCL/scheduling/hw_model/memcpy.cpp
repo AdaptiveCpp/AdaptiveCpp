@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#include "CL/sycl/detail/scheduling/hw_model/memcpy.hpp"
+#include <limits>
 
-#include <memory>
-
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
-#include "runtime.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class backend;
 
-class application
+cost_type
+memcpy_model::estimate_runtime_cost(const memory_location &source,
+                                    const memory_location &dest,
+                                    sycl::range<3> num_elements) const
 {
-public:
-  static runtime& get_hipsycl_runtime();
+  // Strongly prefer transfers from the same device to the same device
+  if(source.get_device() == dest.get_device())
+    return 1.0;
 
-  static task_graph& get_task_graph();
-  static dag_manager &dag();
-  static backend &get_backend(backend_id id);
+  if (source.get_device().get_full_backend_descriptor().hw_platform ==
+      dest.get_device().get_full_backend_descriptor().hw_platform)
+    return 2.0;
 
-  static void reset();
+  return 3.0;
+}
 
-  application() = delete;
+memory_location memcpy_model::choose_source(
+    const std::vector<memory_location> &candidate_sources,
+    const memory_location &target, sycl::range<3> num_elements) const 
+{
+  std::size_t best_transfer_index = 0;
+  cost_type best_cost = std::numeric_limits<cost_type>::max();
 
-private:
-  static std::unique_ptr<runtime> rt;
-};
-
+  for (std::size_t i = 0; i < candidate_sources.size(); ++i)
+  {
+    cost_type cost = estimate_runtime_cost(candidate_sources[i], target, num_elements);
+    if(cost < best_cost){
+      best_cost = cost;
+      best_transfer_index = i;
+    }
+  }
+  return candidate_sources[best_transfer_index];
 }
 }
 }
-
-#endif
+}

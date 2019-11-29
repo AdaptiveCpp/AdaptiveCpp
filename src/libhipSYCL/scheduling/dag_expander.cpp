@@ -343,7 +343,38 @@ void mark_mergeable_nodes(const std::vector<dag_node_ptr> &ordered_nodes,
   }
 }
 
+/// Constructs a memcpy_operation using the memcpy hardware model under the
+/// assumption that the update sources all point to rects of the same size.
+std::unique_ptr<operation>
+construct_memcpy(buffer_memory_requirement *mem_req, device_id target_device,
+                 const std::vector<std::pair<device_id, range_store::rect>>
+                     &update_sources) {
 
+  for(auto elem : update_sources)
+    if(elem.second.second != mem_req->get_access_range3d())
+      assert(
+          false &&
+          "construct_memcpy(): Emitting multiple memory transfers for a single "
+          "requirement is not supported.");
+
+  memory_location target_location{target_device, mem_req->get_access_offset3d(),
+                                  mem_req->get_data_region()};
+
+  std::vector<memory_location> source_locations;
+  for (const auto &source : update_sources)
+    source_locations.push_back(memory_location{
+        source.first, source.second.first, mem_req->get_data_region()});
+
+  memory_location source_location = application::get_hipsycl_runtime()
+      .backends()
+      .hardware_model()
+      .get_memcpy_model()
+      ->choose_source(source_locations, target_location,
+                      mem_req->get_access_range3d());
+
+  return make_operation<memcpy_operation>(source_location, target_location,
+                                          mem_req->get_access_range3d());
+}
 
 } // anonymous namespace
 
@@ -420,7 +451,7 @@ void dag_expander::expand(
                                 std::size_t element_size) -> void * {
               
               // TODO: Find out optimal minimum alignment
-              return application::backend(target_device.get_backend())
+              return application::get_backend(target_device.get_backend())
                   .get_allocator(target_device)
                   ->allocate(128, num_elements.size() * element_size);
             };
@@ -462,8 +493,9 @@ void dag_expander::expand(
                 std::vector<std::pair<device_id, range_store::rect>> update_sources;
                 data->get_update_source_candidates(target_device, r,
                                                    update_sources);
-                // TODO Construct memcpy operation
-                out.node_annotations(node_id).add_replacement_operation(std::unique_ptr<operation> op);
+
+                out.node_annotations(node_id).add_replacement_operation(
+                    construct_memcpy(mem_req, target_device, update_sources));
               }
             }
           }

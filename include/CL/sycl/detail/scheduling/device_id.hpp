@@ -74,6 +74,8 @@ public:
   
   bool is_host() const;
   backend_id get_backend() const;
+  backend_descriptor get_full_backend_descriptor() const;
+  
   int get_id() const;
 
   friend bool operator==(const device_id& a, const device_id& b)

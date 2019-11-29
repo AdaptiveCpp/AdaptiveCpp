@@ -32,12 +32,24 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-backend_manager::backend_manager() {
+backend_manager::backend_manager()
+: _hw_model(this) 
+{
   // TODO Add backends here
 }
 
 backend *backend_manager::get(backend_id id) const {
   return _backends.at(id).get();
+}
+
+hw_model &backend_manager::hardware_model()
+{
+  return _hw_model;
+}
+
+const hw_model &backend_manager::hardware_model() const 
+{
+  return _hw_model;
 }
 
 } // namespace detail

@@ -52,6 +52,10 @@ int device_id::get_id() const
   return _device_id;
 }
 
+backend_descriptor device_id::get_full_backend_descriptor() const
+{
+  return _backend;
+}
 
 }
 }

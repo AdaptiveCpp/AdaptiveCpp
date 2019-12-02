@@ -29,6 +29,10 @@
 #ifndef HIPSYCL_DAG_SCHEDULER_HPP
 #define HIPSYCL_DAG_SCHEDULER_HPP
 
+#include <vector>
+
+#include "device_id.hpp"
+
 namespace cl {
 namespace sycl {
 namespace detail {
@@ -38,7 +42,11 @@ class dag;
 class dag_scheduler
 {
 public:
+  dag_scheduler();
+
   void submit(dag* d);
+private:
+  std::vector<device_id> _available_devices;
 };
 
 }

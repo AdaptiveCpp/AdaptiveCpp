@@ -25,12 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <limits>
+
+#include "CL/sycl/detail/application.hpp"
 #include "CL/sycl/detail/scheduling/hints.hpp"
 #include "CL/sycl/detail/scheduling/device_id.hpp"
 #include "CL/sycl/detail/scheduling/dag_scheduler.hpp"
 #include "CL/sycl/detail/scheduling/dag_enumerator.hpp"
 #include "CL/sycl/detail/scheduling/dag.hpp"
 #include "CL/sycl/detail/scheduling/dag_expander.hpp"
+#include "CL/sycl/detail/scheduling/operations.hpp"
 
 
 namespace cl {
@@ -39,12 +43,58 @@ namespace detail {
 
 namespace {
 
-struct scheduling_state
+struct scheduling_state 
 {
+  scheduling_state(const dag_enumerator &enumerator)
+      : scheduling_annotations(enumerator.get_node_index_space_size()),
+        expansion_result(enumerator) {}
+
   std::vector<node_scheduling_annotation> scheduling_annotations;
   dag_expansion_result expansion_result;
 };
 
+template <class Handler>
+void for_all_device_assignments(
+    const std::vector<device_id> &devices_to_try,
+    const std::vector<char> &is_device_predetermined, 
+    int current_device_index,
+    int current_node_index,
+    Handler h) 
+{
+  h();
+
+  if(current_node_index < is_device_predetermined.size()) {
+    for_all_device_assignments(devices_to_try, is_device_predetermined,
+                               current_device_index, current_node_index + 1, h);
+  }
+}
+
+template<class Handler>
+void for_all_device_assignments(
+    const std::vector<device_id> &devices_to_try,
+    const std::vector<char> &is_device_predetermined, 
+    Handler h)
+{
+  for_all_device_assignments(devices_to_try, is_device_predetermined, 0, 0, h);
+}
+
+} // anonymous namespace
+
+dag_scheduler::dag_scheduler()
+{
+  // Collect available devices (currently just uses everything)
+  // TODO: User may want to restrict the device to which we schedule
+
+  application::get_hipsycl_runtime().backends().for_each_backend(
+  [this](backend *b) {
+    std::size_t num_devices = b->get_hardware_manager()->get_num_devices();
+    for(std::size_t dev = 0; dev < num_devices; ++dev){
+
+      this->_available_devices.push_back(
+          b->get_hardware_manager()->get_device_id(dev));
+
+    }
+  });
 }
 
 void dag_scheduler::submit(dag* d)
@@ -52,11 +102,9 @@ void dag_scheduler::submit(dag* d)
   // Start by enumerating all nodes in the dag
   dag_enumerator enumerator{d};
 
-  // Next, create scheduling annotations for each node
-  // and extract already present information regarding
-  // the target device
-  std::vector<node_scheduling_annotation> scheduling_annotations(
-      enumerator.get_node_index_space_size());
+  // Next, create scheduling state and extract already present information
+  // regarding the target device
+  scheduling_state initial_state{enumerator};
 
   std::vector<char> is_device_predetermined(
       enumerator.get_node_index_space_size(), false);
@@ -78,7 +126,7 @@ void dag_scheduler::submit(dag* d)
       // to be scheduled to arbitrary devices
       is_device_predetermined[node_id] = true;
       // instead move the supplied target device to the scheduling annotations
-      scheduling_annotations[node_id].set_target_device(
+      initial_state.scheduling_annotations[node_id].set_target_device(
           node->get_execution_hints()
               .get_hint<hints::bind_to_device>()
               ->get_device_id());
@@ -86,12 +134,19 @@ void dag_scheduler::submit(dag* d)
   });
 
 
+  scheduling_state best_state = initial_state;
+  cost_type best_cost = std::numeric_limits<cost_type>::max();
+
+  
+
 
   // Register users of buffers
   // TODO: Could we also invoke that function earlier, e.g. in the dag_builder,
   // since the nodes themselves and their dependencies shouldn't change during
   // scheduling?
   d->commit_node_dependencies();
+
+  // Emit nodes to backend executor
 }
 
 } // detail

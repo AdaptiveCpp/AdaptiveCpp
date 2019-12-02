@@ -25,61 +25,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_RUNTIME_BACKEND_HPP
-#define HIPSYCL_RUNTIME_BACKEND_HPP
 
-#include "hardware.hpp"
-#include "executor.hpp"
-#include "allocator.hpp"
-#include "hw_model/hw_model.hpp"
+#include <cassert>
 
-#include <unordered_map>
-#include <memory>
+#include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
+#include "CL/sycl/detail/scheduling/hints.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class backend
+dag_interpreter::dag_interpreter(const dag* d, const dag_enumerator *enumerator,
+                                 const dag_expansion_result *expansion_result)
+    : _expansion{expansion_result} {}
+
+bool dag_interpreter::is_node_real(const dag_node_ptr &node) const
 {
-public:
-  virtual api_platform get_api_platform() const = 0;
-  virtual hardware_platform get_hardware_platform() const = 0;
-  virtual backend_id get_unique_backend_id() const = 0;
+  std::size_t node_id = this->get_node_id(node);
 
-  virtual backend_hardware_manager* get_hardware_manager() const = 0;
-  virtual backend_executor* get_executor(device_id dev) const = 0;
-  virtual backend_allocator *get_allocator(device_id dev) const = 0;
+  return !_expansion->node_annotations(node_id).is_optimized_away();
+}
 
-  virtual ~backend(){}
-};
-
-class backend_manager
+std::size_t dag_interpreter::get_node_id(const dag_node_ptr &node) const
 {
-public:
-  using backend_map_type =
-      std::unordered_map<backend_id, std::unique_ptr<backend>>;
+  assert(node->get_execution_hints().has_hint(
+      execution_hint_type::dag_enumeration_id));
 
-  backend_manager();
-  
-  backend* get(backend_id) const;
-  hw_model& hardware_model();
-  const hw_model& hardware_model() const;
+  return node->get_execution_hints()
+      .get_hint<hints::dag_enumeration_id>()
+      ->id();
+}
 
-  template<class F>
-  void for_each_backend(F f)
-  {
-    for(auto& b : _backends){
-      f(b.second.get());
-    }
-  }
-private:
-  backend_map_type _backends;
-
-  hw_model _hw_model;
-};
 }
 }
 }
-
-#endif

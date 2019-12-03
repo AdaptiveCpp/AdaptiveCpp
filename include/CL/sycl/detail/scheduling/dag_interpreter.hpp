@@ -91,9 +91,6 @@ public:
       }
     }
     else if(node_annotation.is_node_forwarded()) {
-      // TODO This may incorrectly lead to a double treatment of the node
-      // since client code has no means of detecting that different nodes
-      // point to the same operation
       for_each_operation(node_annotation.get_forwarding_target(), h);
     }
     else
@@ -106,13 +103,14 @@ public:
     _dag->for_each_node([&](dag_node_ptr node){
       std::size_t node_id = get_node_id(node);
 
-      if(!_expansion->node_annotations(node_id).is_optimized_away())
+      if(!_expansion->node_annotations(node_id).is_optimized_away() &&
+         !_expansion->node_annotations(node_id).is_node_forwarded())
         h(node);
-      // TODO How should forwarded nodes behave?
     });
   }
 
-  bool is_node_real(const dag_node_ptr& node) const;
+  bool is_node_optimized_away(const dag_node_ptr& node) const;
+  bool is_node_forwarded(const dag_node_ptr& node) const;
 private:
   std::size_t get_node_id(const dag_node_ptr& node) const;
 

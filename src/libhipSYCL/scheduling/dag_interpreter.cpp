@@ -37,11 +37,33 @@ namespace detail {
 
 namespace {
 
+std::size_t get_node_id_impl(const dag_node_ptr &node)
+{
+  assert(node->get_execution_hints().has_hint(
+      execution_hint_type::dag_enumeration_id));
+
+  return node->get_execution_hints()
+      .get_hint<hints::dag_enumeration_id>()
+      ->id();
+}
+
 void add_requirements_from_node_to(const dag_node_ptr &node,
+                                   const dag_expansion_result& expansion,
                                    std::vector<dag_node_ptr> &target) 
 {
-  for(auto req : node->get_requirements())
-    target.push_back(req);
+  for(auto req : node->get_requirements()) {
+    bool is_requirement_optimized_away = false;
+
+    if(!req->is_submitted()) {
+      std::size_t node_id = get_node_id_impl(node);
+      if(expansion.node_annotations(node_id).is_optimized_away()) {
+        add_requirements_from_node_to(req, expansion, target);
+      }
+    }
+
+    if(!is_requirement_optimized_away)
+      target.push_back(req);
+  }
 }
 
 }
@@ -64,34 +86,41 @@ dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
           get_node_id(node_annotation.get_forwarding_target());
 
       add_requirements_from_node_to(node,
+                                    *_expansion,
                                     this->_effective_requirements[forwarded_id]);
       
     }
     else {
       add_requirements_from_node_to(node,
+                                    *_expansion,
                                     this->_effective_requirements[node_id]);
     }
-    // TODO requirements from nodes that are optimized away must be pulled into
-    // the parent nodes
-    
   });
 }
 
-bool dag_interpreter::is_node_real(const dag_node_ptr &node) const
+bool dag_interpreter::is_node_optimized_away(const dag_node_ptr &node) const
 {
+  if(node->is_submitted())
+    return false;
+
   std::size_t node_id = this->get_node_id(node);
 
-  return !_expansion->node_annotations(node_id).is_optimized_away();
+  return _expansion->node_annotations(node_id).is_optimized_away();
+}
+
+bool dag_interpreter::is_node_forwarded(const dag_node_ptr& node) const
+{
+  if(node->is_submitted())
+    return false;
+
+  std::size_t node_id = this->get_node_id(node);
+
+  return _expansion->node_annotations(node_id).is_node_forwarded();
 }
 
 std::size_t dag_interpreter::get_node_id(const dag_node_ptr &node) const
 {
-  assert(node->get_execution_hints().has_hint(
-      execution_hint_type::dag_enumeration_id));
-
-  return node->get_execution_hints()
-      .get_hint<hints::dag_enumeration_id>()
-      ->id();
+  return get_node_id_impl(node);
 }
 
 }

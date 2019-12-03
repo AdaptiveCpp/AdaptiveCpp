@@ -100,10 +100,23 @@ public:
       h(node->get_operation());
   }
 
+  template<class Handler>
+  void for_each_effective_node(Handler h)
+  {
+    _dag->for_each_node([&](dag_node_ptr node){
+      std::size_t node_id = get_node_id(node);
+
+      if(!_expansion->node_annotations(node_id).is_optimized_away())
+        h(node);
+      // TODO How should forwarded nodes behave?
+    });
+  }
+
   bool is_node_real(const dag_node_ptr& node) const;
 private:
   std::size_t get_node_id(const dag_node_ptr& node) const;
 
+  const dag* _dag;
   const dag_expansion_result* _expansion;
   std::vector<std::vector<dag_node_ptr>> _effective_requirements;
 };

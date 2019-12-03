@@ -48,7 +48,7 @@ void add_requirements_from_node_to(const dag_node_ptr &node,
 
 dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
                                  const dag_expansion_result *expansion_result)
-    : _expansion{expansion_result},
+    : _dag{d}, _expansion{expansion_result},
       _effective_requirements(enumerator->get_node_index_space_size()) 
 {
   d->for_each_node([this](dag_node_ptr node) {
@@ -65,7 +65,7 @@ dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
 
       add_requirements_from_node_to(node,
                                     this->_effective_requirements[forwarded_id]);
-      }
+      
     }
     else {
       add_requirements_from_node_to(node,

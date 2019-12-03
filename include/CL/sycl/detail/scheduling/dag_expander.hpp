@@ -80,13 +80,18 @@ public:
   buffer_data_region *memory_state(std::size_t data_region_id);
   const buffer_data_region *memory_state(std::size_t data_region_id) const;
 
+  buffer_data_region* original_data_region(std::size_t data_region_id);
+  const buffer_data_region* original_data_region(std::size_t data_region_id) const;
+
   void add_data_region_fork(std::size_t data_region_id,
-                            std::unique_ptr<buffer_data_region> fork);
+                            std::unique_ptr<buffer_data_region> fork,
+                            buffer_data_region* original);
 private:
   std::size_t _num_nodes;
   std::size_t _num_memory_buffers;
   std::vector<dag_expander_annotation> _node_annotations;
   std::vector<std::unique_ptr<buffer_data_region>> _forked_memory_states;
+  std::vector<buffer_data_region*> _original_data_regions;
 };
 
 class node_scheduling_annotation {

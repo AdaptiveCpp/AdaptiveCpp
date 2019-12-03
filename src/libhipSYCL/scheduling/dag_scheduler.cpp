@@ -34,6 +34,7 @@
 #include "CL/sycl/detail/scheduling/dag_enumerator.hpp"
 #include "CL/sycl/detail/scheduling/dag.hpp"
 #include "CL/sycl/detail/scheduling/dag_expander.hpp"
+#include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
 #include "CL/sycl/detail/scheduling/operations.hpp"
 
 
@@ -57,25 +58,68 @@ template <class Handler>
 void for_all_device_assignments(
     const std::vector<device_id> &devices_to_try,
     const std::vector<char> &is_device_predetermined, 
+    std::vector<node_scheduling_annotation>& current_state,
     int current_device_index,
     int current_node_index,
     Handler h) 
 {
-  h();
-
+  // Make sure we're not accessing invalid nodes
   if(current_node_index < is_device_predetermined.size()) {
-    for_all_device_assignments(devices_to_try, is_device_predetermined,
-                               current_device_index, current_node_index + 1, h);
+
+    // If this device is pretermined, simply move to the next node
+    if(is_device_predetermined[current_node_index]) {
+      for_all_device_assignments(devices_to_try, is_device_predetermined,
+                                 current_state, current_device_index,
+                                 current_node_index + 1, h);
+    } else {
+      if(current_device_index < devices_to_try.size()) {
+        // If we are at a valid device, put in the current scheduling
+        // configuration
+        current_state[current_node_index].set_target_device(
+            devices_to_try[current_device_index]);
+
+        // run the handler
+        h(current_state);
+
+        // Proceed trying out the next device on the same node
+        for_all_device_assignments(devices_to_try, is_device_predetermined,
+                                 current_state, current_device_index + 1, 
+                                 current_node_index, h);
+      } else {
+        // No more devices to try on this node, move to the next node
+        for_all_device_assignments(devices_to_try, is_device_predetermined,
+                                 current_state, 0, 
+                                 current_node_index + 1, h);
+      }
+    }
   }
 }
 
 template<class Handler>
 void for_all_device_assignments(
+    const scheduling_state& initial_state,
     const std::vector<device_id> &devices_to_try,
     const std::vector<char> &is_device_predetermined, 
     Handler h)
 {
-  for_all_device_assignments(devices_to_try, is_device_predetermined, 0, 0, h);
+  std::vector<node_scheduling_annotation> current_state =
+      initial_state.scheduling_annotations;
+
+  // invoke handler on initial state
+  h(current_state);
+
+  for_all_device_assignments(devices_to_try, is_device_predetermined,
+                             current_state, 0, 0, h);
+}
+
+cost_type evaluate_scheduling_decisions(const scheduling_state &state,
+                                        const dag *d,
+                                        const dag_enumerator &enumerator)
+{
+  dag_interpreter interpreter{d, &enumerator, &state.expansion_result};
+
+  // TODO
+  return 0.0;
 }
 
 } // anonymous namespace
@@ -99,6 +143,11 @@ dag_scheduler::dag_scheduler()
 
 void dag_scheduler::submit(dag* d)
 {
+  // This should also be checked at a higher level,
+  // throwing an exception such that the user can handle
+  // this error
+  assert(_available_devices.size() > 0 && "No devices available");
+
   // Start by enumerating all nodes in the dag
   dag_enumerator enumerator{d};
 
@@ -110,17 +159,17 @@ void dag_scheduler::submit(dag* d)
       enumerator.get_node_index_space_size(), false);
 
   d->for_each_node([&](dag_node_ptr node) {
+    assert(node->get_execution_hints().has_hint(
+          execution_hint_type::dag_enumeration_id));
+
+    // ... get the node id
+    std::size_t node_id = node->get_execution_hints()
+                              .get_hint<hints::dag_enumeration_id>()
+                              ->id();
+
     // for each node, if it comes with information on which device to execute...
     if (node->get_execution_hints().has_hint(
             execution_hint_type::bind_to_device)) {
-
-      assert(node->get_execution_hints().has_hint(
-          execution_hint_type::dag_enumeration_id));
-
-      // ... get the node id
-      std::size_t node_id = node->get_execution_hints()
-                                .get_hint<hints::dag_enumeration_id>()
-                                ->id();
 
       // remember that the node with this id is *not* free
       // to be scheduled to arbitrary devices
@@ -130,15 +179,51 @@ void dag_scheduler::submit(dag* d)
           node->get_execution_hints()
               .get_hint<hints::bind_to_device>()
               ->get_device_id());
+    } else {
+      // Requirements are not free to be executed on arbitrary devices,
+      // (they are bound to the same device as the kernel to which they belong)
+      // so we mark them as predetermined
+      if(node->get_operation()->is_requirement())
+        is_device_predetermined[node_id] = true;
+
+      // Start with the first device
+      initial_state.scheduling_annotations[node_id].set_target_device(
+          _available_devices[0]);
     }
   });
-
 
   scheduling_state best_state = initial_state;
   cost_type best_cost = std::numeric_limits<cost_type>::max();
 
-  
+  dag_expander expander{d, enumerator};
 
+  for_all_device_assignments(
+    initial_state, _available_devices, is_device_predetermined,
+    [&](const std::vector<node_scheduling_annotation> &current_state) {
+
+    // TODO Fix requirement device assignments?
+
+    scheduling_state candidate_state = initial_state;
+    candidate_state.scheduling_annotations = current_state;
+    expander.expand(candidate_state.scheduling_annotations,
+                    candidate_state.expansion_result);
+
+    cost_type c = evaluate_scheduling_decisions(candidate_state, d, enumerator);
+
+    if(c < best_cost) {
+      best_cost = c;
+      best_state = candidate_state;
+    }
+  });
+
+  // Apply new memory states
+  for (std::size_t i = 0; 
+      i < enumerator.get_data_region_index_space_size();
+      ++i) {
+
+    best_state.expansion_result.original_data_region(i)->apply_fork(
+      best_state.expansion_result.memory_state(i));
+  }
 
   // Register users of buffers
   // TODO: Could we also invoke that function earlier, e.g. in the dag_builder,

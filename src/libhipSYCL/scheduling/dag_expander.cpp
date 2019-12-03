@@ -438,8 +438,10 @@ void dag_expander::expand(
           std::size_t data_region_id = mem_req->get_data_region()->get_id();
 
           if (out.memory_state(data_region_id) == nullptr)
-            out.add_data_region_fork(data_region_id,
-                std::move(mem_req->get_data_region()->create_fork()));
+            out.add_data_region_fork(
+                data_region_id,
+                std::move(mem_req->get_data_region()->create_fork()),
+                mem_req->get_data_region().get());
 
           buffer_data_region *data = out.memory_state(data_region_id);
 
@@ -593,7 +595,10 @@ void dag_expansion_result::reset()
 {
   _node_annotations = std::vector<dag_expander_annotation>(_num_nodes);
   _forked_memory_states.resize(_num_memory_buffers);
+  _original_data_regions.resize(_num_memory_buffers);
+
   std::fill(_forked_memory_states.begin(), _forked_memory_states.end(), nullptr);
+  std::fill(_original_data_regions.begin(), _original_data_regions.end(), nullptr);
 }
 
 dag_expander_annotation &
@@ -625,12 +630,28 @@ dag_expansion_result::memory_state(std::size_t data_region_id) const
 }
 
 void dag_expansion_result::add_data_region_fork(
-    std::size_t data_region_id, std::unique_ptr<buffer_data_region> fork)
+    std::size_t data_region_id, std::unique_ptr<buffer_data_region> fork,
+    buffer_data_region *original) 
 {
   assert(data_region_id < _forked_memory_states.size());
+
   _forked_memory_states[data_region_id] = std::move(fork);
+  _original_data_regions[data_region_id] = original;
 }
 
+buffer_data_region *
+dag_expansion_result::original_data_region(std::size_t data_region_id)
+{
+  assert(data_region_id < _original_data_regions.size());
+  return _original_data_regions[data_region_id];
+}
+
+const buffer_data_region *
+dag_expansion_result::original_data_region(std::size_t data_region_id) const 
+{
+  assert(data_region_id < _original_data_regions.size());
+  return _original_data_regions[data_region_id];
+}
 }
 }
 }

@@ -60,19 +60,12 @@ public:
       return;
 
     if(node_annotation.is_node_forwarded()) {
-      // Forwarded nodes must take into account their own requirements
-      // as well as the requirements of the forwarding targets
-      for(dag_node_ptr req : node->get_requirements())
-        h(req);
-      
       for_each_requirement(node_annotation.get_forwarding_target(), h);
     }
     else {
-      for(dag_node_ptr req : node->get_requirements())
+      for(dag_node_ptr req : _effective_requirements[node_id])
         h(req);
     }
-    // TODO Third case: Node that is forwarded to
-    // TODO What about the situation when requirements are already submitted?
   }
 
   /// After dag_expansion, a node may be optimized away or may have been
@@ -112,6 +105,7 @@ private:
   std::size_t get_node_id(const dag_node_ptr& node) const;
 
   const dag_expansion_result* _expansion;
+  std::vector<std::vector<dag_node_ptr>> _effective_requirements;
 };
 
 }

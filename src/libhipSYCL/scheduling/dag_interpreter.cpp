@@ -35,9 +35,47 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-dag_interpreter::dag_interpreter(const dag* d, const dag_enumerator *enumerator,
+namespace {
+
+void add_requirements_from_node_to(const dag_node_ptr &node,
+                                   std::vector<dag_node_ptr> &target) 
+{
+  for(auto req : node->get_requirements())
+    target.push_back(req);
+}
+
+}
+
+dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
                                  const dag_expansion_result *expansion_result)
-    : _expansion{expansion_result} {}
+    : _expansion{expansion_result},
+      _effective_requirements(enumerator->get_node_index_space_size()) 
+{
+  d->for_each_node([this](dag_node_ptr node) {
+    std::size_t node_id = this->get_node_id(node);
+    
+    const dag_expander_annotation &node_annotation =
+        _expansion->node_annotations(node_id);
+
+    // If this is a forwarded node, add the requirements to
+    // the forwarding target node
+    if(node_annotation.is_node_forwarded()){
+      std::size_t forwarded_id =
+          get_node_id(node_annotation.get_forwarding_target());
+
+      add_requirements_from_node_to(node,
+                                    this->_effective_requirements[forwarded_id]);
+      }
+    }
+    else {
+      add_requirements_from_node_to(node,
+                                    this->_effective_requirements[node_id]);
+    }
+    // TODO requirements from nodes that are optimized away must be pulled into
+    // the parent nodes
+    
+  });
+}
 
 bool dag_interpreter::is_node_real(const dag_node_ptr &node) const
 {

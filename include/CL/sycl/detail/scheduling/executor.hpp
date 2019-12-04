@@ -37,12 +37,27 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
+struct backend_execution_lane_range
+{
+  std::size_t begin;
+  std::size_t num_lanes;
+};
+
 class backend_executor
 {
 public:
+
   virtual bool is_inorder_queue() const = 0;
   virtual bool is_outoforder_queue() const = 0;
   virtual bool is_taskgraph() const = 0;
+
+  virtual std::size_t get_max_total_execution_lanes() const = 0;
+
+  virtual backend_execution_lane_range
+  get_memcpy_execution_lane_range() const = 0;
+
+  virtual backend_execution_lane_range
+  get_kernel_execution_lane_range() const = 0;
 
   virtual execution_hints get_default_execution_hints() const = 0;
 

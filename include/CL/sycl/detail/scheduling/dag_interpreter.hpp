@@ -98,7 +98,7 @@ public:
   }
 
   template<class Handler>
-  void for_each_effective_node(Handler h)
+  void for_each_effective_node(Handler h) const
   {
     _dag->for_each_node([&](dag_node_ptr node){
       std::size_t node_id = get_node_id(node);

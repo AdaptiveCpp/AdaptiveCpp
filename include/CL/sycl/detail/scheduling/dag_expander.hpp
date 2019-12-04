@@ -32,8 +32,8 @@
 #include "dag.hpp"
 #include "dag_node.hpp"
 #include "dag_enumerator.hpp"
+#include "dag_scheduler.hpp"
 #include "operations.hpp"
-#include <bits/c++config.h>
 #include <vector>
 
 namespace cl {
@@ -94,19 +94,7 @@ private:
   std::vector<buffer_data_region*> _original_data_regions;
 };
 
-class node_scheduling_annotation {
-public:
-  device_id get_target_device() const
-  { return _execution_device; }
 
-  void set_target_device(device_id target)
-  {
-    _execution_device = target;
-  }
-
-private:
-  device_id _execution_device;
-};
 
 /// "Expands" a DAG by removing requirements or replacing
 /// requirements with actual memory transfer operations.

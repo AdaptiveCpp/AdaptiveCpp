@@ -42,7 +42,10 @@ public:
   virtual bool is_cpu() const = 0;
   virtual bool is_gpu() const = 0;
 
+  /// \return The maximum number of kernels that can be executed concurrently
   virtual std::size_t get_max_kernel_concurrency() const = 0;
+  /// \return The maximum number of memory transfers that can be executed
+  /// concurrently
   virtual std::size_t get_max_memcpy_concurrency() const = 0;
 
   virtual std::string get_device_name() const = 0;

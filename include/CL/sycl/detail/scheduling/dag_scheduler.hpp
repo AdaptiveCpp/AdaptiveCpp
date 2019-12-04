@@ -32,10 +32,31 @@
 #include <vector>
 
 #include "device_id.hpp"
+#include "executor.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
+
+class node_scheduling_annotation {
+public:
+  device_id get_target_device() const { return _execution_device; }
+  void set_target_device(device_id target) { _execution_device = target; }
+
+  std::size_t get_execution_lane() const { return _assigned_execution_lane; }
+  void assign_to_execution_lane(backend_executor *executor, std::size_t lane)
+  {
+    _assigned_executor = executor;
+    _assigned_execution_lane = lane;
+  }
+
+  backend_executor* get_executor() const { return _assigned_executor; }
+
+private:
+  device_id _execution_device;
+  std::size_t _assigned_execution_lane;
+  backend_executor* _assigned_executor;
+};
 
 class dag;
 

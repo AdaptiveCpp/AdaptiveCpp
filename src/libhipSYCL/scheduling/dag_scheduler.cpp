@@ -26,8 +26,10 @@
  */
 
 #include <limits>
+#include <unordered_map>
 
 #include "CL/sycl/detail/application.hpp"
+#include "CL/sycl/detail/scheduling/util.hpp"
 #include "CL/sycl/detail/scheduling/hints.hpp"
 #include "CL/sycl/detail/scheduling/device_id.hpp"
 #include "CL/sycl/detail/scheduling/dag_scheduler.hpp"
@@ -112,11 +114,65 @@ void for_all_device_assignments(
                              current_state, 0, 0, h);
 }
 
+void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
+{
+  std::unordered_map<backend_executor*, std::size_t> _assigned_kernels;
+  std::unordered_map<backend_executor*, std::size_t> _assigned_memcopies;
+
+  d.for_each_effective_node([&](dag_node_ptr node) {
+    assert(node->get_execution_hints().has_hint(
+        execution_hint_type::dag_enumeration_id));
+
+    std::size_t node_id =
+        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+
+    device_id target_dev = s.scheduling_annotations[node_id].get_target_device();
+
+    backend_executor *executor =
+        application::get_backend(target_dev.get_backend())
+            .get_executor(target_dev);
+    
+    // Naive assignment algorithm for now...
+    bool is_memcpy = true;
+    d.for_each_operation(node, [&](operation *op) {
+      // There should be no more implicit operations in the effective DAG
+      // at this point. They should all have been converted into actual
+      // data transfers or be removed by now
+      assert(!op->is_requirement());
+
+      if(!dynamic_is<memcpy_operation>(op)){
+        is_memcpy = false;
+      }
+    });
+
+
+    std::size_t lane = 0;
+    if(is_memcpy) {
+      std::size_t num_available_lanes =
+          executor->get_memcpy_execution_lane_range().num_lanes;
+      lane = _assigned_memcopies[executor] % num_available_lanes +
+             executor->get_memcpy_execution_lane_range().begin;
+
+      ++_assigned_memcopies[executor];
+    }
+    else {
+      std::size_t num_available_lanes =
+          executor->get_kernel_execution_lane_range().num_lanes;
+      lane = _assigned_kernels[executor] % num_available_lanes +
+             executor->get_kernel_execution_lane_range().begin;
+      
+      ++_assigned_kernels[executor];
+    }
+
+    s.scheduling_annotations[node_id].assign_to_execution_lane(executor, lane);
+  });
+}
+
 cost_type evaluate_scheduling_decisions(const scheduling_state &state,
                                         const dag *d,
                                         const dag_enumerator &enumerator)
 {
-  dag_interpreter interpreter{d, &enumerator, &state.expansion_result};
+  
 
   // TODO
   return 0.0;
@@ -208,6 +264,10 @@ void dag_scheduler::submit(dag* d)
     expander.expand(candidate_state.scheduling_annotations,
                     candidate_state.expansion_result);
 
+    dag_interpreter interpreter{d, &enumerator,
+                                &candidate_state.expansion_result};
+
+    assign_execution_lanes(interpreter, candidate_state);
     cost_type c = evaluate_scheduling_decisions(candidate_state, d, enumerator);
 
     if(c < best_cost) {

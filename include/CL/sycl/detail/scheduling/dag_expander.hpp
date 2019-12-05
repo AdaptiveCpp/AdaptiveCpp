@@ -70,6 +70,7 @@ private:
 class dag_expansion_result
 {
 public:
+  dag_expansion_result() = default;
   dag_expansion_result(const dag_enumerator& object_enumeration);
 
   void reset();

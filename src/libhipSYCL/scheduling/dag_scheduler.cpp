@@ -48,6 +48,10 @@ namespace {
 
 struct scheduling_state 
 {
+  scheduling_state(const std::vector<node_scheduling_annotation> &annotations, 
+                   const dag_enumerator &enumerator)
+      : scheduling_annotations{annotations}, expansion_result{enumerator} {}
+
   scheduling_state(const dag_enumerator &enumerator)
       : scheduling_annotations(enumerator.get_node_index_space_size()),
         expansion_result(enumerator) {}
@@ -209,7 +213,7 @@ void dag_scheduler::submit(dag* d)
 
   // Next, create scheduling state and extract already present information
   // regarding the target device
-  scheduling_state initial_state{enumerator};
+  auto initial_state = std::make_unique<scheduling_state>(enumerator);
 
   std::vector<char> is_device_predetermined(
       enumerator.get_node_index_space_size(), false);
@@ -231,7 +235,7 @@ void dag_scheduler::submit(dag* d)
       // to be scheduled to arbitrary devices
       is_device_predetermined[node_id] = true;
       // instead move the supplied target device to the scheduling annotations
-      initial_state.scheduling_annotations[node_id].set_target_device(
+      initial_state->scheduling_annotations[node_id].set_target_device(
           node->get_execution_hints()
               .get_hint<hints::bind_to_device>()
               ->get_device_id());
@@ -243,36 +247,39 @@ void dag_scheduler::submit(dag* d)
         is_device_predetermined[node_id] = true;
 
       // Start with the first device
-      initial_state.scheduling_annotations[node_id].set_target_device(
+      initial_state->scheduling_annotations[node_id].set_target_device(
           _available_devices[0]);
     }
   });
 
-  scheduling_state best_state = initial_state;
+  auto best_state = std::make_unique<scheduling_state>(
+      initial_state->scheduling_annotations, enumerator);
+
   cost_type best_cost = std::numeric_limits<cost_type>::max();
 
   dag_expander expander{d, enumerator};
 
   for_all_device_assignments(
-    initial_state, _available_devices, is_device_predetermined,
+    *initial_state, _available_devices, is_device_predetermined,
     [&](const std::vector<node_scheduling_annotation> &current_state) {
 
     // TODO Fix requirement device assignments?
 
-    scheduling_state candidate_state = initial_state;
-    candidate_state.scheduling_annotations = current_state;
-    expander.expand(candidate_state.scheduling_annotations,
-                    candidate_state.expansion_result);
+    auto candidate_state = std::make_unique<scheduling_state>(
+        current_state, enumerator);
+    
+    expander.expand(candidate_state->scheduling_annotations,
+                    candidate_state->expansion_result);
 
     dag_interpreter interpreter{d, &enumerator,
-                                &candidate_state.expansion_result};
+                                &candidate_state->expansion_result};
 
-    assign_execution_lanes(interpreter, candidate_state);
-    cost_type c = evaluate_scheduling_decisions(candidate_state, d, enumerator);
+    assign_execution_lanes(interpreter, *candidate_state);
+    cost_type c = evaluate_scheduling_decisions(*candidate_state, d, enumerator);
 
     if(c < best_cost) {
       best_cost = c;
-      best_state = candidate_state;
+      best_state = std::move(candidate_state);
     }
   });
 
@@ -281,8 +288,8 @@ void dag_scheduler::submit(dag* d)
       i < enumerator.get_data_region_index_space_size();
       ++i) {
 
-    best_state.expansion_result.original_data_region(i)->apply_fork(
-      best_state.expansion_result.memory_state(i));
+    best_state->expansion_result.original_data_region(i)->apply_fork(
+      best_state->expansion_result.memory_state(i));
   }
 
   // Register users of buffers

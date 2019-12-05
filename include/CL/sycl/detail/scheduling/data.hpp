@@ -528,9 +528,9 @@ private:
     });
   }
 
-  const std::size_t _page_size;
+  std::size_t _page_size;
   sycl::range<3> _num_pages;
-  const sycl::range<3> _num_elements;
+  sycl::range<3> _num_elements;
 
   data_user_tracker _user_tracker;
 };

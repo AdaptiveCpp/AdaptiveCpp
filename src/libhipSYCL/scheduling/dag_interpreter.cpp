@@ -57,6 +57,7 @@ void add_requirements_from_node_to(const dag_node_ptr &node,
     if(!req->is_submitted()) {
       std::size_t node_id = get_node_id_impl(node);
       if(expansion.node_annotations(node_id).is_optimized_away()) {
+        is_requirement_optimized_away = true;
         add_requirements_from_node_to(req, expansion, target);
       }
     }

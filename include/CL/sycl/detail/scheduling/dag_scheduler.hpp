@@ -56,6 +56,8 @@ private:
   device_id _execution_device;
   std::size_t _assigned_execution_lane;
   backend_executor* _assigned_executor;
+
+  std::vector<backend_synchronization_operation> _synchronization_ops;
 };
 
 class dag;

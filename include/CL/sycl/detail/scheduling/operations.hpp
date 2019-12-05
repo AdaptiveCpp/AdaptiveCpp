@@ -59,7 +59,8 @@ public:
   virtual ~operation(){}
 
   virtual cost_type get_runtime_costs() { return 1.; }
-  virtual bool is_requirement() const { return false; };
+  virtual bool is_requirement() const { return false; }
+  virtual bool is_synchronization_op() const { return false;}
 };
 
 
@@ -279,6 +280,47 @@ class prefetch_operation : public operation
   // TBD
 };
 
+
+class backend_synchronization_operation : public operation
+{
+public:
+  virtual ~backend_synchronization_operation(){}
+
+  virtual bool is_synchronization_op() const override { return true; }
+};
+
+class event_before_node : public backend_synchronization_operation
+{
+public:
+  event_before_node(dag_node_ptr node);
+};
+
+class event_after_node : public backend_synchronization_operation
+{
+public:
+  event_after_node(dag_node_ptr node);
+};
+
+class wait_for_node_on_same_lane : public backend_synchronization_operation
+{
+public:
+  wait_for_node_on_same_lane(dag_node_ptr node);
+};
+
+class wait_for_node_on_same_backend : public backend_synchronization_operation
+{
+public:
+  wait_for_node_on_same_backend(dag_node_ptr node);
+};
+
+class wait_for_external_node : public backend_synchronization_operation
+{
+public:
+  wait_for_external_node(dag_node_ptr node);
+};
+
+
+
 template<class T, typename... Args>
 std::unique_ptr<operation> make_operation(Args... args)
 {
@@ -302,6 +344,7 @@ public:
 private:
   std::vector<dag_node_ptr> _reqs;
 };
+
 
 }
 }

@@ -44,7 +44,7 @@ public:
   virtual void free(void *mem) override;
 
   virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_id b) const override;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
 
 private:
   int _dev;

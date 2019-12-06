@@ -60,7 +60,7 @@ void * hip_allocator::allocate_usm(size_t bytes)
   return ptr;
 }
 
-bool hip_allocator::is_usm_accessible_from(backend_id b) const
+bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
 {
   // TODO: Formulate this better - this assumes that either CUDA+CPU or
   // ROCm + CPU are active at the same time

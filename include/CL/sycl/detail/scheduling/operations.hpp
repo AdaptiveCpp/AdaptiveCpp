@@ -33,7 +33,8 @@
 #include "../../range.hpp"
 #include "../../access.hpp"
 
-#include "CL/sycl/detail/scheduling/data.hpp"
+#include "data.hpp"
+#include "event.hpp"
 #include "device_id.hpp"
 
 #include <cstring>
@@ -292,7 +293,11 @@ public:
 class event_before_node : public backend_synchronization_operation
 {
 public:
-  event_before_node(dag_node_ptr node);
+  event_before_node();
+
+private:
+  std::unique_ptr<dag_node_event> _evt;
+  
 };
 
 class event_after_node : public backend_synchronization_operation

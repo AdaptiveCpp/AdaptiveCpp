@@ -31,7 +31,7 @@
 
 #include <vector>
 
-#include "CL/sycl/detail/scheduling/operations.hpp"
+#include "operations.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
 

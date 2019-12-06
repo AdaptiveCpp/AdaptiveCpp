@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_DAG_NODE_EVENT_HPP
+#define HIPSYCL_DAG_NODE_EVENT_HPP
+
 #include "device_id.hpp"
 
 namespace cl {
@@ -43,3 +46,5 @@ public:
 }
 }
 }
+
+#endif

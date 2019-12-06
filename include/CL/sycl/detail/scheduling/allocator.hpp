@@ -42,11 +42,10 @@ public:
 
   /// Allocate memory accessible both from the host and the backend
   virtual void *allocate_usm(size_t bytes) = 0;
-  virtual bool is_usm_accessible_from(backend_id b) const = 0;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const = 0;
   
   virtual ~backend_allocator(){}
 };
-
 
 }
 }

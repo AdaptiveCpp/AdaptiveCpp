@@ -31,6 +31,7 @@
 
 #include <vector>
 
+#include "CL/sycl/detail/scheduling/operations.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
 
@@ -38,8 +39,12 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
-class node_scheduling_annotation {
+class node_scheduling_annotation 
+{
 public:
+  using synchronization_op_ptr =
+      std::shared_ptr<backend_synchronization_operation>;
+
   device_id get_target_device() const { return _execution_device; }
   void set_target_device(device_id target) { _execution_device = target; }
 
@@ -52,12 +57,20 @@ public:
 
   backend_executor* get_executor() const { return _assigned_executor; }
 
+  void add_synchronization_op(
+      std::unique_ptr<backend_synchronization_operation> op)
+  {
+    _synchronization_ops.push_back(std::move(op));
+  }
+
+  const std::vector<synchronization_op_ptr>& get_synchronization_ops() const
+  { return _synchronization_ops; }
 private:
   device_id _execution_device;
   std::size_t _assigned_execution_lane;
   backend_executor* _assigned_executor;
 
-  std::vector<backend_synchronization_operation> _synchronization_ops;
+  std::vector<synchronization_op_ptr> _synchronization_ops;
 };
 
 class dag;

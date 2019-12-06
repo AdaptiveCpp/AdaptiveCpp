@@ -172,6 +172,35 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
   });
 }
 
+void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
+{
+  d.for_each_effective_node([&](dag_node_ptr node) {
+    assert(node->get_execution_hints().has_hint(
+        execution_hint_type::dag_enumeration_id));
+    std::size_t node_id =
+        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+
+    d.for_each_requirement(node, [&](dag_node_ptr req) {
+
+      std::size_t req_id = req->get_execution_hints()
+                               .get_hint<hints::dag_enumeration_id>()
+                               ->id();
+
+      node_scheduling_annotation &node_annotations =
+          s.scheduling_annotations[node_id];
+      const node_scheduling_annotation &req_annotations =
+          s.scheduling_annotations[req_id];
+
+      if ((node_annotations.get_executor() == req_annotations.get_executor()) &&
+          (node_annotations.get_execution_lane() ==
+           req_annotations.get_execution_lane())) {
+
+        //node_annotations.add_synchronization_op(std::unique_ptr<backend_synchronization_operation> op)
+      }
+    });
+  });
+}
+
 cost_type evaluate_scheduling_decisions(const scheduling_state &state,
                                         const dag *d,
                                         const dag_enumerator &enumerator)
@@ -275,6 +304,8 @@ void dag_scheduler::submit(dag* d)
                                 &candidate_state->expansion_result};
 
     assign_execution_lanes(interpreter, *candidate_state);
+    insert_synchronization_ops(interpreter, *candidate_state);
+
     cost_type c = evaluate_scheduling_decisions(*candidate_state, d, enumerator);
 
     if(c < best_cost) {

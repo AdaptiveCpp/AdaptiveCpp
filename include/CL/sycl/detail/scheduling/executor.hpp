@@ -61,6 +61,21 @@ public:
 
   virtual execution_hints get_default_execution_hints() const = 0;
 
+  virtual std::unique_ptr<event_before_node>
+  create_event_before(dag_node_ptr node) const = 0;
+
+  virtual std::unique_ptr<event_before_node>
+  create_event_after(dag_node_ptr node) const = 0;
+
+  virtual std::unique_ptr<wait_for_node_on_same_lane>
+  create_wait_for_node_same_lane(dag_node_ptr) const = 0;
+
+  virtual std::unique_ptr<wait_for_node_on_same_backend>
+  create_wait_for_node_same_backend(dag_node_ptr) const = 0;
+
+  virtual std::unique_ptr<wait_for_external_node>
+  create_wait_for_external_node(dag_node_ptr) const = 0;
+
   virtual ~backend_executor(){}
 };
 

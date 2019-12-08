@@ -8,5 +8,5 @@ The new packages should be placed in the `new_pkg_<distribution>` folder of the 
 
 ## Signing
 
-The signing is carried out by the default private key of the user executing the create_all.sh. 
+The signing is carried out by the default private key of the user executing the `create_all.sh` script. 
  

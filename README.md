@@ -74,7 +74,7 @@ Our repositories cover the *entire software stack*, i.e. they include a compatib
 * `hipSYCL-base` - contains the LLVM/clang stack used by hipSYCL. Installation of this package is mandatory.
 * `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
 
-**Note: For legal reasons, we do not redistribute the hipSYCL-cuda pacakge** This package is only required if you wish to target CUDA GPUs. . You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
+**Note: For legal reasons, we do not redistribute the hipSYCL-cuda pacakge** This package is only required if you wish to target CUDA GPUs. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
 
 
 ### Packages
@@ -224,5 +224,4 @@ void kernel_function()
 # Documentation
 * [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
-
 

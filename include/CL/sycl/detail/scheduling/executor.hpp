@@ -37,6 +37,8 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
+class node_scheduling_annotation;
+
 struct backend_execution_lane_range
 {
   std::size_t begin;
@@ -61,20 +63,36 @@ public:
 
   virtual execution_hints get_default_execution_hints() const = 0;
 
+  // The create_event_* functions will typically be called
+  // * by the scheduler, to implement features such as profiling;
+  // * by this (or another) backend_executor in order to implement
+  //   the create_wait_* functions since they typically require events
+  //   after the node they wait for
   virtual std::unique_ptr<event_before_node>
   create_event_before(dag_node_ptr node) const = 0;
 
   virtual std::unique_ptr<event_before_node>
   create_event_after(dag_node_ptr node) const = 0;
 
+  // The create_wait_* functions will be called by the scheduler to mark
+  // synchronization points
   virtual std::unique_ptr<wait_for_node_on_same_lane>
-  create_wait_for_node_same_lane(dag_node_ptr) const = 0;
+  create_wait_for_node_same_lane(
+      dag_node_ptr node, const node_scheduling_annotation &annotation,
+      dag_node_ptr other,
+      node_scheduling_annotation &other_annotation) const = 0;
 
   virtual std::unique_ptr<wait_for_node_on_same_backend>
-  create_wait_for_node_same_backend(dag_node_ptr) const = 0;
+  create_wait_for_node_same_backend(
+      dag_node_ptr node, const node_scheduling_annotation &annotation,
+      dag_node_ptr other,
+      node_scheduling_annotation &other_annotation) const = 0;
 
-  virtual std::unique_ptr<wait_for_external_node>
-  create_wait_for_external_node(dag_node_ptr) const = 0;
+  virtual std::unique_ptr<wait_for_external_node> 
+  create_wait_for_external_node(
+      dag_node_ptr node, const node_scheduling_annotation &annotation,
+      dag_node_ptr other,
+      node_scheduling_annotation &other_annotation) const = 0;
 
   virtual ~backend_executor(){}
 };

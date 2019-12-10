@@ -188,14 +188,33 @@ void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
 
       node_scheduling_annotation &node_annotations =
           s.scheduling_annotations[node_id];
-      const node_scheduling_annotation &req_annotations =
+      node_scheduling_annotation &req_annotations =
           s.scheduling_annotations[req_id];
 
-      if ((node_annotations.get_executor() == req_annotations.get_executor()) &&
-          (node_annotations.get_execution_lane() ==
-           req_annotations.get_execution_lane())) {
+      backend_executor* executor = node_annotations.get_executor();
 
-        //node_annotations.add_synchronization_op(std::unique_ptr<backend_synchronization_operation> op)
+      if (executor == req_annotations.get_executor()) {
+        if(node_annotations.get_execution_lane() ==
+           req_annotations.get_execution_lane()) {
+
+          node_annotations.add_synchronization_op(
+              executor->create_wait_for_node_same_lane(node, node_annotations,
+                                                       req, req_annotations));
+        }
+        else {
+          node_annotations.add_synchronization_op(
+              executor->create_wait_for_node_same_backend(
+                  node, node_annotations, req, req_annotations));
+        }
+      } else if (node_annotations.get_target_device().get_backend() ==
+                 req_annotations.get_target_device().get_backend()) {
+        node_annotations.add_synchronization_op(
+            executor->create_wait_for_node_same_backend(node, node_annotations,
+                                                        req, req_annotations));
+      } else {
+        node_annotations.add_synchronization_op(
+            executor->create_wait_for_external_node(node, node_annotations, req,
+                                                    req_annotations));
       }
     });
   });
@@ -304,6 +323,7 @@ void dag_scheduler::submit(dag* d)
                                 &candidate_state->expansion_result};
 
     assign_execution_lanes(interpreter, *candidate_state);
+    // TODO We should also assign some proposal for the execution order
     insert_synchronization_ops(interpreter, *candidate_state);
 
     cost_type c = evaluate_scheduling_decisions(*candidate_state, d, enumerator);

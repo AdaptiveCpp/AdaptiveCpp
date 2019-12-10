@@ -28,7 +28,11 @@
 #ifndef HIPSYCL_DAG_TIME_TABLE_HPP
 #define HIPSYCL_DAG_TIME_TABLE_HPP
 
+#include <vector>
+
 #include "dag_interpreter.hpp"
+#include "dag_scheduler.hpp"
+#include "dag_enumerator.hpp"
 
 namespace cl {
 namespace sycl {
@@ -37,9 +41,19 @@ namespace detail {
 class dag_time_table
 {
 public:
-  dag_time_table(const dag_interpreter* interpreter);
+  dag_time_table(
+      const dag_interpreter& interpreter,
+      const dag_enumerator& enumerator,
+      const std::vector<node_scheduling_annotation> &scheduling_annotations);
 
-  
+  struct time_range
+  {
+    double start;
+    double end;
+  };
+
+private:
+  std::vector<time_range> _time_ranges;
 };
 
 }

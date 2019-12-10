@@ -26,6 +26,7 @@ set(HIPSYCL_SOURCES
   scheduling/dag_enumerator.cpp
   scheduling/dag_interpreter.cpp
   scheduling/dag_scheduler.cpp
+  scheduling/dag_time_table.cpp
   scheduling/hip/hip_event.cpp
   scheduling/hip/hip_queue.cpp
   scheduling/hip/hip_allocator.cpp

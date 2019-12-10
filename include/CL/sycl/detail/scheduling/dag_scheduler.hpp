@@ -34,6 +34,7 @@
 #include "operations.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
+#include "util.hpp"
 
 namespace cl {
 namespace sycl {
@@ -57,14 +58,52 @@ public:
 
   backend_executor* get_executor() const { return _assigned_executor; }
 
+  /// Add a synchronization operation. Note: There can only be one
+  /// event before or after the node, if \c op is one of those operations,
+  /// it should be made sure that it doesn't exist already
   void add_synchronization_op(
       std::unique_ptr<backend_synchronization_operation> op)
   {
+    if(op->is_event_after_node())
+      assert(!has_event_after());
+
+    if(op->is_event_before_node())
+      assert(!has_event_before());
+
     _synchronization_ops.push_back(std::move(op));
   }
 
   const std::vector<synchronization_op_ptr>& get_synchronization_ops() const
   { return _synchronization_ops; }
+
+  bool has_event_before() const
+  {
+    return get_event_before() != nullptr;
+  }
+
+  bool has_event_after() const
+  {
+    return get_event_after() != nullptr;
+  }
+
+  /// \return The event before this node, if it exists, nullptr otherwise.
+  event_before_node* get_event_before() const {
+    for(auto op : _synchronization_ops) {
+      if(op->is_event_before_node())
+        return cast<event_before_node>(op.get());
+    }
+    return nullptr;
+  }
+
+  /// \return The event after this node, if it exists, nullptr otherwise.
+  event_after_node* get_event_after() const {
+    for(auto op : _synchronization_ops) {
+      if(op->is_event_after_node())
+        return cast<event_after_node>(op.get());
+    }
+    return nullptr;
+  }
+
 private:
   device_id _execution_device;
   std::size_t _assigned_execution_lane;

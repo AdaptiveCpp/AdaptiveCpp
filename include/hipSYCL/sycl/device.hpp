@@ -159,11 +159,11 @@ public:
   int get_device_id() const;
 #endif
 
-  bool operator ==(const device& rhs) const
-  { return rhs._device_id == _device_id; }
+  friend bool operator ==(const device& lhs, const device& rhs)
+  { return rhs._device_id == lhs._device_id; }
 
-  bool operator !=(const device& rhs) const
-  { return !(*this == rhs); }
+  friend bool operator !=(const device& lhs, const device& rhs)
+  { return !(lhs == rhs); }
 private:
   int _device_id;
 };

@@ -91,11 +91,11 @@ public:
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
   { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
 
-  bool operator ==(const event& rhs) const
-  { return _evt == rhs._evt; }
+  friend bool operator ==(const event& lhs, const event& rhs)
+  { return lhs._evt == rhs._evt; }
 
-  bool operator !=(const event& rhs) const
-  { return !(*this == rhs); }
+  friend bool operator !=(const event& lhs, const event& rhs)
+  { return !(lhs == rhs); }
 
 private:
 

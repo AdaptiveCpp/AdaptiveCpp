@@ -325,14 +325,14 @@ public:
   buffer<ReinterpretT, ReinterpretDim, AllocatorT>
   reinterpret(range<ReinterpretDim> reinterpretRange) const;
 
-  bool operator==(const buffer& rhs) const
+  friend bool operator==(const buffer& lhs, const buffer& rhs)
   {
-    return _buffer == rhs->_buffer;
+    return lhs->_buffer == rhs->_buffer;
   }
 
-  bool operator!=(const buffer& rhs) const
+  friend bool operator!=(const buffer& lhs, const buffer& rhs)
   {
-    return !(*this == rhs);
+    return !(lhs == rhs);
   }
 
   detail::buffer_ptr _detail_get_buffer_ptr() const

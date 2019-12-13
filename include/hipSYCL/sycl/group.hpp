@@ -191,6 +191,16 @@ struct group
 #endif
   }
 
+  friend bool operator==(const group<dimensions>& lhs, const group<dimensions>& rhs){
+    return lhs._group_id == rhs._group_id &&
+           lhs._local_range == rhs._local_range &&
+           lhs._num_groups == rhs._num_groups;
+  }
+
+  friend bool operator!=(const group<dimensions>& lhs, const group<dimensions>& rhs){
+    return !(lhs == rhs);
+  }
+
   HIPSYCL_KERNEL_TARGET
   size_t get_linear() const
   {

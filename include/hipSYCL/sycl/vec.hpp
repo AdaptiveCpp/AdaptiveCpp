@@ -27,7 +27,6 @@
 
 #ifndef HIPSYCL_VEC_HPP
 #define HIPSYCL_VEC_HPP
-
 #include <cstddef>
 #include <type_traits>
 #include "backend/backend.hpp"
@@ -983,115 +982,127 @@ public:
   /* When OP is % available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator+(const vec<dataT, numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl + rhs._impl}; }
+  friend vec<dataT, numElements> operator+(const vec<dataT, numElements> &lhs, 
+                                           const vec<dataT, numElements> &rhs) 
+  { return vec<dataT,numElements>{lhs._impl + rhs._impl}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator-(const vec<dataT, numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl - rhs._impl}; }
+  friend vec<dataT, numElements> operator-(const vec<dataT, numElements> &lhs,
+                                           const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl - rhs._impl}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator*(const vec<dataT, numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl * rhs._impl}; }
+  friend vec<dataT, numElements> operator*(const vec<dataT, numElements> &lhs,
+                                           const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl * rhs._impl}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator/(const vec<dataT, numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl / rhs._impl}; }
+  friend vec<dataT, numElements> operator/(const vec<dataT, numElements> &lhs,
+                                           const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl / rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator%(const vec<dataT, numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl % rhs._impl}; }
+  friend vec<dataT, numElements> operator%(const vec<dataT, numElements> &lhs,
+                                           const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl % rhs._impl}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator+(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl + rhs}; }
+  friend vec<dataT, numElements> operator+(const vec<dataT, numElements> &lhs,
+                                           const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl + rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator-(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl - rhs}; }
+  friend vec<dataT, numElements> operator-(const vec<dataT, numElements> &lhs,
+                                           const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl - rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator*(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl * rhs}; }
+  friend vec<dataT, numElements> operator*(const vec<dataT, numElements> &lhs,
+                                           const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl * rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator/(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl / rhs}; }
+  friend vec<dataT, numElements> operator/(const vec<dataT, numElements> &lhs,
+                                           const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl / rhs}; }
 
 
   // OP is: +=, -=, *=, /=, %=
   /* When OP is %= available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator+=(const vec<dataT, numElements> &rhs)
-  { _impl += rhs._impl; return *this; }
+  friend vec<dataT, numElements> &operator+=(vec<dataT, numElements> &lhs, 
+                                       const vec<dataT, numElements> &rhs)
+  { lhs._impl += rhs._impl; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator-=(const vec<dataT, numElements> &rhs)
-  { _impl -= rhs._impl; return *this; }
+  friend vec<dataT, numElements> &operator-=(vec<dataT, numElements> &lhs,
+                                       const vec<dataT, numElements> &rhs)
+  { lhs._impl -= rhs._impl; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator*=(const vec<dataT, numElements> &rhs)
-  { _impl *= rhs._impl; return *this; }
+  friend vec<dataT, numElements> &operator*=(vec<dataT, numElements> &lhs,
+                                       const vec<dataT, numElements> &rhs)
+  { lhs._impl *= rhs._impl; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator/=(const vec<dataT, numElements> &rhs)
-  { _impl /= rhs._impl; return *this; }
-
+  friend vec<dataT, numElements> &operator/=(vec<dataT, numElements> &lhs,
+                                       const vec<dataT, numElements> &rhs)
+  { lhs._impl /= rhs._impl; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator%=(const vec<dataT, numElements> &rhs)
-  { _impl %= rhs._impl; return *this; }
-
-
-  HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator+=(const dataT &rhs)
-  { _impl += rhs; return *this; }
+  friend vec<dataT, numElements> &operator%=(vec<dataT, numElements> &lhs,
+                                       const vec<dataT, numElements> &rhs)
+  { lhs._impl %= rhs._impl; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator-=(const dataT &rhs)
-  { _impl -= rhs; return *this; }
+  friend vec<dataT, numElements> &operator+=(vec<dataT, numElements> &lhs, const dataT &rhs)
+  { lhs._impl += rhs; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator*=(const dataT &rhs)
-  { _impl *= rhs; return *this; }
+  friend vec<dataT, numElements> &operator-=(vec<dataT, numElements> &lhs, const dataT &rhs)
+  { lhs._impl -= rhs; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator/=(const dataT &rhs)
-  { _impl /= rhs; return *this; }
+  friend vec<dataT, numElements> &operator*=(vec<dataT, numElements> &lhs, const dataT &rhs)
+  { lhs._impl *= rhs; return lhs; }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend vec<dataT, numElements> &operator/=(vec<dataT, numElements> &lhs, const dataT &rhs)
+  { lhs._impl /= rhs; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator%=(const dataT &rhs)
-  { _impl %= rhs; return *this; }
+  friend vec<dataT, numElements> &operator%=(vec<dataT, numElements> &lhs, const dataT &rhs)
+  { lhs._impl %= rhs; return lhs; }
 
   // OP is: ++, --
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator++()
-  { *this += 1; return *this; }
+  friend vec<dataT, numElements> &operator++(vec<dataT, numElements> &lhs)
+  { lhs += 1; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> &operator--()
-  { *this -= 1; return *this; }
+  friend vec<dataT, numElements> &operator--(vec<dataT, numElements> &lhs)
+  { lhs -= 1; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator++(int)
+  friend vec<dataT, numElements> operator++(vec<dataT, numElements> &lhs,int)
   {
-    vec<dataT, numElements> old = *this;
-    ++(*this);
+    vec<dataT, numElements> old = lhs;
+    ++lhs;
     return old;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator--(int)
+  friend vec<dataT, numElements> operator--(vec<dataT, numElements> &lhs, int)
   {
-    vec<dataT, numElements> old = *this;
-    --(*this);
+    vec<dataT, numElements> old = lhs;
+    --lhs; 
     return old;
   }
 
@@ -1102,38 +1113,44 @@ public:
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator&(const vec<dataT,numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl & rhs._impl}; }
+  friend vec<dataT, numElements> operator&(const vec<dataT,numElements> &lhs,
+                   const vec<dataT,numElements> &rhs) 
+  { return vec<dataT,numElements>{lhs._impl & rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator|(const vec<dataT,numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl | rhs._impl}; }
+  friend  vec<dataT, numElements> operator|(const vec<dataT, numElements> &lhs, 
+                                            const vec<dataT,numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl | rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator^(const vec<dataT,numElements> &rhs) const
-  { return vec<dataT,numElements>{_impl ^ rhs._impl}; }
+  friend  vec<dataT, numElements> operator^(const vec<dataT, numElements> &lhs, 
+                                            const vec<dataT,numElements> &rhs)
+  { return vec<dataT,numElements>{lhs._impl ^ rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator&(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl & rhs}; }
+  friend  vec<dataT, numElements> operator&(const vec<dataT, numElements> &lhs, 
+                                            const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl & rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator|(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl | rhs}; }
+  friend  vec<dataT, numElements> operator|(const vec<dataT, numElements> &lhs, 
+                                            const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl | rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements> operator^(const dataT &rhs) const
-  { return vec<dataT,numElements>{_impl ^ rhs}; }
+  friend  vec<dataT, numElements> operator^(const vec<dataT, numElements> &lhs, 
+                                            const dataT &rhs)
+  { return vec<dataT,numElements>{lhs._impl ^ rhs}; }
 
   // OP is: &=, |=, ˆ=
   /* Available only when: dataT != cl_float && dataT != cl_double
@@ -1141,69 +1158,79 @@ public:
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator&=(const vec<dataT,numElements>& rhs) const
-  { _impl &= rhs._impl; return *this; }
+  friend  vec<dataT, numElements>& operator&=(vec<dataT, numElements> &lhs, 
+                                        const vec<dataT,numElements> &rhs) 
+  { lhs._impl &= rhs._impl; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator|=(const vec<dataT,numElements>& rhs) const
-  { _impl |= rhs._impl; return *this; }
+  friend  vec<dataT, numElements>& operator|=(vec<dataT, numElements> &lhs, 
+                                        const vec<dataT,numElements> &rhs)
+  { lhs._impl |= rhs._impl; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator^=(const vec<dataT,numElements>& rhs) const
-  { _impl ^= rhs._impl; return *this; }
+  friend  vec<dataT, numElements>& operator^=(const vec<dataT, numElements> &lhs, 
+                                              const vec<dataT,numElements> &rhs)
+  { lhs._impl ^= rhs._impl; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator&=(const dataT& rhs) const
-  { _impl &= rhs; return *this; }
+  friend  vec<dataT, numElements>& operator&=(const vec<dataT, numElements> &lhs, 
+                                              const dataT& rhs)
+  { lhs._impl &= rhs; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator|=(const dataT& rhs) const
-  { _impl |= rhs; return *this; }
+  friend  vec<dataT, numElements>& operator|=(const vec<dataT, numElements> &lhs, 
+                                              const dataT& rhs)
+  { lhs._impl |= rhs; return lhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator^=(const dataT& rhs) const
-  { _impl ^= rhs; return *this; }
+  friend  vec<dataT, numElements>& operator^=(const vec<dataT, numElements> &lhs, 
+                                              const dataT& rhs)
+  { lhs._impl ^= rhs; return lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator&& (const vec<dataT, numElements>& rhs) const
+  friend auto operator&& (const vec<dataT, numElements>& lhs, 
+                   const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl && rhs._impl
+      lhs._impl && rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator|| (const vec<dataT, numElements>& rhs) const
+  friend auto operator|| (const vec<dataT, numElements> &lhs, 
+                   const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl || rhs._impl
+      lhs._impl || rhs._impl
     };
   }
 
   // OP is: &&, ||
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator&& (const dataT &rhs) const
-  { return (*this) && vec<dataT,numElements>{rhs}; }
+  friend auto operator&& (const vec<dataT, numElements> &lhs, 
+                          const dataT &rhs)
+  { return lhs && vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator|| (const dataT &rhs) const
-  { return (*this) || vec<dataT,numElements>{rhs}; }
+  friend auto operator|| (const vec<dataT, numElements> &lhs, 
+                          const dataT &rhs) 
+  { return lhs || vec<dataT,numElements>{rhs}; }
 
   // OP is: <<, >>
   /* Available only when: dataT != cl_float && dataT != cl_double
@@ -1212,26 +1239,30 @@ public:
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT,numElements> operator <<(const vec<dataT, numElements>& rhs) const
-  { return vec<dataT,numElements>{_impl << rhs._impl}; }
+  friend vec<dataT,numElements> operator <<(const vec<dataT, numElements> &lhs, 
+                                            const vec<dataT, numElements>& rhs) 
+  { return vec<dataT,numElements>{lhs._impl << rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT,numElements> operator >>(const vec<dataT, numElements>& rhs) const
-  { return vec<dataT,numElements>{_impl >> rhs._impl}; }
+  friend vec<dataT,numElements> operator >>(const vec<dataT, numElements> &lhs, 
+                                     const vec<dataT, numElements>& rhs)
+  { return vec<dataT,numElements>{lhs._impl >> rhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT,numElements> operator <<(const dataT& rhs) const
-  { return vec<dataT,numElements>{_impl << rhs}; }
+  friend vec<dataT,numElements> operator <<(const vec<dataT, numElements> &lhs, 
+                                            const dataT& rhs)
+  { return vec<dataT,numElements>{lhs._impl << rhs}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT,numElements> operator >>(const dataT& rhs) const
-  { return vec<dataT,numElements>{_impl >> rhs}; }
+  friend vec<dataT,numElements> operator >>(const vec<dataT, numElements> &lhs, 
+                                            const dataT& rhs)
+  { return vec<dataT,numElements>{lhs._impl >> rhs}; }
 
   // OP is: <<=, >>=
   /* Available only when: dataT != cl_float && dataT != cl_double
@@ -1239,116 +1270,132 @@ public:
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator<<=(const vec<dataT, numElements> &rhs)
-  { _impl <<= rhs._impl; }
+  friend  vec<dataT, numElements>& operator<<=(const vec<dataT, numElements> &lhs, 
+                                               const vec<dataT, numElements> &rhs)
+  { lhs._impl <<= rhs._impl; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator>>=(const vec<dataT, numElements> &rhs)
-  { _impl >>= rhs._impl; }
+  friend  vec<dataT, numElements>& operator>>=(const vec<dataT, numElements> &lhs, 
+                                               const vec<dataT, numElements> &rhs)
+  { lhs._impl >>= rhs._impl; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator<<=(const dataT &rhs)
-  { _impl <<= rhs; }
+  friend  vec<dataT, numElements>& operator<<=(const vec<dataT, numElements> &lhs, 
+                                               const dataT &rhs)
+  { lhs._impl <<= rhs; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<dataT, numElements>& operator>>=(const dataT &rhs)
-  { _impl >>= rhs; }
+  friend  vec<dataT, numElements>& operator>>=(const vec<dataT, numElements> &lhs, 
+                                               const dataT &rhs)
+  { lhs._impl >>= rhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator== (const vec<dataT, numElements>& rhs) const
+  friend auto operator== (const vec<dataT, numElements> &lhs,
+                          const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl == rhs._impl
+      lhs._impl == rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator!= (const vec<dataT, numElements>& rhs) const
+  friend auto operator!= (const vec<dataT, numElements>& lhs,
+                          const vec<dataT, numElements>& rhs) 
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl != rhs._impl
+      lhs._impl != rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator< (const vec<dataT, numElements>& rhs) const
+  friend auto operator< (const vec<dataT, numElements>& lhs,
+                        const vec<dataT, numElements>& rhs) 
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl < rhs._impl
+      lhs._impl < rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator> (const vec<dataT, numElements>& rhs) const
+  friend auto operator> (const vec<dataT, numElements>& lhs,
+                         const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl > rhs._impl
+      lhs._impl > rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator<= (const vec<dataT, numElements>& rhs) const
+  friend auto operator<= (const vec<dataT, numElements>& lhs,
+                          const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl <= rhs._impl
+      lhs._impl <= rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator>= (const vec<dataT, numElements>& rhs) const
+  friend auto operator>= (const vec<dataT, numElements>& lhs,
+                          const vec<dataT, numElements>& rhs)
   {
     using result_type =
         typename detail::logical_vector_op_result<dataT>::type;
 
     return vec<result_type, numElements>{
-      _impl >= rhs._impl
+      lhs._impl >= rhs._impl
     };
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator== (const dataT &rhs) const
-  { return (*this) == vec<dataT,numElements>{rhs}; }
+  friend auto operator== (const vec<dataT, numElements>& lhs,
+                          const dataT &rhs) 
+  { return lhs == vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator!= (const dataT &rhs) const
-  { return (*this) != vec<dataT,numElements>{rhs}; }
+  friend auto operator!= (const vec<dataT, numElements>& lhs,
+                          const dataT &rhs) 
+  { return lhs != vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator< (const dataT &rhs) const
-  { return (*this) < vec<dataT,numElements>{rhs}; }
+  friend auto operator< (const vec<dataT, numElements>& lhs,
+                         const dataT &rhs) 
+  { return lhs < vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator> (const dataT &rhs) const
-  { return (*this) > vec<dataT,numElements>{rhs}; }
+  friend auto operator> (const vec<dataT, numElements>& lhs,
+                         const dataT &rhs) 
+  { return lhs > vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator<= (const dataT &rhs) const
-  { return (*this) <= vec<dataT,numElements>{rhs}; }
+  friend auto operator<= (const vec<dataT, numElements>& lhs,
+                          const dataT &rhs) 
+  { return lhs <= vec<dataT,numElements>{rhs}; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator>= (const dataT &rhs) const
-  { return (*this) >= vec<dataT,numElements>{rhs}; }
+  friend auto operator>= (const vec<dataT, numElements>& lhs,
+                          const dataT &rhs) 
+  { return lhs >= vec<dataT,numElements>{rhs}; }
 
   /* Available only when: dataT != cl_float && dataT != cl_double
 && dataT != cl_half. */
@@ -1356,14 +1403,159 @@ public:
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator~()
-  { return vec<dataT, numElements>{~_impl}; }
+  friend auto operator~(vec<dataT, numElements>& lhs)
+  { return vec<dataT, numElements>{~lhs._impl}; }
 
   template<class t = dataT,
            std::enable_if_t<std::is_integral<t>::value>* = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator!()
-  { return vec<dataT, numElements>{!_impl}; }
+  friend auto operator!(vec<dataT, numElements>& lhs)
+  { return vec<dataT, numElements>{!lhs._impl}; }
+
+  // OP is: +, -, *, /, %
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator+ (const dataT &lhs,
+                                            const vec<dataT, numElements> &rhs)
+  { return rhs + lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator* (const dataT &lhs,
+                                            const vec<dataT, numElements> &rhs)
+  { return rhs * lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator- (const dataT &lhs,
+                                            const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs} - rhs; }
+
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator/ (const dataT &lhs,
+                                            const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs} / rhs; }
+
+  template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator% (const dataT &lhs,
+                                            const vec<dataT, numElements> &rhs)
+  { return vec<dataT,numElements>{lhs} % rhs; }
+
+
+
+  // OP is: &, |, ˆ
+  // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
+    template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator&(const dataT& lhs,
+                                           const vec<dataT, numElements>& rhs)
+  { return rhs & lhs; }
+
+    template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator|(const dataT& lhs,
+                                           const vec<dataT, numElements>& rhs)
+  { return rhs | lhs; }
+
+    template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator^(const dataT& lhs,
+                                           const vec<dataT, numElements>& rhs)
+  { return rhs ^ lhs; }
+
+
+  // OP is: &&, ||
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator&&(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs && lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator||(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs || lhs; }
+
+
+  // OP is: <<, >>
+  // Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
+    template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator<<(const dataT &lhs,
+                                    const vec<dataT, numElements> &rhs)
+  { return vec<dataT, numElements>{lhs} << rhs; }
+
+    template <class t = dataT,
+      std::enable_if_t<std::is_integral<t>::value>* = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator>>(const dataT &lhs,
+                                    const vec<dataT, numElements> &rhs)
+  { return vec<dataT, numElements>{lhs} >> rhs; }
+
+
+  // OP is: ==, !=, <, >, <=, >=
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator==(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs == lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator!=(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs != lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator< (const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs >= lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator<=(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs > lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator> (const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs <= lhs; }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  inline
+  friend vec<dataT, numElements> operator>=(const dataT& lhs,
+                                            const vec<dataT, numElements>& rhs)
+  { return rhs < lhs; }
 
   HIPSYCL_UNIVERSAL_TARGET
   vec<dataT, numElements> &operator=(const vec<dataT, numElements> &rhs)
@@ -1390,153 +1582,6 @@ public:
 private:
   detail::vector_impl<dataT, numElements> _impl;
 };
-
-
-
-// OP is: +, -, *, /, %
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator+ (const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return rhs + lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator* (const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return rhs * lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator- (const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return vec<dataT,numElements>{lhs} - rhs; }
-
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator/ (const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return vec<dataT,numElements>{lhs} / rhs; }
-
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator% (const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return vec<dataT,numElements>{lhs} % rhs; }
-
-
-
-// OP is: &, |, ˆ
-// Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator&(const dataT& lhs,
-                                  const vec<dataT, numElements>& rhs)
-{ return rhs & lhs; }
-
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator|(const dataT& lhs,
-                                  const vec<dataT, numElements>& rhs)
-{ return rhs | lhs; }
-
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator^(const dataT& lhs,
-                                  const vec<dataT, numElements>& rhs)
-{ return rhs ^ lhs; }
-
-
-// OP is: &&, ||
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator&&(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs && lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator||(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs || lhs; }
-
-
-// OP is: <<, >>
-// Available only when: dataT != cl_float && dataT != cl_double && dataT != cl_half.
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator<<(const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return vec<dataT, numElements>{lhs} << rhs; }
-
-template <typename dataT, int numElements,
-          std::enable_if_t<std::is_integral<dataT>::value>* = nullptr>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator>>(const dataT &lhs,
-                                   const vec<dataT, numElements> &rhs)
-{ return vec<dataT, numElements>{lhs} >> rhs; }
-
-
-// OP is: ==, !=, <, >, <=, >=
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator==(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs == lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator!=(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs != lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator< (const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs >= lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator<=(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs > lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator> (const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs <= lhs; }
-
-template <typename dataT, int numElements>
-HIPSYCL_UNIVERSAL_TARGET
-inline
-vec<dataT, numElements> operator>=(const dataT& lhs,
-                                   const vec<dataT, numElements>& rhs)
-{ return rhs < lhs; }
 
 
 #define HIPSYCL_DEFINE_VECTOR_ALIAS(T, alias) \

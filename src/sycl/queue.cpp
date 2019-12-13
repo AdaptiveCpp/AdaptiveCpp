@@ -205,12 +205,6 @@ void queue::wait_and_throw() {
 
 void queue::throw_asynchronous() {}
 
-bool queue::operator==(const queue& rhs) const
-{ return (_device == rhs._device) && (_stream == rhs._stream); }
-
-bool queue::operator!=(const queue& rhs) const
-{ return !(*this == rhs); }
-
 hipStream_t queue::get_hip_stream() const
 { return _stream->get_stream(); }
 

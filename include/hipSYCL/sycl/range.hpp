@@ -75,12 +75,12 @@ dimensions==3 */
 
   /* -- common interface members -- */
 
-  bool operator==(const range<dimensions>& rhs) const {
-    return _data == rhs._data;
+  friend bool operator==(const range<dimensions>& lhs, const range<dimensions>& rhs){
+    return lhs._data == rhs._data;
   }
 
-  bool operator!=(const range<dimensions>& rhs) const {
-    return _data != rhs._data;
+  friend bool operator!=(const range<dimensions>& lhs, const range<dimensions>& rhs){
+    return !(lhs == rhs);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -110,10 +110,11 @@ dimensions==3 */
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define HIPSYCL_RANGE_BINARY_OP_OUT_OF_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions> operator op(const range<dimensions> &rhs) const { \
+  friend range<dimensions> operator op(const range<dimensions> &lhs, \
+                                       const range<dimensions> &rhs) { \
     range<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
-      result._data[i] = static_cast<std::size_t>(_data[i] op rhs._data[i]); \
+      result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs._data[i]); \
     return result; \
   }
 
@@ -136,10 +137,11 @@ dimensions==3 */
 
 #define HIPSYCL_RANGE_BINARY_OP_OUT_OF_PLACE_SIZE_T(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions> operator op(const std::size_t &rhs) const { \
+  friend range<dimensions> operator op(const range<dimensions> &lhs, \
+                                       const std::size_t &rhs) { \
     range<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
-      result._data[i] = static_cast<std::size_t>(_data[i] op rhs); \
+      result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs); \
     return result; \
   }
 
@@ -165,10 +167,11 @@ dimensions==3 */
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define HIPSYCL_RANGE_BINARY_OP_IN_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions>& operator op(const range<dimensions> &rhs) { \
+  friend range<dimensions>& operator op(range<dimensions> &lhs, \
+                                 const range<dimensions> &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
-      _data[i] op rhs._data[i]; \
-    return *this; \
+      lhs._data[i] op rhs._data[i]; \
+    return lhs; \
   }
 
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE(+=)
@@ -184,10 +187,10 @@ dimensions==3 */
 
 #define HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions>& operator op(const std::size_t &rhs) { \
+  friend range<dimensions>& operator op(range<dimensions> &lhs, const std::size_t &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
-      _data[i] op rhs; \
-    return *this; \
+      lhs._data[i] op rhs; \
+    return lhs; \
   }
 
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(+=)
@@ -200,16 +203,11 @@ dimensions==3 */
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(&=)
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(|=)
   HIPSYCL_RANGE_BINARY_OP_IN_PLACE_SIZE_T(^=)
-private:
-  detail::device_array<size_t, dimensions> _data;
-
-};
 
 
-#define HIPSYCL_RANGE_BINARY_OP_SIZE_T(op) \
-  template<int dimensions> \
+  #define HIPSYCL_RANGE_BINARY_OP_SIZE_T(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions> operator op(const std::size_t &lhs, const id<dimensions> &rhs) { \
+  friend range<dimensions> operator op(const std::size_t &lhs, const range<dimensions> &rhs) { \
     range<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
       result[i] = lhs op rhs[i]; \
@@ -227,6 +225,10 @@ HIPSYCL_RANGE_BINARY_OP_SIZE_T(>>)
 HIPSYCL_RANGE_BINARY_OP_SIZE_T(&)
 HIPSYCL_RANGE_BINARY_OP_SIZE_T(|)
 HIPSYCL_RANGE_BINARY_OP_SIZE_T(^)
+private:
+  detail::device_array<size_t, dimensions> _data;
+
+};
 
 namespace detail {
 namespace range {

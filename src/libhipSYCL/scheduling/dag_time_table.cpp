@@ -80,7 +80,13 @@ get_node_start_date(const dag_interpreter &interpreter,
                     const std::vector<node_scheduling_annotation> &annotations,
                     dag_node_ptr node)
 {
-
+  if (node->is_submitted()) {
+    // TODO Would it make sense to record actual start dates for nodes
+    // when submitting them?
+    return 0.0;
+  } else {
+    
+  }
 }
 
 }

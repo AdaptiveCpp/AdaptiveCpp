@@ -220,6 +220,38 @@ void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
   });
 }
 
+// The dag_expander needs to know for each memory requirement where it will
+// be accessed in order to correctly calculate conflicts or node merge
+// opportunities.
+// This means that we have to assign memory requirements to the same device
+// as the kernel/operation requiring them.
+void assign_requirements_to_devices(scheduling_state &state, const dag *d)
+{
+  d->for_each_node([&](dag_node_ptr node) {
+    if (!node->get_operation()->is_requirement()) {
+
+      std::size_t node_id = node->get_execution_hints()
+                                .get_hint<hints::dag_enumeration_id>()
+                                ->id();
+
+      for (auto req : node->get_requirements()) {
+        // Do not assign devices if other requirement is a direct/explicit
+        // dependency on some other operation
+        if (req->get_operation()->is_requirement()) {
+          if (!req->is_submitted()) {
+            std::size_t req_id = req->get_execution_hints()
+                                     .get_hint<hints::dag_enumeration_id>()
+                                     ->id();
+
+            state.scheduling_annotations[req_id].set_target_device(
+                state.scheduling_annotations[node_id].get_target_device());
+          }
+        }
+      }
+    }
+  });
+}
+
 cost_type evaluate_scheduling_decisions(const scheduling_state &state,
                                         const dag *d,
                                         const dag_enumerator &enumerator)
@@ -308,13 +340,13 @@ void dag_scheduler::submit(dag* d)
   dag_expander expander{d, enumerator};
 
   for_all_device_assignments(
-    *initial_state, _available_devices, is_device_predetermined,
-    [&](const std::vector<node_scheduling_annotation> &current_state) {
+      *initial_state, _available_devices, is_device_predetermined,
+      [&](const std::vector<node_scheduling_annotation> &current_state)
+  {
+    auto candidate_state =
+        std::make_unique<scheduling_state>(current_state, enumerator);
 
-    // TODO Fix requirement device assignments?
-
-    auto candidate_state = std::make_unique<scheduling_state>(
-        current_state, enumerator);
+    assign_requirements_to_devices(*candidate_state, d);
     
     expander.expand(candidate_state->scheduling_annotations,
                     candidate_state->expansion_result);
@@ -323,6 +355,7 @@ void dag_scheduler::submit(dag* d)
                                 &candidate_state->expansion_result};
 
     assign_execution_lanes(interpreter, *candidate_state);
+    
     // TODO We should also assign some proposal for the execution order
     insert_synchronization_ops(interpreter, *candidate_state);
 

@@ -32,6 +32,7 @@
 #include "../backend/backend.hpp"
 
 #include "stream.hpp"
+#include "util.hpp"
 #include "async_worker.hpp"
 
 #include <atomic>
@@ -92,6 +93,7 @@ private:
 
   task_functor _tf;
   vector_class<task_graph_node_ptr> _requirements;
+  spin_lock _requirements_lock; // prevent _requirements from being cleared while iterated over
 
   stream_ptr _stream;
   async_handler _handler;

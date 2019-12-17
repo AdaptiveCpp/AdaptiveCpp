@@ -467,11 +467,17 @@ class clang_plugin_compiler:
           "-L"+hipsycl_library_path,
           "-lhipSYCL_cuda"
         ]
+        self._compiler_args=["-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")]
 
-      self._compiler_args = ["-x", "cuda",
-                             "--cuda-gpu-arch=" + config.target_arch,
-                             "--cuda-path=" + config.cuda_path,
-                             "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")]
+      else:
+        self._compiler_args = [
+          "-I"+os.path.join(config.hipsycl_installation_path, "contrib/HIP/include")
+        ]
+      
+      self._compiler_args += ["-x", "cuda",
+                              "--cuda-gpu-arch=" + config.target_arch,
+                              "--cuda-path=" + config.cuda_path]
+      
     elif target == hipsycl_platform.HIP:
       self._target = "hip"
       
@@ -508,10 +514,6 @@ class clang_plugin_compiler:
         # We would also have to add include/hipSYCL here, but since we do
         # not want to use the bundled HIP on ROCm, we add these includes
         # in the platform specific section above
-      ]
-    else:
-      self._common_compiler_args += [
-        "-I"+os.path.join(config.hipsycl_installation_path, "contrib/HIP/include")
       ]
 
   def _get_rocm_clang_include_path(self, config):

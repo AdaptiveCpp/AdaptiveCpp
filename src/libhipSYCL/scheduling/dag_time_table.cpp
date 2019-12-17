@@ -26,6 +26,7 @@
  */
 
 #include "CL/sycl/detail/scheduling/dag_time_table.hpp"
+#include <algorithm>
 
 
 namespace cl {
@@ -76,20 +77,93 @@ cost_type get_runtime_cost(const dag_interpreter &interpreter,
 }
 
 double
+get_node_duration(const dag_interpreter &interpreter,
+                  const std::vector<node_scheduling_annotation> &annotations,
+                  std::vector<dag_time_table::time_range> &time_ranges,
+                  dag_node_ptr node)
+{
+  if (node->is_submitted())
+    return 0.0;
+
+  std::size_t node_id =
+      node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+
+  if (time_ranges[node_id].duration == -1.0) {
+    time_ranges[node_id].duration =
+        get_runtime_cost(interpreter, annotations[node_id], node);
+  }
+
+  return time_ranges[node_id].duration;
+}
+
+
+std::size_t get_assigned_execution_lane(
+    std::size_t node_id,
+    const std::vector<node_scheduling_annotation> &annotations)
+{
+  return annotations[node_id].get_execution_lane();
+}
+
+std::size_t get_assigned_execution_lane(
+    dag_node_ptr node,
+    const std::vector<node_scheduling_annotation> &annotations)
+{
+
+  if (node->is_submitted()) {
+    return 0;
+  }
+  
+  std::size_t node_id =
+      node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  
+  return get_assigned_execution_lane(node_id, annotations);
+}
+
+
+double
 get_node_start_date(const dag_interpreter &interpreter,
                     const std::vector<node_scheduling_annotation> &annotations,
+                    std::vector<dag_time_table::time_range> &time_ranges,
                     dag_node_ptr node)
 {
+  
+  std::size_t node_id =
+        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  
   if (node->is_submitted()) {
     // TODO Would it make sense to record actual start dates for nodes
     // when submitting them?
     return 0.0;
   } else {
-    
+
+    if (time_ranges[node_id].start == -1.0) {
+      double max_end_date = 0.0;
+      interpreter.for_each_requirement(node, [&](dag_node_ptr req) {
+        double requirement_start_date =
+            get_node_start_date(interpreter, annotations, time_ranges, req);
+
+        double requirement_end_date =
+            requirement_start_date +
+            get_node_duration(interpreter, annotations, time_ranges, node);
+
+        if (requirement_end_date > max_end_date)
+          max_end_date = requirement_end_date;
+      });
+      // In addition to all explicit requirements, we also need to consider all
+      // nodes that are before this node on the same execution lane
+
+      /* TODO - This requires the introduction of the node order scheduling annotation */
+
+      time_ranges[node_id].start = max_end_date;
+      time_ranges[node_id].duration =
+          get_node_duration(interpreter, annotations, time_ranges, node);
+
+    }
   }
+  return time_ranges[node_id].start;
 }
 
-}
+} // anonymous namespace
 
 dag_time_table::dag_time_table(
       const dag_interpreter& interpreter,
@@ -97,7 +171,38 @@ dag_time_table::dag_time_table(
       const std::vector<node_scheduling_annotation> &scheduling_annotations)
   : _time_ranges(enumerator.get_node_index_space_size())
 {
+  for (auto &t : _time_ranges) {
+    // get_node_start_date() recognize a node as unprocessed if
+    // the start time is -1
+    t.start = -1;
+    t.duration = -1;
+  }
+
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    std::size_t node_id =
+        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+
+    this->_time_ranges[node_id].start = get_node_start_date(
+        interpreter, scheduling_annotations, this->_time_ranges, node);
+    this->_time_ranges[node_id].duration = get_node_duration(
+        interpreter, scheduling_annotations, this->_time_ranges, node);
+  });
+}
+
+double dag_time_table::get_expected_total_dag_duration() const
+{
+
+  if (_time_ranges.empty())
+    return 0.0;
   
+  auto it =
+      std::max_element(_time_ranges.begin(), _time_ranges.end(),
+                       [](const time_range &a, const time_range &b) {
+                         return a.start + a.duration < b.start + b.duration;
+                       });
+
+  assert(it != _time_ranges.end());
+  return it->start + it->duration;
 }
 
 }

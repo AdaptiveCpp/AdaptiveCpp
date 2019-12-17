@@ -37,6 +37,7 @@
 #include "CL/sycl/detail/scheduling/dag.hpp"
 #include "CL/sycl/detail/scheduling/dag_expander.hpp"
 #include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
+#include "CL/sycl/detail/scheduling/dag_time_table.hpp"
 #include "CL/sycl/detail/scheduling/operations.hpp"
 
 
@@ -253,13 +254,11 @@ void assign_requirements_to_devices(scheduling_state &state, const dag *d)
 }
 
 cost_type evaluate_scheduling_decisions(const scheduling_state &state,
-                                        const dag *d,
+                                        const dag_interpreter& interpreter,
                                         const dag_enumerator &enumerator)
 {
-  
-
-  // TODO
-  return 0.0;
+  dag_time_table time_table{interpreter, enumerator, state.scheduling_annotations};
+  return time_table.get_expected_total_dag_duration();
 }
 
 } // anonymous namespace
@@ -355,11 +354,12 @@ void dag_scheduler::submit(dag* d)
                                 &candidate_state->expansion_result};
 
     assign_execution_lanes(interpreter, *candidate_state);
-    
+
     // TODO We should also assign some proposal for the execution order
     insert_synchronization_ops(interpreter, *candidate_state);
 
-    cost_type c = evaluate_scheduling_decisions(*candidate_state, d, enumerator);
+    cost_type c = evaluate_scheduling_decisions(*candidate_state, interpreter,
+                                                enumerator);
 
     if(c < best_cost) {
       best_cost = c;

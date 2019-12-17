@@ -49,8 +49,10 @@ public:
   struct time_range
   {
     double start;
-    double end;
+    double duration;
   };
+
+  double get_expected_total_dag_duration() const;
 
 private:
   std::vector<time_range> _time_ranges;

@@ -29,6 +29,7 @@
 #define HIPSYCL_DAG_NODE_HPP
 
 #include <memory>
+#include <atomic>
 
 #include "hints.hpp"
 #include "event.hpp"
@@ -49,13 +50,7 @@ class dag_node
 public:
   dag_node(const execution_hints& hints,
           const std::vector<dag_node_ptr>& requirements,
-          std::unique_ptr<operation> op)
-  : _hints{hints}, 
-    _requirements{requirements}, 
-    _assigned_executor{nullptr}, 
-    _event{nullptr},
-    _operation{std::move(op)}
-  {}
+          std::unique_ptr<operation> op);
 
   bool is_submitted() const;
   bool is_complete() const;
@@ -63,6 +58,11 @@ public:
   void mark_submitted(std::unique_ptr<dag_node_event> completion_evt);
   void assign_to_executor(backend_executor* ctx);
   void assign_to_device(device_id dev);
+  void assign_to_execution_lane(std::size_t lane_id);
+
+  device_id get_assigned_device() const;
+  backend_executor *get_assigned_executor() const;
+  std::size_t get_assigned_execution_lane() const;
 
   const execution_hints& get_execution_hints() const;
   execution_hints& get_execution_hints();
@@ -76,9 +76,14 @@ private:
   std::vector<dag_node_ptr> _requirements;
 
   device_id _assigned_device;
-  backend_executor* _assigned_executor;
+  backend_executor *_assigned_executor;
+  std::size_t _assigned_execution_lane;
+
   std::unique_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;
+
+  std::atomic<bool> _is_submitted;
+  std::atomic<bool> _is_complete;
 };
 
 }

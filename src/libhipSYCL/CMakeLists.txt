@@ -21,6 +21,7 @@ set(HIPSYCL_SOURCES
   scheduling/data.cpp
   scheduling/executor.cpp
   scheduling/dag.cpp
+  scheduling/dag_node.cpp
   scheduling/dag_builder.cpp
   scheduling/dag_expander.cpp
   scheduling/dag_enumerator.cpp

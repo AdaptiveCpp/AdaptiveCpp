@@ -37,6 +37,8 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
+class dag_interpreter;
+class dag_enumerator;
 class node_scheduling_annotation;
 
 struct backend_execution_lane_range
@@ -62,6 +64,11 @@ public:
   get_kernel_execution_lane_range() const = 0;
 
   virtual execution_hints get_default_execution_hints() const = 0;
+
+  virtual void
+  submit_dag(const dag_interpreter &interpreter,
+             const dag_enumerator &enumerator,
+             const std::vector<node_scheduling_annotation> &annotations) = 0;
 
   // The create_event_* functions will typically be called
   // * by the scheduler, to implement features such as profiling;

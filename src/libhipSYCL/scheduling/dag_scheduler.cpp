@@ -27,6 +27,7 @@
 
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "CL/sycl/detail/application.hpp"
 #include "CL/sycl/detail/scheduling/util.hpp"
@@ -357,7 +358,7 @@ void dag_scheduler::submit(dag* d)
 
     // TODO We should also assign some proposal for the execution order
     insert_synchronization_ops(interpreter, *candidate_state);
-
+    // TODO This does not yet take into account queuing on a single execution lane!
     cost_type c = evaluate_scheduling_decisions(*candidate_state, interpreter,
                                                 enumerator);
 
@@ -382,7 +383,39 @@ void dag_scheduler::submit(dag* d)
   // scheduling?
   d->commit_node_dependencies();
 
-  // Emit nodes to backend executor
+  // Assign final data to nodes
+  // TODO: Maybe we could reuse the dag_interpreter of the best state?
+  dag_interpreter interpreter{d, &enumerator, &best_state->expansion_result};
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    std::size_t node_id =
+        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+
+    const node_scheduling_annotation &annotation =
+        best_state->scheduling_annotations[node_id];
+
+    node->assign_to_device(annotation.get_target_device());
+    node->assign_to_executor(annotation.get_executor());
+    node->assign_to_execution_lane(annotation.get_execution_lane());
+  });
+
+  // Emit nodes to backend executors
+  std::unordered_set<backend_executor *> unique_executors;
+
+  // Find all unique backend executors
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    unique_executors.insert(node->get_assigned_executor());
+  });
+
+  for (backend_executor *executor : unique_executors) {
+    executor->submit_dag(interpreter, enumerator,
+                         best_state->scheduling_annotations);
+  }
+
+  // If all went well, the backend executor should have marked all nodes as
+  // submitted
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    assert(node->is_submitted());
+  });
 }
 
 } // detail

@@ -61,6 +61,7 @@ public:
 
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }
+  virtual bool is_data_transfer() const { return false; }
 };
 
 
@@ -268,6 +269,7 @@ public:
   const memory_location &source() const;
   const memory_location &dest() const;
 
+  virtual bool is_data_transfer() const final override;
 private:
   memory_location _source;
   memory_location _dest;

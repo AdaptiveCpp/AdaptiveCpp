@@ -55,11 +55,11 @@ public:
   virtual bool is_outoforder_queue() const = 0;
   virtual bool is_taskgraph() const = 0;
 
-  virtual std::size_t get_max_total_execution_lanes() const = 0;
-
+  // The range of lanes to use per device
   virtual backend_execution_lane_range
   get_memcpy_execution_lane_range() const = 0;
 
+  // The range of lanes to use per device
   virtual backend_execution_lane_range
   get_kernel_execution_lane_range() const = 0;
 

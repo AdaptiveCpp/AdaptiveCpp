@@ -142,6 +142,7 @@ const memory_location& memcpy_operation::source() const { return _source; }
 
 const memory_location& memcpy_operation::dest() const { return _dest; }
 
+bool memcpy_operation::is_data_transfer() const { return true; }
 
 }
 }

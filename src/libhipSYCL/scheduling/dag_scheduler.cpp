@@ -262,6 +262,50 @@ cost_type evaluate_scheduling_decisions(const scheduling_state &state,
   return time_table.get_expected_total_dag_duration();
 }
 
+void assign_memcopies_to_devices(const dag_interpreter &interpreter,
+                                 scheduling_state &state)
+{
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    if (node->get_operation()->is_data_transfer()) {
+      std::size_t node_id = node->get_execution_hints()
+                                .get_hint<hints::dag_enumeration_id>()
+                                ->id();
+
+      assert(dynamic_is<memcpy_operation>(node->get_operation()));
+
+      memcpy_operation *op = cast<memcpy_operation>(node->get_operation());
+
+      device_id assigned_device;
+      // If a non-CPU backend is involved, use this backend.
+      // The logic behind this is that GPU backends are generally
+      // capable to copy between host and GPU, while pure CPU backends
+      // generally cannot transfer data between host and device.
+      // So, as soon as one non-CPU backend is involved, it must
+      // be used for memory copies.
+
+      // The case where two non-CPU backends should interact is not yet
+      // supported
+      hardware_platform source_platform =
+          op->source().get_device().get_full_backend_descriptor().hw_platform;
+      hardware_platform dest_platform =
+          op->dest().get_device().get_full_backend_descriptor().hw_platform;
+      
+      if (source_platform != hardware_platform::cpu &&
+          dest_platform != hardware_platform::cpu &&
+          source_platform != dest_platform)
+        assert(false &&
+               "Interactions between two non-CPU backends are unimplemented");
+
+      if (source_platform != hardware_platform::cpu)
+        assigned_device = op->source().get_device();
+      else
+        assigned_device = op->dest().get_device();
+
+      state.scheduling_annotations[node_id].set_target_device(assigned_device);
+    }
+  });  
+}
+
 } // anonymous namespace
 
 dag_scheduler::dag_scheduler()
@@ -323,7 +367,9 @@ void dag_scheduler::submit(dag* d)
       // Requirements are not free to be executed on arbitrary devices,
       // (they are bound to the same device as the kernel to which they belong)
       // so we mark them as predetermined
-      if(node->get_operation()->is_requirement())
+      // Memory copies are also not free to be scheduled to arbitrary devices.
+      if (node->get_operation()->is_requirement() ||
+          node->get_operation()->is_data_transfer())
         is_device_predetermined[node_id] = true;
 
       // Start with the first device
@@ -347,12 +393,17 @@ void dag_scheduler::submit(dag* d)
         std::make_unique<scheduling_state>(current_state, enumerator);
 
     assign_requirements_to_devices(*candidate_state, d);
-    
+
     expander.expand(candidate_state->scheduling_annotations,
                     candidate_state->expansion_result);
 
     dag_interpreter interpreter{d, &enumerator,
                                 &candidate_state->expansion_result};
+
+    // We need to correct actual required memory copies and bind them
+    // to the backend that can actual execute them (e.g. CPU backends
+    // usually cannot migrate data to the host from GPUs)
+    assign_memcopies_to_devices(interpreter, *candidate_state);
 
     assign_execution_lanes(interpreter, *candidate_state);
 
@@ -399,9 +450,9 @@ void dag_scheduler::submit(dag* d)
   });
 
   // Emit nodes to backend executors
-  std::unordered_set<backend_executor *> unique_executors;
 
   // Find all unique backend executors
+  std::unordered_set<backend_executor *> unique_executors;
   interpreter.for_each_effective_node([&](dag_node_ptr node) {
     unique_executors.insert(node->get_assigned_executor());
   });

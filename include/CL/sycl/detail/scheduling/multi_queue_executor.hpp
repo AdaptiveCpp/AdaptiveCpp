@@ -25,48 +25,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXECUTOR_HPP
-#define HIPSYCL_EXECUTOR_HPP
+#ifndef HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
+#define HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
 
-#include "dag_node.hpp"
-#include "operations.hpp"
-#include "hints.hpp"
+#include <functional>
 
+#include "backend.hpp"
+#include "executor.hpp"
+#include "inorder_queue.hpp"
 
 namespace cl {
 namespace sycl {
-namespace detail {
+namespace detail  {
 
-class dag_interpreter;
-class dag_enumerator;
-class node_scheduling_annotation;
-
-struct backend_execution_lane_range
-{
-  std::size_t begin;
-  std::size_t num_lanes;
-};
-
-class backend_executor
+/// An executor that submits tasks by serializing them onto 
+/// to multiple inorder queues (e.g. CUDA streams)
+class multi_queue_executor : public backend_executor
 {
 public:
+  using queue_factory_function =
+      std::function<std::unique_ptr<inorder_queue>(device_id)>;
 
-  virtual bool is_inorder_queue() const = 0;
-  virtual bool is_outoforder_queue() const = 0;
-  virtual bool is_taskgraph() const = 0;
+  multi_queue_executor(
+      const backend& b,
+      queue_factory_function queue_factory);
+
+  virtual ~multi_queue_executor() {}
+
+  bool is_inorder_queue() const final override;
+  bool is_outoforder_queue() const final override;
+  bool is_taskgraph() const final override;
 
   // The range of lanes to use for the given device
-  virtual backend_execution_lane_range
-  get_memcpy_execution_lane_range(device_id dev) const = 0;
+  backend_execution_lane_range
+  get_memcpy_execution_lane_range(device_id dev) const override;
 
   // The range of lanes to use for the given device
-  virtual backend_execution_lane_range
-  get_kernel_execution_lane_range(device_id dev) const = 0;
+  backend_execution_lane_range
+  get_kernel_execution_lane_range(device_id dev) const override;
 
-  virtual void
+  void
   submit_dag(const dag_interpreter &interpreter,
              const dag_enumerator &enumerator,
-             const std::vector<node_scheduling_annotation> &annotations) = 0;
+             const std::vector<node_scheduling_annotation> &annotations) override;
 
   // The create_event_* functions will typically be called
   // * by the scheduler, to implement features such as profiling;
@@ -74,38 +75,44 @@ public:
   //   the create_wait_* functions since they typically require events
   //   after the node they wait for
   virtual std::unique_ptr<event_before_node>
-  create_event_before(dag_node_ptr node) const = 0;
+  create_event_before(dag_node_ptr node) const override;
 
   virtual std::unique_ptr<event_before_node>
-  create_event_after(dag_node_ptr node) const = 0;
+  create_event_after(dag_node_ptr node) const override;
 
   // The create_wait_* functions will be called by the scheduler to mark
   // synchronization points
-  virtual std::unique_ptr<wait_for_node_on_same_lane>
+  std::unique_ptr<wait_for_node_on_same_lane>
   create_wait_for_node_same_lane(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
+      node_scheduling_annotation &other_annotation) const override;
 
-  virtual std::unique_ptr<wait_for_node_on_same_backend>
+  std::unique_ptr<wait_for_node_on_same_backend>
   create_wait_for_node_same_backend(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
+      node_scheduling_annotation &other_annotation) const override;
 
-  virtual std::unique_ptr<wait_for_external_node> 
+  std::unique_ptr<wait_for_external_node> 
   create_wait_for_external_node(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
+      node_scheduling_annotation &other_annotation) const override;
+private:
+  struct per_device_data
+  {
+    backend_execution_lane_range memcpy_lanes;
+    backend_execution_lane_range kernel_lanes;
+    std::vector<std::unique_ptr<inorder_queue>> memcpy_queues;
+    std::vector<std::unique_ptr<inorder_queue>> kernel_queues;
+  };
 
-  virtual ~backend_executor(){}
+  std::vector<per_device_data> _device_data;
 };
-
-
-
 }
 }
 }
 
 #endif
+

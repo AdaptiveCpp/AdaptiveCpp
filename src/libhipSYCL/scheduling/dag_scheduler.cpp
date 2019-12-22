@@ -155,17 +155,17 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
     std::size_t lane = 0;
     if(is_memcpy) {
       std::size_t num_available_lanes =
-          executor->get_memcpy_execution_lane_range().num_lanes;
+          executor->get_memcpy_execution_lane_range(target_dev).num_lanes;
       lane = _assigned_memcopies[executor] % num_available_lanes +
-             executor->get_memcpy_execution_lane_range().begin;
+             executor->get_memcpy_execution_lane_range(target_dev).begin;
 
       ++_assigned_memcopies[executor];
     }
     else {
       std::size_t num_available_lanes =
-          executor->get_kernel_execution_lane_range().num_lanes;
+          executor->get_kernel_execution_lane_range(target_dev).num_lanes;
       lane = _assigned_kernels[executor] % num_available_lanes +
-             executor->get_kernel_execution_lane_range().begin;
+             executor->get_kernel_execution_lane_range(target_dev).begin;
       
       ++_assigned_kernels[executor];
     }

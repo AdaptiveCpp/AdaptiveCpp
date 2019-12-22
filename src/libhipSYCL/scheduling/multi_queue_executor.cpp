@@ -25,28 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/executor.hpp"
+#include "CL/sycl/detail/scheduling/multi_queue_executor.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-bool inorder_queue::is_inorder_queue() const
+multi_queue_executor::multi_queue_executor(
+    const backend &b, queue_factory_function queue_factory) 
 {
-  return true;
+  std::size_t num_devices = b.get_hardware_manager()->get_num_devices();
+
+  std::size_t num_assigned_lanes = 0;
+
+  _device_data.resize(num_devices);
+
+  for (std::size_t dev = 0; dev < num_devices; ++dev) {
+
+    device_id dev_id = b.get_hardware_manager()->get_device_id(dev);
+    hardware_context *hw_context = b.get_hardware_manager()->get_device(dev);
+
+
+    for (std::size_t i = 0; i < hw_context->get_max_memcpy_concurrency();
+         ++i, ++num_assigned_lanes) {
+
+      _device_data[dev].memcpy_queues.push_back(queue_factory(dev_id));
+    }
+  }
 }
-
-bool inorder_queue::is_outoforder_queue() const
-{
-  return false;
-}
-
-bool inorder_queue::is_taskgraph() const
-{
-  return false;
-}
-
-
 }
 }
 }

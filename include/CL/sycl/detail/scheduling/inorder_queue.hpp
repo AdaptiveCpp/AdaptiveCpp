@@ -25,30 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_QUEUE_HPP
-#define HIPSYCL_HIP_QUEUE_HPP
+#ifndef HIPSYCL_INORDER_QUEUE_HPP
+#define HIPSYCL_INORDER_QUEUE_HPP
 
-#include "../executor.hpp"
-#include "../inorder_queue.hpp"
-#include "../../../backend/backend.hpp"
+#include "dag_node.hpp"
+#include "operations.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-
-class hip_queue : public inorder_queue
+class inorder_queue
 {
 public:
-  hip_queue(device_id dev);
 
-  hipStream_t get_stream() const;
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
 
-  ~hip_queue();
-
-private:
-  device_id _dev;
-  hipStream_t _stream;
+  virtual void submit_memcpy(const memcpy_operation&) = 0;
+  virtual void submit_kernel(const kernel_operation&) = 0;
+  virtual void submit_prefetch(const prefetch_operation&) = 0;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue may be from the same or a different backend.
+  virtual void submit_queue_wait_for(dag_node_event*) = 0;
 };
 
 }

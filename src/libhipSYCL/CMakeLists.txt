@@ -19,7 +19,7 @@ set(HIPSYCL_SOURCES
   scheduling/device_id.cpp
   scheduling/operations.cpp
   scheduling/data.cpp
-  scheduling/executor.cpp
+  scheduling/multi_queue_executor.cpp
   scheduling/dag.cpp
   scheduling/dag_node.cpp
   scheduling/dag_builder.cpp

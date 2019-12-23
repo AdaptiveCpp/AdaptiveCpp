@@ -16,6 +16,7 @@ add_library(hipSYCL_clang SHARED
 target_include_directories(hipSYCL_clang PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CLANG_INCLUDE_PATH}
   ../../include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE

@@ -1024,6 +1024,64 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
         assert_array_equality(buff_host[idx], fill_value);
       }
 }
+BOOST_AUTO_TEST_CASE(nested_subscript) {
+  namespace s = cl::sycl;
+  s::queue q;
+  
+  s::range<2> buff_size2d{64,64};
+  s::range<3> buff_size3d{buff_size2d[0],buff_size2d[1],64};
+  
+  s::buffer<int, 2> buff2{buff_size2d};
+  s::buffer<int, 3> buff3{buff_size3d};
+  
+  q.submit([&](s::handler& cgh){
+    auto acc = buff2.get_access<s::access::mode::discard_read_write>(cgh);
+    
+    cgh.parallel_for<class nested_subscript2d>(buff_size2d, [=](s::id<2> idx){
+      size_t x = idx[0];
+      size_t y = idx[1];
+      // Writing
+      acc[x][y] = static_cast<int>(x*buff_size2d[1] + y);
+      // Reading and making sure access id the same as with operator[id<>]
+      if(acc[x][y] != acc[idx])
+        acc[x][y] = -1;
+    });
+  });
+  
+  q.submit([&](s::handler& cgh){
+    auto acc = buff3.get_access<s::access::mode::discard_read_write>(cgh);
+    
+    cgh.parallel_for<class nested_subscript3d>(buff_size3d, [=](s::id<3> idx){
+      size_t x = idx[0];
+      size_t y = idx[1];
+      size_t z = idx[2];
+      // Writing
+      acc[x][y][z] = static_cast<int>(x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z);
+      // Reading and making sure access id the same as with operator[id<>]
+      if(acc[x][y][z] != acc[idx])
+        acc[x][y][z] = -1;
+    });
+  });
+  
+  auto host_acc2d = buff2.get_access<s::access::mode::read>();
+  auto host_acc3d = buff3.get_access<s::access::mode::read>();
+  
+  for(size_t x = 0; x < buff_size3d[0]; ++x)
+    for(size_t y = 0; y < buff_size3d[1]; ++y) {
+       
+      size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
+      s::id<2> id2d{x,y};
+      BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
+      BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
+        
+      for(size_t z = 0; z < buff_size3d[2]; ++z) {
+        size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
+        s::id<3> id3d{x,y,z};
+        BOOST_CHECK(host_acc3d[id3d] == linear_id3d);
+        BOOST_CHECK(host_acc3d.get_pointer()[linear_id3d] == linear_id3d);
+      }
+    }
+}
 #ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   namespace s = cl::sycl;

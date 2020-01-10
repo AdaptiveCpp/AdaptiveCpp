@@ -116,6 +116,87 @@ size_t get_pointer_offset(const sycl::accessor<dataT, dimensions,
 }
 
 
+
+template <typename dataT, int dimensions, access::mode accessmode,
+          access::target accessTarget, access::placeholder isPlaceholder,
+          int current_dimension = 1>
+class subscript_proxy
+{
+  HIPSYCL_UNIVERSAL_TARGET
+  static constexpr bool can_invoke_access(int current_dim, int dim) {
+    return current_dim == dim - 1;
+  }
+public:
+  static_assert(dimensions > 1, "dimension must be > 1");
+  
+  using accessor_type = sycl::accessor<dataT, dimensions, accessmode,
+                                       accessTarget, isPlaceholder>;
+
+  using next_subscript_proxy =
+      subscript_proxy<dataT, dimensions, accessmode, accessTarget,
+                      isPlaceholder, current_dimension+1>;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  subscript_proxy(const accessor_type *original_accessor,
+                  sycl::id<dimensions> current_access_id)
+      : _original_accessor{original_accessor}, _access_id{current_access_id} {}
+
+
+  template <int D = dimensions,
+            int C = current_dimension,
+            std::enable_if_t<!can_invoke_access(C, D)> * = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  next_subscript_proxy operator[](size_t index) const {
+    return create_next_proxy(index);
+  }
+
+
+  template <int D = dimensions,
+            int C = current_dimension,
+            access::mode M = accessmode,
+            std::enable_if_t<can_invoke_access(C, D) && 
+                            (M == access::mode::read || 
+                             M == access::mode::atomic)> * = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  auto operator[](size_t index) const {
+    return invoke_value_access(index);
+  }
+
+  template <int D = dimensions,
+            int C = current_dimension,
+            access::mode M = accessmode,
+            std::enable_if_t<can_invoke_access(C, D) && 
+                            (M != access::mode::read &&
+                             M != access::mode::atomic)> * = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  auto& operator[](size_t index) const {
+    return invoke_ref_access(index);
+  }
+private:
+  HIPSYCL_UNIVERSAL_TARGET
+  auto invoke_value_access(size_t index) const {
+    // Set the last index
+    _access_id[dimensions - 1] = index;
+    return (*_original_accessor)[_access_id];
+  }
+  
+  HIPSYCL_UNIVERSAL_TARGET
+  auto& invoke_ref_access(size_t index) const {
+    // Set the last index
+    _access_id[dimensions - 1] = index;
+    return (*_original_accessor)[_access_id];
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  next_subscript_proxy create_next_proxy(size_t next_id) const {
+    _access_id[current_dimension] = next_id;
+    return next_subscript_proxy{_original_accessor, _access_id};
+  }
+
+  const accessor_type *_original_accessor;
+  mutable sycl::id<dimensions> _access_id;
+};
+
 } // accessor
 
 
@@ -518,19 +599,20 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   //    size_t index) const;
 
   /* Available only when: dimensions > 1 */
-  template<int D = dimensions,
-           typename = std::enable_if_t<(D > 1)>>
+  template <int D = dimensions, typename = std::enable_if_t<(D > 1)>>
   HIPSYCL_UNIVERSAL_TARGET
-  accessor<dataT, dimensions-1, accessmode, accessTarget, isPlaceholder>
+  detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
+                                    accessTarget, isPlaceholder>
   operator[](size_t index) const
   {
-    // Create sub accessor for slice at _ptr[index][...]
-    accessor<dataT, dimensions-1, accessmode, accessTarget, isPlaceholder> sub_accessor;
-    sub_accessor._range = detail::range::omit_first_dimension(this->_range);
-    sub_accessor._buffer_range = _buffer_range;
-    sub_accessor._ptr = this->_ptr + index * sub_accessor._range.size();
+    
+    sycl::id<dimensions> initial_index;
+    initial_index[0] = index;
 
-    return sub_accessor;
+    return detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
+                                             accessTarget, isPlaceholder> {
+      this, initial_index
+    };
   }
 
   /* Available only when: accessTarget == access::target::host_buffer */
@@ -707,24 +789,17 @@ public:
   template<int D = dimensions,
            std::enable_if_t<(D > 1)>* = nullptr>
   HIPSYCL_KERNEL_TARGET
-  accessor<dataT, dimensions-1, accessmode, access::target::local, isPlaceholder>&
+  detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
+                                      access::target::local, isPlaceholder>
   operator[](size_t index) const
   {
-    // Create sub accessor for slice at _ptr[index][...]
-
-    using subaccessor_type = accessor<
-        dataT,
-        dimensions-1,
-        accessmode,
-        access::target::local,
-        isPlaceholder>;
-
-    auto subrange =
-        detail::range::omit_first_dimension(this->_num_elements);
-    address subaddr = this->_addr
-                + index * subrange.size() * sizeof(dataT);
-
-    return subaccessor_type{subaddr, subrange};
+    sycl::id<dimensions> initial_index;
+    initial_index[0] = index;
+    
+    return detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
+                                             access::target::local, isPlaceholder> {
+      this, initial_index
+    };
   }
 
   HIPSYCL_KERNEL_TARGET

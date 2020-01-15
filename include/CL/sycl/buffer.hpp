@@ -48,6 +48,7 @@
 
 namespace cl {
 namespace sycl {
+
 namespace property {
 namespace buffer {
 
@@ -185,7 +186,7 @@ public:
   {
     _alloc = allocator;
 
-    constexpr bool is_const_iterator = 
+    constexpr bool is_const_iterator =
         std::is_const<
           typename std::remove_reference<
             typename std::iterator_traits<InputIterator>::reference
@@ -211,14 +212,14 @@ public:
       // the memory range [first, last) as writeback buffer
       this->_buffer->enable_write_back(true);
 
-      
+
       auto buff = this->_buffer;
       this->_cleanup_trigger->add_cleanup_callback([first, last, buff](){
         const T* host_data = reinterpret_cast<T*>(buff->get_host_ptr());
 
         std::copy(host_data, host_data + std::distance(first,last), first);
       });
-      
+
     }
   }
 
@@ -226,12 +227,38 @@ public:
             typename = std::enable_if_t<D == 1>>
   buffer(InputIterator first, InputIterator last,
          const property_list &propList = {})
-  : buffer(first, last, AllocatorT(), propList) 
+  : buffer(first, last, AllocatorT(), propList)
   {}
 
-  buffer(buffer<T, dimensions, AllocatorT> b,
-         const id<dimensions> &baseIndex,
-         const range<dimensions> &subRange);
+  buffer(buffer<T, dimensions, AllocatorT> &b,
+          const id<dimensions> &baseIndex,
+          const range<dimensions> &subRange,
+          const property_list &propList = {})
+      : detail::property_carrying_object{propList},
+      _range(subRange), _is_subbuf{true}
+  {
+      std::cerr << "Sub buffer status \n" << is_sub_buffer() << " \n"<< std::endl << std::flush;
+
+      auto b_ = b._detail_get_buffer_ptr();
+      size_t offset = baseIndex.get(0);
+      size_t size = subRange.size() * sizeof(T);
+
+      // Let's do some void* pointer arithmetic!
+      T* buff = static_cast<T*>(b_->get_buffer_ptr());
+      T* host = static_cast<T*>(b_->get_host_ptr());
+
+      std::cerr << "Status ok" << std::endl << std::flush;
+
+      _buffer = detail::buffer_ptr{
+        new detail::buffer_impl{
+          (void*)(buff + offset),
+          (void*)(host + offset),
+          size}
+        };
+  }
+        // subRange},
+        //  OffsetInBytes(getOffsetInBytes<T>(baseIndex, b.Range)),
+        //  IsSubBuffer(true) {}
 
   /* Available only when: dimensions == 1. */
 
@@ -318,7 +345,9 @@ public:
   }
 
   // ToDo Implement
-  bool is_sub_buffer() const;
+  bool is_sub_buffer() const{
+      return _is_subbuf;
+  };
 
   // ToDo Implement
   template <typename ReinterpretT, int ReinterpretDim>
@@ -349,7 +378,7 @@ private:
     device_mode = detail::device_alloc_mode::svm;
     host_mode = detail::host_alloc_mode::svm;
 #endif
-    
+
     _buffer = detail::buffer_ptr{
       new detail::buffer_impl{
         sizeof(T) * range.size(), device_mode, host_mode
@@ -366,7 +395,7 @@ private:
 #else
     bool force_svm = false;
 #endif
-      
+
     _buffer = detail::buffer_ptr{
       new detail::buffer_impl{
         sizeof(T) * range.size(),
@@ -394,7 +423,7 @@ private:
     if(this->has_property<hipsycl::property::buffer::try_pinned_memory>())
       host_mode = detail::host_alloc_mode::allow_pinned;
 
-    
+
     if(this->has_property<hipsycl::property::buffer::use_svm>())
     {
       device_mode = detail::device_alloc_mode::svm;
@@ -419,7 +448,7 @@ private:
   AllocatorT _alloc;
   range<dimensions> _range;
 
-  
+
   // Only used if a shared_ptr is passed to set_final_data()
   shared_ptr_class<T> _writeback_buffer;
   // Only used if a shared_ptr is passed to the buffer constructor
@@ -427,8 +456,10 @@ private:
   // Must be defined after the shared_ptrs to ensure that they still
   // exist once the cleanup trigger is executed!
   shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
-  
+
   detail::buffer_ptr _buffer;
+
+  bool _is_subbuf = false;
 };
 
 namespace detail {

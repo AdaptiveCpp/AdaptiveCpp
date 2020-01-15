@@ -191,6 +191,8 @@ buffer_impl::~buffer_impl()
     if(_owns_host_memory)
       svm_free(this->_buffer_pointer);
 #endif
+  } else if (is_sub_buffer()) {
+    
   }
   else
   {

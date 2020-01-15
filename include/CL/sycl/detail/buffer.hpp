@@ -136,12 +136,13 @@ public:
     size_t buffer_size)
   : _svm{false},
     _pinned_memory{false},
-    _owns_host_memory{true},
+    _owns_host_memory{false},
     _host_memory{_host_memory_source},
     _buffer_pointer{_buffer_pointer_source},
     _size{buffer_size},
     _write_back{false},
-    _write_back_memory{_host_memory_source}
+    _write_back_memory{_host_memory_source},
+    _is_subbuf{true}
   {
     // this->_monitor.register_host_access(access::mode::read_write);
   }
@@ -164,6 +165,9 @@ public:
 
   bool is_writeback_enabled() const;
   void* get_writeback_ptr() const;
+  bool is_sub_buffer() const{
+      return _is_subbuf;
+  }
 
   /// Finishes all enqueued host accesses, and executes
   /// possible write-back operations. After a call to this
@@ -216,6 +220,7 @@ private:
   bool _svm;
   bool _pinned_memory;
   bool _owns_host_memory;
+  bool _is_subbuf = false;
 
   void* _buffer_pointer;
   void* _host_memory;

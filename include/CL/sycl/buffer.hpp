@@ -237,17 +237,15 @@ public:
       : detail::property_carrying_object{propList},
       _range(subRange), _is_subbuf{true}
   {
-      std::cerr << "Sub buffer status \n" << is_sub_buffer() << " \n"<< std::endl << std::flush;
-
-      auto b_ = b._detail_get_buffer_ptr();
+      auto b_ = b._detail_get_buffer_ptr().get();
       size_t offset = baseIndex.get(0);
-      size_t size = subRange.size() * sizeof(T);
+      size_t size = subRange.size();
 
       // Let's do some void* pointer arithmetic!
       T* buff = static_cast<T*>(b_->get_buffer_ptr());
       T* host = static_cast<T*>(b_->get_host_ptr());
 
-      std::cerr << "Status ok" << std::endl << std::flush;
+      std::cerr << "Status ok. Size: " << subRange.size() << "Offset: " << offset << std::endl << std::flush;
 
       _buffer = detail::buffer_ptr{
         new detail::buffer_impl{
@@ -255,6 +253,7 @@ public:
           (void*)(host + offset),
           size}
         };
+        std::cerr << "Sub buffer status \n" << is_sub_buffer() << " \n"<< std::endl << std::flush;
   }
         // subRange},
         //  OffsetInBytes(getOffsetInBytes<T>(baseIndex, b.Range)),
@@ -346,7 +345,7 @@ public:
 
   // ToDo Implement
   bool is_sub_buffer() const{
-      return _is_subbuf;
+      return _buffer->is_sub_buffer();
   };
 
   // ToDo Implement

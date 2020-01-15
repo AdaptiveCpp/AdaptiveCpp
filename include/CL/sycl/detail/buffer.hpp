@@ -130,6 +130,22 @@ public:
               void* host_ptr,
               bool is_svm_ptr = false);
 
+  buffer_impl(
+    void* _buffer_pointer_source,
+    void* _host_memory_source,
+    size_t buffer_size)
+  : _svm{false},
+    _pinned_memory{false},
+    _owns_host_memory{true},
+    _host_memory{_host_memory_source},
+    _buffer_pointer{_buffer_pointer_source},
+    _size{buffer_size},
+    _write_back{false},
+    _write_back_memory{_host_memory_source}
+  {
+    // this->_monitor.register_host_access(access::mode::read_write);
+  }
+
   ~buffer_impl();
 
   void* get_buffer_ptr() const;
@@ -145,7 +161,7 @@ public:
   void set_write_back(void* ptr);
 
   void enable_write_back(bool writeback);
-  
+
   bool is_writeback_enabled() const;
   void* get_writeback_ptr() const;
 
@@ -225,7 +241,7 @@ public:
 
   // Will be called after the writeback takes place
   void add_cleanup_callback(cleanup_callback callback);
-  
+
   void remove_cleanup_callbacks();
 private:
   buffer_ptr _buff;

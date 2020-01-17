@@ -141,7 +141,10 @@ task_graph_node::submit()
     // We know that we don't need the dependencies anymore, because
     // we know that assert(is_ready()) passes - so all dependencies
     // are satisified anyway, and do not need to be considered anymore.
-    _requirements = std::vector<task_graph_node_ptr>{};
+    {
+        spin_lock_guard guard{_requirements_lock};
+        _requirements.clear();
+    }
     
     // Remove the task functor after execution to avoid
     // cyclic dependencies between buffer objects (that store
@@ -216,6 +219,7 @@ task_graph_node::wait()
 {
   if(!_submitted)
   {
+    spin_lock_guard guard{_requirements_lock};
     for(auto& requirement : _requirements)
       requirement->wait();
   }

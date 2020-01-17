@@ -2,6 +2,7 @@
 
 We provide
 * Scripts to install hipSYCL and required LLVM, ROCm and CUDA stacks
+* Repositories for all supported distributions
 * Singularity definition files which allow to create singularity container images with hipSYCL
 * Scripts to create binary packages of the entire stack for several distributions.
 
@@ -9,6 +10,49 @@ Currently, we support
 * Ubuntu 18.04
 * CentOS 7
 * Arch Linux
+
+## Installing from repositories
+Installing using the repositories is beneficial because the hipSYCL installation can be kept up to date with regular system updates.
+
+### Ubuntu 18.04
+Add the hipSYCL repo to the sources:  
+`echo "deb http://repo.urz.uni-heidelberg.de/sycl/deb/ ./bionic main" > /etc/apt/sources.list.d/hipsycl.list`  
+Import the pgp public key:  
+`wget -q -O - http://repo.urz.uni-heidelberg.de/sycl/hipsycl.asc | apt-key add -`  
+After updating the packages can be installed with apt  
+`apt update`  
+`apt install <hipSYCL package>`  
+
+### Centos
+The following command will set up everything:  
+`yum-config-manager --add-repo http://repo.urz.uni-heidelberg.de/sycl/rpm/centos7/hipsycl.repo`  
+  
+After an update the packages can be installed with yum  
+`yum update`  
+`yum install <hipSYCL package>`  
+
+Note: hipSYCL depends on devtoolset-7 which is available in the scl repository:  
+`yum install centos-release-scl`  
+`yum update`  
+
+### Archlinux
+The following should be added to `/etc/pacman.conf`:
+```
+[hipsycl]   
+Server = http://repo.urz.uni-heidelberg.de/sycl/archlinux/x86_64
+```
+In case that pacman couldn't fetch the public key from a key server, you can download it from:
+http://repo.urz.uni-heidelberg.de/sycl/  
+And then add it manually.   
+(see: [Arch wiki](https://wiki.archlinux.org/index.php/Pacman/Package_signing#Adding_unofficial_keys))
+  
+After upgrade the packages can be installed with pacman  
+`pacman -Sy`  
+Pacman should fetch the public key from a key server, however it needs to be signed locally first:
+`pacman-key --lsign E967BA09716F870320089583E68CC4B9B2B75080`  
+Now update should finish without an error  
+`pacman -Sy`  
+`pacman -S <hipSYCL package>`
 
 ## Installing by script
 Note that the installation scripts may require the installation of some packages, depending on your distributions. We recommend first looking at the singularity definition files `*.def` for your distribution and installing everything that is installed there. Afterwards, run

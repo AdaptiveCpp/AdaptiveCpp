@@ -1,4 +1,5 @@
 #!/bin/bash
+
 BASE_DIR=`pwd`
 SINGULARITY_BASE_DIR=${SINGULARITY_BASE_DIR:-./containers}
 REPO_BASE_DIR=${REPO_BASE_DIR:-/data/repos}

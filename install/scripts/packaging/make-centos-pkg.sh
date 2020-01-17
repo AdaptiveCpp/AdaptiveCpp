@@ -5,6 +5,10 @@ set -e
 
 . ./common/init.sh
 
+BUILD_BASE=${BUILD_BASE:-ON}
+BUILD_HIPSYCL=${BUILD_HIPSYCL:-ON}
+BUILD_ROCM=${BUILD_ROCM:-ON}
+BUILD_CUDA=${BUILD_CUDA:-OFF}
 
 RPM_ROOT=${BUILD_DIR}/rpm
 mkdir -p ${RPM_ROOT}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
@@ -83,8 +87,45 @@ cp -R ${ROCM_DIR}/* %{buildroot}
 
 EOF
 
-cd ${RPM_ROOT}/SPECS
-rpmbuild -bb hipSYCL.spec
-rpmbuild -bb hipSYCL-base.spec
-rpmbuild -bb hipSYCL-rocm.spec
+cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-cuda.spec
+Summary: CUDA stack for hipSYCL
+Name: hipSYCL-cuda
+Version: ${HIPSYCL_VERSION}
+Release: ${HIPSYCL_BUILD}
+License: NVIDIA CUDA EULA
+Packager: Aksel Alpay
+Group: Development/Tools
+BuildRequires: coreutils
+BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-cuda-${HIPSYCL_VERSION_STRING}
+AutoReq: no
 
+%description
+%{summary}
+
+%install
+cp -R ${CUDA_DIR}/* %{buildroot}
+
+
+%files
+/opt/hipSYCL/cuda
+
+EOF
+
+
+cd ${RPM_ROOT}/SPECS
+
+if [ "$BUILD_HIPSYCL" = "ON"  ]; then
+rpmbuild -bb hipSYCL.spec
+fi
+
+if [ "$BUILD_BASE" = "ON"  ]; then
+rpmbuild -bb hipSYCL-base.spec
+fi
+
+if [ "$BUILD_ROCM" = "ON"  ]; then
+rpmbuild -bb hipSYCL-rocm.spec
+fi
+
+if [ "$BUILD_CUDA" = "ON"  ]; then
+rpmbuild -D '%_python_bytecompile_errors_terminate_build 0' -bb hipSYCL-cuda.spec
+fi

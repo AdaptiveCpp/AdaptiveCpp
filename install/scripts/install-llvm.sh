@@ -5,7 +5,7 @@ BUILD_DIR=$HOME/git/llvm-vanilla
 rm -rf $BUILD_DIR
 
 #git clone -b release/9.x https://github.com/llvm/llvm-project $BUILD_DIR
-git clone -b master https://github.com/llvm/llvm-project $BUILD_DIR
+git clone -b release/10.x https://github.com/llvm/llvm-project $BUILD_DIR
 export CC=${HIPSYCL_BASE_CC:-clang}
 export CXX=${HIPSYCL_BASE_CXX:-clang++}
 export BUILD_TYPE=Release

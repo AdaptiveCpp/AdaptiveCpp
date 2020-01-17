@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-UBUNTU_PKG_DIR=${UBUNTU_PKG_DIR:-`pwd`/new_pkg_ubuntu}
+source ./common/init.sh
+
 UBUNTU_REPO_DIR=${UBUNTU_REPO_DIR:-/data/repos/deb}
 DIST=${DIST:-bionic}
 

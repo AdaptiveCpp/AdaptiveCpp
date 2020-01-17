@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 # We assume that the packages are already signed
-ARCH_PKG_DIR=${ARCH_PKG_DIR:-`pwd`/new_pkg_arch/}
-ARCH_REPO_DIR=${ARCH_REPO_DIR:-/data/repos/archlinux/x86_64/}
+source ./common/init.sh
+ARCH_REPO_DIR=/data/repos/archlinux/x86_64/
 
 mkdir -p $ARCH_REPO_DIR
 

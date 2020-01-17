@@ -5,6 +5,11 @@ set -e
 
 . ./common/init.sh
 
+BUILD_BASE=${BUILD_BASE:-ON}
+BUILD_HIPSYCL=${BUILD_HIPSYCL:-ON}
+BUILD_ROCM=${BUILD_ROCM:-ON}
+BUILD_CUDA=${BUILD_CUDA:-OFF}
+
 mkdir -p ${CUDA_DIR}/DEBIAN
 mkdir -p ${ROCM_DIR}/DEBIAN
 mkdir -p ${COMMON_DIR}/DEBIAN
@@ -58,7 +63,20 @@ Description: CUDA stack for hipSYCL
 EOF
 
 cd ${BUILD_DIR}
+
+if [ "$BUILD_ROCM" = "ON" ]; then
 dpkg-deb --build ${ROCM_PKG}
+fi
+
+if [ "$BUILD_BASE" = "ON"  ]; then
 dpkg-deb --build ${COMMON_PKG}
+fi
+
+if [ "$BUILD_HIPSYCL" = "ON" ]; then
 dpkg-deb --build ${HIPSYCL_PKG}
+fi
+
+if [ "$BUILD_CUDA" = "ON" ]; then
+dpkg-deb --build ${CUDA_PKG}
+fi
 

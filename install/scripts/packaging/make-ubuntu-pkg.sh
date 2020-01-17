@@ -11,7 +11,7 @@ mkdir -p ${COMMON_DIR}/DEBIAN
 mkdir -p ${HIPSYCL_DIR}/DEBIAN
 
 cat << EOF > ${HIPSYCL_DIR}/DEBIAN/control 
-Package: hipSYCL
+Package: hipsycl
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
@@ -23,7 +23,7 @@ Description: hipSYCL
 EOF
 
 cat << EOF > ${COMMON_DIR}/DEBIAN/control
-Package: hipSYCL-base
+Package: hipsycl-base
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
@@ -35,7 +35,7 @@ Description: hipSYCL base compiler stack
 EOF
 
 cat << EOF > ${ROCM_DIR}/DEBIAN/control
-Package: hipSYCL-rocm
+Package: hipsycl-rocm
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
@@ -47,7 +47,7 @@ Description: ROCm compiler stack for hipSYCL
 EOF
 
 cat << EOF > ${CUDA_DIR}/DEBIAN/control
-Package: hipSYCL-cuda
+Package: hipsycl-cuda
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional

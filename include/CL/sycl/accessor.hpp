@@ -759,7 +759,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   dataT &operator[](id<dimensions> index) const
   {
-    *(detail::local_memory::get_ptr<dataT>(_addr) +
+    return *(detail::local_memory::get_ptr<dataT>(_addr) +
         detail::linear_id<dimensions>::get(index, _num_elements));
   }
 

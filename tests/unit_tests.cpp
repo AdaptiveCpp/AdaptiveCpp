@@ -145,6 +145,39 @@ BOOST_AUTO_TEST_CASE(hierarchical_dispatch) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(private_memory) {
+  constexpr size_t local_size = 256;
+  constexpr size_t global_size = 1024;
+
+  cl::sycl::queue queue;
+
+  cl::sycl::buffer<int, 1> buf{cl::sycl::range<1>{global_size}};
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+
+    cgh.parallel_for_work_group<class private_memory>(
+      cl::sycl::range<1>{global_size / local_size},
+      cl::sycl::range<1>{local_size}, [=](cl::sycl::group<1> wg) {
+
+        cl::sycl::private_memory<int> my_int{wg};
+
+        wg.parallel_for_work_item([&](cl::sycl::h_item<1> item) {
+          my_int(item) = item.get_global_id(0);
+        });
+        // Tests that private_memory is persistent across multiple
+        // parallel_for_work_item() invocations
+        wg.parallel_for_work_item([&](cl::sycl::h_item<1> item) {
+          acc[item.get_global_id()] = my_int(item);
+        });
+      });
+  });
+
+  auto host_acc = buf.get_access<cl::sycl::access::mode::read>();
+  for (int i = 0; i < global_size; ++i)
+    BOOST_TEST(host_acc[i] == i);
+}
+
 BOOST_AUTO_TEST_CASE(dynamic_local_memory) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;

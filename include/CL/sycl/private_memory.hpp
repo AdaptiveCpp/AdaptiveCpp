@@ -28,11 +28,15 @@
 #ifndef HIPSYCL_PRIVATE_MEMORY_HPP
 #define HIPSYCL_PRIVATE_MEMORY_HPP
 
+#include <memory>
+
 #include "group.hpp"
 #include "h_item.hpp"
 
 namespace cl {
 namespace sycl {
+
+#ifdef SYCL_DEVICE_ONLY
 
 template<typename T, int Dimensions = 1>
 class private_memory
@@ -51,6 +55,31 @@ public:
 private:
   T _data;
 };
+
+#else
+
+template<typename T, int Dimensions = 1>
+class private_memory
+{
+public:
+  HIPSYCL_KERNEL_TARGET
+  private_memory(const group<Dimensions>& grp)
+  : _data{new T [grp.get_local_range().size()]}
+  {}
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const h_item<Dimensions>& idx)
+  {
+    auto id = idx.get_local_id();
+
+    return _data.get()[detail::linear_id<Dimensions>::get(
+        id, idx.get_local_range())];
+  }
+
+private:
+  std::unique_ptr<T []> _data;
+};
+#endif
 
 }
 }

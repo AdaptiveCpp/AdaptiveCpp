@@ -34,6 +34,8 @@
 #include <regex>
 #include <sstream>
 
+#include "clang/AST/Decl.h"
+#include "clang/Basic/LLVM.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Attr.h"
@@ -109,8 +111,22 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 
     bool TraverseDecl(clang::Decl* D)
     {
-      if(visitedDecls.find(llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) == visitedDecls.end())
-        return clang::RecursiveASTVisitor<CompleteCallSet>::TraverseDecl(D);
+      clang::Decl* DefinitionDecl = D;
+      clang::FunctionDecl* FD = clang::dyn_cast<clang::FunctionDecl>(D);
+
+      if(FD){
+        const clang::FunctionDecl* ActualDefinition;
+        if(FD->isDefined(ActualDefinition)) {
+          
+          DefinitionDecl = const_cast<clang::FunctionDecl*>(ActualDefinition);
+        }
+      }
+
+      if (visitedDecls.find(llvm::dyn_cast_or_null<clang::FunctionDecl>(
+              DefinitionDecl)) == visitedDecls.end())
+        return clang::RecursiveASTVisitor<CompleteCallSet>::TraverseDecl(
+            DefinitionDecl);
+      
       return true;
     }
 

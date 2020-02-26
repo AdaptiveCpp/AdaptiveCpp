@@ -116,6 +116,7 @@ BOOST_AUTO_TEST_CASE(complex_device_call_graph) {
   BOOST_REQUIRE(acc[0] == 37);
 }
 
+
 template<int T, int* I, typename U>
 class complex_kn;
 
@@ -265,6 +266,37 @@ BOOST_AUTO_TEST_CASE(hierarchical_invoke_shared_memory) {
     }
   }
 }
+
+
+void forward_declared2();
+
+template<class T>
+void forward_declared1();
+
+template<class T>
+class forward_declared_test_kernel;
+
+BOOST_AUTO_TEST_CASE(forward_declared_function) {
+  cl::sycl::queue q;
+
+  // Here, the clang plugin must build the correct call graph
+  // and emit both forward_declared1() and forward_declared2()
+  // to device code, even though the call expression below refers
+  // to the forward declarations above.
+  q.submit([&](cl::sycl::handler& cgh){
+    cgh.single_task<forward_declared_test_kernel<int>>([=](){
+      forward_declared1<int>();
+    });  
+  });
+
+  q.wait_and_throw();
+}
+
+
+template <class T>
+void forward_declared1(){forward_declared2();}
+
+void forward_declared2(){}
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

@@ -54,14 +54,14 @@ void hip_node_event::wait()
   detail::check_error(hipEventSynchronize(_evt));
 }
 
-device_id hip_node_event::get_device() const
-{
-  return _dev;
-}
-
 hipEvent_t hip_node_event::get_event() const
 {
   return _evt;
+}
+
+device_id hip_node_event::get_device() const
+{
+  return _dev;
 }
 
 }

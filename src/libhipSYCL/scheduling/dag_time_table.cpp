@@ -46,8 +46,7 @@ cost_type get_runtime_cost(const dag_interpreter &interpreter,
     c += op->get_runtime_costs();
   });
 
-  std::size_t node_id =
-      node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  std::size_t node_id = node->get_node_id();
   
   cost_type max_synchronization_duration = 0.0;
   for(auto synchronization_op : annotation.get_synchronization_ops()) {
@@ -85,8 +84,7 @@ get_node_duration(const dag_interpreter &interpreter,
   if (node->is_submitted())
     return 0.0;
 
-  std::size_t node_id =
-      node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  std::size_t node_id = node->get_node_id();
 
   if (time_ranges[node_id].duration == -1.0) {
     time_ranges[node_id].duration =
@@ -113,8 +111,7 @@ std::size_t get_assigned_execution_lane(
     return 0;
   }
   
-  std::size_t node_id =
-      node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  std::size_t node_id = node->get_node_id();
   
   return get_assigned_execution_lane(node_id, annotations);
 }
@@ -127,8 +124,7 @@ get_node_start_date(const dag_interpreter &interpreter,
                     dag_node_ptr node)
 {
   
-  std::size_t node_id =
-        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  std::size_t node_id = node->get_node_id();
   
   if (node->is_submitted()) {
     // TODO Would it make sense to record actual start dates for nodes
@@ -153,6 +149,7 @@ get_node_start_date(const dag_interpreter &interpreter,
       // nodes that are before this node on the same execution lane
 
       /* TODO - This requires the introduction of the node order scheduling annotation */
+      /* TODO - Need to introduce execution lanes */
 
       time_ranges[node_id].start = max_end_date;
       time_ranges[node_id].duration =
@@ -179,8 +176,7 @@ dag_time_table::dag_time_table(
   }
 
   interpreter.for_each_effective_node([&](dag_node_ptr node) {
-    std::size_t node_id =
-        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+    std::size_t node_id = node->get_node_id();
 
     this->_time_ranges[node_id].start = get_node_start_date(
         interpreter, scheduling_annotations, this->_time_ranges, node);

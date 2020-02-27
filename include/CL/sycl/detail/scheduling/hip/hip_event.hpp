@@ -47,9 +47,9 @@ public:
 
   virtual bool is_complete() const override;
   virtual void wait() override;
-  virtual device_id get_device() const override;
 
   hipEvent_t get_event() const;
+  device_id get_device() const;
 private:
   device_id _dev;
   hipEvent_t _evt;

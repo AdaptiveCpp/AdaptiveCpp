@@ -37,15 +37,6 @@ namespace detail {
 
 namespace {
 
-std::size_t get_node_id_impl(const dag_node_ptr &node)
-{
-  assert(node->get_execution_hints().has_hint(
-      execution_hint_type::dag_enumeration_id));
-
-  return node->get_execution_hints()
-      .get_hint<hints::dag_enumeration_id>()
-      ->id();
-}
 
 void add_requirements_from_node_to(const dag_node_ptr &node,
                                    const dag_expansion_result& expansion,
@@ -55,7 +46,7 @@ void add_requirements_from_node_to(const dag_node_ptr &node,
     bool is_requirement_optimized_away = false;
 
     if(!req->is_submitted()) {
-      std::size_t node_id = get_node_id_impl(node);
+      std::size_t node_id = node->get_node_id();
       if(expansion.node_annotations(node_id).is_optimized_away()) {
         is_requirement_optimized_away = true;
         add_requirements_from_node_to(req, expansion, target);
@@ -121,7 +112,7 @@ bool dag_interpreter::is_node_forwarded(const dag_node_ptr& node) const
 
 std::size_t dag_interpreter::get_node_id(const dag_node_ptr &node) const
 {
-  return get_node_id_impl(node);
+  return node->get_node_id();
 }
 
 }

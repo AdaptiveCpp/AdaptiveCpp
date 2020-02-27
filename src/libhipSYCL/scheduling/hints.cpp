@@ -64,19 +64,7 @@ dag_node_ptr explicit_require::get_requirement() const
   return _dag_node;
 }
 
-
-
-
-dag_enumeration_id::dag_enumeration_id(std::size_t id)
-    : execution_hint{execution_hint_type::dag_enumeration_id}, _id{id} {}
-
-std::size_t dag_enumeration_id::id() const
-{ return _id; }
-
-
 } // hints
-
-
 
 void execution_hints::add_hint(execution_hint_ptr hint)
 {

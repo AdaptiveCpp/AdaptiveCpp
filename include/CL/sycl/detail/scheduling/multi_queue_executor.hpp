@@ -64,7 +64,7 @@ public:
   backend_execution_lane_range
   get_kernel_execution_lane_range(device_id dev) const override;
 
-  void
+  virtual void
   submit_dag(const dag_interpreter &interpreter,
              const dag_enumerator &enumerator,
              const std::vector<node_scheduling_annotation> &annotations) override;
@@ -100,12 +100,15 @@ public:
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
 private:
+  void submit_node(dag_node_ptr node, 
+    const dag_interpreter& interpreter,
+    const std::vector<node_scheduling_annotation> &annotations);
+
   struct per_device_data
   {
     backend_execution_lane_range memcpy_lanes;
     backend_execution_lane_range kernel_lanes;
-    std::vector<std::unique_ptr<inorder_queue>> memcpy_queues;
-    std::vector<std::unique_ptr<inorder_queue>> kernel_queues;
+    std::vector<std::unique_ptr<inorder_queue>> queues;
   };
 
   std::vector<per_device_data> _device_data;

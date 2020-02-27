@@ -126,11 +126,8 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
   std::unordered_map<backend_executor*, std::size_t> _assigned_memcopies;
 
   d.for_each_effective_node([&](dag_node_ptr node) {
-    assert(node->get_execution_hints().has_hint(
-        execution_hint_type::dag_enumeration_id));
 
-    std::size_t node_id =
-        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+    std::size_t node_id = node->get_node_id();
 
     device_id target_dev = s.scheduling_annotations[node_id].get_target_device();
 
@@ -177,16 +174,12 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
 void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
 {
   d.for_each_effective_node([&](dag_node_ptr node) {
-    assert(node->get_execution_hints().has_hint(
-        execution_hint_type::dag_enumeration_id));
-    std::size_t node_id =
-        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+    assert(node->has_node_id());
+    std::size_t node_id = node->get_node_id();
 
     d.for_each_requirement(node, [&](dag_node_ptr req) {
 
-      std::size_t req_id = req->get_execution_hints()
-                               .get_hint<hints::dag_enumeration_id>()
-                               ->id();
+      std::size_t req_id = req->get_node_id();
 
       node_scheduling_annotation &node_annotations =
           s.scheduling_annotations[node_id];
@@ -232,18 +225,14 @@ void assign_requirements_to_devices(scheduling_state &state, const dag *d)
   d->for_each_node([&](dag_node_ptr node) {
     if (!node->get_operation()->is_requirement()) {
 
-      std::size_t node_id = node->get_execution_hints()
-                                .get_hint<hints::dag_enumeration_id>()
-                                ->id();
+      std::size_t node_id = node->get_node_id();
 
       for (auto req : node->get_requirements()) {
         // Do not assign devices if other requirement is a direct/explicit
         // dependency on some other operation
         if (req->get_operation()->is_requirement()) {
           if (!req->is_submitted()) {
-            std::size_t req_id = req->get_execution_hints()
-                                     .get_hint<hints::dag_enumeration_id>()
-                                     ->id();
+            std::size_t req_id = req->get_node_id();
 
             state.scheduling_annotations[req_id].set_target_device(
                 state.scheduling_annotations[node_id].get_target_device());
@@ -267,9 +256,7 @@ void assign_memcopies_to_devices(const dag_interpreter &interpreter,
 {
   interpreter.for_each_effective_node([&](dag_node_ptr node) {
     if (node->get_operation()->is_data_transfer()) {
-      std::size_t node_id = node->get_execution_hints()
-                                .get_hint<hints::dag_enumeration_id>()
-                                ->id();
+      std::size_t node_id = node->get_node_id();
 
       assert(dynamic_is<memcpy_operation>(node->get_operation()));
 
@@ -343,13 +330,10 @@ void dag_scheduler::submit(dag* d)
       enumerator.get_node_index_space_size(), false);
 
   d->for_each_node([&](dag_node_ptr node) {
-    assert(node->get_execution_hints().has_hint(
-          execution_hint_type::dag_enumeration_id));
+    assert(node->has_node_id());
 
     // ... get the node id
-    std::size_t node_id = node->get_execution_hints()
-                              .get_hint<hints::dag_enumeration_id>()
-                              ->id();
+    std::size_t node_id = node->get_node_id();
 
     // for each node, if it comes with information on which device to execute...
     if (node->get_execution_hints().has_hint(
@@ -438,8 +422,7 @@ void dag_scheduler::submit(dag* d)
   // TODO: Maybe we could reuse the dag_interpreter of the best state?
   dag_interpreter interpreter{d, &enumerator, &best_state->expansion_result};
   interpreter.for_each_effective_node([&](dag_node_ptr node) {
-    std::size_t node_id =
-        node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+    std::size_t node_id = node->get_node_id();
 
     const node_scheduling_annotation &annotation =
         best_state->scheduling_annotations[node_id];

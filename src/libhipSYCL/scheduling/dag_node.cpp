@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <limits>
+#include <cassert>
+
 #include "CL/sycl/detail/scheduling/dag_node.hpp"
 #include "CL/sycl/detail/scheduling/operations.hpp"
 
@@ -35,10 +38,9 @@ namespace detail {
 dag_node::dag_node(const execution_hints &hints,
                    const std::vector<dag_node_ptr> &requirements,
                    std::unique_ptr<operation> op)
-    : _hints{hints}, _requirements{requirements},
-      _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
-      _is_submitted{false}, _is_complete{false}
-{}
+    : _hints{hints}, _requirements{requirements}, _assigned_executor{nullptr},
+      _event{nullptr}, _operation{std::move(op)}, _is_submitted{false},
+      _is_complete{false}, _node_id{std::numeric_limits<std::size_t>::max()} {}
 
 bool dag_node::is_submitted() const { return _is_submitted; }
 
@@ -99,6 +101,27 @@ const std::vector<dag_node_ptr> &dag_node::get_requirements() const
   return _requirements;
 }
 
+void dag_node::wait() const
+{
+  while (!_is_submitted);
+
+  _event->wait();
+}
+
+void dag_node::assign_node_id(std::size_t id) {
+  assert(!has_node_id());
+
+  _node_id = id;
+}
+
+bool dag_node::has_node_id() const{
+  return _node_id == std::numeric_limits<std::size_t>::max();
+}
+
+std::size_t dag_node::get_node_id() const {
+  assert(has_node_id());
+  return _node_id;
+}
 
 }
 }

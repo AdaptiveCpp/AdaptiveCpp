@@ -53,8 +53,6 @@ enum class execution_hint_type
   // Mark a DAG node as explicitly requiring another node
   // (TODO: not yet implemented)
   explicit_require,
-  // an id used to identify a node within a dag
-  dag_enumeration_id
 };
 
 class execution_hint
@@ -107,21 +105,6 @@ public:
 private:
   dag_node_ptr _dag_node;
 };
-
-class dag_enumeration_id : public execution_hint 
-{
-public:
-  static constexpr execution_hint_type type =
-    execution_hint_type::dag_enumeration_id;
-  
-  dag_enumeration_id(std::size_t id);
-
-  std::size_t id() const;
-      
-private:
-  std::size_t _id;
-};
-
 
 } // hints
 

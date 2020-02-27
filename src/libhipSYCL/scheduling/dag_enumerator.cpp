@@ -61,11 +61,9 @@ void dag_enumerator::enumerate_nodes(dag *d)
   this->_num_nodes = 0;
 
   d->for_each_node([this](dag_node_ptr node) {
-    assert(!node->get_execution_hints().has_hint(
-        execution_hint_type::dag_enumeration_id));
+    assert(!node->has_node_id());
 
-    node->get_execution_hints().add_hint(
-        make_execution_hint<hints::dag_enumeration_id>(this->_num_nodes));
+    node->assign_node_id(this->_num_nodes);
     
     this->_num_nodes++;
   });

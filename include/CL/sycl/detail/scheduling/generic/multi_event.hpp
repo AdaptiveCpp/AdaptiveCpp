@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,22 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_NODE_EVENT_HPP
-#define HIPSYCL_DAG_NODE_EVENT_HPP
+#ifndef HIPSYCL_DAG_MULTI_EVENT_HPP
+#define HIPSYCL_DAG_MULTI_EVENT_HPP
 
-#include "device_id.hpp"
+#include <vector>
+#include <memory>
+#include "../event.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class dag_node_event
+class dag_multi_node_event : public dag_node_event
 {
 public:
-  virtual bool is_complete() const = 0;
-  virtual void wait() = 0;
-  virtual ~dag_node_event() {}
-}; 
+  dag_multi_node_event(std::vector<std::unique_ptr<dag_node_event>> events)
+  : _events(std::move(events))
+  {}
+
+  virtual bool is_complete() const override {
+    for(auto& evt : _events)
+      if(!evt->is_complete())
+        return false;
+    return true;
+  }
+
+  virtual void wait() override {
+    for(auto& evt : _events)
+      evt->wait();
+  }
+
+  virtual ~dag_multi_node_event() {}
+
+private:
+  std::vector<std::unique_ptr<dag_node_event>> _events;
+};
 
 }
 }

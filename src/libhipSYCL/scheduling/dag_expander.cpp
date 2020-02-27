@@ -132,10 +132,9 @@ bool is_overlapping_memory_requirement(
 std::size_t get_node_id(dag_node_ptr node)
 {
   // We require that all nodes have been enumerated
-  assert(node->get_execution_hints().has_hint(
-    execution_hint_type::dag_enumeration_id));
+  assert(node->has_node_id());
 
-  return node->get_execution_hints().get_hint<hints::dag_enumeration_id>()->id();
+  return node->get_node_id();
 }
 
 device_id get_assigned_device(

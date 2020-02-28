@@ -68,11 +68,33 @@ public:
   /// \todo unimplemented
   HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
-      memory_order::relaxed) volatile;
+      memory_order::relaxed) volatile
+  {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
+    return detail::invalid_host_call_dummy_return<T>();     // really should be invalid_device_call
+#else
+    return __atomic_store_n(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
+  }
 
   /// \todo unimplemented
   HIPSYCL_KERNEL_TARGET
-  T load(memory_order memoryOrder = memory_order::relaxed) const volatile;
+  T load(memory_order memoryOrder = memory_order::relaxed) const volatile
+  {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
+    return detail::invalid_host_call_dummy_return<T>();     // really should be invalid_device_call
+#else
+    return __atomic_load_n(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
+  }
 
   HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =

@@ -86,7 +86,6 @@ public:
   }
 
   /* Available only when: T != float */
-  /// \todo unimplemented
   HIPSYCL_KERNEL_TARGET
   bool compare_exchange_strong(T &expected, T desired,
                                memory_order successMemoryOrder = memory_order::relaxed,
@@ -97,7 +96,7 @@ public:
     expected = atomicCAS(_ptr, expected, desired);
     return old == expected;
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_compare_exchange_n(_ptr, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #endif
   }
 

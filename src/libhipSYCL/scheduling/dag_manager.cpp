@@ -44,7 +44,7 @@ dag_manager::builder() const
   return _builder.get();
 }
 
-void flush()
+void dag_manager::flush()
 {
   _worker([this](){
     dag new_dag = _builder->finish_and_reset();
@@ -52,7 +52,7 @@ void flush()
   });
 }
 
-void wait()
+void dag_manager::wait()
 {
   flush();
 }

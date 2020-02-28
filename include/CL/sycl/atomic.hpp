@@ -90,7 +90,16 @@ public:
   HIPSYCL_KERNEL_TARGET
   bool compare_exchange_strong(T &expected, T desired,
                                memory_order successMemoryOrder = memory_order::relaxed,
-                               memory_order failMemoryOrder = memory_order::relaxed) volatile;
+                               memory_order failMemoryOrder = memory_order::relaxed) volatile
+  {
+#ifdef __HIPSYCL_DEVICE_CALLABLE__
+    T old = expected;
+    expected = atomicCAS(_ptr, expected, desired);
+    return old == expected;
+#else
+    return detail::invalid_host_call_dummy_return<T>();
+#endif
+  }
 
   /* Available only when: T != float */
   template<class t = T,

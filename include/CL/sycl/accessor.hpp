@@ -36,6 +36,7 @@
 #include "buffer_allocator.hpp"
 #include "backend/backend.hpp"
 #include "multi_ptr.hpp"
+#include "atomic.hpp"
 #include "detail/local_memory_allocator.hpp"
 #include "detail/stream.hpp"
 #include "detail/buffer.hpp"
@@ -589,14 +590,28 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
 
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
-  //operator atomic<dataT, access::address_space::global_space> () const;
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<M == access::mode::atomic && D == 0>>
+  operator atomic<dataT, access::address_space::global_space> () const
+  {
+      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr) };
+  }
 
   /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
-  //atomic<dataT, access::address_space::global_space> operator[](
-  //    id<dimensions> index) const;
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<(D > 0) && (M == access::mode::atomic)>>
+  atomic<dataT, access::address_space::global_space> operator[](
+      id<dimensions> index) const
+  {
+      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + detail::linear_id<dimensions>::get(index, _buffer_range)) };
+  }
 
-  //atomic<dataT, access::address_space::global_space> operator[](
-  //    size_t index) const;
+  atomic<dataT, access::address_space::global_space> operator[](size_t index) const
+  {
+      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };
+  }
 
   /* Available only when: dimensions > 1 */
   template <int D = dimensions, typename = std::enable_if_t<(D > 1)>>

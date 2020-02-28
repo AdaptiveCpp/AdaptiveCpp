@@ -214,6 +214,7 @@ public:
     {
         if (old < operand) return old;
     } while(!compare_exchange_strong(old, operand));
+    return operand;
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -236,6 +237,7 @@ public:
     {
         if (old > operand) return old;
     } while(!compare_exchange_strong(old, operand));
+    return operand;
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();

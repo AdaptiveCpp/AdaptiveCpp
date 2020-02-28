@@ -46,7 +46,7 @@ bool dag_node::is_submitted() const { return _is_submitted; }
 
 bool dag_node::is_complete() const { return _is_complete; }
 
-void dag_node::mark_submitted(std::unique_ptr<dag_node_event> completion_evt)
+void dag_node::mark_submitted(std::shared_ptr<dag_node_event> completion_evt)
 {
   this->_event = std::move(completion_evt);
   this->_is_submitted = true;

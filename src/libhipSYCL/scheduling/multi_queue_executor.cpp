@@ -27,6 +27,7 @@
 
 #include "CL/sycl/detail/scheduling/multi_queue_executor.hpp"
 #include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
+#include <memory>
 
 namespace cl {
 namespace sycl {
@@ -147,13 +148,29 @@ void multi_queue_executor::submit_node(
   inorder_queue* q = _device_data[dev.get_id()].queues[execution_lane].get();
 
   std::size_t node_id = node->get_node_id();
-  //if(annotations[node_id].get_synchronization_ops())
 
+  event_before_node* pre_event = annotations[node_id].get_event_before();
+  event_after_node* post_event = annotations[node_id].get_event_after();
+  // Submit synchronization, if required
+  for(auto& sync_op : annotations[node_id].get_synchronization_ops()) {
+    //sync_op->
+  }
+
+  // Submit pre-event, if required
+  if(pre_event)
+    pre_event->assign_event(q->insert_event());
+
+  // Submit actual operation
   operation* op = node->get_operation();
-  assert(!op->is_requirement());
+
+  // Submit post-event, if required
+  if(post_event)
+    post_event->assign_event(q->insert_event());
   
-  //q->
+  assert(!op->is_requirement());
 }
+
+
 }
 }
 }

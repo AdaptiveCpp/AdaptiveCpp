@@ -289,27 +289,53 @@ public:
   virtual ~backend_synchronization_operation(){}
   virtual cost_type get_runtime_costs() { return 1.; }
 
-  virtual bool is_event_before_node() const { return false; };
-  virtual bool is_event_after_node() const { return false; };
+  virtual bool is_event_before_node() const { return false; }
+  virtual bool is_event_after_node() const { return false; }
+  virtual bool is_wait_operation() const { return false; }
 };
 
 class event_before_node : public backend_synchronization_operation
 {
 public:
-  event_before_node();
+  virtual ~event_before_node(){}
 
   virtual bool is_event_before_node() const final override { return true; }
+
+  void assign_event(std::shared_ptr<dag_node_event> evt) {
+    _evt = std::move(evt);
+  }
+
+  std::shared_ptr<dag_node_event> get() const { return _evt; }
+
 private:
-  std::unique_ptr<dag_node_event> _evt;
-  
+  std::shared_ptr<dag_node_event> _evt;
 };
 
 class event_after_node : public backend_synchronization_operation
 {
 public:
-  event_after_node(dag_node_ptr node);
+  virtual ~event_after_node(){}
 
   virtual bool is_event_after_node() const final override { return true; }
+
+  void assign_event(std::shared_ptr<dag_node_event> evt) {
+    _evt = std::move(evt);
+  }
+
+  std::shared_ptr<dag_node_event> get() const { return _evt; }
+private:
+  std::shared_ptr<dag_node_event> _evt;
+};
+
+class wait_operation : public backend_synchronization_operation
+{
+public:
+  virtual bool is_wait_operation() const final override {return true;}
+
+  virtual ~wait_operation(){}
+
+protected:
+  dag_node_ptr _target_node;
 };
 
 class wait_for_node_on_same_lane : public backend_synchronization_operation

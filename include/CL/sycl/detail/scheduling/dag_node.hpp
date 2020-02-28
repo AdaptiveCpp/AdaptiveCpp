@@ -55,7 +55,7 @@ public:
   bool is_submitted() const;
   bool is_complete() const;
 
-  void mark_submitted(std::unique_ptr<dag_node_event> completion_evt);
+  void mark_submitted(std::shared_ptr<dag_node_event> completion_evt);
   void assign_to_executor(backend_executor* ctx);
   void assign_to_device(device_id dev);
   void assign_to_execution_lane(std::size_t lane_id);
@@ -92,7 +92,7 @@ private:
   backend_executor *_assigned_executor;
   std::size_t _assigned_execution_lane;
 
-  std::unique_ptr<dag_node_event> _event;
+  std::shared_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;
 
   std::atomic<bool> _is_submitted;

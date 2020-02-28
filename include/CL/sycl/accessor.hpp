@@ -608,6 +608,9 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
       return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + detail::linear_id<dimensions>::get(index, _buffer_range)) };
   }
 
+  template<int D = dimensions,
+           access::mode M = accessmode,
+           typename = std::enable_if_t<(D == 0) && (M == access::mode::atomic)>>
   atomic<dataT, access::address_space::global_space> operator[](size_t index) const
   {
       return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };

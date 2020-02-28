@@ -224,7 +224,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  T fetch_max(T operand, memory_order memoryOrder =
+  t fetch_max(t operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__

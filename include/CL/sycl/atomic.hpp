@@ -79,9 +79,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicExch(_ptr, operand);
 #else
     return __atomic_exchange_n(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -92,11 +96,15 @@ public:
                                memory_order failMemoryOrder = memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     T old = expected;
     expected = atomicCAS(_ptr, expected, desired);
     return old == expected;
 #else
     return __atomic_compare_exchange_n(_ptr, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -108,9 +116,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicAdd(_ptr, operand);
 #else
     return __atomic_add_fetch(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -122,9 +134,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicSub(_ptr, operand);
 #else
     return __atomic_sub_fetch(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -136,9 +152,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicAnd(_ptr, operand);
 #else
     return __atomic_and_fetch(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -150,9 +170,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicOr(_ptr, operand);
 #else
     return __atomic_or_fetch(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -164,9 +188,13 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicXor(_ptr, operand);
 #else
     return __atomic_xor_fetch(_ptr, operand, __ATOMIC_RELAXED);
+#endif
+#else
+    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 

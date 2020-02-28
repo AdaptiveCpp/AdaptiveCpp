@@ -65,36 +65,14 @@ public:
                   "Invalid pointer type for atomic<>");
   }
 
-  /// \todo unimplemented
+  /// \todo unimplemented on GPU
   HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
-      memory_order::relaxed) volatile
-  {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-#ifdef SYCL_DEVICE_ONLY
-    return detail::invalid_host_call_dummy_return<T>();     // really should be invalid_device_call
-#else
-    return __atomic_store_n(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
-#endif
-  }
+      memory_order::relaxed) volatile;
 
-  /// \todo unimplemented
+  /// \todo unimplemented on GPU
   HIPSYCL_KERNEL_TARGET
-  T load(memory_order memoryOrder = memory_order::relaxed) const volatile
-  {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-#ifdef SYCL_DEVICE_ONLY
-    return detail::invalid_host_call_dummy_return<T>();     // really should be invalid_device_call
-#else
-    return __atomic_load_n(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
-#endif
-  }
+  T load(memory_order memoryOrder = memory_order::relaxed) const volatile;
 
   HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =
@@ -251,6 +229,23 @@ public:
 private:
   T* _ptr;
 };
+
+#ifdef HIPSYCL_PLATFORM_CPU
+  template <typename T, access::address_space addressSpace>
+  HIPSYCL_KERNEL_TARGET
+  void atomic<T,addressSpace>::store(T operand, memory_order) volatile
+  {
+    return __atomic_store_n(_ptr, operand, __ATOMIC_RELAXED);
+  }
+
+  template <typename T, access::address_space addressSpace>
+  HIPSYCL_KERNEL_TARGET
+  T atomic<T,addressSpace>::load(memory_order) const volatile
+  {
+    return __atomic_load_n(_ptr, __ATOMIC_RELAXED);
+  }
+#endif
+
 
 
 template <typename T, access::address_space addressSpace>

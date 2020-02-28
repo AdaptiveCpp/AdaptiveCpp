@@ -206,7 +206,15 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicMin(_ptr, operand);
+#else
+    t old = load();
+    do
+    {
+        if (old < operand) return old;
+    } while(!compare_exchange_strong(old, operand));
+#endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif
@@ -220,7 +228,15 @@ public:
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     return atomicMax(_ptr, operand);
+#else
+    t old = load();
+    do
+    {
+        if (old > operand) return old;
+    } while(!compare_exchange_strong(old, operand));
+#endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
 #endif

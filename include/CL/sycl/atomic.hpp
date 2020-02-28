@@ -81,7 +81,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicExch(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_exchange_n(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 
@@ -102,7 +102,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAdd(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_add_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 
@@ -116,7 +116,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicSub(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_sub_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 
@@ -130,7 +130,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicAnd(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_and_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 
@@ -144,7 +144,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicOr(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_or_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 
@@ -158,7 +158,7 @@ public:
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
     return atomicXor(_ptr, operand);
 #else
-    return detail::invalid_host_call_dummy_return<T>();
+    return __atomic_xor_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
   }
 

@@ -593,6 +593,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<M == access::mode::atomic && D == 0>>
+  HIPSYCL_UNIVERSAL_TARGET
   operator atomic<dataT, access::address_space::global_space> () const
   {
       return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr) };
@@ -602,6 +603,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<(D > 0) && (M == access::mode::atomic)>>
+  HIPSYCL_UNIVERSAL_TARGET
   atomic<dataT, access::address_space::global_space> operator[](
       id<dimensions> index) const
   {
@@ -611,6 +613,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   template<int D = dimensions,
            access::mode M = accessmode,
            typename = std::enable_if_t<(D == 0) && (M == access::mode::atomic)>>
+  HIPSYCL_UNIVERSAL_TARGET
   atomic<dataT, access::address_space::global_space> operator[](size_t index) const
   {
       return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };

@@ -84,6 +84,8 @@ public:
 
   bool has_node_id() const;
   std::size_t get_node_id() const;
+
+  std::shared_ptr<dag_node_event> get_event() const;
 private:
   execution_hints _hints;
   std::vector<dag_node_ptr> _requirements;

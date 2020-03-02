@@ -327,33 +327,59 @@ private:
   std::shared_ptr<dag_node_event> _evt;
 };
 
+enum class wait_target {
+  same_lane,
+  same_backend,
+  external_backend
+};
+
 class wait_operation : public backend_synchronization_operation
 {
 public:
+  wait_operation(dag_node_ptr target_node)
+  : _target_node{target_node}
+  {}
+
+  virtual wait_target get_wait_target() const = 0;
   virtual bool is_wait_operation() const final override {return true;}
 
   virtual ~wait_operation(){}
+
+  dag_node_ptr get_target_node() const
+  { return _target_node; }
 
 protected:
   dag_node_ptr _target_node;
 };
 
-class wait_for_node_on_same_lane : public backend_synchronization_operation
+class wait_for_node_on_same_lane : public wait_operation
 {
 public:
-  wait_for_node_on_same_lane(dag_node_ptr node);
+  wait_for_node_on_same_lane(dag_node_ptr node)
+  : wait_operation{node} {}
+
+  wait_target get_wait_target() const final override
+  { return wait_target::same_lane; }
 };
 
-class wait_for_node_on_same_backend : public backend_synchronization_operation
+class wait_for_node_on_same_backend : public wait_operation
 {
 public:
-  wait_for_node_on_same_backend(dag_node_ptr node);
+  wait_for_node_on_same_backend(dag_node_ptr node)
+  : wait_operation{node} {}
+
+  wait_target get_wait_target() const final override
+  { return wait_target::same_backend; }
 };
 
-class wait_for_external_node : public backend_synchronization_operation
+class wait_for_external_node : public wait_operation
 {
 public:
-  wait_for_external_node(dag_node_ptr node);
+  wait_for_external_node(dag_node_ptr node)
+  : wait_operation{node} {}
+
+  wait_target get_wait_target() const final override
+  { return wait_target::external_backend; }
 };
 
 

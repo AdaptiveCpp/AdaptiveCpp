@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_DAG_SCHEDULER_HPP
 #define HIPSYCL_DAG_SCHEDULER_HPP
 
+#include <memory>
 #include <vector>
 
 #include "operations.hpp"
@@ -71,6 +72,30 @@ public:
       assert(!has_event_before());
 
     _synchronization_ops.push_back(std::move(op));
+  }
+
+  /// Inserts event_after_node if there's not already an event after the node present.
+  /// \return Whether there was no event, and the supplied \c op has been inserted.
+  bool insert_event_after_if_missing(std::unique_ptr<backend_synchronization_operation> op) {
+    assert(op->is_event_after_node());
+
+    if(has_event_after())
+      return false;
+    
+    add_synchronization_op(std::move(op));
+    return true;
+  }
+
+  /// Inserts event_before_node if there's not already an event after the node present.
+  /// \return Whether there was no event, and the supplied \c op has been inserted.
+  bool insert_event_before_if_missing(std::unique_ptr<backend_synchronization_operation> op) {
+    assert(op->is_event_before_node());
+
+    if(has_event_before())
+      return false;
+    
+    add_synchronization_op(std::move(op));
+    return true;
   }
 
   const std::vector<synchronization_op_ptr>& get_synchronization_ops() const

@@ -76,7 +76,7 @@ public:
   virtual std::unique_ptr<event_before_node>
   create_event_before(dag_node_ptr node) const = 0;
 
-  virtual std::unique_ptr<event_before_node>
+  virtual std::unique_ptr<event_after_node>
   create_event_after(dag_node_ptr node) const = 0;
 
   // The create_wait_* functions will be called by the scheduler to mark

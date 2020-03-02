@@ -27,6 +27,7 @@
 
 #include "CL/sycl/detail/scheduling/multi_queue_executor.hpp"
 #include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
+
 #include <memory>
 
 namespace cl {
@@ -104,10 +105,14 @@ void multi_queue_executor::submit_dag(
 }
 
 std::unique_ptr<event_before_node>
-multi_queue_executor::create_event_before(dag_node_ptr node) const {}
+multi_queue_executor::create_event_before(dag_node_ptr node) const {
+  return std::make_unique<event_before_node>();
+}
 
-std::unique_ptr<event_before_node>
-multi_queue_executor::create_event_after(dag_node_ptr node) const {}
+std::unique_ptr<event_after_node>
+multi_queue_executor::create_event_after(dag_node_ptr node) const {
+  return std::make_unique<event_after_node>();
+}
 
 // The create_wait_* functions will be called by the scheduler to mark
 // synchronization points
@@ -115,23 +120,39 @@ std::unique_ptr<wait_for_node_on_same_lane>
 multi_queue_executor::create_wait_for_node_same_lane(
     dag_node_ptr node, const node_scheduling_annotation &annotation,
     dag_node_ptr other,
-    node_scheduling_annotation &other_annotation) const {}
+    node_scheduling_annotation &other_annotation) const {
+
+  return std::make_unique<wait_for_node_on_same_lane>(other);
+}
 
 std::unique_ptr<wait_for_node_on_same_backend>
 multi_queue_executor::create_wait_for_node_same_backend(
     dag_node_ptr node, const node_scheduling_annotation &annotation,
     dag_node_ptr other,
-    node_scheduling_annotation &other_annotation) const {}
+    node_scheduling_annotation &other_annotation) const {
+
+  other_annotation.insert_event_after_if_missing(
+      other->get_assigned_executor()->create_event_after(other));
+  
+  return std::make_unique<wait_for_node_on_same_backend>(other);
+
+}
 
 std::unique_ptr<wait_for_external_node>
 multi_queue_executor::create_wait_for_external_node(
     dag_node_ptr node, const node_scheduling_annotation &annotation,
     dag_node_ptr other,
-    node_scheduling_annotation &other_annotation) const {}
+    node_scheduling_annotation &other_annotation) const {
+
+  return std::make_unique<wait_for_external_node>(other);
+}
 
 void multi_queue_executor::submit_node(
     dag_node_ptr node, const dag_interpreter &interpreter,
     const std::vector<node_scheduling_annotation> &annotations) {
+
+  operation* op = node->get_operation();
+  assert(!op->is_requirement());
 
   interpreter.for_each_requirement(node, [=](dag_node_ptr req){
     if(!req->is_submitted() && req->get_assigned_executor() == this) {
@@ -153,7 +174,35 @@ void multi_queue_executor::submit_node(
   event_after_node* post_event = annotations[node_id].get_event_after();
   // Submit synchronization, if required
   for(auto& sync_op : annotations[node_id].get_synchronization_ops()) {
-    //sync_op->
+    if(sync_op->is_wait_operation()){
+      wait_operation* op = cast<wait_operation>(sync_op.get());
+
+      if(op->get_wait_target() == wait_target::same_lane) {
+        // No need to explicitly wait for tasks on the same lane of an inorder
+        // queue
+
+        // Since this node is a dependency of this one, it should have already
+        // been submitted.
+        assert(op->get_target_node()->is_submitted());
+      }
+      else if(op->get_wait_target() == wait_target::same_backend) {
+        // Same backend, but different lane
+
+        // Since this node is a dependency of this one, it should have already
+        // been submitted.
+        assert(op->get_target_node()->is_submitted());
+        // Check that the target node has an event right after it.
+        // Otherwise, if we use the generic batch-end event, we would
+        // create a deadlock here.
+        std::size_t target_node_id = op->get_target_node()->get_node_id();
+        assert(annotations[target_node_id].has_event_after());
+        
+        q->submit_queue_wait_for(op->get_target_node()->get_event());
+      }
+      else if(op->get_wait_target() == wait_target::external_backend) {
+        q->submit_external_wait_for(op->get_target_node());
+      }
+    }
   }
 
   // Submit pre-event, if required
@@ -161,13 +210,14 @@ void multi_queue_executor::submit_node(
     pre_event->assign_event(q->insert_event());
 
   // Submit actual operation
-  operation* op = node->get_operation();
+  
 
   // Submit post-event, if required
   if(post_event)
     post_event->assign_event(q->insert_event());
+
+  // Mark node as submitted
   
-  assert(!op->is_requirement());
 }
 
 

@@ -118,6 +118,11 @@ bool dag_node::has_node_id() const{
   return _node_id == std::numeric_limits<std::size_t>::max();
 }
 
+std::shared_ptr<dag_node_event>
+dag_node::get_event() const{
+  return _event;
+}
+
 std::size_t dag_node::get_node_id() const {
   assert(has_node_id());
   return _node_id;

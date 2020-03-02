@@ -187,6 +187,7 @@ void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
           s.scheduling_annotations[req_id];
 
       backend_executor* executor = node_annotations.get_executor();
+      backend_executor* req_executor = req_annotations.get_executor();
 
       if (executor == req_annotations.get_executor()) {
         if(node_annotations.get_execution_lane() ==
@@ -207,6 +208,9 @@ void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
             executor->create_wait_for_node_same_backend(node, node_annotations,
                                                         req, req_annotations));
       } else {
+        // Snychronization between different backends always requires inserting
+        // an event after the node that we wait for.
+        req_annotations.insert_event_after_if_missing(req_executor->create_event_after(req));
         node_annotations.add_synchronization_op(
             executor->create_wait_for_external_node(node, node_annotations, req,
                                                     req_annotations));

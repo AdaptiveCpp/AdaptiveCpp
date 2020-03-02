@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_ATOMIC_HPP
+#define HIPSYCL_ATOMIC_HPP
+
 #include <type_traits>
 
 #include "access.hpp"
@@ -368,3 +371,5 @@ T atomic_fetch_max(atomic<T, addressSpace> object, T operand, memory_order memor
 
 } // namespace sycl
 } // namespace cl
+
+#endif

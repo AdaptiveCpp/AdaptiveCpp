@@ -596,7 +596,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   operator atomic<dataT, access::address_space::global_space> () const
   {
-      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr) };
+    return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr) };
   }
 
   /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
@@ -607,7 +607,8 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   atomic<dataT, access::address_space::global_space> operator[](
       id<dimensions> index) const
   {
-      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + detail::linear_id<dimensions>::get(index, _buffer_range)) };
+    return atomic<dataT, access::address_space::global_space>
+             { global_ptr<dataT>(_ptr + detail::linear_id<dimensions>::get(index, _buffer_range)) };
   }
 
   template<int D = dimensions,
@@ -616,7 +617,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   atomic<dataT, access::address_space::global_space> operator[](size_t index) const
   {
-      return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };
+    return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };
   }
 
   /* Available only when: dimensions > 1 */

@@ -82,6 +82,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicExch(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_exchange_n(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -101,6 +102,8 @@ public:
     expected = atomicCAS(_ptr, expected, desired);
     return old == expected;
 #else
+    assert(successMemoryOrder == memory_order::relaxed);
+    assert(failMemoryOrder == memory_order::relaxed);
     return __atomic_compare_exchange_n(_ptr, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 #endif
 #else
@@ -119,6 +122,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicAdd(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_add_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -137,6 +141,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicSub(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_sub_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -155,6 +160,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicAnd(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_and_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -173,6 +179,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicOr(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_or_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -191,6 +198,7 @@ public:
 #ifdef SYCL_DEVICE_ONLY
     return atomicXor(_ptr, operand);
 #else
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_xor_fetch(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
@@ -251,15 +259,17 @@ private:
 #ifdef HIPSYCL_PLATFORM_CPU
   template <typename T, access::address_space addressSpace>
   HIPSYCL_KERNEL_TARGET
-  void atomic<T,addressSpace>::store(T operand, memory_order) volatile
+  void atomic<T,addressSpace>::store(T operand, memory_order memoryOrder) volatile
   {
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_store_n(_ptr, operand, __ATOMIC_RELAXED);
   }
 
   template <typename T, access::address_space addressSpace>
   HIPSYCL_KERNEL_TARGET
-  T atomic<T,addressSpace>::load(memory_order) const volatile
+  T atomic<T,addressSpace>::load(memory_order memoryOrder) const volatile
   {
+    assert(memoryOrder == memory_order::relaxed);
     return __atomic_load_n(_ptr, __ATOMIC_RELAXED);
   }
 #endif

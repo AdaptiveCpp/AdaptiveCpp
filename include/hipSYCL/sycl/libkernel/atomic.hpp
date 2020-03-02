@@ -238,6 +238,24 @@ private:
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_load_n(_ptr, __ATOMIC_RELAXED);
   }
+#else
+  template <typename T, access::address_space addressSpace>
+  HIPSYCL_KERNEL_TARGET
+  void atomic<T,addressSpace>::store(T operand, memory_order) volatile
+  {
+    T current;
+    current = load();
+    while(!compare_exchange_strong(current, operand));
+  }
+
+  template <typename T, access::address_space addressSpace>
+  HIPSYCL_KERNEL_TARGET
+  T atomic<T,addressSpace>::load(memory_order) const volatile
+  {
+    T result = 0;
+    const_cast<atomic<T,addressSpace>*>(this)->compare_exchange_strong(result, result);
+    return result;
+  }
 #endif
 
 

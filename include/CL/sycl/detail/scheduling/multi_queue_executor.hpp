@@ -33,6 +33,7 @@
 #include "backend.hpp"
 #include "executor.hpp"
 #include "inorder_queue.hpp"
+#include "generic/multi_event.hpp"
 
 namespace cl {
 namespace sycl {
@@ -83,26 +84,30 @@ public:
   // The create_wait_* functions will be called by the scheduler to mark
   // synchronization points
   std::unique_ptr<wait_for_node_on_same_lane>
-  create_wait_for_node_same_lane(
+  virtual create_wait_for_node_same_lane(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
 
   std::unique_ptr<wait_for_node_on_same_backend>
-  create_wait_for_node_same_backend(
+  virtual create_wait_for_node_same_backend(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
 
   std::unique_ptr<wait_for_external_node> 
-  create_wait_for_external_node(
+  virtual create_wait_for_external_node(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
 private:
+  using final_nodes_map = std::unordered_map<inorder_queue*, dag_node_ptr>;
+
   void submit_node(dag_node_ptr node, 
     const dag_interpreter& interpreter,
-    const std::vector<node_scheduling_annotation> &annotations);
+    const std::vector<node_scheduling_annotation> &annotations,
+    std::shared_ptr<dag_node_event> generic_batch_event,
+    final_nodes_map& final_nodes);
 
   struct per_device_data
   {

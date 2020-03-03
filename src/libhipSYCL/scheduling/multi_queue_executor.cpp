@@ -27,6 +27,7 @@
 
 #include "CL/sycl/detail/scheduling/multi_queue_executor.hpp"
 #include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
+#include "CL/sycl/detail/scheduling/generic/multi_event.hpp"
 
 #include <memory>
 
@@ -36,7 +37,30 @@ namespace detail {
 
 namespace {
 
+class queue_operation_dispatcher : public operation_dispatcher
+{
+public:
+  queue_operation_dispatcher(inorder_queue* q)
+  : _queue{q}
+  {}
 
+  virtual ~queue_operation_dispatcher(){}
+
+  virtual void dispatch_kernel(kernel_operation* op) final override {
+    _queue->submit_kernel(*op);
+  }
+
+  virtual void dispatch_memcpy(memcpy_operation* op) final override {
+    _queue->submit_memcpy(*op);
+  }
+
+  virtual void dispatch_prefetch(prefetch_operation* op) final override {
+    _queue->submit_prefetch(*op);
+  }
+
+private:
+  inorder_queue* _queue;
+};
 
 } // anonymous namespace
 
@@ -102,6 +126,29 @@ void multi_queue_executor::submit_dag(
     const dag_interpreter &interpreter, const dag_enumerator &enumerator,
     const std::vector<node_scheduling_annotation> &annotations){
 
+  std::shared_ptr<dag_node_event> multi_event =
+      std::make_shared<dag_multi_node_event>(
+          std::vector<std::shared_ptr<dag_node_event>>{});
+
+  final_nodes_map final_nodes;
+  dag_multi_node_event *batch_event =
+      static_cast<dag_multi_node_event *>(multi_event.get());
+  
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    this->submit_node(node, interpreter, annotations, multi_event, final_nodes);
+  });
+
+  for(auto final_node : final_nodes){
+    inorder_queue* q = final_node.first;
+    dag_node_ptr node = final_node.second;
+
+    if(annotations[node->get_node_id()].has_event_after()){
+      batch_event->add_event(node->get_event());
+    } else {
+      batch_event->add_event(q->insert_event());
+    }
+  }
+
 }
 
 std::unique_ptr<event_before_node>
@@ -144,19 +191,28 @@ multi_queue_executor::create_wait_for_external_node(
     dag_node_ptr other,
     node_scheduling_annotation &other_annotation) const {
 
+  other_annotation.insert_event_after_if_missing(
+      other->get_assigned_executor()->create_event_after(other));
+
   return std::make_unique<wait_for_external_node>(other);
 }
 
 void multi_queue_executor::submit_node(
     dag_node_ptr node, const dag_interpreter &interpreter,
-    const std::vector<node_scheduling_annotation> &annotations) {
+    const std::vector<node_scheduling_annotation> &annotations,
+    std::shared_ptr<dag_node_event> generic_batch_event,
+    final_nodes_map& final_nodes) {
 
   operation* op = node->get_operation();
   assert(!op->is_requirement());
 
-  interpreter.for_each_requirement(node, [=](dag_node_ptr req){
+  if(node->is_submitted() || node->get_assigned_executor() != this)
+    return;
+
+  interpreter.for_each_requirement(node, [&](dag_node_ptr req){
     if(!req->is_submitted() && req->get_assigned_executor() == this) {
-      this->submit_node(req, interpreter, annotations);
+      this->submit_node(req, interpreter, annotations, generic_batch_event,
+                        final_nodes);
     }
   });
 
@@ -169,6 +225,7 @@ void multi_queue_executor::submit_node(
   inorder_queue* q = _device_data[dev.get_id()].queues[execution_lane].get();
 
   std::size_t node_id = node->get_node_id();
+  queue_operation_dispatcher dispatcher{q};
 
   event_before_node* pre_event = annotations[node_id].get_event_before();
   event_after_node* post_event = annotations[node_id].get_event_after();
@@ -200,24 +257,45 @@ void multi_queue_executor::submit_node(
         q->submit_queue_wait_for(op->get_target_node()->get_event());
       }
       else if(op->get_wait_target() == wait_target::external_backend) {
+        // Since this node is a dependency of this one, it should have already
+        // been submitted.
+        assert(op->get_target_node()->is_submitted());
+        // Check that the target node has an event right after it.
+        // Otherwise, if we use the generic batch-end event, it
+        // *might* create a deadlock
+        std::size_t target_node_id = op->get_target_node()->get_node_id();
+
         q->submit_external_wait_for(op->get_target_node());
       }
     }
   }
 
+
+  std::shared_ptr<dag_node_event> evt;
   // Submit pre-event, if required
-  if(pre_event)
+  if(pre_event) {
     pre_event->assign_event(q->insert_event());
+  }
 
   // Submit actual operation
-  
+  op->dispatch(&dispatcher);
 
   // Submit post-event, if required
-  if(post_event)
-    post_event->assign_event(q->insert_event());
+  if(post_event) {
+    evt = q->insert_event();
+    post_event->assign_event(evt);
+  }
 
   // Mark node as submitted
-  
+  if(!evt) {
+    // Use generic multi event for this batch
+    evt = generic_batch_event;
+  }
+  node->mark_submitted(evt);
+
+  // Remember that this was the (currently) last node submitted to the give
+  // queue
+  final_nodes[q] = node;
 }
 
 

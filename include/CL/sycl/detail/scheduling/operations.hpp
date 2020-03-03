@@ -54,6 +54,19 @@ class backend_executor;
 class dag_node;
 using dag_node_ptr = std::shared_ptr<dag_node>;
 
+class kernel_operation;
+class memcpy_operation;
+class prefetch_operation;
+
+class operation_dispatcher
+{
+public:
+  virtual void dispatch_kernel(kernel_operation* op) = 0;
+  virtual void dispatch_memcpy(memcpy_operation* op) = 0;
+  virtual void dispatch_prefetch(prefetch_operation* op) = 0;
+  virtual ~operation_dispatcher(){}
+};
+
 class operation
 {
 public:
@@ -62,6 +75,8 @@ public:
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }
   virtual bool is_data_transfer() const { return false; }
+
+  virtual void dispatch(operation_dispatcher* dispatch) = 0;
 };
 
 
@@ -72,6 +87,9 @@ public:
 
   virtual bool is_requirement() const final override
   { return true; }
+
+  virtual void dispatch(operation_dispatcher* dispatch) final override
+  { assert(false && "Cannot dispatch implicit requirements"); }
 
   virtual ~requirement(){}
 };
@@ -208,6 +226,9 @@ public:
 
   const std::vector<memory_requirement*>& get_memory_requirements() const;
 
+  void dispatch(operation_dispatcher* dispatcher) override {
+    dispatcher->dispatch_kernel(this);
+  }
 private:
   kernel_launcher _launcher;
   std::vector<memory_requirement*> _memory_requirements;
@@ -270,6 +291,9 @@ public:
   const memory_location &dest() const;
 
   virtual bool is_data_transfer() const final override;
+  virtual void dispatch(operation_dispatcher* op) final override {
+    op->dispatch_memcpy(this);
+  }
 private:
   memory_location _source;
   memory_location _dest;
@@ -407,6 +431,9 @@ public:
 private:
   std::vector<dag_node_ptr> _reqs;
 };
+
+
+
 
 
 }

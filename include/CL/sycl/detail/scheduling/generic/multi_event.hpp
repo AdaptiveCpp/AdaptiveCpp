@@ -39,8 +39,8 @@ namespace detail {
 class dag_multi_node_event : public dag_node_event
 {
 public:
-  dag_multi_node_event(std::vector<std::unique_ptr<dag_node_event>> events)
-  : _events(std::move(events))
+  dag_multi_node_event(std::vector<std::shared_ptr<dag_node_event>> events)
+  : _events(events)
   {}
 
   virtual bool is_complete() const override {
@@ -57,8 +57,12 @@ public:
 
   virtual ~dag_multi_node_event() {}
 
+  void add_event(std::shared_ptr<dag_node_event> evt){
+    _events.push_back(evt);
+  }
+
 private:
-  std::vector<std::unique_ptr<dag_node_event>> _events;
+  std::vector<std::shared_ptr<dag_node_event>> _events;
 };
 
 }

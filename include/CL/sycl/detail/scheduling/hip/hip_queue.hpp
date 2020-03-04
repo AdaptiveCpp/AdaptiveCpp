@@ -44,7 +44,19 @@ public:
 
   hipStream_t get_stream() const;
 
-  ~hip_queue();
+  virtual ~hip_queue();
+
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() override;
+
+  virtual void submit_memcpy(const memcpy_operation&) override;
+  virtual void submit_kernel(const kernel_operation&) override;
+  virtual void submit_prefetch(const prefetch_operation&) override;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue must be from the same backend
+  virtual void submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual void submit_external_wait_for(dag_node_ptr node) override;
 
 private:
   device_id _dev;

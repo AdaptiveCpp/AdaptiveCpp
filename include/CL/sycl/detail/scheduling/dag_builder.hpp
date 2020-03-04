@@ -70,9 +70,8 @@ public:
   dag finish_and_reset();
 
 private:
-  bool is_conflicting_access(
-    access::target t1, access::mode m1, sycl::id<3> offset1, sycl::range<3> range1,
-    access::target t2, access::mode m2, sycl::id<3> offset2, sycl::range<3> range2) const;
+  bool is_conflicting_access(const memory_requirement *mem_req,
+                             const data_user &user) const;
 
   dag_node_ptr build_node(std::unique_ptr<operation> op,
                           const requirements_list& requirements,

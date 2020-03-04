@@ -173,49 +173,81 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
 
 void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
 {
+  std::unordered_map<dag_node_ptr, std::unordered_set<dag_node_ptr>>
+      full_recursive_requirements;
+
+  d.for_each_effective_node([&](dag_node_ptr node) {
+    d.for_each_recursive_requirement(node, [&](dag_node_ptr req) -> bool {
+
+      full_recursive_requirements[node].insert(req);
+
+      return !req->is_submitted();
+    });
+  });
+
   d.for_each_effective_node([&](dag_node_ptr node) {
     assert(node->has_node_id());
     std::size_t node_id = node->get_node_id();
 
+    std::vector<dag_node_ptr> synchronized_reqs;
+
     d.for_each_requirement(node, [&](dag_node_ptr req) {
-
-      std::size_t req_id = req->get_node_id();
-
-      node_scheduling_annotation &node_annotations =
-          s.scheduling_annotations[node_id];
-      node_scheduling_annotation &req_annotations =
-          s.scheduling_annotations[req_id];
-
-      backend_executor* executor = node_annotations.get_executor();
-      backend_executor* req_executor = req_annotations.get_executor();
-
-      if (executor == req_annotations.get_executor()) {
-        if(node_annotations.get_execution_lane() ==
-           req_annotations.get_execution_lane()) {
-
-          node_annotations.add_synchronization_op(
-              executor->create_wait_for_node_same_lane(node, node_annotations,
-                                                       req, req_annotations));
-        }
-        else {
-          node_annotations.add_synchronization_op(
-              executor->create_wait_for_node_same_backend(
-                  node, node_annotations, req, req_annotations));
-        }
-      } else if (node_annotations.get_target_device().get_backend() ==
-                 req_annotations.get_target_device().get_backend()) {
-        node_annotations.add_synchronization_op(
-            executor->create_wait_for_node_same_backend(node, node_annotations,
-                                                        req, req_annotations));
-      } else {
-        // Snychronization between different backends always requires inserting
-        // an event after the node that we wait for.
-        req_annotations.insert_event_after_if_missing(req_executor->create_event_after(req));
-        node_annotations.add_synchronization_op(
-            executor->create_wait_for_external_node(node, node_annotations, req,
-                                                    req_annotations));
-      }
+      synchronized_reqs.push_back(req);
     });
+
+    for(std::size_t i = 0; i < synchronized_reqs.size(); ++i){
+      for(std::size_t j = 0; j < synchronized_reqs.size(); ++j){
+        if(i != j) {
+          auto& reqs_of_current = full_recursive_requirements[synchronized_reqs[i]];
+          if(reqs_of_current.find(synchronized_reqs[j]) != reqs_of_current.end())
+            synchronized_reqs[i] = nullptr;
+        }
+      }
+    }
+
+    for(dag_node_ptr req : synchronized_reqs){
+      if(req) {
+        auto full_reqs = full_recursive_requirements.find(node);
+        assert(full_reqs != full_recursive_requirements.end());
+
+        std::size_t req_id = req->get_node_id();
+
+        node_scheduling_annotation &node_annotations =
+            s.scheduling_annotations[node_id];
+        node_scheduling_annotation &req_annotations =
+            s.scheduling_annotations[req_id];
+
+        backend_executor* executor = node_annotations.get_executor();
+        backend_executor* req_executor = req_annotations.get_executor();
+
+        if (executor == req_annotations.get_executor()) {
+          if(node_annotations.get_execution_lane() ==
+            req_annotations.get_execution_lane()) {
+
+            node_annotations.add_synchronization_op(
+                executor->create_wait_for_node_same_lane(node, node_annotations,
+                                                        req, req_annotations));
+          }
+          else {
+            node_annotations.add_synchronization_op(
+                executor->create_wait_for_node_same_backend(
+                    node, node_annotations, req, req_annotations));
+          }
+        } else if (node_annotations.get_target_device().get_backend() ==
+                  req_annotations.get_target_device().get_backend()) {
+          node_annotations.add_synchronization_op(
+              executor->create_wait_for_node_same_backend(node, node_annotations,
+                                                          req, req_annotations));
+        } else {
+          // Snychronization between different backends always requires inserting
+          // an event after the node that we wait for.
+          req_annotations.insert_event_after_if_missing(req_executor->create_event_after(req));
+          node_annotations.add_synchronization_op(
+              executor->create_wait_for_external_node(node, node_annotations, req,
+                                                      req_annotations));
+        }
+      }
+    }
   });
 }
 

@@ -37,7 +37,7 @@ namespace sycl {
 namespace detail {
 
 /// Manages a hipEvent_t.
-class hip_node_event : dag_node_event
+class hip_node_event : public dag_node_event
 {
 public:
   /// Takes ownership of supplied hipEvent_t. \c evt Must

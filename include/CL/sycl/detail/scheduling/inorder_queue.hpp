@@ -53,6 +53,8 @@ public:
   /// the other queue must be from the same backend
   virtual void submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
   virtual void submit_external_wait_for(dag_node_ptr node) = 0;
+
+  virtual ~inorder_queue(){}
 };
 
 }

@@ -109,6 +109,16 @@ public:
     });
   }
 
+  template <class Handler>
+  void for_each_recursive_requirement(dag_node_ptr node,
+                                      Handler should_descend) const {
+    for_each_requirement(node, [&](dag_node_ptr req){
+      if(should_descend(req)){
+        for_each_recursive_requirement(req, should_descend);
+      }
+    });
+  }
+
   bool is_node_optimized_away(const dag_node_ptr& node) const;
   bool is_node_forwarded(const dag_node_ptr& node) const;
 private:

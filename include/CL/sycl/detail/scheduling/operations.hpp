@@ -113,6 +113,11 @@ public:
   virtual sycl::id<3> get_access_offset3d() const = 0;
   virtual sycl::range<3> get_access_range3d() const = 0;
 
+  virtual bool intersects_with(const memory_requirement* other) const = 0;
+  /// Check if this requirement's data region intersects with an existing data usage.
+  /// Note: Assumes that the data usage operations on the same memory object!
+  virtual bool intersects_with(const data_user& user) const = 0;
+
   bool is_buffer_requirement() const 
   { return !is_image_requirement(); }
 };
@@ -187,7 +192,51 @@ public:
   {
     return _range;
   }
+
+  bool intersects_with(const data_user& user) const override {
+    auto other_page_range =
+        _mem_region->get_page_range(user.offset, user.range);
+
+    return page_ranges_intersect(other_page_range);
+  }
+
+  bool intersects_with(const memory_requirement* other) const override {
+
+    if(!other->is_buffer_requirement())
+      return false;
+
+    const buffer_memory_requirement *other_buff =
+        cast<const buffer_memory_requirement>(other);
+
+    if(_mem_region != other_buff->_mem_region)
+      return false;
+
+    auto other_page_range = _mem_region->get_page_range(
+        other_buff->get_access_offset3d(), other_buff->get_access_range3d());
+
+    
+    return page_ranges_intersect(other_page_range);
+  }
+
 private:
+  bool page_ranges_intersect(buffer_data_region::page_range other) const{
+    auto my_range = _mem_region->get_page_range(_offset, _range);
+
+    for(std::size_t dim = 0; dim < 3; ++dim) {
+      auto begin1 = my_range.first[dim];
+      auto end1 = begin1+my_range.second[dim];
+
+      auto begin2 = other.first[dim];
+      auto end2 = begin2+other.second[dim];
+      // if at least one dimension does not intersect,
+      // there is no intersection
+      if(!(begin1 < end2 && begin2 < end1))
+        return false;
+    }
+
+    return true;
+  }
+
   std::shared_ptr<buffer_data_region> _mem_region;
   sycl::id<3> _offset;
   sycl::range<3> _range;

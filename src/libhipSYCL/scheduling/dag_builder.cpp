@@ -36,6 +36,7 @@ namespace cl {
 namespace sycl {
 namespace detail {
 
+
 class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
@@ -67,7 +68,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
       _current_dag.add_memory_requirement(node);
 
       if(mem_req->is_image_requirement())
-        throw unimplemented{"dag_builder: Image requirements are unimplemented"};
+        assert(false && "dag_builder: Image requirements are unimplemented");
       else {
         auto* buff_req = cast<buffer_memory_requirement>(req);
 
@@ -77,14 +78,8 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
             user != user_tracker.users_end(); 
             ++user) 
         {
-          if(is_conflicting_access(mem_req->get_access_target(), 
-                                  mem_req->get_access_mode(),
-                                  mem_req->get_access_offset3d(),
-                                  mem_req->get_access_range3d(),
-                                  user->target, 
-                                  user->mode, 
-                                  user->offset, 
-                                  user->range))
+          
+          if(is_conflicting_access(mem_req, *user))
           {
             // No reason to take a dependency into account that is alreay completed
             if(!user->user->is_complete())
@@ -169,16 +164,15 @@ dag dag_builder::finish_and_reset()
 }
 
 bool dag_builder::is_conflicting_access(
-    access::target t1, access::mode m1, sycl::id<3> offset1, sycl::range<3> range1,
-    access::target t2, access::mode m2, sycl::id<3> offset2, sycl::range<3> range2) const
+    const memory_requirement* mem_req, const data_user& user) const
 {
-  if(m1 == access::mode::read && m2 == access::mode::read)
+  if (mem_req->get_access_mode() == access::mode::read &&
+      user.mode == access::mode::read)
     return false;
 
-  // TODO Take other parameters into account for moaar performance!
   // Check if the page ranges do not intersect
-
-  return true;
+  // need to determine page range
+  return mem_req->intersects_with(user);
 }
 
 

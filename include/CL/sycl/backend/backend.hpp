@@ -48,6 +48,9 @@
   // Silence deprecation warnings in hip which occur for newer CUDA versions
   #pragma clang diagnostic push
   #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  // Required until HIP submodule is updated to include
+  // https://github.com/ROCm-Developer-Tools/HIP/pull/1497
+  #pragma clang diagnostic ignored "-Wsometimes-uninitialized"
   #include <hip/hip_runtime.h>
   #pragma clang diagnostic pop
  #elif defined(__HIP__) || defined(__HCC__)

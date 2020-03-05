@@ -167,6 +167,8 @@ set(SYCLCC_CONFIG_FILE "{
 file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+
 install(DIRECTORY contrib/hipCPU/include/hipCPU DESTINATION include/hipSYCL/)
 install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/)
 

@@ -29,9 +29,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 execution_hint::execution_hint(execution_hint_type type)
 : _type{type}
@@ -100,6 +99,5 @@ execution_hint* execution_hints::get_hint(execution_hint_type type) const
 }
 
 
-}
 }
 }

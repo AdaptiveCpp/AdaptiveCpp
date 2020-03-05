@@ -36,9 +36,8 @@
 #include <unordered_map>
 #include <memory>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class backend
 {
@@ -78,7 +77,7 @@ private:
 
   hw_model _hw_model;
 };
-}
+
 }
 }
 

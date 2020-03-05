@@ -30,9 +30,8 @@
 
 #include <cassert>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 template<class U, class T>
 bool dynamic_is(T* val)
@@ -53,7 +52,6 @@ U* cast(T* val)
   return static_cast<U*>(val);
 }
 
-}
 }
 }
 

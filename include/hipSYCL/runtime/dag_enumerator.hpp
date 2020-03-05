@@ -31,9 +31,8 @@
 #include <vector>
 #include "dag.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 /// The dag_enumerator enumerates all nodes and
 /// data regions from the DAG by assigning them an id.
@@ -57,8 +56,7 @@ private:
   std::size_t _num_data_regions;
 };
 
-} // namespace detail
-} // namespace sycl
-} // namespace cl
+}
+}
 
 #endif

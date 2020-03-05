@@ -36,9 +36,8 @@
 #include "operations.hpp"
 #include <vector>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 class dag_expander_annotation
@@ -126,7 +125,6 @@ private:
   const dag* _dag;
 };
 
-}
 }
 }
 

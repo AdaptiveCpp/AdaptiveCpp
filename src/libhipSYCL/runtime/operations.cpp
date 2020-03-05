@@ -28,9 +28,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 kernel_operation::kernel_operation(
     const std::string &kernel_name, kernel_launcher launcher,
@@ -143,6 +142,5 @@ const memory_location& memcpy_operation::dest() const { return _dest; }
 
 bool memcpy_operation::is_data_transfer() const { return true; }
 
-}
 }
 }

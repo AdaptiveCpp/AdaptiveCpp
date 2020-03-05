@@ -28,9 +28,8 @@
 #ifndef HIPSYCL_HIP_DEVICE_MANAGER_HPP
 #define HIPSYCL_HIP_DEVICE_MANAGER_HPP
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 /// Manages setting the active device *in the hipSYCL worker thread*
 /// It assumes:
@@ -51,9 +50,7 @@ private:
   int _device;
 };
 
-} // namespace detail
-} // namespace sycl
-} // namespace cl
-
+}
+}
 
 #endif

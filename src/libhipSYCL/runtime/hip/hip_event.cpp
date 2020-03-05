@@ -28,9 +28,8 @@
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "CL/sycl/exception.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
@@ -39,19 +38,19 @@ hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
 
 hip_node_event::~hip_node_event()
 {
-  detail::check_error(hipEventDestroy(_evt));
+  cl::sycl::detail::check_error(hipEventDestroy(_evt));
 }
 
 bool hip_node_event::is_complete() const
 {
   hipError_t err = hipEventQuery(_evt);
-  detail::check_error(err);
+  cl::sycl::detail::check_error(err);
   return err == hipSuccess;
 }
 
 void hip_node_event::wait()
 {
-  detail::check_error(hipEventSynchronize(_evt));
+  cl::sycl::detail::check_error(hipEventSynchronize(_evt));
 }
 
 hipEvent_t hip_node_event::get_event() const
@@ -64,6 +63,5 @@ device_id hip_node_event::get_device() const
   return _dev;
 }
 
-}
 }
 }

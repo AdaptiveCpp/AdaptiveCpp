@@ -30,9 +30,8 @@
 
 #include <functional>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 enum class hardware_platform
 {
@@ -95,15 +94,14 @@ private:
 
 }
 }
-}
 
 
 namespace std {
 
 template <>
-struct hash<cl::sycl::detail::device_id>
+struct hash<hipsycl::rt::device_id>
 {
-  std::size_t operator()(const cl::sycl::detail::device_id& k) const
+  std::size_t operator()(const hipsycl::rt::device_id& k) const
   {
     return hash<int>()(static_cast<int>(k.get_backend())) ^ 
           (hash<int>()(k.get_id()) << 1);

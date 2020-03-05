@@ -31,9 +31,8 @@
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 namespace {
 
@@ -115,6 +114,5 @@ std::size_t dag_interpreter::get_node_id(const dag_node_ptr &node) const
   return node->get_node_id();
 }
 
-}
 }
 }

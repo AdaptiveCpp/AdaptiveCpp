@@ -35,9 +35,8 @@
 #include "event.hpp"
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class operation;
 class backend_executor;
@@ -103,7 +102,6 @@ private:
   std::size_t _node_id;
 };
 
-}
 }
 }
 

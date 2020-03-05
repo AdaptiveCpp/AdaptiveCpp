@@ -27,14 +27,13 @@
 
 
 #include <algorithm>
+#include <cassert>
 
 #include "hipSYCL/runtime/util.hpp"
-#include "CL/sycl/exception.hpp"
 #include "hipSYCL/runtime/dag.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 // Kernel execution
 void dag::add_kernel(dag_node_ptr kernel)
@@ -124,7 +123,7 @@ void dag::commit_dependencies(const std::vector<dag_node_ptr>& nodes)
                                 mem_req->get_access_range3d());
         }
         else
-          throw unimplemented{"dag: Image requirements are not yet implemented"};
+          assert(false && "dag: Image requirements are not yet implemented");
       }
     }
   }
@@ -155,6 +154,5 @@ void dag::for_each_node(std::function<void(dag_node_ptr)> handler) const
                 _prefetches.end(), handler);
 }
 
-}
 }
 }

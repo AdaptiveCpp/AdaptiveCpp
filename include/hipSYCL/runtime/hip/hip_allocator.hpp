@@ -31,9 +31,8 @@
 #include "../allocator.hpp"
 #include "CL/sycl/backend/backend.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class hip_allocator : public backend_allocator 
 {
@@ -52,6 +51,5 @@ private:
 
 }
 }
-} // namespace cl
 
 #endif

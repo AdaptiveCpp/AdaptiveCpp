@@ -32,9 +32,8 @@
 #include "CL/sycl/exception.hpp"
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 class kernel_operation;
@@ -166,8 +165,8 @@ dag dag_builder::finish_and_reset()
 bool dag_builder::is_conflicting_access(
     const memory_requirement* mem_req, const data_user& user) const
 {
-  if (mem_req->get_access_mode() == access::mode::read &&
-      user.mode == access::mode::read)
+  if (mem_req->get_access_mode() == sycl::access::mode::read &&
+      user.mode == sycl::access::mode::read)
     return false;
 
   // Check if the page ranges do not intersect
@@ -176,6 +175,5 @@ bool dag_builder::is_conflicting_access(
 }
 
 
-}
 }
 }

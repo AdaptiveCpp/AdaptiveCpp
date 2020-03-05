@@ -29,9 +29,8 @@
 #include <algorithm>
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 namespace {
 
@@ -201,6 +200,5 @@ double dag_time_table::get_expected_total_dag_duration() const
   return it->start + it->duration;
 }
 
-}
 }
 }

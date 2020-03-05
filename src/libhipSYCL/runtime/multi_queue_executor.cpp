@@ -31,9 +31,8 @@
 
 #include <memory>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 namespace {
 
@@ -299,6 +298,5 @@ void multi_queue_executor::submit_node(
 }
 
 
-}
 }
 }

@@ -35,9 +35,8 @@
 #include "device_id.hpp"
 #include "util.hpp"
 
-namespace cl {
-namespace sycl { 
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 class dag_node;
@@ -129,7 +128,6 @@ private:
 };
 
 
-}
 }
 }
 

@@ -41,9 +41,8 @@
 #include <functional>
 #include <memory>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 using cost_type = double;
 class inorder_queue;
@@ -476,11 +475,8 @@ private:
 };
 
 
-
-
-
 }
 }
-}
+
 
 #endif

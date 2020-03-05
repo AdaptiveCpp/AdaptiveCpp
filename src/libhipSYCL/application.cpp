@@ -44,10 +44,10 @@ task_graph& application::get_task_graph()
   return get_hipsycl_runtime().get_task_graph();
 }
 
-dag_manager &application::dag()
+hipsycl::rt::dag_manager &application::dag()
 { return get_hipsycl_runtime().dag(); }
 
-backend &application::get_backend(backend_id id)
+hipsycl::rt::backend &application::get_backend(hipsycl::rt::backend_id id)
 {
   return *(get_hipsycl_runtime().backends().get(id));
 }

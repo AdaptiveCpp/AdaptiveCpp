@@ -37,9 +37,8 @@
 #include "executor.hpp"
 #include "util.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class node_scheduling_annotation 
 {
@@ -149,7 +148,6 @@ private:
   std::vector<device_id> _available_devices;
 };
 
-}
 }
 }
 

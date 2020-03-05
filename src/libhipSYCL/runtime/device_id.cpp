@@ -28,9 +28,8 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 device_id::device_id(backend_descriptor b, int id)
@@ -57,6 +56,5 @@ backend_descriptor device_id::get_full_backend_descriptor() const
   return _backend;
 }
 
-}
 }
 }

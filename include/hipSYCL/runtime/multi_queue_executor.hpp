@@ -35,9 +35,8 @@
 #include "inorder_queue.hpp"
 #include "generic/multi_event.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail  {
+namespace hipsycl {
+namespace rt {
 
 /// An executor that submits tasks by serializing them onto 
 /// to multiple inorder queues (e.g. CUDA streams)
@@ -118,9 +117,10 @@ private:
 
   std::vector<per_device_data> _device_data;
 };
+
 }
 }
-}
+
 
 #endif
 

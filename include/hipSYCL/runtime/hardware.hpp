@@ -32,9 +32,8 @@
 
 #include "device_id.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class hardware_context
 {
@@ -66,7 +65,6 @@ public:
 
 
 
-}
 }
 }
 

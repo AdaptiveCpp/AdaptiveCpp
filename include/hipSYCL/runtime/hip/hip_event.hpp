@@ -32,9 +32,8 @@
 
 #include "CL/sycl/backend/backend.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 /// Manages a hipEvent_t.
 class hip_node_event : public dag_node_event
@@ -57,6 +56,6 @@ private:
 
 }
 }
-}
+
 
 #endif

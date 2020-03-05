@@ -32,9 +32,8 @@
 #include <memory>
 #include "../event.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class dag_multi_node_event : public dag_node_event
 {
@@ -65,7 +64,6 @@ private:
   std::vector<std::shared_ptr<dag_node_event>> _events;
 };
 
-}
 }
 }
 

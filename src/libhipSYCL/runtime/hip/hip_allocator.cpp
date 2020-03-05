@@ -30,9 +30,8 @@
 #include "CL/sycl/backend/backend.hpp"
 #include "CL/sycl/exception.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 hip_allocator::hip_allocator(int hip_device)
     : _dev{hip_device}
@@ -42,20 +41,20 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
   hip_device_manager::get().activate_device(_dev);
-  detail::check_error(hipMalloc(&ptr, size_bytes));
+  cl::sycl::detail::check_error(hipMalloc(&ptr, size_bytes));
 
   return ptr;
 }
 
 void hip_allocator::free(void *mem)
 {
-  detail::check_error(hipFree(mem));
+  cl::sycl::detail::check_error(hipFree(mem));
 }
 
 void * hip_allocator::allocate_usm(size_t bytes)
 {
   void *ptr;
-  detail::check_error(hipMallocManaged(&ptr, bytes));
+  cl::sycl::detail::check_error(hipMallocManaged(&ptr, bytes));
 
   return ptr;
 }
@@ -67,6 +66,5 @@ bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
   return true;
 }
 
-}
 }
 }

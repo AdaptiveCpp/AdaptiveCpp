@@ -30,9 +30,8 @@
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 const std::vector<data_user>& 
 data_user_tracker::get_users() const
@@ -79,8 +78,8 @@ void data_user_tracker::release_dead_users()
 
 void data_user_tracker::add_user(
   dag_node_ptr user, 
-  access::mode mode, 
-  access::target target, 
+  sycl::access::mode mode, 
+  sycl::access::target target, 
   sycl::id<3> offset, 
   sycl::range<3> range)
 {
@@ -180,6 +179,5 @@ bool range_store::entire_range_equals(
   return true;
 }
 
-}
 }
 }

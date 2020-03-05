@@ -41,11 +41,10 @@
 #include "dag_node.hpp"
 #include "device_id.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
-
+namespace sycl = cl::sycl;
 
 class range_store
 {
@@ -218,8 +217,8 @@ private:
 struct data_user
 {
   dag_node_ptr user;
-  access::mode mode;
-  access::target target;
+  sycl::access::mode mode;
+  sycl::access::target target;
   sycl::id<3> offset;
   sycl::range<3> range;
 };
@@ -244,8 +243,8 @@ public:
 
   void release_dead_users();
   void add_user(dag_node_ptr user, 
-                access::mode mode, 
-                access::target target, 
+                sycl::access::mode mode, 
+                sycl::access::target target, 
                 sycl::id<3> offset, 
                 sycl::range<3> range);
 private:
@@ -539,7 +538,6 @@ using buffer_data_region = data_region<void*>;
 
 
 
-}
 }
 }
 

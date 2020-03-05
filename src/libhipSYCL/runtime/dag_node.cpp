@@ -31,9 +31,8 @@
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 dag_node::dag_node(const execution_hints &hints,
                    const std::vector<dag_node_ptr> &requirements,
@@ -128,6 +127,5 @@ std::size_t dag_node::get_node_id() const {
   return _node_id;
 }
 
-}
 }
 }

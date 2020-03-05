@@ -30,9 +30,8 @@
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 dag_manager::dag_manager()
 : _builder{std::make_unique<dag_builder>(execution_hints{})}
@@ -57,6 +56,5 @@ void dag_manager::wait()
   flush();
 }
 
-}
 }
 }

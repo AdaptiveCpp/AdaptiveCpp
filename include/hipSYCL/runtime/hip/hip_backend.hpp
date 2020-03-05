@@ -30,9 +30,8 @@
 #ifndef HIPSYCL_HIP_BACKEND_HPP
 #define HIPSYCL_HIP_BACKEND_HPP
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 class hip_backend : public backend
@@ -49,9 +48,8 @@ public:
   virtual ~hip_backend(){}
 };
 
-} // namespace detail
-} // namespace sycl
-} // namespace cl
+}
+}
 
 
 #endif

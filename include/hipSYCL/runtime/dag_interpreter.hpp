@@ -33,9 +33,8 @@
 #include "dag_enumerator.hpp"
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class dag_interpreter
 {
@@ -129,7 +128,6 @@ private:
   std::vector<std::vector<dag_node_ptr>> _effective_requirements;
 };
 
-}
 }
 }
 

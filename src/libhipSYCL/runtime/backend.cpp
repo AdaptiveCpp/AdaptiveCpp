@@ -28,9 +28,8 @@
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 backend_manager::backend_manager()
 : _hw_model(this) 
@@ -52,6 +51,5 @@ const hw_model &backend_manager::hardware_model() const
   return _hw_model;
 }
 
-} // namespace detail
-} // namespace sycl
-} // namespace cl
+}
+}

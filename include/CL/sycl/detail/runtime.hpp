@@ -49,21 +49,21 @@ public:
   const task_graph& get_task_graph() const
   { return _task_graph; }
 
-  dag_manager& dag()
+  hipsycl::rt::dag_manager& dag()
   { return _dag_manager; }
 
-  const dag_manager& dag() const
+  const hipsycl::rt::dag_manager& dag() const
   { return _dag_manager; }
 
-  backend_manager &backends() { return _backends; }
+  hipsycl::rt::backend_manager &backends() { return _backends; }
 
-  const backend_manager &backends() const { return _backends; }
-  
+  const hipsycl::rt::backend_manager &backends() const { return _backends; }
+
 private:
   task_graph _task_graph;
 
-  dag_manager _dag_manager;
-  backend_manager _backends;
+  hipsycl::rt::dag_manager _dag_manager;
+  hipsycl::rt::backend_manager _backends;
 };
 
 

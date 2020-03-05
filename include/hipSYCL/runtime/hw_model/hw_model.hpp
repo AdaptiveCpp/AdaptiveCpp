@@ -31,9 +31,8 @@
 #include <memory>
 #include "memcpy.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class backend_manager;
 class hw_model
@@ -52,7 +51,6 @@ private:
   std::unique_ptr<memcpy_model> _memcpy_model;
 };
 
-}
 }
 }
 

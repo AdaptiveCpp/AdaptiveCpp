@@ -33,9 +33,8 @@
 #include "hints.hpp"
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class dag_interpreter;
 class dag_enumerator;
@@ -104,7 +103,6 @@ public:
 
 
 
-}
 }
 }
 

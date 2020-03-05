@@ -29,19 +29,18 @@
 #include "CL/sycl/backend/backend.hpp"
 #include "CL/sycl/exception.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 hip_device_manager::hip_device_manager()
 {
-  detail::check_error(hipGetDevice(&_device));
+  cl::sycl::detail::check_error(hipGetDevice(&_device));
 }
 
 void hip_device_manager::activate_device(int device_id)
 {
   if (_device != device_id) {
-    detail::check_error(hipSetDevice(device_id));
+    cl::sycl::detail::check_error(hipSetDevice(device_id));
   }
 }
 
@@ -50,6 +49,5 @@ int hip_device_manager::get_active_device() const
   return _device;
 }
 
-}
 }
 }

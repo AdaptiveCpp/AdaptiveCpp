@@ -32,9 +32,8 @@
 #include "dag_builder.hpp"
 #include "CL/sycl/detail/async_worker.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class dag_manager
 {
@@ -47,10 +46,9 @@ public:
   void wait();
 private:
   std::unique_ptr<dag_builder> _builder;
-  worker_thread _worker;
+  cl::sycl::detail::worker_thread _worker;
 };
 
-}
 }
 }
 

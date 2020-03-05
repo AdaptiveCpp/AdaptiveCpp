@@ -30,9 +30,8 @@
 
 #include "execution_context.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class scheduler
 {
@@ -40,7 +39,6 @@ public:
   backend_queue_manager _queues;
 };
 
-}
 }
 }
 

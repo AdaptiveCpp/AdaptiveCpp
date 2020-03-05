@@ -32,9 +32,8 @@
 #include "../inorder_queue.hpp"
 #include "CL/sycl/backend/backend.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 class hip_queue : public inorder_queue
@@ -63,7 +62,6 @@ private:
   hipStream_t _stream;
 };
 
-}
 }
 }
 

@@ -30,9 +30,8 @@
 
 #include "device_id.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class dag_node_event
 {
@@ -44,6 +43,6 @@ public:
 
 }
 }
-}
+
 
 #endif

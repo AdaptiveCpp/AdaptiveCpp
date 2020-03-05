@@ -30,9 +30,8 @@
 
 #include "device_id.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class backend_allocator
 {
@@ -47,7 +46,6 @@ public:
   virtual ~backend_allocator(){}
 };
 
-}
 }
 }
 

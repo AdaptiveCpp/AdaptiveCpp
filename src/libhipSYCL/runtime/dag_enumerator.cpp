@@ -34,9 +34,8 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/detail/debug.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 dag_enumerator::dag_enumerator(dag *d)
     : _num_nodes{0}, _num_data_regions{0}
@@ -104,6 +103,5 @@ void dag_enumerator::enumerate_data_regions(dag *d) {
 }
 
 
-}
 }
 }

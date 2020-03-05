@@ -31,9 +31,8 @@
 #include <vector>
 #include "../operations.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class backend_manager;
 
@@ -53,7 +52,6 @@ public:
 };
 
 
-}
 }
 }
 

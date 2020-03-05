@@ -29,9 +29,8 @@
 #include <limits>
 
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 
 cost_type
@@ -67,6 +66,6 @@ memory_location memcpy_model::choose_source(
   }
   return candidate_sources[best_transfer_index];
 }
-}
+
 }
 }

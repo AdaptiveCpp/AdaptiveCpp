@@ -39,9 +39,10 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/detail/debug.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace sycl = cl::sycl;
+
+namespace hipsycl {
+namespace rt {
 
 namespace {
 
@@ -365,7 +366,7 @@ construct_memcpy(buffer_memory_requirement *mem_req, device_id target_device,
     source_locations.push_back(memory_location{
         source.first, source.second.first, mem_req->get_data_region()});
 
-  memory_location source_location = application::get_hipsycl_runtime()
+  memory_location source_location = sycl::detail::application::get_hipsycl_runtime()
       .backends()
       .hardware_model()
       .get_memcpy_model()
@@ -453,7 +454,7 @@ void dag_expander::expand(
                                 std::size_t element_size) -> void * {
               
               // TODO: Find out optimal minimum alignment
-              return application::get_backend(target_device.get_backend())
+              return sycl::detail::application::get_backend(target_device.get_backend())
                   .get_allocator(target_device)
                   ->allocate(128, num_elements.size() * element_size);
             };
@@ -505,7 +506,7 @@ void dag_expander::expand(
           // * mark the range as valid on the target device
           // * mark the range as invalid on all other devices
           //   if it was a write access
-          if (mem_req->get_access_mode() == access::mode::read) {
+          if (mem_req->get_access_mode() == sycl::access::mode::read) {
             data->mark_range_valid(target_device,
                                    mem_req->get_access_offset3d(),
                                    mem_req->get_access_range3d());
@@ -651,6 +652,6 @@ dag_expansion_result::original_data_region(std::size_t data_region_id) const
   assert(data_region_id < _original_data_regions.size());
   return _original_data_regions[data_region_id];
 }
-}
+
 }
 }

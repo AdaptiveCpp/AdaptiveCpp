@@ -36,9 +36,8 @@
 #include "operations.hpp"
 #include "dag_node.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 /// Represents a DAG that can be transformed for execution (e.g., turning 
 /// by requirements into actual operations).
@@ -88,7 +87,6 @@ private:
 };
 
 
-}
 }
 }
 

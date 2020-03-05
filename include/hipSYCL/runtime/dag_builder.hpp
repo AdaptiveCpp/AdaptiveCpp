@@ -36,9 +36,8 @@
 #include <mutex>
 #include <memory>
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 /// Incrementally builds a dag based on operations, taking into
 /// account data dependencies.
@@ -83,7 +82,6 @@ private:
 };
 
 
-}
 }
 }
 

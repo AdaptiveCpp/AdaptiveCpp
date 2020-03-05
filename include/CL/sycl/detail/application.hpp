@@ -46,8 +46,8 @@ public:
   static runtime& get_hipsycl_runtime();
 
   static task_graph& get_task_graph();
-  static dag_manager &dag();
-  static backend &get_backend(backend_id id);
+  static hipsycl::rt::dag_manager &dag();
+  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
 
   static void reset();
 

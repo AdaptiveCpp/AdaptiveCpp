@@ -34,9 +34,8 @@
 #include "hints.hpp"
 #include "operations.hpp"
 
-namespace cl {
-namespace sycl {
-namespace detail {
+namespace hipsycl {
+namespace rt {
 
 class inorder_queue
 {
@@ -57,7 +56,6 @@ public:
   virtual ~inorder_queue(){}
 };
 
-}
 }
 }
 

@@ -118,7 +118,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_add(t operand, memory_order memoryOrder =
+  T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -137,7 +137,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_sub(t operand, memory_order memoryOrder =
+  T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -156,7 +156,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_and(t operand, memory_order memoryOrder =
+  T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -175,7 +175,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_or(t operand, memory_order memoryOrder =
+  T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -194,7 +194,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_xor(t operand, memory_order memoryOrder =
+  T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -213,7 +213,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_min(t operand, memory_order memoryOrder =
+  T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -236,7 +236,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_max(t operand, memory_order memoryOrder =
+  T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__

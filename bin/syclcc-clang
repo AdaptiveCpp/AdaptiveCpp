@@ -173,7 +173,7 @@ class syclcc_config:
 """  Enter bootstrap mode. This is only required when building hipSYCL itself and 
   should not be set by the user.""")
     }
-    self._insufficient_cpp_standards = ['98', '03', '11', '0x']
+    self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
     self._forwarded_args = []
     self._common_compiler_args = self._get_common_compiler_args()
@@ -328,7 +328,7 @@ class syclcc_config:
     raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
             opt.commandline, opt.environment))
 
-  # Make sure that at least c++14 is added to the common args
+  # Make sure that at least c++17 is added to the common args
   def _get_common_compiler_args(self):
     std_args=[]
     for arg in self._args:
@@ -336,7 +336,7 @@ class syclcc_config:
       if split_arg[0]=="-std":
         std_args.append(split_arg[1])
     if not std_args:
-       return ["-std=c++14"]
+       return ["-std=c++17"]
     else:
         if len(std_args) > 1:
             raise RuntimeError("Multiple c++ standards defined")

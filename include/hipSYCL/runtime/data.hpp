@@ -35,9 +35,9 @@
 #include <algorithm>
 #include <limits>
 
-#include "../../access.hpp"
-#include "../../id.hpp"
-#include "../../range.hpp"
+#include "CL/sycl/access.hpp"
+#include "CL/sycl/id.hpp"
+#include "CL/sycl/range.hpp"
 #include "dag_node.hpp"
 #include "device_id.hpp"
 

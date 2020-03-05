@@ -28,9 +28,9 @@
 
 #include <algorithm>
 
-#include "CL/sycl/detail/scheduling/util.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/exception.hpp"
-#include "CL/sycl/detail/scheduling/dag.hpp"
+#include "hipSYCL/runtime/dag.hpp"
 
 namespace cl {
 namespace sycl {

@@ -28,8 +28,8 @@
 
 #include <cassert>
 
-#include "CL/sycl/detail/scheduling/dag_interpreter.hpp"
-#include "CL/sycl/detail/scheduling/hints.hpp"
+#include "hipSYCL/runtime/dag_interpreter.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 
 namespace cl {
 namespace sycl {

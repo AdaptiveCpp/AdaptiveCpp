@@ -30,8 +30,8 @@
 
 #include <memory>
 
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 #include "runtime.hpp"
 
 namespace cl {

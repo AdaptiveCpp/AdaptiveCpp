@@ -30,8 +30,8 @@
 #define HIPSYCL_RUNTIME_HPP
 
 #include "task_graph.hpp"
-#include "scheduling/dag_manager.hpp"
-#include "scheduling/backend.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/backend.hpp"
 
 #include <iostream>
 namespace cl {

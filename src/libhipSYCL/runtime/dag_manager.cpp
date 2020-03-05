@@ -25,33 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_MANAGER_HPP
-#define HIPSYCL_DAG_MANAGER_HPP
+#include <memory>
 
-#include "dag.hpp"
-#include "dag_builder.hpp"
-#include "../async_worker.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class dag_manager
+dag_manager::dag_manager()
+: _builder{std::make_unique<dag_builder>(execution_hints{})}
+{}
+
+dag_builder* 
+dag_manager::builder() const
 {
-public:
-  dag_manager();
+  return _builder.get();
+}
 
-  dag_builder* builder() const;
+void dag_manager::flush()
+{
+  _worker([this](){
+    dag new_dag = _builder->finish_and_reset();
+    
+  });
+}
 
-  void flush();
-  void wait();
-private:
-  std::unique_ptr<dag_builder> _builder;
-  worker_thread _worker;
-};
+void dag_manager::wait()
+{
+  flush();
+}
 
 }
 }
 }
-
-#endif

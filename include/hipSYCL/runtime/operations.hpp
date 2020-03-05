@@ -28,10 +28,10 @@
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
-#include "../../backend/backend.hpp"
-#include "../../id.hpp"
-#include "../../range.hpp"
-#include "../../access.hpp"
+#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/id.hpp"
+#include "CL/sycl/range.hpp"
+#include "CL/sycl/access.hpp"
 
 #include "data.hpp"
 #include "event.hpp"
@@ -251,7 +251,6 @@ class kernel_launcher
 {
 public:
   virtual ~kernel_launcher(){}
-
 
   //virtual void invoke() = 0;
 };

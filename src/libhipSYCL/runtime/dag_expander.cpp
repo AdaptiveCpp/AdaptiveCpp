@@ -30,13 +30,13 @@
 
 #include "CL/sycl/access.hpp"
 #include "CL/sycl/detail/application.hpp"
-#include "CL/sycl/detail/scheduling/dag_enumerator.hpp"
-#include "CL/sycl/detail/scheduling/dag_expander.hpp"
-#include "CL/sycl/detail/scheduling/data.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
-#include "CL/sycl/detail/scheduling/hints.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
-#include "CL/sycl/detail/scheduling/util.hpp"
+#include "hipSYCL/runtime/dag_enumerator.hpp"
+#include "hipSYCL/runtime/dag_expander.hpp"
+#include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/detail/debug.hpp"
 
 namespace cl {

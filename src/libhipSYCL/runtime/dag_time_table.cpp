@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/dag_time_table.hpp"
+#include "hipSYCL/runtime/dag_time_table.hpp"
 #include <algorithm>
 
 

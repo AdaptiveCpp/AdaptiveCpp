@@ -47,7 +47,7 @@ public:
   virtual ~queue_operation_dispatcher(){}
 
   virtual void dispatch_kernel(kernel_operation* op) final override {
-    op->get_launcher()
+    _queue->submit_kernel(*op);
   }
 
   virtual void dispatch_memcpy(memcpy_operation* op) final override {
@@ -209,7 +209,7 @@ void multi_queue_executor::submit_node(
   if(node->is_submitted() || node->get_assigned_executor() != this)
     return;
 
-  interpreter.for_each_requirement(node, [=](dag_node_ptr req){
+  interpreter.for_each_requirement(node, [&](dag_node_ptr req){
     if(!req->is_submitted() && req->get_assigned_executor() == this) {
       this->submit_node(req, interpreter, annotations, generic_batch_event,
                         final_nodes);

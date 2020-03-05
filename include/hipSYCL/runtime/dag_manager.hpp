@@ -25,81 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/hints.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
-#include "CL/sycl/detail/scheduling/dag_node.hpp"
+#ifndef HIPSYCL_DAG_MANAGER_HPP
+#define HIPSYCL_DAG_MANAGER_HPP
+
+#include "dag.hpp"
+#include "dag_builder.hpp"
+#include "CL/sycl/detail/async_worker.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-execution_hint::execution_hint(execution_hint_type type)
-: _type{type}
-{}
-
-execution_hint_type execution_hint::get_hint_type() const
+class dag_manager
 {
-  return _type;
-}
+public:
+  dag_manager();
 
-execution_hint::~execution_hint(){}
+  dag_builder* builder() const;
 
-namespace hints {
-
-bind_to_device::bind_to_device(device_id d)
-: _dev{d}, execution_hint{execution_hint_type::bind_to_device}
-{}
-
-device_id bind_to_device::get_device_id() const
-{ return _dev; }
-
-
-explicit_require::explicit_require(dag_node_ptr node)
-: _dag_node{node}, 
-  execution_hint{execution_hint_type::explicit_require}
-{}
-
-dag_node_ptr explicit_require::get_requirement() const
-{
-  return _dag_node;
-}
-
-} // hints
-
-void execution_hints::add_hint(execution_hint_ptr hint)
-{
-  _hints.push_back(hint);
-}
-
-void execution_hints::overwrite_with(const execution_hints& other)
-{
-  for(const auto& hint : other._hints)
-  {
-    execution_hint_type type = hint->get_hint_type();
-    auto it = std::find_if(_hints.begin(),_hints.end(),
-      [type](execution_hint_ptr h){
-      return type == h->get_hint_type();
-    });
-
-    if(it != _hints.end())
-      *it = hint;
-  }
-}
-
-bool execution_hints::has_hint(execution_hint_type type) const
-{
-  return get_hint(type) != nullptr;
-}
-
-execution_hint* execution_hints::get_hint(execution_hint_type type) const
-{
-  for(const auto& hint : _hints)
-    if(hint->get_hint_type() == type)
-      return hint.get();
-  return nullptr;
-}
-
+  void flush();
+  void wait();
+private:
+  std::unique_ptr<dag_builder> _builder;
+  worker_thread _worker;
+};
 
 }
 }
 }
+
+#endif

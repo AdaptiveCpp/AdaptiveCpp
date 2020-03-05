@@ -14,26 +14,26 @@ set(HIPSYCL_SOURCES
   accessor.cpp
   async_worker.cpp
   local_memory.cpp
-  scheduling/backend.cpp
-  scheduling/hints.cpp
-  scheduling/device_id.cpp
-  scheduling/operations.cpp
-  scheduling/data.cpp
-  scheduling/multi_queue_executor.cpp
-  scheduling/dag.cpp
-  scheduling/dag_node.cpp
-  scheduling/dag_builder.cpp
-  scheduling/dag_expander.cpp
-  scheduling/dag_enumerator.cpp
-  scheduling/dag_interpreter.cpp
-  scheduling/dag_scheduler.cpp
-  scheduling/dag_time_table.cpp
-  scheduling/dag_manager.cpp
-  scheduling/hip/hip_event.cpp
-  scheduling/hip/hip_queue.cpp
-  scheduling/hip/hip_allocator.cpp
-  scheduling/hip/hip_device_manager.cpp
-  scheduling/hw_model/memcpy.cpp)
+  runtime/backend.cpp
+  runtime/hints.cpp
+  runtime/device_id.cpp
+  runtime/operations.cpp
+  runtime/data.cpp
+  runtime/multi_queue_executor.cpp
+  runtime/dag.cpp
+  runtime/dag_node.cpp
+  runtime/dag_builder.cpp
+  runtime/dag_expander.cpp
+  runtime/dag_enumerator.cpp
+  runtime/dag_interpreter.cpp
+  runtime/dag_scheduler.cpp
+  runtime/dag_time_table.cpp
+  runtime/dag_manager.cpp
+  runtime/hip/hip_event.cpp
+  runtime/hip/hip_queue.cpp
+  runtime/hip/hip_allocator.cpp
+  runtime/hip/hip_device_manager.cpp
+  runtime/hw_model/memcpy.cpp)
 
 
 

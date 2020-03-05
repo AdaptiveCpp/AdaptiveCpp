@@ -25,33 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/backend.hpp"
-#include "CL/sycl/detail/scheduling/device_id.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/backend.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-backend_manager::backend_manager()
-: _hw_model(this) 
+
+device_id::device_id(backend_descriptor b, int id)
+: _backend{b}, _device_id{id}
+{}
+
+bool device_id::is_host() const
 {
-  // TODO Add backends here
+  return _backend.hw_platform == hardware_platform::cpu;
 }
 
-backend *backend_manager::get(backend_id id) const {
-  return _backends.at(id).get();
-}
-
-hw_model &backend_manager::hardware_model()
+backend_id device_id::get_backend() const
 {
-  return _hw_model;
+  return _backend.id;
 }
 
-const hw_model &backend_manager::hardware_model() const 
+int device_id::get_id() const
 {
-  return _hw_model;
+  return _device_id;
 }
 
-} // namespace detail
-} // namespace sycl
-} // namespace cl
+backend_descriptor device_id::get_full_backend_descriptor() const
+{
+  return _backend;
+}
+
+}
+}
+}

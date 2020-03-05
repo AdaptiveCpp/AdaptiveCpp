@@ -25,19 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/operations.hpp"
-#include "CL/sycl/detail/scheduling/dag_node.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-
-kernel_operation::kernel_operation(kernel_launcher launcher, 
-                  const std::vector<memory_requirement*>& memory_requirements)
-  : _launcher{launcher},
-    _memory_requirements{memory_requirements}
-{}
+kernel_operation::kernel_operation(
+    const std::string &kernel_name, kernel_launcher launcher,
+    const std::vector<requirement *> &requirements)
+    : _kernel_name{kernel_name}, _launcher{launcher},
+      _requirements{requirements} {}
 
 kernel_launcher& 
 kernel_operation::get_launcher()
@@ -47,9 +46,9 @@ const kernel_launcher&
 kernel_operation::get_launcher() const
 { return _launcher; }
 
-const std::vector<memory_requirement*>& 
-kernel_operation::get_memory_requirements() const
-{ return _memory_requirements; }
+const std::vector<requirement*>& 
+kernel_operation::get_requirements() const
+{ return _requirements; }
 
 
 

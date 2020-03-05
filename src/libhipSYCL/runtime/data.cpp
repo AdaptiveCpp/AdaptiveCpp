@@ -27,8 +27,8 @@
 
 #include <cassert>
 #include <algorithm>
-#include "CL/sycl/detail/scheduling/data.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
+#include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 
 namespace cl {
 namespace sycl {

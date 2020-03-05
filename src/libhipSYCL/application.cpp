@@ -27,7 +27,7 @@
 
 #include "CL/sycl/detail/application.hpp"
 #include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
 #include "CL/sycl/device.hpp"
 
 namespace cl {

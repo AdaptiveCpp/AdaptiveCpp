@@ -25,9 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/hip/hip_queue.hpp"
-#include "CL/sycl/detail/scheduling/hip/hip_event.hpp"
-#include "CL/sycl/detail/scheduling/util.hpp"
+#include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/hip/hip_event.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/exception.hpp"
 #include <memory>
 
@@ -77,7 +77,7 @@ void hip_queue::submit_memcpy(const memcpy_operation&) {
 
 }
 void hip_queue::submit_kernel(const kernel_operation& op) {
-
+  //op.get_launcher()
 }
 void hip_queue::submit_prefetch(const prefetch_operation&) {
   assert(false && "Unimplemented");

@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/hw_model/memcpy.hpp"
+#include "hipSYCL/runtime/hw_model/memcpy.hpp"
 #include <limits>
 
 

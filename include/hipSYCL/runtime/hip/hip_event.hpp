@@ -25,33 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_RUNTIME_HPP
-#define HIPSYCL_HIP_RUNTIME_HPP
+#ifndef HIPSYCL_HIP_EVENT_HPP
+#define HIPSYCL_HIP_EVENT_HPP
 
-#include "../allocator.hpp"
-#include "../../../backend/backend.hpp"
+#include "../event.hpp"
+
+#include "CL/sycl/backend/backend.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-class hip_allocator : public backend_allocator 
+/// Manages a hipEvent_t.
+class hip_node_event : public dag_node_event
 {
 public:
-  hip_allocator(int hip_device);
+  /// Takes ownership of supplied hipEvent_t. \c evt Must
+  /// have been properly initialized and recorded.
+  hip_node_event(device_id dev, hipEvent_t evt);
+  ~hip_node_event();
 
-  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
-  virtual void free(void *mem) override;
+  virtual bool is_complete() const override;
+  virtual void wait() override;
 
-  virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
-
+  hipEvent_t get_event() const;
+  device_id get_device() const;
 private:
-  int _dev;
+  device_id _dev;
+  hipEvent_t _evt;
 };
 
 }
 }
-} // namespace cl
+}
 
 #endif

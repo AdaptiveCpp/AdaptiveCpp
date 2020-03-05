@@ -27,11 +27,11 @@
 
 #include <cassert>
 #include <unordered_set>
-#include "CL/sycl/detail/scheduling/dag_enumerator.hpp"
-#include "CL/sycl/detail/scheduling/data.hpp"
-#include "CL/sycl/detail/scheduling/hints.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
-#include "CL/sycl/detail/scheduling/util.hpp"
+#include "hipSYCL/runtime/dag_enumerator.hpp"
+#include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "CL/sycl/detail/debug.hpp"
 
 namespace cl {

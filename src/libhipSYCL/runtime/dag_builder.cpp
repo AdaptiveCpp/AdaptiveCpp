@@ -26,9 +26,9 @@
  */
 
 
-#include "CL/sycl/detail/scheduling/util.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
-#include "CL/sycl/detail/scheduling/dag_builder.hpp"
+#include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/dag_builder.hpp"
 #include "CL/sycl/exception.hpp"
 
 

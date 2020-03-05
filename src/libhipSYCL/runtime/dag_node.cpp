@@ -28,8 +28,8 @@
 #include <limits>
 #include <cassert>
 
-#include "CL/sycl/detail/scheduling/dag_node.hpp"
-#include "CL/sycl/detail/scheduling/operations.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 
 namespace cl {
 namespace sycl {

@@ -25,38 +25,81 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_EVENT_HPP
-#define HIPSYCL_HIP_EVENT_HPP
-
-#include "../event.hpp"
-
-#include "../../../backend/backend.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-/// Manages a hipEvent_t.
-class hip_node_event : public dag_node_event
+execution_hint::execution_hint(execution_hint_type type)
+: _type{type}
+{}
+
+execution_hint_type execution_hint::get_hint_type() const
 {
-public:
-  /// Takes ownership of supplied hipEvent_t. \c evt Must
-  /// have been properly initialized and recorded.
-  hip_node_event(device_id dev, hipEvent_t evt);
-  ~hip_node_event();
+  return _type;
+}
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
+execution_hint::~execution_hint(){}
 
-  hipEvent_t get_event() const;
-  device_id get_device() const;
-private:
-  device_id _dev;
-  hipEvent_t _evt;
-};
+namespace hints {
+
+bind_to_device::bind_to_device(device_id d)
+: _dev{d}, execution_hint{execution_hint_type::bind_to_device}
+{}
+
+device_id bind_to_device::get_device_id() const
+{ return _dev; }
+
+
+explicit_require::explicit_require(dag_node_ptr node)
+: _dag_node{node}, 
+  execution_hint{execution_hint_type::explicit_require}
+{}
+
+dag_node_ptr explicit_require::get_requirement() const
+{
+  return _dag_node;
+}
+
+} // hints
+
+void execution_hints::add_hint(execution_hint_ptr hint)
+{
+  _hints.push_back(hint);
+}
+
+void execution_hints::overwrite_with(const execution_hints& other)
+{
+  for(const auto& hint : other._hints)
+  {
+    execution_hint_type type = hint->get_hint_type();
+    auto it = std::find_if(_hints.begin(),_hints.end(),
+      [type](execution_hint_ptr h){
+      return type == h->get_hint_type();
+    });
+
+    if(it != _hints.end())
+      *it = hint;
+  }
+}
+
+bool execution_hints::has_hint(execution_hint_type type) const
+{
+  return get_hint(type) != nullptr;
+}
+
+execution_hint* execution_hints::get_hint(execution_hint_type type) const
+{
+  for(const auto& hint : _hints)
+    if(hint->get_hint_type() == type)
+      return hint.get();
+  return nullptr;
+}
+
 
 }
 }
 }
-
-#endif

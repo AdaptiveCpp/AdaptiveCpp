@@ -25,48 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/hip/hip_allocator.hpp"
-#include "CL/sycl/detail/scheduling/hip/hip_device_manager.hpp"
+#ifndef HIPSYCL_HIP_RUNTIME_HPP
+#define HIPSYCL_HIP_RUNTIME_HPP
+
+#include "../allocator.hpp"
 #include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/exception.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-hip_allocator::hip_allocator(int hip_device)
-    : _dev{hip_device}
-{}
-      
-void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
+class hip_allocator : public backend_allocator 
 {
-  void *ptr;
-  hip_device_manager::get().activate_device(_dev);
-  detail::check_error(hipMalloc(&ptr, size_bytes));
+public:
+  hip_allocator(int hip_device);
 
-  return ptr;
-}
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+  virtual void free(void *mem) override;
 
-void hip_allocator::free(void *mem)
-{
-  detail::check_error(hipFree(mem));
-}
+  virtual void *allocate_usm(size_t bytes) override;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
 
-void * hip_allocator::allocate_usm(size_t bytes)
-{
-  void *ptr;
-  detail::check_error(hipMallocManaged(&ptr, bytes));
-
-  return ptr;
-}
-
-bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
-{
-  // TODO: Formulate this better - this assumes that either CUDA+CPU or
-  // ROCm + CPU are active at the same time
-  return true;
-}
+private:
+  int _dev;
+};
 
 }
 }
-}
+} // namespace cl
+
+#endif

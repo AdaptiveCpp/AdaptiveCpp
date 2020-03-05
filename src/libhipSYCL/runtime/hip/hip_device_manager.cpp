@@ -25,36 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <memory>
-
-#include "CL/sycl/detail/scheduling/dag_manager.hpp"
-#include "CL/sycl/detail/scheduling/hints.hpp"
+#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "CL/sycl/backend/backend.hpp"
+#include "CL/sycl/exception.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
-dag_manager::dag_manager()
-: _builder{std::make_unique<dag_builder>(execution_hints{})}
-{}
-
-dag_builder* 
-dag_manager::builder() const
+hip_device_manager::hip_device_manager()
 {
-  return _builder.get();
+  detail::check_error(hipGetDevice(&_device));
 }
 
-void dag_manager::flush()
+void hip_device_manager::activate_device(int device_id)
 {
-  _worker([this](){
-    dag new_dag = _builder->finish_and_reset();
-    
-  });
+  if (_device != device_id) {
+    detail::check_error(hipSetDevice(device_id));
+  }
 }
 
-void dag_manager::wait()
+int hip_device_manager::get_active_device() const
 {
-  flush();
+  return _device;
 }
 
 }

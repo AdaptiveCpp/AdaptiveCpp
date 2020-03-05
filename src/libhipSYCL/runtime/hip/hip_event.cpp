@@ -25,36 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/scheduling/device_id.hpp"
-#include "CL/sycl/detail/scheduling/backend.hpp"
+#include "hipSYCL/runtime/hip/hip_event.hpp"
+#include "CL/sycl/exception.hpp"
 
 namespace cl {
 namespace sycl {
 namespace detail {
 
 
-device_id::device_id(backend_descriptor b, int id)
-: _backend{b}, _device_id{id}
+hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
+: _dev{dev}, _evt{evt}
 {}
 
-bool device_id::is_host() const
+hip_node_event::~hip_node_event()
 {
-  return _backend.hw_platform == hardware_platform::cpu;
+  detail::check_error(hipEventDestroy(_evt));
 }
 
-backend_id device_id::get_backend() const
+bool hip_node_event::is_complete() const
 {
-  return _backend.id;
+  hipError_t err = hipEventQuery(_evt);
+  detail::check_error(err);
+  return err == hipSuccess;
 }
 
-int device_id::get_id() const
+void hip_node_event::wait()
 {
-  return _device_id;
+  detail::check_error(hipEventSynchronize(_evt));
 }
 
-backend_descriptor device_id::get_full_backend_descriptor() const
+hipEvent_t hip_node_event::get_event() const
 {
-  return _backend;
+  return _evt;
+}
+
+device_id hip_node_event::get_device() const
+{
+  return _dev;
 }
 
 }

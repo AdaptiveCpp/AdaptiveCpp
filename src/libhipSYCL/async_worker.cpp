@@ -25,12 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/async_worker.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/detail/async_worker.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 #include <cassert>
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 

@@ -25,12 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/exception.hpp"
-#include "CL/sycl/context.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/sycl/context.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
 context exception::get_context() const
@@ -156,4 +156,4 @@ void dump_exception_info(exception_ptr eptr)
 
 } // detail
 } // sycl
-} // cl
+} // hipsycl

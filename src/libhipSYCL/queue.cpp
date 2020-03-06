@@ -25,13 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/context.hpp"
-#include "CL/sycl/device.hpp"
-#include "CL/sycl/queue.hpp"
-#include "CL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/context.hpp"
+#include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/queue.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
 
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 
@@ -218,4 +218,4 @@ detail::stream_ptr queue::get_stream() const
 { return _stream; }
 
 }// namespace sycl
-}// namespace cl
+}// namespace hipsycl

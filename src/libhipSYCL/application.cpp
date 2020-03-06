@@ -25,11 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/application.hpp"
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/device.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/device.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 

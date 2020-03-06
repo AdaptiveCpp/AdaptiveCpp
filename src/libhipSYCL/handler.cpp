@@ -25,11 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/handler.hpp"
-#include "CL/sycl/queue.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/queue.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
 handler::handler(const queue& q, async_handler handler)
@@ -55,4 +55,4 @@ void handler::select_device() const
 
 
 } // sycl
-} // cl
+} // hipsycl

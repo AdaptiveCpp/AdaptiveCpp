@@ -25,14 +25,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/exception.hpp"
-#include "CL/sycl/detail/task_graph.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/sycl/detail/task_graph.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 #include <mutex>
 #include <cassert>
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 

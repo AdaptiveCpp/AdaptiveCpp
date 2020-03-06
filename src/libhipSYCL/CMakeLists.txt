@@ -18,7 +18,7 @@ set(HIPSYCL_SOURCES
 
 set(INCLUDE_DIRS
   ${HIPSYCL_SOURCE_DIR}/include
-  ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
+  ${HIPSYCL_SOURCE_DIR})
 
 set(COMMON_SYCLCC_OPTIONS --hipsycl-bootstrap --hipsycl-config-file=${SYCLCC_CONFIG_FILE_PATH})
 
@@ -46,8 +46,9 @@ if(WITH_CUDA_BACKEND)
     set(CUDA_PLATFORM cuda)
   endif()
 
+  target_compile_definitions(hipSYCL_cuda PRIVATE HIPSYCL_BOOTSTRAP=1)
   target_compile_options(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-gpu-arch=${HIPSYCL_CUDA_DUMMY_GPU_ARCH} ${COMMON_SYCLCC_OPTIONS})
-  target_include_directories(hipSYCL_cuda PRIVATE ${INCLUDE_DIRS})
+  target_include_directories(hipSYCL_cuda PRIVATE ${INCLUDE_DIRS} ${HIPSYCL_SOURCE_DIR}/contrib/HIP/include)
   target_link_libraries(hipSYCL_cuda PRIVATE --hipsycl-platform=${CUDA_PLATFORM} --hipsycl-gpu-arch=${HIPSYCL_CUDA_DUMMY_GPU_ARCH} ${COMMON_SYCLCC_OPTIONS})
   install(TARGETS hipSYCL_cuda
           EXPORT install_exports
@@ -59,6 +60,7 @@ if(WITH_ROCM_BACKEND)
   add_library(hipSYCL_rocm SHARED ${HIPSYCL_SOURCES})
   #Try to peek if ROCM set itself through its /etc/profile.d/rocm.sh
   set(ROCM_PATH $ENV{ROCM_PATH})
+  target_compile_definitions(hipSYCL_rocm PRIVATE HIPSYCL_BOOTSTRAP=1)
   target_compile_options(hipSYCL_rocm PRIVATE --hipsycl-platform=rocm --hipsycl-gpu-arch=${HIPSYCL_ROCM_DUMMY_GPU_ARCH} ${COMMON_SYCLCC_OPTIONS})
   target_include_directories(hipSYCL_rocm PRIVATE ${INCLUDE_DIRS})
   if(ROCM_PATH)
@@ -73,8 +75,9 @@ endif()
 
 if(WITH_CPU_BACKEND)
   add_library(hipSYCL_cpu SHARED ${HIPSYCL_SOURCES})
+  target_compile_definitions(hipSYCL_cpu PRIVATE HIPSYCL_BOOTSTRAP=1)
   target_compile_options(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
-  target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS})
+  target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS} ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
   target_link_libraries(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
   install(TARGETS hipSYCL_cpu
           EXPORT install_exports

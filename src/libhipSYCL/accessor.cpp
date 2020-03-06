@@ -25,16 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/accessor.hpp"
-#include "CL/sycl/handler.hpp"
-#include "CL/sycl/detail/buffer.hpp"
-#include "CL/sycl/detail/task_graph.hpp"
-#include "CL/sycl/detail/application.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/accessor.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/detail/buffer.hpp"
+#include "hipSYCL/sycl/detail/task_graph.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 #include <cassert>
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 namespace accessor {

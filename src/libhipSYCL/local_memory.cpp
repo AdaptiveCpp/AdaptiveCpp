@@ -25,9 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/local_memory_allocator.hpp"
+#include "hipSYCL/sycl/detail/local_memory_allocator.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
 

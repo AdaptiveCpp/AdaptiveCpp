@@ -25,9 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/device_selector.hpp"
+#include "hipSYCL/sycl/device_selector.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
 

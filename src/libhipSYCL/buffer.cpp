@@ -25,11 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/detail/buffer.hpp"
-#include "CL/sycl/exception.hpp"
-#include "CL/sycl/detail/application.hpp"
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/detail/buffer.hpp"
+#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 #include <cstring>
 #include <cassert>
@@ -37,7 +37,7 @@
 #include <algorithm>
 
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 namespace detail {
     

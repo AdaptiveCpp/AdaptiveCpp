@@ -28,8 +28,9 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include "CL/sycl/access.hpp"
-#include "CL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 #include "hipSYCL/runtime/dag_enumerator.hpp"
 #include "hipSYCL/runtime/dag_expander.hpp"
 #include "hipSYCL/runtime/data.hpp"
@@ -37,9 +38,6 @@
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
-#include "CL/sycl/detail/debug.hpp"
-
-namespace sycl = cl::sycl;
 
 namespace hipsycl {
 namespace rt {

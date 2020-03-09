@@ -30,7 +30,7 @@
 
 #include "../event.hpp"
 
-#include "CL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 
 namespace hipsycl {
 namespace rt {

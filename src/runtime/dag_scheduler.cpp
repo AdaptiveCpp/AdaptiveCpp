@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "CL/sycl/detail/application.hpp"
+#include "hipSYCL/sycl/detail/application.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -40,8 +40,6 @@
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/dag_time_table.hpp"
 #include "hipSYCL/runtime/operations.hpp"
-
-namespace sycl = cl::sycl;
 
 namespace hipsycl {
 namespace rt {

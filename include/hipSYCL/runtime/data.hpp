@@ -28,23 +28,20 @@
 #ifndef HIPSYCL_DATA_HPP
 #define HIPSYCL_DATA_HPP
 
-#include <bits/c++config.h>
 #include <limits>
 #include <vector>
 #include <utility>
 #include <algorithm>
 #include <limits>
 
-#include "CL/sycl/access.hpp"
-#include "CL/sycl/id.hpp"
-#include "CL/sycl/range.hpp"
+#include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/id.hpp"
+#include "hipSYCL/sycl/range.hpp"
 #include "dag_node.hpp"
 #include "device_id.hpp"
 
 namespace hipsycl {
 namespace rt {
-
-namespace sycl = cl::sycl;
 
 class range_store
 {

@@ -30,7 +30,7 @@
 
 #include "dag.hpp"
 #include "dag_builder.hpp"
-#include "CL/sycl/detail/async_worker.hpp"
+#include "hipSYCL/sycl/detail/async_worker.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -46,7 +46,7 @@ public:
   void wait();
 private:
   std::unique_ptr<dag_builder> _builder;
-  cl::sycl::detail::worker_thread _worker;
+  sycl::detail::worker_thread _worker;
 };
 
 }

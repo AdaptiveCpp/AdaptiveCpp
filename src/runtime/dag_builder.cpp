@@ -29,7 +29,7 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
-#include "CL/sycl/exception.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 
 
 namespace hipsycl {

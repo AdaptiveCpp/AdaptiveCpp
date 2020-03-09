@@ -28,10 +28,8 @@
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
-#include "CL/sycl/exception.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 #include <memory>
-
-namespace sycl = cl::sycl;
 
 namespace hipsycl {
 namespace rt {

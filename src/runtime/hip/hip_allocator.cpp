@@ -25,28 +25,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/exception.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-hip_device_manager::hip_device_manager()
+hip_allocator::hip_allocator(int hip_device)
+    : _dev{hip_device}
+{}
+      
+void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
-  cl::sycl::detail::check_error(hipGetDevice(&_device));
+  void *ptr;
+  hip_device_manager::get().activate_device(_dev);
+  sycl::detail::check_error(hipMalloc(&ptr, size_bytes));
+
+  return ptr;
 }
 
-void hip_device_manager::activate_device(int device_id)
+void hip_allocator::free(void *mem)
 {
-  if (_device != device_id) {
-    cl::sycl::detail::check_error(hipSetDevice(device_id));
-  }
+  sycl::detail::check_error(hipFree(mem));
 }
 
-int hip_device_manager::get_active_device() const
+void * hip_allocator::allocate_usm(size_t bytes)
 {
-  return _device;
+  void *ptr;
+  sycl::detail::check_error(hipMallocManaged(&ptr, bytes));
+
+  return ptr;
+}
+
+bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
+{
+  // TODO: Formulate this better - this assumes that either CUDA+CPU or
+  // ROCm + CPU are active at the same time
+  return true;
 }
 
 }

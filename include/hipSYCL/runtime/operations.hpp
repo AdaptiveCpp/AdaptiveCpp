@@ -28,10 +28,10 @@
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
-#include "CL/sycl/backend/backend.hpp"
-#include "CL/sycl/id.hpp"
-#include "CL/sycl/range.hpp"
-#include "CL/sycl/access.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/id.hpp"
+#include "hipSYCL/sycl/range.hpp"
+#include "hipSYCL/sycl/access.hpp"
 
 #include "data.hpp"
 #include "event.hpp"

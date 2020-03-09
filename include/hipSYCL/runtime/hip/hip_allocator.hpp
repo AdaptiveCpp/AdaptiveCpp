@@ -29,7 +29,7 @@
 #define HIPSYCL_HIP_RUNTIME_HPP
 
 #include "../allocator.hpp"
-#include "CL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 
 namespace hipsycl {
 namespace rt {

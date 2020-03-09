@@ -30,7 +30,7 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include "CL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 
 namespace hipsycl {
 namespace rt {

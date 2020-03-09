@@ -38,6 +38,7 @@ set(HIPSYCL_SOURCES
   runtime/dag_time_table.cpp
   runtime/dag_manager.cpp
   runtime/generic/async_worker.cpp
+  runtime/hip/hip_error.cpp
   runtime/hip/hip_event.cpp
   runtime/hip/hip_queue.cpp
   runtime/hip/hip_allocator.cpp

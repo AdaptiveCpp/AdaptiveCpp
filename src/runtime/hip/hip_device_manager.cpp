@@ -26,21 +26,21 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_error.hpp"
 #include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/exception.hpp"
 
 namespace hipsycl {
 namespace rt {
 
 hip_device_manager::hip_device_manager()
 {
-  sycl::detail::check_error(hipGetDevice(&_device));
+  hip_check_error(hipGetDevice(&_device));
 }
 
 void hip_device_manager::activate_device(int device_id)
 {
   if (_device != device_id) {
-    sycl::detail::check_error(hipSetDevice(device_id));
+    hip_check_error(hipSetDevice(device_id));
   }
 }
 

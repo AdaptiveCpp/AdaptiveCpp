@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_event.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/runtime/hip/hip_error.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -38,19 +38,19 @@ hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
 
 hip_node_event::~hip_node_event()
 {
-  sycl::detail::check_error(hipEventDestroy(_evt));
+  hip_check_error(hipEventDestroy(_evt));
 }
 
 bool hip_node_event::is_complete() const
 {
   hipError_t err = hipEventQuery(_evt);
-  sycl::detail::check_error(err);
+  hip_check_error(err);
   return err == hipSuccess;
 }
 
 void hip_node_event::wait()
 {
-  sycl::detail::check_error(hipEventSynchronize(_evt));
+  hip_check_error(hipEventSynchronize(_evt));
 }
 
 hipEvent_t hip_node_event::get_event() const

@@ -27,6 +27,7 @@
 
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_error.hpp"
 #include "hipSYCL/sycl/backend/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
@@ -41,20 +42,20 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
   hip_device_manager::get().activate_device(_dev);
-  sycl::detail::check_error(hipMalloc(&ptr, size_bytes));
+  hip_check_error(hipMalloc(&ptr, size_bytes));
 
   return ptr;
 }
 
 void hip_allocator::free(void *mem)
 {
-  sycl::detail::check_error(hipFree(mem));
+  hip_check_error(hipFree(mem));
 }
 
 void * hip_allocator::allocate_usm(size_t bytes)
 {
   void *ptr;
-  sycl::detail::check_error(hipMallocManaged(&ptr, bytes));
+  hip_check_error(hipMallocManaged(&ptr, bytes));
 
   return ptr;
 }

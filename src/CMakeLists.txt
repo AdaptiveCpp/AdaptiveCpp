@@ -1,7 +1,7 @@
-add_subdirectory(libhipSYCL)
+add_subdirectory(sycl)
 
 if(COMPILE_SOURCE_TRANSFORMATION_TOOLS)
   add_subdirectory(hipsycl_rewrite_includes)
   add_subdirectory(hipsycl_transform_source)
 ENDIF()
-add_subdirectory(hipsycl_clang_plugin)
+add_subdirectory(compiler)

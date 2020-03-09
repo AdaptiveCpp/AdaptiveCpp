@@ -145,6 +145,39 @@ BOOST_AUTO_TEST_CASE(hierarchical_dispatch) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(private_memory) {
+  constexpr size_t local_size = 256;
+  constexpr size_t global_size = 1024;
+
+  cl::sycl::queue queue;
+
+  cl::sycl::buffer<int, 1> buf{cl::sycl::range<1>{global_size}};
+
+  queue.submit([&](cl::sycl::handler &cgh) {
+    auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+
+    cgh.parallel_for_work_group<class private_memory>(
+      cl::sycl::range<1>{global_size / local_size},
+      cl::sycl::range<1>{local_size}, [=](cl::sycl::group<1> wg) {
+
+        cl::sycl::private_memory<int> my_int{wg};
+
+        wg.parallel_for_work_item([&](cl::sycl::h_item<1> item) {
+          my_int(item) = item.get_global_id(0);
+        });
+        // Tests that private_memory is persistent across multiple
+        // parallel_for_work_item() invocations
+        wg.parallel_for_work_item([&](cl::sycl::h_item<1> item) {
+          acc[item.get_global_id()] = my_int(item);
+        });
+      });
+  });
+
+  auto host_acc = buf.get_access<cl::sycl::access::mode::read>();
+  for (int i = 0; i < global_size; ++i)
+    BOOST_TEST(host_acc[i] == i);
+}
+
 BOOST_AUTO_TEST_CASE(dynamic_local_memory) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
@@ -1023,6 +1056,64 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
         auto idx = make_test_value<s::id, d>({i}, {i,j}, {i,j,k});
         assert_array_equality(buff_host[idx], fill_value);
       }
+}
+BOOST_AUTO_TEST_CASE(nested_subscript) {
+  namespace s = cl::sycl;
+  s::queue q;
+  
+  s::range<2> buff_size2d{64,64};
+  s::range<3> buff_size3d{buff_size2d[0],buff_size2d[1],64};
+  
+  s::buffer<int, 2> buff2{buff_size2d};
+  s::buffer<int, 3> buff3{buff_size3d};
+  
+  q.submit([&](s::handler& cgh){
+    auto acc = buff2.get_access<s::access::mode::discard_read_write>(cgh);
+    
+    cgh.parallel_for<class nested_subscript2d>(buff_size2d, [=](s::id<2> idx){
+      size_t x = idx[0];
+      size_t y = idx[1];
+      // Writing
+      acc[x][y] = static_cast<int>(x*buff_size2d[1] + y);
+      // Reading and making sure access id the same as with operator[id<>]
+      if(acc[x][y] != acc[idx])
+        acc[x][y] = -1;
+    });
+  });
+  
+  q.submit([&](s::handler& cgh){
+    auto acc = buff3.get_access<s::access::mode::discard_read_write>(cgh);
+    
+    cgh.parallel_for<class nested_subscript3d>(buff_size3d, [=](s::id<3> idx){
+      size_t x = idx[0];
+      size_t y = idx[1];
+      size_t z = idx[2];
+      // Writing
+      acc[x][y][z] = static_cast<int>(x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z);
+      // Reading and making sure access id the same as with operator[id<>]
+      if(acc[x][y][z] != acc[idx])
+        acc[x][y][z] = -1;
+    });
+  });
+  
+  auto host_acc2d = buff2.get_access<s::access::mode::read>();
+  auto host_acc3d = buff3.get_access<s::access::mode::read>();
+  
+  for(size_t x = 0; x < buff_size3d[0]; ++x)
+    for(size_t y = 0; y < buff_size3d[1]; ++y) {
+       
+      size_t linear_id2d = static_cast<int>(x*buff_size2d[1] + y);
+      s::id<2> id2d{x,y};
+      BOOST_CHECK(host_acc2d[id2d] == linear_id2d);
+      BOOST_CHECK(host_acc2d.get_pointer()[linear_id2d] == linear_id2d);
+        
+      for(size_t z = 0; z < buff_size3d[2]; ++z) {
+        size_t linear_id3d = x*buff_size3d[1]*buff_size3d[2] + y*buff_size3d[2] + z;
+        s::id<3> id3d{x,y,z};
+        BOOST_CHECK(host_acc3d[id3d] == linear_id3d);
+        BOOST_CHECK(host_acc3d.get_pointer()[linear_id3d] == linear_id3d);
+      }
+    }
 }
 #ifdef HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
 BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {

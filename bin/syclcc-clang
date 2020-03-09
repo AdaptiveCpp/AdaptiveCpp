@@ -173,7 +173,7 @@ class syclcc_config:
 """  Enter bootstrap mode. This is only required when building hipSYCL itself and 
   should not be set by the user.""")
     }
-
+    self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
     self._forwarded_args = []
     
@@ -199,6 +199,8 @@ class syclcc_config:
         # here is that it will print a warning for the user
         # if it doesn't exist and set the config file content to {}.
         self._config_file = config_file(config_file_path)
+    
+    self._common_compiler_args = self._get_std_compiler_args()
 
   def _is_hipsycl_arg(self, arg):
     accepted_args = [self._options[opt].commandline for opt in self._options]
@@ -268,20 +270,34 @@ class syclcc_config:
         flag.commandline, flag.environment
     ))
 
-  def _substitute_template_string(self, template_string):
-    template = string.Template(template_string)
-
-    substitution_dict = {
-      'HIPSYCL_CUDA_PATH' : self.cuda_path,
+  def _get_rocm_substitution_vars(self):
+    return {
       'HIPSYCL_ROCM_PATH' : self.rocm_path,
-      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
       'HIPSYCL_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
       'HIPSYCL_PATH' : self.hipsycl_installation_path,
       'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
     }
 
+  def _get_cuda_substitution_vars(self):
+    return {
+      'HIPSYCL_CUDA_PATH' : self.cuda_path,
+      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
+      'HIPSYCL_PATH' : self.hipsycl_installation_path,
+      'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
+    }
+
+  def _substitute_template_string(self, template_string, substitution_dict):
+    template = string.Template(template_string)
     return template.substitute(substitution_dict)
+
+  def _substitute_rocm_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_rocm_substitution_vars())
       
+  def _substitute_cuda_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_cuda_substitution_vars())
+
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
     
@@ -312,6 +328,23 @@ class syclcc_config:
 
     raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
             opt.commandline, opt.environment))
+
+  # Make sure that at least c++17 is added to the common args
+  def _get_std_compiler_args(self):
+    std_args=[]
+    for arg in self._args:
+      split_arg = arg.split("=")
+      if split_arg[0]=="-std":
+        std_args.append(split_arg[1])
+    if not std_args:
+       return ["-std=c++17"]
+    else:
+        if len(std_args) > 1:
+            raise RuntimeError("Multiple c++ standards defined")
+        std_version = std_args[0].strip("c++").strip("gnu++")
+        if std_version in self._insufficient_cpp_standards:
+            raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
+        return []
 
   @property
   def target_platform(self):
@@ -362,12 +395,12 @@ class syclcc_config:
   @property
   def rocm_link_line(self):
     components = self._retrieve_option("rocm-link-line").split(' ')
-    return [self._substitute_template_string(arg) for arg in components]
+    return [self._substitute_rocm_template_string(arg) for arg in components]
   
   @property
   def cuda_link_line(self):
     components = self._retrieve_option("cuda-link-line").split(' ')
-    return [self._substitute_template_string(arg) for arg in components]
+    return [self._substitute_cuda_template_string(arg) for arg in components]
 
   @property
   def forwarded_compiler_arguments(self):
@@ -384,7 +417,10 @@ class syclcc_config:
     except OptionNotSet:
       return False
   
-
+  @property
+  def common_compiler_args(self):
+      return self._common_compiler_args
+  
   def contains_linking_stage(self):
     for arg in self.forwarded_compiler_arguments:
       if (arg == "-E" or
@@ -425,6 +461,7 @@ class clang_plugin_compiler:
     if target == hipsycl_platform.CUDA:
       self._linker_args = config.cuda_link_line
 
+      self._compiler_args = []
       # In non-bootstrap mode, automatically link hipSYCL
       if not config.is_bootstrap:
         self._linker_args += [
@@ -432,11 +469,15 @@ class clang_plugin_compiler:
           "-L"+hipsycl_library_path,
           "-lhipSYCL_cuda"
         ]
-
-      self._compiler_args = ["-x", "cuda",
-                             "--cuda-gpu-arch=" + config.target_arch,
-                             "--cuda-path=" + config.cuda_path,
-                             "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")]
+        self._compiler_args += [
+          # Use the bundled HIP installation
+          "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
+        ]
+      
+      self._compiler_args += ["-x", "cuda",
+                              "--cuda-gpu-arch=" + config.target_arch,
+                              "--cuda-path=" + config.cuda_path]
+      
     elif target == hipsycl_platform.HIP:
       self._target = "hip"
       
@@ -464,19 +505,13 @@ class clang_plugin_compiler:
         "-isystem", self._get_rocm_clang_include_path(config)
       ]
 
-    self._common_compiler_args = ["-std=c++14"]
+    self._common_compiler_args = config.common_compiler_args
+
     if not config.is_bootstrap:
       self._common_compiler_args += [
         "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
         "-DHIPSYCL_CLANG",
         "-I" + os.path.join(config.hipsycl_installation_path, "include/")
-        # We would also have to add include/hipSYCL here, but since we do
-        # not want to use the bundled HIP on ROCm, we add these includes
-        # in the platform specific section above
-      ]
-    else:
-      self._common_compiler_args += [
-        "-I"+os.path.join(config.hipsycl_installation_path, "contrib/HIP/include")
       ]
 
   def _get_rocm_clang_include_path(self, config):
@@ -514,7 +549,8 @@ class pure_cpu_compiler:
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     self._linker_args = []
-    self._compiler_args = ["-fopenmp", "-std=c++14"]
+    self._compiler_args = ["-fopenmp"]
+    self._compiler_args += config.common_compiler_args
     if not config.is_bootstrap:
       self._linker_args += [
         "-L"+hipsycl_library_path,
@@ -524,8 +560,8 @@ class pure_cpu_compiler:
         self._linker_args += ["-rpath",hipsycl_library_path]
 
       self._compiler_args += [
-        "-I"+os.path.join(config.hipsycl_installation_path, "include/"),
-        "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")
+        "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
+        "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
       ]
 
   def run(self):

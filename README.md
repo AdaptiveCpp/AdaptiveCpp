@@ -66,17 +66,19 @@ hipSYCL is still in an early stage of development. It can successfully execute m
 * We support CPUs, NVIDIA CUDA GPUs and AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
 * hipSYCL currently does not support other operating systems besides Linux due to a lack of maintainers for other platforms. While the AMD backend can only work on Linux since AMD doesn't support ROCm on other platforms, the CUDA and CPU backends should in principle be portable. If you are interested in porting and maintaining hipSYCL on other platforms, feel encouraged to do so and get in touch with us.
 
-### Packages
-The easiest way to install hipSYCL is to use our binary packages. We provide packages for several distributions (currently Ubuntu, CentOS, Arch Linux) on the [releases page](https://github.com/illuhad/hipSYCL/releases). In the future, it is planned to host these packages in actual repositories to further simplfy the installation.
+### Repositories
+The easiest way to install hipSYCL is to use our repositories. We provide repositories for several distributions (currently Ubuntu 18.04, CentOS 7, Arch Linux). A description of the repositories is available [here](install/scripts/README.md#installing-from-repositories)
 
-Our packages cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm and CUDA stacks. The following packages are provided:
+Our repositories cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm stacks. The following packages are available:
 * `hipSYCL` - contains the actual hipSYCL libraries, tools and headers
 * `hipSYCL-base` - contains the LLVM/clang stack used by hipSYCL. Installation of this package is mandatory.
 * `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
-* `hipSYCL-cuda` - provides a CUDA stack. This package is only required if you wish to target CUDA GPUs. **Note: For legal reasons, we do not redistribute the hipSYCL-cuda pacakge**. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
 
-For more information on packaging and how to create hipSYCL packages yourself, please see the [documentation](install/scripts/README.md).
+**Note: For legal reasons, we do not redistribute the hipSYCL-cuda package** This package is only required if you wish to target CUDA GPUs. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
 
+
+### Packages
+We also provide previously mentioned packages for the releases of hipSYCL. They are available on the [releases page](https://github.com/illuhad/hipSYCL/releases). We also provide scripts for packaging hipSYCL and its dependencies. For more information on packaging and how to create hipSYCL packages, please see the [documentation](install/scripts/README.md).
 
 ### Manual installation
 
@@ -222,5 +224,4 @@ void kernel_function()
 # Documentation
 * [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
-
 

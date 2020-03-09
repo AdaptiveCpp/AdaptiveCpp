@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,69 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OLD_ASYNC_WORKER_HPP
-#define HIPSYCL_OLD_ASYNC_WORKER_HPP
+#ifndef HIPSYCL_APPLICATION_HPP
+#define HIPSYCL_APPLICATION_HPP
 
-#include <thread>
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-#include <functional>
-#include <queue>
+#include <memory>
 
+#include "dag_manager.hpp"
+#include "device_id.hpp"
+#include "runtime.hpp"
 
 namespace hipsycl {
-namespace sycl {
-namespace detail {
+namespace rt {
 
+class backend;
 
-
-/// A worker thread that processes a queue in the background.
-class worker_thread
+class application
 {
 public:
-  using async_function = std::function<void ()>;
+  static runtime& get_runtime();
 
-  /// Construct object
-  worker_thread();
+  static hipsycl::rt::dag_manager &dag();
+  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
 
-  worker_thread(const worker_thread&) = delete;
-  worker_thread& operator=(const worker_thread&) = delete;
+  static void reset();
 
-  ~worker_thread();
-
-  /// Waits until all enqueued tasks have completed.
-  void wait();
-
-  /// Enqueues a user-specified function for asynchronous
-  /// execution in the worker thread.
-  /// \param f The function to enqueue for execution
-  void operator()(async_function f);
-
-  /// \return The number of enqueued operations
-  std::size_t queue_size() const;
-
-  /// Stop the worker thread
-  void halt();
-private:
-
-  /// Starts the worker thread, which will execute the supplied
-  /// tasks. If no tasks are available, waits until a new task is
-  /// supplied.
-  void work();
-
-  std::thread _worker_thread;
-
-  bool _continue;
-
-  std::condition_variable _condition_wait;
-  mutable std::mutex _mutex;
-
-  std::queue<async_function> _enqueued_operations;
+  application() = delete;
 };
 
 }
 }
-}
+
 
 #endif

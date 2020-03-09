@@ -29,8 +29,8 @@
 #include <algorithm>
 
 #include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/detail/application.hpp"
 #include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_enumerator.hpp"
 #include "hipSYCL/runtime/dag_expander.hpp"
 #include "hipSYCL/runtime/data.hpp"
@@ -364,7 +364,7 @@ construct_memcpy(buffer_memory_requirement *mem_req, device_id target_device,
     source_locations.push_back(memory_location{
         source.first, source.second.first, mem_req->get_data_region()});
 
-  memory_location source_location = sycl::detail::application::get_hipsycl_runtime()
+  memory_location source_location = application::get_runtime()
       .backends()
       .hardware_model()
       .get_memcpy_model()
@@ -452,7 +452,7 @@ void dag_expander::expand(
                                 std::size_t element_size) -> void * {
               
               // TODO: Find out optimal minimum alignment
-              return sycl::detail::application::get_backend(target_device.get_backend())
+              return application::get_backend(target_device.get_backend())
                   .get_allocator(target_device)
                   ->allocate(128, num_elements.size() * element_size);
             };

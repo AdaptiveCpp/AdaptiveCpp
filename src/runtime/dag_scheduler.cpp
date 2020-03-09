@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "hipSYCL/sycl/detail/application.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -130,7 +130,7 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
     device_id target_dev = s.scheduling_annotations[node_id].get_target_device();
 
     backend_executor *executor =
-        sycl::detail::application::get_backend(target_dev.get_backend())
+        application::get_backend(target_dev.get_backend())
             .get_executor(target_dev);
     
     // Naive assignment algorithm for now...
@@ -334,7 +334,7 @@ dag_scheduler::dag_scheduler()
   // Collect available devices (currently just uses everything)
   // TODO: User may want to restrict the device to which we schedule
 
-  sycl::detail::application::get_hipsycl_runtime().backends().for_each_backend(
+  application::get_runtime().backends().for_each_backend(
   [this](backend *b) {
     std::size_t num_devices = b->get_hardware_manager()->get_num_devices();
     for(std::size_t dev = 0; dev < num_devices; ++dev){

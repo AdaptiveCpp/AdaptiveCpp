@@ -26,8 +26,8 @@
  */
 
 
-#ifndef HIPSYCL_RUNTIME_HPP
-#define HIPSYCL_RUNTIME_HPP
+#ifndef HIPSYCL_OLD_RUNTIME_HPP
+#define HIPSYCL_OLD_RUNTIME_HPP
 
 #include "task_graph.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"

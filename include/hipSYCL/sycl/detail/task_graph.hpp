@@ -131,7 +131,7 @@ private:
 
   mutex_class _mutex;
 
-  worker_thread _worker;
+  detail::worker_thread _worker;
 
   std::atomic<int> _num_open_callbacks;
 };

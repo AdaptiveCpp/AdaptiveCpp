@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,69 +25,57 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OLD_ASYNC_WORKER_HPP
-#define HIPSYCL_OLD_ASYNC_WORKER_HPP
 
-#include <thread>
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-#include <functional>
-#include <queue>
-
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
 
 namespace hipsycl {
-namespace sycl {
-namespace detail {
+namespace rt {
 
+namespace {
 
-
-/// A worker thread that processes a queue in the background.
-class worker_thread
+class rt_manager
 {
 public:
-  using async_function = std::function<void ()>;
 
-  /// Construct object
-  worker_thread();
+  void reset() {
+    rt.reset();
+    // TODO: Reset devices?
+  }
 
-  worker_thread(const worker_thread&) = delete;
-  worker_thread& operator=(const worker_thread&) = delete;
+  runtime *get_runtime() const { return rt.get(); }
 
-  ~worker_thread();
+  static rt_manager& get() {
+    static rt_manager mgr;
+    return mgr;
+  }
 
-  /// Waits until all enqueued tasks have completed.
-  void wait();
-
-  /// Enqueues a user-specified function for asynchronous
-  /// execution in the worker thread.
-  /// \param f The function to enqueue for execution
-  void operator()(async_function f);
-
-  /// \return The number of enqueued operations
-  std::size_t queue_size() const;
-
-  /// Stop the worker thread
-  void halt();
 private:
+  rt_manager() : rt{std::make_unique<runtime>()} {}
 
-  /// Starts the worker thread, which will execute the supplied
-  /// tasks. If no tasks are available, waits until a new task is
-  /// supplied.
-  void work();
-
-  std::thread _worker_thread;
-
-  bool _continue;
-
-  std::condition_variable _condition_wait;
-  mutable std::mutex _mutex;
-
-  std::queue<async_function> _enqueued_operations;
+  std::unique_ptr<runtime> rt;
 };
 
 }
+
+runtime& application::get_runtime(){
+  return *rt_manager::get().get_runtime();
+}
+
+dag_manager &application::dag()
+{ return get_runtime().dag(); }
+
+backend &application::get_backend(hipsycl::rt::backend_id id)
+{
+  return *(get_runtime().backends().get(id));
+}
+
+void application::reset() {
+  rt_manager::get().reset();
+}
+
+
+
 }
 }
 
-#endif

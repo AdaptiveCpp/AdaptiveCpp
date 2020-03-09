@@ -1,4 +1,4 @@
-add_subdirectory(libhipSYCL)
+add_subdirectory(sycl)
 
 if(COMPILE_SOURCE_TRANSFORMATION_TOOLS)
   add_subdirectory(hipsycl_rewrite_includes)

@@ -7,7 +7,7 @@ set -e
 mkdir -p ${CUDA_DIR}/DEBIAN
 
 cat << EOF > ${CUDA_DIR}/DEBIAN/control
-Package: hipSYCL-cuda
+Package: hipsycl-cuda
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional

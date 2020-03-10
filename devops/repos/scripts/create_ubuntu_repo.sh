@@ -1,7 +1,8 @@
 #!/bin/bash
-set -e
+#set -e
 
-UBUNTU_PKG_DIR=${UBUNTU_PKG_DIR:-`pwd`/new_pkg_ubuntu}
+source ./common/init.sh
+
 UBUNTU_REPO_DIR=${UBUNTU_REPO_DIR:-/data/repos/deb}
 DIST=${DIST:-bionic}
 
@@ -31,6 +32,8 @@ echo `pwd`
 apt-ftparchive release .  | tee $RELEASE_PATH/Release
 
 echo `pwd`
+rm Release.gpg
+rm InRelease
 gpg -abs -o Release.gpg Release
 gpg --clearsign -o InRelease Release
 

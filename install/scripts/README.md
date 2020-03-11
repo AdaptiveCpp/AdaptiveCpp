@@ -70,7 +70,7 @@ If you change the `INSTALL_PREFIX` to a directory that is writable by your user,
 ## Building a singularity container
 We also provide singularity definition files in order to create singularity container images. Building an image is a two step process. First, create the base image which contains LLVM, ROCm and CUDA stacks, e.g.
 ```
-sudo singularity build base-image.sif base-ubuntu-18.04.def
+sudo singularity build base-ubuntu-18.04.sif base-ubuntu-18.04.def
 ```
 for Ubuntu 18.04. Once this image is built, you can build the actual hipSYCL image:
 ```

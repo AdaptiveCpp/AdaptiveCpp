@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_APPLICATION_HPP
+#define HIPSYCL_APPLICATION_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include <memory>
 
-namespace cl {
+#include "runtime.hpp"
+
+namespace hipsycl {
 namespace sycl {
+namespace detail {
 
-using namespace hipsycl::sycl;
+class application
+{
+public:
+  static runtime& get_hipsycl_runtime();
+
+  static task_graph& get_task_graph();
+
+  static void reset();
+
+  application() = delete;
+
+private:
+  static std::unique_ptr<runtime> rt;
+};
 
 }
 }
+}
+
 
 #endif
-

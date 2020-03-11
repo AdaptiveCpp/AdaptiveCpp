@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_PRIVATE_MEMORY_HPP
+#define HIPSYCL_PRIVATE_MEMORY_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include <memory>
 
-namespace cl {
+#include "group.hpp"
+#include "h_item.hpp"
+
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+#ifdef SYCL_DEVICE_ONLY
+
+template<typename T, int Dimensions = 1>
+class private_memory
+{
+public:
+  HIPSYCL_KERNEL_TARGET
+  private_memory(const group<Dimensions>&)
+  {}
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const h_item<Dimensions>&)
+  {
+    return _data;
+  }
+
+private:
+  T _data;
+};
+
+#else
+
+template<typename T, int Dimensions = 1>
+class private_memory
+{
+public:
+  HIPSYCL_KERNEL_TARGET
+  private_memory(const group<Dimensions>& grp)
+  : _data{new T [grp.get_local_range().size()]}
+  {}
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const h_item<Dimensions>& idx)
+  {
+    auto id = idx.get_local_id();
+
+    return _data.get()[detail::linear_id<Dimensions>::get(
+        id, idx.get_local_range())];
+  }
+
+private:
+  std::unique_ptr<T []> _data;
+};
+#endif
 
 }
 }
 
 #endif
-

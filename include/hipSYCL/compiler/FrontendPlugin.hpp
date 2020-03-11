@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_FRONTEND_PLUGIN_HPP
+#define HIPSYCL_FRONTEND_PLUGIN_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include "Frontend.hpp"
 
-namespace cl {
-namespace sycl {
+#include "clang/AST/AST.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/PreprocessorOptions.h"
 
-using namespace hipsycl::sycl;
+namespace hipsycl {
+namespace compiler {
+
+class FrontendASTAction : public clang::PluginASTAction {
+  
+protected:
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI,
+                                                        llvm::StringRef) override 
+  {
+    return std::make_unique<FrontendASTConsumer>(CI);
+  }
+
+  bool ParseArgs(const clang::CompilerInstance &CI,
+                 const std::vector<std::string> &args) override 
+  {
+    return true;
+  }
+
+  bool BeginInvocation (clang::CompilerInstance &CI) override
+  {
+    // Unfortunately BeginInvocation does not seem to be called :(
+    CI.getInvocation().getPreprocessorOpts().addMacroDef(
+      "__sycl_kernel=__attribute__((diagnose_if(false,\"hipsycl_kernel\",\"warning\")))");
+    CI.getInvocation().getPreprocessorOpts().addMacroDef("HIPSYCL_CLANG=1");
+
+    return true;
+  }
+  
+  void PrintHelp(llvm::raw_ostream& ros) {}
+
+  clang::PluginASTAction::ActionType getActionType() override 
+  {
+    return AddBeforeMainAction;
+  }
+
+};
 
 }
 }
 
 #endif
-

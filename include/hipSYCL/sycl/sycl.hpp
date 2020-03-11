@@ -25,18 +25,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_SYCL_HPP
+#define HIPSYCL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
 
-namespace cl {
-namespace sycl {
+#define CL_SYCL_LANGUAGE_VERSION 121
+#define __SYCL_SINGLE_SOURCE__
 
-using namespace hipsycl::sycl;
-
-}
-}
+#include "extensions.hpp"
+#include "backend/backend.hpp"
+#include "version.hpp"
+#include "types.hpp"
+#include "exception.hpp"
+#include "device_selector.hpp"
+#include "device.hpp"
+#include "platform.hpp"
+#include "queue.hpp"
+#include "range.hpp"
+#include "id.hpp"
+#include "accessor.hpp"
+#include "buffer.hpp"
+#include "nd_item.hpp"
+#include "multi_ptr.hpp"
+#include "group.hpp"
+#include "h_item.hpp"
+#include "private_memory.hpp"
+#include "vec.hpp"
+#include "builtin.hpp"
+#include "math.hpp"
+#include "common_functions.hpp"
+#include "geometric_functions.hpp"
+#include "atomic.hpp"
+#include "program.hpp"
+#include "kernel.hpp"
 
 #endif
 

@@ -176,7 +176,6 @@ class syclcc_config:
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
     self._forwarded_args = []
-    self._common_compiler_args = self._get_common_compiler_args()
     
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
@@ -200,6 +199,8 @@ class syclcc_config:
         # here is that it will print a warning for the user
         # if it doesn't exist and set the config file content to {}.
         self._config_file = config_file(config_file_path)
+    
+    self._common_compiler_args = self._get_std_compiler_args()
 
   def _is_hipsycl_arg(self, arg):
     accepted_args = [self._options[opt].commandline for opt in self._options]
@@ -329,7 +330,7 @@ class syclcc_config:
             opt.commandline, opt.environment))
 
   # Make sure that at least c++17 is added to the common args
-  def _get_common_compiler_args(self):
+  def _get_std_compiler_args(self):
     std_args=[]
     for arg in self._args:
       split_arg = arg.split("=")
@@ -460,6 +461,7 @@ class clang_plugin_compiler:
     if target == hipsycl_platform.CUDA:
       self._linker_args = config.cuda_link_line
 
+      self._compiler_args = []
       # In non-bootstrap mode, automatically link hipSYCL
       if not config.is_bootstrap:
         self._linker_args += [
@@ -467,11 +469,9 @@ class clang_plugin_compiler:
           "-L"+hipsycl_library_path,
           "-lhipSYCL_cuda"
         ]
-        self._compiler_args=["-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")]
-
-      else:
-        self._compiler_args = [
-          "-I"+os.path.join(config.hipsycl_installation_path, "contrib/HIP/include")
+        self._compiler_args += [
+          # Use the bundled HIP installation
+          "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
         ]
       
       self._compiler_args += ["-x", "cuda",
@@ -503,7 +503,8 @@ class clang_plugin_compiler:
         # clang CUDA wrapper headers try to include the system headers
         # with #include_next <...>
         "-isystem", self._get_rocm_clang_include_path(config)
-      ]  
+      ]
+
     self._common_compiler_args = config.common_compiler_args
 
     if not config.is_bootstrap:
@@ -511,9 +512,6 @@ class clang_plugin_compiler:
         "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
         "-DHIPSYCL_CLANG",
         "-I" + os.path.join(config.hipsycl_installation_path, "include/")
-        # We would also have to add include/hipSYCL here, but since we do
-        # not want to use the bundled HIP on ROCm, we add these includes
-        # in the platform specific section above
       ]
 
   def _get_rocm_clang_include_path(self, config):
@@ -562,8 +560,8 @@ class pure_cpu_compiler:
         self._linker_args += ["-rpath",hipsycl_library_path]
 
       self._compiler_args += [
-        "-I"+os.path.join(config.hipsycl_installation_path, "include/"),
-        "-I"+os.path.join(config.hipsycl_installation_path, "include/hipSYCL/")
+        "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
+        "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
       ]
 
   def run(self):

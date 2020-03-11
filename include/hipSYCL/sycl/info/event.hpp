@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_INFO_EVENT_HPP
+#define HIPSYCL_INFO_EVENT_HPP
 
-namespace cl {
+#include "../types.hpp"
+#include "param_traits.hpp"
+
+namespace hipsycl {
 namespace sycl {
+namespace info {
 
-using namespace hipsycl::sycl;
+enum class event: int
+{
+  command_execution_status,
+  reference_count
+};
+
+enum class event_command_status : int
+{
+  submitted,
+  running,
+  complete
+};
+
+enum class event_profiling : int
+{
+  command_submit,
+  command_start,
+  command_end
+};
+
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::command_execution_status, event_command_status);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::reference_count, detail::u_int);
 
 }
 }
+}
+
 
 #endif
-

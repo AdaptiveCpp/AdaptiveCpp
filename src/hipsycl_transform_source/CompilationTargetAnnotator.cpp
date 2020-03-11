@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/sycl/detail/debug.hpp"
 
 #include "CompilationTargetAnnotator.hpp"
 #include "Attributes.hpp"
@@ -179,13 +179,13 @@ CompilationTargetAnnotator::addAnnotations()
         if(caller && caller->getAsFunction())
         {
           std::string callerName = caller->getAsFunction()->getQualifiedNameAsString();
-          if(callerName.find("cl::sycl::detail::dispatch::device::") !=
+          if(callerName.find("hipsycl::sycl::detail::dispatch::device::") !=
              std::string::npos)
           {
             // If this is a kernel function in a parallel hierarchical for,
             // we need to add __shared__ attributes. This is the case
-            // if the function is called by cl::sycl::detail::dispatch::device::parallel_for_workgroup
-            if(callerName == "cl::sycl::detail::dispatch::device::parallel_for_workgroup")
+            // if the function is called by hipsycl::sycl::detail::dispatch::device::parallel_for_workgroup
+            if(callerName == "hipsycl::sycl::detail::dispatch::device::parallel_for_workgroup")
               this->correctSharedMemoryAnnotations(decl.first);
 
             // In any way, mark all kernels as __device__ to
@@ -315,7 +315,7 @@ CompilationTargetAnnotator::isPrivateMemory(const clang::DeclStmt* declaration) 
       const clang::VarDecl* var = clang::cast<clang::VarDecl>(*decl);
       const clang::CXXRecordDecl* recordDecl = var->getType()->getAsCXXRecordDecl();
       if(recordDecl)
-        return recordDecl->getQualifiedNameAsString() == "cl::sycl::private_memory";
+        return recordDecl->getQualifiedNameAsString() == "hipsycl::sycl::private_memory";
     }
   }
 

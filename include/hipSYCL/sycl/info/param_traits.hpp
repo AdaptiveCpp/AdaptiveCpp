@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_PARAM_TRAITS_HPP
+#define HIPSYCL_PARAM_TRAITS_HPP
 
-namespace cl {
+#include "../types.hpp"
+
+namespace hipsycl {
 namespace sycl {
+namespace info {
 
-using namespace hipsycl::sycl;
+template <typename T, T Param>
+struct param_traits {};
 
+#define HIPSYCL_PARAM_TRAIT_RETURN_VALUE(T, param, ret_value) \
+  template<> \
+  struct param_traits<T, param> \
+  { using return_type = ret_value; };
+
+}
 }
 }
 
 #endif
-

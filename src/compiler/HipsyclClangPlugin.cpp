@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#include "clang/Frontend/FrontendPluginRegistry.h"
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include "hipSYCL/compiler/FrontendPlugin.hpp"
+#include "hipSYCL/compiler/IR.hpp"
 
-namespace cl {
-namespace sycl {
+namespace hipsycl {
+namespace compiler {
+// Register and activate passes
 
-using namespace hipsycl::sycl;
+static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> 
+HipsyclFrontendPlugin {
+  "hipsycl_frontend", 
+  "enable hipSYCL frontend action"
+};
 
+static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &,
+                                          llvm::legacy::PassManagerBase &PM) {
+  PM.add(new FunctionPruningIRPass{});
 }
-}
 
-#endif
+static llvm::RegisterStandardPasses
+  RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                         registerFunctionPruningIRPass);
+
+static llvm::RegisterStandardPasses
+  RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
+                                             registerFunctionPruningIRPass);
+
+} // namespace compiler
+} // namespace hipsycl
 

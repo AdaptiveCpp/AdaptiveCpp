@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_ATTRIBUTES_HPP
+#define HIPSYCL_ATTRIBUTES_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include "clang/Sema/Sema.h"
 
-namespace cl {
-namespace sycl {
+#include <string>
 
-using namespace hipsycl::sycl;
+namespace hipsycl {
+namespace compiler {
+
+class AddonAttribute
+{
+  std::string Name;
+public:
+  AddonAttribute(const std::string& name)
+  : Name(name)
+  {}
+
+  std::string getString() const
+  { return "__attribute__((diagnose_if(false,\""+ Name +",\"warning\")))"; }
+
+  bool describedBy(clang::Attr* attrib) const
+  {
+    if(clang::isa<clang::DiagnoseIfAttr>(attrib))
+    {
+      clang::DiagnoseIfAttr* attr = clang::cast<clang::DiagnoseIfAttr>(attrib);
+      if(attr->getMessage() == Name)
+        return true;
+    }
+    return false;
+  }
+
+  bool isAttachedTo(clang::FunctionDecl *F) const {
+    if (clang::Attr *A = F->getAttr<clang::DiagnoseIfAttr>())
+      return describedBy(A);
+    return false;
+  }
+};
+
+class KernelAttribute : public AddonAttribute
+{
+public:
+  KernelAttribute()
+  : AddonAttribute{"hipsycl_kernel"}
+  {}
+};
+
+class CustomAttributes
+{
+public:
+  static const KernelAttribute SyclKernel;
+};
+
+const KernelAttribute CustomAttributes::SyclKernel = KernelAttribute{};
 
 }
 }
 
 #endif
-

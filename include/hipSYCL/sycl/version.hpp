@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_VERSION_HPP
+#define HIPSYCL_VERSION_HPP
 
-namespace cl {
+#include "backend/backend.hpp"
+#include "exception.hpp"
+#include "types.hpp"
+
+#define HIPSYCL_VERSION_MAJOR 0
+#define HIPSYCL_VERSION_MINOR 8
+#define HIPSYCL_VERSION_PATCH 1
+#define HIPSYCL_VERSION_TYPE "prerelease"
+
+namespace hipsycl {
 namespace sycl {
+namespace detail {
 
-using namespace hipsycl::sycl;
+static string_class version_string()
+{
+  int version;
+  check_error(hipRuntimeGetVersion(&version));
+  string_class hip_version = std::to_string(version);
 
+  string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
+      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
+      + "." + std::to_string(HIPSYCL_VERSION_PATCH)
+      + "-" + std::string(HIPSYCL_VERSION_TYPE);
+
+  return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
+}
+
+}
 }
 }
 
 #endif
-

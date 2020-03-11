@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/queue.hpp"
 
-#include "../hipSYCL/sycl/sycl.hpp"
-
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+handler::handler(const queue& q, async_handler handler)
+: _queue{&q},
+  _local_mem_allocator{q.get_device()},
+  _handler{handler}
+{}
 
+hipStream_t handler::get_hip_stream() const
+{
+  return _queue->get_hip_stream();
 }
+
+detail::stream_ptr handler::get_stream() const
+{
+  return _queue->get_stream();
 }
 
-#endif
+void handler::select_device() const
+{
+  detail::set_device(this->_queue->get_device());
+}
 
+
+} // sycl
+} // hipsycl

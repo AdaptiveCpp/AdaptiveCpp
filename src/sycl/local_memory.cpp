@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#include "hipSYCL/sycl/detail/local_memory_allocator.hpp"
 
-#include "../hipSYCL/sycl/sycl.hpp"
-
-namespace cl {
+namespace hipsycl {
 namespace sycl {
+namespace detail {
 
-using namespace hipsycl::sycl;
-
+char* host_local_memory::_local_mem = nullptr;
+char host_local_memory::_static_local_mem [host_local_memory::_max_static_local_mem_size] = {};
+host_local_memory_origin host_local_memory::_origin = host_local_memory_origin::custom_threadprivate;
 }
 }
-
-#endif
-
+}

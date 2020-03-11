@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_ND_RANGE_HPP
+#define HIPSYCL_ND_RANGE_HPP
 
-namespace cl {
+#include "range.hpp"
+#include "id.hpp"
+
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+template<int dimensions = 1>
+struct nd_range
+{
+
+  HIPSYCL_UNIVERSAL_TARGET
+  nd_range(range<dimensions> globalSize,
+           range<dimensions> localSize,
+           id<dimensions> offset = id<dimensions>())
+    : _global_range{globalSize},
+      _local_range{localSize},
+      _num_groups{globalSize / localSize},
+      _offset{offset}
+  {}
+
+  HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_global() const
+  { return _global_range; }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_global_range() const
+  { return get_global(); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_local() const
+  { return _local_range; }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_local_range() const
+  { return get_local(); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_group() const
+  { return _num_groups; }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  id<dimensions> get_offset() const
+  { return _offset; }
+
+private:
+  const range<dimensions> _global_range;
+  const range<dimensions> _local_range;
+  const range<dimensions> _num_groups;
+  const id<dimensions> _offset;
+};
+
 
 }
 }
 
 #endif
-

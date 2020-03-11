@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_DEVICE_EVENT_HPP
+#define HIPSYCL_DEVICE_EVENT_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include "backend/backend.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+class device_event
+{
+public:
+  HIPSYCL_KERNEL_TARGET
+  device_event(){}
+
+  HIPSYCL_KERNEL_TARGET
+  void wait(){}
+};
 
 }
 }
+
 
 #endif
-

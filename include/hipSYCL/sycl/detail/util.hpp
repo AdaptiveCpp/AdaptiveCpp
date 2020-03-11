@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,16 +25,47 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_UTIL_HPP
+#define HIPSYCL_UTIL_HPP
 
-namespace cl {
+#include <atomic>
+
+namespace hipsycl {
 namespace sycl {
+namespace detail {
 
-using namespace hipsycl::sycl;
+template <typename T>
+T* get_raw_pointer(T* ptr) { return ptr; }
 
+template <typename WrappedPtr>
+auto get_raw_pointer(const WrappedPtr& ptr) { return ptr.get(); }
+
+class spin_lock {
+public:
+  void lock() {
+    while (_lock.test_and_set(std::memory_order_acquire));
+  }
+  void unlock() {
+    _lock.clear(std::memory_order_release);
+  }
+private:
+  std::atomic_flag _lock = ATOMIC_FLAG_INIT;
+};
+
+class spin_lock_guard {
+public:
+  spin_lock_guard(spin_lock& lock) : _lock(lock) {
+    _lock.lock();
+  }
+  ~spin_lock_guard() {
+    _lock.unlock();
+  }
+private:
+  spin_lock& _lock;
+};
+
+}
 }
 }
 

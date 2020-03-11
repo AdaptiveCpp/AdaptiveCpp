@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_VEC_COMMON_HPP
+#define HIPSYCL_VEC_COMMON_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
-
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+enum class rounding_mode
+{
+  automatic,
+  rte,
+  rtz,
+  rtp,
+  rtn
+};
 
 }
 }
+
 
 #endif
-

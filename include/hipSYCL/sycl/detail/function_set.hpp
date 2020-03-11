@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,55 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_FUNCTION_SET_HPP
+#define HIPSYCL_FUNCTION_SET_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include <unordered_map>
+#include "../types.hpp"
 
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+class handler;
+
+namespace detail {
+
+template<class Arg>
+class function_set
+{
+public:
+  using function_type = function_class<void (Arg)>;
+  using id = std::size_t;
+
+  void run_all(Arg arg) const
+  {
+    for(const auto& element : _functions)
+      element.second(arg);
+  }
+
+  id add(function_type&& f)
+  {
+    id new_id = static_cast<id>(_functions.size());
+    _functions[new_id] = f;
+    return new_id;
+  }
+
+  void remove(id function_id)
+  {
+    _functions.erase(function_id);
+  }
+
+private:
+  using function_map_type = 
+    std::unordered_map<id, function_type>;
+  
+  function_map_type _functions;
+};
+
 
 }
 }
+}
+
 
 #endif
-

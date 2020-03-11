@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,71 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_DEVICE_SELECTOR_HPP
+#define HIPSYCL_DEVICE_SELECTOR_HPP
 
-namespace cl {
+#include "exception.hpp"
+#include "device.hpp"
+
+#include <limits>
+
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+
+class device_selector
+{
+public:
+  virtual ~device_selector() {};
+  device select_device() const;
+
+  virtual int operator()(const device& dev) const = 0;
+
+};
+
+namespace detail {
+class select_all_selector : public device_selector
+{
+public:
+  virtual ~select_all_selector(){}
+  virtual int operator()(const device &dev) const { return 1; }
+};
+
+} // namespace detail
+
+class error_selector : public device_selector
+{
+public:
+  virtual ~error_selector(){}
+  virtual int operator()(const device& dev) const
+  {
+    throw unimplemented{"hipSYCL presently only supports GPU platforms when using the CUDA and ROCm "
+                        "backends, and CPU platforms when compiling against hipCPU"};
+  }
+};
+
+#ifdef __HIPCPU__
+using gpu_selector = error_selector;
+#else
+using gpu_selector = detail::select_all_selector;
+#endif
+
+#ifdef __HIPCPU__
+using cpu_selector = detail::select_all_selector;
+#else
+using cpu_selector = error_selector;
+#endif
+
+using host_selector = cpu_selector;
+
+#ifdef __HIPCPU__
+using default_selector = host_selector;
+#else
+using default_selector = gpu_selector;
+#endif
 
 }
 }
 
 #endif
-

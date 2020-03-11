@@ -25,18 +25,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#ifndef HIPSYCL_SYCL_TOPLEVEL_HPP
+#define HIPSYCL_SYCL_TOPLEVEL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#include "sycl/sycl.hpp"
 
-namespace cl {
-namespace sycl {
+namespace hipsycl {
 
 using namespace hipsycl::sycl;
 
 }
-}
+
 
 #endif
 

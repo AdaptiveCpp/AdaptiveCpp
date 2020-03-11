@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
+#include "hipSYCL/sycl/device_selector.hpp"
 
-#include "../hipSYCL/sycl/sycl.hpp"
-
-namespace cl {
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+
+device device_selector::select_device() const
+{
+  auto devices = device::get_devices();
+  if(devices.size() == 0)
+    throw platform_error{"No available devices!"};
+
+  int best_score = std::numeric_limits<int>::min();
+  device candidate;
+  for(const device& d : devices)
+  {
+    int current_score = (*this)(d);
+    if(current_score > best_score)
+    {
+      best_score = current_score;
+      candidate = d;
+    }
+  }
+  return candidate;
+}
 
 }
 }
-
-#endif
-

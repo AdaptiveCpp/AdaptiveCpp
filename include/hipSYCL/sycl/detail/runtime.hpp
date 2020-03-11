@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_RUNTIME_HPP
+#define HIPSYCL_RUNTIME_HPP
 
-namespace cl {
+#include "task_graph.hpp"
+
+#include <iostream>
+namespace hipsycl {
 namespace sycl {
+namespace detail {
 
-using namespace hipsycl::sycl;
+
+class runtime
+{
+public:
+
+  task_graph& get_task_graph()
+  { return _task_graph; }
+
+  const task_graph& get_task_graph() const
+  { return _task_graph; }
+
+private:
+  task_graph _task_graph;
+};
+
 
 }
 }
+}
+
 
 #endif
-

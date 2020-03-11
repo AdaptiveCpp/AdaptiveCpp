@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_INFO_PLATFORM_HPP
+#define HIPSYCL_INFO_PLATFORM_HPP
 
-namespace cl {
+#include "param_traits.hpp"
+#include "../types.hpp"
+
+namespace hipsycl {
 namespace sycl {
+namespace info {
 
-using namespace hipsycl::sycl;
+enum class platform : unsigned int
+{
+  profile,
+  version,
+  name,
+  vendor,
+  extensions
+};
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::profile, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::name, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::vendor, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::extensions, vector_class<string_class>);
+
 
 }
 }
+}
+
 
 #endif
-

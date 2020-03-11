@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CL_SYCL_HPP
-#define HIPSYCL_CL_SYCL_HPP
 
-#include "../hipSYCL/sycl/sycl.hpp"
+#ifndef HIPSYCL_INFO_CONTEXT_HPP
+#define HIPSYCL_INFO_CONTEXT_HPP
 
-namespace cl {
+#include "../types.hpp"
+#include "param_traits.hpp"
+
+namespace hipsycl {
 namespace sycl {
 
-using namespace hipsycl::sycl;
+class platform;
+class device;
 
+namespace info {
+
+enum class context : int {
+  reference_count,
+  platform,
+  devices
+};
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::reference_count,
+                                 detail::u_int);
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::platform,
+                                 sycl::platform);
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(context,
+                                 context::devices,
+                                 vector_class<sycl::device>);
+
+}
 }
 }
 
 #endif
-

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 #include "data.hpp"
 #include "event.hpp"
 #include "device_id.hpp"
+#include "kernel_launcher.hpp"
+#include "hw_model/cost.hpp"
 
 #include <cstring>
 #include <functional>
@@ -44,7 +46,6 @@
 namespace hipsycl {
 namespace rt {
 
-using cost_type = double;
 class inorder_queue;
 
 template<class T> class data_region;
@@ -246,13 +247,7 @@ private:
   int _dimensions;
 };
 
-class kernel_launcher
-{
-public:
-  virtual ~kernel_launcher(){}
 
-  //virtual void invoke() = 0;
-};
 
 class kernel_operation : public operation
 {

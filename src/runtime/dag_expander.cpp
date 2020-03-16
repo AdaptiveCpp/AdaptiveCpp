@@ -38,6 +38,8 @@
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#include "hipSYCL/runtime/allocator.hpp"
 
 namespace hipsycl {
 namespace rt {

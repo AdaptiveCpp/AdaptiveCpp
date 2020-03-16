@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,32 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/hw_model/hw_model.hpp"
-
 namespace hipsycl {
 namespace rt {
 
-backend_manager::backend_manager()
-: _hw_model(std::make_unique<hw_model>(this))
-{
-  // TODO Add backends here
-}
-
-backend *backend_manager::get(backend_id id) const {
-  return _backends.at(id).get();
-}
-
-hw_model &backend_manager::hardware_model()
-{
-  return *_hw_model;
-}
-
-const hw_model &backend_manager::hardware_model() const 
-{
-  return *_hw_model;
-}
+using cost_type = double;
 
 }
 }

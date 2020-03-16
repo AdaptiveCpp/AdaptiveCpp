@@ -28,6 +28,7 @@
 
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/hw_model/hw_model.hpp"
 
 namespace hipsycl {
 namespace rt {

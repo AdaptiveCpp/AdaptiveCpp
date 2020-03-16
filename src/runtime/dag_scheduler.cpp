@@ -40,6 +40,7 @@
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/dag_time_table.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 
 namespace hipsycl {
 namespace rt {

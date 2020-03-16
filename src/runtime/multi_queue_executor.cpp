@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/multi_queue_executor.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 

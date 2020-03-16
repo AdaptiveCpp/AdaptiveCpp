@@ -30,6 +30,7 @@
 #include "hipSYCL/sycl/backend/backend.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/hw_model/hw_model.hpp"
 
 namespace hipsycl {
 namespace sycl {

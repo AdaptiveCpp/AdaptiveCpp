@@ -28,16 +28,18 @@
 #ifndef HIPSYCL_RUNTIME_BACKEND_HPP
 #define HIPSYCL_RUNTIME_BACKEND_HPP
 
-#include "hardware.hpp"
-#include "executor.hpp"
-#include "allocator.hpp"
-#include "hw_model/hw_model.hpp"
-
 #include <unordered_map>
 #include <memory>
 
+#include "device_id.hpp"
+
 namespace hipsycl {
 namespace rt {
+
+class backend_executor;
+class backend_allocator;
+class backend_hardware_manager;
+class hw_model;
 
 class backend
 {
@@ -75,7 +77,7 @@ public:
 private:
   backend_map_type _backends;
 
-  hw_model _hw_model;
+  std::unique_ptr<hw_model> _hw_model;
 };
 
 }

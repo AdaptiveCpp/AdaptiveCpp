@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,32 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#ifndef HIPSYCL_KERNEL_LAUNCHER_HPP
+#define HIPSYCL_KERNEL_LAUNCHER_HPP
+
+#include <vector>
+#include <memory>
+
+#include "hipSYCL/sycl/id.hpp"
+#include "hipSYCL/sycl/range.hpp"
+
+
+
+#include "backend.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-backend_manager::backend_manager()
-: _hw_model(std::make_unique<hw_model>(this))
+enum class kernel_type {
+  single_task,
+  basic_parallel_for,
+  ndrange_parallel_for,
+  hierarchical_parallel_for
+};
+
+class backend_kernel_launcher
 {
-  // TODO Add backends here
-}
+public:
+  virtual ~backend_kernel_launcher(){}
 
-backend *backend_manager::get(backend_id id) const {
-  return _backends.at(id).get();
-}
+  virtual backend_id get_backend() const = 0;
+  virtual kernel_type get_kernel_type() const = 0;
+  virtual void invoke() = 0;
+};
 
-hw_model &backend_manager::hardware_model()
+class kernel_launcher
 {
-  return *_hw_model;
-}
+public:
+  kernel_launcher(
+      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels);
 
-const hw_model &backend_manager::hardware_model() const 
-{
-  return *_hw_model;
-}
+  void invoke(backend_id id) {
+    /*for (auto &backend_launcher : _kernels) {
+      if (backend_launcher->get_backend() == id) {
+        backend_launcher->invoke();
+        return;
+      }
+    }*/
 
-}
-}
+    assert(false && "Could not find kernel launcher for the specified backend");
+  }
+
+private:
+  //std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+};
+
+
+} // namespace rt
+} // namespace hipsycl
+
+#endif

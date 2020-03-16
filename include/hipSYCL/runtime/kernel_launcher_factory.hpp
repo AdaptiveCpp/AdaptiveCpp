@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,32 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#ifndef HIPSYCL_KERNEL_LAUNCHER_FACTORY_HPP
+#define HIPSYCL_KERNEL_LAUNCHER_FACTORY_HPP
+
+#include <vector>
+
+#include "kernel_launcher.hpp"
+
+#if defined(HIPSYCL_PLATFORM_ROCM) || defined(HIPSYCL_PLATFORM_CUDA)
+//#include "hip/hip_kernel_launcher.hpp"
+#endif
 
 namespace hipsycl {
 namespace rt {
 
-backend_manager::backend_manager()
-: _hw_model(std::make_unique<hw_model>(this))
-{
-  // TODO Add backends here
-}
-
-backend *backend_manager::get(backend_id id) const {
-  return _backends.at(id).get();
-}
-
-hw_model &backend_manager::hardware_model()
-{
-  return *_hw_model;
-}
-
-const hw_model &backend_manager::hardware_model() const 
-{
-  return *_hw_model;
+template <class KernelNameTag, class Kernel, int Dim>
+std::vector<std::unique_ptr<backend_kernel_launcher>>
+make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
+                      sycl::range<Dim> global_range, Kernel k) {
+  
+  std::vector<std::unique_ptr<backend_kernel_launcher>> launchers;
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_ROCM)
+  //auto launcher = std::make_unique<hip_kernel_launcher>();
+  //launchers.emplace_back(launcher);
+#endif
+  return launchers;
+  
 }
 
 }
 }
+
+#endif

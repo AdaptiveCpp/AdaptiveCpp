@@ -194,12 +194,12 @@ buffer_impl::~buffer_impl()
   }
   else
   {
-    hipFree(_buffer_pointer);
+    detail::check_error(hipFree(_buffer_pointer));
 
     if(_owns_host_memory)
     {
       if(_pinned_memory)
-        hipHostFree(_host_memory);
+        detail::check_error(hipHostFree(_host_memory));
       else
         delete [] reinterpret_cast<max_aligned_vector*>(_host_memory);
     }

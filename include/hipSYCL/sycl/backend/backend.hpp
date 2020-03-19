@@ -55,7 +55,10 @@
   #pragma clang diagnostic pop
  #elif defined(__HIP__) || defined(__HCC__)
   #define HIPSYCL_PLATFORM_HCC
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wunused-result"
   #include <hip/hip_runtime.h>
+  #pragma clang diagnostic pop
  #else
   #define HIPSYCL_PLATFORM_CPU
   #include "hipCPU/hip/hip_runtime.h"

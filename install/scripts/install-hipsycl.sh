@@ -11,7 +11,13 @@ HIPSYCL_WITH_ROCM=${HIPSYCL_WITH_ROCM:-ON}
 rm -rf "$BUILD_DIR"
 mkdir -p $BUILD_DIR
 
-git clone --recurse-submodules -b $HIPSYCL_REPO_BRANCH https://github.com/$HIPSYCL_REPO_USER/hipSYCL $BUILD_DIR
+if [ -z "$HIPSYCL_SRC_DIR" ]; then
+  HIPSYCL_SRC_DIR=$BUILD_DIR
+  git clone --recurse-submodules -b $HIPSYCL_REPO_BRANCH https://github.com/$HIPSYCL_REPO_USER/hipSYCL $HIPSYCL_SRC_DIR
+else
+  echo "Not creating a new clone, compiling source from $HIPSYCL_SRC_DIR"
+fi
+
 mkdir -p $BUILD_DIR/build
 cd $BUILD_DIR/build
 
@@ -29,6 +35,6 @@ cmake \
 -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
 -DROCM_LINK_LINE='-rpath $HIPSYCL_ROCM_LIB_PATH -rpath $HIPSYCL_ROCM_PATH/hsa/lib -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lamd_hostcall -lhsa-runtime64 -latmi_runtime -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am' \
 -DDISABLE_LLVM_VERSION_CHECK=ON \
-..
+$HIPSYCL_SRC_DIR
 
 make install

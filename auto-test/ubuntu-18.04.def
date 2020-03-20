@@ -1,0 +1,33 @@
+BootStrap: docker
+From: ubuntu:18.04
+
+%setup
+cp -R $SRCPATH ${SINGULARITY_ROOTFS}/src
+
+%post
+echo "deb http://repo.urz.uni-heidelberg.de/sycl/deb/ ./bionic main" > /etc/apt/sources.list.d/hipsycl.list
+wget -q -O - http://repo.urz.uni-heidelberg.de/sycl/hipsycl.asc | apt-key add -
+apt update
+apt install hipsycl-base hipsycl-rocm
+sh /src/install/scripts/install-cuda.sh
+HIPSYCL_SRC_DIR=/src sh /src/install/scripts/install-hipsycl.sh
+echo "Installed hipSYCL with configuration:"
+cat /opt/hipSYCL/etc/syclcc.json
+
+mkdir -p /usr/share/hipSYCL/tests/cpu
+mkdir -p /usr/share/hipSYCL/tests/cuda
+mkdir -p /usr/share/hipSYCL/tests/rocm
+
+cd /usr/share/hipSYCL/tests/cpu
+# For some reason, cmake does not correctly link with libboost_unit_test_framework
+# so we use this hardcoded fix..
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=cpu make -j4
+
+cd /usr/share/hipSYCL/tests/cuda
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=cuda HIPSYCL_GPU_ARCH=$HIPSYCL_CUDA_GPU_ARCH make -j4
+
+cd /usr/share/hipSYCL/tests/rocm
+cmake  -DCMAKE_EXE_LINKER_FLAGS="-lboost_unit_test_framework" /src/tests
+HIPSYCL_PLATFORM=rocm HIPSYCL_GPU_ARCH=$HIPSYCL_ROCM_GPU_ARCH make -j4

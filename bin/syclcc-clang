@@ -147,7 +147,9 @@ class syclcc_config:
 """  The path to the ROCm installation directory"""),
 
       'gpu-arch': option("--hipsycl-gpu-arch", "HIPSYCL_GPU_ARCH", "default-gpu-arch",
-"""  The GPU architecture that should be targeted when compiling for GPUs."""),
+"""  The GPU architecture that should be targeted when compiling for GPUs.
+    For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
+    For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),

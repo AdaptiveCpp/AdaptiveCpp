@@ -62,7 +62,7 @@ stream_manager::~stream_manager()
 {
   if(_stream != 0)
   {
-    hipStreamDestroy(_stream);
+    detail::check_error(hipStreamDestroy(_stream));
   }
 }
 

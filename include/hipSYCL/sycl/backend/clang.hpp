@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_BACKEND_CLANG_HPP
 #define HIPSYCL_BACKEND_CLANG_HPP
 
+#include <cassert>
+
 #if (defined(__clang__) && defined(__HIP__)) || (defined(__clang__) && defined(__CUDA__))
 
 #define __sycl_kernel __attribute__((diagnose_if(false,"hipsycl_kernel","warning"))) 
@@ -54,7 +56,8 @@ static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shar
 #ifdef __CUDA__
   __cudaPushCallConfiguration(grid, block, shared, stream);
 #else
-  hipConfigureCall(grid, block, shared, stream);
+  hipError_t err = hipConfigureCall(grid, block, shared, stream);
+  assert(err == hipSuccess);
 #endif
 }
 

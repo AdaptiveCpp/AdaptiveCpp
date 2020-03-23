@@ -1,12 +1,15 @@
 #!/bin/bash
 set -e
-source ./common/init.sh
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $DIR/../common/init.sh
 
 CENTOS_REPO_DIR=/data/repos/rpm/centos7
-
+echo $CENTOS_REPO_DIR
 mkdir -p $CENTOS_REPO_DIR
-
-cd $CENTOS_PKG_DIR
+echo $DIR
+echo $HIPSYCL_PKG_CENTOS_PKG_DIR
+cd $HIPSYCL_PKG_CENTOS_PKG_DIR
 for f in *
 do
 	echo $f

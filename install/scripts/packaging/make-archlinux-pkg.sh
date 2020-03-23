@@ -5,10 +5,10 @@ set -e
 
 . ./common/init.sh
 
-BUILD_BASE=${BUILD_BASE:-ON}
-BUILD_HIPSYCL=${BUILD_HIPSYCL:-ON}
-BUILD_ROCM=${BUILD_ROCM:-ON}
-BUILD_CUDA=${BUILD_CUDA:-OFF}
+HIPSYCL_PKG_BUILD_BASE=${HIPSYCL_PKG_BUILD_BASE:-ON}
+HIPSYCL_PKG_BUILD_HIPSYCL=${HIPSYCL_PKG_BUILD_HIPSYCL:-ON}
+HIPSYCL_PKG_BUILD_ROCM=${HIPSYCL_PKG_BUILD_ROCM:-ON}
+HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
 
 echo $HIPSYCL_GPG_KEY
 if [ -n "$HIPSYCL_GPG_KEY" ]; then
@@ -114,19 +114,19 @@ package() {
 }
 EOF
 
-if [ "$BUILD_HIPSYCL" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_HIPSYCL" = "ON" ]; then
 cd ${HIPSYCL_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
 fi
 
-if [ "$BUILD_BASE" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ]; then
 cd ${COMMON_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
 fi
 
-if [ "$BUILD_ROCM" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ]; then
 cd ${ROCM_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
 fi
 
-if [ "$BUILD_CUDA" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ]; then
 cd ${CUDA_DIR}/pkg && makepkg -d -c --skipinteg $SIGN
-echo $BUILD_CUDA
+echo $HIPSYCL_PKG_BUILD_CUDA
 fi

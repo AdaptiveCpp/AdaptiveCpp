@@ -5,10 +5,10 @@ set -e
 
 . ./common/init.sh
 
-BUILD_BASE=${BUILD_BASE:-ON}
-BUILD_HIPSYCL=${BUILD_HIPSYCL:-ON}
-BUILD_ROCM=${BUILD_ROCM:-ON}
-BUILD_CUDA=${BUILD_CUDA:-OFF}
+HIPSYCL_PKG_BUILD_BASE=${HIPSYCL_PKG_BUILD_BASE:-ON}
+HIPSYCL_PKG_BUILD_HIPSYCL=${HIPSYCL_PKG_BUILD_HIPSYCL:-ON}
+HIPSYCL_PKG_BUILD_ROCM=${HIPSYCL_PKG_BUILD_ROCM:-ON}
+HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
 
 mkdir -p ${CUDA_DIR}/DEBIAN
 mkdir -p ${ROCM_DIR}/DEBIAN
@@ -64,19 +64,19 @@ EOF
 
 cd ${BUILD_DIR}
 
-if [ "$BUILD_ROCM" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ]; then
 dpkg-deb --build ${ROCM_PKG}
 fi
 
-if [ "$BUILD_BASE" = "ON"  ]; then
+if [ "$HIPSYCL_PKG_BUILD_BASE" = "ON"  ]; then
 dpkg-deb --build ${COMMON_PKG}
 fi
 
-if [ "$BUILD_HIPSYCL" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_HIPSYCL" = "ON" ]; then
 dpkg-deb --build ${HIPSYCL_PKG}
 fi
 
-if [ "$BUILD_CUDA" = "ON" ]; then
+if [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ]; then
 dpkg-deb --build ${CUDA_PKG}
 fi
 

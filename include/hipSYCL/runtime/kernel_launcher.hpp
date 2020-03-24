@@ -62,21 +62,27 @@ class kernel_launcher
 {
 public:
   kernel_launcher(
-      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels);
+      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels)
+  : _kernels{std::move(kernels)}
+  {}
 
-  void invoke(backend_id id) {
-    /*for (auto &backend_launcher : _kernels) {
+  kernel_launcher(const kernel_launcher &) = delete;
+
+  void invoke(backend_id id) const {
+    find_launcher(id)->invoke();
+  }
+
+  backend_kernel_launcher* find_launcher(backend_id id) const {
+    for (auto &backend_launcher : _kernels) {
       if (backend_launcher->get_backend() == id) {
-        backend_launcher->invoke();
-        return;
+        return backend_launcher.get();
       }
-    }*/
-
+    }
     assert(false && "Could not find kernel launcher for the specified backend");
   }
 
 private:
-  //std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+  std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
 };
 
 

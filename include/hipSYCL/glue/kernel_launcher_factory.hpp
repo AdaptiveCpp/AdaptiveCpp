@@ -30,24 +30,26 @@
 
 #include <vector>
 
-#include "kernel_launcher.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/runtime/kernel_launcher.hpp"
 
 #if defined(HIPSYCL_PLATFORM_ROCM) || defined(HIPSYCL_PLATFORM_CUDA)
-//#include "hip/hip_kernel_launcher.hpp"
+#include "hip/hip_kernel_launcher.hpp"
 #endif
 
 namespace hipsycl {
-namespace rt {
+namespace glue {
 
-template <class KernelNameTag, class Kernel, int Dim>
-std::vector<std::unique_ptr<backend_kernel_launcher>>
+template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel>
+std::vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       sycl::range<Dim> global_range, Kernel k) {
   
-  std::vector<std::unique_ptr<backend_kernel_launcher>> launchers;
+  std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_ROCM)
-  //auto launcher = std::make_unique<hip_kernel_launcher>();
-  //launchers.emplace_back(launcher);
+  auto launcher = std::make_unique<hip_kernel_launcher>();
+  launcher->bind<KernelNameTag, Type>(offset, local_range, global_range, k);
+  launchers.emplace_back(launcher);
 #endif
   return launchers;
   

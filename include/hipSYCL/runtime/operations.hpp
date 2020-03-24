@@ -253,7 +253,7 @@ class kernel_operation : public operation
 {
 public:
   kernel_operation(const std::string& kernel_name,
-                  kernel_launcher launcher,
+                  std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels,
                   const std::vector<requirement*>& requirements);
 
   kernel_launcher& get_launcher();

@@ -30,6 +30,8 @@
 #include "hipSYCL/runtime/hip/hip_error.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
+#include "hipSYCL/glue/hip/hip_kernel_launcher.hpp"
+
 #include <memory>
 
 namespace hipsycl {
@@ -73,12 +75,17 @@ std::unique_ptr<dag_node_event> hip_queue::insert_event() {
   return std::make_unique<hip_node_event>(_dev, evt);
 }
 
-void hip_queue::submit_memcpy(const memcpy_operation&) {
+void hip_queue::submit_memcpy(const memcpy_operation &) {}
 
+void hip_queue::submit_kernel(const kernel_operation &op) {
+  
+  glue::hip_kernel_launcher *l = cast<glue::hip_kernel_launcher>(
+      op.get_launcher().find_launcher(backend_id::hip));
+
+  l->set_params(this);
+  l->invoke();
 }
-void hip_queue::submit_kernel(const kernel_operation& op) {
-  //op.get_launcher()
-}
+
 void hip_queue::submit_prefetch(const prefetch_operation&) {
   assert(false && "Unimplemented");
 }

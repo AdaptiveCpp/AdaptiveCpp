@@ -32,9 +32,10 @@ namespace hipsycl {
 namespace rt {
 
 kernel_operation::kernel_operation(
-    const std::string &kernel_name, kernel_launcher launcher,
+    const std::string &kernel_name, 
+    std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels,
     const std::vector<requirement *> &requirements)
-    : _kernel_name{kernel_name}, _launcher{launcher},
+    : _kernel_name{kernel_name}, _launcher{std::move(kernels)},
       _requirements{requirements} {}
 
 kernel_launcher& 

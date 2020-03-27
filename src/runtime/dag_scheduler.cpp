@@ -466,6 +466,25 @@ void dag_scheduler::submit(dag* d)
     node->assign_to_executor(annotation.get_executor());
     node->assign_to_execution_lane(annotation.get_execution_lane());
   });
+  // Initialize deferred pointers, i.e. bind accessors to actual data pointers
+  interpreter.for_each_effective_node([&](dag_node_ptr node) {
+    for (dag_node_ptr req : node->get_requirements()) {
+      if (req->get_operation()->is_requirement()) {
+        if (cast<requirement>(req->get_operation())->is_memory_requirement()) {
+          memory_requirement *mem_req =
+              cast<memory_requirement>(req->get_operation());
+          if (mem_req->is_buffer_requirement()) {
+            buffer_memory_requirement *bmem_req =
+                cast<buffer_memory_requirement>(mem_req);
+
+            device_id target_dev = node->get_assigned_device();
+            void* device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
+            bmem_req->initialize_device_data(device_pointer);
+          }
+        }
+      }
+    }
+  });
 
   // Emit nodes to backend executors
 

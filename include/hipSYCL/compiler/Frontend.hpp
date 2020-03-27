@@ -51,7 +51,7 @@
 #include "CompilationState.hpp"
 #include "Attributes.hpp"
 
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 // Whether to use SYCL kernel name template parameters to
 // generate unique mangled names for device entrypoints.

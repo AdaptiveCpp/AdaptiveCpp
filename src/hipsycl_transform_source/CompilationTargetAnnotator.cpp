@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include "CompilationTargetAnnotator.hpp"
 #include "Attributes.hpp"

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,10 @@
 
 #include <iostream>
 
-
+#define HIPSYCL_OUTPUT_STREAM std::cout
 
 #define HIPSYCL_DEBUG_STREAM(level, prefix) \
-if(level > HIPSYCL_DEBUG_LEVEL); else std::cout << prefix
+if(level > HIPSYCL_DEBUG_LEVEL); else HIPSYCL_OUTPUT_STREAM << prefix
 
 #define HIPSYCL_DEBUG_ERROR \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_ERROR, \

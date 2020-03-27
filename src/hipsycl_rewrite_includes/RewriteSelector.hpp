@@ -30,7 +30,7 @@
 
 #include <boost/filesystem.hpp>
 
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <iostream>
 namespace hipsycl {

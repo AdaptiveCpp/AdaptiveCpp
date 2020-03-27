@@ -27,7 +27,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_error.hpp"
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
 namespace hipsycl {

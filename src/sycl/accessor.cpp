@@ -30,7 +30,7 @@
 #include "hipSYCL/sycl/detail/buffer.hpp"
 #include "hipSYCL/sycl/detail/task_graph.hpp"
 #include "hipSYCL/sycl/detail/application.hpp"
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <cassert>
 

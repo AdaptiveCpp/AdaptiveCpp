@@ -48,7 +48,7 @@
 #include "detail/task_graph.hpp"
 #include "detail/application.hpp"
 #include "detail/stream.hpp"
-#include "detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "detail/util.hpp"
 
 namespace hipsycl {

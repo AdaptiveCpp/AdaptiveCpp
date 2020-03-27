@@ -33,6 +33,8 @@
 #include "hipSYCL/sycl/range.hpp"
 #include "hipSYCL/sycl/access.hpp"
 
+#include "hipSYCL/glue/deferred_pointer.hpp"
+
 #include "data.hpp"
 #include "event.hpp"
 #include "device_id.hpp"
@@ -127,20 +129,16 @@ public:
 class buffer_memory_requirement : public memory_requirement
 {
 public:
-
-  template<int Dim>
-  buffer_memory_requirement(
-    std::shared_ptr<buffer_data_region> mem_region,
-    const sycl::id<Dim> offset, 
-    const sycl::range<Dim> range,
-    std::size_t element_size,
-    sycl::access::mode access_mode,
-    sycl::access::target access_target)
-  : _mem_region{mem_region},
-    _element_size{element_size},
-    _mode{access_mode},
-    _target{access_target},
-    _dimensions{Dim}
+  template <int Dim>
+  buffer_memory_requirement(std::shared_ptr<buffer_data_region> mem_region,
+                            const sycl::id<Dim> offset,
+                            const sycl::range<Dim> range,
+                            std::size_t element_size,
+                            sycl::access::mode access_mode,
+                            sycl::access::target access_target)
+      : _mem_region{mem_region}, _element_size{element_size},
+        _mode{access_mode}, _target{access_target}, _dimensions{Dim},
+        _device_data_location{nullptr}
   {
     static_assert(Dim >= 1 && Dim <=3, 
       "dimension of buffer memory requirement must be between 1 and 3");
@@ -219,6 +217,19 @@ public:
     return page_ranges_intersect(other_page_range);
   }
 
+  bool has_device_data_location() const {
+    return _device_data_location != nullptr;
+  }
+
+  void initialize_device_data(void *location) {
+    assert(!has_device_data_location());
+    _device_data_location = location;
+  }
+
+  template <class T> glue::deferred_pointer<T> make_deferred_pointer() const {
+    return glue::deferred_pointer<T>(&_device_data_location);
+  }
+  
 private:
   bool page_ranges_intersect(buffer_data_region::page_range other) const{
     auto my_range = _mem_region->get_page_range(_offset, _range);
@@ -245,6 +256,8 @@ private:
   sycl::access::mode _mode;
   sycl::access::target _target;
   int _dimensions;
+
+  void* _device_data_location;
 };
 
 
@@ -321,9 +334,11 @@ class memcpy_operation : public operation
 public:
   memcpy_operation(const memory_location &source, const memory_location &dest,
                    sycl::range<3> num_source_elements);
-  
-  
+
+
   std::size_t get_num_transferred_bytes() const;
+  sycl::range<3> get_num_transferred_elements() const;
+  
   const memory_location &source() const;
   const memory_location &dest() const;
 

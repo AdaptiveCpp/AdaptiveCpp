@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/generic/async_worker.hpp"
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <cassert>
 

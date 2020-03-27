@@ -29,7 +29,7 @@
 #include "hipSYCL/sycl/detail/buffer.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/detail/application.hpp"
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <cstring>
 #include <cassert>

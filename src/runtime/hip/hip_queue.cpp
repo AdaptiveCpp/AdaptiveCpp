@@ -28,10 +28,12 @@
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_error.hpp"
+#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
 #include "hipSYCL/glue/hip/hip_kernel_launcher.hpp"
 
+#include <cassert>
 #include <memory>
 
 namespace hipsycl {
@@ -55,10 +57,16 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
   delete node;
 }
 
+
+}
+
+
+void hip_queue::activate_device() const {
+  hip_device_manager::get().activate_device(_dev.get_id());
 }
 
 hip_queue::hip_queue(device_id dev) : _dev{dev} {
-  hip_check_error(hipSetDevice(_dev.get_id()));
+  this->activate_device();
   hip_check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
 }
 
@@ -75,10 +83,67 @@ std::unique_ptr<dag_node_event> hip_queue::insert_event() {
   return std::make_unique<hip_node_event>(_dev, evt);
 }
 
-void hip_queue::submit_memcpy(const memcpy_operation &) {}
+void hip_queue::submit_memcpy(const memcpy_operation & op) {
+
+  device_id source_dev = op.source().get_device();
+  device_id dest_dev = op.dest().get_device();
+
+  hipMemcpyKind copy_kind = hipMemcpyHostToDevice;
+
+  if (source_dev.get_full_backend_descriptor().sw_platform == api_platform::hip) {
+    if (dest_dev.get_full_backend_descriptor().sw_platform ==
+        api_platform::hip) {
+      assert(source_dev.get_full_backend_descriptor().hw_platform ==
+                 dest_dev.get_full_backend_descriptor().hw_platform &&
+             "Attempted to execute explicit device<->device copy operation "
+             "between devices from different HIP hardware backends");
+      copy_kind = hipMemcpyDeviceToDevice;
+
+    } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
+               hardware_platform::cpu) {
+      copy_kind = hipMemcpyDeviceToHost;
+      
+    } else
+      assert(false && "Unknown copy destination platform");
+  } else if (source_dev.get_full_backend_descriptor().hw_platform ==
+             hardware_platform::cpu) {
+    if (dest_dev.get_full_backend_descriptor().sw_platform ==
+        api_platform::hip) {
+      copy_kind = hipMemcpyHostToDevice;
+    } else
+      assert(false && "Unknown copy destination platform");
+  } else
+    assert(false && "Unknown copy source platform");
+
+
+  sycl::range<3> transfer_range = op.get_num_transferred_elements();
+
+  int dimension = 0;
+  if (transfer_range[0] > 1)
+    dimension = 3;
+  else if (transfer_range[1] > 1)
+    dimension = 2;
+  else
+    dimension = 1;
+
+  assert(dimension >= 1 && dimension <= 3);
+
+  if (dimension == 1) {
+
+    hip_check_error(hipMemcpyAsync(
+        op.dest().get_access_ptr(), op.source().get_access_ptr(),
+        op.get_num_transferred_bytes(), copy_kind, get_stream()));
+    
+  } else if (dimension == 2) {
+    assert(false && "2D data transfer is unimplemented");
+  } else {
+    assert(false && "3D data transfer is unimplemented");
+  }
+}
 
 void hip_queue::submit_kernel(const kernel_operation &op) {
-  
+
+  this->activate_device();
   glue::hip_kernel_launcher *l = cast<glue::hip_kernel_launcher>(
       op.get_launcher().find_launcher(backend_id::hip));
 

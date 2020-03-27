@@ -43,18 +43,18 @@ namespace glue {
 template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel>
 std::vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
-                      sycl::range<Dim> global_range, Kernel k) {
-  
+                      sycl::range<Dim> global_range,
+                      std::size_t dynamic_local_memory, Kernel k) {
+
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_ROCM)
   auto launcher = std::make_unique<hip_kernel_launcher>();
-  launcher->bind<KernelNameTag, Type>(offset, local_range, global_range, k);
+  launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
+                                      dynamic_local_memory, k);
   launchers.emplace_back(launcher);
 #endif
   return launchers;
-  
 }
-
 }
 }
 

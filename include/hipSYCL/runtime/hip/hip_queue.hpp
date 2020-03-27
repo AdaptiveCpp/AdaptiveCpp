@@ -58,6 +58,8 @@ public:
   virtual void submit_external_wait_for(dag_node_ptr node) override;
 
 private:
+  void activate_device() const;
+  
   device_id _dev;
   hipStream_t _stream;
 };

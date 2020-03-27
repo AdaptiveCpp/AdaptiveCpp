@@ -137,6 +137,10 @@ std::size_t memcpy_operation::get_num_transferred_bytes() const
   return _source.get_element_size() * _num_elements.size();
 }
 
+sycl::range<3> memcpy_operation::get_num_transferred_elements() const {
+  return this->_num_elements;
+}
+
 const memory_location& memcpy_operation::source() const { return _source; }
 
 const memory_location& memcpy_operation::dest() const { return _dest; }

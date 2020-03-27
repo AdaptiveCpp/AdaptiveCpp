@@ -41,7 +41,7 @@
 
 #include "CompilationState.hpp"
 
-#include "hipSYCL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <unordered_set>
 #include <vector>

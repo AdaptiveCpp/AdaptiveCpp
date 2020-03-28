@@ -29,6 +29,8 @@
 #include "hipSYCL/sycl/device_selector.hpp"
 #include "hipSYCL/sycl/platform.hpp"
 
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -43,46 +45,40 @@ platform device::get_platform() const  {
   return platform{};
 }
 
-vector_class<device> device::get_devices(
-    info::device_type deviceType)
-{
-  if(deviceType == info::device_type::cpu ||
-     deviceType == info::device_type::host)
-    return vector_class<device>();
+vector_class<device> device::get_devices(info::device_type deviceType) {
 
   vector_class<device> result;
-  int num_devices = get_num_devices();
-  for(int i = 0; i < num_devices; ++i)
-  {
-    device d;
-    d._device_id = i;
 
-    result.push_back(d);
-  }
+  rt::application::get_runtime().backends().for_each_backend(
+      [&](rt::backend *b) {
+        rt::backend_descriptor bd = b->get_backend_descriptor();
+        std::size_t num_devices = b->get_hardware_manager()->get_num_devices();
+
+        for (std::size_t dev = 0; dev < num_devices; ++dev) {
+          rt::device_id d_id{bd, static_cast<int>(dev)};
+
+          device d;
+          d._device_id = d_id;
+          
+          if (deviceType == info::device_type::all ||
+              (deviceType == info::device_type::accelerator && d.is_accelerator()) ||
+              (deviceType == info::device_type::cpu && d.is_cpu()) ||
+              (deviceType == info::device_type::host && d.is_cpu()) ||
+              (deviceType == info::device_type::gpu && d.is_gpu())) {
+            
+            result.push_back(d);
+          }
+        }
+  });
+  
   return result;
 }
 
 int device::get_num_devices()
 {
-  int num_devices = 0;
-  detail::check_error(hipGetDeviceCount(&num_devices));
-  return num_devices;
+  return get_devices(info::device_type::all).size();
 }
 
-#ifdef HIPSYCL_HIP_INTEROP
-int device::get_device_id() const {
-  return _device_id;
-}
-#endif
-
-namespace detail {
-
-void set_device(const device& d)
-{
-  detail::check_error(hipSetDevice(d._device_id));
-}
-
-}
 
 }
 }

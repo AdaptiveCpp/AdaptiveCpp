@@ -39,6 +39,8 @@
 #include "id.hpp"
 #include "version.hpp"
 
+#include "hipSYCL/runtime/device_id.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -46,13 +48,10 @@ class device_selector;
 class platform;
 class device;
 
-namespace detail {
-void set_device(const device& d);
-}
+
 
 class device
 {
-  friend void detail::set_device(const device&);
 public:
 
   /// Since we do not support host execution, this will actually
@@ -62,14 +61,9 @@ public:
   /// \todo Should this call throw an error instead of behaving differently
   /// than the spec requires?
   device()
-    : _device_id{0}
-  {}
-
-#ifdef HIPSYCL_HIP_INTEROP
-  device(int hipDeviceId)
-    : _device_id{hipDeviceId}
-  {}
-#endif
+      : _device_id(rt::backend_descriptor(rt::hardware_platform::cpu,
+                                          rt::api_platform::openmp_cpu),
+                   0) {}
 
   // OpenCL interop is not supported
   // explicit device(cl_device_id deviceId);
@@ -81,30 +75,26 @@ public:
 
   bool is_host() const 
   {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return true;
-#else
-    return false;
-#endif
+    return is_cpu();
   }
 
   bool is_cpu() const
   {
-    return !is_gpu();
+    return _device_id.get_full_backend_descriptor().hw_platform ==
+           rt::hardware_platform::cpu;
   }
 
   bool is_gpu() const
   {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return false;
-#else
-    return true; 
-#endif
+    return _device_id.get_full_backend_descriptor().hw_platform ==
+               rt::hardware_platform::cuda ||
+           _device_id.get_full_backend_descriptor().hw_platform ==
+               rt::hardware_platform::rocm;
   }
 
   bool is_accelerator() const 
   {
-    return is_gpu(); 
+    return !is_cpu();
   }
 
   platform get_platform() const;
@@ -154,18 +144,13 @@ public:
 
   static int get_num_devices();
 
-
-#ifdef HIPSYCL_HIP_INTEROP
-  int get_device_id() const;
-#endif
-
   bool operator ==(const device& rhs) const
   { return rhs._device_id == _device_id; }
 
-  bool operator !=(const device& rhs) const
-  { return !(*this == rhs); }
+  bool operator!=(const device &rhs) const { return !(*this == rhs); }
+  
 private:
-  int _device_id;
+  rt::device_id _device_id;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, device_type)
@@ -178,7 +163,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_int>(props.multiProcessorCount);
 }
 

@@ -28,71 +28,10 @@
 #include "hipSYCL/sycl/context.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/queue.hpp"
-#include "hipSYCL/sycl/detail/application.hpp"
 
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
-
-stream_manager::stream_manager(const device& d)
-  : stream_manager{d, [](exception_list){}}
-{}
-
-stream_manager::stream_manager(const device& d,
-                               async_handler handler)
-  : _dev{d},
-    _handler{handler}
-{
-  detail::set_device(d);
-  detail::check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
-}
-
-stream_manager::stream_manager()
-  : stream_manager{[](exception_list){}}
-{}
-
-stream_manager::stream_manager(async_handler handler)
-  : _stream{0},
-    _dev{},
-    _handler{handler}
-{}
-
-stream_manager::~stream_manager()
-{
-  if(_stream != 0)
-  {
-    hipStreamDestroy(_stream);
-  }
-}
-
-hipStream_t stream_manager::get_stream() const
-{
-  return _stream;
-}
-
-stream_ptr stream_manager::default_stream()
-{
-  return stream_ptr{new stream_manager()};
-}
-
-void stream_manager::activate_device() const
-{
-  detail::set_device(_dev);
-}
-
-async_handler stream_manager::get_error_handler() const
-{
-  return this->_handler;
-}
-
-
-device stream_manager::get_device() const
-{
-  return this->_dev; 
-}
-
-}
 
 
 queue::queue(const property_list &propList)
@@ -174,10 +113,6 @@ queue::queue(const context &syclContext, const device_selector &deviceSelector,
 
 void queue::init()
 {
-  this->_stream = detail::stream_ptr{new detail::stream_manager{
-      _device,
-      _handler}};
-
   this->_hooks = detail::queue_submission_hooks_ptr{
         new detail::queue_submission_hooks{}};
 }

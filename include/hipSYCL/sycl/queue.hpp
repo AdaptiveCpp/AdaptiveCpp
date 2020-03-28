@@ -70,26 +70,29 @@ public:
 
   explicit queue(const property_list &propList = {});
 
-  queue(const async_handler &asyncHandler,
-        const property_list &propList = {});
+  explicit queue(const async_handler &asyncHandler,
+                 const property_list &propList = {});
 
-  queue(const device_selector &deviceSelector,
-        const property_list &propList = {});
+  explicit queue(const device_selector &deviceSelector,
+                 const property_list &propList = {});
 
-  queue(const device_selector &deviceSelector,
-        const async_handler &asyncHandler, const property_list &propList = {});
+  explicit queue(const device_selector &deviceSelector,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {});
 
-  queue(const device &syclDevice, const property_list &propList = {});
+  explicit queue(const device &syclDevice, const property_list &propList = {});
 
-  queue(const device &syclDevice, const async_handler &asyncHandler,
-        const property_list &propList = {});
+  explicit queue(const device &syclDevice, const async_handler &asyncHandler,
+                 const property_list &propList = {});
 
-  queue(const context &syclContext, const device_selector &deviceSelector,
-        const property_list &propList = {});
+  explicit queue(const context &syclContext,
+                 const device_selector &deviceSelector,
+                 const property_list &propList = {});
 
-  queue(const context &syclContext, const device_selector &deviceSelector,
-        const async_handler &asyncHandler, const property_list &propList = {});
-
+  explicit queue(const context &syclContext,
+                 const device_selector &deviceSelector,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {});
 
   /* CL Interop is not supported
   queue(cl_command_queue clQueue, const context& syclContext,
@@ -179,7 +182,6 @@ private:
   }
 
   device _device;
-  detail::stream_ptr _stream;
   async_handler _handler;
   detail::queue_submission_hooks_ptr _hooks;
 

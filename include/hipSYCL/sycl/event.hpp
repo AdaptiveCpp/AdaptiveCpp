@@ -35,19 +35,19 @@
 #include "info/info.hpp"
 #include "detail/task_graph.hpp"
 
+#include "hipSYCL/runtime/dag_node.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
-// ToDo: Replace with detail::task_graph_node
 class event {
 
 public:
   event()
-    : _is_null_event{true}
   {}
 
-  event(const detail::task_graph_node_ptr& evt)
-    : _is_null_event{false}, _evt{evt}
+  event(const rt::dag_node_ptr& evt)
+    : _node{evt}
   {}
 
 
@@ -64,8 +64,8 @@ public:
 
   void wait()
   {
-    if(!this->_is_null_event)
-      this->_evt->wait();
+    if(this->_node)
+      this->_node->wait();
   }
 
   static void wait(const vector_class<event> &eventList)
@@ -92,23 +92,22 @@ public:
   { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
 
   bool operator ==(const event& rhs) const
-  { return _evt == rhs._evt; }
+  { return _node == rhs._node; }
 
   bool operator !=(const event& rhs) const
   { return !(*this == rhs); }
 
 private:
 
-  bool _is_null_event;
-  detail::task_graph_node_ptr _evt;
+  rt::dag_node_ptr _node;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 {
-  if(_evt->is_done())
+  if(_node->is_complete())
     return info::event_command_status::complete;
 
-  if(_evt->is_submitted())
+  if(_node->is_submitted())
     return info::event_command_status::running;
 
   return info::event_command_status::submitted;
@@ -116,7 +115,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count)
 {
-  return _evt.use_count();
+  return _node.use_count();
 }
 
 

@@ -123,6 +123,17 @@ public:
     return cast<Hint_type>(get_hint(Hint_type::type));
   }
 
+  template <class Hint_type> bool has_hint() const {
+    return get_hint(Hint_type::type) != nullptr;
+  }
+
+  friend bool operator==(const execution_hints &a, const execution_hints &b) {
+    return a._hints == b._hints;
+  }
+
+  friend bool operator!=(const execution_hints &a, const execution_hints &b) {
+    return !(a==b);
+  }
 private:
   std::vector<execution_hint_ptr> _hints;
 };

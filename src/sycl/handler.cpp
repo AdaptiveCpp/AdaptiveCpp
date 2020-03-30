@@ -38,21 +38,6 @@ handler::handler(const queue& q, async_handler handler)
   _handler{handler}
 {}
 
-hipStream_t handler::get_hip_stream() const
-{
-  return _queue->get_hip_stream();
-}
-
-detail::stream_ptr handler::get_stream() const
-{
-  return _queue->get_stream();
-}
-
-void handler::select_device() const
-{
-  detail::set_device(this->_queue->get_device());
-}
-
 
 } // sycl
 } // hipsycl

@@ -789,10 +789,7 @@ void set_args(Ts &&... args);
 
   event _detail_get_event() const
   {
-    if(_spawned_task_nodes.empty())
-      return event{};
-
-    return event{_spawned_task_nodes.back()};
+    assert(false && "unimplemented");
   }
 
 

@@ -40,9 +40,9 @@
 #include "event.hpp"
 #include "handler.hpp"
 #include "info/info.hpp"
-#include "detail/stream.hpp"
 #include "detail/function_set.hpp"
 
+#include "hipSYCL/runtime/hints.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -122,7 +122,7 @@ public:
 
   template <typename T>
   event submit(T cgf) {
-    _stream->activate_device();
+    /*_stream->activate_device();
 
     handler cgh{*this, _handler};
 
@@ -132,15 +132,16 @@ public:
 
     event evt = cgh._detail_get_event();
 
-    return evt;
+    return evt;*/
+    return event();
   }
 
   template <typename T>
   event submit(T cgf, const queue &secondaryQueue) {
-    _stream->activate_device();
+    //_stream->activate_device();
 
     try {
-      handler cgh{*this, _handler};
+      /*handler cgh{*this, _handler};
 
       this->get_hooks()->run_all(cgh);
 
@@ -148,7 +149,7 @@ public:
 
       // We need to wait to make sure everything is fine.
       // ToDo: Check for asynchronous errors.
-      wait();
+      wait();*/
       return event();
     }
     catch(exception&) {
@@ -169,9 +170,6 @@ public:
 
   bool operator!=(const queue& rhs) const;
 
-  hipStream_t get_hip_stream() const;
-  detail::stream_ptr get_stream() const;
-
 private:
 
   void init();
@@ -181,10 +179,10 @@ private:
     return _hooks;
   }
 
-  device _device;
   async_handler _handler;
   detail::queue_submission_hooks_ptr _hooks;
 
+  rt::execution_hints _default_hints;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -199,7 +197,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, device)
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 {
-  return _stream.use_count();
+  return 1;
 }
 
 
@@ -240,10 +238,8 @@ public:
       release();
   }
 
-  bool is_required() const
-  {
-    return _is_required;
-  }
+  bool is_required() const { return _is_required; }
+  
 private:
   void acquire()
   {

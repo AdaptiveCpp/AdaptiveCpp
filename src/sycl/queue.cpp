@@ -36,7 +36,6 @@ namespace sycl {
 
 queue::queue(const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{device{}},
     _handler{[](exception_list){}}
 {
   this->init();
@@ -46,7 +45,6 @@ queue::queue(const property_list &propList)
 queue::queue(const async_handler &asyncHandler,
              const property_list &propList)
   : detail::property_carrying_object{propList},
-    _device{device{}},
     _handler{asyncHandler}
 {
   this->init();
@@ -55,59 +53,69 @@ queue::queue(const async_handler &asyncHandler,
 
 queue::queue(const device_selector &deviceSelector,
              const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()},
-    _handler{[](exception_list){}}
-{
+    : detail::property_carrying_object{propList},
+      _handler{[](exception_list) {}} {
+
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      deviceSelector.select_device()._device_id));
+
   this->init();
 }
 
 
 queue::queue(const device_selector &deviceSelector,
              const async_handler &asyncHandler, const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()},
-    _handler{asyncHandler}
-{
+    : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+  
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      deviceSelector.select_device()._device_id));
+  
   this->init();
 }
 
 
 queue::queue(const device &syclDevice, const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{syclDevice},
-    _handler{[](exception_list){}}
-{
+    : detail::property_carrying_object{propList}, _handler{
+                                                      [](exception_list) {}} {
+
+  
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      syclDevice._device_id));
+
   this->init();
 }
 
 
 queue::queue(const device &syclDevice, const async_handler &asyncHandler,
              const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{syclDevice},
-    _handler{asyncHandler}
-{
+    : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      syclDevice._device_id));
+  
   this->init();
 }
 
 
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()},
-    _handler{[](exception_list){}}
-{
+    : detail::property_carrying_object{propList}, _handler{
+                                                      [](exception_list) {}} {
+  
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      deviceSelector.select_device()._device_id));
+  
   this->init();
 }
 
 
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const async_handler &asyncHandler, const property_list &propList)
-  : detail::property_carrying_object{propList},
-    _device{deviceSelector.select_device()},
-    _handler{asyncHandler}
-{
+    : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+
+  _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+      deviceSelector.select_device()._device_id));
+  
   this->init();
 }
 
@@ -118,11 +126,16 @@ void queue::init()
 }
 
 context queue::get_context() const {
-  return context{this->_device.get_platform()};
+  return context{get_device().get_platform()};
 }
 
 device queue::get_device() const {
-  return this->_device;
+  if (_default_hints.has_hint<rt::hints::bind_to_device>()) {
+    rt::device_id id =
+        _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+    return device{id};
+  }
+  return device{};
 }
 
 
@@ -131,26 +144,21 @@ bool queue::is_host() const {
 }
 
 void queue::wait() {
-  detail::application::get_task_graph().finish(_stream);
+  assert(false && "queue::wait() is unimplemented");
 }
 
 void queue::wait_and_throw() {
-  detail::application::get_task_graph().finish(_stream);
+  this->wait();
 }
 
 void queue::throw_asynchronous() {}
 
-bool queue::operator==(const queue& rhs) const
-{ return (_device == rhs._device) && (_stream == rhs._stream); }
+bool queue::operator==(const queue &rhs) const {
+  return _default_hints == rhs._default_hints;
+}
 
 bool queue::operator!=(const queue& rhs) const
 { return !(*this == rhs); }
-
-hipStream_t queue::get_hip_stream() const
-{ return _stream->get_stream(); }
-
-detail::stream_ptr queue::get_stream() const
-{ return _stream; }
 
 }// namespace sycl
 }// namespace hipsycl

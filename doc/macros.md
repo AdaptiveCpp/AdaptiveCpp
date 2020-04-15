@@ -5,7 +5,7 @@ Most of these are managed by `detail/backend/backend.hpp`.
 
 * `__HIPSYCL__` - defined if compiling with hipSYCL
 * `HIPSYCL_PLATFORM_CUDA` - defined if compiling for CUDA
-* `HIPSYCL_PLATFORM_HCC` - defined if compiling for ROCm
+* `HIPSYCL_PLATFORM_HCC` (**deprecated**) - defined if compiling for ROCm
 * `HIPSYCL_PLATFORM_ROCM` - defined if compiling for ROCm
 * `HIPSYCL_PLATFORM_CPU` - defined if compiling purely for CPU
 * `__HIPSYCL_DEVICE__` - defined if generating code for GPU

@@ -79,10 +79,14 @@ void worker_thread::work()
   // The loop is executed as long as there are enqueued operations,
   // (_is_operation_pending) or we should wait for new operations
   // (_continue).
-  while(_continue || _enqueued_operations.size() > 0)
+  while(true)
   {
     {
       std::unique_lock<std::mutex> lock(_mutex);
+
+      // enclosing loop termination must be checked while holding
+      // a lock on _enqueued_operations (_continue is std::atomic<bool>)
+      if(!_continue && _enqueued_operations.size() <= 0) break;
 
       // Before going to sleep, wake up the other thread in case it is is waiting
       // for the queue to get empty

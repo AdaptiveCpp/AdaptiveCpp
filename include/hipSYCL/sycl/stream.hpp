@@ -118,6 +118,16 @@ inline const stream& operator<<(const stream& os, unsigned char v){
 }
 
 HIPSYCL_KERNEL_TARGET
+inline const stream& operator<<(const stream& os, short v){
+  printf("%hd", v); return os;
+}
+
+HIPSYCL_KERNEL_TARGET
+inline const stream& operator<<(const stream& os, unsigned short v){
+  printf("%hu", v); return os;
+}
+
+HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, int v){
   printf("%d", v); return os;
 }
@@ -128,13 +138,13 @@ inline const stream& operator<<(const stream& os, unsigned int v){
 }
 
 HIPSYCL_KERNEL_TARGET
-inline const stream& operator<<(const stream& os, short v){
-  printf("%hd", v); return os;
+inline const stream& operator<<(const stream& os, long v){
+  printf("%ld", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
-inline const stream& operator<<(const stream& os, unsigned short v){
-  printf("%hu", v); return os;
+inline const stream& operator<<(const stream& os, unsigned long v){
+  printf("%lu", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET

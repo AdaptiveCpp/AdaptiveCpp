@@ -62,7 +62,9 @@ stream_manager::~stream_manager()
 {
   if(_stream != 0)
   {
-    detail::check_error(hipStreamDestroy(_stream));
+    // Don't check_error() because we might end
+    // up with exceptions in the destructor..
+    auto err = hipStreamDestroy(_stream);
   }
 }
 

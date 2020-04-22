@@ -58,6 +58,7 @@
 #include "atomic.hpp"
 #include "program.hpp"
 #include "kernel.hpp"
+#include "stream.hpp"
 
 #endif
 

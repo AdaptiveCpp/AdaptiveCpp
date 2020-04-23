@@ -99,6 +99,20 @@ private:
   size_t _work_item_buff_size;
 };
 
+#if defined(HIPSYCL_PLATFORM_ROCM) && !defined(HIPSYCL_EXPERIMENTAL_ROCM_PRINTF)
+
+template<class T>
+[[deprecated("sycl::stream in hipSYCL requires backend printf() support, "
+    "printf is however still experimental in AMD ROCm when compiling with clang. "
+    "Define HIPSYCL_EXPERIMENTAL_ROCM_PRINTF to attempt to use it. Otherwise, "
+    "uses of the stream class will be transformed into no operations.")]]
+HIPSYCL_KERNEL_TARGET
+const stream& operator<<(const stream& os, T v) {
+  return os;
+}
+
+#else
+
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, stream_manipulator manip) {
   if(manip == endl)
@@ -286,6 +300,7 @@ const stream& operator<<(const stream& os, multi_ptr<ElementType, Space> v){
   return os;
 }
 
+#endif
 
 }
 }

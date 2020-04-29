@@ -157,6 +157,9 @@ class syclcc_config:
       'clang-include-path' : option("--hipsycl-clang-include-path", "HIPSYCL_CLANG_INCLUDE_PATH", "default-clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
 
+      'cpu-link-line' : option("--hipsycl-cpu-link-line", "HIPSYCL_CPU_LINK_LINE", "default-cpu-link-line",
+""" The arguments passed to the compiler to link with CPU backend libraries."""),
+
       'rocm-link-line' : option("--hipsycl-rocm-link-line", "HIPSYCL_ROCM_LINK_LINE", "default-rocm-link-line",
 """ The arguments passed to the compiler to link with ROCm libraries."""),
       
@@ -271,6 +274,9 @@ class syclcc_config:
         flag.commandline, flag.environment
     ))
 
+  def _get_cpu_substitution_vars(self):
+    return {}
+
   def _get_rocm_substitution_vars(self):
     return {
       'HIPSYCL_ROCM_PATH' : self.rocm_path,
@@ -291,10 +297,14 @@ class syclcc_config:
     template = string.Template(template_string)
     return template.substitute(substitution_dict)
 
+  def _substitute_cpu_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_cpu_substitution_vars())
+
   def _substitute_rocm_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_rocm_substitution_vars())
-      
+
   def _substitute_cuda_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_cuda_substitution_vars())
@@ -392,6 +402,11 @@ class syclcc_config:
   def hipsycl_installation_path(self):
     syclcc_path = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(syclcc_path, "..")
+
+  @property
+  def cpu_link_line(self):
+    components = self._retrieve_option("cpu-link-line").split(' ')
+    return [self._substitute_cpu_template_string(arg) for arg in components]
 
   @property
   def rocm_link_line(self):
@@ -557,7 +572,7 @@ class pure_cpu_compiler:
       
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
-    self._linker_args = []
+    self._linker_args = config.cpu_link_line
     self._compiler_args = ["-fopenmp"]
     self._compiler_args += config.common_compiler_args
     if not config.is_bootstrap:

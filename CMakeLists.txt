@@ -145,6 +145,7 @@ add_subdirectory(src)
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 
+set(CPU_LINK_LINE "" CACHE STRING "Arguments passed to compiler to link CPU backend libraries to SYCL applications")
 set(ROCM_LINK_LINE "-rpath $HIPSYCL_ROCM_LIB_PATH -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lhsa-runtime64 -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
 set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 
@@ -159,6 +160,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
+  \"default-cpu-link-line\" : \"${CPU_LINK_LINE}\",
   \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
   \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\"
 }

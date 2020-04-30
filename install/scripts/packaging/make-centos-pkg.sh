@@ -5,10 +5,10 @@ set -e
 
 . ./common/init.sh
 
-BUILD_BASE=${BUILD_BASE:-ON}
-BUILD_HIPSYCL=${BUILD_HIPSYCL:-ON}
-BUILD_ROCM=${BUILD_ROCM:-ON}
-BUILD_CUDA=${BUILD_CUDA:-OFF}
+HIPSYCL_PKG_BUILD_BASE=${HIPSYCL_PKG_BUILD_BASE:-ON}
+HIPSYCL_PKG_BUILD_HIPSYCL=${HIPSYCL_PKG_BUILD_HIPSYCL:-ON}
+HIPSYCL_PKG_BUILD_ROCM=${HIPSYCL_PKG_BUILD_ROCM:-ON}
+HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
 
 RPM_ROOT=${BUILD_DIR}/rpm
 mkdir -p ${RPM_ROOT}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
@@ -114,18 +114,18 @@ EOF
 
 cd ${RPM_ROOT}/SPECS
 
-if [ "$BUILD_HIPSYCL" = "ON"  ]; then
+if [ "$HIPSYCL_PKG_BUILD_HIPSYCL" = "ON"  ]; then
 rpmbuild -bb hipSYCL.spec
 fi
 
-if [ "$BUILD_BASE" = "ON"  ]; then
+if [ "$HIPSYCL_PKG_BUILD_BASE" = "ON"  ]; then
 rpmbuild -bb hipSYCL-base.spec
 fi
 
-if [ "$BUILD_ROCM" = "ON"  ]; then
+if [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON"  ]; then
 rpmbuild -bb hipSYCL-rocm.spec
 fi
 
-if [ "$BUILD_CUDA" = "ON"  ]; then
+if [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON"  ]; then
 rpmbuild -D '%_python_bytecompile_errors_terminate_build 0' -bb hipSYCL-cuda.spec
 fi

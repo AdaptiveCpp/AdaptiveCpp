@@ -16,9 +16,9 @@ yum install -y numactl-devel numactl-libs pciutils-devel pciutils-libs  wget per
 source /opt/rh/devtoolset-7/enable
 # required for aomp build
 yum install -y gawk pkgconfig python34 rsync
-sh /install-cuda.sh
+bash /install-cuda.sh
 export HIPSYCL_BASE_CC=gcc
 export HIPSYCL_BASE_CXX=g++
-sh /install-llvm.sh
-sh /install-rocm.sh
+bash /install-llvm.sh
+bash /install-rocm.sh
 #sh /install-hipsycl.sh

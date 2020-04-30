@@ -1,11 +1,30 @@
+#!/bin/bash
+HIPSYCL_PKG_LLVM_VERSION_MAJOR=${HIPSYCL_PKG_LLVM_VERSION_MAJOR:-9}
+HIPSYCL_PKG_LLVM_VERSION_MINOR=${HIPSYCL_PKG_LLVM_VERSION_MINOR:-0}
+HIPSYCL_PKG_LLVM_VERSION_PATCH=${HIPSYCL_PKG_LLVM_VERSION_PATCH:-1}
+HIPSYCL_PKG_LLVM_REPO_BRANCH=${HIPSYCL_PKG_LLVM_REPO_BRANCH:-release/${HIPSYCL_PKG_LLVM_VERSION_MAJOR}.x}
+
+HIPSYCL_PKG_LLVM_VERSION=${HIPSYCL_PKG_LLVM_VERSION_MAJOR}.${HIPSYCL_PKG_LLVM_VERSION_MINOR}.${HIPSYCL_PKG_LLVM_VERSION_PATCH}
+
+
+HIPSYCL_PKG_LLVM_REPO_BRANCH=${HIPSYCL_PKG_LLVM_REPO_BRANCH:-release/9.x}
 export INSTALL_PREFIX=${INSTALL_PREFIX:-/opt/hipSYCL}
 
 set -e
 BUILD_DIR=$HOME/git/llvm-vanilla
 rm -rf $BUILD_DIR
 
-#git clone -b release/9.x https://github.com/llvm/llvm-project $BUILD_DIR
-git clone -b release/10.x https://github.com/llvm/llvm-project $BUILD_DIR
+echo "Cloning LLVM $HIPSYCL_PKG_LLVM_REPO_BRANCH"
+git clone -b $HIPSYCL_PKG_LLVM_REPO_BRANCH https://github.com/llvm/llvm-project $BUILD_DIR
+
+case $HIPSYCL_PKG_LLVM_VERSION in
+	9.0.1)
+		echo "Applying patch on $HIPSYCL_PKG_LLVM_VERSION"
+		sed -i 's/CHECK_SIZE_AND_OFFSET(ipc_perm, mode);//g' $BUILD_DIR/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cc
+		;;
+esac
+
+
 export CC=${HIPSYCL_BASE_CC:-clang}
 export CXX=${HIPSYCL_BASE_CXX:-clang++}
 export BUILD_TYPE=Release

@@ -275,7 +275,10 @@ class syclcc_config:
     ))
 
   def _get_cpu_substitution_vars(self):
-    return {}
+    return {
+      'HIPSYCL_PATH' : self.hipsycl_installation_path,
+      'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
+    }
 
   def _get_rocm_substitution_vars(self):
     return {

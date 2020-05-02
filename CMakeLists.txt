@@ -131,6 +131,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(SYCLCC_BOOTSTRAP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc-bootstrap.json")
 set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
 set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
   "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
@@ -149,24 +150,32 @@ set(CPU_LINK_LINE "" CACHE STRING "Arguments passed to compiler to link CPU back
 set(ROCM_LINK_LINE "-rpath $HIPSYCL_ROCM_LIB_PATH -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lhsa-runtime64 -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
 set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 
-
-set(SYCLCC_CONFIG_FILE "{
-  \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
-  \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-  \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
-  \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
-  \"default-rocm-path\" : \"${ROCM_PATH}\",
+set(SYCLCC_CONFIG_FILE_TEMPLATE "{
+  \"default-clang\"     : \"@CLANG_EXECUTABLE_PATH@\",
+  \"default-platform\"  : \"@DEFAULT_PLATFORM@\",
+  \"default-cuda-path\" : \"@CUDA_TOOLKIT_ROOT_DIR@\",
+  \"default-gpu-arch\"  : \"@DEFAULT_GPU_ARCH@\",
+  \"default-cpu-cxx\"   : \"@CMAKE_CXX_COMPILER@\",
+  \"default-rocm-path\" : \"@ROCM_PATH@\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
-  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
-  \"default-cpu-link-line\" : \"${CPU_LINK_LINE}\",
-  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\"
+  \"default-clang-include-path\" : \"@CLANG_INCLUDE_PATH@\",
+  \"default-cpu-link-line\" : \"@HIPSYCL_CPU_LINK_LINE@ @CPU_LINK_LINE@\",
+  \"default-rocm-link-line\" : \"@HIPSYCL_ROCM_LINK_LINE@ @ROCM_LINK_LINE@\",
+  \"default-cuda-link-line\" : \"@HIPSYCL_CUDA_LINK_LINE@ @CUDA_LINK_LINE@\"
 }
 ")
 
-file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
+# 1. bootstrap config file, to be used during hipSYCL build only
+string(CONFIGURE ${SYCLCC_CONFIG_FILE_TEMPLATE} SYCLCC_CONFIG_FILE_CONTENT @ONLY)
+file(WRITE ${SYCLCC_BOOTSTRAP_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE_CONTENT})
+# 2. production config file, to be used in deployment only
+set(HIPSYCL_COMMON_LINK_LINE "-rpath \$HIPSYCL_LIB_PATH -L \$HIPSYCL_LIB_PATH")
+set(HIPSYCL_CPU_LINK_LINE "${HIPSYCL_COMMON_LINK_LINE} -lhipSYCL_cpu")
+set(HIPSYCL_ROCM_LINK_LINE "${HIPSYCL_COMMON_LINK_LINE} -lhipSYCL_rocm")
+set(HIPSYCL_CUDA_LINK_LINE "${HIPSYCL_COMMON_LINK_LINE} -lhipSYCL_cuda")
+string(CONFIGURE ${SYCLCC_CONFIG_FILE_TEMPLATE} SYCLCC_CONFIG_FILE_CONTENT @ONLY)
+file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE_CONTENT})
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")

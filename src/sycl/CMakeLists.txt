@@ -20,7 +20,7 @@ set(INCLUDE_DIRS
   ${HIPSYCL_SOURCE_DIR}/include
   ${HIPSYCL_SOURCE_DIR})
 
-set(COMMON_SYCLCC_OPTIONS --hipsycl-bootstrap --hipsycl-config-file=${SYCLCC_CONFIG_FILE_PATH})
+set(COMMON_SYCLCC_OPTIONS --hipsycl-bootstrap --hipsycl-config-file=${SYCLCC_BOOTSTRAP_CONFIG_FILE_PATH})
 
 # Specify GPU architectures used when compiling libhipSYCL. 
 # They do not really matter as libhipSYCL does not

@@ -491,11 +491,6 @@ class clang_plugin_compiler:
       self._compiler_args = []
       # In non-bootstrap mode, automatically link hipSYCL
       if not config.is_bootstrap:
-        self._linker_args += [
-          "-rpath", hipsycl_library_path,
-          "-L"+hipsycl_library_path,
-          "-lhipSYCL_cuda"
-        ]
         self._compiler_args += [
           # Use the bundled HIP installation
           "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
@@ -509,16 +504,7 @@ class clang_plugin_compiler:
       self._target = "hip"
       
       self._linker_args = config.rocm_link_line
-
-      # In non-bootstrap mode, automatically link hipSYCL
-      if not config.is_bootstrap:
-        self._linker_args += [
-          "-rpath", hipsycl_library_path,
-          "-L"+hipsycl_library_path,
-          "-lhipSYCL_rocm"
-        ]
-      
-      
+            
       self._compiler_args = [
         "-x", "hip",
         "--cuda-gpu-arch=" + config.target_arch,
@@ -572,20 +558,11 @@ class pure_cpu_compiler:
     except:
       # if not, fall back to clang
       self._compiler = config.clang_path
-      
-    hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
-
+    
     self._linker_args = config.cpu_link_line
     self._compiler_args = ["-fopenmp"]
     self._compiler_args += config.common_compiler_args
     if not config.is_bootstrap:
-      self._linker_args += [
-        "-L"+hipsycl_library_path,
-        "-lhipSYCL_cpu"
-      ]
-      if "clang" in os.path.basename(self._compiler):
-        self._linker_args += ["-rpath",hipsycl_library_path]
-
       self._compiler_args += [
         "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
         "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")

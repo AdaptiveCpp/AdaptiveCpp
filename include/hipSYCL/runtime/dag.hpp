@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <ostream>
 
 #include "hints.hpp"
 #include "operations.hpp"
@@ -75,6 +76,8 @@ public:
   bool contains_node(dag_node_ptr node) const;
 
   void for_each_node(std::function<void(dag_node_ptr)> handler) const;
+
+  void dump(std::ostream& ostr) const;
 private:
   void commit_dependencies(const std::vector<dag_node_ptr>& nodes);
   bool is_requirement_from_this_dag(const dag_node_ptr& node) const;

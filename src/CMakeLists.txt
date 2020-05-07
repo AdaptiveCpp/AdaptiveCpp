@@ -21,6 +21,7 @@ set(HIPSYCL_SOURCES
   sycl/accessor.cpp
   sycl/async_worker.cpp
   sycl/local_memory.cpp
+  sycl/serialization/serialization.cpp
   runtime/application.cpp
   runtime/backend.cpp
   runtime/hints.cpp
@@ -43,7 +44,8 @@ set(HIPSYCL_SOURCES
   runtime/hip/hip_queue.cpp
   runtime/hip/hip_allocator.cpp
   runtime/hip/hip_device_manager.cpp
-  runtime/hw_model/memcpy.cpp)
+  runtime/hw_model/memcpy.cpp
+  runtime/serialization/serialization.cpp)
 
 
 

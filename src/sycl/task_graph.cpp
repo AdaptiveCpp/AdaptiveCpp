@@ -84,16 +84,33 @@ void task_done_callback(hipStream_t stream,
 task_graph_node::task_graph_node(task_functor tf,
                                  const vector_class<task_graph_node_ptr>& requirements,
                                  stream_ptr stream,
+                                 bool enable_profiling,
                                  async_handler error_handler,
                                  task_graph* tgraph)
   : _submitted{false},
     _task_done{false},
+    _enable_profiling(enable_profiling),
     _tf{tf},
     _requirements{requirements},
     _stream{stream},
     _handler{error_handler},
     _parent_graph{tgraph}
-{}
+{
+  if (enable_profiling)
+  {
+    detail::check_error(hipEventCreate(&_profile_start_event));
+    detail::check_error(hipEventCreate(&_profile_stop_event));
+  }
+}
+
+task_graph_node::~task_graph_node()
+{
+  if (_enable_profiling)
+  {
+    detail::check_error(hipEventDestroy(_profile_start_event));
+    detail::check_error(hipEventDestroy(_profile_stop_event));
+  }
+}
 
 async_handler
 task_graph_node::get_error_handler() const
@@ -134,7 +151,15 @@ task_graph_node::submit()
                        << this << std::endl;
 
     _stream->activate_device();
+    if (_enable_profiling)
+    {
+      detail::check_error(hipEventRecord(_profile_start_event, _stream->get_stream()));
+    }
     task_state state = _tf();
+    if (_enable_profiling)
+    {
+      detail::check_error(hipEventRecord(_profile_stop_event, _stream->get_stream()));
+    }
 
     // Remove unnecessary dependencies to allow task graph nodes
     // to be destroyed.
@@ -245,6 +270,29 @@ task_graph_node::are_requirements_on_same_stream() const
   return true;
 }
 
+template <info::event_profiling param>
+uint64_t task_graph_node::get_profiling_info()
+{
+  if (!_enable_profiling) {
+    throw invalid_object_error("queue was not constructed with enable_profiling property");
+  }
+
+  wait();
+
+  if (param == info::event_profiling::command_end) {
+    detail::check_error(hipEventSynchronize(_profile_stop_event));
+    float time_ms;
+    detail::check_error(hipEventElapsedTime(&time_ms, _profile_start_event, _profile_stop_event));
+    return static_cast<unsigned long>(std::lrint(time_ms * 1e6));
+  } else {
+    return 0;
+  }
+}
+
+template uint64_t task_graph_node::get_profiling_info<info::event_profiling::command_submit>();
+template uint64_t task_graph_node::get_profiling_info<info::event_profiling::command_start>();
+template uint64_t task_graph_node::get_profiling_info<info::event_profiling::command_end>();
+
 const vector_class<task_graph_node_ptr>&
 task_graph_node::get_requirements() const
 {
@@ -270,11 +318,13 @@ task_graph_node_ptr
 task_graph::insert(task_functor tf,
                    const vector_class<task_graph_node_ptr>& requirements,
                    detail::stream_ptr stream,
+                   bool enable_profiling,
                    async_handler handler)
 {
   task_graph_node_ptr node = std::make_shared<task_graph_node>(tf,
                                                                requirements,
                                                                stream,
+                                                               enable_profiling,
                                                                handler,
                                                                this);
 

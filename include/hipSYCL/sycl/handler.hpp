@@ -1442,26 +1442,7 @@ private:
       << task_node << " for buffer " << buff << std::endl;
   }
 
-  detail::task_graph_node_ptr submit_task(detail::task_functor f)
-  {
-    auto& task_graph = detail::application::get_task_graph();
-
-    auto graph_node =
-        task_graph.insert(f, _spawned_task_nodes, get_stream(), _handler);
-
-    // Add new node to the access log of buffers. This guarantees that
-    // subsequent buffer accesses will wait for existing tasks to complete,
-    // if necessary
-    for(const auto& buffer_access : _accessed_buffers)
-    {
-      buffer_access.buff->register_external_access(
-            graph_node,
-            buffer_access.access_mode);
-    }
-
-    _spawned_task_nodes.push_back(graph_node);
-    return graph_node;
-  }
+  detail::task_graph_node_ptr submit_task(detail::task_functor f);
 
   detail::accessor_id request_accessor_id(detail::buffer_ptr buff)
   {

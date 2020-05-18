@@ -60,8 +60,14 @@ public:
   task_graph_node(task_functor tf,
                   const vector_class<task_graph_node_ptr>& requirements,
                   stream_ptr stream,
+                  bool enable_profiling,
                   async_handler error_handler,
                   task_graph* tgraph);
+
+  task_graph_node(const task_graph_node &) = delete;
+  task_graph_node &operator=(const task_graph_node &) = delete;
+
+  ~task_graph_node();
 
   void wait();
   bool is_submitted() const;
@@ -73,6 +79,9 @@ public:
   bool is_done() const;
   bool is_ready() const;
   bool are_requirements_on_same_stream() const;
+
+  template <info::event_profiling param>
+  uint64_t get_profiling_info();
 
   void submit();
 
@@ -91,6 +100,10 @@ private:
   std::atomic<bool> _submitted;
   std::atomic<bool> _task_done;
 
+  bool _enable_profiling;
+  hipEvent_t _profile_start_event;
+  hipEvent_t _profile_stop_event;
+
   task_functor _tf;
   vector_class<task_graph_node_ptr> _requirements;
   spin_lock _requirements_lock; // prevent _requirements from being cleared while iterated over
@@ -99,6 +112,8 @@ private:
   async_handler _handler;
 
   task_graph* _parent_graph;
+
+  uint64_t elapsed_time_ns() const;
 };
 
 class task_graph
@@ -107,6 +122,7 @@ public:
   task_graph_node_ptr insert(task_functor tf,
                              const vector_class<task_graph_node_ptr>& requirements,
                              detail::stream_ptr stream,
+                             bool enable_profiling,
                              async_handler handler);
 
   void finish();

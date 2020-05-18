@@ -89,7 +89,9 @@ public:
 
   template <info::event_profiling param>
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
-  { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
+  {
+    return _evt->get_profiling_info<param>();
+  }
 
   bool operator ==(const event& rhs) const
   { return _evt == rhs._evt; }

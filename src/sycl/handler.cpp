@@ -53,6 +53,27 @@ void handler::select_device() const
   detail::set_device(this->_queue->get_device());
 }
 
+detail::task_graph_node_ptr handler::submit_task(detail::task_functor f)
+{
+  auto& task_graph = detail::application::get_task_graph();
+
+  bool enable_profiling = _queue->has_property<property::queue::enable_profiling>();
+  auto graph_node =
+      task_graph.insert(f, _spawned_task_nodes, get_stream(), enable_profiling, _handler);
+
+  // Add new node to the access log of buffers. This guarantees that
+  // subsequent buffer accesses will wait for existing tasks to complete,
+  // if necessary
+  for(const auto& buffer_access : _accessed_buffers)
+  {
+    buffer_access.buff->register_external_access(
+        graph_node,
+        buffer_access.access_mode);
+  }
+
+  _spawned_task_nodes.push_back(graph_node);
+  return graph_node;
+}
 
 } // sycl
 } // hipsycl

@@ -283,9 +283,11 @@ void buffer_impl::perform_writeback(detail::stream_ptr stream)
 
         };
 
+        // task_graph_node does not become visible to the user, so profiling is irrelevant
         node = tg.insert(task,
                          dependencies,
                          stream,
+                         false /* enable_profiling */,
                          stream->get_error_handler());
         // Write-back is logically always a read operation since
         // it is executed at buffer destruction when the buffer cannot
@@ -471,7 +473,9 @@ buffer_impl::access_host(detail::buffer_ptr buff,
           stream->get_stream());
   };
 
-  task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);
+  // task_graph_node does not become visible to the user, so profiling is irrelevant
+  task_graph_node_ptr node = tg.insert(task, dependencies, stream,
+      false /* enable_profiling */, error_handler);
   buff->_dependency_manager.add_operation(node, m);
 
   return node;
@@ -496,7 +500,9 @@ buffer_impl::access_device(detail::buffer_ptr buff,
 
   };
 
-  task_graph_node_ptr node = tg.insert(task, dependencies, stream, error_handler);
+  // task_graph_node does not become visible to the user, so profiling is irrelevant
+  task_graph_node_ptr node = tg.insert(task, dependencies, stream,
+                                       false /* enable_profiling */, error_handler);
   buff->_dependency_manager.add_operation(node, m);
 
   return node;

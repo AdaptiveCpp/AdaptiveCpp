@@ -1295,4 +1295,42 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
 
 #endif
 
+BOOST_AUTO_TEST_CASE(profiling) {
+  constexpr size_t num_threads = 128;
+
+  cl::sycl::queue non_profiling_queue;
+  cl::sycl::buffer<int, 1> non_profiling_buf{cl::sycl::range<1>(num_threads)};
+  auto event = non_profiling_queue.submit([&](cl::sycl::handler& cgh) {
+    auto acc = non_profiling_buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+    cgh.parallel_for<class profiling_off>(cl::sycl::range<1>(num_threads),
+      [=](cl::sycl::item<1> tid) {
+        acc[tid] = tid[0];
+      });
+  });
+
+  BOOST_CHECK_THROW(event.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
+      cl::sycl::invalid_object_error);
+  BOOST_CHECK_THROW(event.get_profiling_info<cl::sycl::info::event_profiling::command_start>(),
+      cl::sycl::invalid_object_error);
+  BOOST_CHECK_THROW(event.get_profiling_info<cl::sycl::info::event_profiling::command_end>(),
+      cl::sycl::invalid_object_error);
+
+  cl::sycl::queue profiling_queue(cl::sycl::property_list{
+    cl::sycl::property::queue::enable_profiling{}});
+  cl::sycl::buffer<int, 1> profiling_buf{cl::sycl::range<1>(num_threads)};
+  auto event2 = profiling_queue.submit([&](cl::sycl::handler& cgh) {
+    auto acc = profiling_buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+    cgh.parallel_for<class profiling_on>(cl::sycl::range<1>(num_threads),
+      [=](cl::sycl::item<1> tid) {
+        acc[tid] = tid[0];
+      });
+  });
+
+  event2.get_profiling_info<cl::sycl::info::event_profiling::command_submit>();
+  auto start = event2.get_profiling_info<cl::sycl::info::event_profiling::command_start>();
+  auto end = event2.get_profiling_info<cl::sycl::info::event_profiling::command_end>();
+  // Scheduling overhead should always yield times > 0 ns
+  BOOST_TEST(end > start);
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

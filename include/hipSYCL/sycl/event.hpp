@@ -87,6 +87,11 @@ public:
   template <info::event param>
   typename info::param_traits<info::event, param>::return_type get_info() const;
 
+  /// Partially implemented, as HIP/CUDA do not expose the same event timing functionality as
+  /// OpenCL. For event_profiling::command_submit and event_profiling::command_start, this always
+  /// returns 0. For event_profiling::command_end, returns the kernel run-time in nanoseconds.
+  /// The difference between command_start and command_end should be enough for basic kernel
+  /// profiling.
   template <info::event_profiling param>
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
   {

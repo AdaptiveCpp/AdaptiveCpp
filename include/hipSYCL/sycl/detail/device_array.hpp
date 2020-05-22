@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_DEVICE_ARRAY_HPP
 #define HIPSYCL_DEVICE_ARRAY_HPP
 
-#include <array>
 #include <type_traits>
 #include "../backend/backend.hpp"
 
@@ -41,45 +40,6 @@ struct device_array
 {
   using iterator = T*;
   using const_iterator = const T*;
-
-#ifdef HIPSYCL_PLATFORM_HCC
-  // There seem to be problems with aggregate initialization with hcc?
-  template<size_t n = N,
-           std::enable_if_t<n == 1>* = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  explicit device_array(T x)
-    : _data{x}
-  {}
-
-  template<size_t n = N,
-           std::enable_if_t<n == 2>* = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  device_array(T x, T y)
-    : _data{x,y}
-  {}
-
-  template<size_t n = N,
-           std::enable_if_t<n == 3>* = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  device_array(T x, T y, T z)
-    : _data{x,y,z}
-  {}
-
-  HIPSYCL_UNIVERSAL_TARGET
-  device_array()
-    : _data{}
-  {}
-
-#endif
-
-
-  HIPSYCL_UNIVERSAL_TARGET
-  device_array& operator=(const device_array& other) noexcept
-  {
-    for(size_t i = 0; i < N; ++i)
-      _data[i] = other._data[i];
-    return *this;
-  }
 
   HIPSYCL_UNIVERSAL_TARGET
   T& operator[] (size_t i) noexcept
@@ -144,14 +104,8 @@ struct device_array
 template<class T>
 struct device_array<T, 0>
 {
-
   using iterator = T*;
   using const_iterator = const T*;
-
-
-  HIPSYCL_UNIVERSAL_TARGET
-  device_array& operator=(const device_array&) noexcept
-  {}
 
   HIPSYCL_UNIVERSAL_TARGET
   size_t size() const noexcept

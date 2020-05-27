@@ -32,8 +32,8 @@
 #include <memory>
 
 namespace hipsycl {
-namespace sycl {
-namespace detail {
+namespace common {
+namespace shim {
 
 #ifdef _LIBCPP_VERSION
 // libc++ has std::reinterpret_pointer_cast since version 11000

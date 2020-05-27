@@ -44,7 +44,7 @@
 #include "range.hpp"
 
 #include "detail/buffer.hpp"
-#include "detail/reinterpret_pointer_cast.hpp"
+#include "../common/reinterpret_pointer_cast.hpp"
 
 #include "accessor.hpp"
 
@@ -363,8 +363,8 @@ private:
     detail::property_carrying_object::operator=(other);
     this->_alloc = other._alloc;
     this->_range = other._range;
-    this->_writeback_buffer = detail::reinterpret_pointer_cast<T>(other._writeback_buffer);
-    this->_shared_host_data = detail::reinterpret_pointer_cast<T>(other._shared_host_data);
+    this->_writeback_buffer = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._writeback_buffer);
+    this->_shared_host_data = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._shared_host_data);
     this->_cleanup_trigger = other._cleanup_trigger;
     this->_buffer = other._buffer;
   }

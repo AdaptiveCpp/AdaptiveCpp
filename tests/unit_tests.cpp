@@ -612,7 +612,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
   namespace s = cl::sycl;
-  constexpr auto d = _dimensions::value;
+  // Specify type explicitly to workaround Clang bug #45538
+  constexpr int d = _dimensions::value;
 
   const auto test_range = make_test_value<s::range, d>(
     { 5 }, { 5, 7 }, { 5, 7, 11 });
@@ -851,7 +852,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
   explicit_copy_test_dimensions::type) {
   namespace s = cl::sycl;
-  constexpr auto d = _dimensions::value;
+  // Specify type explicitly to workaround Clang bug #45538
+  constexpr int d = _dimensions::value;
 
   const auto buf_size = make_test_value<s::range, d>(
     { 64 }, { 64, 96 }, { 64, 96, 48 });

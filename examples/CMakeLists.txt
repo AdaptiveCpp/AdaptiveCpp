@@ -1,10 +1,21 @@
 project(hipsycl-examples)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/../cmake)
-
-find_package(hipSYCL CONFIG REQUIRED)
-
-if(NOT CMAKE_BUILD_TYPE)
+if(HIPSYCL_INSTALL_DIR)
+  # We make sure that we don't override an already set hipSYCL_DIR variable
+  if (hipSYCL_DIR)
+    message(FATAL_ERROR "Please only use HIPSYCL_INSTALL_DIR or hipSYCL_DIR")
+  endif() 
+  set(hipSYCL_DIR ${HIPSYCL_INSTALL_DIR}/lib/cmake)
+  # We don't set the PATHS var here since we don't want to find something other than the user intends to.
+  find_package(hipSYCL CONFIG REQUIRED)
+else()
+  # The user might have set hipSYCL_DIR or some other var manually,
+  # therefore we first try to find hipSYCL with default settings 
+  find_package(hipSYCL CONFIG)
+  # If found in the previous step nothing will be searched here
+  find_package(hipSYCL CONFIG PATHS /opt/hipSYCL/lib/cmake/ REQUIRED)
+endif()
+message(STATUS "Found hipSYCL in ${hipSYCL_DIR}")if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 

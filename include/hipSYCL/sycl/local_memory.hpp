@@ -46,7 +46,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   local_memory(group<Dim>&) {}
 
-  template<class t = Scalar_type, 
+  template<class t = scalar_type, 
           std::enable_if_t<std::is_array<T>::value>* = nullptr>
   HIPSYCL_KERNEL_TARGET
   scalar_type& operator[](std::size_t index) noexcept{

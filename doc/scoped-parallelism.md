@@ -79,7 +79,7 @@ int main(){
       }
       
       grp.single_item([&](){
-        data_accessor[grp.get_id(0)] = scratch[0];
+        data_accessor[grp.get_id(0)*Group_size] = scratch[0];
       });
     });
   });
@@ -92,7 +92,7 @@ int main(){
     for(int i = grp * Group_size; i < (grp+1) * Group_size; ++i)
       host_result += i;
     
-    if(host_result != host_acc[grp])
+    if(host_result != host_acc[grp*Group_size])
       std::cout << "Wrong result, got " << host_acc[grp * Group_size] << ", expected " << host_result << std::endl;
   }
 }

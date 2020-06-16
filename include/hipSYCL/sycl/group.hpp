@@ -37,6 +37,8 @@
 #include "multi_ptr.hpp"
 #include "h_item.hpp"
 #include "detail/mem_fence.hpp"
+#include "sub_group.hpp"
+#include "sp_item.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -246,6 +248,63 @@ struct group
   {
     parallel_for_work_item<vendor::hipsycl::synchronization::local_barrier>(
       flexibleRange, func);
+  }
+
+  template<typename distributeForFunctionT>
+  HIPSYCL_KERNEL_TARGET
+  void distribute_for(distributeForFunctionT f) const {
+
+    auto make_sp_item = [this](sycl::id<dimensions> local_id){
+      return detail::make_sp_item(
+            local_id, get_id(), 
+            get_local_range(), get_group_range());
+    };
+
+#ifdef SYCL_DEVICE_ONLY
+    sub_group sg;
+    f(sg, make_sp_item(detail::get_local_id<dimensions>()));
+    __syncthreads();
+#else
+    if constexpr(dimensions==1){
+#pragma omp simd
+      for(std::size_t i = 0; i < _local_range[0]; ++i){
+        sub_group sg;
+        f(sg, make_sp_item(sycl::id<1>{i}));
+      }
+    }
+    else if constexpr(dimensions==2){
+      for(std::size_t i = 0; i < _local_range[0]; ++i){
+#pragma omp simd
+        for(std::size_t j = 0; j < _local_range[1]; ++j){
+          sub_group sg;
+          f(sg, make_sp_item(sycl::id<2>{i,j}));
+        }
+      }
+    }
+    else if constexpr(dimensions==3){
+      for(std::size_t i = 0; i < _local_range[0]; ++i){
+        for(std::size_t j = 0; j < _local_range[1]; ++j){
+#pragma omp simd
+          for(std::size_t k = 0; k < _local_range[2]; ++k){
+            sub_group sg;
+            f(sg, make_sp_item(sycl::id<3>{i,j,k}));
+          }
+        }
+      }
+    }
+    
+#endif
+  }
+
+  template<class Function>
+  HIPSYCL_KERNEL_TARGET
+  void single_item(Function f) {
+#ifdef SYCL_DEVICE_ONLY
+    if(hipThreadIdx_x == 0)
+      f();
+#else
+    f();
+#endif
   }
 
 

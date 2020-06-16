@@ -32,7 +32,7 @@
 
 #if (defined(__clang__) && defined(__HIP__)) || (defined(__clang__) && defined(__CUDA__))
 
-#define __sycl_kernel __attribute__((diagnose_if(false,"hipsycl_kernel","warning"))) 
+#define __sycl_kernel __attribute__((diagnose_if(false,"hipsycl_kernel","warning")))
 
 
 // We need these calls for configuring CUDA kernel calls - on AMD there's a similar function

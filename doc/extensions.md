@@ -105,3 +105,9 @@ The following 'finalizers' are supported:
 * `cl::sycl::vendor::hipsycl::synchronization::local_mem_fence` - same as `mem_fence<access::fence_space::local_space>`
 * `cl::sycl::vendor::hipsycl::synchronization::global_mem_fence` - same as `mem_fence<access::fence_space::global_space>`
 * `cl::sycl::vendor::hipsycl::synchronization::global_and_local_mem_fence` - same as `mem_fence<access::fence_space::global_and_local>`
+
+
+### `HIPSYCL_EXT_SCOPED_PARALLELISM`
+This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
+See [scoped-parallelism.md](here) for more details.
+

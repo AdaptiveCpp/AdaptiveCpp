@@ -251,6 +251,15 @@ public:
     return true;
   }
   
+  bool VisitDecl(clang::Decl* D){
+    if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(D)){
+      if(isLocalMemory(V))
+        // Maybe we should additionally check that this is in kernels?
+        storeVariableInLocalMemory(V);
+    }
+    return true;
+  }
+
   bool VisitFunctionDecl(clang::FunctionDecl *f) {
     if(!f)
       return true;
@@ -494,6 +503,15 @@ private:
     return false;
   }
 
+  bool isLocalMemory(const clang::VarDecl* V) const
+  {
+    const clang::CXXRecordDecl* R = V->getType()->getAsCXXRecordDecl();
+    if(R)
+      return R->getQualifiedNameAsString() == "hipsycl::sycl::local_memory";
+  
+    return false;
+  }
+
   ///
   /// Marks all variable declarations within a given block statement as shared memory,
   /// unless they are explicitly declared as a private memory type.
@@ -514,19 +532,7 @@ private:
           if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(*decl))
           {
             if(!isPrivateMemory(V))
-            {
-              HIPSYCL_DEBUG_INFO
-                  << "AST Processing: Marking variable "
-                  << V->getNameAsString()
-                  << " as __shared__ in "
-                  << F->getAsFunction()->getQualifiedNameAsString()
-                  << std::endl;
-              if (!V->hasAttr<clang::CUDASharedAttr>()) {
-                V->addAttr(clang::CUDASharedAttr::CreateImplicit(
-                    Instance.getASTContext()));
-                V->setStorageClass(clang::SC_Static);
-              }
-            }
+              storeVariableInLocalMemory(V);
           }
         }
       }
@@ -537,6 +543,19 @@ private:
     }
   }
   
+  void storeVariableInLocalMemory(clang::VarDecl* V) const {
+    HIPSYCL_DEBUG_INFO
+                  << "AST Processing: Marking variable "
+                  << V->getNameAsString()
+                  << " as __shared__"
+                  << std::endl;
+
+    if (!V->hasAttr<clang::CUDASharedAttr>()) {
+      V->addAttr(clang::CUDASharedAttr::CreateImplicit(
+          Instance.getASTContext()));
+      V->setStorageClass(clang::SC_Static);
+    }
+  }
 
   std::string getMangledName(clang::FunctionDecl* decl)
   {

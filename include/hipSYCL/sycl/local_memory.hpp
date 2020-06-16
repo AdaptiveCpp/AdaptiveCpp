@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,15 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
+#ifndef HIPSYCL_LOCAL_MEMORY_HPP
+#define HIPSYCL_LOCAL_MEMORY_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
-#endif
+#include <type_traits>
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM
+#include "backend/backend.hpp"
+#include "group.hpp"
+
+namespace hipsycl {
+namespace sycl {
+
+template<class T>
+class local_memory
+{
+public:
+  using scalar_type = typename std::remove_extent<T>::type;
+
+  template<int Dim>
+  HIPSYCL_KERNEL_TARGET
+  local_memory(group<Dim>&) {}
+
+  template<class t = scalar_type, 
+          std::enable_if_t<std::is_array<T>::value>* = nullptr>
+  HIPSYCL_KERNEL_TARGET
+  scalar_type& operator[](std::size_t index) noexcept{
+    return _var[index];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()() noexcept{
+    return _var;
+  }
+private:
+  // It is not possible to just mark this member as __shared__
+  // here (at least for HIP/CUDA), because member variables
+  // cannot be declared in local memory. The clang plugin
+  // therefore finds all declarations of type local_memory<T>
+  // and puts them in local memory.
+  T _var;
+};
+
+}
+}
 
 #endif

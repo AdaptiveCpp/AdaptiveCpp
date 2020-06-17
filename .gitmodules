@@ -3,4 +3,4 @@
 	url = https://github.com/ROCm-Developer-Tools/HIP
 [submodule "contrib/hipCPU"]
 	path = contrib/hipCPU
-	url = https://github.com/fknorr/hipCPU
+	url = https://github.com/illuhad/hipCPU

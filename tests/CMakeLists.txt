@@ -2,14 +2,10 @@ project(hipsycl-tests)
 cmake_minimum_required(VERSION 3.5)
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+find_package(hipSYCL REQUIRED)
+message(STATUS "Using hipSYCL installation in ${hipSYCL_DIR}")
 
-find_program(SYCLCC NAMES syclcc-clang CACHE STRING)
-if(SYCLCC MATCHES SYCLCC-NOTFOUND)
-  message(SEND_ERROR "hipSYCL syclcc-clang compiler not found, exiting.")
-  return()
-endif()
-
-set(CMAKE_CXX_COMPILER ${SYCLCC})
+set(CMAKE_CXX_COMPILER ${HIPSYCL_SYCLCC})
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)

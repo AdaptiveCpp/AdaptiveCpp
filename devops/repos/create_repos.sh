@@ -5,6 +5,8 @@ SINGULARITY_BASE_DIR=${SINGULARITY_BASE_DIR:-./containers}
 HIPSYCL_PKG_REPO_BASE_DIR=${HIPSYCL_PKG_REPO_BASE_DIR:-/data/repos}
 HIPSYCL_PKG_SCRIPT_DIR=${HIPSYCL_PKG_SCRIPT_DIR:-./scripts}
 
+mkdir -p $HIPSYCL_PKG_REPO_BASE_DIR
+
 sudo singularity exec -B $HIPSYCL_PKG_REPO_BASE_DIR:/data/repos/ \
      $SINGULARITY_BASE_DIR/centos-7.sif sh $HIPSYCL_PKG_SCRIPT_DIR/create_centos_repo.sh
 

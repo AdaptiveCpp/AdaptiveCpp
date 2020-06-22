@@ -15,7 +15,7 @@ ln -s /usr/bin/cmake3 /usr/bin/cmake
 yum install -y numactl-devel numactl-libs pciutils-devel pciutils-libs  wget perl perl-Data-Dumper perl-Data-Dumper-*  gcc-c++ git devtoolset-7 rpm-build rpmdevtools elfutils-libelf-devel
 source /opt/rh/devtoolset-7/enable
 # required for aomp build
-yum install -y gawk pkgconfig python34 rsync
+yum install -y gawk pkgconfig python34 python3 rsync mesa-libGL-devel
 bash /install-cuda.sh
 export HIPSYCL_BASE_CC=gcc
 export HIPSYCL_BASE_CXX=g++

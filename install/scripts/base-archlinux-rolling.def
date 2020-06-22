@@ -9,7 +9,7 @@ cp ./install-llvm.sh ${SINGULARITY_ROOTFS}/install-llvm.sh
 
 %post
 pacman -Syu --noconfirm
-pacman -S --noconfirm numactl pciutils libelf wget perl base-devel git cmake clang
+pacman -S --noconfirm numactl pciutils libelf wget perl base-devel git cmake clang libglvnd
 # required for aomp build
 pacman -S --noconfirm  gawk pkg-config python3 rsync
 bash /install-cuda.sh

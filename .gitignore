@@ -36,3 +36,12 @@ build/
 *.exe
 *.out
 *.app
+
+# Packages
+*.deb
+*.pkg.tar.xz
+*.pkg.tar.xz.sig
+*.rpm
+
+# Singulrity
+*.sif

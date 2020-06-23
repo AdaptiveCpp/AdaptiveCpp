@@ -171,12 +171,52 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
+  size_t get_global_range(int dimension) const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_global_size<dimensions>(dimension);
+#else
+    return this->_num_groups[dimension] * this->_local_range[dimension];
+#endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_size<dimensions>();
 #else
     return this->_local_range;
+#endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_range(int dimension) const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_local_size<dimensions>(dimension);
+#else
+    return this->_local_range[dimension];
+#endif
+  }
+  
+  HIPSYCL_KERNEL_TARGET
+  range<dimensions> get_group_range() const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_grid_size<dimensions>();
+#else
+    return this->_num_groups;
+#endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range<dimensions> get_group_range(int dimension) const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::get_grid_size<dimensions>(dimension);
+#else
+    return this->_num_groups[dimension];
 #endif
   }
 

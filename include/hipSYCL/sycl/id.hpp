@@ -80,11 +80,6 @@ struct id {
   /* -- common interface members -- */
 
   HIPSYCL_UNIVERSAL_TARGET
-  id(const id<dimensions>& other)
-    : _data{other._data}
-  {}
-
-  HIPSYCL_UNIVERSAL_TARGET
   bool operator==(const id<dimensions>& rhs) const {
     return _data == rhs._data;
   }

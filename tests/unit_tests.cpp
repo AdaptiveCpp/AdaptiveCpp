@@ -612,7 +612,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
   namespace s = cl::sycl;
-  constexpr auto d = _dimensions::value;
+  // Specify type explicitly to workaround Clang bug #45538
+  constexpr int d = _dimensions::value;
 
   const auto test_range = make_test_value<s::range, d>(
     { 5 }, { 5, 7 }, { 5, 7, 11 });
@@ -851,7 +852,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
   explicit_copy_test_dimensions::type) {
   namespace s = cl::sycl;
-  constexpr auto d = _dimensions::value;
+  // Specify type explicitly to workaround Clang bug #45538
+  constexpr int d = _dimensions::value;
 
   const auto buf_size = make_test_value<s::range, d>(
     { 64 }, { 64, 96 }, { 64, 96, 48 });
@@ -1240,6 +1242,57 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
     BOOST_TEST(host_buf[i] == 2*i);
   }
 }
+#endif
+#ifdef HIPSYCL_EXT_SCOPED_PARALLELISM
+BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
+  namespace s = cl::sycl;
+  s::queue q;
+  
+  std::size_t input_size = 256;
+  std::vector<int> input(input_size);
+  for(int i = 0; i < input.size(); ++i)
+    input[i] = i;
+  
+  s::buffer<int> buff{input.data(), s::range<1>{input_size}};
+  
+  constexpr size_t Group_size = 64;
+  
+  q.submit([&](s::handler& cgh){
+    auto data_accessor = buff.get_access<s::access::mode::read_write>(cgh);
+    cgh.parallel<class Kernel>(s::range<1>{input_size / Group_size}, s::range<1>{Group_size}, 
+    [=](s::group<1> grp, s::physical_item<1> phys_idx){
+      s::local_memory<int [Group_size]> scratch{grp};
+      
+      grp.distribute_for([&](s::sub_group sg, s::logical_item<1> idx){
+          scratch[idx.get_local_id(0)] = data_accessor[idx.get_global_id(0)];
+      });
+
+      for(int i = Group_size / 2; i > 0; i /= 2){
+        grp.distribute_for([&](s::sub_group sg, s::logical_item<1> idx){
+          size_t lid = idx.get_local_id(0);
+          if(lid < i)
+            scratch[lid] += scratch[lid+i];
+        });
+      }
+      
+      grp.single_item([&](){
+        data_accessor[grp.get_id(0)*Group_size] = scratch[0];
+      });
+    });
+  });
+  
+  auto host_acc = buff.get_access<s::access::mode::read>();
+  
+  for(int grp = 0; grp < input_size/Group_size; ++grp){
+    int host_result = 0;
+    for(int i = grp * Group_size; i < (grp+1) * Group_size; ++i)
+      host_result += i;
+    
+    BOOST_TEST(host_result == host_acc[grp * Group_size]);
+  }
+}
+
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

@@ -62,7 +62,7 @@ void application::reset()
   const auto devices = device::get_devices(info::device_type::all);
   for(auto& d : devices) {
     detail::set_device(d);
-    hipDeviceReset();
+    detail::check_error(hipDeviceReset());
   }
 #endif
 }

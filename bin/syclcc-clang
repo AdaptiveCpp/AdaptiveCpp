@@ -147,7 +147,9 @@ class syclcc_config:
 """  The path to the ROCm installation directory"""),
 
       'gpu-arch': option("--hipsycl-gpu-arch", "HIPSYCL_GPU_ARCH", "default-gpu-arch",
-"""  The GPU architecture that should be targeted when compiling for GPUs."""),
+"""  The GPU architecture that should be targeted when compiling for GPUs.
+    For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
+    For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
@@ -250,7 +252,6 @@ class syclcc_config:
         v == "false"):
       return False
     return True
-      
 
   def _is_flag_set(self, flag_name):
     flag = self._flags[flag_name]
@@ -419,7 +420,15 @@ class syclcc_config:
   
   @property
   def common_compiler_args(self):
-      return self._common_compiler_args
+    return self._common_compiler_args
+  
+  def has_optimization_flag(self):
+    for arg in self._forwarded_args:
+      if arg.startswith("-O"):
+        ending = arg.replace("-O", "", 1)
+        if ending.isnumeric() or ending in ["s", "fast", "g"]:
+          return True
+    return False
   
   def contains_linking_stage(self):
     for arg in self.forwarded_compiler_arguments:
@@ -441,7 +450,7 @@ class syclcc_config:
 
 def run_or_print(command, print_only):
   if not print_only:
-      return subprocess.call(command)
+    return subprocess.call(command)
   else:
     print(' '.join(command))
     return 0
@@ -603,6 +612,12 @@ if __name__ == '__main__':
         sys.exit(0)
 
     platform = config.target_platform
+    if not config.is_pure_linking_stage():
+      if not config.has_optimization_flag():
+        print("syclcc warning: No optimization flag was given, optimizations are "
+              "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
+              "enable optimizations.")
+
     if platform == hipsycl_platform.CUDA or platform == hipsycl_platform.HIP:
       compiler = clang_plugin_compiler(config)
       sys.exit(compiler.run())

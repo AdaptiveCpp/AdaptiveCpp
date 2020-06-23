@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,15 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
+#ifndef HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+#define HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+
+#include <memory>
+
+namespace hipsycl {
+namespace common {
+namespace shim {
+
+#ifdef _LIBCPP_VERSION
+// libc++ has std::reinterpret_pointer_cast since version 11000
+#if _LIBCPP_VERSION < 11000
+template< class T, class U > 
+std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U>& r) noexcept {
+    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type*>(r.get());
+    return std::shared_ptr<T>(r, p);
+}
+#else
+using std::reinterpret_pointer_cast;
+#endif
+#else
+// libstdc++ has std::reinterpret_pointer_cast in c++17 mode
+using std::reinterpret_pointer_cast;
 #endif
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM
+}
+}
+}
 
 #endif
+

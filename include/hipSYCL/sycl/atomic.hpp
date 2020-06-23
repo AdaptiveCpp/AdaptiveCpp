@@ -117,7 +117,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_add(t operand, memory_order memoryOrder =
+  T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -125,7 +125,7 @@ public:
     return atomicAdd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_add_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_add(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -136,7 +136,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_sub(t operand, memory_order memoryOrder =
+  T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -144,7 +144,7 @@ public:
     return atomicSub(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_sub_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_sub(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -155,7 +155,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_and(t operand, memory_order memoryOrder =
+  T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -163,7 +163,7 @@ public:
     return atomicAnd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_and_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_and(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -174,7 +174,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_or(t operand, memory_order memoryOrder =
+  T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -182,7 +182,7 @@ public:
     return atomicOr(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_or_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_or(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -193,7 +193,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_xor(t operand, memory_order memoryOrder =
+  T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -201,7 +201,7 @@ public:
     return atomicXor(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_xor_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_xor(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -212,7 +212,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_min(t operand, memory_order memoryOrder =
+  T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__
@@ -235,7 +235,7 @@ public:
   template<class t = T,
            HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(t)>
   HIPSYCL_KERNEL_TARGET
-  t fetch_max(t operand, memory_order memoryOrder =
+  T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
 #ifdef __HIPSYCL_DEVICE_CALLABLE__

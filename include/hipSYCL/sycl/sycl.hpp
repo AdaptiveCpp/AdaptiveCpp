@@ -49,7 +49,9 @@
 #include "multi_ptr.hpp"
 #include "group.hpp"
 #include "h_item.hpp"
+#include "sp_item.hpp"
 #include "private_memory.hpp"
+#include "local_memory.hpp"
 #include "vec.hpp"
 #include "builtin.hpp"
 #include "math.hpp"
@@ -58,6 +60,8 @@
 #include "atomic.hpp"
 #include "program.hpp"
 #include "kernel.hpp"
+#include "stream.hpp"
+#include "sub_group.hpp"
 
 #endif
 

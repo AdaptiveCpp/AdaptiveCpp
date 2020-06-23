@@ -45,7 +45,8 @@ enum class kernel_type {
   single_task,
   basic_parallel_for,
   ndrange_parallel_for,
-  hierarchical_parallel_for
+  hierarchical_parallel_for,
+  scoped_parallel_for
 };
 
 class backend_kernel_launcher
@@ -79,6 +80,7 @@ public:
       }
     }
     assert(false && "Could not find kernel launcher for the specified backend");
+    return nullptr; // Make compiler happy and prevent warnings
   }
 
 private:

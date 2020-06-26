@@ -50,21 +50,9 @@ public:
   template<class Handler>
   void for_each_requirement(const dag_node_ptr& node, Handler h) const
   {
-    std::size_t node_id = get_node_id(node);
-
-    const dag_expander_annotation &node_annotation =
-        _expansion->node_annotations(node_id);
-
-    if(node_annotation.is_optimized_away())
-      return;
-
-    if(node_annotation.is_node_forwarded()) {
-      for_each_requirement(node_annotation.get_forwarding_target(), h);
-    }
-    else {
-      for(dag_node_ptr req : _effective_requirements[node_id])
-        h(req);
-    }
+    assert(node->has_node_id());
+    for(auto req : _effective_requirements[node->get_node_id()])
+      h(req);
   }
 
   /// After dag_expansion, a node may be optimized away or may have been
@@ -108,16 +96,6 @@ public:
     });
   }
 
-  template <class Handler>
-  void for_each_recursive_requirement(dag_node_ptr node,
-                                      Handler should_descend) const {
-    for_each_requirement(node, [&](dag_node_ptr req){
-      if(should_descend(req)){
-        for_each_recursive_requirement(req, should_descend);
-      }
-    });
-  }
-
   bool is_node_optimized_away(const dag_node_ptr& node) const;
   bool is_node_forwarded(const dag_node_ptr& node) const;
 private:
@@ -126,6 +104,45 @@ private:
   const dag* _dag;
   const dag_expansion_result* _expansion;
   std::vector<std::vector<dag_node_ptr>> _effective_requirements;
+
+  template<class Handler>
+  void for_each_requirement_nonunique(const dag_node_ptr& node, Handler h) const
+  {
+    // if the node has already been submitted, it should not
+    // be necessary to obtain its effective dependencies.
+    // e.g. it will already have at least a multi event that allows
+    // waiting for its completion, even if it was optimized away.
+    if(node->is_submitted()) {
+      h(node);
+      return;
+    }
+
+    std::size_t node_id = get_node_id(node);
+
+    const dag_expander_annotation &node_annotation =
+        _expansion->node_annotations(node_id);
+
+    // If the node is forwarded, operate on the requirements of the for-
+    // warding target.
+    if(node_annotation.is_node_forwarded()) {
+      for_each_requirement_nonunique(node_annotation.get_forwarding_target(), h);
+    }
+    // otherwise, if this node is optimized away
+    // or we are on a physical operation node, process
+    // the requirements of the node
+    else {
+      for(dag_node_ptr req : _effective_requirements[node_id]){
+        // If the requirement does not correspond to an operation,
+        // recursively process the requirements
+        if(req->is_submitted())
+          h(req);
+        else if(is_node_optimized_away(req) || is_node_forwarded(req))
+          for_each_requirement_nonunique(req, h);
+        else
+          h(req);
+      }
+    }
+  }
 };
 
 }

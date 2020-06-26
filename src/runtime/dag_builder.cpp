@@ -30,6 +30,7 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
 #include "hipSYCL/sycl/exception.hpp"
+#include <mutex>
 
 
 namespace hipsycl {
@@ -49,6 +50,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
                                      const requirements_list& requirements,
                                      const execution_hints& hints)
 {
+  assert(op);
   // Start with global hints for this dag builder
   execution_hints operation_hints = _hints;
   // merge in any hints specific to this operation,
@@ -57,41 +59,53 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
 
   // Calculate additional requirements:
   // Iterate over all requirements and look for conflicting accesses
+
   for(auto node : requirements.get()){
-    auto* req = cast<requirement>(node->get_operation());
+    // Make sure to also add the requirements of the operation to the DAG
+    _current_dag.add(node);
+  }
 
-    if(req->is_memory_requirement()){
-      auto* mem_req = cast<memory_requirement>(req);
+  // For a given requirement, checks for conflicts and adds any
+  // conflicting operations as dependencies
+  auto add_conflicts_as_requirements = [&](dag_node_ptr req_node){
+    if(req_node->get_operation()->is_requirement()){
+      auto* req = cast<requirement>(req_node->get_operation());
 
-      // Make sure to also add the requirements of the operation to the DAG
-      _current_dag.add_memory_requirement(node);
+      if(req->is_memory_requirement()){
+        auto* mem_req = cast<memory_requirement>(req);
 
-      if(mem_req->is_image_requirement())
-        assert(false && "dag_builder: Image requirements are unimplemented");
-      else {
-        auto* buff_req = cast<buffer_memory_requirement>(req);
+        if(mem_req->is_image_requirement())
+          assert(false && "dag_builder: Image requirements are unimplemented");
+        else {
+          auto* buff_req = cast<buffer_memory_requirement>(req);
 
-        data_user_tracker& user_tracker = buff_req->get_data_region()->get_users();
+          data_user_tracker& user_tracker = buff_req->get_data_region()->get_users();
 
-        for(auto user = user_tracker.users_begin(); 
-            user != user_tracker.users_end(); 
-            ++user) 
-        {
-          
-          if(is_conflicting_access(mem_req, *user))
+          for(auto user = user_tracker.users_begin(); 
+              user != user_tracker.users_end(); 
+              ++user) 
           {
-            // No reason to take a dependency into account that is alreay completed
-            if(!user->user->is_complete())
-              node->add_requirement(user->user);
+            if(is_conflicting_access(mem_req, *user))
+            {
+              // No reason to take a dependency into account that is alreay completed
+              if(!user->user->is_complete())
+                req_node->add_requirement(user->user);
+            }
           }
         }
       }
     }
-  }
+  };
 
   auto operation_node = std::make_shared<dag_node>(
       operation_hints, requirements.get(), std::move(op));
+  
+  if(operation_node->get_operation()->is_requirement())
+    add_conflicts_as_requirements(operation_node);
 
+  for(auto node : operation_node->get_requirements())
+    add_conflicts_as_requirements(node);
+  
   return operation_node;
 }
 
@@ -148,6 +162,18 @@ dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
   
   auto node = this->build_node(std::move(op), requirements, hints);
   _current_dag.add_prefetch(node);
+
+  return node;
+}
+
+dag_node_ptr dag_builder::add_explicit_mem_requirement(
+    std::unique_ptr<memory_requirement> req,
+    const requirements_list &requirements, const execution_hints &hints)
+{
+  std::lock_guard<std::mutex> lock{_mutex};
+
+  auto node = this->build_node(std::move(req), requirements, hints);
+  _current_dag.add_memory_requirement(node);
 
   return node;
 }

@@ -28,6 +28,7 @@
 
 #include <cassert>
 
+#include "hipSYCL/runtime/dag_expander.hpp"
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 
@@ -70,8 +71,8 @@ dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
     const dag_expander_annotation &node_annotation =
         _expansion->node_annotations(node_id);
 
-    // If this is a forwarded node, add the requirements to
-    // the forwarding target node
+    // If this is a forwarded node, add the requirements additionally
+    // to the forwarding target node
     if(node_annotation.is_node_forwarded()){
       std::size_t forwarded_id =
           get_node_id(node_annotation.get_forwarding_target());
@@ -81,11 +82,24 @@ dag_interpreter::dag_interpreter(const dag *d, const dag_enumerator *enumerator,
                                     this->_effective_requirements[forwarded_id]);
       
     }
-    else {
-      add_requirements_from_node_to(node,
-                                    *_expansion,
-                                    this->_effective_requirements[node_id]);
-    }
+    
+    add_requirements_from_node_to(node,
+                                  *_expansion,
+                                  this->_effective_requirements[node_id]);
+  
+  });
+
+  // Remove duplicate effective requirements
+  d->for_each_node([this](dag_node_ptr node) {
+    std::vector<dag_node_ptr> unique_reqs;
+
+    this->for_each_requirement_nonunique(node, [&](dag_node_ptr req) {
+      if (std::find(unique_reqs.begin(), unique_reqs.end(), req) ==
+          unique_reqs.end())
+        unique_reqs.push_back(req);
+    });
+    
+    this->_effective_requirements[node->get_node_id()] = unique_reqs;
   });
 }
 

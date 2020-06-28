@@ -1,0 +1,22 @@
+name: Ubuntu build
+
+on: [push, pull_request]
+
+jobs:
+  build_gcc:
+    name: GCC [Linux]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: install dependencies
+      run: |
+        sudo apt-get -qqq update
+        sudo apt-get install libboost-dev libclang-9-dev llvm-9-dev python3
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake ..
+        make -j 2
+

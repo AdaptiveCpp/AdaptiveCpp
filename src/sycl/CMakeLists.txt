@@ -74,10 +74,12 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 if(WITH_CPU_BACKEND)
+  find_package(OpenMP REQUIRED)
   add_library(hipSYCL_cpu SHARED ${HIPSYCL_SOURCES})
   target_compile_definitions(hipSYCL_cpu PRIVATE HIPSYCL_BOOTSTRAP=1)
   target_compile_options(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
-  target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS} ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
+  target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS} ${OpenMP_CXX_INCLUDE_DIRS} ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
+
   target_link_libraries(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
   install(TARGETS hipSYCL_cpu
           EXPORT install_exports

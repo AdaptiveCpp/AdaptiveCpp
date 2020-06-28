@@ -1,0 +1,28 @@
+name: macOS build
+
+on: [push, pull_request]
+
+jobs:
+  build_appleclang:
+    name: AppleClang [macOS]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: install dependencies
+      run: |
+        set +e
+        brew update
+        brew install cmake
+        brew install libomp
+        brew install llvm
+        set -e
+    - name: build
+      run: |
+        mkdir build && cd build
+        BREW_LLVM=/usr/local/Cellar/llvm/10.0.0_3
+        ls /usr/local/Cellar/llvm/10.0.0_3/bin
+        cmake .. -DLLVM_DIR=$BREW_LLVM/lib/cmake/llvm -DCLANG_EXECUTABLE_PATH=$BREW_LLVM/bin/clang++
+        make VERBOSE=ON
+

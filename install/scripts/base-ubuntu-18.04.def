@@ -2,6 +2,7 @@ BootStrap: docker
 From: ubuntu:18.04
 
 %setup
+cp ./install-cmake.sh ${SINGULARITY_ROOTFS}/install-cmake.sh
 cp ./install-rocm.sh ${SINGULARITY_ROOTFS}/install-rocm.sh
 cp ./install-cuda.sh ${SINGULARITY_ROOTFS}/install-cuda.sh 
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
@@ -9,9 +10,10 @@ cp ./install-llvm.sh ${SINGULARITY_ROOTFS}/install-llvm.sh
 
 %post
 apt update
-apt install -y libnuma-dev libpci-dev libelf-dev wget perl perl-modules gcc g++ git cmake clang
+apt install -y libnuma-dev libpci-dev libelf-dev wget perl perl-modules gcc g++ git clang
 # required for aomp build
 apt install -y iputils-ping gawk pkg-config python3 rsync
+bash /install-cmake.sh
 bash /install-cuda.sh
 bash /install-llvm.sh
 bash /install-rocm.sh

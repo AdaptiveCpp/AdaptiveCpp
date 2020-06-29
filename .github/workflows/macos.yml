@@ -22,7 +22,6 @@ jobs:
       run: |
         mkdir build && cd build
         BREW_LLVM=/usr/local/Cellar/llvm/10.0.0_3
-        ls /usr/local/Cellar/llvm/10.0.0_3/bin
         cmake .. -DLLVM_DIR=$BREW_LLVM/lib/cmake/llvm -DCLANG_EXECUTABLE_PATH=$BREW_LLVM/bin/clang++
-        make VERBOSE=ON
+        make -j 2 VERBOSE=ON
 

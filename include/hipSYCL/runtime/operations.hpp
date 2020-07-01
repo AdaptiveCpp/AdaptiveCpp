@@ -476,6 +476,7 @@ std::unique_ptr<operation> make_operation(Args... args)
   return std::make_unique<T>(args...);
 }
 
+
 class requirements_list
 {
 public:

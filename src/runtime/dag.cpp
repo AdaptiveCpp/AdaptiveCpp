@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/dag.hpp"
 
@@ -65,6 +67,21 @@ void dag::add_prefetch(dag_node_ptr prefetch)
 void dag::add_memory_requirement(dag_node_ptr requirement)
 {
   _memory_requirements.push_back(requirement);
+}
+
+void dag::add(dag_node_ptr node)
+{
+  assert(node->get_operation());
+  if(dynamic_is<memory_requirement>(node->get_operation()))
+    add_memory_requirement(node);
+  else if(dynamic_is<prefetch_operation>(node->get_operation()))
+    add_prefetch(node);
+  else if(dynamic_is<kernel_operation>(node->get_operation()))
+    add_kernel(node);
+  else if(dynamic_is<memcpy_operation>(node->get_operation()))
+    add_memcpy(node);
+  else
+    assert(false && "Unknown operation");
 }
 
 const std::vector<dag_node_ptr>& 

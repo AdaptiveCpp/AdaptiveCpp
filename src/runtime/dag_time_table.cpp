@@ -130,7 +130,6 @@ get_node_start_date(const dag_interpreter &interpreter,
     // when submitting them?
     return 0.0;
   } else {
-
     if (time_ranges[node_id].start == -1.0) {
       double max_end_date = 0.0;
       interpreter.for_each_requirement(node, [&](dag_node_ptr req) {

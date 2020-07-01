@@ -125,7 +125,7 @@ int main()
   auto forces_buffer =
       sycl::buffer<vector_type, 1>{sycl::range<1>{particles.size()}};
 
-  sycl::gpu_selector selector;
+  sycl::default_selector selector;
   sycl::queue q{selector};
 
   auto execution_range = sycl::nd_range<1>{
@@ -151,8 +151,8 @@ int main()
 
       cgh.parallel_for<class force_calculation_kernel>(execution_range,
                                                        [=](sycl::nd_item<1> tid){
-        const size_t global_id = tid.get_global(0);
-        const size_t local_id = tid.get_local(0);
+        const size_t global_id = tid.get_global_id().get(0);
+        const size_t local_id = tid.get_local_id().get(0);
         const size_t num_particles = particles_access.get_range()[0];
         vector_type force{0.0f};
 
@@ -174,7 +174,7 @@ int main()
             const vector_type R = p_direction - my_particle.swizzle<0,1,2>();
             // dot is not yet implemented
             const arithmetic_type r_inv =
-                sycl::native::rsqrt(R.x()*R.x() + R.y()*R.y() + R.z()*R.z()
+                sycl::rsqrt(R.x()*R.x() + R.y()*R.y() + R.z()*R.z()
                                     + gravitational_softening);
 
             // Actually we just calculate the acceleration, not the
@@ -203,7 +203,7 @@ int main()
 
       cgh.parallel_for<class integration_kernel>(execution_range,
                                                 [=](sycl::nd_item<1> tid){
-        const size_t global_id = tid.get_global(0);
+        const size_t global_id = tid.get_global_id().get(0);
         const size_t num_particles = particles_access.get_range().get(0);
 
         if(global_id < num_particles)

@@ -39,6 +39,8 @@
 #include "id.hpp"
 #include "version.hpp"
 
+#include "hipSYCL/runtime/device_id.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -46,15 +48,13 @@ class device_selector;
 class platform;
 class device;
 
-namespace detail {
-void set_device(const device& d);
-}
 
-class device
-{
-  friend void detail::set_device(const device&);
+
+class device {
+  friend class queue;
 public:
-
+  device(rt::device_id id)
+      : _device_id{id} {}
   /// Since we do not support host execution, this will actually
   /// try to use the first GPU. Note: SYCL spec requires that
   /// this should actually create a device object for host execution.
@@ -62,14 +62,9 @@ public:
   /// \todo Should this call throw an error instead of behaving differently
   /// than the spec requires?
   device()
-    : _device_id{0}
-  {}
-
-#ifdef HIPSYCL_HIP_INTEROP
-  device(int hipDeviceId)
-    : _device_id{hipDeviceId}
-  {}
-#endif
+      : _device_id(rt::backend_descriptor(rt::hardware_platform::cpu,
+                                          rt::api_platform::openmp_cpu),
+                   0) {}
 
   // OpenCL interop is not supported
   // explicit device(cl_device_id deviceId);
@@ -81,30 +76,26 @@ public:
 
   bool is_host() const 
   {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return true;
-#else
-    return false;
-#endif
+    return is_cpu();
   }
 
   bool is_cpu() const
   {
-    return !is_gpu();
+    return _device_id.get_full_backend_descriptor().hw_platform ==
+           rt::hardware_platform::cpu;
   }
 
   bool is_gpu() const
   {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return false;
-#else
-    return true; 
-#endif
+    return _device_id.get_full_backend_descriptor().hw_platform ==
+               rt::hardware_platform::cuda ||
+           _device_id.get_full_backend_descriptor().hw_platform ==
+               rt::hardware_platform::rocm;
   }
 
   bool is_accelerator() const 
   {
-    return is_gpu(); 
+    return !is_cpu();
   }
 
   platform get_platform() const;
@@ -154,18 +145,13 @@ public:
 
   static int get_num_devices();
 
-
-#ifdef HIPSYCL_HIP_INTEROP
-  int get_device_id() const;
-#endif
-
   bool operator ==(const device& rhs) const
   { return rhs._device_id == _device_id; }
 
-  bool operator !=(const device& rhs) const
-  { return !(*this == rhs); }
+  bool operator!=(const device &rhs) const { return !(*this == rhs); }
+  
 private:
-  int _device_id;
+  rt::device_id _device_id;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, device_type)
@@ -178,7 +164,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_int>(props.multiProcessorCount);
 }
 
@@ -188,7 +174,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return id<3>{
     static_cast<size_t>(props.maxThreadsDim[0]),
     static_cast<size_t>(props.maxThreadsDim[1]),
@@ -199,7 +185,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<size_t>(props.maxThreadsPerBlock);
 }
 
@@ -237,7 +223,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_short)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_clock_frequency)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_int>(props.clockRate / 1000);
 }
 
@@ -248,7 +234,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_mem_alloc_size)
 {
   // return global memory size for now
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_long>(props.totalGlobalMem);
 }
 
@@ -344,7 +330,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, double_fp_config)
 HIPSYCL_SPECIALIZE_GET_INFO(device, name)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return string_class{props.name};
 }
 
@@ -360,21 +346,21 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_line_size)
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_size)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_long>(props.l2CacheSize);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_size)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_long>(props.totalGlobalMem);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_buffer_size)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_long>(props.totalConstMem);
 }
 
@@ -387,7 +373,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_type)
 HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_size)
 {
   hipDeviceProp_t props;
-  detail::check_error(hipGetDeviceProperties(&props, _device_id));
+  detail::check_error(hipGetDeviceProperties(&props, _device_id.get_id()));
   return static_cast<detail::u_long>(props.sharedMemPerBlock);
 }
 

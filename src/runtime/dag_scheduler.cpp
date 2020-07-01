@@ -25,11 +25,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <vector>
 #include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/generic/multi_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -172,18 +175,6 @@ void assign_execution_lanes(const dag_interpreter& d, scheduling_state& s)
 
 void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
 {
-  std::unordered_map<dag_node_ptr, std::unordered_set<dag_node_ptr>>
-      full_recursive_requirements;
-
-  d.for_each_effective_node([&](dag_node_ptr node) {
-    d.for_each_recursive_requirement(node, [&](dag_node_ptr req) -> bool {
-
-      full_recursive_requirements[node].insert(req);
-
-      return !req->is_submitted();
-    });
-  });
-
   d.for_each_effective_node([&](dag_node_ptr node) {
     assert(node->has_node_id());
     std::size_t node_id = node->get_node_id();
@@ -194,58 +185,46 @@ void insert_synchronization_ops(const dag_interpreter& d, scheduling_state& s)
       synchronized_reqs.push_back(req);
     });
 
-    for(std::size_t i = 0; i < synchronized_reqs.size(); ++i){
-      for(std::size_t j = 0; j < synchronized_reqs.size(); ++j){
-        if(i != j) {
-          auto& reqs_of_current = full_recursive_requirements[synchronized_reqs[i]];
-          if(reqs_of_current.find(synchronized_reqs[j]) != reqs_of_current.end())
-            synchronized_reqs[i] = nullptr;
-        }
-      }
-    }
-
     for(dag_node_ptr req : synchronized_reqs){
-      if(req) {
-        auto full_reqs = full_recursive_requirements.find(node);
-        assert(full_reqs != full_recursive_requirements.end());
+      assert(req);
+    
+      std::size_t req_id = req->get_node_id();
 
-        std::size_t req_id = req->get_node_id();
+      node_scheduling_annotation &node_annotations =
+          s.scheduling_annotations[node_id];
+      node_scheduling_annotation &req_annotations =
+          s.scheduling_annotations[req_id];
 
-        node_scheduling_annotation &node_annotations =
-            s.scheduling_annotations[node_id];
-        node_scheduling_annotation &req_annotations =
-            s.scheduling_annotations[req_id];
+      backend_executor* executor = node_annotations.get_executor();
+      backend_executor* req_executor = req_annotations.get_executor();
 
-        backend_executor* executor = node_annotations.get_executor();
-        backend_executor* req_executor = req_annotations.get_executor();
+      if (executor == req_annotations.get_executor()) {
+        if(node_annotations.get_execution_lane() ==
+          req_annotations.get_execution_lane()) {
 
-        if (executor == req_annotations.get_executor()) {
-          if(node_annotations.get_execution_lane() ==
-            req_annotations.get_execution_lane()) {
-
-            node_annotations.add_synchronization_op(
-                executor->create_wait_for_node_same_lane(node, node_annotations,
-                                                        req, req_annotations));
-          }
-          else {
-            node_annotations.add_synchronization_op(
-                executor->create_wait_for_node_same_backend(
-                    node, node_annotations, req, req_annotations));
-          }
-        } else if (node_annotations.get_target_device().get_backend() ==
-                  req_annotations.get_target_device().get_backend()) {
           node_annotations.add_synchronization_op(
-              executor->create_wait_for_node_same_backend(node, node_annotations,
-                                                          req, req_annotations));
-        } else {
-          // Snychronization between different backends always requires inserting
-          // an event after the node that we wait for.
-          req_annotations.insert_event_after_if_missing(req_executor->create_event_after(req));
-          node_annotations.add_synchronization_op(
-              executor->create_wait_for_external_node(node, node_annotations, req,
-                                                      req_annotations));
+              executor->create_wait_for_node_same_lane(node, node_annotations,
+                                                      req, req_annotations));
         }
+        else {
+          node_annotations.add_synchronization_op(
+              executor->create_wait_for_node_same_backend(
+                  node, node_annotations, req, req_annotations));
+        }
+      } else if (node_annotations.get_target_device().get_backend() ==
+                req_annotations.get_target_device().get_backend()) {
+        node_annotations.add_synchronization_op(
+            executor->create_wait_for_node_same_backend(node, node_annotations,
+                                                        req, req_annotations));
+      } else {
+        // Snychronization between different backends always requires inserting
+        // an event after the node that we wait for.
+        req_annotations.insert_event_after_if_missing(req_executor->create_event_after(req));
+        node_annotations.add_synchronization_op(
+            executor->create_wait_for_external_node(node, node_annotations, req,
+                                                    req_annotations));
       }
+    
     }
   });
 }
@@ -503,6 +482,25 @@ void dag_scheduler::submit(dag* d)
   // submitted
   interpreter.for_each_effective_node([&](dag_node_ptr node) {
     assert(node->is_submitted());
+  });
+
+  // Create virtual events for requirements in case user wants to wait
+  // explicitly for requirements
+  d->for_each_node([&](dag_node_ptr node){
+    if(!node->get_event()) {
+      // All nodes that have events should have been submitted
+      assert(!node->is_submitted());
+
+      // Create virtual events if there are no events yet
+      std::vector<std::shared_ptr<dag_node_event>> effective_requirements;
+      interpreter.for_each_requirement(node, [&](dag_node_ptr req){
+        effective_requirements.push_back(req->get_event());
+      });
+
+      node->mark_submitted(std::make_shared<dag_multi_node_event>(effective_requirements));
+
+      assert(node->get_event() != nullptr);
+    }
   });
 }
 

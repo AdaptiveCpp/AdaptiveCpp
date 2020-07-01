@@ -60,6 +60,20 @@ struct backend_descriptor
   api_platform sw_platform;
   hardware_platform hw_platform;
 
+  backend_descriptor() = default;
+  backend_descriptor(hardware_platform hw_plat, api_platform sw_plat)
+      : hw_platform{hw_plat}, sw_platform{sw_plat} {
+
+    if (hw_plat == hardware_platform::cpu &&
+        sw_plat == api_platform::openmp_cpu)
+      id = backend_id::openmp_cpu;
+    else if (sw_plat == api_platform::hip)
+      id = backend_id::hip;
+    else
+      assert(false && "Invalid combination of hardware/software platform for "
+                      "backend descriptor.");
+  }
+
   friend bool operator==(const backend_descriptor &a,
                          const backend_descriptor &b) {
     return a.id == b.id;

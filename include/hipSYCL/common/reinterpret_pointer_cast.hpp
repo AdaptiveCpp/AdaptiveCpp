@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,70 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_KERNEL_LAUNCHER_HPP
 
-#include <vector>
+#ifndef HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+#define HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+
 #include <memory>
 
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
-
-
-
-#include "backend.hpp"
-
 namespace hipsycl {
-namespace rt {
+namespace common {
+namespace shim {
 
-enum class kernel_type {
-  single_task,
-  basic_parallel_for,
-  ndrange_parallel_for,
-  hierarchical_parallel_for,
-  scoped_parallel_for
-};
+#ifdef _LIBCPP_VERSION
+// libc++ has std::reinterpret_pointer_cast since version 11000
+#if _LIBCPP_VERSION < 11000
+template< class T, class U > 
+std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U>& r) noexcept {
+    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type*>(r.get());
+    return std::shared_ptr<T>(r, p);
+}
+#else
+using std::reinterpret_pointer_cast;
+#endif
+#else
+// libstdc++ has std::reinterpret_pointer_cast in c++17 mode
+using std::reinterpret_pointer_cast;
+#endif
 
-class backend_kernel_launcher
-{
-public:
-  virtual ~backend_kernel_launcher(){}
-
-  virtual backend_id get_backend() const = 0;
-  virtual kernel_type get_kernel_type() const = 0;
-  virtual void invoke() = 0;
-};
-
-class kernel_launcher
-{
-public:
-  kernel_launcher(
-      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels)
-  : _kernels{std::move(kernels)}
-  {}
-
-  kernel_launcher(const kernel_launcher &) = delete;
-
-  void invoke(backend_id id) const {
-    find_launcher(id)->invoke();
-  }
-
-  backend_kernel_launcher* find_launcher(backend_id id) const {
-    for (auto &backend_launcher : _kernels) {
-      if (backend_launcher->get_backend() == id) {
-        return backend_launcher.get();
-      }
-    }
-    assert(false && "Could not find kernel launcher for the specified backend");
-    return nullptr; // Make compiler happy and prevent warnings
-  }
-
-private:
-  std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
-};
-
-
-} // namespace rt
-} // namespace hipsycl
+}
+}
+}
 
 #endif
+

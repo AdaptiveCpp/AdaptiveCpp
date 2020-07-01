@@ -52,7 +52,12 @@ public:
   virtual backend_executor* get_executor(device_id dev) const = 0;
   virtual backend_allocator *get_allocator(device_id dev) const = 0;
 
-  virtual ~backend(){}
+  virtual ~backend() {}
+
+  backend_descriptor get_backend_descriptor() const {
+    return backend_descriptor{this->get_hardware_platform(),
+                              this->get_api_platform()};
+  }
 };
 
 class backend_manager

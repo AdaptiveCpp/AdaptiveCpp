@@ -59,6 +59,9 @@ public:
   // executable until all requirements have been translated
   // into actual operations or are removed.
   void add_memory_requirement(dag_node_ptr requirement);
+  // Determines node type and adds accordingly by calling
+  // corresponding add_* function
+  void add(dag_node_ptr node);
 
   const std::vector<dag_node_ptr>& get_kernels() const;
   const std::vector<dag_node_ptr>& get_memory_requirements() const;

@@ -5,6 +5,15 @@ set -e
 
 . ./common/init.sh
 
+HIPSYCL_PKG_BUILD_BASE=${HIPSYCL_PKG_BUILD_BASE:-ON}
+HIPSYCL_PKG_BUILD_HIPSYCL=${HIPSYCL_PKG_BUILD_HIPSYCL:-ON}
+HIPSYCL_PKG_BUILD_ROCM=${HIPSYCL_PKG_BUILD_ROCM:-ON}
+HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
+
+echo $HIPSYCL_GPG_KEY
+if [ -n "$HIPSYCL_GPG_KEY" ]; then
+	SIGN=" --sign --key $HIPSYCL_GPG_KEY"
+fi
 
 tar -cvf ${BUILD_DIR}/cuda-pkg.tar.gz -C ${CUDA_DIR} opt/
 tar -cvf ${BUILD_DIR}/rocm-pkg.tar.gz -C ${ROCM_DIR} opt/
@@ -105,8 +114,19 @@ package() {
 }
 EOF
 
-cd ${HIPSYCL_DIR}/pkg && makepkg -d -c --skipinteg
-cd ${COMMON_DIR}/pkg && makepkg -d -c --skipinteg
-cd ${ROCM_DIR}/pkg && makepkg -d -c --skipinteg
+if [ "$HIPSYCL_PKG_BUILD_HIPSYCL" = "ON" ]; then
+cd ${HIPSYCL_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
+fi
 
+if [ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ]; then
+cd ${COMMON_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
+fi
 
+if [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ]; then
+cd ${ROCM_DIR}/pkg && makepkg -d -c --skipinteg  $SIGN
+fi
+
+if [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ]; then
+cd ${CUDA_DIR}/pkg && makepkg -d -c --skipinteg $SIGN
+echo $HIPSYCL_PKG_BUILD_CUDA
+fi

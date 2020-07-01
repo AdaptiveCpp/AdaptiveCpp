@@ -209,7 +209,7 @@ private:
 #define HIPSYCL_RANGE_BINARY_OP_SIZE_T(op) \
   template<int dimensions> \
   HIPSYCL_UNIVERSAL_TARGET \
-  range<dimensions> operator op(const std::size_t &lhs, const id<dimensions> &rhs) { \
+  range<dimensions> operator op(const std::size_t &lhs, const range<dimensions> &rhs) { \
     range<dimensions> result; \
     for(std::size_t i = 0; i < dimensions; ++i) \
       result[i] = lhs op rhs[i]; \

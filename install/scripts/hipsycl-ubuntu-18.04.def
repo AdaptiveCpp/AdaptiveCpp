@@ -5,4 +5,4 @@ From: base-ubuntu-18.04.sif
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
 
 %post
-HIPSYCL_REPO_BRANCH=master sh /install-hipsycl.sh
+sh /install-hipsycl.sh

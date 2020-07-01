@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,70 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_KERNEL_LAUNCHER_HPP
+#ifndef HIPSYCL_LOCAL_MEMORY_HPP
+#define HIPSYCL_LOCAL_MEMORY_HPP
 
-#include <vector>
-#include <memory>
+#include <type_traits>
 
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
-
-
-
-#include "backend.hpp"
+#include "backend/backend.hpp"
+#include "group.hpp"
 
 namespace hipsycl {
-namespace rt {
+namespace sycl {
 
-enum class kernel_type {
-  single_task,
-  basic_parallel_for,
-  ndrange_parallel_for,
-  hierarchical_parallel_for,
-  scoped_parallel_for
-};
-
-class backend_kernel_launcher
+template<class T>
+class local_memory
 {
 public:
-  virtual ~backend_kernel_launcher(){}
+  using scalar_type = typename std::remove_extent<T>::type;
 
-  virtual backend_id get_backend() const = 0;
-  virtual kernel_type get_kernel_type() const = 0;
-  virtual void invoke() = 0;
-};
+  template<int Dim>
+  HIPSYCL_KERNEL_TARGET
+  local_memory(group<Dim>&) {}
 
-class kernel_launcher
-{
-public:
-  kernel_launcher(
-      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels)
-  : _kernels{std::move(kernels)}
-  {}
-
-  kernel_launcher(const kernel_launcher &) = delete;
-
-  void invoke(backend_id id) const {
-    find_launcher(id)->invoke();
+  template<class t = scalar_type, 
+          std::enable_if_t<std::is_array<T>::value>* = nullptr>
+  HIPSYCL_KERNEL_TARGET
+  scalar_type& operator[](std::size_t index) noexcept{
+    return _var[index];
   }
 
-  backend_kernel_launcher* find_launcher(backend_id id) const {
-    for (auto &backend_launcher : _kernels) {
-      if (backend_launcher->get_backend() == id) {
-        return backend_launcher.get();
-      }
-    }
-    assert(false && "Could not find kernel launcher for the specified backend");
-    return nullptr; // Make compiler happy and prevent warnings
+  HIPSYCL_KERNEL_TARGET
+  T& operator()() noexcept{
+    return _var;
   }
-
 private:
-  std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+  // It is not possible to just mark this member as __shared__
+  // here (at least for HIP/CUDA), because member variables
+  // cannot be declared in local memory. The clang plugin
+  // therefore finds all declarations of type local_memory<T>
+  // and puts them in local memory.
+  T _var;
 };
 
-
-} // namespace rt
-} // namespace hipsycl
+}
+}
 
 #endif

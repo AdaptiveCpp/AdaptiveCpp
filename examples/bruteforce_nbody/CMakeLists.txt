@@ -1,4 +1,4 @@
 add_executable(bruteforce_nbody bruteforce_nbody.cpp)
-target_link_libraries(bruteforce_nbody hipSYCL)
+add_sycl_to_target(TARGET bruteforce_nbody SOURCES bruteforce_nbody.cpp)
 install(TARGETS bruteforce_nbody
         RUNTIME DESTINATION share/hipSYCL/examples/)

@@ -147,6 +147,35 @@ void parallel_for_workgroup(Function f,
   });
 }
 
+
+template<typename KernelName, class Function, int dimensions>
+__sycl_kernel 
+void parallel_region(Function f,
+                    sycl::range<dimensions> num_groups,
+                    sycl::range<dimensions> group_size)
+{
+  device_invocation([=] __device__ () {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    sycl::group<dimensions> this_group;
+#else
+    sycl::group<dimensions> this_group{
+      sycl::detail::get_group_id<dimensions>(), 
+      sycl::detail::get_local_size<dimensions>(),
+      sycl::detail::get_grid_size<dimensions>()
+    };
+#endif
+    sycl::physical_item<dimensions> phys_idx = sycl::detail::make_sp_item(
+      sycl::detail::get_local_id<dimensions>(),
+      sycl::detail::get_group_id<dimensions>(),
+      sycl::detail::get_local_size<dimensions>(),
+      sycl::detail::get_grid_size<dimensions>()
+    );
+    
+    f(this_group, phys_idx);
+  });
+}
+
+
 /// Flips dimensions such that the range is consistent with the mapping
 /// of SYCL index dimensions to backend dimensions.
 /// When launching a SYCL kernel, grid and blocksize should be transformed
@@ -298,7 +327,23 @@ public:
                                 dynamic_local_memory, _queue->get_stream(),
                                 k, local_range);
         
-      } else {
+      } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+
+        for (int i = 0; i < Dim; ++i)
+          assert(global_range[i] % local_range[i] == 0);
+
+        sycl::range<Dim> grid_range = global_range / local_range;
+
+        dim3 grid = range_to_dim3(grid_range);
+        dim3 block = range_to_dim3(local_range);
+
+        __hipsycl_launch_kernel(hip_dispatch::parallel_region<KernelName>,
+                                hip_dispatch::make_kernel_launch_range<Dim>(grid),
+                                hip_dispatch::make_kernel_launch_range<Dim>(block),
+                                dynamic_local_memory, _queue->get_stream(),
+                                k, grid_range, local_range);
+      }
+      else {
         assert(false && "Unsupported kernel type");
       }
       

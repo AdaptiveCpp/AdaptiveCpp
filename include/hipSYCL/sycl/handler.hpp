@@ -206,6 +206,31 @@ void parallel_for_workgroup(Function f,
   f(this_group);
 }
 
+template<typename KernelName, class Function, int dimensions>
+__sycl_kernel 
+void parallel_region(Function f,
+                    sycl::range<dimensions> num_groups,
+                    sycl::range<dimensions> group_size)
+{
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+  group<dimensions> this_group;
+#else
+  group<dimensions> this_group{
+    get_group_id_helper<dimensions>(), 
+    get_local_size_helper<dimensions>(),
+    get_grid_size_helper<dimensions>()
+  };
+#endif
+  physical_item<dimensions> phys_idx = detail::make_sp_item(
+    get_local_id_helper<dimensions>(),
+    get_group_id_helper<dimensions>(),
+    get_local_size_helper<dimensions>(),
+    get_grid_size_helper<dimensions>()
+  );
+  
+  f(this_group, phys_idx);
+}
+
 } // device
 
 namespace host {
@@ -420,6 +445,62 @@ void parallel_for_workgroup(Function f,
   }
 }
 
+template<class Function, int dimensions>
+inline 
+void parallel_region(Function f,
+                    sycl::range<dimensions> num_groups,
+                    sycl::range<dimensions> group_size,
+                    std::size_t num_local_mem_bytes)
+{
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel
+#endif
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+    auto make_physical_item = [&](sycl::id<dimensions> group_id){
+      return detail::make_sp_item(sycl::id<dimensions>{},group_id,group_size, num_groups);
+    };
+
+    if constexpr(dimensions == 1){
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for
+#endif
+      for(size_t i = 0; i < num_groups.get(0); ++i){
+        auto group_id = sycl::id<1>{i};
+        group<1> this_group{group_id, group_size, num_groups};
+        f(this_group, make_physical_item(group_id));
+      }
+
+    } else if constexpr(dimensions == 2){
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(2)
+#endif
+      for(size_t i = 0; i < num_groups.get(0); ++i)
+        for(size_t j = 0; j < num_groups.get(1); ++j)
+        {
+          auto group_id = sycl::id<2>{i,j};
+          group<2> this_group{group_id, group_size, num_groups};
+          f(this_group, make_physical_item(group_id));
+        } 
+    } else {
+#ifndef HIPCPU_NO_OPENMP
+    #pragma omp for collapse(3)
+#endif
+      for(size_t i = 0; i < num_groups.get(0); ++i)
+        for(size_t j = 0; j < num_groups.get(1); ++j)
+          for(size_t k = 0; k < num_groups.get(2); ++k)
+          {
+            auto group_id = sycl::id<3>{i,j,k};
+            group<3> this_group{group_id, group_size, num_groups};
+            f(this_group, make_physical_item(group_id));
+          }
+
+    }    
+    host_local_memory::release();
+  }
+}
+
 #endif // HIPSYCL_PLATFORM_CPU
 } // host
 
@@ -623,6 +704,16 @@ void set_args(Ts &&... args);
                                  kernelFunc);
   }
 
+  // Scoped parallelism API
+  
+  template <typename KernelName = class _unnamed_kernel,
+            typename KernelFunctionType, int dimensions>
+  void parallel(range<dimensions> numWorkGroups,
+                range<dimensions> workGroupSize,
+                KernelFunctionType f)
+  {
+    dispatch_parallel_region<KernelName>(numWorkGroups, workGroupSize, f);
+  }
 
   /*
   void single_task(kernel syclKernel);
@@ -789,10 +880,7 @@ void set_args(Ts &&... args);
 
   event _detail_get_event() const
   {
-    if(_spawned_task_nodes.empty())
-      return event{};
-
-    return event{_spawned_task_nodes.back()};
+    assert(false && "unimplemented");
   }
 
 
@@ -1085,6 +1173,51 @@ private:
                                 detail::make_kernel_launch_range<dimensions>(block),
                                 shared_mem_size, stream->get_stream(),
                                 kernelFunc, workGroupSize);
+      }
+
+
+      return detail::task_state::enqueued;
+    };
+
+    this->submit_task(kernel_launch);
+  }
+
+  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
+  __host__
+  void dispatch_parallel_region(range<dimensions> numWorkGroups,
+                                range<dimensions> workGroupSize,
+                                WorkgroupFunctionType kernelFunc)
+  {
+
+    std::size_t shared_mem_size =
+        _local_mem_allocator.get_allocation_size();
+
+    detail::stream_ptr stream = this->get_stream();
+
+    dim3 grid = range_to_dim3(numWorkGroups);
+    dim3 block = range_to_dim3(workGroupSize);
+
+    auto kernel_launch = [=]()
+        -> detail::task_state
+    {
+      stream->activate_device();
+
+#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
+      if(stream->get_device().is_host())
+      {
+        hipLaunchSequentialKernel(detail::dispatch::host::parallel_region,
+                                  stream->get_stream(), 0,
+                                  kernelFunc, numWorkGroups, workGroupSize, 
+                                  shared_mem_size);
+      }
+      else
+#endif
+      {
+        __hipsycl_launch_kernel(detail::dispatch::device::parallel_region<KernelName>,
+                                detail::make_kernel_launch_range<dimensions>(grid),
+                                detail::make_kernel_launch_range<dimensions>(block),
+                                shared_mem_size, stream->get_stream(),
+                                kernelFunc, numWorkGroups, workGroupSize);
       }
 
 

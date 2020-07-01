@@ -558,7 +558,11 @@ class pure_cpu_compiler:
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     self._linker_args = []
-    self._compiler_args = ["-fopenmp"]
+    self._compiler_args = []
+    if sys.platform == "darwin":
+        # y'all still need libomp installed
+        self._compiler_args += ["-Xclang"]
+    self._compiler_args += ["-fopenmp"]
     self._compiler_args += config.common_compiler_args
     if not config.is_bootstrap:
       self._linker_args += [

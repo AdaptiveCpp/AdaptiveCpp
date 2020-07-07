@@ -72,6 +72,7 @@ public:
 
   dag finish_and_reset();
 
+  std::size_t get_current_dag_size() const;
 private:
   bool is_conflicting_access(const memory_requirement *mem_req,
                              const data_user &user) const;

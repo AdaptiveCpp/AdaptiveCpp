@@ -33,6 +33,7 @@
 #include "dag_manager.hpp"
 #include "device_id.hpp"
 #include "runtime.hpp"
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -51,6 +52,18 @@ public:
 
   application() = delete;
 };
+
+// Construct an error object and register in the error queue
+template <class Error_handler>
+result register_error(
+    const result_origin &origin, const result_info &info,
+    Error_handler handler = [](const result &) {}) {
+
+  auto res = make_error(origin, info, handler);
+
+  application::get_runtime().errors().add(res);
+  return res;
+}
 
 }
 }

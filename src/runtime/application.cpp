@@ -29,6 +29,8 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#include <memory>
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
@@ -39,12 +41,24 @@ class rt_manager
 {
 public:
 
+  void shutdown() {
+    std::lock_guard<std::mutex> lock{_lock};
+    rt.reset();
+  }
+
   void reset() {
+    std::lock_guard<std::mutex> lock{_lock};
     rt.reset();
     // TODO: Reset devices?
   }
 
-  runtime *get_runtime() const { return rt.get(); }
+  runtime *get_runtime() {
+    std::lock_guard<std::mutex> lock{_lock};
+
+    if(!rt)
+      rt = std::make_unique<runtime>();
+    return rt.get();
+  }
 
   static rt_manager& get() {
     static rt_manager mgr;
@@ -52,9 +66,10 @@ public:
   }
 
 private:
-  rt_manager() : rt{std::make_unique<runtime>()} {}
+  rt_manager() {}
 
   std::unique_ptr<runtime> rt;
+  mutable std::mutex _lock;
 };
 
 }

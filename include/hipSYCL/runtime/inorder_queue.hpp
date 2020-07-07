@@ -33,6 +33,7 @@
 #include "dag_node.hpp"
 #include "hints.hpp"
 #include "operations.hpp"
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -44,14 +45,14 @@ public:
   /// Inserts an event into the stream
   virtual std::unique_ptr<dag_node_event> insert_event() = 0;
 
-  virtual void submit_memcpy(const memcpy_operation&) = 0;
-  virtual void submit_kernel(const kernel_operation&) = 0;
-  virtual void submit_prefetch(const prefetch_operation&) = 0;
+  virtual result submit_memcpy(const memcpy_operation&) = 0;
+  virtual result submit_kernel(const kernel_operation&) = 0;
+  virtual result submit_prefetch(const prefetch_operation&) = 0;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual void submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
-  virtual void submit_external_wait_for(dag_node_ptr node) = 0;
+  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
+  virtual result submit_external_wait_for(dag_node_ptr node) = 0;
 
   virtual ~inorder_queue(){}
 };

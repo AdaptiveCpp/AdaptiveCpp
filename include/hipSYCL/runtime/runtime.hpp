@@ -31,6 +31,7 @@
 
 #include "dag_manager.hpp"
 #include "backend.hpp"
+#include "async_errors.hpp"
 
 #include <iostream>
 namespace hipsycl {
@@ -51,10 +52,14 @@ public:
 
   const backend_manager &backends() const { return _backends; }
 
+  async_error_list& errors() { return _errors; }
+  const async_error_list& errors() const { return _errors; }
+
 private:
 
   dag_manager _dag_manager;
   backend_manager _backends;
+  async_error_list _errors;
 };
 
 }

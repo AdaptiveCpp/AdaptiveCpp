@@ -122,26 +122,25 @@ public:
 
   template <typename T>
   event submit(T cgf) {
-    /*_stream->activate_device();
 
-    handler cgh{*this, _handler};
+    handler cgh{*this, _handler, _default_hints};
 
     this->get_hooks()->run_all(cgh);
 
     cgf(cgh);
 
-    event evt = cgh._detail_get_event();
+    const std::vector<rt::dag_node_ptr>& dag_nodes =
+      cgh.get_cg_nodes();
 
-    return evt;*/
-    return event();
+    assert(dag_nodes.size() == 1);
+
+    return event{dag_nodes.back()};
   }
 
   template <typename T>
   event submit(T cgf, const queue &secondaryQueue) {
-    //_stream->activate_device();
-
     try {
-      /*handler cgh{*this, _handler};
+      handler cgh{*this, _handler, _default_hints};
 
       this->get_hooks()->run_all(cgh);
 
@@ -149,7 +148,7 @@ public:
 
       // We need to wait to make sure everything is fine.
       // ToDo: Check for asynchronous errors.
-      wait();*/
+      wait();
       return event();
     }
     catch(exception&) {

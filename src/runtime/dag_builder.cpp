@@ -200,6 +200,11 @@ bool dag_builder::is_conflicting_access(
   return mem_req->intersects_with(user);
 }
 
+std::size_t dag_builder::get_current_dag_size() const
+{
+  std::lock_guard<std::mutex> lock{_mutex};
+  return _current_dag.num_nodes();
+}
 
 }
 }

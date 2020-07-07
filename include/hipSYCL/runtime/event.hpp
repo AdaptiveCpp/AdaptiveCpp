@@ -29,6 +29,7 @@
 #define HIPSYCL_DAG_NODE_EVENT_HPP
 
 #include "device_id.hpp"
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {

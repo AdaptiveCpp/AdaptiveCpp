@@ -78,6 +78,12 @@ public:
   bool contains_node(dag_node_ptr node) const;
 
   void for_each_node(std::function<void(dag_node_ptr)> handler) const;
+
+  std::size_t num_nodes() const
+  {
+    return _kernels.size() + _memcopies.size() + _fills.size() +
+           _prefetches.size() + _memory_requirements.size();
+  }
 private:
   void commit_dependencies(const std::vector<dag_node_ptr>& nodes);
   bool is_requirement_from_this_dag(const dag_node_ptr& node) const;

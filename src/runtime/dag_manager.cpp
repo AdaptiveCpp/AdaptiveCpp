@@ -33,9 +33,24 @@
 namespace hipsycl {
 namespace rt {
 
+namespace {
+constexpr int max_cached_dag_nodes = 100;
+}
+
+
+dag_build_guard::~dag_build_guard()
+{
+  _mgr->trigger_flush_opportunity();
+}
+
 dag_manager::dag_manager()
 : _builder{std::make_unique<dag_builder>(execution_hints{})}
 {}
+
+dag_manager::~dag_manager()
+{
+  wait();
+}
 
 dag_builder* 
 dag_manager::builder() const
@@ -48,12 +63,20 @@ void dag_manager::flush()
   _worker([this](){
     dag new_dag = _builder->finish_and_reset();
     
+    _scheduler.submit(&new_dag);
   });
 }
 
 void dag_manager::wait()
 {
   flush();
+  _worker.wait();
+}
+
+void dag_manager::trigger_flush_opportunity()
+{
+  if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+    flush();
 }
 
 }

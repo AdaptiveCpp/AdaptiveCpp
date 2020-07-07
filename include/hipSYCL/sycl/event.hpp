@@ -33,7 +33,6 @@
 #include "backend/backend.hpp"
 #include "exception.hpp"
 #include "info/info.hpp"
-#include "detail/task_graph.hpp"
 
 #include "hipSYCL/runtime/dag_node.hpp"
 

@@ -36,6 +36,10 @@
 #include "access.hpp"
 #include "accessor.hpp"
 #include "backend/backend.hpp"
+#include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "types.hpp"
 #include "id.hpp"
 #include "range.hpp"
@@ -43,22 +47,18 @@
 #include "item.hpp"
 #include "nd_item.hpp"
 #include "group.hpp"
-#include "detail/local_memory_allocator.hpp"
-#include "detail/buffer.hpp"
-#include "detail/task_graph.hpp"
-#include "detail/application.hpp"
-#include "detail/stream.hpp"
-#include "hipSYCL/common/debug.hpp"
 #include "detail/util.hpp"
+#include "detail/local_memory_allocator.hpp"
+
+#include "hipSYCL/common/debug.hpp"
+
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
 namespace detail {
-
-
-namespace dispatch {
-
 
 template<int dimensions, bool with_offset>
 HIPSYCL_KERNEL_TARGET
@@ -77,434 +77,6 @@ bool item_is_in_range(const sycl::item<dimensions, with_offset>& item,
 }
 
 
-namespace device {
-
-// These helper functions are necessary because we cannot
-// call device functions directly from __sycl_kernel functions
-// with the clang plugin, since they are initially treated
-// as host functions.
-// TODO: Find a nicer solution for that.
-template<int dimensions>
-HIPSYCL_KERNEL_TARGET
-inline sycl::id<dimensions> get_global_id_helper()
-{
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-  return detail::get_global_id<dimensions>();
-#else
-  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
-#endif
-}
-
-template<int dimensions>
-HIPSYCL_KERNEL_TARGET
-inline sycl::id<dimensions> get_local_id_helper()
-{
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-  return detail::get_local_id<dimensions>();
-#else
-  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
-#endif
-}
-
-template<int dimensions>
-HIPSYCL_KERNEL_TARGET
-inline sycl::id<dimensions> get_group_id_helper()
-{
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-  return detail::get_group_id<dimensions>();
-#else
-  return detail::invalid_host_call_dummy_return<sycl::id<dimensions>>();
-#endif
-}
-
-template<int dimensions>
-HIPSYCL_KERNEL_TARGET
-inline sycl::range<dimensions> get_local_size_helper()
-{
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-  return detail::get_local_size<dimensions>();
-#else
-  return detail::invalid_host_call_dummy_return<sycl::range<dimensions>>();
-#endif
-}
-
-template<int dimensions>
-HIPSYCL_KERNEL_TARGET
-inline sycl::range<dimensions> get_grid_size_helper()
-{
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
-  return detail::get_grid_size<dimensions>();
-#else
-  return detail::invalid_host_call_dummy_return<sycl::range<dimensions>>();
-#endif
-}
-
-template<typename KernelName, class Function>
-__sycl_kernel void single_task_kernel(Function f)
-{
-  f();
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_for_kernel(Function f,
-                        sycl::range<dimensions> execution_range)
-{
-  auto this_item = detail::make_item<dimensions>(
-    get_global_id_helper<dimensions>(), execution_range);
-  if(item_is_in_range(this_item, execution_range, sycl::id<dimensions>{}))
-    f(this_item);
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_for_kernel_with_offset(Function f,
-                                    sycl::range<dimensions> execution_range,
-                                    sycl::id<dimensions> offset)
-{
-  auto this_item = detail::make_item<dimensions>(
-    get_global_id_helper<dimensions>() + offset, execution_range, offset);
-  if(item_is_in_range(this_item, execution_range, offset))
-    f(this_item);
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel
-void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
-{
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-  nd_item<dimensions> this_item{&offset};
-#else
-  nd_item<dimensions> this_item{
-    &offset, 
-    get_group_id_helper<dimensions>(), 
-    get_local_id_helper<dimensions>(),
-    get_local_size_helper<dimensions>(),
-    get_grid_size_helper<dimensions>()
-  };
-#endif
-  f(this_item);
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_for_workgroup(Function f,
-                            // The logical group size is not yet used,
-                            // but it's still useful to already have it here
-                            // since it allows the compiler to infer 'dimensions'
-                            sycl::range<dimensions> logical_group_size)
-{
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-  group<dimensions> this_group;
-#else
-  group<dimensions> this_group{
-    get_group_id_helper<dimensions>(), 
-    get_local_size_helper<dimensions>(),
-    get_grid_size_helper<dimensions>()
-  };
-#endif
-  f(this_group);
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_region(Function f,
-                    sycl::range<dimensions> num_groups,
-                    sycl::range<dimensions> group_size)
-{
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-  group<dimensions> this_group;
-#else
-  group<dimensions> this_group{
-    get_group_id_helper<dimensions>(), 
-    get_local_size_helper<dimensions>(),
-    get_grid_size_helper<dimensions>()
-  };
-#endif
-  physical_item<dimensions> phys_idx = detail::make_sp_item(
-    get_local_id_helper<dimensions>(),
-    get_group_id_helper<dimensions>(),
-    get_local_size_helper<dimensions>(),
-    get_grid_size_helper<dimensions>()
-  );
-  
-  f(this_group, phys_idx);
-}
-
-} // device
-
-namespace host {
-
-#ifdef HIPSYCL_PLATFORM_CPU
-
-namespace offset{
-struct with_offset{};
-struct without_offset{};
-}
-
-template<int dimensions>
-inline item<dimensions, true> make_item_maybe_with_offset(
-                    sycl::id<dimensions> effective_id, 
-                    sycl::range<dimensions> size,
-                    sycl::id<dimensions> offset,
-                    offset::with_offset)
-{
-  return make_item(effective_id, size, offset);
-}
-
-template<int dimensions>
-inline item<dimensions, true> make_item_maybe_with_offset(
-                    sycl::id<dimensions> effective_id, 
-                    sycl::range<dimensions> size,
-                    sycl::id<dimensions> offset,
-                    offset::without_offset)
-{
-  return make_item(effective_id, size);
-}
-
-
-// On CPU, we can use references for the kernel lambdas. This is because
-// they are already copied as a closure to the task graph, which already
-// stores all necessary captures etc until the lambda is executed.
-template<class Function>
-inline 
-void single_task_kernel(Function f) noexcept
-{
-  f();
-}
-
-template<class Function, class Offset_mode> 
-inline
-void parallel_for_kernel(Function f,
-                        const sycl::range<1> execution_range,
-                        Offset_mode,
-                        const sycl::id<1> offset = sycl::id<1>{}) noexcept
-{
-  const size_t max_id = offset.get(0) + execution_range.get(0);
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for
-#endif
-  for(size_t i = offset.get(0); i < max_id; ++i)
-  {
-    auto this_item = 
-      make_item_maybe_with_offset(sycl::id<1>{i}, 
-                                  execution_range,
-                                  offset, Offset_mode{});
-
-    f(this_item);
-  }
-}
-
-template<class Function, class Offset_mode> 
-inline 
-void parallel_for_kernel(Function f,
-                        const sycl::range<2> execution_range,
-                        Offset_mode,
-                        const sycl::id<2> offset = sycl::id<2>{}) noexcept
-{
-  const sycl::id<2> max_id = offset + execution_range;
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(2)
-#endif
-  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
-    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
-    {
-      auto this_item = 
-        make_item_maybe_with_offset(sycl::id<2>{i,j}, 
-                                    execution_range, 
-                                    offset, Offset_mode{});
-
-      f(this_item);
-    }
-}
-
-template<class Function, class Offset_mode> 
-inline 
-void parallel_for_kernel(Function f,
-                        const sycl::range<3> execution_range,
-                        Offset_mode,
-                        const sycl::id<3> offset = sycl::id<3>{}) noexcept
-{
-  const sycl::id<3> max_id = offset + execution_range;
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(3)
-#endif
-  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
-    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
-      for(size_t k = offset.get(2); k < max_id.get(2); ++k)
-    {
-      auto this_item = 
-        make_item_maybe_with_offset(sycl::id<3>{i,j,k}, 
-                                    execution_range, 
-                                    offset, Offset_mode{});
-        
-      f(this_item);
-    }
-}
-
-// This must still be executed by hipCPU's hipLaunchKernel for correct
-// synchronization semantics
-template<int dimensions, class Function>
-inline
-void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset) noexcept
-{
-  nd_item<dimensions> this_item{
-    &offset,
-    detail::get_group_id<dimensions>(),
-    detail::get_local_id<dimensions>(),
-    detail::get_local_size<dimensions>(),
-    detail::get_grid_size<dimensions>()
-  };
-
-  host_local_memory::request_from_hipcpu_pool();
-  f(this_item);
-  host_local_memory::release();
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<1> num_groups,
-                            const sycl::range<1> local_size,
-                            size_t num_local_mem_bytes) noexcept
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-    {
-      group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
-      f(this_group);
-    }
-
-    host_local_memory::release();
-  }
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<2> num_groups,
-                            const sycl::range<2> local_size,
-                            size_t num_local_mem_bytes) noexcept
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(2)
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-      for(size_t j = 0; j < num_groups.get(1); ++j)
-      {
-        group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
-        f(this_group);
-      }
-
-    host_local_memory::release();
-  }
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<3> num_groups,
-                            const sycl::range<3> local_size,
-                            size_t num_local_mem_bytes) noexcept
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(3)
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-      for(size_t j = 0; j < num_groups.get(1); ++j)
-        for(size_t k = 0; k < num_groups.get(2); ++k)
-        {
-          group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
-          f(this_group);
-        }
-    
-    host_local_memory::release();
-  }
-}
-
-template<class Function, int dimensions>
-inline 
-void parallel_region(Function f,
-                    sycl::range<dimensions> num_groups,
-                    sycl::range<dimensions> group_size,
-                    std::size_t num_local_mem_bytes)
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-    auto make_physical_item = [&](sycl::id<dimensions> group_id){
-      return detail::make_sp_item(sycl::id<dimensions>{},group_id,group_size, num_groups);
-    };
-
-    if constexpr(dimensions == 1){
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for
-#endif
-      for(size_t i = 0; i < num_groups.get(0); ++i){
-        auto group_id = sycl::id<1>{i};
-        group<1> this_group{group_id, group_size, num_groups};
-        f(this_group, make_physical_item(group_id));
-      }
-
-    } else if constexpr(dimensions == 2){
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(2)
-#endif
-      for(size_t i = 0; i < num_groups.get(0); ++i)
-        for(size_t j = 0; j < num_groups.get(1); ++j)
-        {
-          auto group_id = sycl::id<2>{i,j};
-          group<2> this_group{group_id, group_size, num_groups};
-          f(this_group, make_physical_item(group_id));
-        } 
-    } else {
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(3)
-#endif
-      for(size_t i = 0; i < num_groups.get(0); ++i)
-        for(size_t j = 0; j < num_groups.get(1); ++j)
-          for(size_t k = 0; k < num_groups.get(2); ++k)
-          {
-            auto group_id = sycl::id<3>{i,j,k};
-            group<3> this_group{group_id, group_size, num_groups};
-            f(this_group, make_physical_item(group_id));
-          }
-
-    }    
-    host_local_memory::release();
-  }
-}
-
-#endif // HIPSYCL_PLATFORM_CPU
-} // host
-
-} // dispatch
 
 template <access::target srcTgt, access::target dstTgt>
 constexpr hipMemcpyKind get_copy_kind()
@@ -523,86 +95,48 @@ constexpr hipMemcpyKind get_copy_kind()
   return hipMemcpyDefault;
 }
 
-/// Used by the command group handler to associate accessors with their buffers.
-class accessor_buffer_mapper
-{
-public:
-  accessor_id insert(buffer_ptr buff)
-  {
-    accessor_id id = static_cast<accessor_id>(_acc_data.size());
-    _acc_data[id] = buff;
-    return id;
-  }
-
-  buffer_ptr find_accessor(accessor_id id) const
-  {
-    return _acc_data.at(id);
-  }
-
-  template<
-    class T, 
-    int D, 
-    access::mode Mode, 
-    access::target Target,
-    access::placeholder IsPlaceholder,
-    HIPSYCL_ENABLE_IF_ACCESSOR_STORES_BUFFER_PTR(Target, IsPlaceholder)>
-  buffer_ptr find_accessor(
-    const sycl::accessor<T, D, Mode, Target, IsPlaceholder>& acc) const
-  {
-#ifndef SYCL_DEVICE_ONLY
-    // This function is not available when compiling for device,
-    // so we need preprocessor guards.
-    return acc._buff.get_shared_ptr();
-#else
-    // Silences warning about missing return value
-    return buffer_ptr{};
-#endif
-  }
-
-  template<
-    class T, 
-    int D, 
-    access::mode Mode, 
-    access::target Target,
-    access::placeholder IsPlaceholder,
-    HIPSYCL_ENABLE_IF_ACCESSOR_STORES_ACCESSOR_ID(Target, IsPlaceholder)>
-  buffer_ptr find_accessor(
-    const sycl::accessor<T, D, Mode, Target, IsPlaceholder>& acc) const
-  {
-    return find_accessor(acc._accessor_id);
-  }
-private:
-  std::unordered_map<accessor_id, buffer_ptr> _acc_data;
-};
-
 } // detail
 
 class queue;
 
 class handler
 {
+  friend class sycl::queue;
 public:
   ~handler()
   {
   }
 
   template <typename dataT, int dimensions, access::mode accessMode,
-            access::target accessTarget>
-  void require(accessor<dataT, dimensions, accessMode, accessTarget,
-                        access::placeholder::true_t> acc)
-  {
-    static_assert(accessTarget == access::target::global_buffer ||
-                  accessTarget == access::target::constant_buffer,
-                  "Only placeholder accessors for global and constant buffers are "
-                  "supported.");
+            access::target accessTarget, access::placeholder isPlaceholder>
+  void
+  require(accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>&
+              acc) {
+    static_assert(accessTarget != access::target::local,
+                  "Requiring local accessors is unsupported");
+    
+    // Construct requirement descriptor
+    std::shared_ptr<rt::buffer_data_region> data_region = acc._buff.get_shared_ptr();
+    
+    auto offset = acc.get_offset();
+    auto range = acc.get_range();
+    size_t element_size = data_region->get_element_size();
 
-    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
+    if(element_size != sizeof(dataT)) {
+      assert(false && "Reinterpreting data with elements of different size is "
+                      "not yet supported");
+    }
 
+    auto req = std::make_unique<rt::buffer_memory_requirement>(
+        data_region, offset, range, element_size,
+        accessMode, accessTarget);
 
-    detail::accessor::obtain_device_access(buff,
-                                           *this,
-                                           accessMode);
+    // Bind the accessor's deferred pointer to the requirement, such that
+    // the scheduler is able to initialize the accessor's data pointer
+    // once it has been captured
+    acc.bind_to(req.get());
 
+    _requirements.add_requirement(std::move(req));
   }
 
   //----- OpenCL interoperability interface is not supported
@@ -620,46 +154,18 @@ void set_args(Ts &&... args);
   template <typename KernelName = class _unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
-    // TODO If shared_mem_size != 0, we can raise an error -
-    // local memory doesn't make sense for single_task!
-    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
-    detail::stream_ptr stream = this->get_stream();
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-      // Legacy toolchain does not support __host__ __device__
-      // kernel, also we cannot yet enable runtime selection
-      // of backends due to name collisions between hipCPU and
-      // actual HIP
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        hipLaunchSequentialKernel(detail::dispatch::host::single_task_kernel,
-                                  stream->get_stream(), shared_mem_size,
-                                  kernelFunc);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::single_task_kernel<KernelName>,
-                                1,1,shared_mem_size,stream->get_stream(),
-                                kernelFunc);
-      }
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
+    this->submit_kernel<KernelName, rt::kernel_type::single_task>(
+      sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
   }
 
   template <typename KernelName = class _unnamed_kernel,
             typename KernelType, int dimensions>
   void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
   {
-    dispatch_kernel_without_offset<KernelName>(numWorkItems, kernelFunc);
+    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+        sycl::id<dimensions>{}, numWorkItems,
+        numWorkItems /* local range is ignored for basic parallel for*/,
+        kernelFunc);
   }
 
   template <typename KernelName = class _unnamed_kernel,
@@ -667,14 +173,20 @@ void set_args(Ts &&... args);
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset, KernelType kernelFunc)
   {
-    dispatch_kernel_with_offset<KernelName>(numWorkItems, workItemOffset, kernelFunc);
+    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+        workItemOffset, numWorkItems,
+        numWorkItems /* local range is ignored for basic parallel for*/,
+        kernelFunc);
   }
 
   template <typename KernelName = class _unnamed_kernel,
             typename KernelType, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
-    dispatch_ndrange_kernel<KernelName>(executionRange, kernelFunc);
+    this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
+        executionRange.get_offset(), executionRange.get_global_Range(),
+        executionRange.get_local_range(),
+        kernelFunc);
   }
 
 
@@ -699,9 +211,10 @@ void set_args(Ts &&... args);
                                range<dimensions> workGroupSize,
                                WorkgroupFunctionType kernelFunc)
   {
-    dispatch_hierarchical_kernel<KernelName>(numWorkGroups,
-                                 workGroupSize,
-                                 kernelFunc);
+    this->submit_kernel<KernelName, rt::kernel_type::hierarchical_parallel_for>(
+        sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
+        workGroupSize,
+        kernelFunc);
   }
 
   // Scoped parallelism API
@@ -712,7 +225,10 @@ void set_args(Ts &&... args);
                 range<dimensions> workGroupSize,
                 KernelFunctionType f)
   {
-    dispatch_parallel_region<KernelName>(numWorkGroups, workGroupSize, f);
+    this->submit_kernel<KernelName, rt::kernel_type::scoped_parallel_for>(
+        sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
+        workGroupSize,
+        f);
   }
 
   /*
@@ -805,20 +321,29 @@ void set_args(Ts &&... args);
   template <typename T, int dim, access::mode mode, access::target tgt>
   void update_host(accessor<T, dim, mode, tgt> acc)
   {
-    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
-
-    detail::stream_ptr stream = this->get_stream();
-
     HIPSYCL_DEBUG_INFO << "handler: Spawning async host access task"
                        << std::endl;
 
-    auto task_graph_node = detail::buffer_impl::access_host(
-          buff,
-          mode,
-          stream,
-          stream->get_error_handler());
+    if(!acc._buff)
+      throw sycl::invalid_parameter_error{
+          "update_host(): Accessor is not bound to buffer"};
 
-    this->add_access(buff, mode, task_graph_node);
+    std::shared_ptr<rt::buffer_data_region> data = acc._buff.get_shared_ptr();
+
+    rt::dag_build_guard build{rt::application::dag()};
+/*
+    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+        typeid(f).name(),
+        glue::make_kernel_launchers<KernelName, KernelType>(
+            offset, local_range, 
+            global_range,
+            shared_mem_size, f),
+        _requirements);
+    
+    dag_node_ptr node = build.builder()->add_kernel(
+        std::move(kernel_op), _requirements, _execution_hints);
+    
+    _command_group_nodes.push_back(node);*/
   }
 
   /// \todo fill() on host accessors can be optimized to use
@@ -877,84 +402,27 @@ void set_args(Ts &&... args);
     return _local_mem_allocator;
   }
 
-
-  event _detail_get_event() const
-  {
-    assert(false && "unimplemented");
-  }
-
-
-  detail::stream_ptr get_stream() const;
 private:
-  void add_access(detail::buffer_ptr buff,
-                  access::mode access_mode,
-                  detail::task_graph_node_ptr task)
-  {
-    this->_spawned_task_nodes.push_back(task);
-    this->_accessed_buffers.push_back({access_mode, buff, task});
-  }
+  template <
+    class KernelName, rt::kernel_type KernelType, class KernelFuncType, int Dim>
+  void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+                     sycl::range<Dim> local_range, KernelFuncType f) {
+    std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
-  struct buffer_access
-  {
-    access::mode access_mode;
-    detail::buffer_ptr buff;
-    detail::task_graph_node_ptr task;
-  };
+    rt::dag_build_guard build{rt::application::dag()};
 
-  hipStream_t get_hip_stream() const;
-
-  void select_device() const;
-
-  template<int dimensions>
-  dim3 get_default_local_range() const
-  {
-    if(dimensions == 1)
-      return dim3(128);
-    else if(dimensions == 2)
-      return dim3(16,16);
-    else if(dimensions == 3)
-      return dim3(8,8,8);
-
-    return dim3(1);
-  }
-
-  std::size_t ceil_division(std::size_t n,
-                           std::size_t divisor) const
-  {
-    return (n + divisor - 1) / divisor;
-  }
-
-  template<int dimensions>
-  dim3 range_to_dim3(const range<dimensions>& r) const
-  {
-    if(dimensions == 1)
-      return dim3(r.get(0));
-    else if(dimensions == 2)
-      return dim3(r.get(0), r.get(1));
-    else if(dimensions == 3)
-      return dim3(r.get(0), r.get(1), r.get(2));
-
-    return dim3(1);
-  }
-
-  template<int dimensions>
-  void determine_grid_configuration(const range<dimensions>& num_work_items,
-                                    dim3& grid,
-                                    dim3& block) const
-  {
-    block = get_default_local_range<dimensions>();
-
-    if(dimensions == 1)
-      grid = dim3(ceil_division(num_work_items.get(0), block.x));
-    else if (dimensions == 2)
-      grid = dim3(ceil_division(num_work_items.get(0), block.x),
-                  ceil_division(num_work_items.get(1), block.y));
-    else if (dimensions == 3)
-      grid = dim3(ceil_division(num_work_items.get(0), block.x),
-                  ceil_division(num_work_items.get(1), block.y),
-                  ceil_division(num_work_items.get(2), block.z));
-    else
-      grid = dim3(1);
+    auto kernel_op = rt::make_operation<rt::kernel_operation>(
+        typeid(f).name(),
+        glue::make_kernel_launchers<KernelName, KernelType>(
+            offset, local_range, 
+            global_range,
+            shared_mem_size, f),
+        _requirements);
+    
+    dag_node_ptr node = build.builder()->add_kernel(
+        std::move(kernel_op), _requirements, _execution_hints);
+    
+    _command_group_nodes.push_back(node);
   }
 
   template<typename KernelType, int dimension>
@@ -1460,35 +928,24 @@ private:
     return graph_node;
   }
 
-  detail::accessor_id request_accessor_id(detail::buffer_ptr buff)
-  {
-    return _accessor_buffer_map.insert(buff);
-  }
+  const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
+  { return _command_group_nodes; }
 
-  handler(const queue& q, async_handler handler);
-
-  friend class queue;
-  friend void* detail::accessor::obtain_device_access(
-    detail::buffer_ptr, sycl::handler&, access::mode);
-  friend detail::accessor_id detail::accessor::request_accessor_id(
-    detail::buffer_ptr, sycl::handler&);
+  handler(const queue& q, async_handler handler, const rt::execution_hints& hints);
 
   const queue* _queue;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;
 
-
-  vector_class<detail::task_graph_node_ptr> _spawned_task_nodes;
-  vector_class<buffer_access> _accessed_buffers;
-  detail::accessor_buffer_mapper _accessor_buffer_map;
+  rt::requirements_list _requirements;
+  rt::execution_hints _execution_hints;
+  std::vector<rt::dag_node_ptr> _command_group_nodes;
 };
 
-namespace detail {
-namespace handler {
-
+namespace detail::handler {
 
 template<class T>
-inline detail::local_memory::address allocate_local_mem(
+inline local_memory::address allocate_local_mem(
     sycl::handler& cgh,
     size_t num_elements)
 {
@@ -1496,6 +953,15 @@ inline detail::local_memory::address allocate_local_mem(
 }
 
 }
+
+namespace detail::accessor {
+
+template<class AccessorType>
+void bind_to_handler(AccessorType& acc, sycl::handler& cgh)
+{
+  cgh.require(acc);
+}
+
 }
 
 } // namespace sycl

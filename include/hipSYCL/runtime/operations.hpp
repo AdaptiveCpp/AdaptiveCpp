@@ -133,10 +133,9 @@ public:
   buffer_memory_requirement(std::shared_ptr<buffer_data_region> mem_region,
                             const sycl::id<Dim> offset,
                             const sycl::range<Dim> range,
-                            std::size_t element_size,
                             sycl::access::mode access_mode,
                             sycl::access::target access_target)
-      : _mem_region{mem_region}, _element_size{element_size},
+      : _mem_region{mem_region}, _element_size{mem_region->get_element_size()},
         _mode{access_mode}, _target{access_target}, _dimensions{Dim},
         _device_data_location{nullptr}
   {

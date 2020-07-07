@@ -32,12 +32,10 @@
 namespace hipsycl {
 namespace sycl {
 
-handler::handler(const queue& q, async_handler handler)
-: _queue{&q},
-  _local_mem_allocator{q.get_device()},
-  _handler{handler}
-{}
-
+handler::handler(const queue &q, async_handler handler,
+                 const rt::execution_hints &hints)
+    : _queue{&q}, _local_mem_allocator{q.get_device()}, _handler{handler},
+      _execution_hints{hints} {}
 
 } // sycl
 } // hipsycl

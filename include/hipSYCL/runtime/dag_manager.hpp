@@ -30,6 +30,7 @@
 
 #include "dag.hpp"
 #include "dag_builder.hpp"
+#include "dag_scheduler.hpp"
 #include "generic/async_worker.hpp"
 
 namespace hipsycl {
@@ -37,16 +38,36 @@ namespace rt {
 
 class dag_manager
 {
+  friend class dag_build_guard;
 public:
   dag_manager();
+  ~dag_manager();
+
+  void flush();
+
+  void wait();
+private:
+  void trigger_flush_opportunity();
 
   dag_builder* builder() const;
 
-  void flush();
-  void wait();
-private:
   std::unique_ptr<dag_builder> _builder;
   worker_thread _worker;
+  dag_scheduler _scheduler;
+};
+
+class dag_build_guard
+{
+public:
+  dag_build_guard(dag_manager& mgr)
+  : _mgr{&mgr} {}
+
+  ~dag_build_guard();
+
+  dag_builder* builder() const
+  { return _mgr->builder(); }
+private:
+  dag_manager* _mgr;
 };
 
 }

@@ -30,6 +30,12 @@
 #define HIPSYCL_ACCESSOR_HPP
 
 #include <type_traits>
+#include <cassert>
+
+#include "hipSYCL/glue/deferred_pointer.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/data.hpp"
+
 #include "range.hpp"
 #include "access.hpp"
 #include "item.hpp"
@@ -38,9 +44,6 @@
 #include "multi_ptr.hpp"
 #include "atomic.hpp"
 #include "detail/local_memory_allocator.hpp"
-#include "detail/stream.hpp"
-#include "detail/buffer.hpp"
-#include "detail/application.hpp"
 #include "detail/mobile_shared_ptr.hpp"
 
 namespace hipsycl {
@@ -59,26 +62,16 @@ template<typename dataT, int dimensions,
          access::placeholder isPlaceholder>
 class accessor;
 
-namespace detail {
-namespace buffer {
-
-template<class Buffer_type>
-buffer_ptr get_buffer_impl(Buffer_type& buff);
-
-template<class Buffer_type>
-sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b);
-} // buffer
-
-namespace handler {
+namespace detail::handler {
 
 template<class T>
 inline
 detail::local_memory::address allocate_local_mem(sycl::handler&,
                                                  size_t num_elements);
 
-} // handler
+} // detail::handler
 
-namespace accessor {
+namespace detail::accessor {
 
 template<class T, access::mode m>
 struct accessor_pointer_type
@@ -91,31 +84,6 @@ struct accessor_pointer_type<T, access::mode::read>
 {
   using value = const T*;
 };
-
-void* obtain_host_access(buffer_ptr buff,
-                         access::mode access_mode);
-
-void* obtain_device_access(buffer_ptr buff,
-                           sycl::handler& cgh,
-                           access::mode access_mode);
-
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget = access::target::global_buffer,
-         access::placeholder isPlaceholder = access::placeholder::false_t>
-sycl::range<dimensions> get_buffer_range(const sycl::accessor<dataT, dimensions,
-  accessmode, accessTarget, isPlaceholder>&);
-
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget = access::target::global_buffer,
-         access::placeholder isPlaceholder = access::placeholder::false_t>
-size_t get_pointer_offset(const sycl::accessor<dataT, dimensions,
-  accessmode, accessTarget, isPlaceholder>& acc)
-{
-  return detail::linear_id<dimensions>::get(acc.get_offset(), get_buffer_range(acc));
-}
-
 
 
 template <typename dataT, int dimensions, access::mode accessmode,
@@ -198,102 +166,56 @@ private:
   mutable sycl::id<dimensions> _access_id;
 };
 
-} // accessor
+// These two functions are defined in buffer.hpp
+template<class AccessorType, class BufferType>
+void bind_to_buffer(AccessorType& acc, BufferType& buff);
 
+template<class AccessorType, class BufferType, int Dim>
+void bind_to_buffer(AccessorType& acc, BufferType& buff, 
+                  sycl::id<Dim> accessOffset, 
+                  sycl::range<Dim> accessRange);
 
-using mobile_buffer_ptr = mobile_shared_ptr<buffer_impl>;
+// This function is defined in handler.hpp
+template<class AccessorType>
+void bind_to_handler(AccessorType& acc, sycl::handler& cgh);
 
-/// "64K accessors per command group ought to be enough for anyone"
-using accessor_id = u_short;
-namespace accessor {
-accessor_id request_accessor_id(buffer_ptr buff, sycl::handler& cgh);
-}
-/// The accessor base allows us to retrieve the associated buffer_ptr
+} // detail::accessor
+
+namespace detail {
+
+using mobile_buffer_ptr = mobile_shared_ptr<rt::buffer_data_region>;
+
+/// The accessor base allows us to retrieve the associated buffer
 /// for the accessor.
-///
-/// Accessors that are initialized without a command group (placeholders or
-/// host accessors) store a mobile_buffer_ptr to the buffer_impl. 
-/// Since the mobile_buffer_ptr can be transferred to device 
-/// (albeit losing functionality) while still behaving as a shared_ptr on host,
-/// this approach still allows to use placeholders in kernels.
-///
-/// Accessors that are initialized with a command group (everything that's not
-/// host or placeholder accessor) store the accessor id that is assigned by the
-/// command group. The command group then tracks the buffer_ptr associated with
-/// the accessor id. This allows us to efficiently copy the accessor in kernels
-/// (which is important since the accessors get copied into the OpenMP threads 
-/// on CPU) since a flat copy is sufficient.
-///
-/// This implies that placeholders may be less efficient than regular accessors
-/// on CPU since copying them requires copying a shared_ptr. However, usually
-/// placeholders originate from outside the command group which captures them
-/// by reference. The kernel would then only copy the reference, which will again
-/// be fine.
-template<access::target Target,
-        access::placeholder IsPlaceholder>
+template<class T>
 class accessor_base
 {
 protected:
-  friend class accessor_buffer_mapper;
+  friend class sycl::handler;
 
-  accessor_base() = default;
-  accessor_base(buffer_ptr buff)
-  {}
-
-  accessor_id _accessor_id;
-};
+  accessor_base()
+  : _ptr{nullptr} {}
 
 #ifndef SYCL_DEVICE_ONLY
-#define HIPSYCL_MAKE_ACCESSOR_BASE_WITH_BUFFER_POINTER_IMPL \
-  {                                      \
-  protected:                             \
-    friend class accessor_buffer_mapper; \
-                                         \
-    accessor_base(buffer_ptr buff)       \
-    : _buff{buff}                        \
-    {}                                   \
-                                         \
-    mobile_buffer_ptr _buff;             \
+
+  void set_data_region(std::shared_ptr<rt::buffer_data_region> buff) {
+    _buff = buff;
   }
-#else
-// We need a separate variant for device compilation,
-// since the mobile_shared_ptr constructor accepting
-// a shared_ptr (buffer_ptr in this case) is unavailable.
-#define HIPSYCL_MAKE_ACCESSOR_BASE_WITH_BUFFER_POINTER_IMPL \
-  {                                      \
-  protected:                             \
-    friend class accessor_buffer_mapper; \
-                                         \
-    accessor_base(buffer_ptr buff)       \
-    {}                                   \
-                                         \
-    mobile_buffer_ptr _buff;             \
+
+  void bind_to(rt::buffer_memory_requirement* req) {
+    assert(req);
+    _ptr = req->make_deferred_pointer<T>();
+  }
+
+  std::shared_ptr<rt::buffer_data_region> get_data_region() const {
+    return _buff.get_shared_ptr();
   }
 #endif
 
-template<access::target Target>
-class accessor_base<Target, access::placeholder::true_t>
-HIPSYCL_MAKE_ACCESSOR_BASE_WITH_BUFFER_POINTER_IMPL;
+  mobile_buffer_ptr _buff;
+  glue::deferred_pointer<T> _ptr;
+};
 
-template<access::placeholder IsPlaceholder>
-class accessor_base<access::target::host_buffer, IsPlaceholder>
-HIPSYCL_MAKE_ACCESSOR_BASE_WITH_BUFFER_POINTER_IMPL;
-
-template<access::placeholder IsPlaceholder>
-class accessor_base<access::target::host_image, IsPlaceholder>
-HIPSYCL_MAKE_ACCESSOR_BASE_WITH_BUFFER_POINTER_IMPL;
-
-#define HIPSYCL_ENABLE_IF_ACCESSOR_STORES_BUFFER_PTR(Target, IsPlaceholder) \
-  std::enable_if_t<( \
-    Target == access::target::host_buffer || \
-    Target == access::target::host_image || \
-    IsPlaceholder == access::placeholder::true_t)>* = nullptr
-
-#define HIPSYCL_ENABLE_IF_ACCESSOR_STORES_ACCESSOR_ID(Target, IsPlaceholder) \
-  std::enable_if_t<( \
-    Target != access::target::host_buffer && \
-    Target != access::target::host_image && \
-    IsPlaceholder != access::placeholder::true_t)>* = nullptr
 
 } // detail
 
@@ -301,11 +223,12 @@ template<typename dataT, int dimensions,
          access::mode accessmode,
          access::target accessTarget = access::target::global_buffer,
          access::placeholder isPlaceholder = access::placeholder::false_t>
-class accessor : public detail::accessor_base<accessTarget, isPlaceholder>
+class accessor : public detail::accessor_base<dataT>
 {
-  friend range<dimensions> detail::accessor::get_buffer_range<dataT, dimensions,
-    accessmode, accessTarget, isPlaceholder>(
-    const sycl::accessor<dataT, dimensions, accessmode, accessTarget, isPlaceholder>&);
+  template<class AccessorType, class BufferType, int Dim>
+  friend void detail::accessor::bind_to_buffer(
+    AccessorType& acc, BufferType& buff, 
+    sycl::id<Dim> accessOffset, sycl::range<Dim> accessRange);
 public:
   using value_type = dataT;
   using reference = dataT &;
@@ -329,11 +252,9 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                               T == access::target::constant_buffer))) &&
                               D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef)
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
     throw unimplemented{"0-dimensional accessors are not yet implemented"};
+    detail::accessor::bind_to_buffer(*this, bufferRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -347,11 +268,9 @@ access::target::constant_buffer)) && dimensions == 0 */
                              T == access::target::constant_buffer )) &&
                              D == 0 >* = nullptr>
   accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef)
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
     throw unimplemented{"0-dimensional accessors are not yet implemented"};
+    detail::accessor::bind_to_buffer(*this, bufferRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -370,19 +289,8 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
                               T == access::target::constant_buffer))) &&
                              (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef)
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
-    if(accessTarget == access::target::host_buffer)
-    {
-      this->init_host_accessor(bufferRef);
-    }
-    else
-    {
-      this->init_placeholder_accessor(bufferRef);
-    }
-    _range = _buffer_range;
+    detail::accessor::bind_to_buffer(*this, bufferRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -397,12 +305,9 @@ access::target::constant_buffer)) && dimensions > 0 */
                             (D > 0)>* = nullptr>
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef)
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
-    this->init_device_accessor(bufferRef, commandGroupHandlerRef);
-    _range = _buffer_range;
+    detail::accessor::bind_to_buffer(*this, bufferRef);
+    detail::accessor::bind_to_handler(*this, commandGroupHandlerRef);
   }
 
   /// Creates an accessor for a partial range of the buffer, described by an offset
@@ -426,20 +331,8 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
-    if(accessTarget == access::target::host_buffer)
-    {
-      this->init_host_accessor(bufferRef);
-    }
-    else
-    {
-      this->init_placeholder_accessor(bufferRef);
-    }
-    _range = accessRange;
-    _offset = accessOffset;
+    detail::accessor::bind_to_buffer(*this, bufferRef);
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -455,13 +348,9 @@ access::target::constant_buffer)) && dimensions > 0 */
   accessor(buffer<dataT, dimensions> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
-    : detail::accessor_base<accessTarget, isPlaceholder>{
-        detail::buffer::get_buffer_impl(bufferRef)
-      }
   {
-    this->init_device_accessor(bufferRef, commandGroupHandlerRef);
-    _range = accessRange;
-    _offset = accessOffset;
+    detail::accessor::bind_to_buffer(*this, bufferRef, accessOffset, accessRange);
+    detail::accessor::bind_to_handler(*this, commandGroupHandlerRef);
   }
 
   accessor(const accessor& other) = default;
@@ -525,7 +414,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 0) */
   HIPSYCL_UNIVERSAL_TARGET
   operator dataT &() const
   {
-    return *_ptr;
+    return *(this->_ptr->get());
   }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
@@ -541,7 +430,7 @@ accessMode == access::mode::discard_read_write) && dimensions > 0) */
   HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](id<dimensions> index) const
   {
-    return _ptr[detail::linear_id<dimensions>::get(index, _buffer_range)];
+    return (this->_ptr->get())[detail::linear_id<dimensions>::get(index, _buffer_range)];
   }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
@@ -558,7 +447,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](size_t index) const
   {
-    return _ptr[index];
+    return (this->_ptr->get())[index];
   }
 
 
@@ -569,7 +458,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   operator dataT() const
   {
-    return *_ptr;
+    return *(this->_ptr->get());
   }
 
   /* Available only when: accessMode == access::mode::read && dimensions > 0 */
@@ -578,7 +467,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
   HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](id<dimensions> index) const
-  { return _ptr[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
+  { return (this->_ptr->get())[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
 
   /* Available only when: accessMode == access::mode::read && dimensions == 1 */
   template<int D = dimensions,
@@ -586,7 +475,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
   HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](size_t index) const
-  { return _ptr[index]; }
+  { return (this->_ptr->get())[index]; }
 
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
@@ -596,19 +485,19 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   operator atomic<dataT, access::address_space::global_space> () const
   {
-    return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr) };
+    return atomic<dataT, access::address_space::global_space>{
+        global_ptr<dataT>(this->_ptr->get())};
   }
 
   /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
-  template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(D > 0) && (M == access::mode::atomic)>>
-  HIPSYCL_UNIVERSAL_TARGET
-  atomic<dataT, access::address_space::global_space> operator[](
-      id<dimensions> index) const
+  template <int D = dimensions, access::mode M = accessmode,
+            typename = std::enable_if_t<(D > 0) && (M == access::mode::atomic)>>
+  HIPSYCL_UNIVERSAL_TARGET atomic<dataT, access::address_space::global_space>
+  operator[](id<dimensions> index) const 
   {
-    return atomic<dataT, access::address_space::global_space>
-             { global_ptr<dataT>(_ptr + detail::linear_id<dimensions>::get(index, _buffer_range)) };
+    return atomic<dataT, access::address_space::global_space>{global_ptr<dataT>(
+        this->_ptr->get() +
+        detail::linear_id<dimensions>::get(index, _buffer_range))};
   }
 
   template<int D = dimensions,
@@ -617,7 +506,8 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   atomic<dataT, access::address_space::global_space> operator[](size_t index) const
   {
-    return atomic<dataT, access::address_space::global_space> { global_ptr<dataT>(_ptr + index) };
+    return atomic<dataT, access::address_space::global_space>{
+        global_ptr<dataT>(this->_ptr->get() + index)};
   }
 
   /* Available only when: dimensions > 1 */
@@ -642,7 +532,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<T==access::target::host_buffer>>
   dataT *get_pointer() const
   {
-    return const_cast<dataT*>(_ptr);
+    return const_cast<dataT*>(this->_ptr->get());
   }
 
   /* Available only when: accessTarget == access::target::global_buffer */
@@ -651,7 +541,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   global_ptr<dataT> get_pointer() const
   {
-    return global_ptr<dataT>{const_cast<dataT*>(_ptr)};
+    return global_ptr<dataT>{const_cast<dataT*>(this->_ptr->get())};
   }
 
   /* Available only when: accessTarget == access::target::constant_buffer */
@@ -660,48 +550,13 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   constant_ptr<dataT> get_pointer() const
   {
-    return constant_ptr<dataT>{const_cast<dataT*>(_ptr)};
+    return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr->get())};
   }
 private:
-  template<class Buffer_type>
-  void init_device_accessor(Buffer_type& bufferRef,
-                            handler& commandGroupHandlerRef)
-  {
-    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
-    this->_ptr = reinterpret_cast<pointer_type>(
-          detail::accessor::obtain_device_access(buff,
-                                                 commandGroupHandlerRef,
-                                                 accessmode));
-    this->_accessor_id = 
-      detail::accessor::request_accessor_id(buff, commandGroupHandlerRef);
-
-    this->_buffer_range = detail::buffer::get_buffer_range(bufferRef);
-  }
-
-  template<class Buffer_type>
-  void init_host_accessor(Buffer_type& bufferRef)
-  {
-    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
-    this->_ptr = reinterpret_cast<pointer_type>(
-          detail::accessor::obtain_host_access(buff,
-                                               accessmode));
-
-    this->_buffer_range = detail::buffer::get_buffer_range(bufferRef);
-  }
-
-  template<class Buffer_type>
-  void init_placeholder_accessor(Buffer_type& bufferRef)
-  {
-    detail::buffer_ptr buff = detail::buffer::get_buffer_impl(bufferRef);
-
-    this->_ptr = reinterpret_cast<pointer_type>(buff->get_buffer_ptr());
-    this->_buffer_range = detail::buffer::get_buffer_range(bufferRef);
-  }
-
+  
   HIPSYCL_UNIVERSAL_TARGET
   accessor(){}
 
-  pointer_type _ptr;
   range<dimensions> _buffer_range;
   range<dimensions> _range;
   id<dimensions> _offset;
@@ -846,21 +701,6 @@ template <typename dataT, int dimensions = 1>
 using local_accessor = accessor<dataT, dimensions, access::mode::read_write,
   access::target::local>;
 
-namespace detail {
-namespace accessor {
-
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget,
-         access::placeholder isPlaceholder>
-sycl::range<dimensions> get_buffer_range(const sycl::accessor<dataT, dimensions,
-  accessmode, accessTarget, isPlaceholder>& acc)
-{
-  return acc._buffer_range;
-}
-
-}
-}
 
 } // sycl
 } // hipsycl

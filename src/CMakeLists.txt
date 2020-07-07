@@ -10,15 +10,11 @@ project(libhipSYCL)
 set(CMAKE_CXX_COMPILER ${HIPSYCL_DEVICE_COMPILER})
 
 set(HIPSYCL_SOURCES
-  sycl/application.cpp
   sycl/device.cpp
   sycl/device_selector.cpp
   sycl/exception.cpp
   sycl/queue.cpp
   sycl/handler.cpp
-  sycl/buffer.cpp
-  sycl/task_graph.cpp
-  sycl/accessor.cpp
   sycl/async_worker.cpp
   sycl/local_memory.cpp
   runtime/application.cpp

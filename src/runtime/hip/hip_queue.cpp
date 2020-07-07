@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_error.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
@@ -83,7 +84,7 @@ std::unique_ptr<dag_node_event> hip_queue::insert_event() {
   return std::make_unique<hip_node_event>(_dev, evt);
 }
 
-void hip_queue::submit_memcpy(const memcpy_operation & op) {
+result hip_queue::submit_memcpy(const memcpy_operation & op) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -139,9 +140,11 @@ void hip_queue::submit_memcpy(const memcpy_operation & op) {
   } else {
     assert(false && "3D data transfer is unimplemented");
   }
+
+  return make_success(hipsycl_here());
 }
 
-void hip_queue::submit_kernel(const kernel_operation &op) {
+result hip_queue::submit_kernel(const kernel_operation &op) {
 
   this->activate_device();
   glue::hip_kernel_launcher *l = cast<glue::hip_kernel_launcher>(
@@ -149,22 +152,28 @@ void hip_queue::submit_kernel(const kernel_operation &op) {
 
   l->set_params(this);
   l->invoke();
+
+  return make_success(hipsycl_here());
 }
 
-void hip_queue::submit_prefetch(const prefetch_operation&) {
+result hip_queue::submit_prefetch(const prefetch_operation&) {
   assert(false && "Unimplemented");
+
+  return make_success(hipsycl_here());
 }
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-void hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   assert(dynamic_is<hip_node_event>(evt.get()));
 
   hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
   hip_check_error(hipStreamWaitEvent(_stream, hip_evt->get_event(), 0));
+
+  return make_success(hipsycl_here());
 }
 
-void hip_queue::submit_external_wait_for(dag_node_ptr node) {
+result hip_queue::submit_external_wait_for(dag_node_ptr node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
   assert(user_data);
@@ -173,6 +182,8 @@ void hip_queue::submit_external_wait_for(dag_node_ptr node) {
   hip_check_error(
       hipStreamAddCallback(_stream, host_synchronization_callback,
                            reinterpret_cast<void *>(user_data), 0));
+
+  return make_success(hipsycl_here());
 }
 
 }

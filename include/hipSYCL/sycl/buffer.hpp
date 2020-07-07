@@ -35,6 +35,7 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "hipSYCL/runtime/data.hpp"
 #include "property.hpp"
 #include "types.hpp"
 #include "context.hpp"
@@ -43,7 +44,6 @@
 #include "id.hpp"
 #include "range.hpp"
 
-#include "detail/buffer.hpp"
 #include "../common/reinterpret_pointer_cast.hpp"
 
 #include "accessor.hpp"
@@ -109,6 +109,11 @@ class buffer : public detail::property_carrying_object
 public:
   template <class OtherT, int OtherDim, typename OtherAllocator>
   friend class buffer;
+
+  template<class AccessorType, class BufferType, int Dim>
+  friend void detail::accessor::bind_to_buffer(
+    AccessorType& acc, BufferType& buff, 
+    sycl::id<Dim> accessOffset, sycl::range<Dim> accessRange);
   
   using value_type = T;
   using reference = value_type &;
@@ -346,11 +351,6 @@ public:
     return !(*this == rhs);
   }
 
-  detail::buffer_ptr _detail_get_buffer_ptr() const
-  {
-    return _buffer;
-  }
-
 private:
 
   
@@ -457,27 +457,34 @@ private:
   // exist once the cleanup trigger is executed!
   shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
   
-  detail::buffer_ptr _buffer;
+  std::shared_ptr<rt::buffer_data_region> _data;
 };
 
-namespace detail {
-namespace buffer {
+namespace detail::accessor {
 
-
-template<class Buffer_type>
-buffer_ptr get_buffer_impl(Buffer_type& buff)
-{
-  return buff._detail_get_buffer_ptr();
+template<class AccessorType, class BufferType, int Dim>
+void bind_to_buffer(AccessorType& acc, BufferType& buff, 
+    sycl::id<Dim> accessOffset, sycl::range<Dim> accessRange) {
+  
+  acc._offset = accessOffset;
+  acc._range = accessRange;
+  acc._buffer_range = buff.get_range();
+  acc.set_data_region(buff._data);
 }
 
-template<class Buffer_type>
-sycl::range<Buffer_type::buffer_dim> get_buffer_range(const Buffer_type& b)
+template<class AccessorType, class T, class Dim, class AllocatorT>
+void bind_to_buffer_with_defaults(AccessorType& acc, buffer<T,Dim,AllocatorT>& buff)
 {
-  return b.get_range();
+  bind_to_buffer(acc, buff, sycl::id<Dim>{}, buff.get_range());
 }
 
-} // buffer
-} // detail
+template<class AccessorType, class BufferType>
+void bind_to_buffer(AccessorType& acc, BufferType& buff) {
+  bind_to_buffer_with_defaults(acc, buff);
+}
+
+}
+
 } // sycl
 } // hipsycl
 

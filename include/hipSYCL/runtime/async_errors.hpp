@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,63 +26,60 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DEFERRED_POINTER_HPP
-#define HIPSYCL_DEFERRED_POINTER_HPP
+#ifndef HIPSYCL_ASYNC_ERRORS_HPP
+#define HIPSYCL_ASYNC_ERRORS_HPP
 
-#include <memory>
+#include <mutex>
 #include <vector>
 
+#include "error.hpp"
+#include "hipSYCL/common/debug.hpp"
+
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-/// A pointer class that can be captured by kernels (for use in accessors)
-/// whose actual address can be assigned later, after it has been
-/// captured and is no longer directly accessible.
-/// This is dony by hijacking the copy constructor: Whenever it is invoked,
-/// if it has not yet been assigned an address, the class checks
-/// the address it was constructed with. If it now contains a non-null
-/// address, the deferred_pointer assumes this address.
-/// To trigger this mechanism, kernel objects are explicitly copied once
-/// right before kernel submission.
-
-template<class T>
-class deferred_pointer
+class async_error_list
 {
-  deferred_pointer(void** initial_ptr)
-  : _ptr{reinterpret_cast<T*>(initial_ptr)}, _initialized{false} {}
+public:
 
-#ifndef SYCL_DEVICE_ONLY
-  deferred_pointer(const deferred_pointer &other) {
-    _ptr = other.ptr;
-    _initialized = other.initialized;
+  void add(const result& res)
+  {
+    std::lock_guard<std::mutex> lock{_lock};
 
-    maybe_init();
+    HIPSYCL_DEBUG_ERROR << "Runtime has registered error: ";
+    res.dump(HIPSYCL_OUTPUT_STREAM);
+    
+    _errors.push_back(res);
   }
-#endif
 
-  T *get() const
-  { return _ptr; }
+  void clear() {
+    std::lock_guard<std::mutex> lock{_lock};
+
+    _errors.clear();
+  }
+
+  template<class F>
+  void for_each_error(F handler) {
+    std::lock_guard<std::mutex> lock{_lock};
+    for(const auto& err : _errors)
+      handler(err);
+  }
+
+
+  template<class F>
+  void pop_each_error(F handler) {
+    std::lock_guard<std::mutex> lock{_lock};
+    for(const auto& err : _errors)
+      handler(err);
+    _errors.clear();
+  }
 
 private:
-  
-  T* _ptr;
-  bool _initialized;
-
-  void maybe_init() {
-#ifndef SYCL_DEVICE_ONLY
-    if (!_initialized && _ptr) {
-      T *target_ptr = *reinterpret_cast<T**>(_ptr);
-      if (target_ptr){
-        _ptr = target_ptr;
-        _initialized = true;
-      }
-    }
-#endif
-  }
+  std::mutex _lock;
+  std::vector<result> _errors;
 };
 
-} // glue
-} // hipsycl
-
+}  
+}
 
 #endif

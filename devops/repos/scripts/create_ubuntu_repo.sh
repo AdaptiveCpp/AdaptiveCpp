@@ -1,7 +1,8 @@
 #!/bin/bash
 #set -e
 
-source ./common/init.sh
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $DIR/../common/init.sh
 
 UBUNTU_REPO_DIR=${UBUNTU_REPO_DIR:-/data/repos/deb}
 DIST=${DIST:-bionic}
@@ -13,7 +14,7 @@ POOL_PATH=$UBUNTU_REPO_DIR/pool/
 mkdir -p $PKG_PATH
 mkdir -p $POOL_PATH
 
-cd $UBUNTU_PKG_DIR
+cd $HIPSYCL_PKG_UBUNTU_PKG_DIR
 
 for f in *
 do

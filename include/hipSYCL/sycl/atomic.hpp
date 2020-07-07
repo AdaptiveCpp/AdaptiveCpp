@@ -125,7 +125,7 @@ public:
     return atomicAdd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_add_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_add(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -144,7 +144,7 @@ public:
     return atomicSub(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_sub_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_sub(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -163,7 +163,7 @@ public:
     return atomicAnd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_and_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_and(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -182,7 +182,7 @@ public:
     return atomicOr(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_or_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_or(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();
@@ -201,7 +201,7 @@ public:
     return atomicXor(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
-    return __atomic_xor_fetch(_ptr, operand, __ATOMIC_RELAXED);
+    return __atomic_fetch_xor(_ptr, operand, __ATOMIC_RELAXED);
 #endif
 #else
     return detail::invalid_host_call_dummy_return<T>();

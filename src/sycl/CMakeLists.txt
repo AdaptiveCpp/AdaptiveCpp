@@ -74,10 +74,20 @@ if(WITH_ROCM_BACKEND)
 endif()
 
 if(WITH_CPU_BACKEND)
+  find_package(OpenMP REQUIRED)
+  if(APPLE)
+    if(CMAKE_VERSION VERSION_LESS "3.16")
+      message(FATAL_ERROR "CMake 3.16.0+ is required for macOS OpenMP support!")
+    endif()
+  endif()
   add_library(hipSYCL_cpu SHARED ${HIPSYCL_SOURCES})
   target_compile_definitions(hipSYCL_cpu PRIVATE HIPSYCL_BOOTSTRAP=1)
   target_compile_options(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
   target_include_directories(hipSYCL_cpu PRIVATE ${INCLUDE_DIRS} ${HIPSYCL_SOURCE_DIR}/contrib/hipCPU/include)
+  if(APPLE)
+    target_include_directories(hipSYCL_cpu PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
+  endif()
+
   target_link_libraries(hipSYCL_cpu PRIVATE --hipsycl-platform=cpu ${COMMON_SYCLCC_OPTIONS})
   install(TARGETS hipSYCL_cpu
           EXPORT install_exports

@@ -12,7 +12,7 @@ apt update
 apt install -y libnuma-dev libpci-dev libelf-dev wget perl perl-modules gcc g++ git cmake clang
 # required for aomp build
 apt install -y iputils-ping gawk pkg-config python3 rsync
-sh /install-cuda.sh
-sh /install-llvm.sh
-sh /install-rocm.sh
+bash /install-cuda.sh
+bash /install-llvm.sh
+bash /install-rocm.sh
 #sh /install-hipsycl.sh

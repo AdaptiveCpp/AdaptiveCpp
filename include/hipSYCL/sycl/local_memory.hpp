@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/detail/application.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+#ifndef HIPSYCL_LOCAL_MEMORY_HPP
+#define HIPSYCL_LOCAL_MEMORY_HPP
+
+#include <type_traits>
+
+#include "backend/backend.hpp"
+#include "group.hpp"
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
 
-runtime& application::get_hipsycl_runtime()
+template<class T>
+class local_memory
 {
-  return *rt;
-}
+public:
+  using scalar_type = typename std::remove_extent<T>::type;
 
-task_graph& application::get_task_graph()
-{
-  return get_hipsycl_runtime().get_task_graph();
-}
+  template<int Dim>
+  HIPSYCL_KERNEL_TARGET
+  local_memory(group<Dim>&) {}
 
-void application::reset()
-{
-  rt.reset();
-  rt = std::make_unique<runtime>();
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HCC)
-  const auto devices = device::get_devices(info::device_type::all);
-  for(auto& d : devices) {
-    detail::set_device(d);
-    detail::check_error(hipDeviceReset());
+  template<class t = scalar_type, 
+          std::enable_if_t<std::is_array<T>::value>* = nullptr>
+  HIPSYCL_KERNEL_TARGET
+  scalar_type& operator[](std::size_t index) noexcept{
+    return _var[index];
   }
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()() noexcept{
+    return _var;
+  }
+private:
+  // It is not possible to just mark this member as __shared__
+  // here (at least for HIP/CUDA), because member variables
+  // cannot be declared in local memory. The clang plugin
+  // therefore finds all declarations of type local_memory<T>
+  // and puts them in local memory.
+  T _var;
+};
+
+}
+}
+
 #endif
-}
-
-std::unique_ptr<runtime> application::rt = std::make_unique<runtime>();
-
-}
-}
-}
-

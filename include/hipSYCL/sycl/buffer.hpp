@@ -31,6 +31,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <memory>
 #include <type_traits>
 #include <algorithm>
 
@@ -43,6 +44,7 @@
 #include "range.hpp"
 
 #include "detail/buffer.hpp"
+#include "../common/reinterpret_pointer_cast.hpp"
 
 #include "accessor.hpp"
 
@@ -105,6 +107,9 @@ template <typename T, int dimensions,
 class buffer : public detail::property_carrying_object
 {
 public:
+  template <class OtherT, int OtherDim, typename OtherAllocator>
+  friend class buffer;
+  
   using value_type = T;
   using reference = value_type &;
   using const_reference = const value_type &;
@@ -320,10 +325,16 @@ public:
   // ToDo Implement
   bool is_sub_buffer() const;
 
-  // ToDo Implement
   template <typename ReinterpretT, int ReinterpretDim>
-  buffer<ReinterpretT, ReinterpretDim, AllocatorT>
-  reinterpret(range<ReinterpretDim> reinterpretRange) const;
+  buffer<ReinterpretT, ReinterpretDim>
+  reinterpret(range<ReinterpretDim> reinterpretRange) const {
+
+    buffer<ReinterpretT, ReinterpretDim> new_buffer;
+    new_buffer.init_from(*this);
+    new_buffer._range = reinterpretRange;
+    
+    return new_buffer;
+  }
 
   friend bool operator==(const buffer& lhs, const buffer& rhs)
   {
@@ -339,7 +350,25 @@ public:
   {
     return _buffer;
   }
+
 private:
+
+  
+  buffer()
+  : detail::property_carrying_object {property_list {}}
+  {}
+
+  template <class OtherT, int OtherDim>
+  void init_from(const buffer<OtherT, OtherDim> &other) {
+    detail::property_carrying_object::operator=(other);
+    this->_alloc = other._alloc;
+    this->_range = other._range;
+    this->_writeback_buffer = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._writeback_buffer);
+    this->_shared_host_data = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._shared_host_data);
+    this->_cleanup_trigger = other._cleanup_trigger;
+    this->_buffer = other._buffer;
+  }
+  
   void create_buffer(detail::device_alloc_mode device_mode,
                      detail::host_alloc_mode host_mode,
                      const range<dimensions>& range)

@@ -25,41 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/detail/application.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+
+#ifndef HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+#define HIPSYCL_REINTERPRET_POINTER_CAST_HPP
+
+#include <memory>
 
 namespace hipsycl {
-namespace sycl {
-namespace detail {
+namespace common {
+namespace shim {
 
-runtime& application::get_hipsycl_runtime()
-{
-  return *rt;
+#ifdef _LIBCPP_VERSION
+// libc++ has std::reinterpret_pointer_cast since version 11000
+#if _LIBCPP_VERSION < 11000
+template< class T, class U > 
+std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U>& r) noexcept {
+    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type*>(r.get());
+    return std::shared_ptr<T>(r, p);
 }
-
-task_graph& application::get_task_graph()
-{
-  return get_hipsycl_runtime().get_task_graph();
-}
-
-void application::reset()
-{
-  rt.reset();
-  rt = std::make_unique<runtime>();
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HCC)
-  const auto devices = device::get_devices(info::device_type::all);
-  for(auto& d : devices) {
-    detail::set_device(d);
-    detail::check_error(hipDeviceReset());
-  }
+#else
+using std::reinterpret_pointer_cast;
 #endif
+#else
+// libstdc++ has std::reinterpret_pointer_cast in c++17 mode
+using std::reinterpret_pointer_cast;
+#endif
+
+}
+}
 }
 
-std::unique_ptr<runtime> application::rt = std::make_unique<runtime>();
-
-}
-}
-}
+#endif
 

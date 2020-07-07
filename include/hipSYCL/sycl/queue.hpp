@@ -162,9 +162,11 @@ public:
 
   void throw_asynchronous();
 
-  bool operator==(const queue& rhs) const;
+  friend bool operator==(const queue& lhs, const queue& rhs)
+  { return (lhs._device == rhs._device) && (lhs._stream == rhs._stream); }
 
-  bool operator!=(const queue& rhs) const;
+  friend bool operator!=(const queue& lhs, const queue& rhs)
+  { return !(lhs == rhs); }
 
   hipStream_t get_hip_stream() const;
   detail::stream_ptr get_stream() const;

@@ -117,6 +117,25 @@ public:
 #endif
   }
 
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const h_item<dimensions> lhs, const h_item<dimensions> rhs)
+  {
+  const range<dimensions> _num_groups;
+  #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+    return lhs._logical_local_id == rhs._logical_local_id && 
+           lhs._logical_range == rhs._logical_range;
+  #else
+    return lhs._logical_local_id == rhs._logical_local_id &&
+           lhs._logical_range == rhs._logical_range &&
+           lhs._group_id == rhs._group_id &&
+           lhs._num_groups == rhs.num_groups;
+  #endif
+  }
+
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const h_item<dimensions> lhs, const h_item<dimensions> rhs)
+  {
+    return !(lhs==rhs);
+  }
+
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_local_range() const
   {

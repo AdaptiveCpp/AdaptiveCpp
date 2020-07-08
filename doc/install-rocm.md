@@ -11,7 +11,6 @@ Additionally, please take note of the following:
   * clang 10 with ROCm 2.6
   * clang 9 with ROCm 2.6
   * HIP support was introduced in clang 8, so anything older than clang 8 cannot work.
-  If you use a debian-based Linux distribution (e.g. Debian/Ubuntu), you can get binary packages for llvm/clang from [apt.llvm.org](http://apt.llvm.org). Note that currently the clang 9 packages seem to be packaged incorrectly, preventing correct detection of the installation by hipSYCL's cmake - you will have to use the nightly clang 10 snapshots.
 * **clang distributions from AMD:**
   * In principle, clang forks from AMD like `aomp` releases can be used as well, however at least the aomp 0.7 binary packages are compiled with the `_DEBUG` macro enabled, which is unsupported as described above. Additionally, the way that aomp currently advertises its version causes cmake's version identification to discard it as incompatible (we specifically ask for clang/LLVM 8,9 or 10).
 

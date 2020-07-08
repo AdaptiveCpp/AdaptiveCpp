@@ -31,7 +31,12 @@ endif()
 
 target_link_libraries(hipSYCL_clang
   ${LLVM_LIBS}
-  ${Boost_LIBRARIES} -Wl,-znodelete)
+  ${Boost_LIBRARIES})
+if(APPLE)
+    target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
+else()
+    target_link_libraries(hipSYCL_clang -Wl,-znodelete)
+endif()
 
 install(TARGETS hipSYCL_clang
         LIBRARY DESTINATION lib

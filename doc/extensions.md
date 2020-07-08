@@ -12,6 +12,11 @@ Alternatively, instead of activating individual extensions, all extensions can b
 
 ## Supported extensions
 
+
+### `HIPSYCL_EXT_SCOPED_PARALLELISM`
+This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
+See [here](scoped-parallelism.md) for more details. **Scoped parallelism is the recommended way in hipSYCL to write programs that are performance portable between CPU and GPU backends.**
+
 ### `HIPSYCL_EXT_FP_ATOMICS`
 This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
 
@@ -107,7 +112,4 @@ The following 'finalizers' are supported:
 * `cl::sycl::vendor::hipsycl::synchronization::global_and_local_mem_fence` - same as `mem_fence<access::fence_space::global_and_local>`
 
 
-### `HIPSYCL_EXT_SCOPED_PARALLELISM`
-This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
-See [scoped-parallelism.md](here) for more details.
 

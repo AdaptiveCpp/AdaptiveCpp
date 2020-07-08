@@ -58,7 +58,7 @@ dag_manager::builder() const
   return _builder.get();
 }
 
-void dag_manager::flush()
+void dag_manager::flush_async()
 {
   _worker([this](){
     dag new_dag = _builder->finish_and_reset();
@@ -67,10 +67,16 @@ void dag_manager::flush()
   });
 }
 
+void dag_manager::flush_sync()
+{
+  this->flush_async();
+  _worker.wait();
+}
+
 void dag_manager::wait()
 {
-  flush();
-  _worker.wait();
+  // TODO
+  assert(false && "unimplemented");
 }
 
 void dag_manager::trigger_flush_opportunity()

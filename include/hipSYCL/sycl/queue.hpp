@@ -132,9 +132,23 @@ public:
     const std::vector<rt::dag_node_ptr>& dag_nodes =
       cgh.get_cg_nodes();
 
-    assert(dag_nodes.size() == 1);
+    if(dag_nodes.empty()) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Command queue evaluation did not result in the creation "
+             "of events. Are there operations inside the command group?"
+          << std::endl;
+      return event{};
+    }
+    if(dag_nodes.size() > 1) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Multiple events returned from command group evaluation; "
+             "multiple operations in a single command group is not SYCL "
+             "conformant. Returning event to the last operation"
+          << std::endl;
+    }
 
     return event{dag_nodes.back()};
+    
   }
 
   template <typename T>

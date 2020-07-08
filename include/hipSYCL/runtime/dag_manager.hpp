@@ -43,8 +43,12 @@ public:
   dag_manager();
   ~dag_manager();
 
-  void flush();
-
+  // Submits operations asynchronously
+  void flush_async();
+  // Submits operations asynchronously and
+  // wait until they have been submitted
+  void flush_sync();
+  // Wait for completion of all submitted operations
   void wait();
 private:
   void trigger_flush_opportunity();

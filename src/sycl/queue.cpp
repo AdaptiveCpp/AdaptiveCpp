@@ -25,10 +25,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/sycl/context.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/queue.hpp"
 
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/sycl/types.hpp"
+#include <exception>
 
 namespace hipsycl {
 namespace sycl {
@@ -144,14 +148,35 @@ bool queue::is_host() const {
 }
 
 void queue::wait() {
-  assert(false && "queue::wait() is unimplemented");
+  rt::application::dag().flush_sync();
+  rt::application::dag().wait();
 }
 
 void queue::wait_and_throw() {
   this->wait();
+  this->throw_asynchronous();
 }
 
-void queue::throw_asynchronous() {}
+void queue::throw_asynchronous() {
+  sycl::exception_list exceptions;
+
+  std::vector<rt::result> async_errors;
+  rt::application::get_runtime().errors().pop_each_error(
+      [&](const rt::result &err) {
+        async_errors.push_back(err);
+      });
+
+  for(const auto& err : async_errors) {
+    try {
+      // TODO: Translate err into exception
+    } catch (...) {
+      exceptions.push_back(std::current_exception());
+    }
+  }
+
+  if(!exceptions.empty())
+    _handler(exceptions);
+}
 
 bool queue::operator==(const queue &rhs) const {
   return _default_hints == rhs._default_hints;

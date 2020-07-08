@@ -125,6 +125,33 @@ public:
   { return !is_image_requirement(); }
 };
 
+template<int Dim>
+sycl::id<3> embed_in_id3(sycl::id<Dim> idx) {
+  static_assert(Dim >= 1 && Dim <=3, 
+      "id dim must be between 1 and 3");
+
+  if constexpr(Dim == 1) {
+    return sycl::id<3>{0, 0, idx[0]};
+  } else if constexpr(Dim == 2) {
+    return sycl::id<3>{0,idx[0], idx[1]};
+  } else if constexpr(Dim == 3) {
+    return idx;
+  }
+}
+
+template<int Dim>
+sycl::range<3> embed_in_range3(sycl::range<Dim> r) {
+  static_assert(Dim >= 1 && Dim <=3, 
+      "range dim must be between 1 and 3");
+
+  if constexpr(Dim == 1) {
+    return sycl::range<3>{1, 1, r[0]};
+  } else if constexpr(Dim == 2) {
+    return sycl::range<3>{1, r[0], r[1]};
+  } else if constexpr(Dim == 3) {
+    return r;
+  }
+}
 
 class buffer_memory_requirement : public memory_requirement
 {
@@ -142,19 +169,8 @@ public:
     static_assert(Dim >= 1 && Dim <=3, 
       "dimension of buffer memory requirement must be between 1 and 3");
 
-    if(Dim == 1){
-      _offset = sycl::id<3>{0, 0, offset[0]};
-      _range = sycl::range<3>{1, 1, range[0]};
-    }
-    else if(Dim == 2){
-      _offset = sycl::id<3>{0, offset[0], offset[1]};
-      _range = sycl::range<3>{1, range[0], range[1]};
-    }
-    else {
-      _offset = offset;
-      _range = range;
-    }
-
+    _offset = embed_in_id3(offset);
+    _range = embed_in_range3(range);
   }
 
   std::size_t get_required_size() const override
@@ -323,7 +339,7 @@ private:
 
   // Only valid if constructed with raw pointer constructor
   void *_raw_data;
-  // Only valid if constructed data_region constructor
+  // Only valid if constructed with data_region constructor
   std::shared_ptr<buffer_data_region> _data_region;
 };
 

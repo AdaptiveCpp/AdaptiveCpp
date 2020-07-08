@@ -36,10 +36,7 @@
 #include "access.hpp"
 #include "accessor.hpp"
 #include "backend/backend.hpp"
-#include "hipSYCL/runtime/data.hpp"
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/kernel_launcher.hpp"
-#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/sycl/device.hpp"
 #include "types.hpp"
 #include "id.hpp"
 #include "range.hpp"
@@ -51,51 +48,17 @@
 #include "detail/local_memory_allocator.hpp"
 
 #include "hipSYCL/common/debug.hpp"
-
+#include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/glue/kernel_launcher_factory.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
-namespace detail {
-
-template<int dimensions, bool with_offset>
-HIPSYCL_KERNEL_TARGET
-bool item_is_in_range(const sycl::item<dimensions, with_offset>& item,
-                      const sycl::range<dimensions>& execution_range,
-                      const sycl::id<dimensions>& offset)
-{
-  for(int i = 0; i < dimensions; ++i)
-  {
-    if(item.get_id(i) >= offset.get(i) + execution_range.get(i))
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-
-template <access::target srcTgt, access::target dstTgt>
-constexpr hipMemcpyKind get_copy_kind()
-{
-  if(srcTgt == access::target::global_buffer)
-  {
-    if(dstTgt == access::target::global_buffer) return hipMemcpyDeviceToDevice;
-    if(dstTgt == access::target::host_buffer) return hipMemcpyDeviceToHost;
-  }
-  if(srcTgt == access::target::host_buffer)
-  {
-    if(dstTgt == access::target::global_buffer) return hipMemcpyHostToDevice;
-    if(dstTgt == access::target::host_buffer) return hipMemcpyHostToHost;
-  }
-  assert(false && "Unsupported / unimplemented access targets");
-  return hipMemcpyDefault;
-}
-
-} // detail
 
 class queue;
 
@@ -277,7 +240,6 @@ void set_args(Ts &&... args);
   void copy(accessor<T, dim, srcMode, srcTgt> src,
             accessor<T, dim, dstMode, destTgt> dest)
   {
-    using namespace detail;
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 
@@ -285,37 +247,40 @@ void set_args(Ts &&... args);
     {
       if(src.get_range().get(i) > dest.get_range().get(i))
       {
-        throw invalid_parameter_error{"sycl explicit copy operation: "
+        throw invalid_parameter_error{"handler: copy(): "
           "Accessor sizes are incompatible."};
       }
     }
 
-    const auto src_ptr = src.get_pointer();
-    const auto src_ptr_offset = detail::accessor::get_pointer_offset(src);
-    const auto src_buffer_range = detail::accessor::get_buffer_range(src);
-    const auto src_acc_range = src.get_range();
+    std::shared_ptr<rt::buffer_data_region> data_src  = src._buff.get_shared_ptr();
+    std::shared_ptr<rt::buffer_data_region> data_dest = dest._buff.get_shared_ptr();
 
-    auto dest_ptr = dest.get_pointer();
-    const auto dest_ptr_offset = detail::accessor::get_pointer_offset(dest);
-    const auto dest_buffer_range = detail::accessor::get_buffer_range(dest);
+    if (sizeof(T) != data_src->get_element_size() ||
+        sizeof(T) != data_dest->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
 
-    constexpr auto copy_kind = get_copy_kind<srcTgt, destTgt>();
-    task_graph_node_ptr graph_node = nullptr;
+    rt::dag_build_guard build{rt::application::dag()};
 
-    if(dim == 1) graph_node = dispatch_copy_1d(dest_ptr, dest_ptr_offset, src_ptr,
-      src_ptr_offset, detail::range::range_cast<1>(src_acc_range), copy_kind);
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
+                                    "for queues not bound to devices"};
 
-    if(dim == 2) graph_node = dispatch_copy_2d(dest_ptr, dest_ptr_offset,
-      dest_buffer_range[1], src_ptr, src_ptr_offset, src_buffer_range[1],
-      detail::range::range_cast<2>(src_acc_range), copy_kind);
+    rt::device_id dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
 
-    if(dim == 3) graph_node = dispatch_copy_3d(dest_ptr, dest_ptr_offset,
-      detail::range::range_cast<3>(dest_buffer_range), src_ptr, src_ptr_offset,
-      detail::range::range_cast<3>(src_buffer_range),
-      detail::range::range_cast<3>(src_acc_range), copy_kind);
+    rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
+                                        data_src};
+    rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
+                                      data_dest};
 
-    maybe_register_copy_access(src, graph_node);
-    maybe_register_copy_access(dest, graph_node);
+    auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
+        source_location, dest_location, src.get_range());
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(explicit_copy), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt>
@@ -330,20 +295,28 @@ void set_args(Ts &&... args);
 
     std::shared_ptr<rt::buffer_data_region> data = acc._buff.get_shared_ptr();
 
+    if(sizeof(T) != data->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
+
     rt::dag_build_guard build{rt::application::dag()};
-/*
+
     auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-        typeid(f).name(),
-        glue::make_kernel_launchers<KernelName, KernelType>(
-            offset, local_range, 
-            global_range,
-            shared_mem_size, f),
-        _requirements);
+        data, acc.get_offset(), acc.get_range(), mode, tgt);
+
+    rt::execution_hints enforce_bind_to_host;
+    enforce_bind_to_host.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(
+            detail::get_host_device()));
+
+    // Merge new hint into default hints
+    rt::execution_hints hints = _execution_hints;
+    hints.overwrite_with(enforce_bind_to_host);
     
-    dag_node_ptr node = build.builder()->add_kernel(
-        std::move(kernel_op), _requirements, _execution_hints);
-    
-    _command_group_nodes.push_back(node);*/
+    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
+        std::move(explicit_requirement), _requirements, hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   /// \todo fill() on host accessors can be optimized to use
@@ -357,44 +330,34 @@ void set_args(Ts &&... args);
     static_assert(tgt != access::target::host_image,
                   "host_image targets are unsupported");
 
-    if(tgt == access::target::host_buffer)
+    // Use a function object instead of lambda to avoid
+    // requiring a unique kernel name for each fill call
+
+    // TODO: hipSYCL rt currently does not have a dedicated operation
+    // for fills - implement for the ability to implement fill using
+    // backend functionality instead of a kernel
+    class fill_kernel
     {
-      this->execute_host_range_iteration(dest.get_range(),
-                                         dest.get_offset(),
-                                         [&](sycl::id<dim> tid){
-        dest[tid] = src;
-      });
-    }
-    else
-    {
-      // Use a function object instead of lambda to avoid
-      // requiring a unique kernel name for each fill call
-      class fill_kernel
+    public:
+      fill_kernel(accessor<T, dim, mode, tgt> dest,
+                  const T& src)
+      : _dest{dest}, _src{src}
+      {}
+
+      void operator()(sycl::id<dim> tid)
       {
-      public:
-        fill_kernel(accessor<T, dim, mode, tgt> dest,
-                    const T& src)
-        : _dest{dest}, _src{src}
-        {}
+        _dest[tid] = _src;
+      }
 
-        #ifdef __HIPSYCL_TRANSFORM__
-        __device__
-        #endif
-        void operator()(sycl::id<dim> tid)
-        {
-          _dest[tid] = _src;
-        }
+    private:
+      accessor<T, dim, mode, tgt> _dest;
+      T _src;
+    };
 
-      private:
-        accessor<T, dim, mode, tgt> _dest;
-        T _src;
-      };
-
-      this->parallel_for(
-            dest.get_range(),
-            dest.get_offset(),
-            fill_kernel{dest, src});
-    }
+    this->submit_kernel<class fill_kernel, rt::kernel_type::basic_parallel_for>(
+        dest.get_offset(), dest.get_range(),
+        dest.get_range() /*local range unused for basic pf*/,
+        fill_kernel{dest, src});
   }
 
   detail::local_memory_allocator& get_local_memory_allocator()
@@ -419,280 +382,10 @@ private:
             shared_mem_size, f),
         _requirements);
     
-    dag_node_ptr node = build.builder()->add_kernel(
+    rt::dag_node_ptr node = build.builder()->add_kernel(
         std::move(kernel_op), _requirements, _execution_hints);
     
     _command_group_nodes.push_back(node);
-  }
-
-  template<typename KernelType, int dimension>
-  void execute_host_range_iteration(range<dimension> numWorkItems,
-                                    id<dimension> offset,
-                                    KernelType f)
-  {
-    range<3> num_items3d;
-    id<3> offset3d;
-    for(int i = 0; i < dimension; ++i)
-    {
-      num_items3d[i] = numWorkItems[i];
-      offset3d[i] = offset[i];
-    }
-    for(int i = dimension; i < 3; ++i)
-    {
-      num_items3d[i] = 1;
-      offset3d[i] = 0;
-    }
-
-    id<3> end3d = offset3d + num_items3d;
-    id<3> current3d;
-    for(current3d[0] = offset3d[0]; current3d[0] < end3d[0]; ++current3d[0])
-      for(current3d[1] = offset3d[1]; current3d[1] < end3d[1]; ++current3d[1])
-        for(current3d[2] = offset3d[2]; current3d[2] < end3d[2]; ++current3d[2])
-        {
-          id<dimension> current_item;
-          for(int i = 0; i < dimension; ++i)
-            current_item[i] = current3d[i];
-
-          f(current_item);
-        }
-  }
-
-  template <typename KernelName, typename KernelType, int dimensions>
-  __host__
-  void dispatch_kernel_without_offset(range<dimensions> numWorkItems,
-                                      KernelType kernelFunc)
-  {
-    dim3 grid, block;
-    determine_grid_configuration(numWorkItems, grid, block);
-
-    // TODO If shared_mem_size != 0, we can raise an error -
-    // local memory doesn't make sense for simple parallel_for!
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    detail::stream_ptr stream = this->get_stream();
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_kernel,
-                                  stream->get_stream(), shared_mem_size,
-                                  kernelFunc, numWorkItems, 
-                                  detail::dispatch::host::offset::without_offset{});
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, numWorkItems);
-      }
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
-
-  }
-
-  template <typename KernelName, typename KernelType, int dimensions>
-  __host__
-  void dispatch_kernel_with_offset(range<dimensions> numWorkItems,
-                                   id<dimensions> offset,
-                                   KernelType kernelFunc)
-  {
-    dim3 grid, block;
-    determine_grid_configuration(numWorkItems, grid, block);
-
-    // TODO If shared_mem_size != 0, we can raise an error -
-    // local memory doesn't make sense for single_task!
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    detail::stream_ptr stream = this->get_stream();
-
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_kernel,
-                                  stream->get_stream(), shared_mem_size,
-                                  kernelFunc, numWorkItems, 
-                                  detail::dispatch::host::offset::with_offset{}, 
-                                  offset);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_kernel_with_offset<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, numWorkItems, offset);
-      }
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
-  }
-
-
-  template <typename KernelName, typename KernelType, int dimensions>
-  __host__
-  void dispatch_ndrange_kernel(nd_range<dimensions> executionRange, KernelType kernelFunc)
-  {
-    for(int i = 0; i < dimensions; ++i)
-    {
-      if(executionRange.get_global()[i] % executionRange.get_local()[i] != 0)
-        throw invalid_parameter_error{"Global size must be a multiple of the local size"};
-    }
-
-    id<dimensions> offset = executionRange.get_offset();
-    range<dimensions> grid_range = executionRange.get_group();
-    range<dimensions> block_range = executionRange.get_local();
-
-    dim3 grid = range_to_dim3(grid_range);
-    dim3 block = range_to_dim3(block_range);
-
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    detail::stream_ptr stream = this->get_stream();
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        // We still need the hipCPU kernel launch semantics
-        // for ndrange kernels until we have support in the clang
-        // plugin for dealing with barriers
-        __hipsycl_launch_kernel(detail::dispatch::host::parallel_for_ndrange_kernel,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, offset);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, offset);
-      }
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
-  }
-
-  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
-  __host__
-  void dispatch_hierarchical_kernel(range<dimensions> numWorkGroups,
-                                    range<dimensions> workGroupSize,
-                                    WorkgroupFunctionType kernelFunc)
-  {
-
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    detail::stream_ptr stream = this->get_stream();
-
-    dim3 grid = range_to_dim3(numWorkGroups);
-    dim3 block = range_to_dim3(workGroupSize);
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_workgroup,
-                                  stream->get_stream(), 0,
-                                  kernelFunc, numWorkGroups, workGroupSize, 
-                                  shared_mem_size);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_workgroup<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, workGroupSize);
-      }
-
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
-  }
-
-  template <typename KernelName, typename WorkgroupFunctionType, int dimensions>
-  __host__
-  void dispatch_parallel_region(range<dimensions> numWorkGroups,
-                                range<dimensions> workGroupSize,
-                                WorkgroupFunctionType kernelFunc)
-  {
-
-    std::size_t shared_mem_size =
-        _local_mem_allocator.get_allocation_size();
-
-    detail::stream_ptr stream = this->get_stream();
-
-    dim3 grid = range_to_dim3(numWorkGroups);
-    dim3 block = range_to_dim3(workGroupSize);
-
-    auto kernel_launch = [=]()
-        -> detail::task_state
-    {
-      stream->activate_device();
-
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        hipLaunchSequentialKernel(detail::dispatch::host::parallel_region,
-                                  stream->get_stream(), 0,
-                                  kernelFunc, numWorkGroups, workGroupSize, 
-                                  shared_mem_size);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_region<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, numWorkGroups, workGroupSize);
-      }
-
-
-      return detail::task_state::enqueued;
-    };
-
-    this->submit_task(kernel_launch);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -701,27 +394,35 @@ private:
   {
     validate_copy_src_accessor(src);
 
-    const auto src_ptr = src.get_pointer();
-    const auto src_ptr_offset = detail::accessor::get_pointer_offset(src);
-    const auto src_buffer_range = detail::accessor::get_buffer_range(src);
-    const auto src_acc_range = src.get_range();
+    std::shared_ptr<rt::buffer_data_region> data_src = src._buff.get_shared_ptr();
 
-    constexpr auto copy_kind = detail::get_copy_kind<tgt, access::target::host_buffer>();
-    detail::task_graph_node_ptr graph_node = nullptr;
+    if (sizeof(T) != data_src->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
 
-    if(dim == 1) graph_node = dispatch_copy_1d(dest, 0, src_ptr, src_ptr_offset,
-      detail::range::range_cast<1>(src_acc_range), copy_kind);
+    rt::dag_build_guard build{rt::application::dag()};
 
-    if(dim == 2) graph_node = dispatch_copy_2d(dest, 0, src_acc_range[1], src_ptr,
-      src_ptr_offset, src_buffer_range[1],
-      detail::range::range_cast<2>(src_acc_range), copy_kind);
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
+                                    "for queues not bound to devices"};
 
-    if(dim == 3) graph_node = dispatch_copy_3d(dest, 0,
-      detail::range::range_cast<3>(src_acc_range),
-      src_ptr, src_ptr_offset, detail::range::range_cast<3>(src_buffer_range),
-      detail::range::range_cast<3>(src_acc_range), copy_kind);
+    rt::device_id dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
 
-    maybe_register_copy_access(src, graph_node);
+    rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
+                                        data_src};
+    // Assume dest element size and allocation shape is the same as src
+    rt::memory_location dest_location{dev, reinterpret_cast<void*>(dest),
+                                      sycl::id<3>{}, data_src->get_num_elements(),
+                                      data_src->get_element_size()};
+
+    auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
+        source_location, dest_location, src.get_range());
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(explicit_copy), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
@@ -730,27 +431,35 @@ private:
   {
     validate_copy_dest_accessor(dest);
 
-    auto dest_ptr = dest.get_pointer();
-    const auto dest_ptr_offset = detail::accessor::get_pointer_offset(dest);
-    const auto dest_buffer_range = detail::accessor::get_buffer_range(dest);
-    const auto dest_acc_range = dest.get_range();
+    std::shared_ptr<rt::buffer_data_region> data_dest = dest._buff.get_shared_ptr();
 
-    constexpr auto copy_kind = detail::get_copy_kind<access::target::host_buffer, tgt>();
-    detail::task_graph_node_ptr graph_node = nullptr;
+    if (sizeof(T) != data_dest->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
 
-    if(dim == 1) graph_node = dispatch_copy_1d(dest_ptr, dest_ptr_offset, src,
-      0, detail::range::range_cast<1>(dest_acc_range), copy_kind);
+    rt::dag_build_guard build{rt::application::dag()};
 
-    if(dim == 2) graph_node = dispatch_copy_2d(dest_ptr, dest_ptr_offset,
-      dest_buffer_range[1], src, 0, dest_acc_range[1],
-      detail::range::range_cast<2>(dest_acc_range), copy_kind);
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
+                                    "for queues not bound to devices"};
 
-    if(dim == 3) graph_node = dispatch_copy_3d(dest_ptr, dest_ptr_offset,
-      detail::range::range_cast<3>(dest_buffer_range), src, 0,
-      detail::range::range_cast<3>(dest_acc_range),
-      detail::range::range_cast<3>(dest_acc_range), copy_kind);
+    rt::device_id dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
 
-    maybe_register_copy_access(dest, graph_node);
+    // Assume same element size and allocation shape as for dest
+    rt::memory_location source_location{dev, reinterpret_cast<void*>(src),
+                                      sycl::id<3>{}, data_dest->get_num_elements(),
+                                      data_dest->get_element_size()};
+    rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
+                                      data_dest};
+
+    auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
+        source_location, dest_location, src.get_range());
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(explicit_copy), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt>
@@ -781,152 +490,6 @@ private:
       "supported for copying");
   }
 
-  void debug_print_copy_kind(hipMemcpyKind kind) {
-    switch(kind) {
-      case hipMemcpyHostToHost:
-        HIPSYCL_DEBUG_INFO <<
-          "handler: Spawning async host to host copy task" << std::endl;
-        break;
-      case hipMemcpyHostToDevice:
-        HIPSYCL_DEBUG_INFO <<
-          "handler: Spawning async host to device copy task" << std::endl;
-        break;
-      case hipMemcpyDeviceToHost:
-        HIPSYCL_DEBUG_INFO <<
-          "handler: Spawning async device to host copy task" << std::endl;
-        break;
-      case hipMemcpyDeviceToDevice:
-        HIPSYCL_DEBUG_INFO <<
-          "handler: Spawning async device to device copy task" << std::endl;
-        break;
-      default: assert(false);
-    }
-  }
-
-  template <typename destPtr, typename srcPtr>
-  detail::task_graph_node_ptr dispatch_copy_1d(destPtr dest, size_t dest_offset,
-                                               const srcPtr src, size_t src_offset,
-                                               range<1> count, hipMemcpyKind kind)
-  {
-    using namespace detail;
-    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
-    debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
-    auto copy_launch = [=]() -> task_state
-    {
-      stream->activate_device();
-
-      detail::check_error(
-        hipMemcpyAsync(get_raw_pointer(dest) + dest_offset, get_raw_pointer(src) +
-          src_offset, count[0] * sizeof(T), kind, stream->get_stream()));
-
-      return task_state::enqueued;
-    };
-    return this->submit_task(copy_launch);
-  }
-
-  template <typename destPtr, typename srcPtr>
-  detail::task_graph_node_ptr dispatch_copy_2d(destPtr dest, size_t dest_offset,
-                                               size_t dest_pitch, const srcPtr src,
-                                               size_t src_offset, size_t src_pitch,
-                                               range<2> count, hipMemcpyKind kind)
-  {
-    using namespace detail;
-    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
-    debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
-    auto copy_launch = [=]() -> task_state
-    {
-      stream->activate_device();
-
-      detail::check_error(
-        hipMemcpy2DAsync(get_raw_pointer(dest) + dest_offset, dest_pitch * sizeof(T),
-          get_raw_pointer(src) + src_offset, src_pitch * sizeof(T),
-          count[1] * sizeof(T), count[0], kind, stream->get_stream()));
-
-      return task_state::enqueued;
-    };
-    return this->submit_task(copy_launch);
-  }
-
-  template <typename destPtr, typename srcPtr>
-  detail::task_graph_node_ptr dispatch_copy_3d(destPtr dest, size_t dest_offset,
-                                               range<3> dest_buffer_range,
-                                               const srcPtr src, size_t src_offset,
-                                               range<3> src_buffer_range,
-                                               range<3> count, hipMemcpyKind kind)
-  {
-#if defined(HIPSYCL_PLATFORM_CUDA)
-    using namespace detail;
-    using T = std::remove_pointer_t<decltype(get_raw_pointer(src))>;
-    debug_print_copy_kind(kind);
-    const auto stream = this->get_stream();
-
-    auto copy_launch = [=]() -> task_state
-    {
-      hipMemcpy3DParms params = {};
-      auto raw_src_ptr = const_cast<std::remove_const_t<T>*>(get_raw_pointer(src));
-      params.srcPtr = make_hipPitchedPtr(raw_src_ptr + src_offset,
-        src_buffer_range[2] * sizeof(T), src_buffer_range[2], src_buffer_range[1]);
-      params.dstPtr = make_hipPitchedPtr( get_raw_pointer(dest) + dest_offset,
-        dest_buffer_range[2] * sizeof(T), dest_buffer_range[2], dest_buffer_range[1]);
-      params.extent = {count[2] * sizeof(T), count[1], count[0]};
-      // hipMemcpy3DParms on CUDA is simply a typedef, so it actually requires a cudaMemcpyKind.
-      // Thankfully the enums are compatible.
-      params.kind = static_cast<cudaMemcpyKind>(
-        static_cast<std::underlying_type_t<hipMemcpyKind>>(kind));
-
-      stream->activate_device();
-
-      auto err = cudaMemcpy3DAsync(&params, stream->get_stream());
-      detail::check_error(hipCUDAErrorTohipError(err));
-
-      return task_state::enqueued;
-    };
-    return this->submit_task(copy_launch);
-#else
-    // It looks like HIP doesn't provide a hipMemcpy3DAsync as of April 2019.
-    // See https://github.com/ROCm-Developer-Tools/HIP/blob/master/docs/markdown/CUDA_Runtime_API_functions_supported_by_HIP.md
-    // TODO: We could fall back to hipMemcpy3D on HCC (however, that requires a different parameter struct).
-    throw feature_not_supported{"3D copy() is currently not supported on "
-      "this platform"};
-#endif
-  }
-
-  /// Registers an external access for host-accessed buffers, which is required
-  /// to ensure that subsequent host accesses wait for explicit copy operations.
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void maybe_register_copy_access(accessor<T, dim, mode, tgt>& acc,
-                                  detail::task_graph_node_ptr task_node)
-  {
-    if(tgt != access::target::host_buffer) return;
-    
-    detail::buffer_ptr buff = _accessor_buffer_map.find_accessor(acc);
-    buff->register_external_access(task_node, mode);
-    HIPSYCL_DEBUG_INFO << "handler: Registering external access via task "
-      << task_node << " for buffer " << buff << std::endl;
-  }
-
-  detail::task_graph_node_ptr submit_task(detail::task_functor f)
-  {
-    auto& task_graph = detail::application::get_task_graph();
-
-    auto graph_node =
-        task_graph.insert(f, _spawned_task_nodes, get_stream(), _handler);
-
-    // Add new node to the access log of buffers. This guarantees that
-    // subsequent buffer accesses will wait for existing tasks to complete,
-    // if necessary
-    for(const auto& buffer_access : _accessed_buffers)
-    {
-      buffer_access.buff->register_external_access(
-            graph_node,
-            buffer_access.access_mode);
-    }
-
-    _spawned_task_nodes.push_back(graph_node);
-    return graph_node;
-  }
 
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }

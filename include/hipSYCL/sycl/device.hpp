@@ -44,6 +44,16 @@
 namespace hipsycl {
 namespace sycl {
 
+namespace detail {
+
+inline rt::device_id get_host_device() {
+  return rt::device_id{rt::backend_descriptor(rt::hardware_platform::cpu,
+                                              rt::api_platform::openmp_cpu),
+                       0};
+}
+
+}
+
 class device_selector;
 class platform;
 class device;
@@ -62,9 +72,7 @@ public:
   /// \todo Should this call throw an error instead of behaving differently
   /// than the spec requires?
   device()
-      : _device_id(rt::backend_descriptor(rt::hardware_platform::cpu,
-                                          rt::api_platform::openmp_cpu),
-                   0) {}
+      : _device_id(detail::get_host_device()) {}
 
   // OpenCL interop is not supported
   // explicit device(cl_device_id deviceId);

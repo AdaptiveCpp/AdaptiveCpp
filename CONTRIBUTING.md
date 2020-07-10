@@ -8,7 +8,7 @@ Please take note of the branch structure of the project. The following are impor
 
 * `master` - contains latest hipSYCL with additional testing. `master` should always contain a version of hipSYCL that we are confident is stable.
 * `develop` - contains latest development version.
-* `sycl/VERSION` - contains hipSYCL code that targets a specific SYCL version. `develop` will be 
+* `sycl/VERSION` - contains hipSYCL code that targets a specific SYCL version.
    - `sycl/1.2.1` - contains latest hipSYCL targeting SYCL 1.2.1. This branch is now mainly in maintenance mode. If you want to specifically improve hipSYCL SYCL 1.2.1 support, please use this branch.
    - `sycl/2020` - contains latest hipSYCL work targeting SYCL 2020, and any work that is not specific to earlier SYCL versions.
 

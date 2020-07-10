@@ -15,7 +15,6 @@ set(HIPSYCL_SOURCES
   sycl/exception.cpp
   sycl/queue.cpp
   sycl/handler.cpp
-  sycl/async_worker.cpp
   sycl/local_memory.cpp
   runtime/application.cpp
   runtime/backend.cpp

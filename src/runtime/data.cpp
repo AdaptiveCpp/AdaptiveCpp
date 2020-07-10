@@ -29,9 +29,15 @@
 #include <algorithm>
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/application.hpp"
 
 namespace hipsycl {
 namespace rt {
+
+void generic_pointer_free(backend_id b, void*)
+{
+  application::get_backend(b).get_allocator()->free();
+}
 
 const std::vector<data_user>& 
 data_user_tracker::get_users() const

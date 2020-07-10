@@ -30,6 +30,9 @@
 
 #include <cassert>
 
+#include "hipSYCL/sycl/id.hpp"
+#include "hipSYCL/sycl/range.hpp"
+
 namespace hipsycl {
 namespace rt {
 
@@ -50,6 +53,35 @@ U* cast(T* val)
 {
   assert_is<U>(val);
   return static_cast<U*>(val);
+}
+
+
+template<int Dim>
+sycl::id<3> embed_in_id3(sycl::id<Dim> idx) {
+  static_assert(Dim >= 1 && Dim <=3, 
+      "id dim must be between 1 and 3");
+
+  if constexpr(Dim == 1) {
+    return sycl::id<3>{0, 0, idx[0]};
+  } else if constexpr(Dim == 2) {
+    return sycl::id<3>{0,idx[0], idx[1]};
+  } else if constexpr(Dim == 3) {
+    return idx;
+  }
+}
+
+template<int Dim>
+sycl::range<3> embed_in_range3(sycl::range<Dim> r) {
+  static_assert(Dim >= 1 && Dim <=3, 
+      "range dim must be between 1 and 3");
+
+  if constexpr(Dim == 1) {
+    return sycl::range<3>{1, 1, r[0]};
+  } else if constexpr(Dim == 2) {
+    return sycl::range<3>{1, r[0], r[1]};
+  } else if constexpr(Dim == 3) {
+    return r;
+  }
 }
 
 }

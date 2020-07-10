@@ -35,7 +35,14 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/data.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 #include "property.hpp"
 #include "types.hpp"
 #include "context.hpp"
@@ -50,8 +57,8 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace property {
-namespace buffer {
+
+namespace property::buffer {
 
 class use_host_ptr : public detail::property
 {
@@ -81,24 +88,40 @@ private:
   context _ctx;
 };
 
-} // property
-} // buffer
+} // property::buffer
 
+namespace detail::buffer_policy {
 
-// hipSYCL property extensions
-namespace hipsycl {
-namespace property {
-namespace buffer {
+class destructor_waits : public property
+{ 
+public: 
+  destructor_waits(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
 
-struct use_svm : public detail::property
-{};
+class writes_back : public property
+{ 
+public: 
+  writes_back(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
 
-struct try_pinned_memory : public detail::property
-{};
+class use_external_storage : public property
+{ 
+public: 
+  use_external_storage(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
 
 }
-}
-}
+
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
@@ -126,6 +149,12 @@ public:
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = false;
+    dpol.writes_back = false;
+    init_policies_from_properties_or_default(dpol);
+
     this->init(bufferRange);
   }
 
@@ -140,6 +169,12 @@ public:
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = true;
+    dpol.writes_back = true;
+    init_policies_from_properties_or_default(dpol);
+
     this->init(bufferRange, hostData);
   }
 
@@ -154,6 +189,12 @@ public:
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = false;
+    dpol.writes_back = false;
+    init_policies_from_properties_or_default(dpol);
+
     // Construct buffer
     this->init(bufferRange);
 
@@ -176,6 +217,12 @@ public:
   {
     _alloc = allocator;
 
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = true;
+    dpol.writes_back = true;
+    init_policies_from_properties_or_default(dpol);
+
     this->init(bufferRange, hostData.get());
   }
 
@@ -193,6 +240,12 @@ public:
          const property_list &propList = {})
   : detail::property_carrying_object{propList}
   {
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = false;
+    dpol.writes_back = false;
+    init_policies_from_properties_or_default(dpol);
+
     _alloc = allocator;
 
     constexpr bool is_const_iterator = 
@@ -241,18 +294,10 @@ public:
 
   buffer(buffer<T, dimensions, AllocatorT> b,
          const id<dimensions> &baseIndex,
-         const range<dimensions> &subRange);
-
-  /* Available only when: dimensions == 1. */
-
-  /* CL interop is not supported
-  buffer(cl_mem clMemObject, const context &syclContext,
-         event availableEvent = {});
-  */
-
-  /* -- common interface members -- */
-
-  /* -- property interface members -- */
+         const range<dimensions> &subRange)
+  {
+    assert(false && "subbuffer is unimplemented");
+  }
 
   range<dimensions> get_range() const
   {
@@ -305,7 +350,7 @@ public:
     };
   }
 
-  void set_final_data(shared_ptr_class<T> finalData)
+  void set_final_data(std::shared_ptr<T> finalData)
   {
     this->_writeback_buffer = finalData;
     this->set_final_data(finalData.get());
@@ -315,20 +360,37 @@ public:
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
   {
-    this->_cleanup_trigger->remove_cleanup_callbacks();
-    _buffer->set_write_back(finalData);
-    if(finalData != nullptr)
-      _buffer->enable_write_back(true);
+    if (finalData != nullptr) {
+      set_write_back(true);
+    }
+    else {
+      set_write_back(false);
+    }
+    _writeback_ptr = finalData;
   }
 
   void set_write_back(bool flag = true)
   {
-    this->_cleanup_trigger->remove_cleanup_callbacks();
-    this->_buffer->enable_write_back(flag);
+    if(this->has_property<detail::buffer_policy::writes_back>()){
+      if (_writes_back != flag){
+        // Deny changing policy if it has previously been explicitly requested
+        // by the user
+        throw invalid_parameter_error{
+            "buffer::set_write_back(): buffer was constructed explicitly with "
+            "writeback policy, denying changing the policy as this likely "
+            "indicates a bug in user code"};
+      }
+    }
+    if(_writes_back != flag) {
+      HIPSYCL_DEBUG_INFO << "buffer: Changing write back policy to: " << flag
+                         << std::endl;
+      _writes_back = flag;
+    }
   }
 
-  // ToDo Implement
-  bool is_sub_buffer() const;
+  // ToDo Subbuffers are unsupported
+  bool is_sub_buffer() const
+  { return false; }
 
   template <typename ReinterpretT, int ReinterpretDim>
   buffer<ReinterpretT, ReinterpretDim>
@@ -343,7 +405,7 @@ public:
 
   bool operator==(const buffer& rhs) const
   {
-    return _buffer == rhs->_buffer;
+    return _data == rhs->_data;
   }
 
   bool operator!=(const buffer& rhs) const
@@ -352,6 +414,33 @@ public:
   }
 
 private:
+  struct default_policies
+  {
+    bool destructor_waits;
+    bool writes_back;
+    bool use_external_storage; 
+  };
+
+  void init_policies_from_properties_or_default(default_policies dpol)
+  {
+    this->_destructor_waits = get_policy_from_property_or_default<
+        detail::buffer_policy::destructor_waits>(dpol.destructor_waits);
+    
+    this->_writes_back =
+        get_policy_from_property_or_default<detail::buffer_policy::writes_back>(
+            dpol.writes_back);
+
+    this->_use_external_storage = get_policy_from_property_or_default<
+        detail::buffer_policy::use_external_storage>(dpol.use_external_storage);
+  }
+
+  template<class Policy>
+  bool get_policy_from_property_or_default(bool default_value)
+  {
+    if(this->has_property<Policy>())
+      return this->get_property<Policy>().value();
+    return default_value;
+  }
 
   
   buffer()
@@ -365,54 +454,16 @@ private:
     this->_range = other._range;
     this->_writeback_buffer = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._writeback_buffer);
     this->_shared_host_data = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._shared_host_data);
-    this->_cleanup_trigger = other._cleanup_trigger;
-    this->_buffer = other._buffer;
+    this->_writeback_ptr = other._writeback_ptr;
+    this->_data = other._data;
+
+    this->_writes_back = other._writes_back;
+    this->_destructor_waits = other._destructor_waits;
+    this->_use_external_storage = other._use_external_storage;
   }
   
-  void create_buffer(detail::device_alloc_mode device_mode,
-                     detail::host_alloc_mode host_mode,
-                     const range<dimensions>& range)
-  {
-#if !defined(HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY) && defined(HIPSYCL_PLATFORM_CPU)
-    // force svm allocation
-    device_mode = detail::device_alloc_mode::svm;
-    host_mode = detail::host_alloc_mode::svm;
-#endif
-    
-    _buffer = detail::buffer_ptr{
-      new detail::buffer_impl{
-        sizeof(T) * range.size(), device_mode, host_mode
-      }
-    };
-    _range = range;
-  }
-
-  void create_buffer(T* host_memory,
-                     const range<dimensions>& range)
-  {
-#if !defined(HIPSYCL_CPU_EMULATE_SEPARATE_MEMORY) && defined(HIPSYCL_PLATFORM_CPU)
-    bool force_svm = true;
-#else
-    bool force_svm = false;
-#endif
-      
-    _buffer = detail::buffer_ptr{
-      new detail::buffer_impl{
-        sizeof(T) * range.size(),
-        reinterpret_cast<void*>(host_memory),
-        force_svm
-      }
-    };
-    _range = range;
-  }
-
   void init(const range<dimensions>& range)
   {
-
-    detail::device_alloc_mode device_mode =
-        detail::device_alloc_mode::regular;
-    detail::host_alloc_mode host_mode =
-        detail::host_alloc_mode::regular;
 
     if(this->has_property<hipsycl::property::buffer::try_pinned_memory>() &&
        this->has_property<hipsycl::property::buffer::use_svm>())
@@ -420,21 +471,34 @@ private:
                                     "as buffer properties cannot be specified "
                                     "at the same time."};
 
-    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>())
-      host_mode = detail::host_alloc_mode::allow_pinned;
+    void* host_ptr = nullptr;
+    rt::device_id host_device = detail::get_host_device();
 
-    
-    if(this->has_property<hipsycl::property::buffer::use_svm>())
-    {
-      device_mode = detail::device_alloc_mode::svm;
-      host_mode = detail::host_alloc_mode::svm;
+    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>()){
+      host_ptr =
+          rt::application::get_backend(host_device.get_backend())
+              .get_allocator(host_device)
+              ->allocate_transfer_optimized(128, range.size() * sizeof(T));
+    }
+    else if(this->has_property<hipsycl::property::buffer::use_svm>()){
+      host_ptr = rt::application::get_backend(host_device.get_backend())
+                     .get_allocator(host_device)
+                     ->allocate_usm(range.size() * sizeof(T));
     }
 
-    this->create_buffer(device_mode,
-                        host_mode,
-                        range);
-    this->_cleanup_trigger =
-        std::make_shared<detail::buffer_cleanup_trigger>(_buffer);
+    // TODO properly set page size and expose configurable page size
+    // to user
+    std::size_t page_size = range.size();
+/*
+data_region(sycl::range<3> num_elements, std::size_t element_size,
+              std::size_t page_size, destruction_handler on_destruction)*/
+
+    auto on_destruction = [](rt::buffer_data_region* data) {
+
+    };
+
+    this->_data = std::make_shared<rt::buffer_data_region>(
+        rt::embed_in_range3(range), sizeof(T), page_size, on_destruction);
   }
 
   void init(const range<dimensions>& range, T* host_memory)
@@ -450,14 +514,17 @@ private:
 
   
   // Only used if a shared_ptr is passed to set_final_data()
-  shared_ptr_class<T> _writeback_buffer;
+  std::shared_ptr<T> _writeback_buffer;
+  // Only used if writeback is enabled
+  T* _writeback_ptr;
   // Only used if a shared_ptr is passed to the buffer constructor
-  shared_ptr_class<T> _shared_host_data;
-  // Must be defined after the shared_ptrs to ensure that they still
-  // exist once the cleanup trigger is executed!
-  shared_ptr_class<detail::buffer_cleanup_trigger> _cleanup_trigger;
+  std::shared_ptr<T> _shared_host_data;
   
   std::shared_ptr<rt::buffer_data_region> _data;
+
+  bool _writes_back;
+  bool _destructor_waits;
+  bool _use_external_storage;
 };
 
 namespace detail::accessor {

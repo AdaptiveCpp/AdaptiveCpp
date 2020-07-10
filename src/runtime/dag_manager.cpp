@@ -61,9 +61,11 @@ dag_manager::builder() const
 void dag_manager::flush_async()
 {
   _worker([this](){
-    dag new_dag = _builder->finish_and_reset();
-    
-    _scheduler.submit(&new_dag);
+    if(_builder->get_current_dag_size() > 0){
+      dag new_dag = _builder->finish_and_reset();
+      
+      _scheduler.submit(&new_dag);
+    }
   });
 }
 
@@ -76,13 +78,13 @@ void dag_manager::flush_sync()
 void dag_manager::wait()
 {
   // TODO
-  assert(false && "unimplemented");
+  assert(false && "dag_manager::wait(): unimplemented");
 }
 
 void dag_manager::trigger_flush_opportunity()
 {
   if(builder()->get_current_dag_size() > max_cached_dag_nodes)
-    flush();
+    flush_async();
 }
 
 }

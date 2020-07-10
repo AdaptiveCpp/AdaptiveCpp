@@ -35,6 +35,7 @@
 #include "info/info.hpp"
 
 #include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/application.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -63,24 +64,44 @@ public:
 
   void wait()
   {
-    if(this->_node)
+    if(this->_node){
+      if(!this->_node->is_submitted())
+        rt::application::dag().flush_sync();
+      
+      assert(this->_node->is_submitted());
       this->_node->wait();
+    }
   }
 
   static void wait(const vector_class<event> &eventList)
   {
+    // Only need a at most a single flush,
+    // so check if any of the events are unsubmitted,
+    // if so, perform a single flush.
+    bool flush = false;
     for(const event& evt: eventList)
+      if(evt._node)
+        if(!evt._node->is_submitted())
+          flush = true;
+
+    if(flush)
+      rt::application::dag().flush_sync();
+
+    for(const event& evt: eventList){
       const_cast<event&>(evt).wait();
+    }
   }
 
   void wait_and_throw()
   {
     wait();
+    // TODO: check for errors
   }
 
   static void wait_and_throw(const vector_class<event> &eventList)
   {
     wait(eventList);
+    // TODO
   }
 
   template <info::event param>

@@ -40,6 +40,12 @@ public:
   hip_allocator(int hip_device);
 
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+
+  virtual void *allocate_optimized_host(size_t min_alignment,
+                                        size_t bytes) override {
+    return allocate(min_alignment, bytes);
+  };
+  
   virtual void free(void *mem) override;
 
   virtual void *allocate_usm(size_t bytes) override;

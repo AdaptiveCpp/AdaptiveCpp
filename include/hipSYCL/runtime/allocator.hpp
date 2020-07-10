@@ -37,7 +37,9 @@ class backend_allocator
 {
 public:
   virtual void* allocate(size_t min_alignment, size_t size_bytes) = 0;
+  virtual void* allocate_optimized_host(size_t min_alignment, size_t bytes) = 0;
   virtual void free(void *mem) = 0;
+  
 
   /// Allocate memory accessible both from the host and the backend
   virtual void *allocate_usm(size_t bytes) = 0;

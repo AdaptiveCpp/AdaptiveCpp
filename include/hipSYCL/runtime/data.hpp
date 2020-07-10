@@ -43,6 +43,8 @@
 namespace hipsycl {
 namespace rt {
 
+void generic_pointer_free(backend_id b, void*);
+
 class range_store
 {
 public:
@@ -265,7 +267,8 @@ public:
   using page_range = std::pair<sycl::id<3>, sycl::range<3>>;
   using allocation_function = std::function<Memory_descriptor(
       sycl::range<3> num_elements, std::size_t element_size)>;
-  
+
+  using destruction_handler = std::function<void(data_region*)>;
 
   /// Construct object
   /// \param num_elements The 3D number of elements in each dimension. Each
@@ -273,9 +276,9 @@ public:
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
   data_region(sycl::range<3> num_elements, std::size_t element_size,
-              std::size_t page_size)
+              std::size_t page_size, destruction_handler on_destruction)
       : _element_size{element_size}, _num_elements{num_elements},
-        _page_size{page_size} {
+        _page_size{page_size}, _on_destruction{on_destruction} {
 
     unset_id();
 
@@ -287,6 +290,17 @@ public:
     _num_pages = num_elements / page_size;
   }
 
+
+  ~data_region() {
+    _on_destruction(this);
+    for(const auto& alloc : _allocations) {
+      if(alloc.memory && alloc.is_owned) {
+        device_id dev = alloc.dev;
+        generic_pointer_free(dev.get_backend(), alloc.memory);
+      }
+    }
+  }
+
   bool has_allocation(const device_id& d) const
   {
     return find_allocation(d) != _allocations.end();
@@ -296,30 +310,32 @@ public:
   {
     assert(!has_allocation(d));
 
-    this->add_empty_allocation(d, nullptr);
+    this->add_empty_allocation(d, nullptr, true);
 
     auto alloc = this->find_allocation(d);
     alloc->delayed_allocator = f;
   }
 
-  void add_empty_allocation(const device_id& d, Memory_descriptor memory_context)
-  {
+  void add_empty_allocation(const device_id &d,
+                            Memory_descriptor memory_context,
+                            bool takes_ownership = true) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
     _allocations.push_back(data_allocation{
-      d, memory_context, range_store{_num_pages}});
+      d, memory_context, range_store{_num_pages}, takes_ownership});
     _allocations.back().invalid_pages.add(
         std::make_pair(sycl::id<3>{0,0,0},_num_pages));
   }
 
-  void add_nonempty_allocation(const device_id& d, Memory_descriptor memory_context)
-  {
+  void add_nonempty_allocation(const device_id &d,
+                               Memory_descriptor memory_context,
+                               bool takes_ownership = false) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
     _allocations.push_back(data_allocation{
-      d, memory_context, range_store{_num_pages}});
+      d, memory_context, range_store{_num_pages}, takes_ownership});
     _allocations.back().invalid_pages.remove(
         std::make_pair(sycl::id<3>{0,0,0},_num_pages));
   }
@@ -490,9 +506,11 @@ private:
     Memory_descriptor memory;
     range_store invalid_pages;
     allocation_function delayed_allocator;
+    bool is_owned;
   };
 
   std::vector<data_allocation> _allocations;
+  destruction_handler _on_destruction;
 
   void materialize_placeholder_allocations()
   {

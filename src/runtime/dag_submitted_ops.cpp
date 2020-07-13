@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,62 +25,37 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_MANAGER_HPP
-#define HIPSYCL_DAG_MANAGER_HPP
+#include <cassert>
 
-#include "dag.hpp"
-#include "dag_builder.hpp"
-#include "dag_scheduler.hpp"
-#include "dag_submitted_ops.hpp"
-#include "generic/async_worker.hpp"
-
+#include "hipSYCL/runtime/dag_submitted_ops.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class dag_interpreter;
+void dag_submitted_ops::update_with_submission(const dag_interpreter &dag) {
+  std::lock_guard lock{_lock};
 
-class dag_manager
-{
-  friend class dag_build_guard;
-public:
-  dag_manager();
-  ~dag_manager();
+  _ops.erase(std::remove_if(_ops.begin(), _ops.end(),
+                            [&](dag_node_ptr node) -> bool {
+                              return node->is_complete();
+                            }),
+             _ops.end());
+  
+  dag.for_each_effective_node([this](dag_node_ptr node){
+    assert(node->is_submitted());
+    _ops.push_back(node);
+  });
+}
 
-  // Submits operations asynchronously
-  void flush_async();
-  // Submits operations asynchronously and
-  // wait until they have been submitted
-  void flush_sync();
-  // Wait for completion of all submitted operations
-  void wait();
-  void register_submitted_ops(const dag_interpreter&);
-private:
-  void trigger_flush_opportunity();
+void dag_submitted_ops::wait_for_all() {
+  std::lock_guard lock{_lock};
 
-  dag_builder* builder() const;
-
-  std::unique_ptr<dag_builder> _builder;
-  worker_thread _worker;
-  dag_scheduler _scheduler;
-  dag_submitted_ops _submitted_ops;
-};
-
-class dag_build_guard
-{
-public:
-  dag_build_guard(dag_manager& mgr)
-  : _mgr{&mgr} {}
-
-  ~dag_build_guard();
-
-  dag_builder* builder() const
-  { return _mgr->builder(); }
-private:
-  dag_manager* _mgr;
-};
+  for(dag_node_ptr node : _ops) {
+    assert(node->is_submitted());
+    node->wait();
+  }
+}
 
 }
 }
-
-#endif

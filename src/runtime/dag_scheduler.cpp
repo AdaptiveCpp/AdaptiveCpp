@@ -502,6 +502,9 @@ void dag_scheduler::submit(dag* d)
       assert(node->get_event() != nullptr);
     }
   });
+
+  // Register nodes as submitted
+  application::dag().register_submitted_ops(interpreter);
 }
 
 }

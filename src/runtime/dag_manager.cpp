@@ -29,6 +29,9 @@
 
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/dag_interpreter.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -62,8 +65,27 @@ void dag_manager::flush_async()
 {
   _worker([this](){
     if(_builder->get_current_dag_size() > 0){
+      // Construct new DAG
       dag new_dag = _builder->finish_and_reset();
       
+      // Release any old users of memory buffers used in this dag
+      for(dag_node_ptr req : new_dag.get_memory_requirements()){
+        assert_is<memory_requirement>(req->get_operation());
+
+        memory_requirement *mreq =
+            cast<memory_requirement>(req->get_operation());
+
+        if(mreq->is_buffer_requirement()) {
+          cast<buffer_memory_requirement>(mreq)
+              ->get_data_region()
+              ->get_users()
+              .release_dead_users();
+        }
+        else
+          assert(false && "Non-buffer requirements are unsupported");
+      }
+
+      // Go!!!
       _scheduler.submit(&new_dag);
     }
   });
@@ -77,8 +99,12 @@ void dag_manager::flush_sync()
 
 void dag_manager::wait()
 {
-  // TODO
-  assert(false && "dag_manager::wait(): unimplemented");
+  this->_submitted_ops.wait_for_all();
+}
+
+void dag_manager::register_submitted_ops(const dag_interpreter &interpreter)
+{
+  this->_submitted_ops.update_with_submission(interpreter);
 }
 
 void dag_manager::trigger_flush_opportunity()

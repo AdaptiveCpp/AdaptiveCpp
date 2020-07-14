@@ -117,30 +117,31 @@ bool dag::is_requirement_from_this_dag(const dag_node_ptr& node) const
 
 void dag::commit_dependencies(const std::vector<dag_node_ptr>& nodes)
 {
-  for(dag_node_ptr node : nodes)
-  {
-    for(dag_node_ptr req : node->get_requirements())
-    {
-      // Ignore requirements that may have already
-      // been processed by a previous DAG
-      if(is_requirement_from_this_dag(req))
-      {
-        auto* mem_req = cast<memory_requirement>(req->get_operation());
+  for(dag_node_ptr node : nodes){
+    for(dag_node_ptr req : node->get_requirements()){
+      
+      if(req->get_operation()->is_requirement()){
+        // Ignore requirements that may have already
+        // been processed by a previous DAG
+        if(is_requirement_from_this_dag(req)){
 
-        if(!mem_req->is_image_requirement())
-        {
-          auto& data_users = cast<buffer_memory_requirement>(mem_req)->
-              get_data_region()->get_users();
+          auto* mem_req = cast<memory_requirement>(req->get_operation());
 
-          if(data_users.find_user(req) == data_users.users_end())
-            data_users.add_user(node, 
-                                mem_req->get_access_mode(),
-                                mem_req->get_access_target(),
-                                mem_req->get_access_offset3d(),
-                                mem_req->get_access_range3d());
+          if(!mem_req->is_image_requirement())
+          {
+            auto& data_users = cast<buffer_memory_requirement>(mem_req)->
+                get_data_region()->get_users();
+
+            if(!data_users.has_user(req))
+              data_users.add_user(node, 
+                                  mem_req->get_access_mode(),
+                                  mem_req->get_access_target(),
+                                  mem_req->get_access_offset3d(),
+                                  mem_req->get_access_range3d());
+          }
+          else
+            assert(false && "dag: Image requirements are not yet implemented");
         }
-        else
-          assert(false && "dag: Image requirements are not yet implemented");
       }
     }
   }

@@ -30,8 +30,10 @@
 #define HIPSYCL_BUFFER_HPP
 
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <type_traits>
 #include <algorithm>
 
@@ -41,6 +43,7 @@
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 #include "property.hpp"
@@ -88,6 +91,9 @@ private:
   context _ctx;
 };
 
+class use_optimized_host_memory : public detail::property
+{};
+
 } // property::buffer
 
 namespace detail::buffer_policy {
@@ -122,6 +128,84 @@ private:
 
 }
 
+namespace detail {
+
+struct buffer_impl
+{
+  std::mutex lock;
+  // Only used if a shared_ptr is passed to set_final_data()
+  std::shared_ptr<void> writeback_buffer;
+  // Only used if writeback is enabled
+  void* writeback_ptr;
+  // Only used if a shared_ptr is passed to the buffer constructor
+  std::shared_ptr<void> shared_host_data;
+  
+  std::shared_ptr<rt::buffer_data_region> data;
+
+  bool writes_back;
+  bool destructor_waits;
+  bool use_external_storage;
+
+  ~buffer_impl() {
+    if(writes_back) {
+      HIPSYCL_DEBUG_INFO
+          << "buffer_impl::~buffer_impl: Preparing submission of writeback..."
+          << std::endl;
+      
+      rt::dag_build_guard build{rt::application::dag()};
+
+      auto explicit_requirement =
+          rt::make_operation<rt::buffer_memory_requirement>(
+              data, sycl::id<3>{}, data->get_num_elements(),
+              sycl::access::mode::read, sycl::access::target::host_buffer);
+
+      rt::execution_hints enforce_bind_to_host;
+      enforce_bind_to_host.add_hint(
+          rt::make_execution_hint<rt::hints::bind_to_device>(
+              detail::get_host_device()));
+
+      build.builder()->add_explicit_mem_requirement(
+          std::move(explicit_requirement), rt::requirements_list{},
+          enforce_bind_to_host);
+
+      // TODO what about writeback to external location set with
+      // set_final_data()? -> need to submit an explicit copy
+      // TODO Accessing the data allocations directly here is racy
+      // since they might be modified during a DAG flush operation
+      // simultaneously
+      if(data->has_allocation(get_host_device())){
+        if(data->get_memory(get_host_device()) != this->writeback_ptr){
+          assert(false && "Writing back to external locations (passed to "
+                          "buffer at construction) is unimplemented");
+        }
+      }
+    }
+    if(destructor_waits) {
+      HIPSYCL_DEBUG_INFO
+          << "buffer_impl::~buffer_impl: Waiting for operations to complete..."
+          << std::endl;
+
+      auto buffer_users = data->get_users().get_users();
+      for(auto& user : buffer_users) {
+        // This should not happen, as the scheduler registers users
+        // after submitting them
+        if(!user.user->is_submitted()) {
+          HIPSYCL_DEBUG_WARNING
+              << "buffer_impl::~buffer_impl: dag node is registered as user "
+                 "but not marked as submitted, performing emergency DAG flush."
+              << std::endl;
+
+          rt::application::dag().flush_sync();
+        }
+        assert(user.user->is_submitted());
+        user.user->wait();
+      }
+    }
+  }
+};
+
+}
+
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
@@ -149,33 +233,50 @@ public:
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    _impl = std::make_shared<detail::buffer_impl>();
+
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = false;
     dpol.writes_back = false;
+    
     init_policies_from_properties_or_default(dpol);
 
     this->init(bufferRange);
+
+    if(_impl->use_external_storage) {
+      HIPSYCL_DEBUG_WARNING
+          << "buffer: was constructed with use_external_storage but no host "
+             "pointer was supplied. Cannot initialize this buffer with "
+             "external storage."
+          << std::endl;
+    }
   }
 
   buffer(const range<dimensions> &bufferRange, AllocatorT allocator,
          const property_list &propList = {})
     : buffer(bufferRange, propList)
-  {
-    _alloc = allocator;
-  }
+  { _alloc = allocator; }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    _impl = std::make_shared<detail::buffer_impl>();
+
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = true;
     dpol.writes_back = true;
+    
     init_policies_from_properties_or_default(dpol);
 
-    this->init(bufferRange, hostData);
+    if(_impl->use_external_storage)
+      this->init(bufferRange, hostData);
+    else {
+      this->init(bufferRange);
+      copy_host_content(hostData);
+    }
   }
 
   buffer(T *hostData, const range<dimensions> &bufferRange,
@@ -189,32 +290,40 @@ public:
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
+    _impl = std::make_shared<detail::buffer_impl>();
+
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = false;
     dpol.writes_back = false;
     init_policies_from_properties_or_default(dpol);
 
-    // Construct buffer
-    this->init(bufferRange);
-
-    // Only use hostData for initialization
-    _buffer->write(reinterpret_cast<const void*>(hostData), 0);
+    if(!_impl->use_external_storage) {
+      // Construct buffer
+      this->init(bufferRange);
+      // Only use hostData for initialization
+      copy_host_content(hostData);
+    } else {
+      HIPSYCL_DEBUG_WARNING
+          << "buffer: constructed with property use_external_storage, but user "
+             "passed a const pointer to buffer constructor. Removing const to enforce "
+             "requested view semantics."
+          << std::endl;
+      this->init(bufferRange, const_cast<T*>(hostData));
+    }
   }
 
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
     : buffer{hostData, bufferRange, propList}
-  {
-    _alloc = allocator;
-  }
+  { _alloc = allocator; }
 
-  buffer(const shared_ptr_class<T> &hostData,
+  buffer(const std::shared_ptr<T> &hostData,
          const range<dimensions> &bufferRange, AllocatorT allocator,
          const property_list &propList = {})
-    : detail::property_carrying_object{propList},
-      _shared_host_data{hostData}
+    : detail::property_carrying_object{propList}
   {
+    _impl = std::make_shared<detail::buffer_impl>();
     _alloc = allocator;
 
     default_policies dpol;
@@ -223,7 +332,13 @@ public:
     dpol.writes_back = true;
     init_policies_from_properties_or_default(dpol);
 
-    this->init(bufferRange, hostData.get());
+    if(_impl->use_external_storage) {
+      _impl->shared_host_data = hostData;
+      this->init(bufferRange, hostData.get());
+    } else {
+      this->init(bufferRange);
+      this->copy_host_content(hostData.get());
+    }
   }
 
   buffer(const shared_ptr_class<T> &hostData,
@@ -240,49 +355,31 @@ public:
          const property_list &propList = {})
   : detail::property_carrying_object{propList}
   {
+    _impl = std::make_shared<detail::buffer_impl>();
+
     default_policies dpol;
     dpol.destructor_waits = true;
     dpol.use_external_storage = false;
     dpol.writes_back = false;
     init_policies_from_properties_or_default(dpol);
 
+    if(_impl->use_external_storage)
+      // TODO This could be allowed for special cases, e.g. if iterators are pointers
+      throw invalid_parameter_error{
+          "buffer: Cannot comply: User requested to using external storage, "
+          "but this is not yet possible with iterators."};
+
     _alloc = allocator;
 
-    constexpr bool is_const_iterator = 
-        std::is_const<
-          typename std::remove_reference<
-            typename std::iterator_traits<InputIterator>::reference
-          >::type
-        >::value;
-
     std::size_t num_elements = std::distance(first, last);
-    vector_class<T> contiguous_buffer(num_elements);
+    std::vector<T> contiguous_buffer(num_elements);
     std::copy(first, last, contiguous_buffer.begin());
 
     // Construct buffer
     this->init(range<1>{num_elements});
 
     // Only use hostData for initialization
-    _buffer->write(reinterpret_cast<const void*>(contiguous_buffer.data()), 0);
-    if(!is_const_iterator)
-    {
-      // If we are dealing with non-const iterators, we must also
-      // writeback the results.
-      // TODO: The spec seems to be contradictory if writebacks also
-      // occur with iterators - investigate the desired behavior
-      // TODO: If first, last are random access iterators, we can directly
-      // the memory range [first, last) as writeback buffer
-      this->_buffer->enable_write_back(true);
-
-      
-      auto buff = this->_buffer;
-      this->_cleanup_trigger->add_cleanup_callback([first, last, buff](){
-        const T* host_data = reinterpret_cast<T*>(buff->get_host_ptr());
-
-        std::copy(host_data, host_data + std::distance(first,last), first);
-      });
-      
-    }
+    copy_host_content(contiguous_buffer.data());
   }
 
   template <class InputIterator, int D = dimensions,
@@ -352,40 +449,24 @@ public:
 
   void set_final_data(std::shared_ptr<T> finalData)
   {
-    this->_writeback_buffer = finalData;
-    this->set_final_data(finalData.get());
+    std::lock_guard<std::mutex> lock {_impl->lock};
+    set_write_back_target(finalData.get());
+    
+    _impl->writeback_buffer = finalData;
   }
 
   // TODO Add special handling of iterators for set_final_data()
   template <typename Destination = std::nullptr_t>
   void set_final_data(Destination finalData = nullptr)
   {
-    if (finalData != nullptr) {
-      set_write_back(true);
-    }
-    else {
-      set_write_back(false);
-    }
-    _writeback_ptr = finalData;
+    std::lock_guard<std::mutex> lock {_impl->lock};
+    set_write_back_target(finalData);
   }
 
   void set_write_back(bool flag = true)
   {
-    if(this->has_property<detail::buffer_policy::writes_back>()){
-      if (_writes_back != flag){
-        // Deny changing policy if it has previously been explicitly requested
-        // by the user
-        throw invalid_parameter_error{
-            "buffer::set_write_back(): buffer was constructed explicitly with "
-            "writeback policy, denying changing the policy as this likely "
-            "indicates a bug in user code"};
-      }
-    }
-    if(_writes_back != flag) {
-      HIPSYCL_DEBUG_INFO << "buffer: Changing write back policy to: " << flag
-                         << std::endl;
-      _writes_back = flag;
-    }
+    std::lock_guard<std::mutex> lock {_impl->lock};
+    this->enable_write_back(flag);
   }
 
   // ToDo Subbuffers are unsupported
@@ -405,7 +486,7 @@ public:
 
   bool operator==(const buffer& rhs) const
   {
-    return _data == rhs->_data;
+    return _impl == rhs->_impl;
   }
 
   bool operator!=(const buffer& rhs) const
@@ -421,16 +502,57 @@ private:
     bool use_external_storage; 
   };
 
+  template <typename Destination = std::nullptr_t>
+  void set_write_back_target(Destination finalData = nullptr)
+  {
+    if (finalData != nullptr) {
+      enable_write_back(true);
+    }
+    else {
+      enable_write_back(false);
+    }
+    
+    _impl->writeback_ptr = finalData;
+  }
+
+  void enable_write_back(bool flag) {
+
+    if(this->has_property<detail::buffer_policy::writes_back>()){
+      if (_impl->writes_back != flag){
+        // Deny changing policy if it has previously been explicitly requested
+        // by the user
+        throw invalid_parameter_error{
+            "buffer::set_write_back(): buffer was constructed explicitly with "
+            "writeback policy, denying changing the policy as this likely "
+            "indicates a bug in user code"};
+      }
+    }
+    if(_impl->writes_back != flag) {
+      HIPSYCL_DEBUG_INFO << "buffer: Changing write back policy to: " << flag
+                         << std::endl;
+      _impl->writes_back = flag;
+    }
+  }
+
+  void copy_host_content(const T* data)
+  {
+    assert(_impl);
+    auto host_device = detail::get_host_device();
+    preallocate_host_buffer();
+    std::memcpy(_impl->data->get_memory(host_device), data,
+                sizeof(T) * _range.size());
+  }
+
   void init_policies_from_properties_or_default(default_policies dpol)
   {
-    this->_destructor_waits = get_policy_from_property_or_default<
+    _impl->destructor_waits = get_policy_from_property_or_default<
         detail::buffer_policy::destructor_waits>(dpol.destructor_waits);
     
-    this->_writes_back =
+    _impl->writes_back =
         get_policy_from_property_or_default<detail::buffer_policy::writes_back>(
             dpol.writes_back);
 
-    this->_use_external_storage = get_policy_from_property_or_default<
+    _impl->use_external_storage = get_policy_from_property_or_default<
         detail::buffer_policy::use_external_storage>(dpol.use_external_storage);
   }
 
@@ -452,79 +574,86 @@ private:
     detail::property_carrying_object::operator=(other);
     this->_alloc = other._alloc;
     this->_range = other._range;
-    this->_writeback_buffer = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._writeback_buffer);
-    this->_shared_host_data = ::hipsycl::common::shim::reinterpret_pointer_cast<T>(other._shared_host_data);
-    this->_writeback_ptr = other._writeback_ptr;
-    this->_data = other._data;
-
-    this->_writes_back = other._writes_back;
-    this->_destructor_waits = other._destructor_waits;
-    this->_use_external_storage = other._use_external_storage;
+    this->_impl = other._impl;
   }
   
-  void init(const range<dimensions>& range)
+  void init_data_backend(const range<dimensions>& range)
   {
-
-    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>() &&
-       this->has_property<hipsycl::property::buffer::use_svm>())
-      throw invalid_parameter_error{"use_pinned_memory and use_svm "
-                                    "as buffer properties cannot be specified "
-                                    "at the same time."};
-
-    void* host_ptr = nullptr;
-    rt::device_id host_device = detail::get_host_device();
-
-    if(this->has_property<hipsycl::property::buffer::try_pinned_memory>()){
-      host_ptr =
-          rt::application::get_backend(host_device.get_backend())
-              .get_allocator(host_device)
-              ->allocate_transfer_optimized(128, range.size() * sizeof(T));
-    }
-    else if(this->has_property<hipsycl::property::buffer::use_svm>()){
-      host_ptr = rt::application::get_backend(host_device.get_backend())
-                     .get_allocator(host_device)
-                     ->allocate_usm(range.size() * sizeof(T));
-    }
-
+    this->_range = range;
     // TODO properly set page size and expose configurable page size
     // to user
     std::size_t page_size = range.size();
-/*
-data_region(sycl::range<3> num_elements, std::size_t element_size,
-              std::size_t page_size, destruction_handler on_destruction)*/
 
-    auto on_destruction = [](rt::buffer_data_region* data) {
+    auto on_destruction = [](rt::buffer_data_region* data) {};
 
-    };
-
-    this->_data = std::make_shared<rt::buffer_data_region>(
+    _impl->data = std::make_shared<rt::buffer_data_region>(
         rt::embed_in_range3(range), sizeof(T), page_size, on_destruction);
+  }
+
+  void preallocate_host_buffer()
+  {
+    void* host_ptr = nullptr;
+    rt::device_id host_device = detail::get_host_device();
+
+    if(!_impl->data->has_allocation(host_device)){
+      if(this->has_property<property::buffer::use_optimized_host_memory>()){
+        // TODO: Actually may need to use non-host backend here...
+        host_ptr =
+            rt::application::get_backend(host_device.get_backend())
+                .get_allocator(host_device)
+                ->allocate_optimized_host(
+                    128, _impl->data->get_num_elements().size() * sizeof(T));
+      } else {
+        host_ptr =
+            rt::application::get_backend(host_device.get_backend())
+                .get_allocator(host_device)
+                ->allocate(
+                    128, _impl->data->get_num_elements().size() * sizeof(T));
+      }
+
+      if(!host_ptr)
+        throw runtime_error{"buffer: host memory allocation failed"};
+
+      
+      _impl->data->add_empty_allocation(host_device, host_ptr,
+                                        true /*takes_ownership*/);
+    }
+  }
+
+  void init(const range<dimensions>& range)
+  {
+
+    this->init_data_backend(range);
+    // necessary to preallocate to make sure potential optimized memory
+    // can be allocated
+    preallocate_host_buffer();
   }
 
   void init(const range<dimensions>& range, T* host_memory)
   {
-    this->create_buffer(host_memory, range);
-    this->_cleanup_trigger =
-        std::make_shared<detail::buffer_cleanup_trigger>(_buffer);
+    if(!host_memory)
+      throw invalid_parameter_error{"buffer: Supplied host pointer is null."};
+
+    if(this->has_property<property::buffer::use_optimized_host_memory>()){
+      HIPSYCL_DEBUG_INFO
+          << "buffer: was constructed with use_optimized_host_memory property, "
+             "but also as view for existing host memory. "
+             "use_optimized_host_memory will have no effect, since "
+             "the buffer will rely on existing memory instead of allocating itself."
+          << std::endl;
+    }
+
+    this->init_data_backend(range);
+
+    _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
+                                         false /*takes_ownership*/);
   }
 
 
   AllocatorT _alloc;
   range<dimensions> _range;
 
-  
-  // Only used if a shared_ptr is passed to set_final_data()
-  std::shared_ptr<T> _writeback_buffer;
-  // Only used if writeback is enabled
-  T* _writeback_ptr;
-  // Only used if a shared_ptr is passed to the buffer constructor
-  std::shared_ptr<T> _shared_host_data;
-  
-  std::shared_ptr<rt::buffer_data_region> _data;
-
-  bool _writes_back;
-  bool _destructor_waits;
-  bool _use_external_storage;
+  std::shared_ptr<detail::buffer_impl> _impl;
 };
 
 namespace detail::accessor {
@@ -536,10 +665,10 @@ void bind_to_buffer(AccessorType& acc, BufferType& buff,
   acc._offset = accessOffset;
   acc._range = accessRange;
   acc._buffer_range = buff.get_range();
-  acc.set_data_region(buff._data);
+  acc.set_data_region(buff._impl->data);
 }
 
-template<class AccessorType, class T, class Dim, class AllocatorT>
+template<class AccessorType, class T, int Dim, class AllocatorT>
 void bind_to_buffer_with_defaults(AccessorType& acc, buffer<T,Dim,AllocatorT>& buff)
 {
   bind_to_buffer(acc, buff, sycl::id<Dim>{}, buff.get_range());

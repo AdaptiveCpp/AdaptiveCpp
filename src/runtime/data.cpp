@@ -39,47 +39,29 @@ void generic_pointer_free(backend_id b, void*)
   application::get_backend(b).get_allocator()->free();
 }
 
-const std::vector<data_user>& 
+const std::vector<data_user>
 data_user_tracker::get_users() const
-{ return _users; }
-
-data_user_tracker::user_iterator 
-data_user_tracker::find_user(dag_node_ptr user)
-{
-  return std::find_if(_users.begin(), _users.end(), 
-    [user](const data_user& u){ return u.user == user;});
+{ 
+  std::lock_guard<std::mutex> lock{_lock};
+  return _users;
 }
 
-data_user_tracker::const_user_iterator 
-data_user_tracker::find_user(dag_node_ptr user) const
+
+bool data_user_tracker::has_user(dag_node_ptr user) const
 {
+  std::lock_guard<std::mutex> lock{_lock};
   return std::find_if(_users.begin(), _users.end(), 
-    [user](const data_user& u){ return u.user == user;});
+    [user](const data_user& u){ return u.user == user;}) != _users.end();
 }
-
-data_user_tracker::user_iterator 
-data_user_tracker::users_begin()
-{ return _users.begin(); }
-
-data_user_tracker::const_user_iterator
-data_user_tracker::users_begin() const
-{ return _users.begin(); }
-
-data_user_tracker::user_iterator 
-data_user_tracker::users_end()
-{ return _users.end(); }
-
-data_user_tracker::const_user_iterator 
-data_user_tracker::users_end() const
-{ return _users.end(); }
 
 void data_user_tracker::release_dead_users()
 {
-  std::vector<data_user> new_users;
-  for(const auto& user : _users)
-    if(!user.user->is_complete())
-      new_users.push_back(user);
-  _users = new_users;
+  std::lock_guard<std::mutex> lock{_lock};
+  _users.erase(std::remove_if(_users.begin(), _users.end(),
+                              [this](const data_user &user) -> bool {
+                                return user.user->is_complete();
+                              }),
+               _users.end());
 }
 
 void data_user_tracker::add_user(
@@ -89,8 +71,9 @@ void data_user_tracker::add_user(
   sycl::id<3> offset, 
   sycl::range<3> range)
 {
-  assert(find_user(user) == users_end());
-
+  assert(!has_user(user));
+  std::lock_guard<std::mutex> lock{_lock};
+  
   _users.push_back(data_user{user, mode, target, offset, range});
 }
 

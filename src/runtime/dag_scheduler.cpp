@@ -426,12 +426,6 @@ void dag_scheduler::submit(dag* d)
       best_state->expansion_result.memory_state(i));
   }
 
-  // Register users of buffers
-  // TODO: Could we also invoke that function earlier, e.g. in the dag_builder,
-  // since the nodes themselves and their dependencies shouldn't change during
-  // scheduling?
-  d->commit_node_dependencies();
-
   // Assign final data to nodes
   // TODO: Maybe we could reuse the dag_interpreter of the best state?
   dag_interpreter interpreter{d, &enumerator, &best_state->expansion_result};
@@ -503,7 +497,12 @@ void dag_scheduler::submit(dag* d)
     }
   });
 
-  // Register nodes as submitted
+
+  // Register users of buffers
+  d->commit_node_dependencies();
+
+  // Register nodes as submitted with the runtime
+  // (only relevant for queue::wait() operations)
   application::dag().register_submitted_ops(interpreter);
 }
 

@@ -29,6 +29,7 @@
 #define HIPSYCL_DATA_HPP
 
 #include <limits>
+#include <mutex>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -229,16 +230,17 @@ public:
   using user_iterator = std::vector<data_user>::iterator;
   using const_user_iterator = std::vector<data_user>::const_iterator;
 
-  const std::vector<data_user>& get_users() const;
+  const std::vector<data_user> get_users() const;
 
-  user_iterator find_user(dag_node_ptr user);
-  const_user_iterator find_user(dag_node_ptr user) const;
+  template<class F>
+  void for_each_user(F f){
+    std::lock_guard<std::mutex> lock{_lock};
+    for(auto& user : _users) {
+      f(user);
+    }
+  }
 
-  user_iterator users_begin();
-  const_user_iterator users_begin() const;
-
-  user_iterator users_end();
-  const_user_iterator users_end() const;
+  bool has_user(dag_node_ptr user) const;
 
   void release_dead_users();
   void add_user(dag_node_ptr user, 
@@ -248,6 +250,7 @@ public:
                 sycl::range<3> range);
 private:
   std::vector<data_user> _users;
+  mutable std::mutex _lock;
 };
 
 /// Manages data regions on different devices under

@@ -26,6 +26,7 @@
  */
 
 
+#include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
@@ -81,17 +82,15 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
 
           data_user_tracker& user_tracker = buff_req->get_data_region()->get_users();
 
-          for(auto user = user_tracker.users_begin(); 
-              user != user_tracker.users_end(); 
-              ++user) 
-          {
-            if(is_conflicting_access(mem_req, *user))
+          user_tracker.for_each_user([&](data_user& user){
+            if(is_conflicting_access(mem_req, user))
             {
               // No reason to take a dependency into account that is alreay completed
-              if(!user->user->is_complete())
-                req_node->add_requirement(user->user);
+              if(!user.user->is_complete())
+                req_node->add_requirement(user.user);
             }
-          }
+          });
+          
         }
       }
     }
@@ -167,10 +166,11 @@ dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
 }
 
 dag_node_ptr dag_builder::add_explicit_mem_requirement(
-    std::unique_ptr<memory_requirement> req,
+    std::unique_ptr<operation> req,
     const requirements_list &requirements, const execution_hints &hints)
 {
   std::lock_guard<std::mutex> lock{_mutex};
+  assert_is<memory_requirement>(req.get());
 
   auto node = this->build_node(std::move(req), requirements, hints);
   _current_dag.add_memory_requirement(node);

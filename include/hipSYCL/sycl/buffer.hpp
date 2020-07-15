@@ -484,14 +484,14 @@ public:
     return new_buffer;
   }
 
-  bool operator==(const buffer& rhs) const
+  friend bool operator==(const buffer& lhs, const buffer& rhs)
   {
-    return _impl == rhs->_impl;
+    return lhs._impl == rhs._impl;
   }
 
-  bool operator!=(const buffer& rhs) const
+  friend bool operator!=(const buffer& lhs, const buffer& rhs)
   {
-    return !(*this == rhs);
+    return !(lhs == rhs);
   }
 
 private:

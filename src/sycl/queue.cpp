@@ -178,12 +178,6 @@ void queue::throw_asynchronous() {
     _handler(exceptions);
 }
 
-bool queue::operator==(const queue &rhs) const {
-  return _default_hints == rhs._default_hints;
-}
-
-bool queue::operator!=(const queue& rhs) const
-{ return !(*this == rhs); }
 
 }// namespace sycl
 }// namespace hipsycl

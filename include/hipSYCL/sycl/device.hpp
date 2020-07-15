@@ -153,10 +153,11 @@ public:
 
   static int get_num_devices();
 
-  bool operator ==(const device& rhs) const
-  { return rhs._device_id == _device_id; }
+  friend bool operator ==(const device& lhs, const device& rhs)
+  { return lhs._device_id == rhs._device_id; }
 
-  bool operator!=(const device &rhs) const { return !(*this == rhs); }
+  friend bool operator!=(const device& lhs, const device &rhs)
+  { return !(lhs == rhs); }
   
 private:
   rt::device_id _device_id;

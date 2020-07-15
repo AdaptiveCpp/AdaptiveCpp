@@ -179,9 +179,11 @@ public:
 
   void throw_asynchronous();
 
-  bool operator==(const queue& rhs) const;
+  friend bool operator==(const queue& lhs, const queue& rhs)
+  { return lhs._default_hints == rhs._default_hints; }
 
-  bool operator!=(const queue& rhs) const;
+  friend bool operator!=(const queue& lhs, const queue& rhs)
+  { return !(lhs == rhs); }
 
 private:
 

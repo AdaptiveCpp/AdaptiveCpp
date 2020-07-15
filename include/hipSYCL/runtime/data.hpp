@@ -44,7 +44,7 @@
 namespace hipsycl {
 namespace rt {
 
-void generic_pointer_free(backend_id b, void*);
+void generic_pointer_free(device_id, void*);
 
 class range_store
 {
@@ -230,6 +230,12 @@ public:
   using user_iterator = std::vector<data_user>::iterator;
   using const_user_iterator = std::vector<data_user>::const_iterator;
 
+  data_user_tracker() = default;
+  data_user_tracker(const data_user_tracker& other);
+  data_user_tracker(data_user_tracker&& other);
+  data_user_tracker& operator=(data_user_tracker other);
+  data_user_tracker& operator=(data_user_tracker&& other);
+
   const std::vector<data_user> get_users() const;
 
   template<class F>
@@ -299,7 +305,7 @@ public:
     for(const auto& alloc : _allocations) {
       if(alloc.memory && alloc.is_owned) {
         device_id dev = alloc.dev;
-        generic_pointer_free(dev.get_backend(), alloc.memory);
+        generic_pointer_free(dev, alloc.memory);
       }
     }
   }
@@ -508,8 +514,9 @@ private:
     device_id dev;
     Memory_descriptor memory;
     range_store invalid_pages;
-    allocation_function delayed_allocator;
     bool is_owned;
+    
+    allocation_function delayed_allocator;
   };
 
   std::vector<data_allocation> _allocations;

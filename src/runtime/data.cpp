@@ -30,13 +30,37 @@
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/allocator.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-void generic_pointer_free(backend_id b, void*)
+void generic_pointer_free(device_id d, void* ptr)
 {
-  application::get_backend(b).get_allocator()->free();
+  application::get_backend(d.get_backend()).get_allocator(d)->free(ptr);
+}
+
+data_user_tracker::data_user_tracker(const data_user_tracker& other){
+  _users = other._users;
+}
+
+data_user_tracker::data_user_tracker(data_user_tracker&& other)
+: _users{std::move(other._users)}
+{
+  _users = other._users;
+}
+
+data_user_tracker& 
+data_user_tracker::operator=(data_user_tracker other){
+  _users = other._users;
+  return *this;
+}
+
+
+data_user_tracker& 
+data_user_tracker::operator=(data_user_tracker&& other){
+  _users = std::move(other._users);
+  return *this;
 }
 
 const std::vector<data_user>

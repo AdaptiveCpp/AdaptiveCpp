@@ -42,7 +42,7 @@
 
 struct reset_device_fixture {
   ~reset_device_fixture() {
-    cl::sycl::detail::application::reset();
+    ::hipsycl::rt::application::reset();
   }
 };
 

@@ -33,10 +33,22 @@ namespace rt {
 
 kernel_operation::kernel_operation(
     const std::string &kernel_name, 
-    std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels,
-    const std::vector<requirement *> &requirements)
-    : _kernel_name{kernel_name}, _launcher{std::move(kernels)},
-      _requirements{requirements} {}
+    std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
+    const requirements_list& reqs)
+    : _kernel_name{kernel_name}, _launcher{std::move(kernels)}
+{
+  for(auto req_node : reqs.get()){
+    operation* op = req_node->get_operation();
+    assert(op);
+    if(op->is_requirement()){
+      requirement* req = cast<requirement>(op);
+      if(req->is_memory_requirement()){
+        memory_requirement* mreq = cast<memory_requirement>(req);
+        _requirements.push_back(mreq);
+      }
+    }
+  }
+}
 
 kernel_launcher& 
 kernel_operation::get_launcher()
@@ -46,7 +58,7 @@ const kernel_launcher&
 kernel_operation::get_launcher() const
 { return _launcher; }
 
-const std::vector<requirement*>& 
+const std::vector<memory_requirement*>& 
 kernel_operation::get_requirements() const
 { return _requirements; }
 

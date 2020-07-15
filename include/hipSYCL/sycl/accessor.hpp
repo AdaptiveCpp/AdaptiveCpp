@@ -194,7 +194,10 @@ protected:
   friend class sycl::handler;
 
   accessor_base()
-  : _ptr{nullptr} {}
+#ifndef SYCL_DEVICE_ONLY
+  : _ptr{nullptr}
+#endif
+  {}
 
 #ifndef SYCL_DEVICE_ONLY
 
@@ -414,7 +417,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 0) */
   HIPSYCL_UNIVERSAL_TARGET
   operator dataT &() const
   {
-    return *(this->_ptr->get());
+    return *(this->_ptr.get());
   }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
@@ -430,7 +433,7 @@ accessMode == access::mode::discard_read_write) && dimensions > 0) */
   HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](id<dimensions> index) const
   {
-    return (this->_ptr->get())[detail::linear_id<dimensions>::get(index, _buffer_range)];
+    return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)];
   }
 
   /* Available only when: (accessMode == access::mode::write || accessMode ==
@@ -447,7 +450,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   dataT &operator[](size_t index) const
   {
-    return (this->_ptr->get())[index];
+    return (this->_ptr.get())[index];
   }
 
 
@@ -458,7 +461,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   operator dataT() const
   {
-    return *(this->_ptr->get());
+    return *(this->_ptr.get());
   }
 
   /* Available only when: accessMode == access::mode::read && dimensions > 0 */
@@ -467,7 +470,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
   HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](id<dimensions> index) const
-  { return (this->_ptr->get())[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
+  { return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
 
   /* Available only when: accessMode == access::mode::read && dimensions == 1 */
   template<int D = dimensions,
@@ -475,7 +478,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
   HIPSYCL_UNIVERSAL_TARGET
   dataT operator[](size_t index) const
-  { return (this->_ptr->get())[index]; }
+  { return (this->_ptr.get())[index]; }
 
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
@@ -486,7 +489,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   operator atomic<dataT, access::address_space::global_space> () const
   {
     return atomic<dataT, access::address_space::global_space>{
-        global_ptr<dataT>(this->_ptr->get())};
+        global_ptr<dataT>(this->_ptr.get())};
   }
 
   /* Available only when: accessMode == access::mode::atomic && dimensions > 0*/
@@ -496,7 +499,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   operator[](id<dimensions> index) const 
   {
     return atomic<dataT, access::address_space::global_space>{global_ptr<dataT>(
-        this->_ptr->get() +
+        this->_ptr.get() +
         detail::linear_id<dimensions>::get(index, _buffer_range))};
   }
 
@@ -507,7 +510,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   atomic<dataT, access::address_space::global_space> operator[](size_t index) const
   {
     return atomic<dataT, access::address_space::global_space>{
-        global_ptr<dataT>(this->_ptr->get() + index)};
+        global_ptr<dataT>(this->_ptr.get() + index)};
   }
 
   /* Available only when: dimensions > 1 */
@@ -532,7 +535,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
            typename = std::enable_if_t<T==access::target::host_buffer>>
   dataT *get_pointer() const
   {
-    return const_cast<dataT*>(this->_ptr->get());
+    return const_cast<dataT*>(this->_ptr.get());
   }
 
   /* Available only when: accessTarget == access::target::global_buffer */
@@ -541,7 +544,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   global_ptr<dataT> get_pointer() const
   {
-    return global_ptr<dataT>{const_cast<dataT*>(this->_ptr->get())};
+    return global_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
 
   /* Available only when: accessTarget == access::target::constant_buffer */
@@ -550,7 +553,7 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   HIPSYCL_UNIVERSAL_TARGET
   constant_ptr<dataT> get_pointer() const
   {
-    return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr->get())};
+    return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
 private:
   

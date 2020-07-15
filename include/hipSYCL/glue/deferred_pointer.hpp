@@ -48,16 +48,19 @@ namespace glue {
 template<class T>
 class deferred_pointer
 {
+public:
   deferred_pointer(void** initial_ptr)
   : _ptr{reinterpret_cast<T*>(initial_ptr)}, _initialized{false} {}
 
 #ifndef SYCL_DEVICE_ONLY
   deferred_pointer(const deferred_pointer &other) {
-    _ptr = other.ptr;
-    _initialized = other.initialized;
+    _ptr = other._ptr;
+    _initialized = other._initialized;
 
     maybe_init();
   }
+#else
+  deferred_pointer(const deferred_pointer& other) = default;
 #endif
 
   T *get() const

@@ -228,7 +228,7 @@ class automatic_placeholder_requirement_impl
 public:
   automatic_placeholder_requirement_impl(sycl::queue &q, 
       sycl::accessor<dataT, dimensions, accessMode, accessTarget,
-                access::placeholder::true_t> acc)
+                access::placeholder::true_t>& acc)
     : _acc{acc}, _is_required{false}, _hooks{q.get_hooks()}
   {
     acquire();
@@ -258,8 +258,8 @@ public:
 private:
   void acquire()
   {
-    auto acc = _acc;
-    _hook_id = _hooks->add([acc](sycl::handler& cgh){
+    auto& acc = _acc;
+    _hook_id = _hooks->add([acc] (sycl::handler& cgh) mutable{
       cgh.require(acc);
     });
 
@@ -269,7 +269,7 @@ private:
   bool _is_required;
 
   sycl::accessor<dataT, dimensions, accessMode, accessTarget,
-                                  access::placeholder::true_t> _acc;
+                                  access::placeholder::true_t>& _acc;
 
   std::size_t _hook_id;
   detail::queue_submission_hooks_ptr _hooks;
@@ -290,7 +290,7 @@ public:
 
   automatic_placeholder_requirement(queue &q, 
       accessor<dataT, dimensions, accessMode, accessTarget,
-                access::placeholder::true_t> acc)
+                access::placeholder::true_t>& acc)
   {
     _impl = std::make_unique<impl_type>(q, acc);
   }
@@ -321,7 +321,7 @@ private:
 template<typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
 inline auto automatic_require(queue &q, 
-    accessor<dataT, dimensions, accessMode, accessTarget,access::placeholder::true_t> acc)
+    accessor<dataT, dimensions, accessMode, accessTarget,access::placeholder::true_t>& acc)
 {
   using requirement_type = automatic_placeholder_requirement<
     dataT, dimensions, accessMode, accessTarget>;

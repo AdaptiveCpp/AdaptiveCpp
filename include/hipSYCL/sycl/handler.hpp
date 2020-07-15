@@ -91,8 +91,7 @@ public:
     }
 
     auto req = std::make_unique<rt::buffer_memory_requirement>(
-        data_region, offset, range, element_size,
-        accessMode, accessTarget);
+        data_region, offset, range, accessMode, accessTarget);
 
     // Bind the accessor's deferred pointer to the requirement, such that
     // the scheduler is able to initialize the accessor's data pointer
@@ -147,7 +146,7 @@ void set_args(Ts &&... args);
   void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
   {
     this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
-        executionRange.get_offset(), executionRange.get_global_Range(),
+        executionRange.get_offset(), executionRange.get_global_range(),
         executionRange.get_local_range(),
         kernelFunc);
   }
@@ -275,7 +274,7 @@ void set_args(Ts &&... args);
                                       data_dest};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, src.get_range());
+        source_location, dest_location, rt::embed_in_range3(src.get_range()));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);
@@ -388,6 +387,20 @@ private:
     _command_group_nodes.push_back(node);
   }
 
+
+  template<class T>
+  void* extract_ptr(std::shared_ptr<T> ptr)
+  { return reinterpret_cast<void*>(ptr.get()); }
+
+  template<class T>
+  void* extract_ptr(T* ptr)
+  { return reinterpret_cast<void*>(ptr); }
+
+  template<class T>
+  void* extract_ptr(const T* ptr)
+  { return extract_ptr(const_cast<T*>(ptr)); }
+
+
   template <typename T, int dim, access::mode mode, access::target tgt,
             typename destPtr>
   void copy_ptr(accessor<T, dim, mode, tgt> src, destPtr dest)
@@ -412,12 +425,12 @@ private:
     rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
                                         data_src};
     // Assume dest element size and allocation shape is the same as src
-    rt::memory_location dest_location{dev, reinterpret_cast<void*>(dest),
+    rt::memory_location dest_location{dev, extract_ptr(dest),
                                       sycl::id<3>{}, data_src->get_num_elements(),
                                       data_src->get_element_size()};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, src.get_range());
+        source_location, dest_location, rt::embed_in_range3(src.get_range()));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);
@@ -447,14 +460,14 @@ private:
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
 
     // Assume same element size and allocation shape as for dest
-    rt::memory_location source_location{dev, reinterpret_cast<void*>(src),
+    rt::memory_location source_location{dev, extract_ptr(src),
                                       sycl::id<3>{}, data_dest->get_num_elements(),
                                       data_dest->get_element_size()};
     rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
                                       data_dest};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, src.get_range());
+        source_location, dest_location, rt::embed_in_range3(dest.get_range()));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);

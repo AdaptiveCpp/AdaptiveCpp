@@ -50,6 +50,8 @@ template<class T>
 class mobile_shared_ptr
 {
 public:
+  mobile_shared_ptr() = default;
+
   // Not available on device
 #ifndef SYCL_DEVICE_ONLY
   mobile_shared_ptr(shared_ptr_class<T> ptr)

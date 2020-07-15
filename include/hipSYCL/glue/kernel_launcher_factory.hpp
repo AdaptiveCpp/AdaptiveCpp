@@ -29,6 +29,7 @@
 #define HIPSYCL_KERNEL_LAUNCHER_FACTORY_HPP
 
 #include <vector>
+#include <memory>
 
 #include "hipSYCL/sycl/backend/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"

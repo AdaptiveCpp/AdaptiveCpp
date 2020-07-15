@@ -216,7 +216,7 @@ public:
   }
 
   template <class T> glue::deferred_pointer<T> make_deferred_pointer() const {
-    return glue::deferred_pointer<T>(&_device_data_location);
+    return glue::deferred_pointer<T>{const_cast<void**>(&_device_data_location)};
   }
   
 private:
@@ -250,18 +250,19 @@ private:
 };
 
 
+class requirements_list;
 
 class kernel_operation : public operation
 {
 public:
   kernel_operation(const std::string& kernel_name,
-                  std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels,
-                  const std::vector<requirement*>& requirements);
+                  std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
+                  const requirements_list& requirements);
 
   kernel_launcher& get_launcher();
   const kernel_launcher& get_launcher() const;
 
-  const std::vector<requirement*>& get_requirements() const;
+  const std::vector<memory_requirement*>& get_requirements() const;
 
   void dispatch(operation_dispatcher* dispatcher) override {
     dispatcher->dispatch_kernel(this);
@@ -270,7 +271,7 @@ public:
 private:
   std::string _kernel_name;
   kernel_launcher _launcher;
-  std::vector<requirement*> _requirements;
+  std::vector<memory_requirement*> _requirements;
 };
 
 // To describe memcpy operations, we need an abstract
@@ -452,7 +453,7 @@ public:
 template<class T, typename... Args>
 std::unique_ptr<operation> make_operation(Args... args)
 {
-  return std::make_unique<T>(args...);
+  return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 

@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
@@ -47,6 +47,8 @@ public:
   }
 
   void reset() {
+    HIPSYCL_DEBUG_INFO << "rt_manager: Restarting runtime..." << std::endl;
+    
     std::lock_guard<std::mutex> lock{_lock};
     rt.reset();
     // TODO: Reset devices?

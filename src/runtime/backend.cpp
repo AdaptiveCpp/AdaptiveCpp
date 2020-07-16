@@ -38,6 +38,11 @@ backend_manager::backend_manager()
   // TODO Add backends here
 }
 
+backend_manager::~backend_manager()
+{
+  
+}
+
 backend *backend_manager::get(backend_id id) const {
   return _backends.at(id).get();
 }

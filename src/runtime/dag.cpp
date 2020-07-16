@@ -96,16 +96,6 @@ dag::get_memory_requirements() const
   return _memory_requirements;
 }
 
-// Registers the dependencies of all requirements in this DAG with
-// the dependency trackers associated with the data buffers
-void dag::commit_node_dependencies()
-{
-  this->commit_dependencies(_kernels);
-  this->commit_dependencies(_memcopies);
-  this->commit_dependencies(_fills);
-  this->commit_dependencies(_prefetches);
-}
-
 bool dag::is_requirement_from_this_dag(const dag_node_ptr& node) const
 {
   assert_is<requirement>(node->get_operation());
@@ -113,38 +103,6 @@ bool dag::is_requirement_from_this_dag(const dag_node_ptr& node) const
   return std::find(_memory_requirements.begin(), 
                   _memory_requirements.end(), node) 
                   != _memory_requirements.end();
-}
-
-void dag::commit_dependencies(const std::vector<dag_node_ptr>& nodes)
-{
-  for(dag_node_ptr node : nodes){
-    for(dag_node_ptr req : node->get_requirements()){
-      
-      if(req->get_operation()->is_requirement()){
-        // Ignore requirements that may have already
-        // been processed by a previous DAG
-        if(is_requirement_from_this_dag(req)){
-
-          auto* mem_req = cast<memory_requirement>(req->get_operation());
-
-          if(!mem_req->is_image_requirement())
-          {
-            auto& data_users = cast<buffer_memory_requirement>(mem_req)->
-                get_data_region()->get_users();
-
-            if(!data_users.has_user(req))
-              data_users.add_user(node, 
-                                  mem_req->get_access_mode(),
-                                  mem_req->get_access_target(),
-                                  mem_req->get_access_offset3d(),
-                                  mem_req->get_access_range3d());
-          }
-          else
-            assert(false && "dag: Image requirements are not yet implemented");
-        }
-      }
-    }
-  }
 }
 
 bool dag::contains_node(dag_node_ptr node) const

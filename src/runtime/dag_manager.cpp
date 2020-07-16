@@ -27,6 +27,7 @@
 
 #include <memory>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -48,11 +49,17 @@ dag_build_guard::~dag_build_guard()
 
 dag_manager::dag_manager()
 : _builder{std::make_unique<dag_builder>(execution_hints{})}
-{}
+{
+  HIPSYCL_DEBUG_INFO << "dag_manager: DAG manager is alive!" << std::endl;
+}
 
 dag_manager::~dag_manager()
 {
+  HIPSYCL_DEBUG_INFO << "dag_manager: Waiting for async worker..." << std::endl;
+  
   wait();
+
+  HIPSYCL_DEBUG_INFO << "dag_manager: Shutdown." << std::endl;
 }
 
 dag_builder* 
@@ -63,9 +70,14 @@ dag_manager::builder() const
 
 void dag_manager::flush_async()
 {
+  HIPSYCL_DEBUG_INFO << "dag_manager: Submitting asynchronous flush..."
+                     << std::endl;
+
   _worker([this](){
     if(_builder->get_current_dag_size() > 0){
       // Construct new DAG
+      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
+
       dag new_dag = _builder->finish_and_reset();
       
       // Release any old users of memory buffers used in this dag
@@ -76,6 +88,12 @@ void dag_manager::flush_async()
             cast<memory_requirement>(req->get_operation());
 
         if(mreq->is_buffer_requirement()) {
+          
+          HIPSYCL_DEBUG_INFO
+              << "dag_manager [async]: Releasing dead users of data region "
+              << cast<buffer_memory_requirement>(mreq)->get_data_region().get()
+              << std::endl;
+
           cast<buffer_memory_requirement>(mreq)
               ->get_data_region()
               ->get_users()
@@ -86,7 +104,10 @@ void dag_manager::flush_async()
       }
 
       // Go!!!
+      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Submitting DAG to scheduler!" << std::endl;
       _scheduler.submit(&new_dag);
+    } else {
+      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
     }
   });
 }
@@ -94,6 +115,9 @@ void dag_manager::flush_async()
 void dag_manager::flush_sync()
 {
   this->flush_async();
+  
+  HIPSYCL_DEBUG_INFO << "dag_amanager: waiting for async worker..."
+                     << std::endl;
   _worker.wait();
 }
 
@@ -109,6 +133,8 @@ void dag_manager::register_submitted_ops(const dag_interpreter &interpreter)
 
 void dag_manager::trigger_flush_opportunity()
 {
+  HIPSYCL_DEBUG_INFO << "dag_manager: Checking DAG flush opportunity..."
+                     << std::endl;
   if(builder()->get_current_dag_size() > max_cached_dag_nodes)
     flush_async();
 }

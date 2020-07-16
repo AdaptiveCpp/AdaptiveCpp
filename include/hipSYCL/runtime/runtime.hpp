@@ -32,6 +32,7 @@
 #include "dag_manager.hpp"
 #include "backend.hpp"
 #include "async_errors.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include <iostream>
 namespace hipsycl {
@@ -41,6 +42,18 @@ namespace rt {
 class runtime
 {
 public:
+
+  runtime()
+  {
+    HIPSYCL_DEBUG_INFO << "runtime: ******* rt2 launch initiated ********"
+                       << std::endl;
+  }
+
+  ~runtime()
+  {
+    HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********"
+                       << std::endl;
+  }
 
   dag_manager& dag()
   { return _dag_manager; }

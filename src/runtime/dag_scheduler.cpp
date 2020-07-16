@@ -497,10 +497,6 @@ void dag_scheduler::submit(dag* d)
     }
   });
 
-
-  // Register users of buffers
-  d->commit_node_dependencies();
-
   // Register nodes as submitted with the runtime
   // (only relevant for queue::wait() operations)
   application::dag().register_submitted_ops(interpreter);

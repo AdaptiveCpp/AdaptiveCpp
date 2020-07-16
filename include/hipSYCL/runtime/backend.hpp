@@ -67,6 +67,7 @@ public:
       std::unordered_map<backend_id, std::unique_ptr<backend>>;
 
   backend_manager();
+  ~backend_manager();
   
   backend* get(backend_id) const;
   hw_model& hardware_model();

@@ -37,6 +37,38 @@
 namespace hipsycl {
 namespace rt {
 
+namespace {
+
+// Add this node to the data users of the memory regions
+// referenced in the requirements
+void add_to_data_users(dag_node_ptr node, const requirements_list& reqs)
+{
+  for(dag_node_ptr req : reqs.get()){
+    if(req->get_operation()->is_requirement()){
+      auto* mem_req = cast<memory_requirement>(req->get_operation());
+
+      if(mem_req->is_buffer_requirement())
+      {
+        auto& data_users = cast<buffer_memory_requirement>(mem_req)->
+            get_data_region()->get_users();
+
+        if(!data_users.has_user(node))
+          data_users.add_user(node, 
+                              mem_req->get_access_mode(),
+                              mem_req->get_access_target(),
+                              mem_req->get_access_offset3d(),
+                              mem_req->get_access_range3d());
+      }
+      else
+        assert(false && "dag: Image requirements are not yet implemented");
+    
+    }
+  }
+}
+
+}
+
+
 
 class kernel_operation;
 class memcpy_operation;
@@ -105,6 +137,8 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   for(auto node : operation_node->get_requirements())
     add_conflicts_as_requirements(node);
   
+  add_to_data_users(operation_node, requirements);
+
   return operation_node;
 }
 
@@ -195,7 +229,7 @@ bool dag_builder::is_conflicting_access(
       user.mode == sycl::access::mode::read)
     return false;
 
-  // Check if the page ranges do not intersect
+  // TODO Check if the page ranges do not intersect
   // need to determine page range
   return mem_req->intersects_with(user);
 }

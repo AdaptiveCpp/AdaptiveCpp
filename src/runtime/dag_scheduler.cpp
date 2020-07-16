@@ -30,6 +30,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
@@ -309,11 +310,13 @@ void assign_memcopies_to_devices(const dag_interpreter &interpreter,
 
 } // anonymous namespace
 
-dag_scheduler::dag_scheduler()
-{
+void dag_scheduler::initialize_available_devices() {
   // Collect available devices (currently just uses everything)
   // TODO: User may want to restrict the device to which we schedule
-
+  HIPSYCL_DEBUG_INFO
+      << "dag_scheduler: Starting up, querying available devices..."
+      << std::endl;
+  this->_available_devices.clear();
   application::get_runtime().backends().for_each_backend(
   [this](backend *b) {
     std::size_t num_devices = b->get_hardware_manager()->get_num_devices();
@@ -326,8 +329,14 @@ dag_scheduler::dag_scheduler()
   });
 }
 
+dag_scheduler::dag_scheduler()
+{}
+
 void dag_scheduler::submit(dag* d)
 {
+  if(_available_devices.size() == 0) {
+    this->initialize_available_devices();
+  }
   // This should also be checked at a higher level,
   // throwing an exception such that the user can handle
   // this error

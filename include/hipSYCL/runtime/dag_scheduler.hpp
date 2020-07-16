@@ -142,9 +142,11 @@ class dag_scheduler
 {
 public:
   dag_scheduler();
-
   void submit(dag* d);
+  
 private:
+  void initialize_available_devices();
+
   std::vector<device_id> _available_devices;
 };
 

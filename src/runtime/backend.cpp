@@ -26,7 +26,9 @@
  */
 
 #include "hipSYCL/runtime/backend.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 
 namespace hipsycl {
@@ -44,7 +46,15 @@ backend_manager::~backend_manager()
 }
 
 backend *backend_manager::get(backend_id id) const {
-  return _backends.at(id).get();
+  auto it = _backends.find(id);
+  if(it == _backends.end()){
+    register_error(
+        __hipsycl_here(),
+        result_info{"backend_manager: Requested backend is not available."});
+    
+    return nullptr;
+  }
+  return it->second.get();
 }
 
 hw_model &backend_manager::hardware_model()

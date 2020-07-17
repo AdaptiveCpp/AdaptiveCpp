@@ -45,7 +45,7 @@ public:
 
   runtime()
   {
-    HIPSYCL_DEBUG_INFO << "runtime: ******* rt2 launch initiated ********"
+    HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                        << std::endl;
   }
 

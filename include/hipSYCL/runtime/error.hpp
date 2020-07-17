@@ -31,6 +31,7 @@
 
 #include <functional>
 #include <ostream>
+#include <string>
 
 namespace hipsycl {
 namespace rt {
@@ -56,22 +57,62 @@ private:
   int _line;
 };
 
+class error_code
+{
+public:
+  error_code(int code)
+      : _component{"<unspecified>"}, _has_error_code{true}, _code{code} {}
+
+  error_code() : _component{"<unspecified>"}, _has_error_code{false} {}
+
+  error_code(const std::string &component)
+      : _component{component}, _has_error_code{false} {}
+
+  error_code(const std::string &component, int code)
+      : _component{component}, _has_error_code{true}, _code{code} {}
+
+  const std::string& get_component() const
+  { return _component; }
+
+  bool is_code_specified() const
+  { return _has_error_code; }
+
+  int get_code() const
+  { return _code; }
+
+  std::string str() const{
+    auto res = _component+":";
+    if(_has_error_code)
+      res += std::to_string(_code);
+    else
+      res += "<unspecified>";
+    return res;
+  }
+
+private:
+  bool _has_error_code;
+  std::string _component;
+  int _code;
+};
+
 class result_info {
 public:
-  result_info()
-  : _message{}, _error_code{0} {}
+  using errc_type = class error_code;
+
+  result_info() = default;
 
   result_info(const std::string& message)
-  : _error_code{-1} {}
+  : _message{message}
+  {}
 
-  result_info(const std::string& message, int backend_error_code) 
+  result_info(const std::string& message, errc_type backend_error_code) 
   : _message{message}, _error_code{backend_error_code} {}
 
   const std::string& what() const { return _message; }
-  int error_code() const { return _error_code; }
+  errc_type error_code() const { return _error_code; }
 private:
   std::string _message;
-  int _error_code;
+  errc_type _error_code;
 };
 
 class result {
@@ -107,8 +148,10 @@ public:
     if(_is_success) ostr << "[success]";
     else {
       ostr << "from " << _origin.get_file() << ":" << _origin.get_line()
-           << " @ " << _origin.get_function() << ": " << _info.what()
-           << " (error code = " << _info.error_code() << ")" << std::endl;
+           << " @ " << _origin.get_function() << ": " << _info.what();
+      if(_info.error_code().is_code_specified())
+        ostr << " (error code = " << _info.error_code().str() << ")";
+      ostr << std::endl;
     }
   }
 private:

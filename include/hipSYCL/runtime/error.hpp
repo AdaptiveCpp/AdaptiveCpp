@@ -61,6 +61,9 @@ public:
   result_info()
   : _message{}, _error_code{0} {}
 
+  result_info(const std::string& message)
+  : _error_code{-1} {}
+
   result_info(const std::string& message, int backend_error_code) 
   : _message{message}, _error_code{backend_error_code} {}
 
@@ -134,6 +137,6 @@ result make_error(
 }
 }
 
-#define hipsycl_here() ::hipsycl::rt::result_origin{__func__, __FILE__, __LINE__}
+#define __hipsycl_here() ::hipsycl::rt::result_origin{__func__, __FILE__, __LINE__}
 
 #endif

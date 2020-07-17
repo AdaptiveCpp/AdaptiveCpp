@@ -141,7 +141,7 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
     assert(false && "3D data transfer is unimplemented");
   }
 
-  return make_success(hipsycl_here());
+  return make_success(__hipsycl_here());
 }
 
 result hip_queue::submit_kernel(const kernel_operation &op) {
@@ -153,13 +153,13 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
   l->set_params(this);
   l->invoke();
 
-  return make_success(hipsycl_here());
+  return make_success(__hipsycl_here());
 }
 
 result hip_queue::submit_prefetch(const prefetch_operation&) {
   assert(false && "Unimplemented");
 
-  return make_success(hipsycl_here());
+  return make_success(__hipsycl_here());
 }
 
 /// Causes the queue to wait until an event on another queue has occured.
@@ -170,7 +170,7 @@ result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
   hip_check_error(hipStreamWaitEvent(_stream, hip_evt->get_event(), 0));
 
-  return make_success(hipsycl_here());
+  return make_success(__hipsycl_here());
 }
 
 result hip_queue::submit_external_wait_for(dag_node_ptr node) {
@@ -183,7 +183,7 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
       hipStreamAddCallback(_stream, host_synchronization_callback,
                            reinterpret_cast<void *>(user_data), 0));
 
-  return make_success(hipsycl_here());
+  return make_success(__hipsycl_here());
 }
 
 }

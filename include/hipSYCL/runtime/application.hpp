@@ -57,12 +57,17 @@ public:
 template <class Error_handler>
 result register_error(
     const result_origin &origin, const result_info &info,
-    Error_handler handler = [](const result &) {}) {
+    Error_handler handler) {
 
   auto res = make_error(origin, info, handler);
 
   application::get_runtime().errors().add(res);
   return res;
+}
+
+inline result register_error(const result_origin &origin,
+                             const result_info &info) {
+  return register_error(origin, info, [](const result &) {});
 }
 
 }

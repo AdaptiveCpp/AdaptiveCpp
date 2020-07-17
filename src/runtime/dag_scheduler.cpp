@@ -32,6 +32,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
@@ -341,6 +342,10 @@ void dag_scheduler::submit(dag* d)
   // throwing an exception such that the user can handle
   // this error
   assert(_available_devices.size() > 0 && "No devices available");
+  if(_available_devices.size() == 0){
+    // TODO cancel DAG, treat DAG nodes as "complete"
+    register_error(__hipsycl_here(), result_info{"dag_scheduler: No devices available"});
+  }
 
   // Start by enumerating all nodes in the dag
   dag_enumerator enumerator{d};

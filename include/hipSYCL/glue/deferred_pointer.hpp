@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_DEFERRED_POINTER_HPP
 #define HIPSYCL_DEFERRED_POINTER_HPP
 
+#include "hipSYCL/common/debug.hpp"
 #include <memory>
 #include <vector>
 
@@ -76,6 +77,10 @@ private:
     if (!_initialized && _ptr) {
       T *target_ptr = *reinterpret_cast<T**>(_ptr);
       if (target_ptr){
+        
+        HIPSYCL_DEBUG_INFO << "deferred_pointer: Initialized to " << target_ptr
+                           << std::endl;
+
         _ptr = target_ptr;
         _initialized = true;
       }

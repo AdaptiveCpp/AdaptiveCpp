@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/id.hpp"
 #include "hipSYCL/sycl/range.hpp"
@@ -293,10 +294,19 @@ public:
 
     assert(page_size > 0);
 
-    for(int i = 0; i < 3; ++i)
-      assert(num_elements[i] % page_size == 0);
+    for(int i = 0; i < 3; ++i){
+      if(num_elements[i] != 1)
+        assert(num_elements[i] % page_size == 0);
+    }
     
     _num_pages = num_elements / page_size;
+    for(int i = 0; i < 3; ++i)
+      if(_num_pages[i] == 0)
+        _num_pages[i] = 1;
+
+    HIPSYCL_DEBUG_INFO << "data_region: constructed with page table dimensions "
+                       << _num_pages[0] << " " << _num_pages[1] << " "
+                       << _num_pages[2] << std::endl;
   }
 
 

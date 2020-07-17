@@ -32,10 +32,15 @@
 #include <type_traits>
 #include <cassert>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/deferred_pointer.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/data.hpp"
 
+#include "hipSYCL/sycl/device.hpp"
 #include "range.hpp"
 #include "access.hpp"
 #include "item.hpp"
@@ -258,6 +263,10 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   {
     throw unimplemented{"0-dimensional accessors are not yet implemented"};
     detail::accessor::bind_to_buffer(*this, bufferRef);
+
+    if(T == access::target::host_buffer) {
+      init_host_buffer();
+    }
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -294,6 +303,10 @@ access::placeholder::true_t && (accessTarget == access::target::global_buffer
   accessor(buffer<dataT, dimensions> &bufferRef)
   {
     detail::accessor::bind_to_buffer(*this, bufferRef);
+
+    if(T == access::target::host_buffer) {
+      init_host_buffer();
+    }
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -316,7 +329,6 @@ access::target::constant_buffer)) && dimensions > 0 */
   /// Creates an accessor for a partial range of the buffer, described by an offset
   /// and range.
   ///
-  /// Implementation note: At the moment, this still transfers the entire buffer.
   ///
   /// Available only when: (isPlaceholder == access::placeholder::false_t &&
   /// accessTarget == access::target::host_buffer) || (isPlaceholder ==
@@ -335,7 +347,12 @@ access::target::constant_buffer)) && dimensions > 0 */
            range<dimensions> accessRange,
            id<dimensions> accessOffset = {})
   {
-    detail::accessor::bind_to_buffer(*this, bufferRef);
+    detail::accessor::bind_to_buffer(*this, bufferRef, accessOffset,
+                                     accessRange);
+
+    if(T == access::target::host_buffer) {
+      init_host_buffer();
+    }
   }
 
   /* Available only when: (isPlaceholder == access::placeholder::false_t &&
@@ -556,6 +573,53 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
 private:
+
+  void init_host_buffer() {
+    // TODO: Maybe unify code with handler::update_host()?
+    HIPSYCL_DEBUG_INFO << "accessor [host]: Initializing host access" << std::endl;
+
+    assert(this->_buff.get_shared_ptr());
+    auto data = this->_buff.get_shared_ptr();
+
+    if(sizeof(dataT) != data->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
+
+    rt::dag_node_ptr node;
+    {
+      rt::dag_build_guard build{rt::application::dag()};
+
+      auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+          data, _offset, _range, accessmode, accessTarget);
+
+      this->bind_to(
+          rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get()));
+
+      rt::execution_hints enforce_bind_to_host;
+      enforce_bind_to_host.add_hint(
+          rt::make_execution_hint<rt::hints::bind_to_device>(
+              detail::get_host_device()));
+
+      node = build.builder()->add_explicit_mem_requirement(
+          std::move(explicit_requirement), rt::requirements_list{},
+          enforce_bind_to_host);
+      
+      HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
+      rt::application::dag().flush_sync();
+    }
+    if(rt::application::get_runtime().errors().num_errors() != 0){
+      HIPSYCL_DEBUG_INFO << "accessor [host]: Waiting for completion host access..." << std::endl;
+
+      assert(node);
+      node->wait();
+    } else {
+      HIPSYCL_DEBUG_ERROR << "accessor [host]: Aborting synchronization, "
+                             "runtime error list is non-empty"
+                          << std::endl;
+      // TODO throw exceptions
+    }
+    // TODO Need to lock execution of DAG
+  }
   
   HIPSYCL_UNIVERSAL_TARGET
   accessor(){}

@@ -74,8 +74,12 @@ public:
     _errors.clear();
   }
 
+  std::size_t num_errors() const {
+    std::lock_guard<std::mutex> lock{_lock};
+    return _errors.size();
+  }
 private:
-  std::mutex _lock;
+  mutable std::mutex _lock;
   std::vector<result> _errors;
 };
 

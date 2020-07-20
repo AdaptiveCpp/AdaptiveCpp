@@ -47,20 +47,26 @@ public:
   event()
   {}
 
-  event(const rt::dag_node_ptr& evt)
-    : _node{evt}
-  {}
+  event(
+      const rt::dag_node_ptr &evt,
+      async_handler handler =
+          [](exception_list e) { glue::default_async_handler(e); })
+      : _node{evt} {}
 
-
-  /* CL Interop is not supported
-  event(cl_event clEvent, const context& syclContext);
-
-  cl_event get();
-  */
-
-  vector_class<event> get_wait_list()
+  std::vector<event> get_wait_list()
   {
-    return vector_class<event>{};
+    if(_node) {
+      std::vector<event> events;
+
+      for(auto node : _node->get_requirements()) {
+        // TODO Is it correct to just use our handler here?
+        events.push_back(event{node, _handler});
+      }
+
+      return events;
+      
+    }
+    return std::vector<event>{};
   }
 
   void wait()
@@ -96,21 +102,19 @@ public:
   void wait_and_throw()
   {
     wait();
-    // TODO: This does not take into account preconfigured
-    // async handlers
-    glue::throw_asynchronous_errors([](exception_list e){
-      glue::default_async_handler(e);
-    });
+    glue::throw_asynchronous_errors(_handler);
   }
 
   static void wait_and_throw(const vector_class<event> &eventList)
   {
     wait(eventList);
-    // TODO: This does not take into account preconfigured
-    // async handlers
-    glue::throw_asynchronous_errors([](exception_list e){
-      glue::default_async_handler(e);
-    });
+
+    // Just invoke handler of first event?
+    if(eventList.empty())
+      glue::throw_asynchronous_errors(
+          [](sycl::exception_list e) { glue::default_async_handler(e); });
+    else
+      glue::throw_asynchronous_errors(eventList.front()._handler);
   }
 
   template <info::event param>
@@ -129,6 +133,7 @@ public:
 private:
 
   rt::dag_node_ptr _node;
+  async_handler _handler;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)

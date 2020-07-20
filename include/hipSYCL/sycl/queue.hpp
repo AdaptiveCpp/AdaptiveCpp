@@ -29,6 +29,11 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
+#include "hipSYCL/glue/error.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -42,7 +47,7 @@
 #include "info/info.hpp"
 #include "detail/function_set.hpp"
 
-#include "hipSYCL/runtime/hints.hpp"
+
 
 namespace hipsycl {
 namespace sycl {
@@ -131,26 +136,8 @@ public:
 
     cgf(cgh);
 
-    const std::vector<rt::dag_node_ptr>& dag_nodes =
-      cgh.get_cg_nodes();
-
-    if(dag_nodes.empty()) {
-      HIPSYCL_DEBUG_ERROR
-          << "queue: Command queue evaluation did not result in the creation "
-             "of events. Are there operations inside the command group?"
-          << std::endl;
-      return event{};
-    }
-    if(dag_nodes.size() > 1) {
-      HIPSYCL_DEBUG_ERROR
-          << "queue: Multiple events returned from command group evaluation; "
-             "multiple operations in a single command group is not SYCL "
-             "conformant. Returning event to the last operation"
-          << std::endl;
-    }
-
-    return event{dag_nodes.back()};
-    
+    rt::dag_node_ptr node = this->extract_dag_node(cgh);
+    return event{node, _handler};
   }
 
   template <typename T>
@@ -160,12 +147,38 @@ public:
 
       this->get_hooks()->run_all(cgh);
 
-      cgf(cgh);
+      size_t num_errors_begin =
+          rt::application::get_runtime().errors().num_errors();
 
-      // We need to wait to make sure everything is fine.
-      // ToDo: Check for asynchronous errors.
-      wait();
-      return event();
+      cgf(cgh);
+      // Flush so that we see any errors during submission
+      rt::application::dag().flush_sync();
+
+      size_t num_errors_end =
+          rt::application::get_runtime().errors().num_errors();
+
+      bool submission_failed = false;
+      // TODO This approach fails if an async handler has consumed
+      // the errors in the meantime
+      if(num_errors_end != num_errors_begin) {
+        // Need to check if there was a kernel error..
+        rt::application::get_runtime().errors().for_each_error(
+            [&](const rt::result &err) {
+              if (!err.is_success()) {
+                if (err.info().get_error_type() ==
+                    rt::error_type::kernel_error) {
+                  submission_failed = true;
+                }
+              }
+            });
+      }
+
+      if(!submission_failed) {
+        rt::dag_node_ptr node = this->extract_dag_node(cgh);
+        return event{node, _handler};
+      } else {
+        return secondaryQueue.submit(cgf);
+      }
     }
     catch(exception&) {
       return secondaryQueue.submit(cgf);
@@ -175,10 +188,7 @@ public:
 
 
   void wait();
-
-  /// \todo implement these properly
   void wait_and_throw();
-
   void throw_asynchronous();
 
   friend bool operator==(const queue& lhs, const queue& rhs)
@@ -188,6 +198,28 @@ public:
   { return !(lhs == rhs); }
 
 private:
+
+  rt::dag_node_ptr extract_dag_node(sycl::handler& cgh) {
+  
+    const std::vector<rt::dag_node_ptr>& dag_nodes =
+      cgh.get_cg_nodes();
+
+    if(dag_nodes.empty()) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Command queue evaluation did not result in the creation "
+             "of events. Are there operations inside the command group?"
+          << std::endl;
+      return nullptr;
+    }
+    if(dag_nodes.size() > 1) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Multiple events returned from command group evaluation; "
+             "multiple operations in a single command group is not SYCL "
+             "conformant. Returning event to the last operation"
+          << std::endl;
+    }
+    return dag_nodes.back();
+  }
 
   void init();
 

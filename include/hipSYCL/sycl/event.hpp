@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_EVENT_HPP
 #define HIPSYCL_EVENT_HPP
 
+#include "hipSYCL/glue/error.hpp"
 #include "types.hpp"
 #include "backend/backend.hpp"
 #include "exception.hpp"
@@ -95,13 +96,21 @@ public:
   void wait_and_throw()
   {
     wait();
-    // TODO: check for errors
+    // TODO: This does not take into account preconfigured
+    // async handlers
+    glue::throw_asynchronous_errors([](exception_list e){
+      glue::default_async_handler(e);
+    });
   }
 
   static void wait_and_throw(const vector_class<event> &eventList)
   {
     wait(eventList);
-    // TODO
+    // TODO: This does not take into account preconfigured
+    // async handlers
+    glue::throw_asynchronous_errors([](exception_list e){
+      glue::default_async_handler(e);
+    });
   }
 
   template <info::event param>

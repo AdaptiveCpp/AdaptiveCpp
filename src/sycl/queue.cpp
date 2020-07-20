@@ -39,48 +39,9 @@
 namespace hipsycl {
 namespace sycl {
 
-namespace {
-
-void default_async_handler(exception_list error_list) {
-  if(error_list.size() > 0) {
-    HIPSYCL_OUTPUT_STREAM << "============== hipSYCL error report ============== "
-                          << std::endl;
-
-    HIPSYCL_OUTPUT_STREAM
-        << "hipSYCL has caught the following undhandled asynchronous errors, and "
-          "will now terminate the application: "
-        << std::endl << std::endl;
-
-    int idx = 0;
-    for(std::exception_ptr err : error_list) {
-      
-      try{
-        if(err) {
-          std::rethrow_exception(err);
-        }
-      }
-      catch(sycl::exception &e) {
-        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
-      }
-      catch(std::exception &e) {
-        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
-      }
-      catch(...) {
-        HIPSYCL_OUTPUT_STREAM << "   " << idx << ". <unknown exception>" << std::endl;
-      }
-
-      ++idx;
-    }
-
-    std::terminate();
-  }
-}
-
-}
-
 queue::queue(const property_list &propList)
   : detail::property_carrying_object{propList},
-    _handler{[](exception_list e){default_async_handler(e);}}
+    _handler{[](exception_list e){ glue::default_async_handler(e); }}
 {
   this->init();
 }
@@ -98,7 +59,7 @@ queue::queue(const async_handler &asyncHandler,
 queue::queue(const device_selector &deviceSelector,
              const property_list &propList)
     : detail::property_carrying_object{propList},
-      _handler{[](exception_list e){default_async_handler(e);}} {
+      _handler{[](exception_list e){ glue::default_async_handler(e); }} {
 
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       deviceSelector.select_device()._device_id));
@@ -119,7 +80,7 @@ queue::queue(const device_selector &deviceSelector,
 
 queue::queue(const device &syclDevice, const property_list &propList)
     : detail::property_carrying_object{propList},
-      _handler{[](exception_list e) { default_async_handler(e); }} {
+      _handler{[](exception_list e) { glue::default_async_handler(e); }} {
 
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       syclDevice._device_id));
@@ -140,7 +101,7 @@ queue::queue(const device &syclDevice, const async_handler &asyncHandler,
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const property_list &propList)
     : detail::property_carrying_object{propList},
-      _handler{[](exception_list e) { default_async_handler(e); }} {
+      _handler{[](exception_list e) { glue::default_async_handler(e); }} {
 
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       deviceSelector.select_device()._device_id));

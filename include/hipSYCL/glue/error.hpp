@@ -40,6 +40,41 @@
 namespace hipsycl {
 namespace glue {
 
+inline void default_async_handler(sycl::exception_list error_list) {
+  if(error_list.size() > 0) {
+    HIPSYCL_OUTPUT_STREAM << "============== hipSYCL error report ============== "
+                          << std::endl;
+
+    HIPSYCL_OUTPUT_STREAM
+        << "hipSYCL has caught the following undhandled asynchronous errors, and "
+          "will now terminate the application: "
+        << std::endl << std::endl;
+
+    int idx = 0;
+    for(std::exception_ptr err : error_list) {
+      
+      try{
+        if(err) {
+          std::rethrow_exception(err);
+        }
+      }
+      catch(sycl::exception &e) {
+        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+      }
+      catch(std::exception &e) {
+        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+      }
+      catch(...) {
+        HIPSYCL_OUTPUT_STREAM << "   " << idx << ". <unknown exception>" << std::endl;
+      }
+
+      ++idx;
+    }
+
+    std::terminate();
+  }
+}
+
 inline std::exception_ptr throw_result(const rt::result& r){
   if(!r.is_success()) {
     rt::error_type etype = r.info().get_error_type();

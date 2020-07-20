@@ -344,7 +344,9 @@ void dag_scheduler::submit(dag* d)
   assert(_available_devices.size() > 0 && "No devices available");
   if(_available_devices.size() == 0){
     // TODO cancel DAG, treat DAG nodes as "complete"
-    register_error(__hipsycl_here(), result_info{"dag_scheduler: No devices available"});
+    register_error(__hipsycl_here(),
+                   error_info{"dag_scheduler: No devices available",
+                              error_type::runtime_error});
   }
 
   // Start by enumerating all nodes in the dag

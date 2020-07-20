@@ -31,7 +31,9 @@
 #include <stdexcept>
 #include <exception>
 #include <functional>
+#include <string>
 
+#include "hipSYCL/runtime/error.hpp"
 #include "types.hpp"
 #include "backend/backend.hpp"
 
@@ -42,8 +44,12 @@ class context;
 
 class exception {
 public:
-  exception(const string_class &message, hipError_t error_code = hipErrorUnknown)
-    : _msg{message}, _error_code{static_cast<int>(error_code)}
+  exception(const std::string& message)
+  : _msg{message}
+  {}
+
+  exception(const rt::result& details)
+    : _msg{details.what()}, _error_details{details}
   {}
 
   const char *what() const
@@ -58,15 +64,10 @@ public:
 
   context get_context() const;
 
-  /// Returns CUDA/HIP error codes
-  int get_cl_code() const
-  {
-    return _error_code;
-  }
 
 private:
   string_class _msg;
-  int _error_code;
+  rt::result _error_details;
 };
 
 
@@ -116,13 +117,6 @@ class profiling_error : public device_error {
 class feature_not_supported : public device_error {
   using device_error::device_error;
 };
-
-namespace detail {
-
-void check_error(hipError_t e);
-void dump_exception_info(exception_ptr eptr);
-
-}
 
 } // namespace sycl
 } // namespace hipsycl

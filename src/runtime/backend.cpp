@@ -30,6 +30,15 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#include <algorithm>
+
+#ifdef HIPSYCL_RT_ENABLE_HIP_BACKEND
+#include "hipSYCL/runtime/hip/hip_backend.hpp"
+#endif
+
+#ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
+#include "hipSYCL/runtime/omp/omp_backend.hpp"
+#endif
 
 namespace hipsycl {
 namespace rt {
@@ -37,7 +46,15 @@ namespace rt {
 backend_manager::backend_manager()
 : _hw_model(std::make_unique<hw_model>(this))
 {
-  // TODO Add backends here
+#ifdef HIPSYCL_RT_ENABLE_HIP_BACKEND
+  HIPSYCL_DEBUG_INFO << "backend_manager: Registering HIP backend..." << std::endl;
+  _backends.push_back(std::make_unique<hip_backend>());
+#endif
+
+#ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
+  HIPSYCL_DEBUG_INFO << "backend_manager: Registering OpenMP backend..." << std::endl;
+  _backends.push_back(std::make_unique<omp_backend>());
+#endif
 }
 
 backend_manager::~backend_manager()
@@ -46,15 +63,20 @@ backend_manager::~backend_manager()
 }
 
 backend *backend_manager::get(backend_id id) const {
-  auto it = _backends.find(id);
+  auto it = std::find_if(_backends.begin(), _backends.end(),
+                         [id](const std::unique_ptr<backend> &b) -> bool {
+                           return b->get_backend_descriptor().id == id;
+                         });
+  
   if(it == _backends.end()){
     register_error(
         __hipsycl_here(),
-        result_info{"backend_manager: Requested backend is not available."});
-    
+        error_info{"backend_manager: Requested backend is not available.",
+                   error_type::runtime_error});
+
     return nullptr;
   }
-  return it->second.get();
+  return it->get();
 }
 
 hw_model &backend_manager::hardware_model()

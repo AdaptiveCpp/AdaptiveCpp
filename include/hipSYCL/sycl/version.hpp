@@ -30,30 +30,25 @@
 #define HIPSYCL_VERSION_HPP
 
 #include "backend/backend.hpp"
-#include "exception.hpp"
-#include "types.hpp"
+#include <string>
 
 #define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 8
-#define HIPSYCL_VERSION_PATCH 1
+#define HIPSYCL_VERSION_MINOR 9
+#define HIPSYCL_VERSION_PATCH 0
 #define HIPSYCL_VERSION_TYPE "prerelease"
 
 namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-static string_class version_string()
+static std::string version_string()
 {
-  int version;
-  check_error(hipRuntimeGetVersion(&version));
-  string_class hip_version = std::to_string(version);
-
-  string_class hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
+  std::string hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
       + "." + std::to_string(HIPSYCL_VERSION_MINOR)
       + "." + std::to_string(HIPSYCL_VERSION_PATCH)
       + "-" + std::string(HIPSYCL_VERSION_TYPE);
 
-  return "hipSYCL " + hipsycl_version + " on HIP/CUDA " + hip_version;
+  return "hipSYCL [hipSYCL-next/rt2] " + hipsycl_version;
 }
 
 }

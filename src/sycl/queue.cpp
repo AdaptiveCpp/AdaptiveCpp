@@ -25,22 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/sycl/context.hpp"
 #include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/queue.hpp"
-
-#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/sycl/types.hpp"
+#include "hipSYCL/glue/error.hpp"
 #include <exception>
 
 namespace hipsycl {
 namespace sycl {
 
+namespace {
+
+void default_async_handler(exception_list error_list) {
+  if(error_list.size() > 0) {
+    HIPSYCL_OUTPUT_STREAM << "============== hipSYCL error report ============== "
+                          << std::endl;
+
+    HIPSYCL_OUTPUT_STREAM
+        << "hipSYCL has caught the following undhandled asynchronous errors, and "
+          "will now terminate the application: "
+        << std::endl << std::endl;
+
+    int idx = 0;
+    for(std::exception_ptr err : error_list) {
+      
+      try{
+        if(err) {
+          std::rethrow_exception(err);
+        }
+      }
+      catch(sycl::exception &e) {
+        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+      }
+      catch(std::exception &e) {
+        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+      }
+      catch(...) {
+        HIPSYCL_OUTPUT_STREAM << "   " << idx << ". <unknown exception>" << std::endl;
+      }
+
+      ++idx;
+    }
+
+    std::terminate();
+  }
+}
+
+}
 
 queue::queue(const property_list &propList)
   : detail::property_carrying_object{propList},
-    _handler{[](exception_list){}}
+    _handler{[](exception_list e){default_async_handler(e);}}
 {
   this->init();
 }
@@ -58,7 +98,7 @@ queue::queue(const async_handler &asyncHandler,
 queue::queue(const device_selector &deviceSelector,
              const property_list &propList)
     : detail::property_carrying_object{propList},
-      _handler{[](exception_list) {}} {
+      _handler{[](exception_list e){default_async_handler(e);}} {
 
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       deviceSelector.select_device()._device_id));
@@ -77,18 +117,15 @@ queue::queue(const device_selector &deviceSelector,
   this->init();
 }
 
-
 queue::queue(const device &syclDevice, const property_list &propList)
-    : detail::property_carrying_object{propList}, _handler{
-                                                      [](exception_list) {}} {
+    : detail::property_carrying_object{propList},
+      _handler{[](exception_list e) { default_async_handler(e); }} {
 
-  
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       syclDevice._device_id));
 
   this->init();
 }
-
 
 queue::queue(const device &syclDevice, const async_handler &asyncHandler,
              const property_list &propList)
@@ -100,18 +137,16 @@ queue::queue(const device &syclDevice, const async_handler &asyncHandler,
   this->init();
 }
 
-
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const property_list &propList)
-    : detail::property_carrying_object{propList}, _handler{
-                                                      [](exception_list) {}} {
-  
+    : detail::property_carrying_object{propList},
+      _handler{[](exception_list e) { default_async_handler(e); }} {
+
   _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
       deviceSelector.select_device()._device_id));
   
   this->init();
 }
-
 
 queue::queue(const context &syclContext, const device_selector &deviceSelector,
              const async_handler &asyncHandler, const property_list &propList)
@@ -121,6 +156,10 @@ queue::queue(const context &syclContext, const device_selector &deviceSelector,
       deviceSelector.select_device()._device_id));
   
   this->init();
+}
+
+queue::~queue() {
+  this->throw_asynchronous();
 }
 
 void queue::init()
@@ -158,24 +197,7 @@ void queue::wait_and_throw() {
 }
 
 void queue::throw_asynchronous() {
-  sycl::exception_list exceptions;
-
-  std::vector<rt::result> async_errors;
-  rt::application::get_runtime().errors().pop_each_error(
-      [&](const rt::result &err) {
-        async_errors.push_back(err);
-      });
-
-  for(const auto& err : async_errors) {
-    try {
-      // TODO: Translate err into exception
-    } catch (...) {
-      exceptions.push_back(std::current_exception());
-    }
-  }
-
-  if(!exceptions.empty())
-    _handler(exceptions);
+  glue::throw_asynchronous_errors(_handler);
 }
 
 

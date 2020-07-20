@@ -63,8 +63,8 @@ public:
 class backend_manager
 {
 public:
-  using backend_map_type =
-      std::unordered_map<backend_id, std::unique_ptr<backend>>;
+  using backend_list_type =
+      std::vector<std::unique_ptr<backend>>;
 
   backend_manager();
   ~backend_manager();
@@ -77,11 +77,11 @@ public:
   void for_each_backend(F f)
   {
     for(auto& b : _backends){
-      f(b.second.get());
+      f(b.get());
     }
   }
 private:
-  backend_map_type _backends;
+  backend_list_type _backends;
 
   std::unique_ptr<hw_model> _hw_model;
 };

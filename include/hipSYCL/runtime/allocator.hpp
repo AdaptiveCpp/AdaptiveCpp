@@ -29,6 +29,7 @@
 #define HIPSYCL_RUNTIME_ALLOCATOR_HPP
 
 #include "device_id.hpp"
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {

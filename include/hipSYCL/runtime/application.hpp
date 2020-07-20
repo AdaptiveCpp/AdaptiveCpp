@@ -54,20 +54,13 @@ public:
 };
 
 // Construct an error object and register in the error queue
-template <class Error_handler>
-result register_error(
-    const result_origin &origin, const result_info &info,
-    Error_handler handler) {
+inline result register_error(
+    const source_location &origin, const error_info &info) {
 
-  auto res = make_error(origin, info, handler);
+  auto res = make_error(origin, info);
 
   application::get_runtime().errors().add(res);
   return res;
-}
-
-inline result register_error(const result_origin &origin,
-                             const result_info &info) {
-  return register_error(origin, info, [](const result &) {});
 }
 
 }

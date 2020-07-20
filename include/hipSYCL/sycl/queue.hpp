@@ -94,6 +94,8 @@ public:
                  const async_handler &asyncHandler,
                  const property_list &propList = {});
 
+  ~queue();
+
   /* CL Interop is not supported
   queue(cl_command_queue clQueue, const context& syclContext,
         const async_handler &asyncHandler = {});

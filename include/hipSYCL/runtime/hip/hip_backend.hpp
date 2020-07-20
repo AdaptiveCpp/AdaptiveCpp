@@ -27,6 +27,9 @@
 
 #include "../backend.hpp"
 
+#include "hip_allocator.hpp"
+#include "hip_queue.hpp"
+
 #ifndef HIPSYCL_HIP_BACKEND_HPP
 #define HIPSYCL_HIP_BACKEND_HPP
 
@@ -46,6 +49,9 @@ public:
   virtual backend_allocator *get_allocator(device_id dev) const override;
 
   virtual ~hip_backend(){}
+
+private:
+  hip_allocator _allocator;
 };
 
 }

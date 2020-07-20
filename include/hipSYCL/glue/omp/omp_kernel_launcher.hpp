@@ -44,7 +44,7 @@
 
 namespace hipsycl {
 namespace glue {
-namespace openmp_dispatch {
+namespace omp_dispatch {
 
 template<class Function>
 inline 

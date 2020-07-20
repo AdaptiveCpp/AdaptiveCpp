@@ -32,13 +32,33 @@
 #include <functional>
 #include <ostream>
 #include <string>
+#include <sstream>
+#include <memory>
 
 namespace hipsycl {
 namespace rt {
 
-class result_origin {
+enum class error_type {
+  unimplemented,
+  runtime_error,
+  kernel_error,
+  accessor_error,
+  nd_range_error,
+  event_error,
+  invalid_parameter_error,
+  device_error,
+  compile_program_error,
+  link_program_error,
+  invalid_object_error,
+  memory_allocation_error,
+  platform_error,
+  profiling_error,
+  feature_not_supported
+};
+
+class source_location {
 public:
-  result_origin(const std::string& function, const std::string& file, int line)
+  source_location(const std::string& function, const std::string& file, int line)
   : _function{function}, _file{file}, _line{line}
   {}
 
@@ -95,91 +115,123 @@ private:
   int _code;
 };
 
-class result_info {
+class error_info {
 public:
   using errc_type = class error_code;
 
-  result_info() = default;
+  error_info() = default;
 
-  result_info(const std::string& message)
-  : _message{message}
-  {}
+  error_info(const std::string &message,
+            error_type etype = error_type::runtime_error)
+      : _message{message}, _etype{etype} {}
 
-  result_info(const std::string& message, errc_type backend_error_code) 
+  error_info(const std::string& message, errc_type backend_error_code) 
   : _message{message}, _error_code{backend_error_code} {}
 
   const std::string& what() const { return _message; }
   errc_type error_code() const { return _error_code; }
+
+  error_type get_error_type() const { return _etype; }
 private:
   std::string _message;
   errc_type _error_code;
+  error_type _etype;
 };
 
 class result {
 public:
   // constructs success result
-  result(const result_origin& origin)
-  : _is_success{true}, _origin{origin}, _error_handler{[](const result&){}}
+  result() = default;
+
+  result(const source_location &origin, const error_info &info)
+  : _impl{std::make_unique<result_impl>(origin, info)}
   {}
 
-  template <class Error_handler>
-  result(const result_origin &origin, const result_info &info,
-         Error_handler handler)
-  : _origin{origin}, _info{info}, _error_handler{handler}
+  result(const result& other){
+    if(other._impl)
+      _impl =
+          std::make_unique<result_impl>(other._impl->origin, other._impl->info);
+  }
+
+  result(result&& other) noexcept
+  : _impl{std::move(other._impl)}
   {}
+
+  friend void swap(result& r1, result& r2) noexcept {
+    std::swap(r1._impl, r2._impl);
+  }
+
+  result& operator=(result other){
+    swap(*this, other);
+    return *this;
+  }
+
+  result& operator=(result&& other)
+  {
+    swap(*this, other );
+    return *this;
+  }
 
   bool is_success() const {
-    return _is_success;
+    return _impl == nullptr;
   }
 
-  result_origin origin() const {
-    return _origin;
+  source_location origin() const {
+    if(!_impl)
+      return source_location{"<unspecified>", "<unspecified>", -1};
+    return _impl->origin;
   }
 
-  result_info info() const {
-    return _info;
+  error_info info() const {
+    if(!_impl)
+      return error_info{};
+    return _impl->info;
   }
 
-  void invoke_handler() const {
-    _error_handler(*this);
+  std::string what() const {
+    std::stringstream sstream;
+    this->dump(sstream);
+    return sstream.str();
   }
 
   void dump(std::ostream& ostr) const {
-    if(_is_success) ostr << "[success]";
+    if(is_success()) ostr << "[success] ";
     else {
-      ostr << "from " << _origin.get_file() << ":" << _origin.get_line()
-           << " @ " << _origin.get_function() << ": " << _info.what();
-      if(_info.error_code().is_code_specified())
-        ostr << " (error code = " << _info.error_code().str() << ")";
+      ostr << "from " << _impl->origin.get_file() << ":"
+           << _impl->origin.get_line() << " @ " << _impl->origin.get_function()
+           << "(): " << _impl->info.what();
+      if (_impl->info.error_code().is_code_specified())
+        ostr << " (error code = " << _impl->info.error_code().str() << ")";
       ostr << std::endl;
     }
   }
 private:
-  bool _is_success;
-  result_origin _origin;
-  result_info _info;
-  std::function<void (const result&)> _error_handler;
+  struct result_impl
+  {
+    result_impl(const source_location& l, const error_info& i)
+    : origin{l}, info{i}
+    {}
+
+    source_location origin;
+    error_info info;
+  };
+
+  std::unique_ptr<result_impl> _impl;
 };
 
-inline result make_success(const result_origin& origin) {
-  return result{origin};
+inline result make_success() {
+  return result{};
 }
 
-inline result make_success(){
-  return make_success(result_origin{"<unknown-function>", "<unknown-file>", -1});
-}
-
-template <class Error_handler>
-result make_error(
-    const result_origin &origin, const result_info &info,
-    Error_handler handler = [](const result &) {}) {
-  return result{origin, info, handler};
+inline result make_error(
+    const source_location &origin, const error_info &info) {
+  return result{origin, info};
 }
 
 
 }
 }
 
-#define __hipsycl_here() ::hipsycl::rt::result_origin{__func__, __FILE__, __LINE__}
+#define __hipsycl_here() ::hipsycl::rt::source_location{__func__, __FILE__, __LINE__}
 
 #endif

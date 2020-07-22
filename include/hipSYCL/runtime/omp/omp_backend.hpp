@@ -54,8 +54,8 @@ public:
 
 private:
   mutable omp_allocator _allocator;
-  mutable multi_queue_executor _executor;
   mutable omp_hardware_manager _hw;
+  mutable multi_queue_executor _executor;
 }; 
 
 }

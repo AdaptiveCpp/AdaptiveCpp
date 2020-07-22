@@ -34,6 +34,9 @@ omp_node_event::omp_node_event()
 : _is_complete{std::make_shared<std::atomic<bool>>(false)}
 {}
 
+omp_node_event::~omp_node_event()
+{}
+
 bool omp_node_event::is_complete() const {
   return *_is_complete;
 }

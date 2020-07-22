@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/omp/omp_hardware_manager.hpp"
-#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl {

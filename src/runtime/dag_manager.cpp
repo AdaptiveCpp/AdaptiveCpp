@@ -116,7 +116,7 @@ void dag_manager::flush_sync()
 {
   this->flush_async();
   
-  HIPSYCL_DEBUG_INFO << "dag_amanager: waiting for async worker..."
+  HIPSYCL_DEBUG_INFO << "dag_manager: waiting for async worker..."
                      << std::endl;
   _worker.wait();
 }

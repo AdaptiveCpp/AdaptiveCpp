@@ -27,6 +27,7 @@
 
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 
 namespace hipsycl {
 namespace rt {

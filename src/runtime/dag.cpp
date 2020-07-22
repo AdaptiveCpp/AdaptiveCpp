@@ -128,6 +128,8 @@ void dag::for_each_node(std::function<void(dag_node_ptr)> handler) const
                 _fills.end(), handler);
   std::for_each(_prefetches.begin(), 
                 _prefetches.end(), handler);
+  std::for_each(_memory_requirements.begin(), 
+                _memory_requirements.end(), handler);
 }
 
 }

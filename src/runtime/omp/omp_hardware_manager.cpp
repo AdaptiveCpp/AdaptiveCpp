@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,61 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
-
-#include <memory>
-
-#include "device_id.hpp"
+#include "hipSYCL/runtime/omp/omp_hardware_manager.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
 
-class application
-{
-public:
-  static runtime& get_runtime();
+bool omp_hardware_context::is_cpu() const {
+  return true;
+}
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+bool omp_hardware_context::is_gpu() const {
+  return false;
+}
 
-  static void reset();
+std::size_t omp_hardware_context::get_max_kernel_concurrency() const {
+  return 1;
+}
+  
+// TODO We could actually copy have more memcpy concurrency
+std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
+  return 1;
+}
 
-  application() = delete;
-};
+std::string omp_hardware_context::get_device_name() const {
+  return "hipSYCL OpenMP host device";
+}
+
+std::string omp_hardware_context::get_vendor_name() const {
+  return "the hipSYCL project";
+}
+
+std::size_t omp_hardware_manager::get_num_devices() const {
+  return 1;
+}
+
+hardware_context* omp_hardware_manager::get_device(std::size_t index) {
+  if(index != 0) {
+    register_error(__hipsycl_here(),
+                   error_info{"omp_hardware_manager: Requested device " +
+                                  std::to_string(index) + " does not exist.",
+                              error_type::invalid_parameter_error});
+    return nullptr;
+  }
+
+  return &_device;
+}
+
+device_id omp_hardware_manager::get_device_id(std::size_t index) const {
+  return device_id{
+      backend_descriptor{hardware_platform::cpu, api_platform::openmp_cpu},
+      static_cast<int>(index)};
+}
+
 
 }
 }
-
-
-#endif

@@ -31,6 +31,7 @@
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_enumerator.hpp"
 #include "hipSYCL/runtime/dag_expander.hpp"
 #include "hipSYCL/runtime/data.hpp"

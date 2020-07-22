@@ -303,6 +303,8 @@ public:
   // if the object was constructed from a data_region!
   void* get_base_ptr() const;
   void* get_access_ptr() const;
+
+  
 private:
   device_id _dev;
 

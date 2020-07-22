@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
-
-#include <memory>
-
-#include "device_id.hpp"
+#include "hipSYCL/runtime/hip/hip_backend.hpp"
 
 namespace hipsycl {
 namespace rt {
+  
 
-class backend;
-class dag_manager;
-class runtime;
-
-class application
-{
-public:
-  static runtime& get_runtime();
-
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
-
-  static void reset();
-
-  application() = delete;
-};
-
+  
 }
 }
-
-
-#endif

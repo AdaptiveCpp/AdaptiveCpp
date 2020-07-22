@@ -35,6 +35,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/deferred_pointer.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"

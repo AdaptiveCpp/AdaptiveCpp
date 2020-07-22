@@ -34,6 +34,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/types.hpp"
 

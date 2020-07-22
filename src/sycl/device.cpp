@@ -30,6 +30,7 @@
 #include "hipSYCL/sycl/platform.hpp"
 
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 
 namespace hipsycl {

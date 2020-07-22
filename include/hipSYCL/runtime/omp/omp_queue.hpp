@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_OMP_QUEUE_HPP
+#define HIPSYCL_OMP_QUEUE_HPP
 
-#include <memory>
-
-#include "device_id.hpp"
+#include "../generic/async_worker.hpp"
+#include "../executor.hpp"
+#include "../inorder_queue.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
-
-class application
+class omp_queue : public inorder_queue
 {
 public:
-  static runtime& get_runtime();
+  omp_queue(backend_id id);
+  virtual ~omp_queue();
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() override;
 
-  static void reset();
+  virtual result submit_memcpy(const memcpy_operation&) override;
+  virtual result submit_kernel(const kernel_operation&) override;
+  virtual result submit_prefetch(const prefetch_operation&) override;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue must be from the same backend
+  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_external_wait_for(dag_node_ptr node) override;
 
-  application() = delete;
+private:
+  backend_id _backend_id;
+  worker_thread _worker;
 };
 
 }
 }
-
 
 #endif

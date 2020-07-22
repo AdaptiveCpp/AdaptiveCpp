@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_OMP_HARDWARE_MANAGER_HPP
+#define HIPSYCL_OMP_HARDWARE_MANAGER_HPP
 
-#include <memory>
-
-#include "device_id.hpp"
+#include "../hardware.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
-
-class application
+class omp_hardware_context : public hardware_context
 {
 public:
-  static runtime& get_runtime();
+  virtual bool is_cpu() const override;
+  virtual bool is_gpu() const override;
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+  /// \return The maximum number of kernels that can be executed concurrently
+  virtual std::size_t get_max_kernel_concurrency() const override;
+  /// \return The maximum number of memory transfers that can be executed
+  /// concurrently
+  virtual std::size_t get_max_memcpy_concurrency() const override;
 
-  static void reset();
+  virtual std::string get_device_name() const override;
+  virtual std::string get_vendor_name() const override;
 
-  application() = delete;
+  virtual ~omp_hardware_context(){}
+};
+
+class omp_hardware_manager : public backend_hardware_manager
+{
+public:
+  virtual std::size_t get_num_devices() const override;
+  virtual hardware_context *get_device(std::size_t index) override;
+  virtual device_id get_device_id(std::size_t index) const override;
+
+  virtual ~omp_hardware_manager(){}
+private:
+  omp_hardware_context _device;
 };
 
 }
 }
-
 
 #endif

@@ -31,6 +31,8 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/sycl/id.hpp"
 #include "hipSYCL/sycl/range.hpp"
 
@@ -79,8 +81,11 @@ public:
         return backend_launcher.get();
       }
     }
-    assert(false && "Could not find kernel launcher for the specified backend");
-    return nullptr; // Make compiler happy and prevent warnings
+    register_error(
+        __hipsycl_here(),
+        error_info{"No kernel launcher is present for requested backend",
+                   error_type::invalid_parameter_error});
+    return nullptr;
   }
 
 private:

@@ -32,6 +32,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
@@ -40,6 +41,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/dag_scheduler.hpp"
 #include "hipSYCL/runtime/dag_enumerator.hpp"
+#include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/dag.hpp"
 #include "hipSYCL/runtime/dag_expander.hpp"
 #include "hipSYCL/runtime/dag_interpreter.hpp"

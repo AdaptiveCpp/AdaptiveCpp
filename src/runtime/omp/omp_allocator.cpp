@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,36 +24,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <cstdlib>
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
-
-#include <memory>
-
-#include "device_id.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/omp/omp_allocator.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
 
-class application
-{
-public:
-  static runtime& get_runtime();
+void* omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+  return std::aligned_alloc(min_alignment, size_bytes);
+}
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
-
-  static void reset();
-
-  application() = delete;
+void *omp_allocator::allocate_optimized_host(size_t min_alignment,
+                                             size_t bytes) {
+  return this->allocate(min_alignment, bytes);
 };
 
-}
+void omp_allocator::free(void *mem) {
+  std::free(mem);
 }
 
+void* omp_allocator::allocate_usm(size_t bytes) {
+  return this->allocate(128, bytes);
+}
 
-#endif
+bool omp_allocator::is_usm_accessible_from(backend_descriptor b) const {
+  if(b.hw_platform == hardware_platform::cpu) {
+    return true;
+  }
+  return false;
+}
+
+}
+}

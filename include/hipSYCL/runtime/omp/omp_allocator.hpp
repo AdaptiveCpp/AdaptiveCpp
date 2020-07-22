@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_OMP_ALLOCATOR_HPP
+#define HIPSYCL_OMP_ALLOCATOR_HPP
 
-#include <memory>
-
-#include "device_id.hpp"
+#include "../allocator.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
-
-class application
+class omp_allocator : public backend_allocator 
 {
 public:
-  static runtime& get_runtime();
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+  virtual void *allocate_optimized_host(size_t min_alignment,
+                                        size_t bytes) override;
+  
+  virtual void free(void *mem) override;
 
-  static void reset();
-
-  application() = delete;
+  virtual void *allocate_usm(size_t bytes) override;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
 };
 
 }
 }
-
 
 #endif

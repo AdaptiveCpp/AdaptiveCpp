@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_OMP_BACKEND_HPP
+#define HIPSYCL_OMP_BACKEND_HPP
 
-#include <memory>
-
-#include "device_id.hpp"
+#include "../backend.hpp"
+#include "../multi_queue_executor.hpp"
+#include "omp_allocator.hpp"
+#include "omp_hardware_manager.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
 
-class application
+class omp_backend : public backend
 {
 public:
-  static runtime& get_runtime();
+  omp_backend();
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+  virtual api_platform get_api_platform() const override;
+  virtual hardware_platform get_hardware_platform() const override;
+  virtual backend_id get_unique_backend_id() const override;
+  
+  virtual backend_hardware_manager* get_hardware_manager() const override;
+  virtual backend_executor* get_executor(device_id dev) const override;
+  virtual backend_allocator *get_allocator(device_id dev) const override;
 
-  static void reset();
+  virtual ~omp_backend(){}
 
-  application() = delete;
-};
+private:
+  mutable omp_allocator _allocator;
+  mutable multi_queue_executor _executor;
+  mutable omp_hardware_manager _hw;
+}; 
 
 }
 }
-
 
 #endif

@@ -17,6 +17,7 @@ set(HIPSYCL_SOURCES
   sycl/handler.cpp
   sycl/local_memory.cpp
   runtime/application.cpp
+  runtime/error.cpp
   runtime/backend.cpp
   runtime/hints.cpp
   runtime/device_id.cpp
@@ -39,6 +40,11 @@ set(HIPSYCL_SOURCES
   runtime/hip/hip_queue.cpp
   runtime/hip/hip_allocator.cpp
   runtime/hip/hip_device_manager.cpp
+  runtime/omp/omp_allocator.cpp
+  runtime/omp/omp_backend.cpp
+  runtime/omp/omp_event.cpp
+  runtime/omp/omp_hardware_manager.cpp
+  runtime/omp/omp_queue.cpp
   runtime/hw_model/memcpy.cpp)
 
 

@@ -58,9 +58,9 @@ enum class error_type {
 
 class source_location {
 public:
-  source_location(const std::string& function, const std::string& file, int line)
-  : _function{function}, _file{file}, _line{line}
-  {}
+  source_location(const std::string &function, const std::string &file,
+                  int line)
+      : _function{function}, _file{file}, _line{line} {}
 
   const std::string& get_function() const
   { return _function; }
@@ -125,8 +125,9 @@ public:
             error_type etype = error_type::runtime_error)
       : _message{message}, _etype{etype} {}
 
-  error_info(const std::string& message, errc_type backend_error_code) 
-  : _message{message}, _error_code{backend_error_code} {}
+  error_info(const std::string &message, errc_type backend_error_code,
+             error_type etype = error_type::runtime_error)
+      : _message{message}, _error_code{backend_error_code}, _etype{etype} {}
 
   const std::string& what() const { return _message; }
   errc_type error_code() const { return _error_code; }
@@ -142,69 +143,24 @@ class result {
 public:
   // constructs success result
   result() = default;
-
-  result(const source_location &origin, const error_info &info)
-  : _impl{std::make_unique<result_impl>(origin, info)}
-  {}
-
-  result(const result& other){
-    if(other._impl)
-      _impl =
-          std::make_unique<result_impl>(other._impl->origin, other._impl->info);
-  }
-
-  result(result&& other) noexcept
-  : _impl{std::move(other._impl)}
-  {}
+  result(const source_location &origin, const error_info &info);
+  result(const result& other);
+  result(result&& other) noexcept;
 
   friend void swap(result& r1, result& r2) noexcept {
     std::swap(r1._impl, r2._impl);
   }
 
-  result& operator=(result other){
-    swap(*this, other);
-    return *this;
-  }
+  result& operator=(result other);
+  result& operator=(result&& other);
 
-  result& operator=(result&& other)
-  {
-    swap(*this, other );
-    return *this;
-  }
+  bool is_success() const;
+  
+  source_location origin() const;
+  error_info info() const;
 
-  bool is_success() const {
-    return _impl == nullptr;
-  }
-
-  source_location origin() const {
-    if(!_impl)
-      return source_location{"<unspecified>", "<unspecified>", -1};
-    return _impl->origin;
-  }
-
-  error_info info() const {
-    if(!_impl)
-      return error_info{};
-    return _impl->info;
-  }
-
-  std::string what() const {
-    std::stringstream sstream;
-    this->dump(sstream);
-    return sstream.str();
-  }
-
-  void dump(std::ostream& ostr) const {
-    if(is_success()) ostr << "[success] ";
-    else {
-      ostr << "from " << _impl->origin.get_file() << ":"
-           << _impl->origin.get_line() << " @ " << _impl->origin.get_function()
-           << "(): " << _impl->info.what();
-      if (_impl->info.error_code().is_code_specified())
-        ostr << " (error code = " << _impl->info.error_code().str() << ")";
-      ostr << std::endl;
-    }
-  }
+  std::string what() const;
+  void dump(std::ostream& ostr) const;
 private:
   struct result_impl
   {
@@ -228,6 +184,9 @@ inline result make_error(
   return result{origin, info};
 }
 
+// Construct an error object and register in the error queue
+result register_error(
+    const source_location &origin, const error_info &info);
 
 }
 }

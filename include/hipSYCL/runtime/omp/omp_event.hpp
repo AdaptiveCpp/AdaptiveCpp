@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_APPLICATION_HPP
-#define HIPSYCL_APPLICATION_HPP
+#ifndef HIPSYCL_OMP_EVENT_HPP
+#define HIPSYCL_OMP_EVENT_HPP
 
-#include <memory>
+#include <atomic>
 
-#include "device_id.hpp"
+#include "../event.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
-class dag_manager;
-class runtime;
 
-class application
+class omp_node_event : public dag_node_event
 {
 public:
-  static runtime& get_runtime();
+  
+  omp_node_event();
+  ~omp_node_event();
 
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
+  virtual bool is_complete() const override;
+  virtual void wait() override;
 
-  static void reset();
-
-  application() = delete;
+  std::shared_ptr<std::atomic<bool>> get_completion_flag() const;
+private:
+  std::shared_ptr<std::atomic<bool>> _is_complete;
 };
 
-}
-}
 
+}
+}
 
 #endif

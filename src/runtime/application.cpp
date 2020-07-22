@@ -28,6 +28,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include <memory>
 #include <mutex>

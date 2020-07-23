@@ -34,6 +34,10 @@ namespace rt {
 
 
 void* omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+  if(size_bytes % min_alignment != 0)
+    // TODO: Return error?
+    return allocate(1, size_bytes);
+
   return std::aligned_alloc(min_alignment, size_bytes);
 }
 

@@ -1,6 +1,6 @@
 FROM rocm/rocm-terminal
 
-ARG hipsycl_branch=master
+ARG hipsycl_branch=stable
 ARG hipsycl_origin=https://github.com/illuhad/hipSYCL
 ENV hipsycl_branch=$hipsycl_branch
 ENV hipsycl_origin=$hipsycl_origin

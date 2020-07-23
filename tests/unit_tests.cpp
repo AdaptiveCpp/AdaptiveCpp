@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(basic_parallel_for_with_offset) {
     BOOST_REQUIRE(acc[i] == (i >= offset ? i : 0));
   }
 }
-
+#ifndef HIPSYCL_PLATFORM_CPU
 BOOST_AUTO_TEST_CASE(basic_parallel_for_nd) {
   constexpr size_t num_threads = 128;
   constexpr size_t group_size = 16;
@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(basic_parallel_for_nd) {
     BOOST_REQUIRE(acc[i] == i / group_size);
   }
 }
-
+#endif
 BOOST_AUTO_TEST_CASE(hierarchical_dispatch) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
@@ -178,6 +178,7 @@ BOOST_AUTO_TEST_CASE(private_memory) {
     BOOST_TEST(host_acc[i] == i);
 }
 
+#ifndef HIPSYCL_PLATFORM_CPU
 BOOST_AUTO_TEST_CASE(dynamic_local_memory) {
   constexpr size_t local_size = 256;
   constexpr size_t global_size = 1024;
@@ -218,6 +219,7 @@ BOOST_AUTO_TEST_CASE(dynamic_local_memory) {
     BOOST_TEST(computed == expected);
   }
 }
+#endif
 
 BOOST_AUTO_TEST_CASE(placeholder_accessors) {
   using namespace cl::sycl::access;

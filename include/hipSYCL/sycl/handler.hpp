@@ -345,24 +345,6 @@ void parallel_for_kernel(Function f,
     }
 }
 
-// This must still be executed by hipCPU's hipLaunchKernel for correct
-// synchronization semantics
-template<int dimensions, class Function>
-inline
-void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset) noexcept
-{
-  nd_item<dimensions> this_item{
-    &offset,
-    detail::get_group_id<dimensions>(),
-    detail::get_local_id<dimensions>(),
-    detail::get_local_size<dimensions>(),
-    detail::get_grid_size<dimensions>()
-  };
-
-  host_local_memory::request_from_hipcpu_pool();
-  f(this_item);
-  host_local_memory::release();
-}
 
 template<class Function>
 inline 
@@ -1107,32 +1089,35 @@ private:
 
     detail::stream_ptr stream = this->get_stream();
 
+    
+#ifdef HIPSYCL_PLATFORM_CPU
+    // running nd_range on host is unsupported
+    auto error_message = 
+      "The CPU backend does not support nd_range kernels because they cannot be implemented\n"
+      "efficiently in pure-library SYCL implementations such as hipSYCL on CPU. We recommend:\n"
+      " * to verify that you really need the features of nd_range parallel for.\n"
+      "   If you do not need local memory, use basic parallel for instead.\n"
+      " * users targeting SYCL 1.2.1 may use hierarchical parallel for, which\n"
+      "   can express the same algorithms, but may have functionality caveats in hipSYCL\n"
+      "   and/or other SYCL implementations.\n"
+      " * if you use hipSYCL exclusively, you are encouraged to use scoped parallelism:\n"
+      "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md";
+    HIPSYCL_DEBUG_ERROR << error_message << std::endl;
+    throw feature_not_supported{error_message};
+#endif
+    
     auto kernel_launch = [=]()
         -> detail::task_state
     {
       stream->activate_device();
 
-#ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
-      if(stream->get_device().is_host())
-      {
-        // We still need the hipCPU kernel launch semantics
-        // for ndrange kernels until we have support in the clang
-        // plugin for dealing with barriers
-        __hipsycl_launch_kernel(detail::dispatch::host::parallel_for_ndrange_kernel,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, offset);
-      }
-      else
-#endif
-      {
-        __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel<KernelName>,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, offset);
-      }
+    
+      __hipsycl_launch_kernel(detail::dispatch::device::parallel_for_ndrange_kernel<KernelName>,
+                              detail::make_kernel_launch_range<dimensions>(grid),
+                              detail::make_kernel_launch_range<dimensions>(block),
+                              shared_mem_size, stream->get_stream(),
+                              kernelFunc, offset);
+    
 
       return detail::task_state::enqueued;
     };

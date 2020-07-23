@@ -201,6 +201,7 @@ void order_by_requirements_recursively(
   std::vector<dag_node_ptr>& nodes_to_process,
   std::vector<dag_node_ptr>& out)
 {
+  assert(current);
   // A node that has already been submitted belongs to a DAG
   // that has already been fully constructed (and executed), 
   // and hence cannot be in the expansion process that the
@@ -255,29 +256,30 @@ find_max_merge_candidate_range(std::vector<dag_node_ptr>::const_iterator begin,
     cast<buffer_memory_requirement>((*begin)->get_operation());
   
   for(auto it = begin; it != end; ++it){
-    assert(is_memory_requirement(*it));
+    if(is_memory_requirement(*it)){
 
-    memory_requirement* mem_req = 
-      cast<memory_requirement>((*it)->get_operation());
+      memory_requirement* mem_req = 
+        cast<memory_requirement>((*it)->get_operation());
 
-    // There cannot be any nodes mergable with begin
-    // after it, if
-    // * it refers to the same memory as begin
-    // * it is accessed on a different device as begin
-    if(mem_req->is_buffer_requirement()){
-      auto buff_mem_req = cast<buffer_memory_requirement>(mem_req);
+      // There cannot be any nodes mergable with begin
+      // after it, if
+      // * it refers to the same memory as begin
+      // * it is accessed on a different device as begin
+      if(mem_req->is_buffer_requirement()){
+        auto buff_mem_req = cast<buffer_memory_requirement>(mem_req);
 
-      if(is_overlapping_memory_requirement(buff_mem_req, begin_mem_req)){
+        if(is_overlapping_memory_requirement(buff_mem_req, begin_mem_req)){
 
-        device_id current_device = get_assigned_device(*it, scheduling_data);
+          device_id current_device = get_assigned_device(*it, scheduling_data);
 
-        if(current_device != begin_device)
-          return it;
+          if(current_device != begin_device)
+            return it;
+        }
       }
-    }
-    else {
-      // Image requirement is still unimplemented
-      assert(false && "Non-buffer memory requirements are unimplemented");
+      else {
+        // Image requirement is still unimplemented
+        assert(false && "Non-buffer memory requirements are unimplemented");
+      }
     }
   }
 
@@ -312,7 +314,7 @@ void mark_mergeable_nodes(const std::vector<dag_node_ptr> &ordered_nodes,
           find_max_merge_candidate_range(mem_req_it, ordered_nodes.end(),
                                          scheduling_data);
 
-      for(auto merge_candidate = mem_req_it;
+      for(auto merge_candidate = mem_req_it+1;
           merge_candidate != merge_candidates_end; 
           ++merge_candidate){
 
@@ -407,8 +409,9 @@ void dag_expander::order_by_requirements(
     nodes_to_process.push_back(n);
   });
 
-  for(dag_node_ptr node : nodes_to_process)
-    order_by_requirements_recursively(node, nodes_to_process, ordered_nodes);
+  //for(dag_node_ptr node : nodes_to_process)
+  for(auto node = nodes_to_process.begin(); node!=nodes_to_process.end();++node)
+    order_by_requirements_recursively(*node, nodes_to_process, ordered_nodes);
 }
 
 void dag_expander::expand(

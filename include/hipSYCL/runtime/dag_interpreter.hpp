@@ -31,6 +31,7 @@
 #include "hints.hpp"
 #include "dag_expander.hpp"
 #include "dag_enumerator.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 
 namespace hipsycl {
@@ -108,12 +109,14 @@ private:
   template<class Handler>
   void for_each_requirement_nonunique(const dag_node_ptr& node, Handler h) const
   {
+    if(!node)
+      return;
+    
     // if the node has already been submitted, it should not
     // be necessary to obtain its effective dependencies.
     // e.g. it will already have at least a multi event that allows
     // waiting for its completion, even if it was optimized away.
     if(node->is_submitted()) {
-      h(node);
       return;
     }
 
@@ -125,6 +128,7 @@ private:
     // If the node is forwarded, operate on the requirements of the for-
     // warding target.
     if(node_annotation.is_node_forwarded()) {
+      assert(node_annotation.get_forwarding_target() != node);
       for_each_requirement_nonunique(node_annotation.get_forwarding_target(), h);
     }
     // otherwise, if this node is optimized away

@@ -392,8 +392,13 @@ dag_expander::dag_expander(const dag* d, const dag_enumerator& enumerator)
   // This fills the ordered_nodes vector with
   // all nodes from the DAG in an order
   // that guarantees that an entry in the vector only depends
-  // only on entries that precede it in the vector 
+  // only on entries that precede it in the vector
   this->order_by_requirements(this->_ordered_nodes);
+
+  HIPSYCL_DEBUG_INFO << "dag_expander: linearized dependencies as follows: " << std::endl; 
+  for (auto node : _ordered_nodes) {
+    HIPSYCL_DEBUG_INFO << node->get_operation() << std::endl;
+  }
  
 }
 
@@ -434,10 +439,14 @@ void dag_expander::expand(
       if (cast<requirement>(node->get_operation())->is_memory_requirement()) {
         if (cast<memory_requirement>(node->get_operation())
                 ->is_buffer_requirement()) {
-          
+
           buffer_memory_requirement *mem_req =
               cast<buffer_memory_requirement>(node->get_operation());
 
+          HIPSYCL_DEBUG_INFO << "dag_expander: Analyzing memory access of "
+                                "buffer memory requirement "
+                             << mem_req << std::endl;
+          
           // Find the right fork of this data region
           std::size_t data_region_id = mem_req->get_data_region()->get_id();
 
@@ -478,51 +487,64 @@ void dag_expander::expand(
           // that it is forwarded to)
           std::size_t node_id = get_node_id(node);
           if(!out.node_annotations(node_id).is_node_forwarded()) {
-
-            std::vector<range_store::rect> outdated_regions;
-            data->get_outdated_regions(
-                target_device, mem_req->get_access_offset3d(),
-                mem_req->get_access_range3d(), outdated_regions);
-            
-
-            if (outdated_regions.empty()) {
-              // Yay, no outdated regions, so we can just optimize this access
-              // away!
-              HIPSYCL_DEBUG_INFO
-                  << "dag_expander: Optimizing away memory requirement "
-                  << mem_req << std::endl;
+            // No need to bother emitting data transfers if the data region
+            // has not yet been initialized with data anyway
+            if (data->has_initialized_content(mem_req->get_access_offset3d(),
+                                              mem_req->get_access_range3d())) {
+              std::vector<range_store::rect> outdated_regions;
+              data->get_outdated_regions(
+                  target_device, mem_req->get_access_offset3d(),
+                  mem_req->get_access_range3d(), outdated_regions);
               
-              out.node_annotations(node_id).set_optimized_away();
-            } else {
-              // We need to convert this requirement into actual data transfers
-              for (range_store::rect r : outdated_regions) {
-                // Find candidates from which to update the data
-                std::vector<std::pair<device_id, range_store::rect>> update_sources;
-                data->get_update_source_candidates(target_device, r,
-                                                   update_sources);
 
-                out.node_annotations(node_id).add_replacement_operation(
-                    construct_memcpy(mem_req, target_device, update_sources));
+              if (outdated_regions.empty()) {
+                // Yay, no outdated regions, so we can just optimize this access
+                // away!
+                HIPSYCL_DEBUG_INFO
+                    << "dag_expander: Optimizing away memory requirement "
+                    << mem_req << std::endl;
+                
+                out.node_annotations(node_id).set_optimized_away();
+              } else {
+                // We need to convert this requirement into actual data transfers
+                for (range_store::rect r : outdated_regions) {
+                  // Find candidates from which to update the data
+                  std::vector<std::pair<device_id, range_store::rect>> update_sources;
+                  data->get_update_source_candidates(target_device, r,
+                                                    update_sources);
+
+                  HIPSYCL_DEBUG_INFO << "dag_expander: Replacing requirement "
+                                     << mem_req << " with data transfer"
+                                     << std::endl;
+                  
+                  out.node_annotations(node_id).add_replacement_operation(
+                      construct_memcpy(mem_req, target_device, update_sources));
+                }
               }
+            } else {
+              HIPSYCL_DEBUG_INFO
+                  << "dag_expander: Optimizing away memory requirement (data "
+                     "has not yet been initialized) "
+                  << mem_req << std::endl;
+            }
+
+            // In any case we need to update the data state:
+            // * mark the range as valid on the target device
+            // * mark the range as invalid on all other devices
+            //   if it was a write access
+            if (mem_req->get_access_mode() == sycl::access::mode::read) {
+              data->mark_range_valid(target_device,
+                                    mem_req->get_access_offset3d(),
+                                    mem_req->get_access_range3d());
+              
+            } else {
+              // This not only marks the range as valid, it marks the same range
+              // on all other devices as invalid
+              data->mark_range_current(target_device,
+                                      mem_req->get_access_offset3d(),
+                                      mem_req->get_access_range3d());
             }
           }
-          // In any case we need to update the data state:
-          // * mark the range as valid on the target device
-          // * mark the range as invalid on all other devices
-          //   if it was a write access
-          if (mem_req->get_access_mode() == sycl::access::mode::read) {
-            data->mark_range_valid(target_device,
-                                   mem_req->get_access_offset3d(),
-                                   mem_req->get_access_range3d());
-            
-          } else {
-            // This not only marks the range as valid, it marks the same range
-            // on all other devices as invalid
-            data->mark_range_current(target_device,
-                                     mem_req->get_access_offset3d(),
-                                     mem_req->get_access_range3d());
-          }
-          
         } else {
           assert(false && "Non-buffer requirements are unimplemented");
         }

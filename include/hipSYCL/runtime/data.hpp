@@ -342,9 +342,10 @@ public:
     assert(!has_allocation(d));
 
     _allocations.push_back(data_allocation{
-      d, memory_context, range_store{_num_pages}, takes_ownership});
+        d, memory_context, range_store{_num_pages}, takes_ownership});
+
     _allocations.back().invalid_pages.add(
-        std::make_pair(sycl::id<3>{0,0,0},_num_pages));
+        std::make_pair(sycl::id<3>{0, 0, 0}, _num_pages));
   }
 
   void add_nonempty_allocation(const device_id &d,
@@ -467,17 +468,6 @@ public:
     }
   }
 
-  bool is_range_current(const device_id& d,
-      sycl::id<3> data_offset,
-      sycl::range<3> data_size) const
-  {
-    assert(has_allocation(d));
-    auto allocation = find_allocation(d);
-
-    return allocation->invalid_pages.entire_range_empty(
-      std::make_pair(data_offset, data_size));
-  }
-
   data_user_tracker& get_users()
   { return _user_tracker; }
 
@@ -514,6 +504,17 @@ public:
   {
     assert(has_allocation(dev));
     return find_allocation(dev)->memory;
+  }
+
+  bool has_initialized_content(sycl::id<3> data_offset,
+                               sycl::range<3> data_range) const {
+    page_range pr = get_page_range(data_offset, data_range);
+
+    for (auto &alloc : _allocations) {
+      if (!alloc.invalid_pages.entire_range_filled(pr))
+        return true;
+    }
+    return false;
   }
 private:
   std::size_t _enumerated_id;

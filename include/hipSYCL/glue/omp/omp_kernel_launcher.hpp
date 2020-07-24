@@ -31,11 +31,16 @@
 
 #include <cassert>
 
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/range.hpp"
 #include "hipSYCL/sycl/id.hpp"
 #include "hipSYCL/sycl/item.hpp"
 #include "hipSYCL/sycl/nd_item.hpp"
+#include "hipSYCL/sycl/sp_item.hpp"
 #include "hipSYCL/sycl/group.hpp"
 #include "hipSYCL/sycl/detail/local_memory_allocator.hpp"
 
@@ -53,175 +58,168 @@ void single_task_kernel(Function f) noexcept
   f();
 }
 
-template<class Function, class Offset_mode> 
-inline
+template<int Dim, class Function> 
+inline 
 void parallel_for_kernel(Function f,
-                        const sycl::range<1> execution_range,
-                        Offset_mode,
-                        const sycl::id<1> offset = sycl::id<1>{}) noexcept
+                        const sycl::range<Dim> execution_range) noexcept
 {
-  const size_t max_id = offset.get(0) + execution_range.get(0);
+  static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for
-#endif
-  for(size_t i = offset.get(0); i < max_id; ++i)
-  {
-    auto this_item = 
-      make_item_maybe_with_offset(sycl::id<1>{i}, 
-                                  execution_range,
-                                  offset, Offset_mode{});
+  const auto max_i = execution_range.get(0);
 
-    f(this_item);
+  if constexpr(Dim == 1){
+#pragma omp parallel for
+    for(size_t i = 0; i < max_i; ++i){
+      auto this_item = 
+        sycl::detail::make_item<Dim>(sycl::id<1>{i}, 
+                                    execution_range);
+
+      f(this_item);
+    }
+  }
+  else if constexpr(Dim == 2){
+    const auto max_j = execution_range.get(1);
+#pragma omp parallel for collapse(2)
+    for(size_t i = 0; i < max_i; ++i)
+      for(size_t j = 0; j < max_j; ++j)
+      {
+        auto this_item = 
+          sycl::detail::make_item<Dim>(sycl::id<2>{i,j}, 
+                                      execution_range);
+
+        f(this_item);
+      }
+  }
+  else if constexpr(Dim == 3){
+    const auto max_j = execution_range.get(1);
+    const auto max_k = execution_range.get(2);
+#pragma omp parallel for collapse(3)
+    for(size_t i = 0; i < max_i; ++i)
+      for(size_t j = 0; j < max_j; ++j)
+        for(size_t k = 0; k < max_k; ++k)
+        {
+          auto this_item = 
+            sycl::detail::make_item<Dim>(sycl::id<3>{i,j,k}, 
+                                        execution_range);
+
+          f(this_item);
+        }
   }
 }
 
-template<class Function, class Offset_mode> 
+template<int Dim, class Function> 
 inline 
 void parallel_for_kernel(Function f,
-                        const sycl::range<2> execution_range,
-                        Offset_mode,
-                        const sycl::id<2> offset = sycl::id<2>{}) noexcept
+                        const sycl::range<Dim> execution_range,
+                        const sycl::id<Dim> offset) noexcept
 {
-  const sycl::id<2> max_id = offset + execution_range;
+  static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(2)
-#endif
-  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
-    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
-    {
+  const auto max_i = execution_range.get(0);
+  const auto min_i = offset.get(0);
+
+  if constexpr(Dim == 1){
+#pragma omp parallel for
+    for(size_t i = min_i; i < max_i; ++i){
       auto this_item = 
-        make_item_maybe_with_offset(sycl::id<2>{i,j}, 
-                                    execution_range, 
-                                    offset, Offset_mode{});
+        sycl::detail::make_item<Dim>(sycl::id<1>{i}, 
+                                    execution_range, offset);
 
       f(this_item);
     }
+  }
+  else if constexpr(Dim == 2){
+    const auto max_j = execution_range.get(1);
+    const auto min_j = offset.get(1);
+
+#pragma omp parallel for collapse(2)
+    for(size_t i = min_i; i < max_i; ++i)
+      for(size_t j = min_j; j < max_j; ++j)
+      {
+        auto this_item = 
+          sycl::detail::make_item<Dim>(sycl::id<2>{i,j}, 
+                                      execution_range, offset);
+
+        f(this_item);
+      }
+  }
+  else if constexpr(Dim == 3){
+    const auto max_j = execution_range.get(1);
+    const auto max_k = execution_range.get(2);
+    const auto min_j = offset.get(1);
+    const auto min_k = offset.get(2);
+#pragma omp parallel for collapse(3)
+    for(size_t i = min_i; i < max_i; ++i)
+      for(size_t j = min_j; j < max_j; ++j)
+        for(size_t k = min_k; k < max_k; ++k)
+        {
+          auto this_item = 
+            sycl::detail::make_item<Dim>(sycl::id<3>{i,j,k}, 
+                                        execution_range, offset);
+
+          f(this_item);
+        }
+  }
 }
 
-template<class Function, class Offset_mode> 
-inline 
-void parallel_for_kernel(Function f,
-                        const sycl::range<3> execution_range,
-                        Offset_mode,
-                        const sycl::id<3> offset = sycl::id<3>{}) noexcept
-{
-  const sycl::id<3> max_id = offset + execution_range;
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel for collapse(3)
-#endif
-  for(size_t i = offset.get(0); i < max_id.get(0); ++i)
-    for(size_t j = offset.get(1); j < max_id.get(1); ++j)
-      for(size_t k = offset.get(2); k < max_id.get(2); ++k)
-    {
-      auto this_item = 
-        make_item_maybe_with_offset(sycl::id<3>{i,j,k}, 
-                                    execution_range, 
-                                    offset, Offset_mode{});
-        
-      f(this_item);
-    }
-}
-
-// This must still be executed by hipCPU's hipLaunchKernel for correct
-// synchronization semantics
-template<int dimensions, class Function>
+template<int Dim, class Function>
 inline
-void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset) noexcept
-{
-  sycl::nd_item<dimensions> this_item{
-    &offset,
-    sycl::detail::get_group_id<dimensions>(),
-    sycl::detail::get_local_id<dimensions>(),
-    sycl::detail::get_local_size<dimensions>(),
-    sycl::detail::get_grid_size<dimensions>()
-  };
-
-  sycl::detail::host_local_memory::request_from_hipcpu_pool();
-  f(this_item);
-  sycl::detail::host_local_memory::release();
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<1> num_groups,
-                            const sycl::range<1> local_size,
+void parallel_for_ndrange_kernel(Function f, 
+                            const sycl::range<Dim> num_groups,
+                            const sycl::range<Dim> local_size,
+                            sycl::id<Dim> offset,
                             size_t num_local_mem_bytes) noexcept
 {
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    sycl::detail::host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+  rt::register_error(
+      __hipsycl_here(),
+      rt::error_info{"nd_range parallel for is unsupported on CPU because it "
+                     "cannot be implemented efficiently.",
+                     rt::error_type::feature_not_supported});
+}
 
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-    {
-      sycl::group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
-      f(this_group);
+template<int Dim, class Function>
+inline 
+void parallel_for_workgroup(Function f,
+                            const sycl::range<Dim> num_groups,
+                            const sycl::range<Dim> local_size,
+                            size_t num_local_mem_bytes) noexcept
+{
+  static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
+
+#pragma omp parallel
+  {
+    sycl::detail::host_local_memory::request_from_threadprivate_pool(
+        num_local_mem_bytes);
+
+    if constexpr(Dim == 1){
+#pragma omp for
+      for(size_t i = 0; i < num_groups.get(0); ++i){
+        sycl::group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
+        f(this_group);
+      }
+    }
+    else if constexpr(Dim == 2){
+#pragma omp for collapse(2)
+      for(size_t i = 0; i < num_groups.get(0); ++i){
+        for(size_t j = 0; j < num_groups.get(1); ++j){
+          sycl::group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
+          f(this_group);
+        }
+      }
+    }
+    else if constexpr(Dim == 3){
+#pragma omp for collapse(3)
+      for(size_t i = 0; i < num_groups.get(0); ++i){
+        for(size_t j = 0; j < num_groups.get(1); ++j){
+          for(size_t k = 0; k < num_groups.get(2); ++k){
+            sycl::group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
+            f(this_group);
+          }
+        }
+      }
     }
 
     sycl::detail::host_local_memory::release();
-  }
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<2> num_groups,
-                            const sycl::range<2> local_size,
-                            size_t num_local_mem_bytes) noexcept
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(2)
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-      for(size_t j = 0; j < num_groups.get(1); ++j)
-      {
-        group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
-        f(this_group);
-      }
-
-    host_local_memory::release();
-  }
-}
-
-template<class Function>
-inline 
-void parallel_for_workgroup(Function f,
-                            const sycl::range<3> num_groups,
-                            const sycl::range<3> local_size,
-                            size_t num_local_mem_bytes) noexcept
-{
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
-
-#ifndef HIPCPU_NO_OPENMP
-    #pragma omp for collapse(3)
-#endif
-    for(size_t i = 0; i < num_groups.get(0); ++i)
-      for(size_t j = 0; j < num_groups.get(1); ++j)
-        for(size_t k = 0; k < num_groups.get(2); ++k)
-        {
-          group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
-          f(this_group);
-        }
-    
-    host_local_memory::release();
   }
 }
 
@@ -232,64 +230,60 @@ void parallel_region(Function f,
                     sycl::range<dimensions> group_size,
                     std::size_t num_local_mem_bytes)
 {
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp parallel
-#endif
-  {
-    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+  static_assert(dimensions > 0 && dimensions <= 3,
+                "Only dimensions 1,2,3 are supported");
 
-    auto make_physical_item = [&](sycl::id<dimensions> group_id){
-      return detail::make_sp_item(sycl::id<dimensions>{},group_id,group_size, num_groups);
+#pragma omp parallel
+  {
+    sycl::detail::host_local_memory::request_from_threadprivate_pool(
+        num_local_mem_bytes);
+
+    auto make_physical_item = [&](sycl::id<dimensions> group_id) {
+      return sycl::detail::make_sp_item(sycl::id<dimensions>{}, group_id,
+                                        group_size, num_groups);
     };
 
     if constexpr(dimensions == 1){
-#ifndef HIPCPU_NO_OPENMP
     #pragma omp for
-#endif
       for(size_t i = 0; i < num_groups.get(0); ++i){
         auto group_id = sycl::id<1>{i};
-        group<1> this_group{group_id, group_size, num_groups};
+        sycl::group<1> this_group{group_id, group_size, num_groups};
         f(this_group, make_physical_item(group_id));
       }
 
     } else if constexpr(dimensions == 2){
-#ifndef HIPCPU_NO_OPENMP
     #pragma omp for collapse(2)
-#endif
       for(size_t i = 0; i < num_groups.get(0); ++i)
         for(size_t j = 0; j < num_groups.get(1); ++j)
         {
           auto group_id = sycl::id<2>{i,j};
-          group<2> this_group{group_id, group_size, num_groups};
+          sycl::group<2> this_group{group_id, group_size, num_groups};
           f(this_group, make_physical_item(group_id));
         } 
     } else {
-#ifndef HIPCPU_NO_OPENMP
     #pragma omp for collapse(3)
-#endif
       for(size_t i = 0; i < num_groups.get(0); ++i)
         for(size_t j = 0; j < num_groups.get(1); ++j)
           for(size_t k = 0; k < num_groups.get(2); ++k)
           {
             auto group_id = sycl::id<3>{i,j,k};
-            group<3> this_group{group_id, group_size, num_groups};
+            sycl::group<3> this_group{group_id, group_size, num_groups};
             f(this_group, make_physical_item(group_id));
           }
 
     }    
-    host_local_memory::release();
+    sycl::detail::host_local_memory::release();
   }
 }
 
 }
 
-class openmp_kernel_launcher : public rt::backend_kernel_launcher
+class omp_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
   
-  openmp_kernel_launcher()
-      : _queue{nullptr}{}
-
+  omp_kernel_launcher() {}
+  virtual ~omp_kernel_launcher(){}
 
   void set_params() {}
 
@@ -297,39 +291,67 @@ public:
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k) {
+    
+    this->_type = type;
+    
+    if(type == rt::kernel_type::ndrange_parallel_for) {
+      throw sycl::feature_not_supported{
+        "The CPU backend does not support nd_range kernels because they cannot be implemented\n"
+        "efficiently in pure-library SYCL implementations such as hipSYCL on CPU. We recommend:\n"
+        " * to verify that you really need the features of nd_range parallel for.\n"
+        "   If you do not need local memory, use basic parallel for instead.\n"
+        " * users targeting SYCL 1.2.1 may use hierarchical parallel for, which\n"
+        "   can express the same algorithms, but may have functionality caveats in hipSYCL\n"
+        "   and/or other SYCL implementations.\n"
+        " * if you use hipSYCL exclusively, you are encouraged to use scoped parallelism:\n"
+        "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md"
+      };
+    }
 
-    _invoker = [=]() {
-      assert(_queue != nullptr);
+    this->_invoker = [=]() {
 
       bool is_with_offset = false;
       for (std::size_t i = 0; i < Dim; ++i)
         if (offset[i] != 0)
           is_with_offset = true;
 
-      if constexpr(type == rt::kernel_type::single_task){
-        
-      } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
-
-        if(!is_with_offset) {
-        } else {
+      auto get_grid_range = [&]() {
+        for (int i = 0; i < Dim; ++i){
+          if(global_range[i] % local_range[i] != 0) {
+            rt::register_error(__hipsycl_here(),
+                               rt::error_info{"omp_dispatch: global range is "
+                                              "not divisible by local range"});
+          }
         }
+
+        return global_range / local_range;
+      };
+
+      if constexpr(type == rt::kernel_type::single_task){
+      
+        omp_dispatch::single_task_kernel(k);
+      
+      } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
         
+        if(!is_with_offset) {
+          omp_dispatch::parallel_for_kernel(k, global_range);
+        } else {
+          omp_dispatch::parallel_for_kernel(k, global_range, offset);
+        }
+
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
-      } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
-        
-        for (int i = 0; i < Dim; ++i)
-          assert(global_range[i] % local_range[i] == 0);
+        omp_dispatch::parallel_for_ndrange_kernel(k, get_grid_range(), local_range,
+                                                  offset, dynamic_local_memory);
 
-        sycl::range<Dim> grid_range = global_range / local_range;
-        
-        
+      } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
+
+        omp_dispatch::parallel_for_workgroup(k, get_grid_range(), local_range,
+                                             dynamic_local_memory);
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
 
-        for (int i = 0; i < Dim; ++i)
-          assert(global_range[i] % local_range[i] == 0);
-
-        sycl::range<Dim> grid_range = global_range / local_range;
+        omp_dispatch::parallel_region(k, get_grid_range(), local_range,
+                                      dynamic_local_memory);
 
       }
       else {
@@ -347,9 +369,14 @@ public:
     _invoker();
   }
 
-  virtual ~openmp_kernel_launcher(){}
+  virtual rt::kernel_type get_kernel_type() const final override {
+    return _type;
+  }
+
 private:
+
   std::function<void ()> _invoker;
+  rt::kernel_type _type;
 };
 
 }

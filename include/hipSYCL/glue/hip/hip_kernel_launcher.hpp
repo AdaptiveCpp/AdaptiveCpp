@@ -253,6 +253,8 @@ public:
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k) {
+    
+    this->_type = type;
 
     _invoker = [=]() {
       assert(_queue != nullptr);
@@ -358,9 +360,14 @@ public:
     _invoker();
   }
 
+  virtual rt::kernel_type get_kernel_type() const final override {
+    return _type;
+  }
+
   virtual ~hip_kernel_launcher(){}
 private:
   rt::hip_queue *_queue;
+  rt::kernel_type _type;
   std::function<void ()> _invoker;
 };
 

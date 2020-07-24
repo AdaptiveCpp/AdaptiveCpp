@@ -38,6 +38,10 @@
 #include "hip/hip_kernel_launcher.hpp"
 #endif
 
+#if defined(HIPSYCL_PLATFORM_CPU)
+#include "omp/omp_kernel_launcher.hpp"
+#endif
+
 namespace hipsycl {
 namespace glue {
 
@@ -49,10 +53,21 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_ROCM)
-  auto launcher = std::make_unique<hip_kernel_launcher>();
-  launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
-                                      dynamic_local_memory, k);
-  launchers.emplace_back(launcher);
+  {
+    auto launcher = std::make_unique<hip_kernel_launcher>();
+    launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
+                                        dynamic_local_memory, k);
+    launchers.emplace_back(std::move(launcher));
+  }
+#endif
+
+#if defined (HIPSYCL_PLATFORM_CPU)
+  {
+    auto launcher = std::make_unique<omp_kernel_launcher>();
+    launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
+                                        dynamic_local_memory, k);
+    launchers.emplace_back(std::move(launcher));
+  }
 #endif
   return launchers;
 }

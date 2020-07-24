@@ -27,11 +27,13 @@
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/glue/omp/omp_kernel_launcher.hpp"
 #include <memory>
 
 namespace hipsycl {
@@ -74,8 +76,8 @@ result omp_queue::submit_memcpy(const memcpy_operation& op) {
 }
 
 result omp_queue::submit_kernel(const kernel_operation& op) {
-  backend_kernel_launcher *launcher =
-      op.get_launcher().find_launcher(_backend_id);
+  glue::omp_kernel_launcher *launcher = cast<glue::omp_kernel_launcher>(
+      op.get_launcher().find_launcher(_backend_id));
 
   if(!launcher) {
     return register_error(
@@ -128,6 +130,10 @@ result omp_queue::submit_external_wait_for(dag_node_ptr node) {
   });
 
   return make_success();
+}
+
+worker_thread& omp_queue::get_worker(){
+  return _worker;
 }
 
 }

@@ -16,6 +16,7 @@ set(HIPSYCL_SOURCES
   sycl/queue.cpp
   sycl/handler.cpp
   sycl/local_memory.cpp
+  sycl/serialization/serialization.cpp
   runtime/application.cpp
   runtime/error.cpp
   runtime/backend.cpp
@@ -45,7 +46,8 @@ set(HIPSYCL_SOURCES
   runtime/omp/omp_event.cpp
   runtime/omp/omp_hardware_manager.cpp
   runtime/omp/omp_queue.cpp
-  runtime/hw_model/memcpy.cpp)
+  runtime/hw_model/memcpy.cpp
+  runtime/serialization/serialization.cpp)
 
 
 

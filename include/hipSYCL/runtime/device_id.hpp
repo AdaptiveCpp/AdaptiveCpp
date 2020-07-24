@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <cassert>
+#include <ostream>
 
 namespace hipsycl {
 namespace rt {
@@ -91,6 +92,8 @@ public:
   backend_descriptor get_full_backend_descriptor() const;
   
   int get_id() const;
+
+  void dump(std::ostream& ostr) const;
 
   friend bool operator==(const device_id& a, const device_id& b)
   {

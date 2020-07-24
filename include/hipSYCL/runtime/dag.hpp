@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <ostream>
 
 #include "hints.hpp"
 #include "operations.hpp"
@@ -79,7 +80,9 @@ public:
            _prefetches.size() + _memory_requirements.size();
   }
 
-  bool is_requirement_from_this_dag(const dag_node_ptr& node) const;
+  bool is_requirement_from_this_dag(const dag_node_ptr &node) const;
+
+  void dump(std::ostream& ostr) const;
 private:
 
   std::vector<dag_node_ptr> _kernels;

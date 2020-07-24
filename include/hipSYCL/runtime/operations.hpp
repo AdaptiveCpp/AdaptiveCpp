@@ -32,6 +32,7 @@
 #include "hipSYCL/sycl/id.hpp"
 #include "hipSYCL/sycl/range.hpp"
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include "hipSYCL/glue/deferred_pointer.hpp"
 
@@ -45,6 +46,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <ostream>
 
 namespace hipsycl {
 namespace rt {
@@ -79,6 +81,7 @@ public:
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }
   virtual bool is_data_transfer() const { return false; }
+  virtual void dump(std::ostream&, int = 0) const = 0;
 
   virtual void dispatch(operation_dispatcher* dispatch) = 0;
 };
@@ -219,6 +222,8 @@ public:
     return glue::deferred_pointer<T>{const_cast<void**>(&_device_data_location)};
   }
   
+  void dump(std::ostream & ostr, int indentation=0) const override;
+
 private:
   bool page_ranges_intersect(buffer_data_region::page_range other) const{
     auto my_range = _mem_region->get_page_range(_offset, _range);
@@ -264,6 +269,8 @@ public:
 
   const std::vector<memory_requirement*>& get_requirements() const;
 
+  void dump(std::ostream & ostr, int indentation=0) const override;
+
   void dispatch(operation_dispatcher* dispatcher) override {
     dispatcher->dispatch_kernel(this);
   }
@@ -304,7 +311,7 @@ public:
   void* get_base_ptr() const;
   void* get_access_ptr() const;
 
-  
+  void dump(std::ostream & ostr) const;
 private:
   device_id _dev;
 
@@ -338,6 +345,7 @@ public:
   virtual void dispatch(operation_dispatcher* op) final override {
     op->dispatch_memcpy(this);
   }
+  void dump(std::ostream &ostr, int indentation=0) const override final;
 private:
   memory_location _source;
   memory_location _dest;

@@ -26,7 +26,7 @@ int main()
   hipsycl::sycl::id<3> offset(10, 0, 0);
   hipsycl::sycl::range<3> range(100, 0, 0);
   std::size_t size = 30;
-  buffer_memory_requirement test_buffer(data_region_ptr, offset, range, size, 
+  buffer_memory_requirement test_buffer(data_region_ptr, offset, range, 
       hipsycl::sycl::access::mode::read_write,
       hipsycl::sycl::access::target::global_buffer);
   test_buffer.dump(std::cout);
@@ -35,14 +35,14 @@ int main()
   hipsycl::sycl::id<3> offset_2(5, 0, 0);
   hipsycl::sycl::range<3> range_2(100, 0, 0);
   std::size_t size_2 = 14;
-  buffer_memory_requirement test_buffer_2(data_region_ptr_2, offset_2, range_2, size_2, 
+  buffer_memory_requirement test_buffer_2(data_region_ptr_2, offset_2, range_2, 
       hipsycl::sycl::access::mode::read,
       hipsycl::sycl::access::target::global_buffer);
   test_buffer_2.dump(std::cout);
   
   // Kernel Operation
   std::cout << std::endl << "Dumping Kernel Operation: " << std::endl << std::endl;        
-  std::vector<requirement*> reqs{ &test_buffer,&test_buffer_2 };
+  requirements_list reqs;
   std::vector<std::unique_ptr<backend_kernel_launcher>> backend_kernel_list;
   std::string kernel_name = "test_kernel";
   kernel_operation kernel_op(kernel_name, std::move(backend_kernel_list), reqs);

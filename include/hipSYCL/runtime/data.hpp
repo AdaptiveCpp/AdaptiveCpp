@@ -286,7 +286,8 @@ public:
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
   data_region(sycl::range<3> num_elements, std::size_t element_size,
-              std::size_t page_size, destruction_handler on_destruction)
+              std::size_t page_size,
+              destruction_handler on_destruction = [](data_region*){})
       : _element_size{element_size}, _num_elements{num_elements},
         _page_size{page_size}, _on_destruction{on_destruction} {
 

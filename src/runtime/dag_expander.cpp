@@ -41,6 +41,7 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -395,9 +396,11 @@ dag_expander::dag_expander(const dag* d, const dag_enumerator& enumerator)
   // only on entries that precede it in the vector
   this->order_by_requirements(this->_ordered_nodes);
 
-  HIPSYCL_DEBUG_INFO << "dag_expander: linearized dependencies as follows: " << std::endl; 
+  HIPSYCL_DEBUG_INFO << "dag_expander: linearized dependencies as follows: " << std::endl;
   for (auto node : _ordered_nodes) {
-    HIPSYCL_DEBUG_INFO << node->get_operation() << std::endl;
+    HIPSYCL_DEBUG_INFO << "Node " << node << " / Operation "
+                       << node->get_operation() << ": "
+                       << dump(node->get_operation()) << std::endl;
   }
  
 }

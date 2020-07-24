@@ -17,18 +17,19 @@ namespace hipsycl::rt {
 std::ostream &operator<<(std::ostream &out, const hardware_platform value) {
   switch (value) {
   case rt::hardware_platform::cpu:
-    out << "cpu";
+    out << "CPU";
     break;
   case rt::hardware_platform::cuda:
-    out << "cuda";
+    out << "CUDA";
     break;
   case rt::hardware_platform::rocm:
-    out << "rocm";
+    out << "ROCm";
     break;
   default:
-    throw "hardware_platform enum cannot be serialized";
+    out << "<unknown>";
     break;
   }
+  return out;
 }
 
 std::ostream &operator<<(std::ostream &out, const api_platform value) {
@@ -37,10 +38,10 @@ std::ostream &operator<<(std::ostream &out, const api_platform value) {
     out << "HIP";
     break;
   case rt::api_platform::openmp_cpu:
-    out << "openmp_CPU";
+    out << "OpenMP";
     break;
   default:
-    throw "api platform enum cannot be serialized";
+    out << "<unknown>";
     break;
   }
   return out;
@@ -52,12 +53,13 @@ std::ostream &operator<<(std::ostream &out, const backend_id value) {
     out << "HIP";
     break;
   case rt::backend_id::openmp_cpu:
-    out << "openmp CPU";
+    out << "OpenMP";
     break;
   default:
-    throw "backend_id enum cannot be serialized";
+    out << "<unknown>";
     break;
   }
+  return out;
 }
 
 // Implementing dump member function of various classes:

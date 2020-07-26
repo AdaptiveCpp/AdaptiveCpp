@@ -32,6 +32,9 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include <boost/fiber/fiber.hpp>
+#include <boost/fiber/barrier.hpp>
+
 #include "exception.hpp"
 #include "access.hpp"
 #include "accessor.hpp"
@@ -349,19 +352,106 @@ void parallel_for_kernel(Function f,
 // synchronization semantics
 template<int dimensions, class Function>
 inline
-void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset) noexcept
+void parallel_for_ndrange_kernel(Function f, 
+                            const sycl::range<dimensions> num_groups,
+                            const sycl::range<dimensions> local_size,
+                            size_t num_local_mem_bytes,
+                            sycl::id<dimensions> offset) noexcept
 {
-  nd_item<dimensions> this_item{
-    &offset,
-    detail::get_group_id<dimensions>(),
-    detail::get_local_id<dimensions>(),
-    detail::get_local_size<dimensions>(),
-    detail::get_grid_size<dimensions>()
-  };
+  static_assert(dimensions > 0 && dimensions <= 3,
+                "Only dimensions 1 - 3 are supported.");
 
-  host_local_memory::request_from_hipcpu_pool();
-  f(this_item);
-  host_local_memory::release();
+#ifndef HIPCPU_NO_OPENMP
+  #pragma omp parallel
+#endif
+  {
+    host_local_memory::request_from_threadprivate_pool(num_local_mem_bytes);
+
+    std::vector<boost::fibers::fiber> fibers(local_size.size());
+    boost::fibers::barrier group_barrier{local_size.size()};
+
+    auto execute_work_item = [&](sycl::id<dimensions> local_id,
+                                sycl::id<dimensions> group_id){
+      nd_item<dimensions> this_item{
+        &offset,
+        group_id,
+        local_id,
+        local_size,
+        num_groups,
+        &group_barrier
+      };
+      
+      f(this_item);
+    };
+
+    auto invoke_fiber = [&](sycl::id<dimensions> local_id){
+      if constexpr(dimensions == 1){
+      #pragma omp for
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          execute_work_item(local_id, sycl::id<dimensions>{i});
+          group_barrier.wait();
+        }
+      }
+      else if constexpr(dimensions == 2){
+      #pragma omp for collapse(2)
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          for(size_t j = 0; j < num_groups.get(1); ++j) {
+            execute_work_item(local_id, sycl::id<dimensions>{i,j});
+            group_barrier.wait();
+          }
+        }
+      }
+      else if constexpr(dimensions == 3){
+      #pragma omp for collapse(3)
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          for(size_t j = 0; j < num_groups.get(1); ++j) {
+            for(size_t k = 0; k < num_groups.get(2); ++k) {
+              execute_work_item(local_id, sycl::id<dimensions>{i,j,k});
+              group_barrier.wait();
+            }
+          }
+        }
+      }
+    };
+
+    if constexpr(dimensions == 1) {
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        fibers[i] = boost::fibers::fiber([=](){
+          invoke_fiber(sycl::id<dimensions>{i});
+        });
+      }
+    }
+    else if constexpr(dimensions == 2) {
+      size_t n = 0;
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        for(size_t j = 0; j < local_size.get(1); ++j){
+          fibers[n] = boost::fibers::fiber([=](){
+            invoke_fiber(sycl::id<dimensions>{i,j});
+          });
+          ++n;
+        }
+      }
+    }
+    else if constexpr(dimensions == 3) {
+      size_t n = 0;
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        for(size_t j = 0; j < local_size.get(1); ++j){
+          for(size_t k = 0; k < local_size.get(2); ++k){
+            fibers[n] = boost::fibers::fiber([=](){
+              invoke_fiber(sycl::id<dimensions>{i,j,k});
+            });
+            ++n;
+          }
+        }
+      }
+    }
+
+    for(auto& fiber : fibers){
+      fiber.join();
+    }
+
+    host_local_memory::release();
+  }
 }
 
 template<class Function>
@@ -1115,14 +1205,10 @@ private:
 #ifdef HIPSYCL_ENABLE_HOST_KERNEL_INVOCATION
       if(stream->get_device().is_host())
       {
-        // We still need the hipCPU kernel launch semantics
-        // for ndrange kernels until we have support in the clang
-        // plugin for dealing with barriers
-        __hipsycl_launch_kernel(detail::dispatch::host::parallel_for_ndrange_kernel,
-                                detail::make_kernel_launch_range<dimensions>(grid),
-                                detail::make_kernel_launch_range<dimensions>(block),
-                                shared_mem_size, stream->get_stream(),
-                                kernelFunc, offset);
+        hipLaunchSequentialKernel(detail::dispatch::host::parallel_for_ndrange_kernel,
+                                  stream->get_stream(), 0,
+                                  kernelFunc, grid_range, block_range, 
+                                  shared_mem_size, offset);
       }
       else
 #endif

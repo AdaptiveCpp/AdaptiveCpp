@@ -567,7 +567,7 @@ class pure_cpu_compiler:
     if not config.is_bootstrap:
       self._linker_args += [
         "-L"+hipsycl_library_path,
-        "-lhipSYCL_cpu"
+        "-lhipSYCL_cpu", "-lboost_context", "-lboost_fiber"
       ]
       if "clang" in os.path.basename(self._compiler):
         self._linker_args += ["-rpath",hipsycl_library_path]

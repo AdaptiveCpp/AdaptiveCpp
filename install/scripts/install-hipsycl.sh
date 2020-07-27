@@ -37,7 +37,6 @@ cmake \
 -DCLANG_INCLUDE_PATH=$LLVM_INCLUDE_PATH \
 -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
 -DROCM_LINK_LINE='-rpath $HIPSYCL_ROCM_LIB_PATH -rpath $HIPSYCL_ROCM_PATH/hsa/lib -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lamd_hostcall -lhsa-runtime64 -latmi_runtime -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am' \
--DDISABLE_LLVM_VERSION_CHECK=ON \
 ..
 
 make install

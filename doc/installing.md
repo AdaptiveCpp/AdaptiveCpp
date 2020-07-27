@@ -32,7 +32,7 @@ In order to successfully build and install hipSYCL, the following major requirem
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
 * `cmake`
 * hipSYCL also depends on HIP, but already comes bundled with a version of the HIP headers for the CUDA backend. The ROCm backend will use the HIP installation that is installed as part of ROCm.
-* the Boost C++ library (in particular `boost.test` for the unit tests)
+* the Boost C++ libraries (in particular `boost.fiber`, `boost.context` and for the unit tests `boost.test`)
 
 If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
 * `LLVM_DIR` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**

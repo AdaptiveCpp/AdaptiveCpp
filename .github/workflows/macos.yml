@@ -17,6 +17,7 @@ jobs:
         brew install cmake
         brew install libomp
         brew install llvm
+        brew install boost
         set -e
     - name: build
       run: |

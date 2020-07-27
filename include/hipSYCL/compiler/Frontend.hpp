@@ -35,6 +35,7 @@
 #include <sstream>
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
@@ -52,15 +53,6 @@
 #include "Attributes.hpp"
 
 #include "hipSYCL/sycl/detail/debug.hpp"
-
-// Whether to use SYCL kernel name template parameters to
-// generate unique mangled names for device entrypoints.
-// While not strictly necessary in hipSYCL, this is currently
-// required to work around a bug with CUDA compilation in Clang.
-// See https://github.com/illuhad/hipSYCL/issues/49
-#ifndef HIPSYCL_USE_KERNEL_NAMES
-#define HIPSYCL_USE_KERNEL_NAMES 1
-#endif
 
 namespace hipsycl {
 namespace compiler {
@@ -218,13 +210,12 @@ inline std::string buildKernelName(clang::TemplateArgument SyclTagType) {
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
-  clang::MangleContext* MangleContext;
+  clang::MangleContext *MangleContext;
 public:
-  FrontendASTVisitor(clang::CompilerInstance& instance)
-    : Instance{instance}
-  {
-    this->MangleContext = Instance.getASTContext().createMangleContext();
-  }
+  FrontendASTVisitor(clang::CompilerInstance &instance)
+      : Instance{instance},
+        MangleContext{Instance.getASTContext().createMangleContext()}
+  {}
 
   ~FrontendASTVisitor()
   {
@@ -289,29 +280,36 @@ public:
       }
     }
 
-#if HIPSYCL_USE_KERNEL_NAMES
     // Determine unique kernel name to be used for symbol name in device IR
     clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
 
     // Check whether a unique kernel name is required. If no name is provided and the
     // functor is not a lambda, we allow it and simply do nothing.
     bool NameRequired = true;
+
     const auto KernelNameArgument = Info->TemplateArguments->get(0);
     if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
         if (RecordDecl->getNameAsString() == "_unnamed_kernel") {
-          // If no name is provided, ensure that the kernel functor is not a lambda
+          // If no name is provided, rely on clang name mangling
           const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
           if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
           {
+
+            // Earlier clang versions suffer from potentially inconsistent
+            // lambda numbering across host and device passes
+#if LLVM_VERSION_MAJOR < 10
             auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
                 KernelFunctorType->getDecl())->getSourceRange().getBegin();
             auto ID = Instance.getASTContext().getDiagnostics()
               .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
-                  "A unique kernel name has to be provided");
+                  "Optional kernel lambda naming requires clang >= 10");
             Instance.getASTContext().getDiagnostics().Report(SL, ID);
+#else
+             NameRequired = false;
+#endif
           }
           else
             NameRequired = false;
@@ -321,7 +319,7 @@ public:
 
     if (NameRequired)
     {
-      auto KernelName = detail::buildKernelName(KernelNameArgument);
+      std::string KernelName = detail::buildKernelName(KernelNameArgument);
 
       // Abort with error diagnostic if no kernel name could be built
       if(KernelName.empty())
@@ -347,7 +345,6 @@ public:
       HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
         << KernelName << "\n";
     }
-#endif
 
     return true;
   }

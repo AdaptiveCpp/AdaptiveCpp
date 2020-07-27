@@ -24,7 +24,7 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_VERSION_STRING}
-Requires: python3, hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
+Requires: python3, hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}, boost169-devel
 AutoReq: no
 
 %description

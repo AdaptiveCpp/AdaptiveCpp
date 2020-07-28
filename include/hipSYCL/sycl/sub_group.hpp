@@ -28,9 +28,12 @@
 #ifndef HIPSYCL_SUBGROUP_HPP
 #define HIPSYCL_SUBGROUP_HPP
 
+#include <cstdint>
+
 #include "backend/backend.hpp"
 #include "id.hpp"
 #include "range.hpp"
+#include "memory.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -41,8 +44,12 @@ class sub_group
 public:
   using id_type = sycl::id<1>;
   using range_type = sycl::range<1>;
-  using linear_id_type = std::size_t;
+  using linear_id_type = uint32_t;
+  using linear_range_type = uint32_t;
+
   static constexpr int dimensions = 1;
+  static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
 
   HIPSYCL_KERNEL_TARGET
   id_type get_local_id() const {
@@ -60,6 +67,11 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
+  linear_range_type get_local_linear_range() const {
+    return warpSize;
+  }
+  
+  HIPSYCL_KERNEL_TARGET
   range_type get_max_local_range() const {
     return get_local_range();
   }
@@ -76,9 +88,14 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  range_type get_group_range() const {
+  linear_range_type get_group_linear_range() const {
     int local_range = hipBlockDim_x * hipBlockDim_y * hipBlockDim_z;
-    return (local_range + warpSize - 1)/ warpSize;
+    return (local_range + warpSize - 1) / warpSize;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_group_range() const {
+    return range_type{get_group_linear_range()};
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -90,6 +107,11 @@ public:
   HIPSYCL_KERNEL_TARGET
   void single_item(F f){
     if(get_local_id() == 0) f();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return get_local_linear_id() == 0;
   }
 private:
   HIPSYCL_KERNEL_TARGET
@@ -108,14 +130,18 @@ private:
 };
 
 #else
-
+// On host, sub groups are always of size 1
 class sub_group
 {
 public:
   using id_type = sycl::id<1>;
   using range_type = sycl::range<1>;
-  using linear_id_type = std::size_t;
+  using linear_id_type = uint32_t;
+  using linear_range_type = uint32_t;
+  
   static constexpr int dimensions = 1;
+  static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
 
   HIPSYCL_KERNEL_TARGET
   id_type get_local_id() const {
@@ -130,6 +156,11 @@ public:
   HIPSYCL_KERNEL_TARGET
   range_type get_local_range() const {
     return range_type{1};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_local_linear_range() const {
+    return 1;
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -148,7 +179,14 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
+  linear_range_type get_group_linear_range() const {
+    return _group_size;
+  }
+
+  HIPSYCL_KERNEL_TARGET
   range_type get_group_range() const {
+    // Because the sub group size is always 1 on host,
+    // the number of subgroups == work group size
     return _group_size;
   }
 
@@ -161,6 +199,11 @@ public:
   HIPSYCL_KERNEL_TARGET
   void single_item(F f){
     f();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return true;
   }
 
 private:

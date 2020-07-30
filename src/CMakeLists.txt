@@ -18,6 +18,7 @@ set(HIPSYCL_SOURCES
   sycl/local_memory.cpp
   sycl/serialization/serialization.cpp
   runtime/application.cpp
+  runtime/runtime.cpp
   runtime/error.cpp
   runtime/backend.cpp
   runtime/hints.cpp

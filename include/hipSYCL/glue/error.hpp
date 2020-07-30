@@ -42,11 +42,12 @@ namespace hipsycl {
 namespace glue {
 
 inline void default_async_handler(sycl::exception_list error_list) {
-  if(error_list.size() > 0) {
-    HIPSYCL_OUTPUT_STREAM << "============== hipSYCL error report ============== "
-                          << std::endl;
+  if (error_list.size() > 0) {
+    std::ostream& output_stream = common::output_stream::get().get_stream();
+    output_stream << "============== hipSYCL error report ============== "
+                  << std::endl;
 
-    HIPSYCL_OUTPUT_STREAM
+    output_stream
         << "hipSYCL has caught the following undhandled asynchronous errors, and "
           "will now terminate the application: "
         << std::endl << std::endl;
@@ -60,13 +61,13 @@ inline void default_async_handler(sycl::exception_list error_list) {
         }
       }
       catch(sycl::exception &e) {
-        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+        output_stream << "   " <<  idx << ". " << e.what() << std::endl;
       }
       catch(std::exception &e) {
-        HIPSYCL_OUTPUT_STREAM << "   " <<  idx << ". " << e.what() << std::endl;
+        output_stream << "   " <<  idx << ". " << e.what() << std::endl;
       }
       catch(...) {
-        HIPSYCL_OUTPUT_STREAM << "   " << idx << ". <unknown exception>" << std::endl;
+        output_stream << "   " << idx << ". <unknown exception>" << std::endl;
       }
 
       ++idx;

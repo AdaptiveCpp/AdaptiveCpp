@@ -44,23 +44,23 @@ public:
 
   void shutdown() {
     std::lock_guard<std::mutex> lock{_lock};
-    rt.reset();
+    _rt.reset();
   }
 
   void reset() {
     HIPSYCL_DEBUG_INFO << "rt_manager: Restarting runtime..." << std::endl;
     
     std::lock_guard<std::mutex> lock{_lock};
-    rt.reset();
+    _rt.reset();
     // TODO: Reset devices?
   }
 
   runtime *get_runtime() {
     std::lock_guard<std::mutex> lock{_lock};
 
-    if(!rt)
-      rt = std::make_unique<runtime>();
-    return rt.get();
+    if(!_rt)
+      _rt = std::make_unique<runtime>();
+    return _rt.get();
   }
 
   static rt_manager& get() {
@@ -68,11 +68,27 @@ public:
     return mgr;
   }
 
+
 private:
   rt_manager() {}
-
-  std::unique_ptr<runtime> rt;
+  std::unique_ptr<runtime> _rt;
   mutable std::mutex _lock;
+};
+
+class global_settings
+{
+public:
+  static global_settings& get() {
+    static global_settings g;
+    return g;
+  }
+
+  settings &get_settings() {
+    return _settings;
+  }
+private:
+  global_settings() {}
+  settings _settings;
 };
 
 }
@@ -89,8 +105,10 @@ backend &application::get_backend(hipsycl::rt::backend_id id)
   return *(get_runtime().backends().get(id));
 }
 
-void application::reset() {
-  rt_manager::get().reset();
+void application::reset() { rt_manager::get().reset(); }
+
+settings &application::get_settings() {
+  return global_settings::get().get_settings();
 }
 
 

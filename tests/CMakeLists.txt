@@ -55,3 +55,6 @@ add_executable(math_unit_tests math_unit_tests.cpp)
 target_include_directories(math_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(math_unit_tests PRIVATE ${Boost_LIBRARIES})
 
+add_executable(rt_unit_tests runtime/runtime_test_suite.cpp runtime/dag_builder.cpp)
+target_include_directories(rt_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(rt_unit_tests PRIVATE ${Boost_LIBRARIES})

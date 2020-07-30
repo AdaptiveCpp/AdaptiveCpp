@@ -30,6 +30,7 @@
 
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/generic/multi_event.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -45,10 +46,20 @@ bool dag_node::is_submitted() const { return _is_submitted; }
 
 bool dag_node::is_complete() const { return _is_complete; }
 
+bool dag_node::is_cancelled() const { return _is_cancelled; }
+
 void dag_node::mark_submitted(std::shared_ptr<dag_node_event> completion_evt)
 {
   this->_event = std::move(completion_evt);
   this->_is_submitted = true;
+}
+
+void dag_node::cancel() {
+  this->_event = std::make_unique<dag_multi_node_event>(
+      std::vector<std::shared_ptr<dag_node_event>>{});
+  this->_is_submitted = true;
+  this->_is_complete = true;
+  this->_is_cancelled = true;
 }
 
 void dag_node::assign_to_executor(backend_executor *ctx)

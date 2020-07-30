@@ -53,8 +53,11 @@ public:
 
   bool is_submitted() const;
   bool is_complete() const;
+  bool is_cancelled() const;
 
   void mark_submitted(std::shared_ptr<dag_node_event> completion_evt);
+  void cancel();
+
   void assign_to_executor(backend_executor* ctx);
   void assign_to_device(device_id dev);
   void assign_to_execution_lane(std::size_t lane_id);
@@ -98,6 +101,7 @@ private:
 
   std::atomic<bool> _is_submitted;
   std::atomic<bool> _is_complete;
+  std::atomic<bool> _is_cancelled;
 
   std::size_t _node_id;
 };

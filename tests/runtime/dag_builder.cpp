@@ -27,7 +27,7 @@
  */
 
 #include "runtime_test_suite.hpp"
-#include <boost/test/tools/old/interface.hpp>
+
 #include <vector>
 #include <memory>
 #include <hipSYCL/runtime/dag_builder.hpp>

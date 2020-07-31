@@ -289,7 +289,7 @@ public:
               std::size_t page_size,
               destruction_handler on_destruction = [](data_region*){})
       : _element_size{element_size}, _num_elements{num_elements},
-        _page_size{page_size}, _on_destruction{on_destruction} {
+        _page_size{page_size}, _on_destruction{on_destruction}, _is_fork{false} {
 
     unset_id();
 
@@ -314,7 +314,7 @@ public:
   ~data_region() {
     _on_destruction(this);
     for(const auto& alloc : _allocations) {
-      if(alloc.memory && alloc.is_owned) {
+      if(alloc.memory && alloc.is_owned && !_is_fork) {
         device_id dev = alloc.dev;
         generic_pointer_free(dev, alloc.memory);
       }
@@ -477,7 +477,9 @@ public:
 
   std::unique_ptr<data_region> create_fork() const
   {
-    return std::make_unique<data_region>(*this);  
+    auto ptr = std::make_unique<data_region>(*this);
+    ptr->_is_fork = true;
+    return std::move(ptr);
   }
 
   void apply_fork(data_region *fork)
@@ -520,6 +522,7 @@ public:
 private:
   std::size_t _enumerated_id;
   std::size_t _element_size;
+  bool _is_fork;
 
   struct data_allocation
   {

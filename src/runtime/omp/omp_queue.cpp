@@ -46,8 +46,9 @@ omp_queue::~omp_queue() {
   _worker.halt();
 }
 
-std::unique_ptr<dag_node_event> 
-omp_queue::insert_event() {
+std::unique_ptr<dag_node_event> omp_queue::insert_event() {
+  HIPSYCL_DEBUG_INFO << "omp_queue: Inserting event into queue..." << std::endl;
+  
   auto evt = std::make_unique<omp_node_event>();
   auto completion_flag = evt->get_completion_flag();
 
@@ -58,7 +59,9 @@ omp_queue::insert_event() {
   return evt;
 }
 
-result omp_queue::submit_memcpy(const memcpy_operation& op) {
+result omp_queue::submit_memcpy(const memcpy_operation &op) {
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
+  
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
     // TODO Use memcpy if range is contiguous!
 
@@ -75,7 +78,9 @@ result omp_queue::submit_memcpy(const memcpy_operation& op) {
   return make_success();
 }
 
-result omp_queue::submit_kernel(const kernel_operation& op) {
+result omp_queue::submit_kernel(const kernel_operation &op) {
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
+
   glue::omp_kernel_launcher *launcher = cast<glue::omp_kernel_launcher>(
       op.get_launcher().find_launcher(_backend_id));
 
@@ -86,14 +91,18 @@ result omp_queue::submit_kernel(const kernel_operation& op) {
         error_type::runtime_error});
   }
 
-  _worker([=](){
+  _worker([=]() {
+    HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
     launcher->invoke();
   });
 
   return make_success();
 }
 
-result omp_queue::submit_prefetch(const prefetch_operation&) {
+result omp_queue::submit_prefetch(const prefetch_operation &) {
+  HIPSYCL_DEBUG_INFO
+      << "omp_queue: Received prefetch submission request, ignoring"
+      << std::endl;
   // Yeah, what are you going to do? Prefetching CPU memory on CPU? Go home!
   // (TODO: maybe we should handle the case that we have USM memory from another
   // backend here)
@@ -103,6 +112,7 @@ result omp_queue::submit_prefetch(const prefetch_operation&) {
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
 result omp_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for other queue..." << std::endl;
   if(!evt) {
     return register_error(
         __hipsycl_here(),
@@ -118,6 +128,9 @@ result omp_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
 }
 
 result omp_queue::submit_external_wait_for(dag_node_ptr node) {
+  HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for external node..."
+                     << std::endl;
+  
   if(!node) {
     return register_error(
         __hipsycl_here(),

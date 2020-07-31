@@ -29,11 +29,13 @@
 #ifndef HIPSYCL_ACCESSOR_HPP
 #define HIPSYCL_ACCESSOR_HPP
 
+#include <exception>
 #include <type_traits>
 #include <cassert>
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/deferred_pointer.hpp"
+#include "hipSYCL/glue/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
@@ -617,7 +619,14 @@ private:
       HIPSYCL_DEBUG_ERROR << "accessor [host]: Aborting synchronization, "
                              "runtime error list is non-empty"
                           << std::endl;
-      // TODO throw exceptions
+      glue::throw_asynchronous_errors([](sycl::exception_list errors) {
+        glue::print_async_errors(errors);
+        // Additionally throw the first exception to create synchronous
+        // error behavior
+        if (errors.size() > 0) {
+          std::rethrow_exception(errors[0]);
+        }
+      });
     }
     // TODO Need to lock execution of DAG
   }

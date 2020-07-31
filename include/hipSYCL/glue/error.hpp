@@ -41,7 +41,7 @@
 namespace hipsycl {
 namespace glue {
 
-inline void default_async_handler(sycl::exception_list error_list) {
+inline void print_async_errors(sycl::exception_list error_list) {
   if (error_list.size() > 0) {
     std::ostream& output_stream = common::output_stream::get().get_stream();
     output_stream << "============== hipSYCL error report ============== "
@@ -72,7 +72,12 @@ inline void default_async_handler(sycl::exception_list error_list) {
 
       ++idx;
     }
+  }
+}
 
+inline void default_async_handler(sycl::exception_list error_list) {
+  if (error_list.size() > 0) {
+    print_async_errors(error_list);
     std::terminate();
   }
 }

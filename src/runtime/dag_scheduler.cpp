@@ -48,6 +48,7 @@
 #include "hipSYCL/runtime/dag_time_table.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -457,25 +458,35 @@ void dag_scheduler::submit(dag* d)
     node->assign_to_executor(annotation.get_executor());
     node->assign_to_execution_lane(annotation.get_execution_lane());
   });
-  // Initialize deferred pointers, i.e. bind accessors to actual data pointers
-  interpreter.for_each_effective_node([&](dag_node_ptr node) {
-    for (dag_node_ptr req : node->get_requirements()) {
-      if (req->get_operation()->is_requirement()) {
-        if (cast<requirement>(req->get_operation())->is_memory_requirement()) {
-          memory_requirement *mem_req =
-              cast<memory_requirement>(req->get_operation());
-          if (mem_req->is_buffer_requirement()) {
-            buffer_memory_requirement *bmem_req =
-                cast<buffer_memory_requirement>(mem_req);
 
-            device_id target_dev = node->get_assigned_device();
-            void* device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
-            bmem_req->initialize_device_data(device_pointer);
-          }
+  // Initialize deferred pointers, i.e. bind accessors to actual data pointers
+  auto initialize_memory_access = [](dag_node_ptr req, device_id target_dev) {
+    if (req->get_operation()->is_requirement()) {
+      if (cast<requirement>(req->get_operation())->is_memory_requirement()) {
+        memory_requirement *mem_req =
+            cast<memory_requirement>(req->get_operation());
+        if (mem_req->is_buffer_requirement()) {
+          buffer_memory_requirement *bmem_req =
+              cast<buffer_memory_requirement>(mem_req);
+
+          void* device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
+          bmem_req->initialize_device_data(device_pointer);
+          HIPSYCL_DEBUG_INFO << "dag_scheduler: Preparing deferred pointer of "
+                                "requirement node "
+                             << dump(req->get_operation()) << std::endl;
         }
       }
     }
-  });
+  };
+
+  for (auto req : d->get_memory_requirements()) {
+    // It is not sufficient to only go through the effective requirements,
+    // as accessors that had data transfers optimized away must be valid as
+    // well!
+    // TODO: Is it guaranteed that all nodes have an assigned device?
+    device_id dev = req->get_assigned_device();
+    initialize_memory_access(req, dev);
+  }
 
   // Emit nodes to backend executors
 

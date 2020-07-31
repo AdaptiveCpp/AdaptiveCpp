@@ -89,19 +89,29 @@ private:
     ;                                                                          \
   else ::hipsycl::common::output_stream::get().get_stream() << prefix
 
+#ifdef HIPSYCL_DEBUG_NOCOLOR
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "[hipSYCL Error] "
+#define HIPSYCL_DEBUG_PREFIX_WARNING "[hipSYCL Warning] "
+#define HIPSYCL_DEBUG_PREFIX_INFO    "[hipSYCL Info] "
+#else
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "\033[1;31m[hipSYCL Error] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_WARNING "\033[;35m[hipSYCL Warning] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_INFO    "\033[;32m[hipSYCL Info] \033[0m"
+#endif
+
 #define HIPSYCL_DEBUG_ERROR \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_ERROR, \
-                      "[hipSYCL Error] ")
+                      HIPSYCL_DEBUG_PREFIX_ERROR)
 
 
 #define HIPSYCL_DEBUG_WARNING \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_WARNING, \
-                      "[hipSYCL Warning] ")
+                      HIPSYCL_DEBUG_PREFIX_WARNING)
 
 
 #define HIPSYCL_DEBUG_INFO \
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_INFO, \
-                      "[hipSYCL Info] ")
+                      HIPSYCL_DEBUG_PREFIX_INFO)
 
 
 #endif

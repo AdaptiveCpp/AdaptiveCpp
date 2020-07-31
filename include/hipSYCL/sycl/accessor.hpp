@@ -608,7 +608,7 @@ private:
       HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
       rt::application::dag().flush_sync();
     }
-    if(rt::application::get_runtime().errors().num_errors() != 0){
+    if(rt::application::get_runtime().errors().num_errors() == 0){
       HIPSYCL_DEBUG_INFO << "accessor [host]: Waiting for completion host access..." << std::endl;
 
       assert(node);

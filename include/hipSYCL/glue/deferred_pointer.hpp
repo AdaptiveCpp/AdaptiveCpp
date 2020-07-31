@@ -64,6 +64,12 @@ public:
   deferred_pointer(const deferred_pointer& other) = default;
 #endif
 
+  void trigger_initialization() {
+#ifndef SYCL_DEVICE_ONLY
+    maybe_init();
+#endif
+  }
+
   T *get() const
   { return _ptr; }
 

@@ -615,6 +615,10 @@ private:
 
       assert(node);
       node->wait();
+      // For host accessors, we need to manually trigger the initialization
+      // of the deferred pointer, since the host accessor will in generally
+      // not be copied again.
+      this->_ptr.trigger_initialization();
     } else {
       HIPSYCL_DEBUG_ERROR << "accessor [host]: Aborting synchronization, "
                              "runtime error list is non-empty"

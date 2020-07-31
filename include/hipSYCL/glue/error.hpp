@@ -48,8 +48,7 @@ inline void print_async_errors(sycl::exception_list error_list) {
                   << std::endl;
 
     output_stream
-        << "hipSYCL has caught the following undhandled asynchronous errors, and "
-          "will now terminate the application: "
+        << "hipSYCL has caught the following undhandled asynchronous errors: "
         << std::endl << std::endl;
 
     int idx = 0;
@@ -78,6 +77,8 @@ inline void print_async_errors(sycl::exception_list error_list) {
 inline void default_async_handler(sycl::exception_list error_list) {
   if (error_list.size() > 0) {
     print_async_errors(error_list);
+    std::ostream &output_stream = common::output_stream::get().get_stream();
+    output_stream << "The application will now be terminated." << std::endl;
     std::terminate();
   }
 }

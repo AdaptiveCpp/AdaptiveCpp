@@ -30,7 +30,7 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 #include <mutex>
 
 
@@ -218,6 +218,14 @@ dag dag_builder::finish_and_reset()
 
   dag final_dag = _current_dag;
   _current_dag = dag{};
+
+  final_dag.for_each_node([](dag_node_ptr node) {
+    HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operation: "
+                       << dump(node->get_operation()) << std::endl;
+    for (dag_node_ptr req : node->get_requirements()) {
+      HIPSYCL_DEBUG_INFO << "    --> requires: " << dump(req->get_operation()) << std::endl;
+    }
+  });
 
   return final_dag;
 }

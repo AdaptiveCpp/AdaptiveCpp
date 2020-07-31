@@ -76,14 +76,14 @@ void buffer_memory_requirement::dump(std::ostream &ostr,
                                      int indentation) const {
   ostr << get_indentation(indentation);
   ostr << "MEM_REQ: " << _mode << " " << _target << " " << _offset << "+"
-       << _range << " #" << _element_size << std::endl;
+       << _range << " #" << _element_size;
 }
 
 void kernel_operation::dump(std::ostream &ostr, int indentation) const {
   std::string indent = get_indentation(indentation);
-  ostr << indent << "kernel: " << _kernel_name << std::endl;
+  ostr << indent << "kernel: " << _kernel_name;
   for (auto requirement : _requirements) {
-    requirement->dump(ostr, indentation + 1);
+    ostr << std::endl; requirement->dump(ostr, indentation + 1);
   }
 }
 
@@ -94,7 +94,7 @@ void memcpy_operation::dump(std::ostream &ostr, int indentation) const {
   _source.dump(ostr); // Memory location
   ostr << "-->";
   _dest.dump(ostr); // Memory location
-  ostr << _num_elements << std::endl;
+  ostr << _num_elements;
 }
 
 void memory_location::dump(std::ostream &ostr) const {
@@ -118,7 +118,6 @@ void dag::dump(std::ostream &ostr) const {
     } else {
       std::cout << "None";
     }
-    ostr << std::endl;
   });
 }
 

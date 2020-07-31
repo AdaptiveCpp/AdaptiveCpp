@@ -202,7 +202,8 @@ void order_by_requirements_recursively(
   std::vector<dag_node_ptr>& nodes_to_process,
   std::vector<dag_node_ptr>& out)
 {
-  assert(current);
+  if (!current)
+    return;
   // A node that has already been submitted belongs to a DAG
   // that has already been fully constructed (and executed), 
   // and hence cannot be in the expansion process that the
@@ -224,7 +225,7 @@ void order_by_requirements_recursively(
   else
   {
     // Remove node from the nodes that need processing
-    nodes_to_process.erase(node_iterator);
+    *node_iterator = nullptr;
 
     // First, process any requirements to make sure
     // they are listed in the output before this node
@@ -396,7 +397,9 @@ dag_expander::dag_expander(const dag* d, const dag_enumerator& enumerator)
   // only on entries that precede it in the vector
   this->order_by_requirements(this->_ordered_nodes);
 
-  HIPSYCL_DEBUG_INFO << "dag_expander: linearized dependencies as follows: " << std::endl;
+  HIPSYCL_DEBUG_INFO << "dag_expander: linearized dependencies as follows: "
+                     << std::endl;
+
   for (auto node : _ordered_nodes) {
     HIPSYCL_DEBUG_INFO << "Node " << node << " / Operation "
                        << node->get_operation() << ": "
@@ -413,13 +416,13 @@ void dag_expander::order_by_requirements(
 
   std::vector<dag_node_ptr> nodes_to_process;
 
-  _dag->for_each_node([&](dag_node_ptr n){
-    nodes_to_process.push_back(n);
-  });
+  _dag->for_each_node([&](dag_node_ptr n) { nodes_to_process.push_back(n); });
 
   //for(dag_node_ptr node : nodes_to_process)
   for(auto node = nodes_to_process.begin(); node!=nodes_to_process.end();++node)
     order_by_requirements_recursively(*node, nodes_to_process, ordered_nodes);
+
+  assert(ordered_nodes.size() == nodes_to_process.size());
 }
 
 void dag_expander::expand(

@@ -55,7 +55,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_ROCM)
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
-    launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
+    launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }
@@ -64,7 +64,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #if defined (HIPSYCL_PLATFORM_CPU)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
-    launcher->bind<KernelNameTag, Type>(offset, local_range, global_range,
+    launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k);
     launchers.emplace_back(std::move(launcher));
   }

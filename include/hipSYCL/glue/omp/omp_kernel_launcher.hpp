@@ -317,7 +317,7 @@ public:
 
       auto get_grid_range = [&]() {
         for (int i = 0; i < Dim; ++i){
-          if(global_range[i] % local_range[i] != 0) {
+          if (global_range[i] % local_range[i] != 0) {
             rt::register_error(__hipsycl_here(),
                                rt::error_info{"omp_dispatch: global range is "
                                               "not divisible by local range"});

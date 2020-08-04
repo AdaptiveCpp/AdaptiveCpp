@@ -26,21 +26,36 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
-#include "hipSYCL/runtime/hip/hip_error.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/hip/hip_target.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-hip_device_manager::hip_device_manager()
-{
-  hip_check_error(hipGetDevice(&_device));
+hip_device_manager::hip_device_manager() {
+  auto err = hipGetDevice(&_device);
+
+  if (err != hipSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "hip_device_manager: Could not obtain currently active HIP device",
+            error_code{"HIP", err}});
+  }
 }
 
 void hip_device_manager::activate_device(int device_id)
 {
   if (_device != device_id) {
-    hip_check_error(hipSetDevice(device_id));
+    auto err = hipSetDevice(device_id);
+
+    if (err != hipSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "hip_device_manager: Could not set active HIP device",
+            error_code{"HIP", err}});
+    }
   }
 }
 

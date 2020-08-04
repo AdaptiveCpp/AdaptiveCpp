@@ -37,11 +37,12 @@ set(HIPSYCL_SOURCES
   runtime/dag_manager.cpp
   runtime/dag_submitted_ops.cpp
   runtime/generic/async_worker.cpp
-  runtime/hip/hip_error.cpp
   runtime/hip/hip_event.cpp
   runtime/hip/hip_queue.cpp
   runtime/hip/hip_allocator.cpp
   runtime/hip/hip_device_manager.cpp
+  runtime/hip/hip_hardware_manager.cpp
+  runtime/hip/hip_backend.cpp
   runtime/omp/omp_allocator.cpp
   runtime/omp/omp_backend.cpp
   runtime/omp/omp_event.cpp

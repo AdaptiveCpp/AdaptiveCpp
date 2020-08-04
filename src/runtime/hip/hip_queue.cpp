@@ -28,7 +28,6 @@
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
-#include "hipSYCL/runtime/hip/hip_error.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
@@ -47,14 +46,15 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
   
   assert(userData);
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
-  // Don't leak if there's an error detected in check_error()
+  
   if(status != hipSuccess) {
-    delete node;
+    register_error(__hipsycl_here(),
+                   error_info{"hip_queue callback: HIP returned error code.",
+                              error_code{"HIP", status}});
   }
-
-  hip_check_error(status);
-
-  (*node)->wait();
+  else {
+    (*node)->wait();
+  }
   delete node;
 }
 
@@ -68,18 +68,47 @@ void hip_queue::activate_device() const {
 
 hip_queue::hip_queue(device_id dev) : _dev{dev} {
   this->activate_device();
-  hip_check_error(hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking));
+
+  auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_queue: Couldn't construct backend stream",
+                              error_code{"HIP", err}});
+  }
 }
 
 hipStream_t hip_queue::get_stream() const { return _stream; }
 
-hip_queue::~hip_queue() { hip_check_error(hipStreamDestroy(_stream)); }
+hip_queue::~hip_queue() {
+  auto err = hipStreamDestroy(_stream);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_queue: Couldn't destroy stream",
+                              error_code{"HIP", err}});
+  }
+}
 
 /// Inserts an event into the stream
 std::unique_ptr<dag_node_event> hip_queue::insert_event() {
   hipEvent_t evt;
-  hip_check_error(hipEventCreate(&evt));
-  hip_check_error(hipEventRecord(evt, this->get_stream()));
+  hipError_t err = hipEventCreate(&evt);
+
+  if (err != hipSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
+    
+    return nullptr;
+  }
+
+  err = hipEventRecord(evt, this->get_stream());
+
+  if (err != hipSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Couldn't record event", error_code{"HIP", err}});
+    return nullptr;
+  }
 
   return std::make_unique<hip_node_event>(_dev, evt);
 }
@@ -129,16 +158,23 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
 
   assert(dimension >= 1 && dimension <= 3);
 
+  hipError_t err = hipSuccess;
   if (dimension == 1) {
 
-    hip_check_error(hipMemcpyAsync(
+    err = hipMemcpyAsync(
         op.dest().get_access_ptr(), op.source().get_access_ptr(),
-        op.get_num_transferred_bytes(), copy_kind, get_stream()));
+        op.get_num_transferred_bytes(), copy_kind, get_stream());
     
   } else if (dimension == 2) {
     assert(false && "2D data transfer is unimplemented");
   } else {
     assert(false && "3D data transfer is unimplemented");
+  }
+
+  if (err != hipSuccess) {
+    return register_error(__hipsycl_here(),
+                   error_info{"hip_queue: Couldn't submit memcpy",
+                              error_code{"HIP", err}});
   }
 
   return make_success();
@@ -168,7 +204,12 @@ result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   assert(dynamic_is<hip_node_event>(evt.get()));
 
   hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
-  hip_check_error(hipStreamWaitEvent(_stream, hip_evt->get_event(), 0));
+  auto err = hipStreamWaitEvent(_stream, hip_evt->get_event(), 0);
+  if (err != hipSuccess) {
+    return register_error(__hipsycl_here(),
+                   error_info{"hip_queue: hipStreamWaitEvent() failed",
+                              error_code{"HIP", err}});
+  }
 
   return make_success();
 }
@@ -179,10 +220,16 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
   assert(user_data);
   *user_data = node;
 
-  hip_check_error(
+  auto err = 
       hipStreamAddCallback(_stream, host_synchronization_callback,
-                           reinterpret_cast<void *>(user_data), 0));
+                           reinterpret_cast<void *>(user_data), 0);
 
+  if (err != hipSuccess) {
+    return register_error(__hipsycl_here(),
+                   error_info{"hip_queue: Couldn't submit stream callback",
+                              error_code{"HIP", err}});
+  }
+  
   return make_success();
 }
 

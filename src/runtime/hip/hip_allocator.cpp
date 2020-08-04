@@ -27,9 +27,7 @@
 
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
-#include "hipSYCL/runtime/hip/hip_error.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -42,20 +40,41 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
   hip_device_manager::get().activate_device(_dev);
-  hip_check_error(hipMalloc(&ptr, size_bytes));
+  auto err = hipMalloc(&ptr, size_bytes);
+
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_allocator: hipMalloc() failed",
+                              error_code{"HIP", err},
+                              error_type::memory_allocation_error});
+    return nullptr;
+  }
 
   return ptr;
 }
 
 void hip_allocator::free(void *mem)
 {
-  hip_check_error(hipFree(mem));
+  auto err = hipFree(mem);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_allocator: hipFree() failed",
+                              error_code{"HIP", err},
+                              error_type::memory_allocation_error});
+  }
 }
 
 void * hip_allocator::allocate_usm(size_t bytes)
 {
   void *ptr;
-  hip_check_error(hipMallocManaged(&ptr, bytes));
+  auto err = hipMallocManaged(&ptr, bytes);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_allocator: hipMallocManaged() failed",
+                              error_code{"HIP", err},
+                              error_type::memory_allocation_error});
+    return nullptr;
+  }
 
   return ptr;
 }

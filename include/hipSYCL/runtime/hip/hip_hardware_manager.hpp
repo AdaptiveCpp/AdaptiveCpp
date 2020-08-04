@@ -25,34 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_RUNTIME_HPP
-#define HIPSYCL_HIP_RUNTIME_HPP
 
-#include "../allocator.hpp"
+#ifndef HIPSYCL_HIP_HARDWARE_MANAGER_HPP
+#define HIPSYCL_HIP_HARDWARE_MANAGER_HPP
+
+#include <vector>
+
+#include "../hardware.hpp"
 #include "hip_target.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class hip_allocator : public backend_allocator 
+class hip_hardware_context : public hardware_context
 {
 public:
-  hip_allocator(int hip_device);
+  hip_hardware_context() = default;
+  hip_hardware_context(int dev);
 
-  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+  virtual bool is_cpu() const override;
+  virtual bool is_gpu() const override;
 
-  virtual void *allocate_optimized_host(size_t min_alignment,
-                                        size_t bytes) override {
-    return allocate(min_alignment, bytes);
-  };
-  
-  virtual void free(void *mem) override;
+  /// \return The maximum number of kernels that can be executed concurrently
+  virtual std::size_t get_max_kernel_concurrency() const override;
+  /// \return The maximum number of memory transfers that can be executed
+  /// concurrently
+  virtual std::size_t get_max_memcpy_concurrency() const override;
 
-  virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+  virtual std::string get_device_name() const override;
+  virtual std::string get_vendor_name() const override;
+
+  virtual bool has(device_support_aspect aspect) const override;
+  virtual std::size_t get_property(device_uint_property prop) const override;
+  virtual std::string get_driver_version() const override;
+  virtual std::string get_profile() const override;
+
+  virtual ~hip_hardware_context() {}
 
 private:
+  hipDeviceProp_t _properties;
   int _dev;
+};
+
+class hip_hardware_manager : public backend_hardware_manager
+{
+public:
+  hip_hardware_manager(hardware_platform hw_platform);
+
+  virtual std::size_t get_num_devices() const override;
+  virtual hardware_context *get_device(std::size_t index) override;
+  virtual device_id get_device_id(std::size_t index) const override;
+
+  virtual ~hip_hardware_manager() {}
+  
+private:
+  std::vector<hip_hardware_context> _devices;
+  hardware_platform _hw_platform;
 };
 
 }

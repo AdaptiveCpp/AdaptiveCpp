@@ -26,7 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_event.hpp"
-#include "hipSYCL/runtime/hip/hip_error.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -38,19 +38,33 @@ hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
 
 hip_node_event::~hip_node_event()
 {
-  hip_check_error(hipEventDestroy(_evt));
+  auto err = hipEventDestroy(_evt);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_node_event: Couldn't destroy event",
+                              error_code{"HIP", err}});
+  }
 }
 
 bool hip_node_event::is_complete() const
 {
   hipError_t err = hipEventQuery(_evt);
-  hip_check_error(err);
+  if (err != hipErrorNotReady && err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_node_event: Couldn't query event status",
+                              error_code{"HIP", err}});
+  }
   return err == hipSuccess;
 }
 
 void hip_node_event::wait()
 {
-  hip_check_error(hipEventSynchronize(_evt));
+  auto err = hipEventSynchronize(_evt);
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_node_event: hipEventSynchronize() failed",
+                              error_code{"HIP", err}});
+  }
 }
 
 hipEvent_t hip_node_event::get_event() const

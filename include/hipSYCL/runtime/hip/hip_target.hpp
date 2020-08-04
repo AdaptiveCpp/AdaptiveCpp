@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <vector>
+#ifndef HIPSYCL_HIP_TARGET_HPP
+#define HIPSYCL_HIP_TARGET_HPP
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
+#if !defined(HIPSYCL_RT_HIP_TARGET_CUDA) &&                                    \
+    !defined(HIPSYCL_RT_HIP_TARGET_ROCM) &&                                    \
+    !defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
 
-#include "hip_allocator.hpp"
-#include "hip_queue.hpp"
-#include "hip_hardware_manager.hpp"
+#define HIPSYCL_RT_HIP_TARGET_HIPCPU
 
-#ifndef HIPSYCL_HIP_BACKEND_HPP
-#define HIPSYCL_HIP_BACKEND_HPP
+#endif
 
-namespace hipsycl {
-namespace rt {
-
-
-class hip_backend : public backend
-{
-public:
-  hip_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
-
-  virtual ~hip_backend(){}
-
-private:
-  mutable hip_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-  mutable std::vector<hip_allocator> _allocators;
-};
-
-}
-}
-
+#ifdef HIPSYCL_RT_HIP_TARGET_CUDA
+#define __HIP_PLATFORM_NVCC__
+#include <hip/hip_runtime.h>
+#elif defined(HIPSYCL_RT_HIP_TARGET_ROCM)
+#define __HIP_PLATFORM_HCC__
+#include <hip/hip_runtime.h>
+#elif defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+#include "hipCPU/hip/hip_runtime.h"
+#else
+#error HIP Backend: No HIP target was specified
+#endif
 
 #endif

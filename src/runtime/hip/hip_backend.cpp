@@ -26,11 +26,70 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_backend.hpp"
+#include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_queue.hpp"
 
 namespace hipsycl {
 namespace rt {
-  
 
+hip_backend::hip_backend()
+    : _hw_manager{get_hardware_platform()},
+      _executor{*this, [](device_id dev) {
+                  return std::make_unique<hip_queue>(dev);
+                }} {
+
+  for (int i = 0; i < _hw_manager.get_num_devices(); ++i) {
+    _allocators.push_back(hip_allocator{i});
+  }
+}
+
+api_platform hip_backend::get_api_platform() const {
+  return api_platform::hip;
+}
+
+hardware_platform hip_backend::get_hardware_platform() const {
+#ifdef HIPSYCL_RT_HIP_TARGET_CUDA
+  return hardware_platform::cuda;
+#elif defined(HIPSYCL_RT_HIP_TARGET_ROCM)
+  return hardware_platform::rocm;
+#elif defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
+  return hardware_platform::cpu;
+#else
+  #error HIP Backend: Not HIP Target specified
+#endif
+}
+
+backend_id hip_backend::get_unique_backend_id() const {
+  return backend_id::hip;
+}
+
+backend_hardware_manager *hip_backend::get_hardware_manager() const {
+  return &_hw_manager;
+}
+
+backend_executor *hip_backend::get_executor(device_id dev) const {
+  if (dev.get_full_backend_descriptor().sw_platform != api_platform::hip) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_backend: Passed device id from other backend to HIP backend"});
+    return nullptr;
+  }
+
+  return &_executor;
+}
+
+backend_allocator *hip_backend::get_allocator(device_id dev) const {
+  if (dev.get_full_backend_descriptor().sw_platform != api_platform::hip) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_backend: Passed device id from other backend to HIP backend"});
+    return nullptr;
+  }
+  if (dev.get_id() >= _allocators.size()) {
+    register_error(__hipsycl_here(), error_info{"hip_backend: Device id is out of bounds"});
+  }
+  return &(_allocators[dev.get_id()]);
+}
   
 }
 }

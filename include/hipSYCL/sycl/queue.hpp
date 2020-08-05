@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -47,7 +48,7 @@
 #include "info/info.hpp"
 #include "detail/function_set.hpp"
 
-
+#include <exception>
 
 namespace hipsycl {
 namespace sycl {
@@ -72,56 +73,125 @@ class queue : public detail::property_carrying_object
   friend class detail::automatic_placeholder_requirement_impl;
 
 public:
+  
+  explicit queue(const property_list &propList = {})
+    : detail::property_carrying_object{propList},
+      _handler{[](exception_list e){ glue::default_async_handler(e); }}
+  {
+    this->init();
+  }
 
-  explicit queue(const property_list &propList = {});
-
+  
   explicit queue(const async_handler &asyncHandler,
-                 const property_list &propList = {});
+              const property_list &propList = {})
+    : detail::property_carrying_object{propList},
+      _handler{asyncHandler}
+  {
+    this->init();
+  }
 
   explicit queue(const device_selector &deviceSelector,
-                 const property_list &propList = {});
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler {
+    [](exception_list e) { glue::default_async_handler(e); }
+  }
+  {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
+
+    this->init();
+  }
 
   explicit queue(const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
-                 const property_list &propList = {});
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
 
-  explicit queue(const device &syclDevice, const property_list &propList = {});
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const device &syclDevice, const property_list &propList = {})
+      : detail::property_carrying_object{propList},
+        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
+    this->init();
+  }
 
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
-                 const property_list &propList = {});
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
+    this->init();
+  }
 
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
-                 const property_list &propList = {});
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList},
+        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
+
+    this->init();
+  }
 
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
-                 const property_list &propList = {});
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
 
-  ~queue();
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
 
-  /* CL Interop is not supported
-  queue(cl_command_queue clQueue, const context& syclContext,
-        const async_handler &asyncHandler = {});
-  */
+    this->init();
+  }
 
-  /* -- common interface members -- */
-
-
-  /* -- property interface members -- */
+  
+  ~queue() {
+    this->throw_asynchronous();
+  }
 
 
-  /* CL Interop is not supported
-  cl_command_queue get() const;
-  */
+  context get_context() const {
+    return context{get_device().get_platform()};
+  }
 
-  context get_context() const;
+  device get_device() const {
+    if (_default_hints.has_hint<rt::hints::bind_to_device>()) {
+      rt::device_id id =
+          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+      return device{id};
+    }
+    return device{};
+  }
 
-  device get_device() const;
+  bool is_host() const { return get_device().is_host(); }
 
-  bool is_host() const;
+  void wait() {
+    rt::application::dag().flush_sync();
+    rt::application::dag().wait();
+  }
 
+  void wait_and_throw() {
+    this->wait();
+    this->throw_asynchronous();
+  }
+
+  void throw_asynchronous() {
+    glue::throw_asynchronous_errors(_handler);
+  }
 
   template <info::queue param>
   typename info::param_traits<info::queue, param>::return_type get_info() const;
@@ -186,11 +256,6 @@ public:
 
   }
 
-
-  void wait();
-  void wait_and_throw();
-  void throw_asynchronous();
-
   friend bool operator==(const queue& lhs, const queue& rhs)
   { return lhs._default_hints == rhs._default_hints; }
 
@@ -221,7 +286,13 @@ private:
     return dag_nodes.back();
   }
 
-  void init();
+  
+  void init()
+  {
+    this->_hooks = detail::queue_submission_hooks_ptr{
+          new detail::queue_submission_hooks{}};
+  }
+
 
   detail::queue_submission_hooks_ptr get_hooks() const
   {
@@ -250,6 +321,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 }
 
 
+
+inline handler::handler(const queue &q, async_handler handler,
+                 const rt::execution_hints &hints)
+    : _queue{&q}, _local_mem_allocator{q.get_device()}, _handler{handler},
+      _execution_hints{hints} {}
 
 
 namespace detail{

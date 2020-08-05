@@ -507,6 +507,7 @@ private:
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }
 
+  // defined in queue.hpp
   handler(const queue& q, async_handler handler, const rt::execution_hints& hints);
 
   const queue* _queue;

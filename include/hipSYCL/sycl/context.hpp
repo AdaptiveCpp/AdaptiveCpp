@@ -117,6 +117,12 @@ HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
 
+inline context exception::get_context() const {
+  // ToDo That's not entirely correct, as different contexts
+  // can have different devices associated with them
+  return context{};
+}
+
 } // namespace sycl
 } // namespace hipsycl
 

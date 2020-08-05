@@ -32,6 +32,7 @@
 #include "../exception.hpp"
 
 #include <cstdlib>
+#include <array>
 
 namespace hipsycl {
 namespace sycl {
@@ -92,11 +93,8 @@ private:
   size_t _num_allocated_bytes;
 };
 
-enum class host_local_memory_origin
-{
-  hipcpu,
-  custom_threadprivate
-};
+enum class host_local_memory_origin { hipcpu, custom_threadprivate };
+
 
 /// Manages local memory on host device.
 /// Assumptions:
@@ -116,40 +114,17 @@ class host_local_memory
 public:
   static void request_from_threadprivate_pool(size_t num_bytes)
   {
-    release();
-
-    _origin = host_local_memory_origin::custom_threadprivate;
-    
-    if(num_bytes <= _max_static_local_mem_size)
-      _local_mem = _static_local_mem;
-    else
-    {
-      if(num_bytes > 0)
-        _local_mem = new char [num_bytes];
-    }
+    alloc_threadprivate(num_bytes);
   }
 
   static void request_from_hipcpu_pool()
   {
-    release();
-
-    _origin = host_local_memory_origin::hipcpu;
-  #ifdef __HIPCPU__
-    _local_mem = reinterpret_cast<char*>(HIP_DYNAMIC_SHARED_MEMORY);
-  #else
-    throw unimplemented{"Attempted to access local memory pool provided by hipCPU "
-      "in compilation phase without hipCPU"};
-  #endif
+    alloc_hipcpu();
   }
 
   static void release()
   {
-    if(_local_mem != nullptr 
-      && _local_mem != _static_local_mem
-      && _origin != host_local_memory_origin::hipcpu)
-      delete [] _local_mem;
-
-    _local_mem = nullptr;
+    release_memory();
   }
 
   static char* get_ptr()
@@ -159,19 +134,53 @@ public:
 
 private:
 
+  static void release_memory() {
+    if (_local_mem != nullptr && _local_mem != _static_local_mem.data() &&
+        _origin != host_local_memory_origin::hipcpu)
+      delete[] _local_mem;
+
+    _local_mem = nullptr;
+  }
+  
+  static void alloc_threadprivate(size_t num_bytes) {
+    release_memory();
+
+    _origin = host_local_memory_origin::custom_threadprivate;
+    
+    if(num_bytes <= _max_static_local_mem_size)
+      _local_mem = _static_local_mem.data();
+    else
+    {
+      if(num_bytes > 0)
+        _local_mem = new char [num_bytes];
+    }
+  }
+
+  static void alloc_hipcpu() {
+    release_memory();
+
+    _origin = host_local_memory_origin::hipcpu;
+#ifdef __HIPCPU__
+    _local_mem = reinterpret_cast<char *>(HIP_DYNAMIC_SHARED_MEMORY);
+#else
+    throw unimplemented{
+        "Attempted to access local memory pool provided by hipCPU "
+        "in compilation phase without hipCPU"};
+#endif
+  }
+
+
   // By default we offer 32KB local memory per work group,
   // for more local memory we go to the heap.
   static constexpr size_t _max_static_local_mem_size = 1024*32;
-  static char* _local_mem;
-  static char _static_local_mem[_max_static_local_mem_size];
-  static host_local_memory_origin _origin;
-
-#ifndef HIPCPU_NO_OPENMP
-  #pragma omp threadprivate(_origin)
-  #pragma omp threadprivate(_local_mem)
-  #pragma omp threadprivate(_static_local_mem)
-#endif
+  inline static char* _local_mem;
+  inline static std::array<char, _max_static_local_mem_size> _static_local_mem;
+  inline static host_local_memory_origin _origin;
+#pragma omp threadprivate(_local_mem)
+#pragma omp threadprivate(_static_local_mem)
+#pragma omp threadprivate(_origin)
 };
+
 
 class local_memory
 {

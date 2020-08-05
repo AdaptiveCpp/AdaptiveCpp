@@ -62,8 +62,8 @@ public:
     return false;
   }
 
+  // Implementation in context.hpp
   context get_context() const;
-
 
 private:
   string_class _msg;

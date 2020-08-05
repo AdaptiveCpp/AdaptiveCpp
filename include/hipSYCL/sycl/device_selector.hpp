@@ -41,8 +41,24 @@ namespace sycl {
 class device_selector
 {
 public:
-  virtual ~device_selector() {};
-  device select_device() const;
+  virtual ~device_selector(){};
+  
+  device select_device() const {
+    auto devices = device::get_devices();
+    if (devices.size() == 0)
+      throw platform_error{"No available devices!"};
+
+    int best_score = std::numeric_limits<int>::min();
+    device candidate;
+    for (const device &d : devices) {
+      int current_score = (*this)(d);
+      if (current_score > best_score) {
+        best_score = current_score;
+        candidate = d;
+      }
+    }
+    return candidate;
+  }
 
   virtual int operator()(const device& dev) const = 0;
 
@@ -88,6 +104,11 @@ using default_selector = host_selector;
 #else
 using default_selector = gpu_selector;
 #endif
+
+inline device::device(const device_selector &deviceSelector) {
+  this->_device_id = deviceSelector.select_device()._device_id;
+}
+
 
 }
 }

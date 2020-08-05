@@ -60,9 +60,6 @@ inline rt::device_id get_host_device() {
 
 class device_selector;
 class platform;
-class device;
-
-
 
 class device {
   friend class queue;
@@ -73,13 +70,8 @@ public:
   device()
       : _device_id(detail::get_host_device()) {}
 
-  // OpenCL interop is not supported
-  // explicit device(cl_device_id deviceId);
-
+  // Implemented in device_selector.hpp
   explicit device(const device_selector &deviceSelector);
-
-  // OpenCL interop is not supported
-  // cl_device_id get() const;
 
   bool is_host() const 
   {
@@ -105,6 +97,7 @@ public:
     return !is_cpu();
   }
 
+  // Implemented in platform.hpp
   platform get_platform() const;
 
   template <info::device param>
@@ -122,7 +115,7 @@ public:
   template <info::partition_property prop,
             std::enable_if_t<prop == info::partition_property::partition_equally>*
               = nullptr>
-  vector_class<device> create_sub_devices(size_t nbSubDev) const
+  std::vector<device> create_sub_devices(size_t nbSubDev) const
   {
     throw feature_not_supported{"subdevices are unsupported."};
   }
@@ -131,7 +124,7 @@ public:
   template <info::partition_property prop,
             std::enable_if_t<prop == info::partition_property::partition_by_counts>*
               = nullptr>
-  vector_class<device> create_sub_devices(const vector_class<size_t> &counts) const
+  std::vector<device> create_sub_devices(const std::vector<size_t> &counts) const
   {
     throw feature_not_supported{"subdevices are unsupported."};
   }
@@ -140,17 +133,47 @@ public:
   template <info::partition_property prop,
             std::enable_if_t<prop == info::partition_property::partition_by_affinity_domain>*
               = nullptr>
-  vector_class<device> create_sub_devices(info::partition_affinity_domain
+  std::vector<device> create_sub_devices(info::partition_affinity_domain
                                           affinityDomain) const
   {
     throw feature_not_supported{"subdevices are unsupported."};
   }
 
+  static std::vector<device>
+  get_devices(info::device_type deviceType = info::device_type::all) {
 
-  static vector_class<device> get_devices(
-      info::device_type deviceType = info::device_type::all);
+    std::vector<device> result;
 
-  static int get_num_devices();
+    rt::application::backends().for_each_backend(
+        [&](rt::backend *b) {
+          rt::backend_descriptor bd = b->get_backend_descriptor();
+          std::size_t num_devices =
+              b->get_hardware_manager()->get_num_devices();
+
+          for (std::size_t dev = 0; dev < num_devices; ++dev) {
+            rt::device_id d_id{bd, static_cast<int>(dev)};
+
+            device d;
+            d._device_id = d_id;
+
+            if (deviceType == info::device_type::all ||
+                (deviceType == info::device_type::accelerator &&
+                 d.is_accelerator()) ||
+                (deviceType == info::device_type::cpu && d.is_cpu()) ||
+                (deviceType == info::device_type::host && d.is_cpu()) ||
+                (deviceType == info::device_type::gpu && d.is_gpu())) {
+
+              result.push_back(d);
+            }
+          }
+        });
+
+    return result;
+  }
+
+  static int get_num_devices() {
+    return get_devices(info::device_type::all).size();
+  }
 
   friend bool operator ==(const device& lhs, const device& rhs)
   { return lhs._device_id == rhs._device_id; }

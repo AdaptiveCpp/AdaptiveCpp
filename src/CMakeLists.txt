@@ -10,8 +10,6 @@ project(libhipSYCL)
 set(CMAKE_CXX_COMPILER ${HIPSYCL_DEVICE_COMPILER})
 
 set(HIPSYCL_SOURCES
-  sycl/device.cpp
-  sycl/device_selector.cpp
   runtime/application.cpp
   runtime/runtime.cpp
   runtime/error.cpp

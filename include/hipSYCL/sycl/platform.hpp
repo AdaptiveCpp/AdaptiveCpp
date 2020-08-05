@@ -81,8 +81,8 @@ public:
   }
 
 
-  static vector_class<platform> get_platforms() {
-    return vector_class<platform>{platform()};
+  static std::vector<platform> get_platforms() {
+    return std::vector<platform>{platform()};
   }
 
   friend bool operator==(const platform& lhs, const platform& rhs)
@@ -123,6 +123,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
 HIPSYCL_SPECIALIZE_GET_INFO(platform, extensions)
 {
   return vector_class<string_class>{};
+}
+
+inline platform device::get_platform() const  {
+  // We only have one platform
+  return platform{};
 }
 
 }// namespace sycl

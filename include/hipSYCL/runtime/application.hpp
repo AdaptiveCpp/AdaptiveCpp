@@ -30,13 +30,13 @@
 
 #include <memory>
 
+#include "backend.hpp"
 #include "device_id.hpp"
 #include "settings.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class backend;
 class dag_manager;
 class runtime;
 
@@ -45,9 +45,10 @@ class application
 public:
   static runtime& get_runtime();
   static settings& get_settings();
-  static hipsycl::rt::dag_manager &dag();
-  static hipsycl::rt::backend &get_backend(hipsycl::rt::backend_id id);
-
+  static dag_manager &dag();
+  static backend &get_backend(hipsycl::rt::backend_id id);
+  static backend_manager& backends();
+  
   static void reset();
 
   application() = delete;

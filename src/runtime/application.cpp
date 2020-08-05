@@ -105,6 +105,10 @@ backend &application::get_backend(hipsycl::rt::backend_id id)
   return *(get_runtime().backends().get(id));
 }
 
+backend_manager &application::backends() {
+  return get_runtime().backends();
+}
+
 void application::reset() { rt_manager::get().reset(); }
 
 settings &application::get_settings() {

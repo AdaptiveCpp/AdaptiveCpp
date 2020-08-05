@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_DEVICE_HPP
 #define HIPSYCL_DEVICE_HPP
 
+#include <exception>
 #include <limits>
 #include <type_traits>
 
@@ -40,6 +41,9 @@
 #include "version.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/backend.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -156,10 +160,26 @@ public:
   
 private:
   rt::device_id _device_id;
+
+  rt::hardware_context *get_rt_device() const {
+    auto ptr = rt::application::get_backend(_device_id.get_backend())
+                   .get_hardware_manager()
+                   ->get_device(_device_id.get_id());
+    if (!ptr) {
+      throw runtime_error{"Could not access device"};
+    }
+    return ptr;
+  }
 };
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, device_type)
-{ return info::device_type::gpu; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
+  if (this->is_cpu())
+    return info::device_type::cpu;
+  else if (this->is_gpu())
+    return info::device_type::gpu;
+  else
+    return info::device_type::custom;
+}
 
 /// \todo Return different id for amd and nvidia
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
@@ -167,9 +187,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_int>(props.multiProcessorCount);
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_compute_units);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
@@ -177,123 +196,167 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return id<3>{
-    static_cast<size_t>(props.maxThreadsDim[0]),
-    static_cast<size_t>(props.maxThreadsDim[1]),
-    static_cast<size_t>(props.maxThreadsDim[2])
-  };
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_global_size0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_global_size1));
+  std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_global_size2));
+  return id<3>{size0, size1, size2};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<size_t>(props.maxThreadsPerBlock);
+  return static_cast<size_t>(
+      get_rt_device()->get_property(rt::device_uint_property::max_group_size));
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_char)
-{ return 4; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_double)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_float)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_half)
-{ return 0; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_int)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_long)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_short)
-{ return 2; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_char) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_char));
+}
 
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_double){
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_double));
+}
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_char)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_double)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_float)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_half)
-{ return 0; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_int)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_long)
-{ return 1; }
-HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_short)
-{ return 1; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_float) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_float));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_half) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_half));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_int) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_int));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_long) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_long));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_short) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::preferred_vector_width_short));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_char) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_char));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_double) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_double));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_float) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_float));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_half) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_half));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_int) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_int));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_long) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_long));
+}
+HIPSYCL_SPECIALIZE_GET_INFO(device, native_vector_width_short) {
+  return static_cast<int>(get_rt_device()->get_property(
+      rt::device_uint_property::native_vector_width_short));
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_clock_frequency)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_int>(props.clockRate / 1000);
+  return static_cast<detail::u_int>(
+      get_rt_device()->get_property(rt::device_uint_property::max_clock_speed));
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, address_bits)
-{ return 64; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, address_bits) {
+  return get_rt_device()->get_property(rt::device_uint_property::address_bits);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_mem_alloc_size)
 {
-  // return global memory size for now
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_long>(props.totalGlobalMem);
+  return static_cast<detail::u_long>(
+      get_rt_device()->get_property(rt::device_uint_property::max_malloc_size));
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, image_support)
-{ return true; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image_support) {
+  return get_rt_device()->has(rt::device_support_aspect::images);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_read_image_args)
-{ return 128; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_read_image_args) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_read_image_args);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_write_image_args)
-{ return 128; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_write_image_args) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_write_image_args);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image2d_max_width)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image2d_max_width) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image2d_max_width);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image2d_max_height)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image2d_max_height) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image2d_max_height);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_width)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_width) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image3d_max_width);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_height)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_height) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image3d_max_height);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_depth)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image3d_max_depth) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image3d_max_depth);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image_max_buffer_size)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image_max_buffer_size) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image_max_buffer_size);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, image_max_array_size)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, image_max_array_size) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::image_max_array_size);
+}
 
-/// \todo Find out actual value
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_samplers)
-{ return std::numeric_limits<detail::u_int>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_samplers) {
+  return get_rt_device()->get_property(rt::device_uint_property::max_samplers);
+}
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_parameter_size)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_parameter_size) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_parameter_size);
+}
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, mem_base_addr_align)
-{ return 8; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, mem_base_addr_align) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::mem_base_addr_align);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, half_fp_config)
 {
-  return vector_class<info::fp_config>{
+  return std::vector<info::fp_config>{
     info::fp_config::denorm,
     info::fp_config::inf_nan,
     info::fp_config::round_to_nearest,
@@ -306,7 +369,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, half_fp_config)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, single_fp_config)
 {
-  return vector_class<info::fp_config>{
+  return std::vector<info::fp_config>{
     info::fp_config::denorm,
     info::fp_config::inf_nan,
     info::fp_config::round_to_nearest,
@@ -319,7 +382,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, single_fp_config)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, double_fp_config)
 {
-  return vector_class<info::fp_config>{
+  return std::vector<info::fp_config>{
     info::fp_config::denorm,
     info::fp_config::inf_nan,
     info::fp_config::round_to_nearest,
@@ -333,72 +396,78 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, double_fp_config)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, name)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return string_class{props.name};
+  return get_rt_device()->get_device_name();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_type)
 {
-  return info::global_mem_cache_type::read_only;
+  if (!get_rt_device()->has(rt::device_support_aspect::global_mem_cache))
+    return info::global_mem_cache_type::none;
+  if (get_rt_device()->has(
+          rt::device_support_aspect::global_mem_cache_read_only))
+    return info::global_mem_cache_type::read_only;
+  else if (get_rt_device()->has(
+          rt::device_support_aspect::global_mem_cache_write_only))
+    return info::global_mem_cache_type::write_only;
+
+  return info::global_mem_cache_type::none;
 }
 
-/// \todo what is the cache line size on AMD devices?
-HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_line_size)
-{ return 128; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_line_size) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::global_mem_cache_line_size);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_size)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_long>(props.l2CacheSize);
+  return get_rt_device()->get_property(
+      rt::device_uint_property::global_mem_cache_size);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_size)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_long>(props.totalGlobalMem);
+  return get_rt_device()->get_property(
+      rt::device_uint_property::global_mem_size);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_buffer_size)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_long>(props.totalConstMem);
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_constant_buffer_size);
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_args)
-{ return std::numeric_limits<detail::u_int>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_constant_args) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::max_constant_args);
+}
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_type)
-{ return info::local_mem_type::local; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_type) {
+  if (get_rt_device()->has(rt::device_support_aspect::emulated_local_memory)) {
+    return info::local_mem_type::global;
+  } else {
+    return info::local_mem_type::local;
+  }
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, local_mem_size)
 {
-  hipDeviceProp_t props;
-  hipGetDeviceProperties(&props, _device_id.get_id());
-  return static_cast<detail::u_long>(props.sharedMemPerBlock);
+  return get_rt_device()->get_property(
+      rt::device_uint_property::local_mem_size);
 }
 
-/// \todo actually check support
-HIPSYCL_SPECIALIZE_GET_INFO(device, error_correction_support)
-{ return false; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, error_correction_support) {
+  return get_rt_device()->has(rt::device_support_aspect::error_correction);
+}
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, host_unified_memory)
-{
-#ifdef HIPSYCL_PLATFORM_CPU
-  return true;
-#else
-  return false; 
-#endif
+HIPSYCL_SPECIALIZE_GET_INFO(device, host_unified_memory) {
+  return get_rt_device()->has(rt::device_support_aspect::host_unified_memory);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, profiling_timer_resolution)
 { return 1; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, is_endian_little)
-{ return true; }
+{ return get_rt_device()->has(rt::device_support_aspect::little_endian); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, is_available)
 { return true; }
@@ -411,7 +480,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, is_linker_available)
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, execution_capabilities)
 {
-  return vector_class<info::execution_capability>{
+  return std::vector<info::execution_capability>{
     info::execution_capability::exec_kernel
   };
 }
@@ -420,49 +489,37 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling)
 { return false; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, built_in_kernels)
-{ return vector_class<string_class>{}; }
+{ return std::vector<string_class>{}; }
 
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, vendor)
-{
-#ifdef HIPSYCL_PLATFORM_CUDA
-  return string_class{"NVIDIA"};
-#elif defined(HIPSYCL_PLATFORM_HCC)
-  return string_class{"AMD"};
-#else
-  return string_class{"hipCPU"};
-#endif
+HIPSYCL_SPECIALIZE_GET_INFO(device, vendor) {
+  return get_rt_device()->get_vendor_name();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, driver_version)
 {
-  return detail::version_string();
+  return get_rt_device()->get_driver_version();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, profile)
-{ return "FULL_PROFILE"; }
+{ return get_rt_device()->get_profile(); }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, version)
-{
-#ifdef HIPSYCL_PLATFORM_CUDA
-  return "1.2 "+detail::version_string()+", running on NVIDIA CUDA";
-#elif defined(HIPSYCL_PLATFORM_HCC)
-  return "1.2 "+detail::version_string()+", running on AMD ROCm";
-#else
-  return "1.2 "+detail::version_string()+", running on hipCPU host device";
-#endif
+HIPSYCL_SPECIALIZE_GET_INFO(device, version) {
+  return "1.2 "+detail::version_string();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, opencl_c_version)
-{ return "1.2 HIPSYCL CUDA/HIP"; }
+{ return "1.2 HIPSYCL"; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, extensions)
 {
-  return vector_class<string_class>{};
+  return std::vector<string_class>{};
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, printf_buffer_size)
-{ return std::numeric_limits<size_t>::max(); }
+HIPSYCL_SPECIALIZE_GET_INFO(device, printf_buffer_size) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::printf_buffer_size);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_interop_user_sync)
 { return true; }
@@ -470,15 +527,17 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_interop_user_sync)
 HIPSYCL_SPECIALIZE_GET_INFO(device, parent_device)
 { throw invalid_object_error{"Device is not a subdevice"}; }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, partition_max_sub_devices)
-{ return 0; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, partition_max_sub_devices) {
+  return get_rt_device()->get_property(
+      rt::device_uint_property::partition_max_sub_devices);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, partition_properties)
-{ return vector_class<info::partition_property>{}; }
+{ return std::vector<info::partition_property>{}; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, partition_affinity_domains)
 {
-  return vector_class<info::partition_affinity_domain>{
+  return std::vector<info::partition_affinity_domain>{
     info::partition_affinity_domain::not_applicable
   };
 }

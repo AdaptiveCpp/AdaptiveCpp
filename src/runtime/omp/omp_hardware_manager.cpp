@@ -96,6 +96,7 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
     break;
   }
   assert(false && "Unknown device aspect");
+  return false;
 }
 
 std::size_t
@@ -135,6 +136,27 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     return 1;
     break;
   case device_uint_property::preferred_vector_width_short:
+    return 2;
+    break;
+  case device_uint_property::native_vector_width_char:
+    return 4;
+    break;
+  case device_uint_property::native_vector_width_double:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_float:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_half:
+    return 2;
+    break;
+  case device_uint_property::native_vector_width_int:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_long:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_short:
     return 2;
     break;
   case device_uint_property::max_clock_speed:
@@ -208,6 +230,7 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     break;
   }
   assert(false && "Invalid device property");
+  return 0;
 }
 
 std::string omp_hardware_context::get_driver_version() const { return "1.2"; }

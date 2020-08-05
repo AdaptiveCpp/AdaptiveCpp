@@ -202,8 +202,29 @@ hip_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::preferred_vector_width_short:
     return 2;
     break;
+  case device_uint_property::native_vector_width_char:
+    return 4;
+    break;
+  case device_uint_property::native_vector_width_double:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_float:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_half:
+    return 2;
+    break;
+  case device_uint_property::native_vector_width_int:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_long:
+    return 1;
+    break;
+  case device_uint_property::native_vector_width_short:
+    return 2;
+    break;
   case device_uint_property::max_clock_speed:
-    return _properties.clockRate;
+    return _properties.clockRate / 1000;
     break;
   case device_uint_property::max_malloc_size:
     return _properties.totalGlobalMem;

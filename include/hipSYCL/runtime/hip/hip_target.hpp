@@ -32,7 +32,7 @@
     !defined(HIPSYCL_RT_HIP_TARGET_ROCM) &&                                    \
     !defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
 
-#define HIPSYCL_RT_HIP_TARGET_HIPCPU
+#define HIPSYCL_RT_HIP_TARGET_ROCM
 
 #endif
 

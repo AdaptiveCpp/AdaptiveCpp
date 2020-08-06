@@ -47,7 +47,7 @@ std::ostream &operator<<(std::ostream &out, const static_array<Dim> &v) {
   for (int i = 0; i < Dim; ++i) {
     out << v[i];
     if (i != Dim - 1)
-      out << v[i] << ", ";
+      out << ", ";
   }
   out << "}";
   return out;

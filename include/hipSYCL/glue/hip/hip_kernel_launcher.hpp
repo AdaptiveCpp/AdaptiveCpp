@@ -245,8 +245,8 @@ public:
       : _queue{nullptr}{}
 
 
-  void set_params(rt::hip_queue *q) {
-    _queue = q;
+  virtual void set_params(void *q) override {
+    _queue = reinterpret_cast<rt::hip_queue*>(q);
   }
 
   template <class KernelName, rt::kernel_type type, int Dim, class Kernel>

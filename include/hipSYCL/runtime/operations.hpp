@@ -28,9 +28,6 @@
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
-#include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/common/debug.hpp"
 
@@ -117,8 +114,8 @@ public:
   virtual sycl::access::mode get_access_mode() const = 0;
   virtual sycl::access::target get_access_target() const = 0;
 
-  virtual sycl::id<3> get_access_offset3d() const = 0;
-  virtual sycl::range<3> get_access_range3d() const = 0;
+  virtual id<3> get_access_offset3d() const = 0;
+  virtual range<3> get_access_range3d() const = 0;
 
   virtual bool intersects_with(const memory_requirement* other) const = 0;
   /// Check if this requirement's data region intersects with an existing data usage.
@@ -135,8 +132,8 @@ class buffer_memory_requirement : public memory_requirement
 public:
   template <int Dim>
   buffer_memory_requirement(std::shared_ptr<buffer_data_region> mem_region,
-                            const sycl::id<Dim> offset,
-                            const sycl::range<Dim> range,
+                            const id<Dim> offset,
+                            const range<Dim> range,
                             sycl::access::mode access_mode,
                             sycl::access::target access_target)
       : _mem_region{mem_region}, _element_size{mem_region->get_element_size()},
@@ -174,12 +171,12 @@ public:
   std::shared_ptr<buffer_data_region> get_data_region() const
   { return _mem_region; }
 
-  sycl::id<3> get_access_offset3d() const override
+  id<3> get_access_offset3d() const override
   {
     return _offset;
   }
 
-  sycl::range<3> get_access_range3d() const override
+  range<3> get_access_range3d() const override
   {
     return _range;
   }
@@ -244,8 +241,8 @@ private:
   }
 
   std::shared_ptr<buffer_data_region> _mem_region;
-  sycl::id<3> _offset;
-  sycl::range<3> _range;
+  id<3> _offset;
+  range<3> _range;
   std::size_t _element_size;
   sycl::access::mode _mode;
   sycl::access::target _target;
@@ -288,17 +285,17 @@ private:
 class memory_location
 {
 public:
-  memory_location(device_id d, sycl::id<3> access_offset,
+  memory_location(device_id d, id<3> access_offset,
                   std::shared_ptr<buffer_data_region> data_region);
 
 
-  memory_location(device_id d, void *base_ptr, sycl::id<3> access_offset,
-                  sycl::range<3> allocation_shape, std::size_t element_size);
+  memory_location(device_id d, void *base_ptr, id<3> access_offset,
+                  range<3> allocation_shape, std::size_t element_size);
 
   device_id get_device() const;
 
-  sycl::id<3> get_access_offset() const;
-  sycl::range<3> get_allocation_shape() const;
+  id<3> get_access_offset() const;
+  range<3> get_allocation_shape() const;
 
   std::size_t get_element_size() const;
 
@@ -315,8 +312,8 @@ public:
 private:
   device_id _dev;
 
-  sycl::id<3> _offset;
-  sycl::range<3> _allocation_shape;
+  id<3> _offset;
+  range<3> _allocation_shape;
   std::size_t _element_size;
 
   bool _has_data_region;
@@ -332,11 +329,11 @@ class memcpy_operation : public operation
 {
 public:
   memcpy_operation(const memory_location &source, const memory_location &dest,
-                   sycl::range<3> num_source_elements);
+                   range<3> num_source_elements);
 
 
   std::size_t get_num_transferred_bytes() const;
-  sycl::range<3> get_num_transferred_elements() const;
+  range<3> get_num_transferred_elements() const;
   
   const memory_location &source() const;
   const memory_location &dest() const;
@@ -349,7 +346,7 @@ public:
 private:
   memory_location _source;
   memory_location _dest;
-  sycl::range<3> _num_elements;
+  range<3> _num_elements;
 };
 
 /// A prefetch operation on SVM/USM memory

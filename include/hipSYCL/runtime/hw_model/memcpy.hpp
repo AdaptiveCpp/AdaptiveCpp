@@ -30,6 +30,7 @@
 
 #include <vector>
 #include "../operations.hpp"
+#include "../util.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -43,11 +44,11 @@ public:
 
   cost_type estimate_runtime_cost(const memory_location &source,
                                   const memory_location &dest,
-                                  sycl::range<3> num_elements) const;
+                                  range<3> num_elements) const;
 
   memory_location
   choose_source(const std::vector<memory_location> &candidate_sources,
-                const memory_location &target, sycl::range<3> num_elements) const;
+                const memory_location &target, range<3> num_elements) const;
 
 };
 

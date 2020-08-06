@@ -33,10 +33,7 @@
 
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
-
-
+#include "hipSYCL/runtime/util.hpp"
 
 #include "backend.hpp"
 
@@ -58,6 +55,7 @@ public:
 
   virtual backend_id get_backend() const = 0;
   virtual kernel_type get_kernel_type() const = 0;
+  virtual void set_params(void*) = 0;
   virtual void invoke() = 0;
 };
 

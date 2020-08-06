@@ -59,14 +59,14 @@ bool is_memory_requirement(const dag_node_ptr& node)
   return true;
 }
 
-bool access_ranges_overlap(sycl::id<3> offset_a, sycl::range<3> range_a,
-                          sycl::id<3> offset_b, sycl::range<3> range_b)
+bool access_ranges_overlap(id<3> offset_a, range<3> range_a,
+                          id<3> offset_b, range<3> range_b)
 {
-  sycl::id<3> a_min = offset_a;
-  sycl::id<3> a_max = offset_a + sycl::id<3>{range_a[0],range_a[1],range_a[2]};
+  id<3> a_min = offset_a;
+  id<3> a_max = offset_a + id<3>{range_a[0],range_a[1],range_a[2]};
 
-  sycl::id<3> b_min = offset_b;
-  sycl::id<3> b_max = offset_b + sycl::id<3>{range_b[0],range_b[1],range_b[2]};
+  id<3> b_min = offset_b;
+  id<3> b_max = offset_b + id<3>{range_b[0],range_b[1],range_b[2]};
 
   for(int dim = 0; dim < 3; ++dim){
     if(std::max(a_min[dim], b_min[dim]) > std::min(a_max[dim], b_max[dim]))
@@ -76,14 +76,14 @@ bool access_ranges_overlap(sycl::id<3> offset_a, sycl::range<3> range_a,
 }
 
 // Tests if the access range a is >= the access range described by b.
-bool access_range_is_greater_or_equal(sycl::id<3> offset_a, sycl::range<3> range_a,
-                                    sycl::id<3> offset_b, sycl::range<3> range_b)
+bool access_range_is_greater_or_equal(id<3> offset_a, range<3> range_a,
+                                      id<3> offset_b, range<3> range_b)
 
 {
-  sycl::id<3> a_min = offset_a;
-  sycl::id<3> b_min = offset_b;
-  sycl::id<3> a_max = a_min + sycl::id<3>{range_a[0],range_a[1],range_a[2]};
-  sycl::id<3> b_max = b_min + sycl::id<3>{range_b[0],range_b[1],range_b[2]};
+  id<3> a_min = offset_a;
+  id<3> b_min = offset_b;
+  id<3> a_max = a_min + id<3>{range_a[0],range_a[1],range_a[2]};
+  id<3> b_max = b_min + id<3>{range_b[0],range_b[1],range_b[2]};
 
   for(int dim = 0; dim < 3; ++dim) {
     if(a_min[dim] > b_min[dim])
@@ -469,7 +469,7 @@ void dag_expander::expand(
           // Make sure an allocation exists on the target device
           if (!data->has_allocation(target_device)) {
             buffer_data_region::allocation_function allocator =
-                [target_device](sycl::range<3> num_elements,
+                [target_device](range<3> num_elements,
                                 std::size_t element_size) -> void * {
               
               // TODO: Find out optimal minimum alignment

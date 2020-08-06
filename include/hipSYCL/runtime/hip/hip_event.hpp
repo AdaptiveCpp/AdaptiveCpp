@@ -29,8 +29,7 @@
 #define HIPSYCL_HIP_EVENT_HPP
 
 #include "../event.hpp"
-
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hip_target.hpp"
 
 namespace hipsycl {
 namespace rt {

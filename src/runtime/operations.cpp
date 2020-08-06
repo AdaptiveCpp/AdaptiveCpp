@@ -78,7 +78,7 @@ const std::vector<dag_node_ptr>& requirements_list::get() const
 { return _reqs; }
 
 memory_location::memory_location(
-    device_id d, sycl::id<3> access_offset,
+    device_id d, id<3> access_offset,
     std::shared_ptr<buffer_data_region> data_region)
     : _dev{d}, _offset{access_offset},
       _allocation_shape{data_region->get_num_elements()},
@@ -88,8 +88,8 @@ memory_location::memory_location(
 
 
 memory_location::memory_location(device_id d, void *base_ptr,
-                                 sycl::id<3> access_offset,
-                                 sycl::range<3> allocation_shape,
+                                 id<3> access_offset,
+                                 range<3> allocation_shape,
                                  std::size_t element_size)
     : _dev{d}, _offset{access_offset}, _allocation_shape{allocation_shape},
       _element_size{element_size}, _has_data_region{false}, _raw_data{base_ptr}
@@ -98,9 +98,9 @@ memory_location::memory_location(device_id d, void *base_ptr,
 device_id memory_location::get_device() const
 { return _dev; }
 
-sycl::id<3> memory_location::get_access_offset() const { return _offset; }
+id<3> memory_location::get_access_offset() const { return _offset; }
 
-sycl::range<3> memory_location::get_allocation_shape() const
+range<3> memory_location::get_allocation_shape() const
 { return _allocation_shape; }
 
 std::size_t memory_location::get_element_size() const { return _element_size; }
@@ -140,7 +140,7 @@ void *memory_location::get_access_ptr() const {
 
 memcpy_operation::memcpy_operation(const memory_location &source,
                                    const memory_location &dest,
-                                   sycl::range<3> num_source_elements)
+                                   range<3> num_source_elements)
     : _source{source}, _dest{dest}, _num_elements{num_source_elements} {}
 
 
@@ -149,7 +149,7 @@ std::size_t memcpy_operation::get_num_transferred_bytes() const
   return _source.get_element_size() * _num_elements.size();
 }
 
-sycl::range<3> memcpy_operation::get_num_transferred_elements() const {
+range<3> memcpy_operation::get_num_transferred_elements() const {
   return this->_num_elements;
 }
 

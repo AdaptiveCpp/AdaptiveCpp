@@ -285,7 +285,7 @@ public:
   omp_kernel_launcher() {}
   virtual ~omp_kernel_launcher(){}
 
-  void set_params() {}
+  virtual void set_params(void*) override {}
 
   template <class KernelName, rt::kernel_type type, int Dim, class Kernel>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,

@@ -29,9 +29,8 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/util.hpp"
-
-#include "hipSYCL/glue/hip/hip_kernel_launcher.hpp"
 
 #include <cassert>
 #include <memory>
@@ -146,7 +145,7 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
     assert(false && "Unknown copy source platform");
 
 
-  sycl::range<3> transfer_range = op.get_num_transferred_elements();
+  range<3> transfer_range = op.get_num_transferred_elements();
 
   int dimension = 0;
   if (transfer_range[0] > 1)
@@ -183,8 +182,8 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
 result hip_queue::submit_kernel(const kernel_operation &op) {
 
   this->activate_device();
-  glue::hip_kernel_launcher *l = cast<glue::hip_kernel_launcher>(
-      op.get_launcher().find_launcher(backend_id::hip));
+  rt::backend_kernel_launcher *l = 
+      op.get_launcher().find_launcher(backend_id::hip);
 
   l->set_params(this);
   l->invoke();

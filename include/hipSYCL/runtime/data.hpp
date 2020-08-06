@@ -37,10 +37,9 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
 #include "dag_node.hpp"
 #include "device_id.hpp"
+#include "util.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -50,7 +49,7 @@ void generic_pointer_free(device_id, void*);
 class range_store
 {
 public:
-  using rect = std::pair<sycl::id<3>,sycl::range<3>>;
+  using rect = std::pair<id<3>, range<3>>;
 
   enum class data_state : char
   {
@@ -58,13 +57,13 @@ public:
     available,
   };
 
-  range_store(sycl::range<3> size);
+  range_store(range<3> size);
 
   void add(const rect& r);
   
   void remove(const rect& r);
 
-  sycl::range<3> get_size() const;
+  range<3> get_size() const;
 
   void intersections_with(const rect& r, 
                           data_state desired_state,
@@ -88,9 +87,9 @@ public:
 
 private:
   template<class Entry_selection_predicate>
-  sycl::range<3> find_max_contiguous_rect_extent(
-    sycl::id<3> begin,
-    sycl::id<3> search_range_end,
+  range<3> find_max_contiguous_rect_extent(
+    id<3> begin,
+    id<3> search_range_end,
     Entry_selection_predicate p) const
   {
     // Find out length of longest contiguous row
@@ -107,19 +106,19 @@ private:
     if(_size[0] > 1)
       x_size = find_x_size(begin, search_range_end, z_size, y_size, p);
 
-    return sycl::range<3>{x_size, y_size, z_size};
+    return range<3>{x_size, y_size, z_size};
     
   }
 
   template<class Entry_selection_predicate>
-  size_t find_x_size(sycl::id<3> begin,
-                     sycl::id<3> search_range_end,
+  size_t find_x_size(id<3> begin,
+                     id<3> search_range_end,
                      size_t z_size,
                      size_t y_size,
                      Entry_selection_predicate p) const
   {
     for(size_t x_offset = 0; x_offset < search_range_end[0]-begin[0]; ++x_offset){
-      sycl::id<3> surface_begin = begin;
+      id<3> surface_begin = begin;
       surface_begin[0] += x_offset;
 
       if(find_y_size(surface_begin, search_range_end, z_size, p) != y_size){
@@ -130,13 +129,13 @@ private:
   }
 
   template<class Entry_selection_predicate>
-  size_t find_y_size(sycl::id<3> begin,
-                    sycl::id<3> search_range_end,
+  size_t find_y_size(id<3> begin,
+                    id<3> search_range_end,
                     size_t z_size,
                     Entry_selection_predicate p) const
   {
     for(size_t y_offset = 0; y_offset < search_range_end[1]-begin[1]; ++y_offset){
-      sycl::id<3> row_begin = begin;
+      id<3> row_begin = begin;
       row_begin[1] += y_offset;
 
       if(find_z_size(row_begin, search_range_end, p) != z_size){
@@ -147,8 +146,8 @@ private:
   }
 
   template<class Entry_selection_predicate>
-  size_t find_z_size(sycl::id<3> begin,
-                    sycl::id<3> search_range_end,
+  size_t find_z_size(id<3> begin,
+                    id<3> search_range_end,
                     Entry_selection_predicate p) const
   {
     size_t base_pos = get_index(begin);
@@ -170,10 +169,10 @@ private:
       for(size_t y = r.first[1]; y < r.second[1]+r.first[1]; ++y){
         for(size_t z = r.first[2]; z < r.second[2]+r.first[2]; ++z){
 
-          sycl::id<3> idx{x,y,z};
+          id<3> idx{x,y,z};
           size_t pos = get_index(idx);
           assert(pos < v.size());
-          f(sycl::id<3>{x,y,z}, v[pos]);
+          f(id<3>{x,y,z}, v[pos]);
         }
       }
     }
@@ -188,10 +187,10 @@ private:
       for(size_t y = r.first[1]; y < r.second[1]+r.first[1]; ++y){
         for(size_t z = r.first[2]; z < r.second[2]+r.first[2]; ++z){
 
-          sycl::id<3> idx{x,y,z};
+          id<3> idx{x,y,z};
           size_t pos = get_index(idx);
           assert(pos < v.size());
-          f(sycl::id<3>{x,y,z}, v[pos]);
+          f(id<3>{x,y,z}, v[pos]);
         }
       }
     }
@@ -205,13 +204,13 @@ private:
   void for_each_element_in_range(const rect& r, Function f)
   { for_each_element_in_range(r, _contained_data, f); }
 
-  size_t get_index(sycl::id<3> pos) const
+  size_t get_index(id<3> pos) const
   {
     return pos[0] * _size[1] * _size[2] + pos[1] * _size[2] + pos[2]; 
   }
 
   std::vector<data_state> _contained_data;
-  sycl::range<3> _size;
+  range<3> _size;
 };
 
 
@@ -220,8 +219,8 @@ struct data_user
   dag_node_ptr user;
   sycl::access::mode mode;
   sycl::access::target target;
-  sycl::id<3> offset;
-  sycl::range<3> range;
+  id<3> offset;
+  rt::range<3> range;
 };
 
 
@@ -253,8 +252,8 @@ public:
   void add_user(dag_node_ptr user, 
                 sycl::access::mode mode, 
                 sycl::access::target target, 
-                sycl::id<3> offset, 
-                sycl::range<3> range);
+                id<3> offset, 
+                range<3> range);
 private:
   std::vector<data_user> _users;
   mutable std::mutex _lock;
@@ -274,9 +273,9 @@ template<class Memory_descriptor = void*>
 class data_region
 {
 public:
-  using page_range = std::pair<sycl::id<3>, sycl::range<3>>;
+  using page_range = std::pair<id<3>, range<3>>;
   using allocation_function = std::function<Memory_descriptor(
-      sycl::range<3> num_elements, std::size_t element_size)>;
+      range<3> num_elements, std::size_t element_size)>;
 
   using destruction_handler = std::function<void(data_region*)>;
 
@@ -285,7 +284,7 @@ public:
   /// dimension must be a multiple of the page size
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
-  data_region(sycl::range<3> num_elements, std::size_t element_size,
+  data_region(range<3> num_elements, std::size_t element_size,
               std::size_t page_size,
               destruction_handler on_destruction = [](data_region*){})
       : _element_size{element_size}, _num_elements{num_elements},
@@ -346,7 +345,7 @@ public:
         d, memory_context, range_store{_num_pages}, takes_ownership});
 
     _allocations.back().invalid_pages.add(
-        std::make_pair(sycl::id<3>{0, 0, 0}, _num_pages));
+        std::make_pair(id<3>{0, 0, 0}, _num_pages));
   }
 
   void add_nonempty_allocation(const device_id &d,
@@ -358,7 +357,7 @@ public:
     _allocations.push_back(data_allocation{
       d, memory_context, range_store{_num_pages}, takes_ownership});
     _allocations.back().invalid_pages.remove(
-        std::make_pair(sycl::id<3>{0,0,0},_num_pages));
+        std::make_pair(id<3>{0,0,0},_num_pages));
   }
 
   void remove_allocation(const device_id& d)
@@ -369,22 +368,22 @@ public:
 
   /// Converts an offset into the data buffer (in element numbers) and the
   /// data length (in element numbers) into an equivalent \c page_range.
-  page_range get_page_range(sycl::id<3> data_offset,
-                            sycl::range<3> data_range) const
+  page_range get_page_range(id<3> data_offset,
+                            range<3> data_range) const
   {
-    sycl::id<3> page_begin{0,0,0};
+    id<3> page_begin{0,0,0};
     
     for(int i = 0; i < 3; ++i)
       page_begin[i] =  data_offset[i] / _page_size;
 
-    sycl::id<3> page_end = page_begin;
+    id<3> page_end = page_begin;
 
     for (int i = 0; i < 3; ++i)
       page_end[i] =
           (data_offset[i] + data_range[i] + _page_size - 1) / _page_size;
     
 
-    sycl::range<3> page_range{1,1,1};
+    range<3> page_range{1,1,1};
     for (int i = 0; i < 3; ++i)
       page_range[i] = page_end[i] - page_begin[i];
 
@@ -392,8 +391,8 @@ public:
   }
 
   /// Marks an allocation range on a give device as not invalidated
-  void mark_range_valid(const device_id &d, sycl::id<3> data_offset,
-                        sycl::range<3> data_size)
+  void mark_range_valid(const device_id &d, id<3> data_offset,
+                        range<3> data_size)
   {
     page_range pr = get_page_range(data_offset, data_size);
 
@@ -405,8 +404,8 @@ public:
   
   /// Marks an allocation range on a given device most recent
   void mark_range_current(const device_id& d,
-      sycl::id<3> data_offset,
-      sycl::range<3> data_size)
+      id<3> data_offset,
+      range<3> data_size)
   {
     page_range pr = get_page_range(data_offset, data_size);
 
@@ -421,16 +420,16 @@ public:
   }
 
   void get_outdated_regions(const device_id& d,
-                            sycl::id<3> data_offset,
-                            sycl::range<3> data_size,
+                            id<3> data_offset,
+                            range<3> data_size,
                             std::vector<range_store::rect>& out) const
   {
     assert(has_allocation(d));
 
     // Convert byte offsets/sizes to page ranges
     page_range pr = get_page_range(data_offset, data_size);
-    sycl::id<3> first_page = pr.first;
-    sycl::range<3> num_pages = pr.second;
+    id<3> first_page = pr.first;
+    range<3> num_pages = pr.second;
 
     // Find outdated regions among pages
     auto allocation = find_allocation(d);
@@ -501,7 +500,7 @@ public:
 
   std::size_t get_element_size() const { return _element_size; }
 
-  sycl::range<3> get_num_elements() const { return _num_elements; }
+  range<3> get_num_elements() const { return _num_elements; }
 
   Memory_descriptor get_memory(device_id dev) const
   {
@@ -509,8 +508,8 @@ public:
     return find_allocation(dev)->memory;
   }
 
-  bool has_initialized_content(sycl::id<3> data_offset,
-                               sycl::range<3> data_range) const {
+  bool has_initialized_content(id<3> data_offset,
+                               range<3> data_range) const {
     page_range pr = get_page_range(data_offset, data_range);
 
     for (auto &alloc : _allocations) {
@@ -568,8 +567,8 @@ private:
   }
 
   std::size_t _page_size;
-  sycl::range<3> _num_pages;
-  sycl::range<3> _num_elements;
+  range<3> _num_pages;
+  range<3> _num_elements;
 
   data_user_tracker _user_tracker;
 };

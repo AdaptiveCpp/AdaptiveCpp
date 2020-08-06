@@ -32,17 +32,18 @@
 #include <vector>
 #include <memory>
 #include <hipSYCL/runtime/data.hpp>
+#include <hipSYCL/runtime/util.hpp>
 
 using namespace hipsycl;
 
 BOOST_FIXTURE_TEST_SUITE(data, shutdown_runtime)
 BOOST_AUTO_TEST_CASE(page_table) {
-  rt::range_store::rect full_range{sycl::id<3>{0, 0, 0},
-                                   sycl::range<3>{16, 16, 16}};
-  rt::range_store::rect fill_subrange{sycl::id<3>{2, 3, 4},
-                                      sycl::range<3>{4, 4, 4}};
-  rt::range_store::rect intersection_subrange(sycl::id<3>{2, 2, 2},
-                                              sycl::range<3>{4, 4, 4});
+  rt::range_store::rect full_range{rt::id<3>{0, 0, 0},
+                                   rt::range<3>{16, 16, 16}};
+  rt::range_store::rect fill_subrange{rt::id<3>{2, 3, 4},
+                                      rt::range<3>{4, 4, 4}};
+  rt::range_store::rect intersection_subrange(rt::id<3>{2, 2, 2},
+                                              rt::range<3>{4, 4, 4});
 
   struct input_configuration {
     rt::range_store::rect page_table_size;
@@ -54,11 +55,11 @@ BOOST_AUTO_TEST_CASE(page_table) {
   // TODO Test more configurations
   std::vector<input_configuration> configurations {
     {
-      rt::range_store::rect{sycl::id<3>{0, 0, 0}, sycl::range<3>{16, 16, 16}},
-      rt::range_store::rect{sycl::id<3>{2, 3, 4}, sycl::range<3>{4, 4, 4}},
-      rt::range_store::rect{sycl::id<3>{2, 2, 2}, sycl::range<3>{4, 4, 4}},
+      rt::range_store::rect{rt::id<3>{0, 0, 0}, rt::range<3>{16, 16, 16}},
+      rt::range_store::rect{rt::id<3>{2, 3, 4}, rt::range<3>{4, 4, 4}},
+      rt::range_store::rect{rt::id<3>{2, 2, 2}, rt::range<3>{4, 4, 4}},
       {
-        rt::range_store::rect{sycl::id<3>{2,3,4}, sycl::range<3>{4,3,2}}
+        rt::range_store::rect{rt::id<3>{2,3,4}, rt::range<3>{4,3,2}}
       }
     }
   };

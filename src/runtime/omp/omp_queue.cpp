@@ -33,7 +33,6 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
-#include "hipSYCL/glue/omp/omp_kernel_launcher.hpp"
 #include <memory>
 
 namespace hipsycl {
@@ -81,8 +80,8 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
 result omp_queue::submit_kernel(const kernel_operation &op) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
-  glue::omp_kernel_launcher *launcher = cast<glue::omp_kernel_launcher>(
-      op.get_launcher().find_launcher(_backend_id));
+  rt::backend_kernel_launcher *launcher = 
+      op.get_launcher().find_launcher(_backend_id);
 
   if(!launcher) {
     return register_error(

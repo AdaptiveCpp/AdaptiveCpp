@@ -36,7 +36,7 @@ namespace rt {
 cost_type
 memcpy_model::estimate_runtime_cost(const memory_location &source,
                                     const memory_location &dest,
-                                    sycl::range<3> num_elements) const
+                                    range<3> num_elements) const
 {
   // Strongly prefer transfers from the same device to the same device
   if(source.get_device() == dest.get_device())
@@ -51,7 +51,7 @@ memcpy_model::estimate_runtime_cost(const memory_location &source,
 
 memory_location memcpy_model::choose_source(
     const std::vector<memory_location> &candidate_sources,
-    const memory_location &target, sycl::range<3> num_elements) const 
+    const memory_location &target, range<3> num_elements) const 
 {
   std::size_t best_transfer_index = 0;
   cost_type best_cost = std::numeric_limits<cost_type>::max();

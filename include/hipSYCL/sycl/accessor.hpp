@@ -592,8 +592,10 @@ private:
     {
       rt::dag_build_guard build{rt::application::dag()};
 
-      auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-          data, _offset, _range, accessmode, accessTarget);
+      auto explicit_requirement =
+          rt::make_operation<rt::buffer_memory_requirement>(
+              data, rt::make_id(_offset), rt::make_range(_range), accessmode,
+              accessTarget);
 
       this->bind_to(
           rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get()));

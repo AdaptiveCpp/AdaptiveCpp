@@ -21,10 +21,10 @@ int main()
 {
   // OP: buffer Memory requirement 
   std::cout << "Dumping memory requirement buffers: " << std::endl << std::endl;
-  hipsycl::sycl::range<3> c(10, 0, 0);
+  hipsycl::rt::range<3> c(10, 0, 0);
   auto data_region_ptr = std::make_shared<buffer_data_region>(c, 10, 10);
-  hipsycl::sycl::id<3> offset(10, 0, 0);
-  hipsycl::sycl::range<3> range(100, 0, 0);
+  hipsycl::rt::id<3> offset(10, 0, 0);
+  hipsycl::rt::range<3> range(100, 0, 0);
   std::size_t size = 30;
   buffer_memory_requirement test_buffer(data_region_ptr, offset, range, 
       hipsycl::sycl::access::mode::read_write,
@@ -32,8 +32,8 @@ int main()
   test_buffer.dump(std::cout);
 
   auto data_region_ptr_2 = std::make_shared<buffer_data_region>(c, 10, 10);
-  hipsycl::sycl::id<3> offset_2(5, 0, 0);
-  hipsycl::sycl::range<3> range_2(100, 0, 0);
+  hipsycl::rt::id<3> offset_2(5, 0, 0);
+  hipsycl::rt::range<3> range_2(100, 0, 0);
   std::size_t size_2 = 14;
   buffer_memory_requirement test_buffer_2(data_region_ptr_2, offset_2, range_2, 
       hipsycl::sycl::access::mode::read,
@@ -51,8 +51,8 @@ int main()
 
   // Memory Location 
   device_id test_device;
-  hipsycl::sycl::id<3> access_offset(1, 1, 1);
-  hipsycl::sycl::id<3> access_offset_2(2, 2, 2);
+  hipsycl::rt::id<3> access_offset(1, 1, 1);
+  hipsycl::rt::id<3> access_offset_2(2, 2, 2);
   memory_location mem_loc_1(test_device, access_offset, data_region_ptr);
   memory_location mem_loc_2(test_device, access_offset_2, data_region_ptr);
   //mem_loc_1.dump_short(std::cout);

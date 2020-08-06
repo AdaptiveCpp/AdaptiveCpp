@@ -91,7 +91,8 @@ public:
     }
 
     auto req = std::make_unique<rt::buffer_memory_requirement>(
-        data_region, offset, range, accessMode, accessTarget);
+        data_region, rt::make_id(offset), rt::make_range(range), accessMode,
+        accessTarget);
 
     // Bind the accessor's deferred pointer to the requirement, such that
     // the scheduler is able to initialize the accessor's data pointer
@@ -426,7 +427,7 @@ private:
                                         data_src};
     // Assume dest element size and allocation shape is the same as src
     rt::memory_location dest_location{dev, extract_ptr(dest),
-                                      sycl::id<3>{}, data_src->get_num_elements(),
+                                      rt::id<3>{}, data_src->get_num_elements(),
                                       data_src->get_element_size()};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
@@ -461,7 +462,7 @@ private:
 
     // Assume same element size and allocation shape as for dest
     rt::memory_location source_location{dev, extract_ptr(src),
-                                      sycl::id<3>{}, data_dest->get_num_elements(),
+                                      rt::id<3>{}, data_dest->get_num_elements(),
                                       data_dest->get_element_size()};
     rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
                                       data_dest};

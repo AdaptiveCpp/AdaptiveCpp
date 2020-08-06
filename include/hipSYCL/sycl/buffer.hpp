@@ -156,7 +156,7 @@ struct buffer_impl
 
       auto explicit_requirement =
           rt::make_operation<rt::buffer_memory_requirement>(
-              data, sycl::id<3>{}, data->get_num_elements(),
+              data, rt::id<3>{}, data->get_num_elements(),
               sycl::access::mode::read, sycl::access::target::host_buffer);
 
       rt::execution_hints enforce_bind_to_host;
@@ -587,7 +587,8 @@ private:
     auto on_destruction = [](rt::buffer_data_region* data) {};
 
     _impl->data = std::make_shared<rt::buffer_data_region>(
-        rt::embed_in_range3(range), sizeof(T), page_size, on_destruction);
+        rt::embed_in_range3(range), sizeof(T), page_size,
+        on_destruction);
   }
 
   void preallocate_host_buffer()

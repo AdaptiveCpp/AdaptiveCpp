@@ -59,11 +59,6 @@ U* cast(T* val)
 
 template <int Dim> class static_array {
 public:
-  template <class Compatible_type>
-  static_array(const Compatible_type &other) {
-    for (int i = 0; i < Dim; ++i)
-      _data[i] = other[i];
-  }
 
   static_array() = default;
   static_array(const static_array &other) : _data{other._data} {}
@@ -172,7 +167,35 @@ range<3> embed_in_range3(range<Dim> r) {
   } else if constexpr(Dim == 3) {
     return r;
   }
+}
 
+template <template <int> class CompatibleArray, int Dim>
+static_array<Dim> make_static_array(CompatibleArray<Dim> a) {
+  static_array<Dim> d;
+  for (int i = 0; i < Dim; ++i) {
+    d[i] = a[i];
+  }
+  return d;
+}
+
+template <template <int> class CompatibleId, int Dim>
+id<Dim> make_id(CompatibleId<Dim> v) {
+  return make_static_array(v);
+}
+
+template <template <int> class CompatibleRange, int Dim>
+range<Dim> make_range(CompatibleRange<Dim> v) {
+  return make_static_array(v);
+}
+
+template <template <int> class CompatibleId, int Dim>
+id<3> embed_in_id3(CompatibleId<Dim> idx) {
+  return embed_in_id3(make_static_array(idx));
+}
+
+template <template <int> class CompatibleId, int Dim>
+range<3> embed_in_range3(CompatibleId<Dim> idx) {
+  return embed_in_range3(make_static_array(idx));
 }
 
 }

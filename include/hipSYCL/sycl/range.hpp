@@ -32,8 +32,10 @@
 #include <type_traits>
 #include <array>
 
+#include "backend/backend.hpp"
 #include "id.hpp"
 #include "detail/device_array.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -214,17 +216,18 @@ dimensions==3 */
     return result; \
   }
 
-// OP is: +, -, *, /, %, <<, >>, &, |, ˆ
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(+)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(-)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(*)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(/)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(%)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(<<)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(>>)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(&)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(|)
-HIPSYCL_RANGE_BINARY_OP_SIZE_T(^)
+  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(+)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(-)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(*)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(/)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(%)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(<<)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(>>)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(&)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(|)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(^)
+
 private:
   detail::device_array<size_t, dimensions> _data;
 

@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_ID_HPP
 #define HIPSYCL_ID_HPP
 
+#include "hipSYCL/runtime/util.hpp"
 #include "detail/device_array.hpp"
 #include <cassert>
 #include <type_traits>
@@ -222,17 +223,17 @@ struct id {
     return result; \
   }
 
-// OP is: +, -, *, /, %, <<, >>, &, |, ˆ
-HIPSYCL_ID_BINARY_OP_SIZE_T(+)
-HIPSYCL_ID_BINARY_OP_SIZE_T(-)
-HIPSYCL_ID_BINARY_OP_SIZE_T(*)
-HIPSYCL_ID_BINARY_OP_SIZE_T(/)
-HIPSYCL_ID_BINARY_OP_SIZE_T(%)
-HIPSYCL_ID_BINARY_OP_SIZE_T(<<)
-HIPSYCL_ID_BINARY_OP_SIZE_T(>>)
-HIPSYCL_ID_BINARY_OP_SIZE_T(&)
-HIPSYCL_ID_BINARY_OP_SIZE_T(|)
-HIPSYCL_ID_BINARY_OP_SIZE_T(^)
+  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ
+  HIPSYCL_ID_BINARY_OP_SIZE_T(+)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(-)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(*)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(/)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(%)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(<<)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(>>)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(&)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(|)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(^)
 
 private:
   detail::device_array<std::size_t, dimensions> _data;

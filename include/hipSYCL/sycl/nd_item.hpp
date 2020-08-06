@@ -180,6 +180,12 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
+  sub_group get_sub_group() const
+  {
+    return sub_group{};
+  }
+
+  HIPSYCL_KERNEL_TARGET
   range<dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO

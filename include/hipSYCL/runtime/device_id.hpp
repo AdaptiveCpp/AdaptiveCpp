@@ -69,6 +69,9 @@ struct backend_descriptor
       id = backend_id::openmp_cpu;
     else if (sw_plat == api_platform::hip)
       id = backend_id::hip;
+    else if (hw_plat == hardware_platform::cuda &&
+             sw_plat == api_platform::cuda)
+      id = backend_id::cuda;
     else
       assert(false && "Invalid combination of hardware/software platform for "
                       "backend descriptor.");

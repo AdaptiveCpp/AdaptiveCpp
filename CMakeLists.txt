@@ -111,7 +111,8 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
-set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
+
+set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")

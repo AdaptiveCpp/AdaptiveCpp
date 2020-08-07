@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#ifndef HIPSYCL_CUDA_RUNTIME_HPP
+#define HIPSYCL_CUDA_RUNTIME_HPP
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../allocator.hpp"
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+class cuda_allocator : public backend_allocator 
+{
+public:
+  cuda_allocator(int cuda_device);
+
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+
+  virtual void *allocate_optimized_host(size_t min_alignment,
+                                        size_t bytes) override {
+    return allocate(min_alignment, bytes);
+  };
+  
+  virtual void free(void *mem) override;
+
+  virtual void *allocate_usm(size_t bytes) override;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+
+private:
+  int _dev;
+};
 
 }
 }

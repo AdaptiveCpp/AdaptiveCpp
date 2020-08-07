@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#include <cuda_runtime_api.h>
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+cuda_device_manager::cuda_device_manager() {
+  auto err = cudaGetDevice(&_device);
+
+  if (err != cudaSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_device_manager: Could not obtain currently active CUDA device",
+            error_code{"CUDA", err}});
+  }
+}
+
+void cuda_device_manager::activate_device(int device_id)
+{
+  if (_device != device_id) {
+    auto err = cudaSetDevice(device_id);
+
+    if (err != cudaSuccess){
+    register_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_device_manager: Could not set active CUDA device",
+            error_code{"CUDA", err}});
+    }
+  }
+}
+
+int cuda_device_manager::get_active_device() const
+{
+  return _device;
+}
 
 }
 }
-
-#endif

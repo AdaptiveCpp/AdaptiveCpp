@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#ifndef HIPSYCL_CUDA_DEVICE_MANAGER_HPP
+#define HIPSYCL_CUDA_DEVICE_MANAGER_HPP
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+/// Manages setting the active device *in the hipSYCL worker thread*
+/// It assumes:
+/// * There are no external calls to hipSetDevice() from the user in the calling thread
+/// * It is only called by one thread, i.e. no thread-safety required
+class cuda_device_manager
+{
+public:
+  cuda_device_manager();
+  void activate_device(int device_id);
+  int get_active_device() const;
+
+  static cuda_device_manager &get() {
+    static cuda_device_manager instance;
+    return instance;
+  }
+private:
+  int _device;
+};
 
 }
 }

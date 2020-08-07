@@ -25,65 +25,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/hip/hip_allocator.hpp"
-#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-hip_allocator::hip_allocator(int hip_device)
-    : _dev{hip_device}
+
+cuda_node_event::cuda_node_event(device_id dev, cudaEvent_t evt)
+: _dev{dev}, _evt{evt}
 {}
-      
-void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
+
+cuda_node_event::~cuda_node_event()
 {
-  void *ptr;
-  auto err = hipSetDevice(_dev);
-  err = hipMalloc(&ptr, size_bytes);
-
-  if (err != hipSuccess) {
+  auto err = cudaEventDestroy(_evt);
+  if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipMalloc() failed",
-                              error_code{"HIP", err},
-                              error_type::memory_allocation_error});
-    return nullptr;
-  }
-
-  return ptr;
-}
-
-void hip_allocator::free(void *mem)
-{
-  auto err = hipFree(mem);
-  if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipFree() failed",
-                              error_code{"HIP", err},
-                              error_type::memory_allocation_error});
+                   error_info{"cuda_node_event: Couldn't destroy event",
+                              error_code{"CUDA", err}});
   }
 }
 
-void * hip_allocator::allocate_usm(size_t bytes)
+bool cuda_node_event::is_complete() const
 {
-  void *ptr;
-  auto err = hipMallocManaged(&ptr, bytes);
-  if (err != hipSuccess) {
+  cudaError_t err = cudaEventQuery(_evt);
+  if (err != cudaErrorNotReady && err != cudaSuccess) {
     register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipMallocManaged() failed",
-                              error_code{"HIP", err},
-                              error_type::memory_allocation_error});
-    return nullptr;
+                   error_info{"cuda_node_event: Couldn't query event status",
+                              error_code{"CUDA", err}});
   }
-
-  return ptr;
+  return err == cudaSuccess;
 }
 
-bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
+void cuda_node_event::wait()
 {
-  // TODO: Formulate this better - this assumes that either CUDA+CPU or
-  // ROCm + CPU are active at the same time
-  return true;
+  auto err = cudaEventSynchronize(_evt);
+  if (err != cudaSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"cuda_node_event: cudaEventSynchronize() failed",
+                              error_code{"CUDA", err}});
+  }
+}
+
+cudaEvent_t cuda_node_event::get_event() const
+{
+  return _evt;
+}
+
+device_id cuda_node_event::get_device() const
+{
+  return _dev;
 }
 
 }

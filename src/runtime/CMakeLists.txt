@@ -26,12 +26,12 @@ set(HIPSYCL_SOURCES
 
 if(WITH_CUDA_BACKEND)
   set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
-    hip/hip_event.cpp
-    hip/hip_queue.cpp
-    hip/hip_allocator.cpp
-    hip/hip_device_manager.cpp
-    hip/hip_hardware_manager.cpp
-    hip/hip_backend.cpp)
+    cuda/cuda_event.cpp
+    cuda/cuda_queue.cpp
+    cuda/cuda_allocator.cpp
+    cuda/cuda_device_manager.cpp
+    cuda/cuda_hardware_manager.cpp
+    cuda/cuda_backend.cpp)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -61,10 +61,12 @@ add_library(hipSYCL-rt SHARED ${HIPSYCL_SOURCES})
 target_include_directories(hipSYCL-rt PRIVATE ${INCLUDE_DIRS})
 
 if(WITH_CUDA_BACKEND)
-  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_HIP_BACKEND=1 HIPSYCL_RT_HIP_TARGET_CUDA=1)
+  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_CUDA_BACKEND=1)
   target_include_directories(hipSYCL-rt PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include ${HIPSYCL_SOURCE_DIR}/contrib/HIP/include/)
   target_link_libraries(hipSYCL-rt PRIVATE ${CUDA_LIBRARIES})
-elseif(WITH_ROCM_BACKEND) # currently ROCm and CUDA cannot be active at the same time
+endif()
+
+if(WITH_ROCM_BACKEND) 
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_HIP_BACKEND=1 HIPSYCL_RT_HIP_TARGET_ROCM=1)
   target_include_directories(hipSYCL-rt PRIVATE ${ROCM_PATH}/include)
 endif()

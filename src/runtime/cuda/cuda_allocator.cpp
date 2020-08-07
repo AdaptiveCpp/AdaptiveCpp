@@ -25,27 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/hip/hip_allocator.hpp"
-#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include <cuda_runtime_api.h>
+
+#include "hipSYCL/runtime/cuda/cuda_allocator.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-hip_allocator::hip_allocator(int hip_device)
-    : _dev{hip_device}
+cuda_allocator::cuda_allocator(int cuda_device)
+    : _dev{cuda_device}
 {}
       
-void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
+void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
-  auto err = hipSetDevice(_dev);
-  err = hipMalloc(&ptr, size_bytes);
+  auto err = cudaSetDevice(_dev);
+  err = cudaMalloc(&ptr, size_bytes);
 
-  if (err != hipSuccess) {
+  if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipMalloc() failed",
-                              error_code{"HIP", err},
+                   error_info{"cuda_allocator: cudaMalloc() failed",
+                              error_code{"CUDA", err},
                               error_type::memory_allocation_error});
     return nullptr;
   }
@@ -53,25 +55,25 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
   return ptr;
 }
 
-void hip_allocator::free(void *mem)
+void cuda_allocator::free(void *mem)
 {
-  auto err = hipFree(mem);
-  if (err != hipSuccess) {
+  auto err = cudaFree(mem);
+  if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipFree() failed",
-                              error_code{"HIP", err},
+                   error_info{"cuda_allocator: cudaFree() failed",
+                              error_code{"CUDA", err},
                               error_type::memory_allocation_error});
   }
 }
 
-void * hip_allocator::allocate_usm(size_t bytes)
+void * cuda_allocator::allocate_usm(size_t bytes)
 {
   void *ptr;
-  auto err = hipMallocManaged(&ptr, bytes);
-  if (err != hipSuccess) {
+  auto err = cudaMallocManaged(&ptr, bytes);
+  if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
-                   error_info{"hip_allocator: hipMallocManaged() failed",
-                              error_code{"HIP", err},
+                   error_info{"cuda_allocator: cudaMallocManaged() failed",
+                              error_code{"CUDA", err},
                               error_type::memory_allocation_error});
     return nullptr;
   }
@@ -79,7 +81,7 @@ void * hip_allocator::allocate_usm(size_t bytes)
   return ptr;
 }
 
-bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
+bool cuda_allocator::is_usm_accessible_from(backend_descriptor b) const
 {
   // TODO: Formulate this better - this assumes that either CUDA+CPU or
   // ROCm + CPU are active at the same time

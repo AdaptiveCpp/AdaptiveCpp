@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#include <vector>
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../backend.hpp"
+#include "../multi_queue_executor.hpp"
+
+#include "cuda_allocator.hpp"
+#include "cuda_queue.hpp"
+#include "cuda_hardware_manager.hpp"
+
+#ifndef HIPSYCL_CUDA_BACKEND_HPP
+#define HIPSYCL_CUDA_BACKEND_HPP
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+
+class cuda_backend : public backend
+{
+public:
+  cuda_backend();
+  virtual api_platform get_api_platform() const override;
+  virtual hardware_platform get_hardware_platform() const override;
+  virtual backend_id get_unique_backend_id() const override;
+  
+  virtual backend_hardware_manager* get_hardware_manager() const override;
+  virtual backend_executor* get_executor(device_id dev) const override;
+  virtual backend_allocator *get_allocator(device_id dev) const override;
+
+  virtual ~cuda_backend(){}
+
+private:
+  mutable cuda_hardware_manager _hw_manager;
+  mutable multi_queue_executor _executor;
+  mutable std::vector<cuda_allocator> _allocators;
+};
 
 }
 }
+
 
 #endif

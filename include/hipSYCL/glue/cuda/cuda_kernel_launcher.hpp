@@ -25,18 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#ifndef HIPSYCL_CUDA_KERNEL_LAUNCHER_HPP
+#define HIPSYCL_CUDA_KERNEL_LAUNCHER_HPP
 
 #include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/cuda/cuda_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
 namespace hipsycl {
 namespace glue {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+using cuda_kernel_launcher =
+    hiplike_kernel_launcher<rt::backend_id::cuda, rt::cuda_queue>;
 
 }
 }

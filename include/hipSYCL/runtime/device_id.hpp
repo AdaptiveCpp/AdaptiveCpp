@@ -42,14 +42,14 @@ enum class hardware_platform
   cpu
 };
 
-enum class api_platform
-{
+enum class api_platform {
+  cuda,
   hip,
   openmp_cpu
 };
 
-enum class backend_id
-{
+enum class backend_id {
+  cuda,
   hip,
   openmp_cpu
 };

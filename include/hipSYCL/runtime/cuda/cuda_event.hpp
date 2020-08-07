@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#ifndef HIPSYCL_CUDA_EVENT_HPP
+#define HIPSYCL_CUDA_EVENT_HPP
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../event.hpp"
+#include <cuda_runtime_api.h>
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+/// Manages a hipEvent_t.
+class cuda_node_event : public dag_node_event
+{
+public:
+  /// Takes ownership of supplied hipEvent_t. \c evt Must
+  /// have been properly initialized and recorded.
+  cuda_node_event(device_id dev, cudaEvent_t evt);
+  ~cuda_node_event();
+
+  virtual bool is_complete() const override;
+  virtual void wait() override;
+
+  cudaEvent_t get_event() const;
+  device_id get_device() const;
+private:
+  device_id _dev;
+  cudaEvent_t _evt;
+};
 
 }
 }
+
 
 #endif

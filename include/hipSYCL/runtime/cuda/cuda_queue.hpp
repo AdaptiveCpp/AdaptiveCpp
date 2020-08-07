@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,18 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
-#define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
+#ifndef HIPSYCL_CUDA_QUEUE_HPP
+#define HIPSYCL_CUDA_QUEUE_HPP
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
-#include "hipSYCL/runtime/hip/hip_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "../executor.hpp"
+#include "../inorder_queue.hpp"
+#include <cuda_runtime_api.h>
 
 namespace hipsycl {
-namespace glue {
+namespace rt {
 
-using hip_kernel_launcher =
-    hiplike_kernel_launcher<rt::backend_id::hip, rt::hip_queue>;
+
+class cuda_queue : public inorder_queue
+{
+public:
+  cuda_queue(device_id dev);
+
+  cudaStream_t get_stream() const;
+
+  virtual ~cuda_queue();
+
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() override;
+
+  virtual result submit_memcpy(const memcpy_operation&) override;
+  virtual result submit_kernel(const kernel_operation&) override;
+  virtual result submit_prefetch(const prefetch_operation&) override;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue must be from the same backend
+  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_external_wait_for(dag_node_ptr node) override;
+
+private:
+  void activate_device() const;
+  
+  device_id _dev;
+  cudaStream_t _stream;
+};
 
 }
 }

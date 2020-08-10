@@ -242,20 +242,22 @@ result submit_requirement(dag_node_ptr req) {
     // create dummy event
     req->mark_virtually_submitted();
   }
-  else {
-    execute_if_buffer_requirement(
-        req, [&](buffer_memory_requirement *bmem_req) {
-          if (access_mode == sycl::access::mode::read) {
-            bmem_req->get_data_region()->mark_range_valid(
-                req->get_assigned_device(), bmem_req->get_access_offset3d(),
-                bmem_req->get_access_range3d());
-          } else {
-            bmem_req->get_data_region()->mark_range_current(
-                req->get_assigned_device(), bmem_req->get_access_offset3d(),
-                bmem_req->get_access_range3d());
-          }
-        });
-  }
+  // This must be executed even if the requirement did
+  // not result in actual operations in order to make sure
+  // that regions are valid after discard accesses 
+  execute_if_buffer_requirement(
+      req, [&](buffer_memory_requirement *bmem_req) {
+        if (access_mode == sycl::access::mode::read) {
+          bmem_req->get_data_region()->mark_range_valid(
+              req->get_assigned_device(), bmem_req->get_access_offset3d(),
+              bmem_req->get_access_range3d());
+        } else {
+          bmem_req->get_data_region()->mark_range_current(
+              req->get_assigned_device(), bmem_req->get_access_offset3d(),
+              bmem_req->get_access_range3d());
+        }
+      });
+
   
   return make_success();
 }

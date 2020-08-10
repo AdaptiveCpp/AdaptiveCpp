@@ -589,7 +589,7 @@ private:
     this->_range = range;
     // TODO properly set page size and expose configurable page size
     // to user
-    std::size_t page_size = range.size();
+    rt::range<3> page_size = rt::embed_in_range3(range);
 
     auto on_destruction = [](rt::buffer_data_region* data) {};
 

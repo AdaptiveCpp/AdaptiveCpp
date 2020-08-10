@@ -285,18 +285,17 @@ public:
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
   data_region(range<3> num_elements, std::size_t element_size,
-              std::size_t page_size,
+              range<3> page_size,
               destruction_handler on_destruction = [](data_region*){})
       : _element_size{element_size}, _num_elements{num_elements},
         _page_size{page_size}, _on_destruction{on_destruction}, _is_fork{false} {
 
     unset_id();
 
-    assert(page_size > 0);
-
-    for(int i = 0; i < 3; ++i){
+    for(std::size_t i = 0; i < 3; ++i){
+      assert(page_size[i] > 0);
       if(num_elements[i] != 1)
-        assert(num_elements[i] % page_size == 0);
+        assert(num_elements[i] % page_size[i] == 0);
     }
     
     _num_pages = num_elements / page_size;
@@ -374,13 +373,13 @@ public:
     id<3> page_begin{0,0,0};
     
     for(int i = 0; i < 3; ++i)
-      page_begin[i] =  data_offset[i] / _page_size;
+      page_begin[i] =  data_offset[i] / _page_size[i];
 
     id<3> page_end = page_begin;
 
     for (int i = 0; i < 3; ++i)
       page_end[i] =
-          (data_offset[i] + data_range[i] + _page_size - 1) / _page_size;
+          (data_offset[i] + data_range[i] + _page_size[i] - 1) / _page_size[i];
     
 
     range<3> page_range{1,1,1};
@@ -439,8 +438,8 @@ public:
     // Convert back to num elements
     for(range_store::rect& r : out) {
       for(int i = 0; i < 3; ++i) {
-        r.first[i] *= _page_size;
-        r.second[i] *= _page_size;
+        r.first[i] *= _page_size[i];
+        r.second[i] *= _page_size[i];
       }
     }
   }
@@ -566,7 +565,7 @@ private:
     });
   }
 
-  std::size_t _page_size;
+  range<3> _page_size;
   range<3> _num_pages;
   range<3> _num_elements;
 

@@ -38,15 +38,33 @@ namespace rt {
 dag_node::dag_node(const execution_hints &hints,
                    const std::vector<dag_node_ptr> &requirements,
                    std::unique_ptr<operation> op)
-    : _hints{hints}, _requirements{requirements}, _assigned_executor{nullptr},
-      _event{nullptr}, _operation{std::move(op)}, _is_submitted{false},
-      _is_complete{false}, _node_id{std::numeric_limits<std::size_t>::max()} {}
+    : _hints{hints}, _requirements{requirements},
+      _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
+      _is_submitted{false}, _is_complete{false}, _is_virtual{false},
+      _node_id{std::numeric_limits<std::size_t>::max()} {}
 
 bool dag_node::is_submitted() const { return _is_submitted; }
 
-bool dag_node::is_complete() const { return _is_complete; }
+bool dag_node::is_complete() const {
+  if (_is_complete)
+    // If we already know that we are complete we don't
+    // need to ask the event
+    return true;
+  if (!_is_submitted)
+    // If we are not submitted yet, the event won't exist yet,
+    // so prevent invalid accesses
+    return false;
+
+  // Remember if we are complete
+  if (get_event()->is_complete()) {
+    _is_complete = true;
+  }
+  return _is_complete;
+}
 
 bool dag_node::is_cancelled() const { return _is_cancelled; }
+
+bool dag_node::is_virtual() const { return _is_virtual; }
 
 void dag_node::mark_submitted(std::shared_ptr<dag_node_event> completion_evt)
 {
@@ -54,10 +72,19 @@ void dag_node::mark_submitted(std::shared_ptr<dag_node_event> completion_evt)
   this->_is_submitted = true;
 }
 
+void dag_node::mark_virtually_submitted()
+{
+  _is_virtual = true;
+  std::vector<std::shared_ptr<dag_node_event>> events;
+  for (auto req : get_requirements()) {
+    assert(req->is_submitted());
+    events.push_back(req->get_event());
+  }
+  mark_submitted(std::make_shared<dag_multi_node_event>(events));
+}
+    
 void dag_node::cancel() {
-  this->_event = std::make_unique<dag_multi_node_event>(
-      std::vector<std::shared_ptr<dag_node_event>>{});
-  this->_is_submitted = true;
+  mark_virtually_submitted();
   this->_is_complete = true;
   this->_is_cancelled = true;
 }
@@ -116,6 +143,7 @@ void dag_node::wait() const
   while (!_is_submitted);
 
   _event->wait();
+  _is_complete = true;
 }
 
 void dag_node::assign_node_id(std::size_t id) {
@@ -136,6 +164,21 @@ dag_node::get_event() const{
 std::size_t dag_node::get_node_id() const {
   assert(has_node_id());
   return _node_id;
+}
+
+void dag_node::for_each_nonvirtual_requirement(
+    std::function<void(dag_node_ptr)> handler) const {
+  
+  if (is_complete())
+    return;
+  
+  for (auto req : get_requirements()) {
+    if (!req->is_virtual()) {
+      handler(req);
+    } else {
+      req->for_each_nonvirtual_requirement(handler);
+    }
+  }
 }
 
 }

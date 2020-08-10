@@ -33,19 +33,34 @@
 namespace hipsycl {
 namespace rt {
 
+namespace {
+
+void erase_completed_nodes(std::vector<dag_node_ptr> &ops) {
+  ops.erase(std::remove_if(
+                ops.begin(), ops.end(),
+                [&](dag_node_ptr node) -> bool { return node->is_complete(); }),
+            ops.end());
+}
+}
+
 void dag_submitted_ops::update_with_submission(const dag_interpreter &dag) {
   std::lock_guard lock{_lock};
 
-  _ops.erase(std::remove_if(_ops.begin(), _ops.end(),
-                            [&](dag_node_ptr node) -> bool {
-                              return node->is_complete();
-                            }),
-             _ops.end());
+  erase_completed_nodes(_ops);
   
   dag.for_each_effective_node([this](dag_node_ptr node){
     assert(node->is_submitted());
     _ops.push_back(node);
   });
+}
+
+void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {
+  std::lock_guard lock{_lock};
+
+  erase_completed_nodes(_ops);
+
+  assert(single_node->is_submitted());
+  _ops.push_back(single_node);
 }
 
 void dag_submitted_ops::wait_for_all() {

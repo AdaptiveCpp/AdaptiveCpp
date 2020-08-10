@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_RT_SETTINGS_HPP
 #define HIPSYCL_RT_SETTINGS_HPP
 
+#include <ios>
 #include <optional>
 #include <string>
 #include <cstdlib>
@@ -37,7 +38,21 @@
 namespace hipsycl {
 namespace rt {
 
-enum class setting { debug_level };
+enum class scheduler_type { direct, predictive };
+
+inline std::istream &operator>>(std::istream &istr, scheduler_type &out) {
+  std::string str;
+  istr >> str;
+  if (str == "direct")
+    out = scheduler_type::direct;
+  else if (str == "predictive")
+    out = scheduler_type::predictive;
+  else
+    istr.setstate(std::ios_base::failbit);
+  return istr;
+}
+
+enum class setting { debug_level, scheduler_type };
 
 template <setting S> struct setting_trait {};
 
@@ -48,13 +63,15 @@ template <setting S> struct setting_trait {};
   };
 
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::debug_level, "debug_level", int)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::scheduler_type, "rt_scheduler", scheduler_type)
 
 class settings
 {
 public:
   template <setting S>
+  [[deprecated]]
   typename setting_trait<S>::type
-  get_or_default(typename setting_trait<S>::type default_value) const {
+  get_or_default(typename setting_trait<S>::type default_value) const{
     if (has_setting<S>()) {
       return get<S>();
     }
@@ -64,6 +81,8 @@ public:
   template <setting S> typename setting_trait<S>::type get() const {
     if constexpr(S == setting::debug_level){
       return _debug_level.value();
+    } else if constexpr (S == setting::scheduler_type) {
+      return _scheduler_type.value();
     }
     return typename setting_trait<S>::type{};
   }
@@ -79,6 +98,9 @@ public:
 #endif
     _debug_level = get_environment_variable_or_default<setting::debug_level>(
         default_debug_level);
+    _scheduler_type =
+        get_environment_variable_or_default<setting::scheduler_type>(
+            scheduler_type::direct);
   }
 
 private:
@@ -91,8 +113,12 @@ private:
       std::stringstream sstr{std::string{env}};
       sstr >> val;
 
-      if (sstr.fail() || sstr.bad())
+      if (sstr.fail() || sstr.bad()) {
+        std::cerr << "hipSYCL prelaunch: Could not parse value of environment "
+                     "variable: "
+                  << get_environment_variable_name<S>() << std::endl;
         return default_value;
+      }
       return val;
     }
     return default_value;
@@ -113,6 +139,7 @@ private:
   }
 
   std::optional<int> _debug_level;
+  std::optional<scheduler_type> _scheduler_type;
 };
 
 }

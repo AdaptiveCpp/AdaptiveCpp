@@ -78,8 +78,11 @@ private:
                              const data_user &user) const;
 
   dag_node_ptr build_node(std::unique_ptr<operation> op,
-                          const requirements_list& requirements,
-                          const execution_hints& hints);
+                          const requirements_list &requirements,
+                          const execution_hints &hints);
+  dag_node_ptr add_command_group(std::unique_ptr<operation> op,
+                                const requirements_list& requirements,
+                                const execution_hints& hints = {});
 
   mutable std::mutex _mutex;
   dag _current_dag;

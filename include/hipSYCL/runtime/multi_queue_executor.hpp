@@ -64,10 +64,13 @@ public:
   backend_execution_lane_range
   get_kernel_execution_lane_range(device_id dev) const override;
 
+  virtual void submit_dag(
+      const dag_interpreter &interpreter, const dag_enumerator &enumerator,
+      const std::vector<node_scheduling_annotation> &annotations) override;
+
   virtual void
-  submit_dag(const dag_interpreter &interpreter,
-             const dag_enumerator &enumerator,
-             const std::vector<node_scheduling_annotation> &annotations) override;
+  submit_directly(dag_node_ptr node, operation *op,
+                  const std::vector<dag_node_ptr> &reqs) override;
 
   // The create_event_* functions will typically be called
   // * by the scheduler, to implement features such as profiling;

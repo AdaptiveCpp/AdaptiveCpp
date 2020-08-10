@@ -46,8 +46,9 @@ result::result(result&& other) noexcept
 : _impl{std::move(other._impl)}
 {}
 
-result& result::operator=(result other){
-  swap(*this, other);
+result &result::operator=(const result &other) {
+  result r = other;
+  swap(*this, r);
   return *this;
 }
 
@@ -100,6 +101,9 @@ result register_error(
   return res;
 }
 
+void register_error(const result &err) {
+  application::get_runtime().errors().add(err);
+}
 
 }
 }

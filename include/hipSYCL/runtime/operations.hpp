@@ -38,6 +38,7 @@
 #include "device_id.hpp"
 #include "kernel_launcher.hpp"
 #include "util.hpp"
+#include "error.hpp"
 #include "hw_model/cost.hpp"
 
 #include <cstring>
@@ -64,9 +65,9 @@ class prefetch_operation;
 class operation_dispatcher
 {
 public:
-  virtual void dispatch_kernel(kernel_operation* op) = 0;
-  virtual void dispatch_memcpy(memcpy_operation* op) = 0;
-  virtual void dispatch_prefetch(prefetch_operation* op) = 0;
+  virtual result dispatch_kernel(kernel_operation* op) = 0;
+  virtual result dispatch_memcpy(memcpy_operation* op) = 0;
+  virtual result dispatch_prefetch(prefetch_operation* op) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -79,8 +80,9 @@ public:
   virtual bool is_requirement() const { return false; }
   virtual bool is_data_transfer() const { return false; }
   virtual void dump(std::ostream&, int = 0) const = 0;
-
-  virtual void dispatch(operation_dispatcher* dispatch) = 0;
+  virtual bool has_preferred_backend(backend_id& out) const { return false; }
+  
+  virtual result dispatch(operation_dispatcher* dispatch) = 0;
 };
 
 
@@ -92,8 +94,10 @@ public:
   virtual bool is_requirement() const final override
   { return true; }
 
-  virtual void dispatch(operation_dispatcher* dispatch) final override
-  { assert(false && "Cannot dispatch implicit requirements"); }
+  virtual result dispatch(operation_dispatcher *dispatch) final override {
+    assert(false && "Cannot dispatch implicit requirements");
+    return make_success();
+  }
 
   virtual ~requirement(){}
 };
@@ -103,8 +107,7 @@ class memory_requirement : public requirement
 public:
   virtual ~memory_requirement() {}
 
-  virtual bool is_memory_requirement() const final override
-  { return true; }
+  virtual bool is_memory_requirement() const final override { return true; }
 
   virtual std::size_t get_required_size() const = 0;
   virtual bool is_image_requirement() const = 0;
@@ -268,8 +271,8 @@ public:
 
   void dump(std::ostream & ostr, int indentation=0) const override;
 
-  void dispatch(operation_dispatcher* dispatcher) override {
-    dispatcher->dispatch_kernel(this);
+  result dispatch(operation_dispatcher* dispatcher) override {
+    return dispatcher->dispatch_kernel(this);
   }
 
 private:
@@ -339,10 +342,20 @@ public:
   const memory_location &dest() const;
 
   virtual bool is_data_transfer() const final override;
-  virtual void dispatch(operation_dispatcher* op) final override {
-    op->dispatch_memcpy(this);
+  virtual result dispatch(operation_dispatcher* op) final override {
+    return op->dispatch_memcpy(this);
   }
-  void dump(std::ostream &ostr, int indentation=0) const override final;
+  void dump(std::ostream &ostr, int indentation = 0) const override final;
+
+  virtual bool has_preferred_backend(backend_id &out) const override {
+    if (_source.get_device().get_full_backend_descriptor().hw_platform !=
+        hardware_platform::cpu)
+      out = _source.get_device().get_backend();
+    else
+      out = _dest.get_device().get_backend();
+    
+    return true;
+  }
 private:
   memory_location _source;
   memory_location _dest;

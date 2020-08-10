@@ -54,8 +54,10 @@ public:
   bool is_submitted() const;
   bool is_complete() const;
   bool is_cancelled() const;
-
+  bool is_virtual() const;
+  
   void mark_submitted(std::shared_ptr<dag_node_event> completion_evt);
+  void mark_virtually_submitted();
   void cancel();
 
   void assign_to_executor(backend_executor* ctx);
@@ -88,6 +90,9 @@ public:
   std::size_t get_node_id() const;
 
   std::shared_ptr<dag_node_event> get_event() const;
+
+  void for_each_nonvirtual_requirement(std::function<void(dag_node_ptr)>
+                                           handler) const;
 private:
   execution_hints _hints;
   std::vector<dag_node_ptr> _requirements;
@@ -95,12 +100,13 @@ private:
   device_id _assigned_device;
   backend_executor *_assigned_executor;
   std::size_t _assigned_execution_lane;
+  bool _is_virtual;
 
   std::shared_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;
 
   std::atomic<bool> _is_submitted;
-  std::atomic<bool> _is_complete;
+  mutable std::atomic<bool> _is_complete;
   std::atomic<bool> _is_cancelled;
 
   std::size_t _node_id;

@@ -37,57 +37,16 @@
 namespace hipsycl {
 namespace rt {
 
-// Kernel execution
-void dag::add_kernel(dag_node_ptr kernel)
-{
-  _kernels.push_back(kernel);
+void dag::add_command_group(dag_node_ptr node) {
+  for (auto req : node->get_requirements()) {
+    if (req->get_operation()->is_requirement())
+      _memory_requirements.push_back(req);
+  }
+  _command_groups.push_back(node);
 }
 
-// Explicit copy operation - must be executed
-void dag::add_memcpy(dag_node_ptr memcpy)
-{
-  _memcopies.push_back(memcpy);
-}
-
-// Explicit fill
-void dag::add_fill(dag_node_ptr fill)
-{
-  _fills.push_back(fill);
-}
-
-// USM/SVM prefetch
-void dag::add_prefetch(dag_node_ptr prefetch)
-{
-  _prefetches.push_back(prefetch);
-}
-
-// memory requirements. DAGs that have requirements are not
-// executable until all requirements have been translated
-// into actual operations or removed.
-void dag::add_memory_requirement(dag_node_ptr requirement)
-{
-  _memory_requirements.push_back(requirement);
-}
-
-void dag::add(dag_node_ptr node)
-{
-  assert(node->get_operation());
-  if(dynamic_is<memory_requirement>(node->get_operation()))
-    add_memory_requirement(node);
-  else if(dynamic_is<prefetch_operation>(node->get_operation()))
-    add_prefetch(node);
-  else if(dynamic_is<kernel_operation>(node->get_operation()))
-    add_kernel(node);
-  else if(dynamic_is<memcpy_operation>(node->get_operation()))
-    add_memcpy(node);
-  else
-    assert(false && "Unknown operation");
-}
-
-const std::vector<dag_node_ptr>& 
-dag::get_kernels() const
-{
-  return _kernels;
+const std::vector<dag_node_ptr> &dag::get_command_groups() const {
+  return _command_groups;
 }
 
 const std::vector<dag_node_ptr>& 
@@ -107,27 +66,18 @@ bool dag::is_requirement_from_this_dag(const dag_node_ptr& node) const
 
 bool dag::contains_node(dag_node_ptr node) const
 {
-  if(std::find(_kernels.begin(), _kernels.end(), node) != _kernels.end())
+  if(std::find(_command_groups.begin(), _command_groups.end(), node) != _command_groups.end())
     return true;
-  if(std::find(_memcopies.begin(), _memcopies.end(), node) != _memcopies.end())
+  if(std::find(_memory_requirements.begin(), _memory_requirements.end(), node) != _memory_requirements.end())
     return true;
-  if(std::find(_fills.begin(), _fills.end(), node) != _fills.end())
-    return true;
-  if(std::find(_prefetches.begin(), _prefetches.end(), node) != _prefetches.end())
-    return true;
+
   return false;
 }
 
 void dag::for_each_node(std::function<void(dag_node_ptr)> handler) const
 {
-  std::for_each(_kernels.begin(), 
-                _kernels.end(), handler);
-  std::for_each(_memcopies.begin(), 
-                _memcopies.end(), handler);
-  std::for_each(_fills.begin(), 
-                _fills.end(), handler);
-  std::for_each(_prefetches.begin(), 
-                _prefetches.end(), handler);
+  std::for_each(_command_groups.begin(), 
+                _command_groups.end(), handler);
   std::for_each(_memory_requirements.begin(), 
                 _memory_requirements.end(), handler);
 }

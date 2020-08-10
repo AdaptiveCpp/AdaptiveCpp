@@ -17,6 +17,7 @@ set(HIPSYCL_SOURCES
   dag_enumerator.cpp
   dag_interpreter.cpp
   dag_scheduler.cpp
+  dag_direct_scheduler.cpp
   dag_time_table.cpp
   dag_manager.cpp
   dag_submitted_ops.cpp

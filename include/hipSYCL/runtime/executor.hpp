@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@ namespace rt {
 
 class dag_interpreter;
 class dag_enumerator;
+class dag_direct_scheduler;
 class node_scheduling_annotation;
 
 struct backend_execution_lane_range
@@ -67,6 +68,10 @@ public:
              const dag_enumerator &enumerator,
              const std::vector<node_scheduling_annotation> &annotations) = 0;
 
+  virtual void
+  submit_directly(dag_node_ptr node, operation *op,
+                  const std::vector<dag_node_ptr> &reqs) = 0;
+
   // The create_event_* functions will typically be called
   // * by the scheduler, to implement features such as profiling;
   // * by this (or another) backend_executor in order to implement
@@ -92,8 +97,7 @@ public:
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const = 0;
 
-  virtual std::unique_ptr<wait_for_external_node> 
-  create_wait_for_external_node(
+  virtual std::unique_ptr<wait_for_external_node> create_wait_for_external_node(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const = 0;

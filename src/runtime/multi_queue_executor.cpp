@@ -28,6 +28,7 @@
 #include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/dag_interpreter.hpp"
+#include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 
 #include <memory>
@@ -46,16 +47,16 @@ public:
 
   virtual ~queue_operation_dispatcher(){}
 
-  virtual void dispatch_kernel(kernel_operation* op) final override {
-    _queue->submit_kernel(*op);
+  virtual result dispatch_kernel(kernel_operation* op) final override {
+    return _queue->submit_kernel(*op);
   }
 
-  virtual void dispatch_memcpy(memcpy_operation* op) final override {
-    _queue->submit_memcpy(*op);
+  virtual result dispatch_memcpy(memcpy_operation* op) final override {
+    return _queue->submit_memcpy(*op);
   }
 
-  virtual void dispatch_prefetch(prefetch_operation* op) final override {
-    _queue->submit_prefetch(*op);
+  virtual result dispatch_prefetch(prefetch_operation* op) final override {
+    return _queue->submit_prefetch(*op);
   }
 
 private:
@@ -297,6 +298,68 @@ void multi_queue_executor::submit_node(
   // queue
   final_nodes[q] = node;
 }
+
+void multi_queue_executor::submit_directly(
+    dag_node_ptr node, operation *op,
+    const std::vector<dag_node_ptr> &reqs) {
+
+  assert(!op->is_requirement());
+
+  if (node->is_submitted())
+    return;
+
+  std::size_t op_target_lane;
+
+  if (op->is_data_transfer()) {
+    op_target_lane =
+        _device_data[node->get_assigned_device().get_id()].memcpy_lanes.begin;
+  } else {
+    op_target_lane =
+        _device_data[node->get_assigned_device().get_id()].kernel_lanes.begin;
+  }
+  node->assign_to_execution_lane(op_target_lane);
+
+  inorder_queue *q = _device_data[node->get_assigned_device().get_id()]
+                         .queues[op_target_lane]
+                         .get();
+
+  // Submit synchronization mechanisms
+  result res;
+  for (auto req : reqs) {
+    // The scheduler should not hand us virtual requirements
+    assert(!req->is_virtual());
+    assert(req->is_submitted());
+
+    if (req->get_assigned_executor() != this) {
+      res = q->submit_external_wait_for(req);
+    } else {
+      if (req->get_assigned_execution_lane() == op_target_lane) {
+        // Nothing to synchronize, the requirement was enqueued on the same
+        // inorder queue and will therefore be executed before
+        // the new node
+      } else {
+        assert(req->get_event());
+        res = q->submit_queue_wait_for(req->get_event());
+      }
+    }
+    if (!res.is_success()) {
+      register_error(res);
+      node->cancel();
+      return;
+    }
+  }
+
+  queue_operation_dispatcher dispatcher{q};
+  res = op->dispatch(&dispatcher);
+  if (!res.is_success()) {
+    register_error(res);
+    node->cancel();
+    return;
+  }
+
+  node->mark_submitted(q->insert_event());
+}
+
 
 
 }

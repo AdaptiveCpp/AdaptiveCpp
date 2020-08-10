@@ -104,8 +104,32 @@ void dag_manager::flush_async()
       }
 
       // Go!!!
-      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Submitting DAG to scheduler!" << std::endl;
-      _scheduler.submit(&new_dag);
+      scheduler_type stype =
+          application::get_settings().get<setting::scheduler_type>();
+      
+      if(stype == scheduler_type::predictive){
+
+        HIPSYCL_DEBUG_INFO
+            << "dag_manager [async]: Submitting DAG to predictive scheduler!"
+            << std::endl;
+        _predictive_scheduler.submit(&new_dag);
+
+      } else if (stype == scheduler_type::direct) {
+
+        if (new_dag.get_command_groups().size() != 1) {
+          register_error(__hipsycl_here(),
+                         error_info{"Direct scheduler can only operate on mini "
+                                    "DAGs containing exactly one command group",
+                                    error_type::feature_not_supported});
+          new_dag.for_each_node([](dag_node_ptr node) { node->cancel(); });
+        }
+        else {
+          HIPSYCL_DEBUG_INFO
+              << "dag_manager [async]: Submitting DAG to direct scheduler!"
+              << std::endl;
+          _direct_scheduler.submit(new_dag.get_command_groups().front());
+        }
+      }
     } else {
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
     }
@@ -131,12 +155,23 @@ void dag_manager::register_submitted_ops(const dag_interpreter &interpreter)
   this->_submitted_ops.update_with_submission(interpreter);
 }
 
+void dag_manager::register_submitted_ops(dag_node_ptr node) {
+  this->_submitted_ops.update_with_submission(node);
+}
+
 void dag_manager::trigger_flush_opportunity()
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: Checking DAG flush opportunity..."
                      << std::endl;
-  if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+
+  if (application::get_settings().get<setting::scheduler_type>() ==
+      scheduler_type::direct) {
+    // Direct scheduler always needs flushing
     flush_async();
+  } else {
+    if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+      flush_async();
+  }
 }
 
 }

@@ -47,26 +47,10 @@ namespace rt {
 class dag
 {
 public:
-  // Kernel execution
-  void add_kernel(dag_node_ptr kernel);
-  // Explicit copy operation - must be executed
-  void add_memcpy(dag_node_ptr memcpy);
-  // Explicit fill
-  void add_fill(dag_node_ptr fill);
-  // USM/SVM prefetch
-  void add_prefetch(dag_node_ptr prefetch);
-  // memory requirements. DAGs that have requirements are not
-  // executable until all requirements have been translated
-  // into actual operations or are removed.
-  void add_memory_requirement(dag_node_ptr requirement);
-  // Determines node type and adds accordingly by calling
-  // corresponding add_* function
-  void add(dag_node_ptr node);
+  void add_command_group(dag_node_ptr node);
 
-  const std::vector<dag_node_ptr>& get_kernels() const;
+  const std::vector<dag_node_ptr>& get_command_groups() const;
   const std::vector<dag_node_ptr>& get_memory_requirements() const;
-  
-  bool is_executable() const { return _memory_requirements.empty(); }
 
   using node_iterator = std::vector<dag_node_ptr>::iterator;
 
@@ -76,19 +60,14 @@ public:
 
   std::size_t num_nodes() const
   {
-    return _kernels.size() + _memcopies.size() + _fills.size() +
-           _prefetches.size() + _memory_requirements.size();
+    return _command_groups.size() + _memory_requirements.size();
   }
 
   bool is_requirement_from_this_dag(const dag_node_ptr &node) const;
 
   void dump(std::ostream& ostr) const;
 private:
-
-  std::vector<dag_node_ptr> _kernels;
-  std::vector<dag_node_ptr> _memcopies;
-  std::vector<dag_node_ptr> _fills;
-  std::vector<dag_node_ptr> _prefetches;
+  std::vector<dag_node_ptr> _command_groups;
   std::vector<dag_node_ptr> _memory_requirements;
 };
 

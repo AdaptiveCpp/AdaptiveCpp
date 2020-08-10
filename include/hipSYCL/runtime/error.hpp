@@ -151,7 +151,7 @@ public:
     std::swap(r1._impl, r2._impl);
   }
 
-  result& operator=(result other);
+  result& operator=(const result& other);
   result& operator=(result&& other);
 
   bool is_success() const;
@@ -187,6 +187,7 @@ inline result make_error(
 // Construct an error object and register in the error queue
 result register_error(
     const source_location &origin, const error_info &info);
+void register_error(const result& err);
 
 }
 }

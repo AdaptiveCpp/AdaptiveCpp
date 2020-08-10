@@ -93,11 +93,6 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   // Calculate additional requirements:
   // Iterate over all requirements and look for conflicting accesses
 
-  for(auto node : requirements.get()){
-    // Make sure to also add the requirements of the operation to the DAG
-    _current_dag.add(node);
-  }
-
   // For a given requirement, checks for conflicts and adds any
   // conflicting operations as dependencies
   auto add_conflicts_as_requirements = [&](dag_node_ptr req_node){
@@ -142,47 +137,41 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   return operation_node;
 }
 
-
-dag_node_ptr dag_builder::add_kernel(std::unique_ptr<operation> op,
-                                    const requirements_list& requirements,
-                                    const execution_hints& hints)
-{
-  assert_is<kernel_operation>(op.get());
+dag_node_ptr
+dag_builder::add_command_group(std::unique_ptr<operation> op,
+                               const requirements_list &requirements,
+                               const execution_hints &hints) {
 
   std::lock_guard<std::mutex> lock{_mutex};
-  
+
   auto node = this->build_node(std::move(op), requirements, hints);
-  _current_dag.add_kernel(node);
+  _current_dag.add_command_group(node);
 
   return node;
+}
+
+dag_node_ptr dag_builder::add_kernel(std::unique_ptr<operation> op,
+                                     const requirements_list &requirements,
+                                     const execution_hints &hints)
+{
+  assert_is<kernel_operation>(op.get());
+  return add_command_group(std::move(op), requirements, hints);
 }
 
 dag_node_ptr dag_builder::add_memcpy(std::unique_ptr<operation> op,
-                                    const requirements_list& requirements,
-                                    const execution_hints& hints)
+                                     const requirements_list &requirements,
+                                     const execution_hints &hints)
 {
   assert_is<memcpy_operation>(op.get());
-
-  std::lock_guard<std::mutex> lock{_mutex};
-  
-  auto node = this->build_node(std::move(op), requirements, hints);
-  _current_dag.add_memcpy(node);
-
-  return node;
+  return add_command_group(std::move(op), requirements, hints);
 }
 
 dag_node_ptr dag_builder::add_fill(std::unique_ptr<operation> op,
-                                  const requirements_list& requirements,
-                                  const execution_hints& hints)
+                                   const requirements_list &requirements,
+                                   const execution_hints &hints)
 {
   assert_is<kernel_operation>(op.get());
-
-  std::lock_guard<std::mutex> lock{_mutex};
-  
-  auto node = this->build_node(std::move(op), requirements, hints);
-  _current_dag.add_fill(node);
-
-  return node;
+  return add_command_group(std::move(op), requirements, hints);
 }
 
 dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
@@ -190,26 +179,15 @@ dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
                                       const execution_hints& hints)
 {
   assert_is<prefetch_operation>(op.get());
-
-  std::lock_guard<std::mutex> lock{_mutex};
-  
-  auto node = this->build_node(std::move(op), requirements, hints);
-  _current_dag.add_prefetch(node);
-
-  return node;
+  return add_command_group(std::move(op), requirements, hints);
 }
 
 dag_node_ptr dag_builder::add_explicit_mem_requirement(
     std::unique_ptr<operation> req,
     const requirements_list &requirements, const execution_hints &hints)
 {
-  std::lock_guard<std::mutex> lock{_mutex};
   assert_is<memory_requirement>(req.get());
-
-  auto node = this->build_node(std::move(req), requirements, hints);
-  _current_dag.add_memory_requirement(node);
-
-  return node;
+  return add_command_group(std::move(req), requirements, hints);
 }
 
 dag dag_builder::finish_and_reset()

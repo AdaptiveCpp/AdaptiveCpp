@@ -147,36 +147,43 @@ struct buffer_impl
   bool use_external_storage;
 
   ~buffer_impl() {
-    if(writes_back) {
-      HIPSYCL_DEBUG_INFO
-          << "buffer_impl::~buffer_impl: Preparing submission of writeback..."
-          << std::endl;
-      
-      rt::dag_build_guard build{rt::application::dag()};
+    if (writes_back) {
+      if (!writeback_ptr) {
+        HIPSYCL_DEBUG_WARNING
+            << "buffer_impl::~buffer_impl: Writeback was requested but "
+               "writeback pointer is null. Skipping write-back."
+            << std::endl;
+      } else {
+        HIPSYCL_DEBUG_INFO
+            << "buffer_impl::~buffer_impl: Preparing submission of writeback..."
+            << std::endl;
+        
+        rt::dag_build_guard build{rt::application::dag()};
 
-      auto explicit_requirement =
-          rt::make_operation<rt::buffer_memory_requirement>(
-              data, rt::id<3>{}, data->get_num_elements(),
-              sycl::access::mode::read, sycl::access::target::host_buffer);
+        auto explicit_requirement =
+            rt::make_operation<rt::buffer_memory_requirement>(
+                data, rt::id<3>{}, data->get_num_elements(),
+                sycl::access::mode::read, sycl::access::target::host_buffer);
 
-      rt::execution_hints enforce_bind_to_host;
-      enforce_bind_to_host.add_hint(
-          rt::make_execution_hint<rt::hints::bind_to_device>(
-              detail::get_host_device()));
+        rt::execution_hints enforce_bind_to_host;
+        enforce_bind_to_host.add_hint(
+            rt::make_execution_hint<rt::hints::bind_to_device>(
+                detail::get_host_device()));
 
-      build.builder()->add_explicit_mem_requirement(
-          std::move(explicit_requirement), rt::requirements_list{},
-          enforce_bind_to_host);
+        build.builder()->add_explicit_mem_requirement(
+            std::move(explicit_requirement), rt::requirements_list{},
+            enforce_bind_to_host);
 
-      // TODO what about writeback to external location set with
-      // set_final_data()? -> need to submit an explicit copy
-      // TODO Accessing the data allocations directly here is racy
-      // since they might be modified during a DAG flush operation
-      // simultaneously
-      if(data->has_allocation(get_host_device())){
-        if(data->get_memory(get_host_device()) != this->writeback_ptr){
-          assert(false && "Writing back to external locations (passed to "
-                          "buffer at construction) is unimplemented");
+        // TODO what about writeback to external location set with
+        // set_final_data()? -> need to submit an explicit copy
+        // TODO Accessing the data allocations directly here is racy
+        // since they might be modified during a DAG flush operation
+        // simultaneously
+        if(data->has_allocation(get_host_device())){
+          if(data->get_memory(get_host_device()) != this->writeback_ptr){
+            assert(false && "Writing back to external locations (not passed to "
+                            "buffer at construction) is unimplemented");
+          }
         }
       }
     }
@@ -648,6 +655,8 @@ private:
 
     _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
                                          false /*takes_ownership*/);
+    // Remember host_memory in case of potential write back
+    _impl->writeback_ptr = host_memory;
   }
 
 

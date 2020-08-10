@@ -29,7 +29,6 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
-#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/dag_interpreter.hpp"
@@ -48,7 +47,7 @@ dag_build_guard::~dag_build_guard()
 }
 
 dag_manager::dag_manager()
-: _builder{std::make_unique<dag_builder>(execution_hints{})}
+: _builder{std::make_unique<dag_builder>()}
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: DAG manager is alive!" << std::endl;
 }
@@ -116,18 +115,14 @@ void dag_manager::flush_async()
 
       } else if (stype == scheduler_type::direct) {
 
-        if (new_dag.get_command_groups().size() != 1) {
-          register_error(__hipsycl_here(),
-                         error_info{"Direct scheduler can only operate on mini "
-                                    "DAGs containing exactly one command group",
-                                    error_type::feature_not_supported});
-          new_dag.for_each_node([](dag_node_ptr node) { node->cancel(); });
-        }
-        else {
+        // This is okay because get_command_groups() returns
+        // the nodes in the order they were submitted. This
+        // makes it safe to submit them in this order to the direct scheduler.
+        for(auto node : new_dag.get_command_groups()){
           HIPSYCL_DEBUG_INFO
-              << "dag_manager [async]: Submitting DAG to direct scheduler!"
+              << "dag_manager [async]: Submitting node to direct scheduler!"
               << std::endl;
-          _direct_scheduler.submit(new_dag.get_command_groups().front());
+          _direct_scheduler.submit(node);
         }
       }
     } else {

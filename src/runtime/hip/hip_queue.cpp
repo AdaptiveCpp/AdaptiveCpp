@@ -182,9 +182,12 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
 result hip_queue::submit_kernel(const kernel_operation &op) {
 
   this->activate_device();
-  rt::backend_kernel_launcher *l = 
+  rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::hip);
-
+  
+  if (!l)
+    return register_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
+  
   l->set_params(this);
   l->invoke();
 

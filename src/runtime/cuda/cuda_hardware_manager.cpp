@@ -77,9 +77,7 @@ device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
                               "device detected."});
   }
 
-  hardware_platform hw_plat;
-
-  return device_id{backend_descriptor{hw_plat, api_platform::cuda},
+  return device_id{backend_descriptor{_hw_platform, api_platform::cuda},
                    static_cast<int>(index)};
 }
 

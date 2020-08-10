@@ -184,7 +184,8 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
   this->activate_device();
   rt::backend_kernel_launcher *l = 
       op.get_launcher().find_launcher(backend_id::cuda);
-
+  if (!l)
+    return register_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
   l->invoke();
 

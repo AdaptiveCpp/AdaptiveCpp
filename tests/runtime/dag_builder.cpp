@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
                    12345};
   
   hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(id));
-  rt::dag_builder builder{hints};
+  rt::dag_builder builder{};
 
   auto reqs = rt::requirements_list{};
   
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
       reqs);
   
   rt::dag_node_ptr node = builder.add_kernel(
-      std::move(dummy_kernel_op), reqs);
+      std::move(dummy_kernel_op), reqs, hints);
 
   rt::execution_hints& node_hints = node->get_execution_hints();
   BOOST_CHECK(node_hints.has_hint<rt::hints::bind_to_device>());

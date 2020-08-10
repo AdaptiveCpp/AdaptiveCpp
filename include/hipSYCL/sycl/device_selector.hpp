@@ -64,15 +64,6 @@ public:
 
 };
 
-namespace detail {
-class select_all_selector : public device_selector
-{
-public:
-  virtual ~select_all_selector(){}
-  virtual int operator()(const device &dev) const { return 1; }
-};
-
-} // namespace detail
 
 class error_selector : public device_selector
 {
@@ -80,26 +71,32 @@ public:
   virtual ~error_selector(){}
   virtual int operator()(const device& dev) const
   {
-    throw unimplemented{"hipSYCL presently only supports GPU platforms when using the CUDA and ROCm "
-                        "backends, and CPU platforms when compiling against hipCPU"};
+    throw unimplemented{"error_selector device selection invoked"};
   }
 };
 
-#ifdef __HIPCPU__
-using gpu_selector = error_selector;
-#else
-using gpu_selector = detail::select_all_selector;
-#endif
+class gpu_selector : public device_selector
+{
+public:
+  virtual ~gpu_selector() {}
+  virtual int operator()(const device &dev) const {
+    return dev.is_gpu();
+  }
+};
 
-#ifdef __HIPCPU__
-using cpu_selector = detail::select_all_selector;
-#else
-using cpu_selector = error_selector;
-#endif
+class cpu_selector : public device_selector
+{
+public:
+  virtual ~cpu_selector() {}
+  virtual int operator()(const device &dev) const {
+    return dev.is_cpu();
+  }
+};
 
 using host_selector = cpu_selector;
 
-#ifdef __HIPCPU__
+
+#ifdef HIPSYCL_PLATFORM_CPU
 using default_selector = host_selector;
 #else
 using default_selector = gpu_selector;

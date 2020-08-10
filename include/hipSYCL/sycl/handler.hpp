@@ -312,7 +312,10 @@ void set_args(Ts &&... args);
     // Merge new hint into default hints
     rt::execution_hints hints = _execution_hints;
     hints.overwrite_with(enforce_bind_to_host);
-    
+    assert(hints.has_hint<rt::hints::bind_to_device>());
+    assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
+           detail::get_host_device());
+
     rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
         std::move(explicit_requirement), _requirements, hints);
 

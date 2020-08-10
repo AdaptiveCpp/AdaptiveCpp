@@ -74,9 +74,7 @@ class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
 
-dag_builder::dag_builder(const execution_hints& dag_hints)
-: _hints{dag_hints}
-{}
+dag_builder::dag_builder(){}
 
 
 dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
@@ -84,11 +82,6 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
                                      const execution_hints& hints)
 {
   assert(op);
-  // Start with global hints for this dag builder
-  execution_hints operation_hints = _hints;
-  // merge in any hints specific to this operation,
-  // overwriting duplicates
-  operation_hints.overwrite_with(hints);
 
   // Calculate additional requirements:
   // Iterate over all requirements and look for conflicting accesses
@@ -124,7 +117,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   };
 
   auto operation_node = std::make_shared<dag_node>(
-      operation_hints, requirements.get(), std::move(op));
+      hints, requirements.get(), std::move(op));
   
   if(operation_node->get_operation()->is_requirement())
     add_conflicts_as_requirements(operation_node);

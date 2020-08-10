@@ -51,7 +51,7 @@ namespace rt {
 class dag_builder
 {
 public:
-  dag_builder(const execution_hints& dag_hints);
+  dag_builder();
 
   dag_node_ptr add_kernel(std::unique_ptr<operation> op,
                           const requirements_list& requirements,
@@ -86,7 +86,6 @@ private:
 
   mutable std::mutex _mutex;
   dag _current_dag;
-  execution_hints _hints;
 };
 
 

@@ -73,21 +73,17 @@ class queue : public detail::property_carrying_object
   friend class detail::automatic_placeholder_requirement_impl;
 
 public:
-  
   explicit queue(const property_list &propList = {})
-    : detail::property_carrying_object{propList},
-      _handler{[](exception_list e){ glue::default_async_handler(e); }}
-  {
-    this->init();
+      : queue{default_selector{},
+              [](exception_list e) { glue::default_async_handler(e); },
+              propList} {
+    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
   }
 
-  
   explicit queue(const async_handler &asyncHandler,
-              const property_list &propList = {})
-    : detail::property_carrying_object{propList},
-      _handler{asyncHandler}
-  {
-    this->init();
+                 const property_list &propList = {})
+      : queue{default_selector{}, asyncHandler, propList} {
+    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
   }
 
   explicit queue(const device_selector &deviceSelector,
@@ -201,12 +197,13 @@ public:
   event submit(T cgf) {
 
     handler cgh{*this, _handler, _default_hints};
-
+    
     this->get_hooks()->run_all(cgh);
 
     cgf(cgh);
 
     rt::dag_node_ptr node = this->extract_dag_node(cgh);
+    
     return event{node, _handler};
   }
 

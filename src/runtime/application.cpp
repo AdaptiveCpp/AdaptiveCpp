@@ -32,6 +32,7 @@
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 namespace hipsycl {
 namespace rt {
@@ -41,26 +42,28 @@ namespace {
 class rt_manager
 {
 public:
-
   void shutdown() {
-    std::lock_guard<std::mutex> lock{_lock};
-    _rt.reset();
+    // TODO Thread safety...
+    delete _rt;
+    _rt.store(nullptr);
   }
 
   void reset() {
     HIPSYCL_DEBUG_INFO << "rt_manager: Restarting runtime..." << std::endl;
-    
-    std::lock_guard<std::mutex> lock{_lock};
-    _rt.reset();
-    // TODO: Reset devices?
+
+    // TODO: This implementation has a curious side effect:
+    // When a reset of the runtime is triggered,
+    // operations still being processed will already run on
+    // the new runtime.
+    // There seems to be no easy way to around this
+    // that also avoids deadlocks? (see comment below)
+    runtime *old_rt = _rt.exchange(new runtime{});
+    if(old_rt)
+      delete old_rt;
   }
 
   runtime *get_runtime() {
-    std::lock_guard<std::mutex> lock{_lock};
-
-    if(!_rt)
-      _rt = std::make_unique<runtime>();
-    return _rt.get();
+    return _rt.load();
   }
 
   static rt_manager& get() {
@@ -70,9 +73,15 @@ public:
 
 
 private:
-  rt_manager() {}
-  std::unique_ptr<runtime> _rt;
-  mutable std::mutex _lock;
+  rt_manager() {
+    _rt.store(new runtime{});
+  }
+  // We cannot use a mutex since this can easily lead to a deadlock:
+  // during destruction of the runtime, the destructor waits for
+  // the async worker threads (processing scheduling) to finish.
+  // The scheduler however also needs to access the runtime to do its work
+  // -> deadlock
+  std::atomic<runtime*> _rt;
 };
 
 class global_settings

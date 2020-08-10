@@ -103,11 +103,6 @@ void worker_thread::work()
       {
         operation = _enqueued_operations.front();
         _enqueued_operations.pop();
-
-        HIPSYCL_DEBUG_INFO << "Async worker thread: Processing op, "
-                              "remaining queue size: "
-                  << _enqueued_operations.size()
-                  << std::endl;
       }
     }
 

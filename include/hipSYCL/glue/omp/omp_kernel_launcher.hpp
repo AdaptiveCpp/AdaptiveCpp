@@ -115,9 +115,9 @@ void parallel_for_kernel(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  const auto max_i = execution_range.get(0);
   const auto min_i = offset.get(0);
-
+  const auto max_i = execution_range.get(0)+min_i;
+  
   if constexpr(Dim == 1){
 #pragma omp parallel for
     for(size_t i = min_i; i < max_i; ++i){
@@ -127,10 +127,9 @@ void parallel_for_kernel(Function f,
 
       f(this_item);
     }
-  }
-  else if constexpr(Dim == 2){
-    const auto max_j = execution_range.get(1);
+  } else if constexpr (Dim == 2) {
     const auto min_j = offset.get(1);
+    const auto max_j = execution_range.get(1) + min_j;
 
 #pragma omp parallel for collapse(2)
     for(size_t i = min_i; i < max_i; ++i)
@@ -144,10 +143,10 @@ void parallel_for_kernel(Function f,
       }
   }
   else if constexpr(Dim == 3){
-    const auto max_j = execution_range.get(1);
-    const auto max_k = execution_range.get(2);
     const auto min_j = offset.get(1);
     const auto min_k = offset.get(2);
+    const auto max_j = execution_range.get(1)+min_j;
+    const auto max_k = execution_range.get(2)+min_k;
 #pragma omp parallel for collapse(3)
     for(size_t i = min_i; i < max_i; ++i)
       for(size_t j = min_j; j < max_j; ++j)

@@ -84,10 +84,10 @@ int main()
   //Memcpy
   
 
-  test_dag.add_kernel(node_ptr1);
-  test_dag.add_kernel(node_ptr2);
-  test_dag.add_kernel(node_ptr3);
-  test_dag.add_memcpy(node_memcpy1);
+  test_dag.add_command_group(node_ptr1);
+  test_dag.add_command_group(node_ptr2);
+  test_dag.add_command_group(node_ptr3);
+  test_dag.add_command_group(node_memcpy1);
   test_dag.dump(std::cout);
 
   std::cout << "***End of dumping tests***" << std::endl;

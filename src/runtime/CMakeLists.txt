@@ -81,6 +81,7 @@ if(WITH_CPU_BACKEND)
     target_include_directories(hipSYCL-rt PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
   endif()
 
+  target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_OMP_BACKEND=1)
 endif()
 

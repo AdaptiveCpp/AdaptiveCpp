@@ -202,26 +202,30 @@ protected:
   friend class sycl::handler;
 
   accessor_base()
-#ifndef SYCL_DEVICE_ONLY
   : _ptr{nullptr}
-#endif
   {}
 
-#ifndef SYCL_DEVICE_ONLY
-
+  HIPSYCL_HOST_TARGET
   void set_data_region(std::shared_ptr<rt::buffer_data_region> buff) {
+#ifndef SYCL_DEVICE_ONLY
     _buff = buff;
+#endif
   }
 
-  void bind_to(rt::buffer_memory_requirement* req) {
+  HIPSYCL_HOST_TARGET
+  void bind_to(rt::buffer_memory_requirement *req) {
+#ifndef SYCL_DEVICE_ONLY
     assert(req);
     _ptr = req->make_deferred_pointer<T>();
+#endif
   }
 
+  HIPSYCL_HOST_TARGET
   std::shared_ptr<rt::buffer_data_region> get_data_region() const {
+#ifndef SYCL_DEVICE_ONLY
     return _buff.get_shared_ptr();
-  }
 #endif
+  }
 
   mobile_buffer_ptr _buff;
   glue::deferred_pointer<T> _ptr;

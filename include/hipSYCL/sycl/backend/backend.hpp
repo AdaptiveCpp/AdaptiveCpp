@@ -77,7 +77,11 @@
 // lambdas - do we want to have __device__ as kernel target
 // in manual mode?
 #define HIPSYCL_KERNEL_TARGET __host__ __device__
-
+#ifdef HIPSYCL_PLATFORM_CPU
+#define HIPSYCL_HOST_TARGET
+#else
+#define HIPSYCL_HOST_TARGET __host__
+#endif
 
 #ifdef __HIP_DEVICE_COMPILE__
  // These macros are set if we are currently compiling for GPU.

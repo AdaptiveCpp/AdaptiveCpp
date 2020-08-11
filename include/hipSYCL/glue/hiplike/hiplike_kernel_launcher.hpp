@@ -84,7 +84,7 @@ __sycl_kernel
 void parallel_for_kernel(Function f,
                         sycl::range<dimensions> execution_range)
 {
-  device_invocation([=] __device__ () {
+  device_invocation([&] __host__ __device__ () {
     auto this_item = sycl::detail::make_item<dimensions>(
       sycl::detail::get_global_id<dimensions>(), execution_range);
     if(item_is_in_range(this_item, execution_range, sycl::id<dimensions>{}))
@@ -98,7 +98,7 @@ void parallel_for_kernel_with_offset(Function f,
                                     sycl::range<dimensions> execution_range,
                                     sycl::id<dimensions> offset)
 {
-  device_invocation([=] __device__() {
+  device_invocation([&] __host__ __device__() {
     auto this_item = sycl::detail::make_item<dimensions>(
         sycl::detail::get_global_id<dimensions>() + offset, execution_range, offset);
     if(item_is_in_range(this_item, execution_range, offset))
@@ -110,7 +110,7 @@ template<typename KernelName, class Function, int dimensions>
 __sycl_kernel
 void parallel_for_ndrange_kernel(Function f, sycl::id<dimensions> offset)
 {
-  device_invocation([=] __device__() {
+  device_invocation([&] __host__ __device__() {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     sycl::nd_item<dimensions> this_item{&offset};
 #else
@@ -133,7 +133,7 @@ void parallel_for_workgroup(Function f,
                             // since it allows the compiler to infer 'dimensions'
                             sycl::range<dimensions> logical_group_size)
 {
-  device_invocation([=] __device__() {
+  device_invocation([&] __host__ __device__() {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     sycl::group<dimensions> this_group;
 #else
@@ -153,7 +153,7 @@ void parallel_region(Function f,
                     sycl::range<dimensions> num_groups,
                     sycl::range<dimensions> group_size)
 {
-  device_invocation([=] __device__ () {
+  device_invocation([&] __host__ __device__ () {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     sycl::group<dimensions> this_group;
 #else
@@ -336,8 +336,8 @@ public:
 
         sycl::range<Dim> grid_range = global_range / local_range;
 
-        dim3 grid = range_to_dim3(grid_range);
-        dim3 block = range_to_dim3(local_range);
+        dim3 grid = hiplike_dispatch::range_to_dim3(grid_range);
+        dim3 block = hiplike_dispatch::range_to_dim3(local_range);
 
         __hipsycl_launch_kernel(hiplike_dispatch::parallel_region<KernelName>,
                                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid),
@@ -364,7 +364,8 @@ public:
     return _type;
   }
 
-  virtual ~hiplike_kernel_launcher(){}
+  virtual ~hiplike_kernel_launcher() {}
+  
 private:
   Queue_type *_queue;
   rt::kernel_type _type;

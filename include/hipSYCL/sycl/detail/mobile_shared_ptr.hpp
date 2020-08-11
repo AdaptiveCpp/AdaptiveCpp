@@ -83,12 +83,15 @@ public:
 
   // We cannot make this function available on device, since
   // it would pull shared_ptr_class<T> into device code.
+  HIPSYCL_HOST_TARGET
+  shared_ptr_class<T> get_shared_ptr() const {
 #ifndef SYCL_DEVICE_ONLY
-  shared_ptr_class<T> get_shared_ptr() const
-  {
     return _ptr;
-  }
+#else
+    return nullptr;
 #endif
+  }
+
 
 private:
 #ifdef SYCL_DEVICE_ONLY

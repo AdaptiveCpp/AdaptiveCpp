@@ -214,39 +214,31 @@ inline dim3 make_kernel_launch_range<3>(dim3 range)
   return dim3(range.z, range.y, range.x);
 }
 
+template <int dimensions>
+inline dim3 make_kernel_launch_range(sycl::range<dimensions> r) {
+  if(dimensions == 1)
+    return make_kernel_launch_range<dimensions>(dim3(r[0], 1, 1));
+  else if (dimensions == 2)
+    return make_kernel_launch_range<dimensions>(dim3(r[1], r[0], 1));
+  else if (dimensions == 3)
+    return make_kernel_launch_range<dimensions>(dim3(r[2], r[1], r[0]));
+  return dim3(1,1,1);
+}
+
 inline std::size_t ceil_division(std::size_t n, std::size_t divisor) {
   return (n + divisor - 1) / divisor;
 }
 
 template <int dimensions>
-inline dim3 determine_grid_configuration(
-    const sycl::range<dimensions> &num_work_items, const dim3 &local_range) {
-  
-  if constexpr(dimensions == 1)
-    return dim3(ceil_division(num_work_items.get(0), local_range.x));
-  else if constexpr(dimensions == 2)
-    return dim3(ceil_division(num_work_items.get(0), local_range.x),
-                ceil_division(num_work_items.get(1), local_range.y));
-  else if constexpr(dimensions == 3)
-    return dim3(ceil_division(num_work_items.get(0), local_range.x),
-                ceil_division(num_work_items.get(1), local_range.y),
-                ceil_division(num_work_items.get(2), local_range.z));
-  else
-    return dim3(1);
+inline sycl::range<dimensions>
+determine_grid_configuration(const sycl::range<dimensions> &num_work_items,
+                             const sycl::range<dimensions> &local_range) {
+  sycl::range<dimensions> res;
+  for (int i = 0; i < dimensions; ++i)
+    res[i] = ceil_division(num_work_items[i], local_range[i]);
+  return res;
 }
 
-template<int dimensions>
-inline dim3 range_to_dim3(const sycl::range<dimensions>& r)
-{
-  if(dimensions == 1)
-    return dim3(r.get(0));
-  else if(dimensions == 2)
-    return dim3(r.get(0), r.get(1));
-  else if(dimensions == 3)
-    return dim3(r.get(0), r.get(1), r.get(2));
-
-  return dim3(1);
-}
 
 } // hiplike_dispatch
 
@@ -284,15 +276,15 @@ public:
                                 k);
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-        dim3 local_range;
-        if(Dim == 1)
-          local_range = dim3(128);
-        else if(Dim == 2)
-          local_range = dim3(16,16);
-        else if(Dim == 3)
-          local_range = dim3(8,8,8);
+        sycl::range<Dim> local_range;
+        if constexpr(Dim == 1)
+          local_range = sycl::range<1>{128};
+        else if constexpr(Dim == 2)
+          local_range = sycl::range<2>{16, 16};
+        else if constexpr(Dim == 3)
+          local_range = sycl::range<3>{8, 8, 8};
 
-        dim3 grid_range = hiplike_dispatch::determine_grid_configuration(
+        sycl::range<Dim> grid_range = hiplike_dispatch::determine_grid_configuration(
             global_range, local_range);
 
         __hipsycl_launch_kernel(
@@ -308,13 +300,10 @@ public:
           assert(global_range[i] % local_range[i] == 0);
         
         sycl::range<Dim> grid_range = global_range / local_range;
-        
-        dim3 grid = hiplike_dispatch::range_to_dim3(grid_range);
-        dim3 block = hiplike_dispatch::range_to_dim3(local_range);
       
         __hipsycl_launch_kernel(hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(block),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
                                 dynamic_local_memory, _queue->get_stream(),
                                 k, offset);
 
@@ -324,13 +313,10 @@ public:
           assert(global_range[i] % local_range[i] == 0);
 
         sycl::range<Dim> grid_range = global_range / local_range;
-        
-        dim3 grid = hiplike_dispatch::range_to_dim3(grid_range);
-        dim3 block = hiplike_dispatch::range_to_dim3(local_range);
 
         __hipsycl_launch_kernel(hiplike_dispatch::parallel_for_workgroup<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(block),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
                                 dynamic_local_memory, _queue->get_stream(),
                                 k, local_range);
         
@@ -341,12 +327,9 @@ public:
 
         sycl::range<Dim> grid_range = global_range / local_range;
 
-        dim3 grid = hiplike_dispatch::range_to_dim3(grid_range);
-        dim3 block = hiplike_dispatch::range_to_dim3(local_range);
-
         __hipsycl_launch_kernel(hiplike_dispatch::parallel_region<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(block),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
                                 dynamic_local_memory, _queue->get_stream(),
                                 k, grid_range, local_range);
       }

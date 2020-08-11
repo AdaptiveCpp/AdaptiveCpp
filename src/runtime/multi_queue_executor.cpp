@@ -30,6 +30,7 @@
 #include "hipSYCL/runtime/dag_interpreter.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 
 #include <memory>
 
@@ -303,6 +304,7 @@ void multi_queue_executor::submit_directly(
     dag_node_ptr node, operation *op,
     const std::vector<dag_node_ptr> &reqs) {
 
+  HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node" << node.get();
   assert(!op->is_requirement());
 
   if (node->is_submitted())
@@ -331,14 +333,24 @@ void multi_queue_executor::submit_directly(
     assert(req->is_submitted());
 
     if (req->get_assigned_executor() != this) {
+      HIPSYCL_DEBUG_INFO
+          << " --> Synchronizes with external node: " << req
+          << std::endl;
       res = q->submit_external_wait_for(req);
     } else {
       if (req->get_assigned_execution_lane() == op_target_lane) {
+        HIPSYCL_DEBUG_INFO
+          << " --> (Skipping same-lane synchronization with node: " << req
+          << ")" << std::endl;
         // Nothing to synchronize, the requirement was enqueued on the same
         // inorder queue and will therefore be executed before
         // the new node
       } else {
         assert(req->get_event());
+        HIPSYCL_DEBUG_INFO << " --> Synchronizes with other queue for node: "
+                           << req
+                           << " lane = " << req->get_assigned_execution_lane()
+                           << std::endl;
         res = q->submit_queue_wait_for(req->get_event());
       }
     }
@@ -349,6 +361,10 @@ void multi_queue_executor::submit_directly(
     }
   }
 
+  HIPSYCL_DEBUG_INFO
+      << "multi_queue_executor: Dispatching to lane " << op_target_lane << ": "
+      << dump(op) << std::endl;
+  
   queue_operation_dispatcher dispatcher{q};
   res = op->dispatch(&dispatcher);
   if (!res.is_success()) {

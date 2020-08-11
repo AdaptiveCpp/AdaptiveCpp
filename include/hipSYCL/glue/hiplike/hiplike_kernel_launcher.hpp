@@ -46,15 +46,30 @@ namespace glue {
 
 namespace hiplike_dispatch {
 
-template<int dimensions, bool with_offset>
+template<int dimensions>
 __device__
-bool item_is_in_range(const sycl::item<dimensions, with_offset>& item,
+bool item_is_in_range(const sycl::item<dimensions, true>& item,
                       const sycl::range<dimensions>& execution_range,
                       const sycl::id<dimensions>& offset)
 {
   for(int i = 0; i < dimensions; ++i)
   {
     if(item.get_id(i) >= offset.get(i) + execution_range.get(i))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+template<int dimensions>
+__device__
+bool item_is_in_range(const sycl::item<dimensions, false>& item,
+                      const sycl::range<dimensions>& execution_range)
+{
+  for(int i = 0; i < dimensions; ++i)
+  {
+    if(item.get_id(i) >= execution_range.get(i))
     {
       return false;
     }
@@ -79,31 +94,30 @@ __sycl_kernel void single_task_kernel(Function f)
   device_invocation(f);
 }
 
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_for_kernel(Function f,
-                        sycl::range<dimensions> execution_range)
-{
-  device_invocation([&] __host__ __device__ () {
-    auto this_item = sycl::detail::make_item<dimensions>(
-      sycl::detail::get_global_id<dimensions>(), execution_range);
-    if(item_is_in_range(this_item, execution_range, sycl::id<dimensions>{}))
-      f(this_item);
-  });
-}
-
-template<typename KernelName, class Function, int dimensions>
-__sycl_kernel 
-void parallel_for_kernel_with_offset(Function f,
-                                    sycl::range<dimensions> execution_range,
-                                    sycl::id<dimensions> offset)
-{
-  device_invocation([&] __host__ __device__() {
-    auto this_item = sycl::detail::make_item<dimensions>(
-        sycl::detail::get_global_id<dimensions>() + offset, execution_range, offset);
-    if(item_is_in_range(this_item, execution_range, offset))
-      f(this_item);
-  });
+template <typename KernelName, class Function, int dimensions>
+__sycl_kernel void
+parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
+                    sycl::id<dimensions> offset, bool with_offset) {
+  // Note: We currently cannot have with_offset as template parameter
+  // because this might cause clang to emit two kernels with the same
+  // mangled name (variants with and without offset) if an explicit kernel
+  // name is provided.
+  if(with_offset) {
+    device_invocation([&] __host__ __device__() {
+      auto this_item = sycl::detail::make_item<dimensions>(
+          sycl::detail::get_global_id<dimensions>() + offset, execution_range,
+          offset);
+      if (item_is_in_range(this_item, execution_range, offset))
+        f(this_item);
+    });
+  } else {
+    device_invocation([&] __host__ __device__() {
+      auto this_item = sycl::detail::make_item<dimensions>(
+          sycl::detail::get_global_id<dimensions>(), execution_range);
+      if (item_is_in_range(this_item, execution_range))
+        f(this_item);
+    });
+  }
 }
 
 template<typename KernelName, class Function, int dimensions>
@@ -281,22 +295,13 @@ public:
         dim3 grid_range = hiplike_dispatch::determine_grid_configuration(
             global_range, local_range);
 
-        if(!is_with_offset) {
-          __hipsycl_launch_kernel(
-              hiplike_dispatch::parallel_for_kernel<KernelName>,
-              hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-              hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-              dynamic_local_memory, _queue->get_stream(), k,
-              global_range); // todo may have to reverse that
-        } else {
-          __hipsycl_launch_kernel(
-              hiplike_dispatch::parallel_for_kernel_with_offset<KernelName>,
-              hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-              hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-              dynamic_local_memory, _queue->get_stream(), k, global_range,
-              offset);
-        }
-        
+        __hipsycl_launch_kernel(
+            hiplike_dispatch::parallel_for_kernel<KernelName>,
+            hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+            hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
+            dynamic_local_memory, _queue->get_stream(), k, global_range, offset,
+            is_with_offset);
+
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
         for (int i = 0; i < Dim; ++i)

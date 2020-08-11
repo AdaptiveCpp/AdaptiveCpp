@@ -357,7 +357,7 @@ void set_args(Ts &&... args);
       T _src;
     };
 
-    this->submit_kernel<class fill_kernel, rt::kernel_type::basic_parallel_for>(
+    this->submit_kernel<class _unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         dest.get_offset(), dest.get_range(),
         dest.get_range() /*local range unused for basic pf*/,
         fill_kernel{dest, src});

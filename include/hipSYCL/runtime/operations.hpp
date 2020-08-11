@@ -80,8 +80,11 @@ public:
   virtual bool is_requirement() const { return false; }
   virtual bool is_data_transfer() const { return false; }
   virtual void dump(std::ostream&, int = 0) const = 0;
-  virtual bool has_preferred_backend(backend_id& out) const { return false; }
-  
+  virtual bool has_preferred_backend(backend_id &preferred_backend,
+                                     device_id &preferred_device) const {
+    return false;
+  }
+
   virtual result dispatch(operation_dispatcher* dispatch) = 0;
 };
 
@@ -347,13 +350,17 @@ public:
   }
   void dump(std::ostream &ostr, int indentation = 0) const override final;
 
-  virtual bool has_preferred_backend(backend_id &out) const override {
+  virtual bool has_preferred_backend(backend_id &preferred_backend,
+                                     device_id &preferred_device) const override {
     if (_source.get_device().get_full_backend_descriptor().hw_platform !=
-        hardware_platform::cpu)
-      out = _source.get_device().get_backend();
-    else
-      out = _dest.get_device().get_backend();
-    
+        hardware_platform::cpu) {
+      preferred_backend = _source.get_device().get_backend();
+      preferred_device = _source.get_device();
+    }
+    else {
+      preferred_backend = _dest.get_device().get_backend();
+      preferred_device = _dest.get_device();
+    }
     return true;
   }
 private:

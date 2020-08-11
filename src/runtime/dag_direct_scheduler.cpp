@@ -80,7 +80,7 @@ void initialize_memory_access(buffer_memory_requirement *bmem_req,
 
   void *device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
   bmem_req->initialize_device_data(device_pointer);
-  HIPSYCL_DEBUG_INFO << "dag_scheduler: Preparing deferred pointer of "
+  HIPSYCL_DEBUG_INFO << "dag_direct_scheduler: Preparing deferred pointer of "
                         "requirement node "
                      << dump(bmem_req) << std::endl;
 }
@@ -162,9 +162,11 @@ backend_executor *select_executor(dag_node_ptr node, operation *op) {
   device_id dev = node->get_assigned_device();
 
   assert(!op->is_requirement());
-  backend_id executor_backend;
-  if (op->has_preferred_backend(executor_backend))
-    return application::get_backend(executor_backend).get_executor(dev);
+  backend_id executor_backend; device_id preferred_device;
+  if (op->has_preferred_backend(executor_backend, preferred_device))
+    // If we want an executor from a different backend, we may need to pass
+    // a different device id.
+    return application::get_backend(executor_backend).get_executor(preferred_device);
   else {
     return application::get_backend(dev.get_backend()).get_executor(dev);
   }

@@ -75,6 +75,9 @@ std::ostream &operator<<(std::ostream &out, const backend_id value) {
   case rt::backend_id::hip:
     out << "HIP";
     break;
+  case rt::backend_id::cuda:
+    out << "CUDA";
+    break;
   case rt::backend_id::openmp_cpu:
     out << "OpenMP";
     break;

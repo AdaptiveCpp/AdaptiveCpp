@@ -57,10 +57,14 @@ public:
       old_rt->dag().flush_sync();
       old_rt->dag().wait();
     }
-    old_rt = _rt.exchange(nullptr);
+    // If there is work to be done in the destructor,
+    // (in particular freeing resources) this might be
+    // executed already be the new runtime.
+    // While not beautiful, this should not be a problem
+    // in practice.
+    old_rt = _rt.exchange(new runtime{});
     if (old_rt)
       delete old_rt;
-    _rt.store(new runtime{});
   }
 
   runtime *get_runtime() {

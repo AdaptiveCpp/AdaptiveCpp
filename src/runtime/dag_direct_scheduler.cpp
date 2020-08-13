@@ -285,7 +285,6 @@ result submit_requirement(dag_node_ptr req) {
 }
 
 void dag_direct_scheduler::submit(dag_node_ptr node) {
-
   if (!node->get_execution_hints().has_hint<hints::bind_to_device>()) {
     register_error(__hipsycl_here(),
                    error_info{"dag_direct_scheduler: Direct scheduler does not "
@@ -299,6 +298,7 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
                                 .get_hint<hints::bind_to_device>()
                                 ->get_device_id();
   node->assign_to_device(target_device);
+  
   for (auto req : node->get_requirements())
     assign_devices_or_default(req, target_device);
 
@@ -322,7 +322,6 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
       }
     }
   }
-
 
   if (node->get_operation()->is_requirement()) {
     result res = submit_requirement(node);

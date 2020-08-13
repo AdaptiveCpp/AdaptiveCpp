@@ -60,12 +60,39 @@ std::unique_ptr<dag_node_event> omp_queue::insert_event() {
 
 result omp_queue::submit_memcpy(const memcpy_operation &op) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
-  
-  if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
-    // TODO Use memcpy if range is contiguous!
 
-    void* src_base = op.source().get_base_ptr();
-    void* dest_base = op.dest().get_base_ptr();
+  if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
+
+    void* src = op.source().get_access_ptr();
+    void *dest = op.dest().get_access_ptr();
+
+    assert(src);
+    assert(dest);
+
+    std::size_t row_size = op.get_num_transferred_elements().get(2) *
+                           op.source().get_element_size();
+    std::size_t num_rows = op.get_num_transferred_elements().get(1);
+    std::size_t num_surfaces = op.get_num_transferred_elements().get(0);
+
+    std::size_t row_src_pitch = op.source().get_allocation_shape().get(2) *
+                                op.source().get_element_size();
+    std::size_t row_dest_pitch = op.dest().get_allocation_shape().get(2) *
+                                op.dest().get_element_size();
+
+    _worker([=]() {
+      char *current_src = reinterpret_cast<char*>(src);
+      char *current_dest = reinterpret_cast<char*>(dest);
+
+      for (std::size_t surface = 0; surface < num_surfaces; ++surface) {
+        for (std::size_t row = 0; row < num_rows; ++row) {
+        
+          memcpy(current_dest, current_src, row_size);
+          current_src += row_src_pitch;
+          current_dest += row_dest_pitch;
+        }
+      }
+
+    });
   } else {
     return register_error(
         __hipsycl_here(),

@@ -173,11 +173,11 @@ backend_executor *select_executor(dag_node_ptr node, operation *op) {
 }
 
 void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
+  
   std::vector<dag_node_ptr> reqs;
   node->for_each_nonvirtual_requirement([&](dag_node_ptr req) {
     reqs.push_back(req);
   });
-
     // Compress requirements by removing double entries and complete requirements
   reqs.erase(
       std::remove_if(reqs.begin(), reqs.end(),
@@ -191,6 +191,7 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   // the dependency on B can be eliminated because it is already covered by A.
   // TODO: This might be better implemented in the dag_builder
   node->assign_to_executor(executor);
+  
   executor->submit_directly(node, op, reqs);
 }
 

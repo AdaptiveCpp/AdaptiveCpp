@@ -95,8 +95,7 @@ void dag_node::assign_to_executor(backend_executor *ctx)
 }
 
 
-void dag_node::assign_to_device(device_id dev)
-{
+void dag_node::assign_to_device(device_id dev) {
   this->_assigned_device = dev;
 }
 

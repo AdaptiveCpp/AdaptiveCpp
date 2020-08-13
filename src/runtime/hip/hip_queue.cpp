@@ -117,6 +117,9 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
 
+  assert(op.source().get_access_ptr());
+  assert(op.dest().get_access_ptr());
+
   hipMemcpyKind copy_kind = hipMemcpyHostToDevice;
 
   if (source_dev.get_full_backend_descriptor().sw_platform == api_platform::hip) {
@@ -155,6 +158,15 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   else
     dimension = 1;
 
+  // If we transfer the entire buffer, treat it as 1D memcpy for performance.
+  // TODO: The same optimization could also be applied for the general case
+  // when regions are contiguous
+  if (op.get_num_transferred_elements() == op.source().get_allocation_shape() &&
+      op.get_num_transferred_elements() == op.dest().get_allocation_shape() &&
+      op.source().get_access_offset() == id<3>{} &&
+      op.dest().get_access_offset() == id<3>{})
+    dimension = 1;
+  
   assert(dimension >= 1 && dimension <= 3);
 
   hipError_t err = hipSuccess;
@@ -171,9 +183,9 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   }
 
   if (err != hipSuccess) {
-    return register_error(__hipsycl_here(),
-                   error_info{"hip_queue: Couldn't submit memcpy",
-                              error_code{"HIP", err}});
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Couldn't submit memcpy",
+                                 error_code{"HIP", err}});
   }
 
   return make_success();
@@ -186,7 +198,7 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
       op.get_launcher().find_launcher(backend_id::hip);
   
   if (!l)
-    return register_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
+    return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   
   l->set_params(this);
   l->invoke();
@@ -208,9 +220,9 @@ result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
   auto err = hipStreamWaitEvent(_stream, hip_evt->get_event(), 0);
   if (err != hipSuccess) {
-    return register_error(__hipsycl_here(),
-                   error_info{"hip_queue: hipStreamWaitEvent() failed",
-                              error_code{"HIP", err}});
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: hipStreamWaitEvent() failed",
+                                 error_code{"HIP", err}});
   }
 
   return make_success();
@@ -227,7 +239,7 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
                            reinterpret_cast<void *>(user_data), 0);
 
   if (err != hipSuccess) {
-    return register_error(__hipsycl_here(),
+    return make_error(__hipsycl_here(),
                    error_info{"hip_queue: Couldn't submit stream callback",
                               error_code{"HIP", err}});
   }

@@ -51,15 +51,16 @@ public:
   void reset() {
     HIPSYCL_DEBUG_INFO << "rt_manager: Restarting runtime..." << std::endl;
 
-    // TODO: This implementation has a curious side effect:
-    // When a reset of the runtime is triggered,
-    // operations still being processed will already run on
-    // the new runtime.
-    // There seems to be no easy way to around this
-    // that also avoids deadlocks? (see comment below)
-    runtime *old_rt = _rt.exchange(new runtime{});
-    if(old_rt)
+    // TODO: This is not really thread-safe.
+    runtime *old_rt = get_runtime();
+    if (old_rt){
+      old_rt->dag().flush_sync();
+      old_rt->dag().wait();
+    }
+    old_rt = _rt.exchange(nullptr);
+    if (old_rt)
       delete old_rt;
+    _rt.store(new runtime{});
   }
 
   runtime *get_runtime() {

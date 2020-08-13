@@ -30,8 +30,11 @@
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 
 #include <cuda_runtime_api.h>
+#include <cuda_runtime.h> //for make_cudaPitchedPtr
+
 
 #include <cassert>
 #include <memory>
@@ -118,6 +121,9 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op) {
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
 
+  assert(op.source().get_access_ptr());
+  assert(op.dest().get_access_ptr());
+
   cudaMemcpyKind copy_kind = cudaMemcpyHostToDevice;
 
   if (source_dev.get_full_backend_descriptor().sw_platform == api_platform::cuda) {
@@ -128,7 +134,6 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op) {
              "Attempted to execute explicit device<->device copy operation "
              "between devices from different CUDA hardware backends");
       copy_kind = cudaMemcpyDeviceToDevice;
-
     } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
                hardware_platform::cpu) {
       copy_kind = cudaMemcpyDeviceToHost;
@@ -155,27 +160,64 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op) {
   else
     dimension = 1;
 
+  // If we transfer the entire buffer, treat it as 1D memcpy for performance.
+  // TODO: The same optimization could also be applied for the general case
+  // when regions are contiguous
+  if (op.get_num_transferred_elements() == op.source().get_allocation_shape() &&
+      op.get_num_transferred_elements() == op.dest().get_allocation_shape() &&
+      op.source().get_access_offset() == id<3>{} &&
+      op.dest().get_access_offset() == id<3>{})
+    dimension = 1;
+
   assert(dimension >= 1 && dimension <= 3);
 
   cudaError_t err = cudaSuccess;
   if (dimension == 1) {
-
     err = cudaMemcpyAsync(
         op.dest().get_access_ptr(), op.source().get_access_ptr(),
         op.get_num_transferred_bytes(), copy_kind, get_stream());
     
   } else if (dimension == 2) {
-    assert(false && "2D data transfer is unimplemented");
+    err = cudaMemcpy2DAsync(
+        op.dest().get_access_ptr(),
+        extract_from_range3<2>(op.dest().get_allocation_shape())[1] *
+            op.dest().get_element_size(),
+        op.source().get_access_ptr(),
+        extract_from_range3<2>(op.source().get_allocation_shape())[1] *
+            op.source().get_element_size(),
+        extract_from_range3<2>(op.get_num_transferred_elements())[1] *
+            op.source().get_element_size(),
+        extract_from_range3<2>(op.get_num_transferred_elements())[0], copy_kind,
+        get_stream());
+    
   } else {
-    assert(false && "3D data transfer is unimplemented");
+    
+    cudaMemcpy3DParms params = {0};
+    params.srcPtr = make_cudaPitchedPtr(op.source().get_access_ptr(),
+                                        op.source().get_allocation_shape()[2] *
+                                            op.source().get_element_size(),
+                                        op.source().get_allocation_shape()[2],
+                                        op.source().get_allocation_shape()[1]);
+    params.dstPtr = make_cudaPitchedPtr(op.dest().get_access_ptr(),
+                                        op.dest().get_allocation_shape()[2] *
+                                            op.dest().get_element_size(),
+                                        op.dest().get_allocation_shape()[2],
+                                        op.dest().get_allocation_shape()[1]);
+    params.extent = {op.get_num_transferred_elements()[2] *
+                         op.source().get_element_size(),
+                     op.get_num_transferred_elements()[1],
+                     op.get_num_transferred_elements()[0]};
+    params.kind = copy_kind;
+
+    err = cudaMemcpy3DAsync(&params, get_stream());
   }
+
 
   if (err != cudaSuccess) {
-    return register_error(__hipsycl_here(),
-                   error_info{"cuda_queue: Couldn't submit memcpy",
-                              error_code{"CUDA", err}});
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Couldn't submit memcpy",
+                                  error_code{"CUDA", err}});
   }
-
   return make_success();
 }
 
@@ -185,7 +227,7 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
   rt::backend_kernel_launcher *l = 
       op.get_launcher().find_launcher(backend_id::cuda);
   if (!l)
-    return register_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
+    return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
   l->invoke();
 
@@ -206,9 +248,9 @@ result cuda_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   cuda_node_event* cuda_evt = cast<cuda_node_event>(evt.get());
   auto err = cudaStreamWaitEvent(_stream, cuda_evt->get_event(), 0);
   if (err != cudaSuccess) {
-    return register_error(__hipsycl_here(),
-                   error_info{"cuda_queue: cudaStreamWaitEvent() failed",
-                              error_code{"CUDA", err}});
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: cudaStreamWaitEvent() failed",
+                                 error_code{"CUDA", err}});
   }
 
   return make_success();
@@ -225,9 +267,9 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
                            reinterpret_cast<void *>(user_data), 0);
 
   if (err != cudaSuccess) {
-    return register_error(__hipsycl_here(),
-                   error_info{"cuda_queue: Couldn't submit stream callback",
-                              error_code{"CUDA", err}});
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Couldn't submit stream callback",
+                                 error_code{"CUDA", err}});
   }
   
   return make_success();

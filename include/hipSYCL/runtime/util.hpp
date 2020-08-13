@@ -198,6 +198,19 @@ range<3> embed_in_range3(CompatibleId<Dim> idx) {
   return embed_in_range3(make_static_array(idx));
 }
 
+template <int Dim> range<Dim> extract_from_range3(range<3> r) {
+  static_assert(Dim > 0 && Dim <= 3, "Dim must be 1,2 or 3");
+
+  if constexpr (Dim == 1) {
+    return range<1>{r[2]};
+  } else if constexpr (Dim == 2) {
+    return range<2>{r[1], r[2]};
+  } else {
+    return r;
+  }
+  return range<Dim>{};
+}
+
 }
 }
 

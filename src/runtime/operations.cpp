@@ -116,9 +116,14 @@ void *memory_location::get_base_ptr() const {
   if (_has_data_region) {
     if (_data_region->has_allocation(_dev)) {
       return _data_region->get_memory(_dev);
-    }
-    else
+    } else {
+      register_error(
+          __hipsycl_here(),
+          error_info{"memory_location: Was configured as data_region-based "
+                     "memory location, but data_region did not have allocation "
+                     "on the requested device"});
       return nullptr;
+    }
   } else
     return _raw_data;
 }
@@ -126,7 +131,7 @@ void *memory_location::get_base_ptr() const {
 void *memory_location::get_access_ptr() const {
   void *base_ptr = this->get_base_ptr();
 
-  if (base_ptr == nullptr)
+  if (!base_ptr)
     return nullptr;
 
   return static_cast<void *>(

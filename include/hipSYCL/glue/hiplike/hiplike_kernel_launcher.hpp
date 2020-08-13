@@ -219,9 +219,9 @@ inline dim3 make_kernel_launch_range(sycl::range<dimensions> r) {
   if(dimensions == 1)
     return make_kernel_launch_range<dimensions>(dim3(r[0], 1, 1));
   else if (dimensions == 2)
-    return make_kernel_launch_range<dimensions>(dim3(r[1], r[0], 1));
+    return make_kernel_launch_range<dimensions>(dim3(r[0], r[1], 1));
   else if (dimensions == 3)
-    return make_kernel_launch_range<dimensions>(dim3(r[2], r[1], r[0]));
+    return make_kernel_launch_range<dimensions>(dim3(r[0], r[1], r[2]));
   return dim3(1,1,1);
 }
 

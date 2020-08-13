@@ -41,18 +41,15 @@ bool device_id::is_host() const
   return _backend.hw_platform == hardware_platform::cpu;
 }
 
-backend_id device_id::get_backend() const
-{
+backend_id device_id::get_backend() const {
   return _backend.id;
 }
 
-int device_id::get_id() const
-{
+int device_id::get_id() const {
   return _device_id;
 }
 
-backend_descriptor device_id::get_full_backend_descriptor() const
-{
+backend_descriptor device_id::get_full_backend_descriptor() const {
   return _backend;
 }
 

@@ -429,7 +429,7 @@ private:
     rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
                                         data_src};
     // Assume dest element size and allocation shape is the same as src
-    rt::memory_location dest_location{dev, extract_ptr(dest),
+    rt::memory_location dest_location{detail::get_host_device(), extract_ptr(dest),
                                       rt::id<3>{}, data_src->get_num_elements(),
                                       data_src->get_element_size()};
 
@@ -464,7 +464,7 @@ private:
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
 
     // Assume same element size and allocation shape as for dest
-    rt::memory_location source_location{dev, extract_ptr(src),
+    rt::memory_location source_location{detail::get_host_device(), extract_ptr(src),
                                       rt::id<3>{}, data_dest->get_num_elements(),
                                       data_dest->get_element_size()};
     rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),

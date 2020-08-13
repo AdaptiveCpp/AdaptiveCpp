@@ -48,7 +48,8 @@ public:
   static dag_manager &dag();
   static backend &get_backend(hipsycl::rt::backend_id id);
   static backend_manager& backends();
-  
+  // Note: This functions is not fully thread-safe and should
+  // only be called in well-defined circumstances!
   static void reset();
 
   application() = delete;

@@ -352,7 +352,10 @@ public:
                                bool takes_ownership = false) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
-
+    // TODO in principle we would also need to invalidate other allocations.
+    // In practice this is not really needed because this function
+    // is only invoked at the initialization of a buffer if constructed
+    // with a host pointer.
     _allocations.push_back(data_allocation{
       d, memory_context, range_store{_num_pages}, takes_ownership});
     _allocations.back().invalid_pages.remove(

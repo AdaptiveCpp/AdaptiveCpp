@@ -119,8 +119,9 @@ void for_each_explicit_operation(
     explicit_op_handler(node->get_operation());
     return;
   } else {
-    execute_if_buffer_requirement(
-        node, [&](buffer_memory_requirement *bmem_req) {
+    execute_if_buffer_requirement(node,
+                                  [&](buffer_memory_requirement *bmem_req) {
+          
           device_id target_device = node->get_assigned_device();
 
           std::vector<range_store::rect> outdated_regions;
@@ -218,24 +219,41 @@ result submit_requirement(dag_node_ptr req) {
       initialize_memory_access(bmem_req, req->get_assigned_device());
   });
 
-  // If access is discard, don't create memcopies
+  // Don't create memcopies if access is discard
   if (access_mode != sycl::access::mode::discard_write &&
       access_mode != sycl::access::mode::discard_read_write) {
-    for_each_explicit_operation(req, [&](operation *op) {
-      if (!op->is_data_transfer()) {
-        res = make_error(
-            __hipsycl_here(),
-            error_info{
-                "dag_direct_scheduler: only data transfers are supported "
-                "as operations generated from implicit requirements.",
-                error_type::feature_not_supported});
-      } else {
-        backend_executor *executor = select_executor(req, op);
-        // TODO What if we need to copy between two device backends through
-        // host?
-        submit(executor, req, op);
-      }
-    });
+    bool has_initialized_content = true;
+    execute_if_buffer_requirement(
+        req, [&](buffer_memory_requirement *bmem_req) {
+          has_initialized_content =
+              bmem_req->get_data_region()->has_initialized_content(
+                  bmem_req->get_access_offset3d(),
+                  bmem_req->get_access_range3d());
+        });
+    if(has_initialized_content){
+      for_each_explicit_operation(req, [&](operation *op) {
+        if (!op->is_data_transfer()) {
+          res = make_error(
+              __hipsycl_here(),
+              error_info{
+                  "dag_direct_scheduler: only data transfers are supported "
+                  "as operations generated from implicit requirements.",
+                  error_type::feature_not_supported});
+        } else {
+          backend_executor *executor = select_executor(req, op);
+          // TODO What if we need to copy between two device backends through
+          // host?
+          submit(executor, req, op);
+        }
+      });
+    } else {
+      HIPSYCL_DEBUG_WARNING
+          << "dag_direct_scheduler: Detected a requirement that is neither of "
+             "discard access mode (SYCL 1.2.1) nor noinit property (SYCL 2020) "
+             "that accesses uninitialized data. Consider changing to "
+             "discard/noinit. Optimizing potential data transfers away."
+          << std::endl;
+    }
   }
   if (!res.is_success())
     return res;

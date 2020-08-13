@@ -266,12 +266,12 @@ void set_args(Ts &&... args);
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
                                     "for queues not bound to devices"};
 
-    rt::device_id dev =
-        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
-
-    rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
+    rt::device_id src_dev = get_explicit_accessor_target(src);
+    rt::device_id dest_dev = get_explicit_accessor_target(dest);
+    
+    rt::memory_location source_location{src_dev, rt::embed_in_id3(src.get_offset()),
                                         data_src};
-    rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
+    rt::memory_location dest_location{dest_dev, rt::embed_in_id3(dest.get_offset()),
                                       data_dest};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
@@ -369,6 +369,15 @@ void set_args(Ts &&... args);
   }
 
 private:
+  template <typename T, int dim, access::mode mode, access::target tgt>
+  rt::device_id
+  get_explicit_accessor_target(const accessor<T, dim, mode, tgt> &acc) {
+    if (tgt == access::target::host_buffer)
+      return detail::get_host_device();
+    assert(_execution_hints.has_hint<rt::hints::bind_to_device>());
+    return _execution_hints.get_hint<rt::hints::bind_to_device>()
+        ->get_device_id();
+  }
   template <
     class KernelName, rt::kernel_type KernelType, class KernelFuncType, int Dim>
   void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
@@ -423,8 +432,7 @@ private:
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
                                     "for queues not bound to devices"};
 
-    rt::device_id dev =
-        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+    rt::device_id dev = get_explicit_accessor_target(src);
 
     rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
                                         data_src};
@@ -460,8 +468,7 @@ private:
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
                                     "for queues not bound to devices"};
 
-    rt::device_id dev =
-        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+    rt::device_id dev = get_explicit_accessor_target(dest);
 
     // Assume same element size and allocation shape as for dest
     rt::memory_location source_location{detail::get_host_device(), extract_ptr(src),

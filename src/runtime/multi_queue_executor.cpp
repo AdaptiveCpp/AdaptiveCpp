@@ -304,7 +304,7 @@ void multi_queue_executor::submit_directly(
     dag_node_ptr node, operation *op,
     const std::vector<dag_node_ptr> &reqs) {
 
-  HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node" << node.get();
+  HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node " << node.get();
   assert(!op->is_requirement());
 
   if (node->is_submitted())

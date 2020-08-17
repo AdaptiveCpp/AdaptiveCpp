@@ -33,10 +33,43 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include <bits/c++config.h>
 #include <memory>
 
 namespace hipsycl {
 namespace rt {
+
+namespace {
+
+bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
+  if (r.size() == 0)
+    return true;
+  
+  int dim = 3;
+  if (r.get(0) == 1)
+    dim = 2;
+  if (r.get(1) == 1)
+    dim = 1;
+
+  // 1D data transfers are always contiguous
+  if (dim == 1)
+    return true;
+
+  // The slowest index does not need to be of 0 offset and
+  // full size => start at
+  // * 2 for dim == 2 (slowest index is 1)
+  // * 1 for dim == 3 (slowest index is 0)
+  for (int i = 4 - dim; i <= 2; ++i) {
+    if (offset.get(i) != 0)
+      return false;
+    if (r.get(i) != allocation_shape.get(i))
+      return false;
+  }
+
+  return true;
+}
+
+}
 
 omp_queue::omp_queue(backend_id id)
 : _backend_id(id) {}
@@ -63,36 +96,84 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
 
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
 
-    void* src = op.source().get_access_ptr();
-    void *dest = op.dest().get_access_ptr();
+    void* base_src = op.source().get_base_ptr();
+    void *base_dest = op.dest().get_base_ptr();
+    
+    assert(base_src);
+    assert(base_dest);
 
-    assert(src);
-    assert(dest);
+    range<3> transferred_range = op.get_num_transferred_elements();
+    range<3> src_allocation_shape = op.source().get_allocation_shape();
+    range<3> dest_allocation_shape = op.dest().get_allocation_shape();
+    id<3> src_offset = op.source().get_access_offset();
+    id<3> dest_offset = op.dest().get_access_offset();
+    std::size_t src_element_size = op.source().get_element_size();
+    std::size_t dest_element_size = op.dest().get_element_size();
 
-    std::size_t row_size = op.get_num_transferred_elements().get(2) *
-                           op.source().get_element_size();
-    std::size_t num_rows = op.get_num_transferred_elements().get(1);
-    std::size_t num_surfaces = op.get_num_transferred_elements().get(0);
+    std::size_t total_num_bytes = op.get_num_transferred_bytes();
 
-    std::size_t row_src_pitch = op.source().get_allocation_shape().get(2) *
-                                op.source().get_element_size();
-    std::size_t row_dest_pitch = op.dest().get_allocation_shape().get(2) *
-                                op.dest().get_element_size();
+    bool is_src_contiguous =
+        is_contigous(src_offset, transferred_range, src_allocation_shape);
+    bool is_dest_contiguous =
+        is_contigous(dest_offset, transferred_range, dest_allocation_shape);
 
     _worker([=]() {
-      char *current_src = reinterpret_cast<char*>(src);
-      char *current_dest = reinterpret_cast<char*>(dest);
+      auto linear_index = [](id<3> id, range<3> allocation_shape) {
+        return id[2] + allocation_shape[2] * id[1] +
+               allocation_shape[2] * allocation_shape[1] * id[0];
+      };
 
-      for (std::size_t surface = 0; surface < num_surfaces; ++surface) {
-        for (std::size_t row = 0; row < num_rows; ++row) {
+      if (is_src_contiguous && is_dest_contiguous) {
+        char *current_src = reinterpret_cast<char *>(base_src);
+        char *current_dest = reinterpret_cast<char *>(base_dest);
         
-          memcpy(current_dest, current_src, row_size);
-          current_src += row_src_pitch;
-          current_dest += row_dest_pitch;
+        current_src +=
+            linear_index(src_offset, src_allocation_shape) * src_element_size;
+        current_dest +=
+            linear_index(dest_offset, dest_allocation_shape) *
+                dest_element_size;
+
+        memcpy(current_dest, current_src, total_num_bytes);
+      } else {
+        id<3> current_src_offset = src_offset;
+        id<3> current_dest_offset = dest_offset;
+        std::size_t row_size = transferred_range[2] * src_element_size;
+
+        for (std::size_t surface = 0; surface < transferred_range[0]; ++surface) {
+          for (std::size_t row = 0; row < transferred_range[1]; ++row) {
+
+            char *current_src = reinterpret_cast<char *>(base_src);
+            char *current_dest = reinterpret_cast<char *>(base_dest);
+
+            current_src +=
+                linear_index(current_src_offset, src_allocation_shape) *
+                src_element_size;
+
+            current_dest +=
+                linear_index(current_dest_offset, dest_allocation_shape) *
+                dest_element_size;
+
+            assert(current_src + row_size <=
+                   reinterpret_cast<char *>(base_src) +
+                       src_allocation_shape.size() * src_element_size);
+            assert(current_dest + row_size <=
+                   reinterpret_cast<char *>(base_dest) +
+                       dest_allocation_shape.size() * dest_element_size);
+            
+            memcpy(current_dest, current_src, row_size);
+
+            ++current_src_offset[1];
+            ++current_dest_offset[1];
+          }
+          current_src_offset[1] = src_offset[1];
+          current_dest_offset[1] = dest_offset[1];
+
+          ++current_dest_offset[0];
+          ++current_src_offset[0];
         }
       }
-
     });
+
   } else {
     return register_error(
         __hipsycl_here(),

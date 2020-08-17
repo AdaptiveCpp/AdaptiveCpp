@@ -177,9 +177,36 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
         op.get_num_transferred_bytes(), copy_kind, get_stream());
     
   } else if (dimension == 2) {
-    assert(false && "2D data transfer is unimplemented");
+    err = hipMemcpy2DAsync(
+        op.dest().get_access_ptr(),
+        extract_from_range3<2>(op.dest().get_allocation_shape())[1] *
+            op.dest().get_element_size(),
+        op.source().get_access_ptr(),
+        extract_from_range3<2>(op.source().get_allocation_shape())[1] *
+            op.source().get_element_size(),
+        extract_from_range3<2>(op.get_num_transferred_elements())[1] *
+            op.source().get_element_size(),
+        extract_from_range3<2>(op.get_num_transferred_elements())[0], copy_kind,
+        get_stream());
   } else {
-    assert(false && "3D data transfer is unimplemented");
+    hipMemcpy3DParms params = {0};
+    params.srcPtr = make_hipPitchedPtr(op.source().get_access_ptr(),
+                                       op.source().get_allocation_shape()[2] *
+                                           op.source().get_element_size(),
+                                       op.source().get_allocation_shape()[2],
+                                       op.source().get_allocation_shape()[1]);
+    params.dstPtr = make_hipPitchedPtr(op.dest().get_access_ptr(),
+                                       op.dest().get_allocation_shape()[2] *
+                                           op.dest().get_element_size(),
+                                       op.dest().get_allocation_shape()[2],
+                                       op.dest().get_allocation_shape()[1]);
+    params.extent = {op.get_num_transferred_elements()[2] *
+                         op.source().get_element_size(),
+                     op.get_num_transferred_elements()[1],
+                     op.get_num_transferred_elements()[0]};
+    params.kind = copy_kind;
+
+    err = hipMemcpy3DAsync(&params, get_stream());
   }
 
   if (err != hipSuccess) {

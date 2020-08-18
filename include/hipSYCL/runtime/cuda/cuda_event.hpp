@@ -29,7 +29,9 @@
 #define HIPSYCL_CUDA_EVENT_HPP
 
 #include "../event.hpp"
-#include <cuda_runtime_api.h>
+
+// Note: CUevent_st* == cudaEvent_t 
+struct CUevent_st;
 
 namespace hipsycl {
 namespace rt {
@@ -40,17 +42,17 @@ class cuda_node_event : public dag_node_event
 public:
   /// Takes ownership of supplied hipEvent_t. \c evt Must
   /// have been properly initialized and recorded.
-  cuda_node_event(device_id dev, cudaEvent_t evt);
+  cuda_node_event(device_id dev, CUevent_st* evt);
   ~cuda_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
 
-  cudaEvent_t get_event() const;
+  CUevent_st* get_event() const;
   device_id get_device() const;
 private:
   device_id _dev;
-  cudaEvent_t _evt;
+  CUevent_st* _evt;
 };
 
 }

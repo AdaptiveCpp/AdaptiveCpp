@@ -80,7 +80,7 @@ cuda_queue::cuda_queue(device_id dev) : _dev{dev} {
   }
 }
 
-cudaStream_t cuda_queue::get_stream() const { return _stream; }
+CUstream_st* cuda_queue::get_stream() const { return _stream; }
 
 cuda_queue::~cuda_queue() {
   auto err = cudaStreamDestroy(_stream);

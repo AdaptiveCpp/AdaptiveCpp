@@ -30,7 +30,13 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include <cuda_runtime_api.h>
+
+// Forward declare CUstream_st instead of including cuda_runtime_api.h.
+// It's not possible to include both HIP and CUDA headers since they
+// define conflicting symbols. Therefore we should not include
+// cuda_runtime_api.h in runtime header files.
+// Note: CUstream_st* == cudaStream_t.
+struct CUstream_st;
 
 namespace hipsycl {
 namespace rt {
@@ -41,7 +47,7 @@ class cuda_queue : public inorder_queue
 public:
   cuda_queue(device_id dev);
 
-  cudaStream_t get_stream() const;
+  CUstream_st* get_stream() const;
 
   virtual ~cuda_queue();
 
@@ -61,7 +67,7 @@ private:
   void activate_device() const;
   
   device_id _dev;
-  cudaStream_t _stream;
+  CUstream_st* _stream;
 };
 
 }

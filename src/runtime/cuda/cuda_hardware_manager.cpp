@@ -49,7 +49,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
   }
   else {
     for (int dev = 0; dev < num_devices; ++dev) {
-      _devices.push_back(cuda_hardware_context{dev});
+      _devices.push_back(std::move(cuda_hardware_context{dev}));
     }
   }
 }
@@ -83,8 +83,8 @@ device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
 
 
 cuda_hardware_context::cuda_hardware_context(int dev) : _dev{dev} {
-
-  auto err = cudaGetDeviceProperties(&_properties, dev);
+  _properties = std::make_unique<cudaDeviceProp>();
+  auto err = cudaGetDeviceProperties(_properties.get(), dev);
 
   if (err != cudaSuccess) {
     register_error(
@@ -103,7 +103,7 @@ bool cuda_hardware_context::is_gpu() const {
 }
 
 std::size_t cuda_hardware_context::get_max_kernel_concurrency() const {
-  return _properties.concurrentKernels + 1;
+  return _properties->concurrentKernels + 1;
 }
 
 std::size_t cuda_hardware_context::get_max_memcpy_concurrency() const {
@@ -112,7 +112,7 @@ std::size_t cuda_hardware_context::get_max_memcpy_concurrency() const {
 }
 
 std::string cuda_hardware_context::get_device_name() const {
-  return _properties.name;
+  return _properties->name;
 }
 
 std::string cuda_hardware_context::get_vendor_name() const {
@@ -154,19 +154,19 @@ std::size_t
 cuda_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
-    return _properties.multiProcessorCount;
+    return _properties->multiProcessorCount;
     break;
   case device_uint_property::max_global_size0:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[0];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[0];
     break;
   case device_uint_property::max_global_size1:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[1];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[1];
     break;
   case device_uint_property::max_global_size2:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[2];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[2];
     break;
   case device_uint_property::max_group_size:
-    return _properties.maxThreadsPerBlock;
+    return _properties->maxThreadsPerBlock;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
@@ -211,10 +211,10 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
     return 2;
     break;
   case device_uint_property::max_clock_speed:
-    return _properties.clockRate / 1000;
+    return _properties->clockRate / 1000;
     break;
   case device_uint_property::max_malloc_size:
-    return _properties.totalGlobalMem;
+    return _properties->totalGlobalMem;
     break;
   case device_uint_property::address_bits:
     return 64;
@@ -259,19 +259,19 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
     return 128; //TODO
     break;
   case device_uint_property::global_mem_cache_size:
-    return _properties.l2CacheSize; // TODO
+    return _properties->l2CacheSize; // TODO
     break;
   case device_uint_property::global_mem_size:
-    return _properties.totalGlobalMem;
+    return _properties->totalGlobalMem;
     break;
   case device_uint_property::max_constant_buffer_size:
-    return _properties.totalConstMem;
+    return _properties->totalConstMem;
     break;
   case device_uint_property::max_constant_args:
     return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::local_mem_size:
-    return _properties.sharedMemPerBlock;
+    return _properties->sharedMemPerBlock;
     break;
   case device_uint_property::printf_buffer_size:
     return std::numeric_limits<std::size_t>::max();
@@ -301,6 +301,8 @@ std::string cuda_hardware_context::get_driver_version() const {
 std::string cuda_hardware_context::get_profile() const {
   return "FULL_PROFILE";
 }
+
+cuda_hardware_context::~cuda_hardware_context(){}
 
 
 }

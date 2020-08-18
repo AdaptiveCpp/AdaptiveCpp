@@ -28,11 +28,13 @@
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
+#include <cuda_runtime_api.h>
+
 namespace hipsycl {
 namespace rt {
 
 
-cuda_node_event::cuda_node_event(device_id dev, cudaEvent_t evt)
+cuda_node_event::cuda_node_event(device_id dev, CUevent_st* evt)
 : _dev{dev}, _evt{evt}
 {}
 
@@ -67,7 +69,7 @@ void cuda_node_event::wait()
   }
 }
 
-cudaEvent_t cuda_node_event::get_event() const
+CUevent_st* cuda_node_event::get_event() const
 {
   return _evt;
 }

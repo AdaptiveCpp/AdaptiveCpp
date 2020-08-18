@@ -38,11 +38,11 @@ omp_node_event::~omp_node_event()
 {}
 
 bool omp_node_event::is_complete() const {
-  return *_is_complete;
+  return _is_complete->load();
 }
 
 void omp_node_event::wait() {
-  while(!is_complete()) ;
+  while(!_is_complete->load()) ;
 }
 
 std::shared_ptr<std::atomic<bool>> 

@@ -30,9 +30,11 @@
 #define HIPSYCL_CUDA_HARDWARE_MANAGER_HPP
 
 #include <vector>
+#include <memory>
 
 #include "../hardware.hpp"
-#include <cuda_runtime_api.h>
+
+struct cudaDeviceProp;
 
 namespace hipsycl {
 namespace rt {
@@ -42,6 +44,7 @@ class cuda_hardware_context : public hardware_context
 public:
   cuda_hardware_context() = default;
   cuda_hardware_context(int dev);
+  cuda_hardware_context(cuda_hardware_context&&) = default;
 
   virtual bool is_cpu() const override;
   virtual bool is_gpu() const override;
@@ -60,10 +63,10 @@ public:
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;
 
-  virtual ~cuda_hardware_context() {}
+  virtual ~cuda_hardware_context();
 
 private:
-  cudaDeviceProp _properties;
+  std::unique_ptr<cudaDeviceProp> _properties;
   int _dev;
 };
 

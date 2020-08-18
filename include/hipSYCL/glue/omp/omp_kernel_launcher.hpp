@@ -292,8 +292,10 @@ public:
             Kernel k) {
     
     this->_type = type;
-    
-    if(type == rt::kernel_type::ndrange_parallel_for) {
+
+    if (type == rt::kernel_type::ndrange_parallel_for) {
+      this->_invoker = []() {};
+      
       throw sycl::feature_not_supported{
         "The CPU backend does not support nd_range kernels because they cannot be implemented\n"
         "efficiently in pure-library SYCL implementations such as hipSYCL on CPU. We recommend:\n"

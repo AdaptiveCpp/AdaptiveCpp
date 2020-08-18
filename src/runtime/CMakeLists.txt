@@ -63,7 +63,7 @@ target_include_directories(hipSYCL-rt PRIVATE ${INCLUDE_DIRS})
 
 if(WITH_CUDA_BACKEND)
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_CUDA_BACKEND=1)
-  target_include_directories(hipSYCL-rt PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include ${HIPSYCL_SOURCE_DIR}/contrib/HIP/include/)
+  target_include_directories(hipSYCL-rt PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include)
   target_link_libraries(hipSYCL-rt PRIVATE ${CUDA_LIBRARIES})
 endif()
 

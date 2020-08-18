@@ -20,28 +20,7 @@ FORCE)
   endif()
 endif()
 
-if(DISABLE_LLVM_VERSION_CHECK)
-  # just use whatever we are given - some llvm distributions do
-  # not correctly advertise their versions, and if users explicitly point
-  # us to them, let's assume they know what they are doing.
-  find_package(LLVM CONFIG)
-else()
-  # By default, try to find the newest supported LLVM version
-  find_package(LLVM 10 CONFIG QUIET)
-  if(NOT LLVM_FOUND)
-    message(STATUS "No suitable LLVM 10 installation found.")
-    find_package(LLVM 9 CONFIG QUIET)
-    if(NOT LLVM_FOUND)
-      message(STATUS "No suitable LLVM 9 installation found.")
-      find_package(LLVM 8 CONFIG QUIET)
-    endif()
-  endif()
-  if(NOT LLVM_FOUND)
-    message(SEND_ERROR "Could not find an LLVM installation of version 8 or newer. 
-      If you are sure to have passed a suitable LLVM path with -DLLVM_DIR, try again with 
-      -DDISABLE_LLVM_VERSION_CHECK=ON.")
-  endif()
-endif()
+find_package(LLVM CONFIG)
 message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
 #find_package(Clang REQUIRED)
 

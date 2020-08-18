@@ -296,7 +296,42 @@ BOOST_AUTO_TEST_CASE(forward_declared_function) {
 template <class T>
 void forward_declared1(){forward_declared2();}
 
-void forward_declared2(){}
+void forward_declared2() {}
+
+
+BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
+  cl::sycl::queue q;
+
+  auto lambda =
+      [&]() {
+        q.submit([&](cl::sycl::handler &cgh) {
+          cgh.single_task([=]() {
+
+          });
+        });
+
+        q.submit([&](cl::sycl::handler &cgh) {
+          cgh.single_task([=]() {
+
+          });
+        });
+
+        q.submit([&](cl::sycl::handler &cgh) {
+          cgh.parallel_for(cl::sycl::range<1>{1024}, [=](cl::sycl::id<1> idx) {
+
+          });
+        });
+
+        q.submit([&](cl::sycl::handler &cgh) {
+          cgh.parallel_for(cl::sycl::range<1>{1024}, [=](cl::sycl::id<1> idx) {
+
+          });
+        });
+      };
+  lambda();
+  
+  q.wait_and_throw();
+}
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

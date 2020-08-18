@@ -70,6 +70,7 @@ endif()
 if(WITH_ROCM_BACKEND) 
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_HIP_BACKEND=1 HIPSYCL_RT_HIP_TARGET_ROCM=1)
   target_include_directories(hipSYCL-rt PRIVATE ${ROCM_PATH}/include)
+  target_link_libraries(hipSYCL-rt PRIVATE ${ROCM_LIBS})
 endif()
 
 if(WITH_CPU_BACKEND)

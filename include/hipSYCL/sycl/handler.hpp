@@ -916,7 +916,7 @@ private:
     else if(dimensions == 2)
       return dim3(16,16);
     else if(dimensions == 3)
-      return dim3(8,8,8);
+      return dim3(4,8,8);
 
     return dim3(1);
   }

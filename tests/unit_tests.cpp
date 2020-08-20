@@ -425,11 +425,9 @@ BOOST_AUTO_TEST_CASE(vec_api) {
 
 using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
 
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifndef HIPSYCL_TEST_NO_3D_COPIES
 using explicit_copy_test_dimensions = test_dimensions;
 #else
-// explicit buffer copies in 3D are currently not supported on
-// ROCm and CPU.
 using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
 #endif
 

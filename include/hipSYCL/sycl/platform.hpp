@@ -85,11 +85,11 @@ public:
     return vector_class<platform>{platform()};
   }
 
-  bool operator==(const platform& rhs) const
+  friend bool operator==(const platform& lhs, const platform& rhs)
   { return true; }
 
-  bool operator!=(const platform& rhs) const
-  { return !(*this == rhs); }
+  friend bool operator!=(const platform& lhs, const platform& rhs)
+  { return !(lhs == rhs); }
 };
 
 

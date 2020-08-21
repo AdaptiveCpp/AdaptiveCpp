@@ -187,60 +187,164 @@ public:
 
   // Arithmetic operators
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr& operator++()
+  friend multi_ptr& operator++(multi_ptr<ElementType, Space>& mp)
   {
-    ++_ptr;
-    return *this;
+    ++(mp._ptr);
+    return mp;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr operator++(int)
+  friend multi_ptr& operator++(multi_ptr<ElementType, Space>& mp, int)
   {
-    multi_ptr old = *this;
-    ++_ptr;
+    multi_ptr old = mp;
+    ++(mp._ptr);
     return old;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr& operator--()
+  friend multi_ptr& operator--(multi_ptr<ElementType, Space>& mp)
   {
-    --_ptr;
-    return *this;
+    --(mp._ptr);
+    return *mp;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr operator--(int)
+  friend multi_ptr& operator--(multi_ptr<ElementType, Space>& mp, int)
   {
-    multi_ptr old = *this;
-    --_ptr;
+    multi_ptr old = mp;
+    --(mp._ptr);
     return old;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr& operator+=(difference_type r)
+  friend multi_ptr& operator+=(multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
-    _ptr += r;
-    return *this;
+    lhs._ptr += r;
+    return lhs;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr& operator-=(difference_type r)
+  friend multi_ptr& operator-=(multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
-    _ptr -= r;
-    return *this;
+    lhs._ptr -= r;
+    return lhs;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr operator+(difference_type r) const
+  friend multi_ptr& operator+(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
-    return multi_ptr{_ptr + r};
+    return multi_ptr{lhs._ptr + r};
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  multi_ptr operator-(difference_type r) const
+  friend multi_ptr& operator-(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
-    return multi_ptr{_ptr - r};
+    return multi_ptr{lhs._ptr - r};
   }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator!=(const multi_ptr<ElementType, Space>& lhs,
+                  const multi_ptr<ElementType, Space>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator!=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
+  {
+    return lhs.get() != nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator!=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return rhs != nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<(const multi_ptr<ElementType, Space>& lhs,
+                const multi_ptr<ElementType, Space>& rhs)
+  {
+    return lhs.get() < rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
+  {
+    return lhs.get() < nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return nullptr < rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>(const multi_ptr<ElementType, Space>& lhs,
+                const multi_ptr<ElementType, Space>& rhs)
+  {
+    return lhs.get() > rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
+  {
+    return lhs.get() > nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return nullptr < rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<=(const multi_ptr<ElementType, Space>& lhs,
+                  const multi_ptr<ElementType, Space>& rhs)
+  {
+    return lhs.get() <= rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
+  {
+    return lhs.get() <= nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator<=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return nullptr <= rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>=(const multi_ptr<ElementType, Space>& lhs,
+                  const multi_ptr<ElementType, Space>& rhs)
+  {
+    return lhs.get() >= rhs.get();
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
+  {
+    return lhs.get() >= nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator>=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return nullptr >= rhs.get();
+  }
+
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator==(const multi_ptr<ElementType, Space>& lhs,
+                  const multi_ptr<ElementType, Space>& rhs)
+  {
+    return lhs.get() == rhs.get();
+  }
+
 
   HIPSYCL_UNIVERSAL_TARGET
   void prefetch(size_t) const
@@ -379,138 +483,6 @@ HIPSYCL_UNIVERSAL_TARGET
 multi_ptr<ElementType, Space> make_ptr(ElementType* ptr)
 {
   return multi_ptr<ElementType, Space>{ptr};
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator==(const multi_ptr<ElementType, Space>& lhs,
-                const multi_ptr<ElementType, Space>& rhs)
-{
-  return lhs.get() == rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator!=(const multi_ptr<ElementType, Space>& lhs,
-                const multi_ptr<ElementType, Space>& rhs)
-{
-  return !(lhs == rhs);
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<(const multi_ptr<ElementType, Space>& lhs,
-               const multi_ptr<ElementType, Space>& rhs)
-{
-  return lhs.get() < rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>(const multi_ptr<ElementType, Space>& lhs,
-               const multi_ptr<ElementType, Space>& rhs)
-{
-  return lhs.get() > rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<=(const multi_ptr<ElementType, Space>& lhs,
-                const multi_ptr<ElementType, Space>& rhs)
-{
-  return lhs.get() <= rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>=(const multi_ptr<ElementType, Space>& lhs,
-                const multi_ptr<ElementType, Space>& rhs)
-{
-  return lhs.get() >= rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator!=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs.get() != nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator!=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return rhs != nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator==(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs == nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator==(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return rhs == nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs.get() > nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return nullptr < rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs.get() < nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return nullptr < rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs.get() >= nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator>=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return nullptr >= rhs.get();
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<=(const multi_ptr<ElementType, Space>& lhs, std::nullptr_t)
-{
-  return lhs.get() <= nullptr;
-}
-
-template <typename ElementType, access::address_space Space>
-HIPSYCL_UNIVERSAL_TARGET
-bool operator<=(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
-{
-  return nullptr <= rhs.get();
 }
 
 // Template specialization aliases for different pointer address spaces

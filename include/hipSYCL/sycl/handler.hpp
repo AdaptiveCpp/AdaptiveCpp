@@ -335,7 +335,6 @@ void set_args(Ts &&... args);
 
     // Use a function object instead of lambda to avoid
     // requiring a unique kernel name for each fill call
-
     // TODO: hipSYCL rt currently does not have a dedicated operation
     // for fills - implement for the ability to implement fill using
     // backend functionality instead of a kernel

@@ -89,6 +89,25 @@ struct nd_item
     return detail::linear_id<dimensions>::get(get_global_id(), get_global_range());
   }
 
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<dimensions>& lhs, const nd_item<dimensions>& rhs)
+  {
+    #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+      return  lhs._offset == rhs._offset;
+    #else
+      return  lhs._group_id == rhs._group_id &&
+              lhs._offset == rhs._offset &&
+              lhs._local_id == rhs._local_id &&
+              lhs._global_id == rhs._global_id &&
+              lhs._num_groups == rhs._num_groups &&
+              lhs._local_range == rhs._local_range;
+    #endif
+  }
+
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const nd_item<dimensions>& lhs, const nd_item<dimensions>& rhs)
+  {
+    return !(lhs==rhs);
+  }
+
   [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_local() const
@@ -158,6 +177,12 @@ struct nd_item
 #else
     return detail::linear_id<dimensions>::get(this->_group_id, this->_num_groups);
 #endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  sub_group get_sub_group() const
+  {
+    return sub_group{};
   }
 
   HIPSYCL_KERNEL_TARGET

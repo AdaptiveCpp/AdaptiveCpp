@@ -12,7 +12,7 @@ Currently, we support
 * Arch Linux
 
 ## Installing from repositories
-Installing using the repositories is beneficial because the hipSYCL installation can be kept up to date with regular system updates.
+Installing using the repositories is beneficial because the hipSYCL installation can be kept up to date with regular system updates. We provide stable packages that are subjet to more rigorous testing (`hipSYCL`, `hipSYCL-base`. `hipSYCL-rocm`) and nightly packages that are built from the current development head (`hipSYCL-nightly`, `hipSYCL-base-nightly`. `hipSYCL-rocm-nightly`).
 
 ### Ubuntu 18.04
 Add the hipSYCL repo to the sources:  
@@ -22,6 +22,7 @@ Import the pgp public key:
 After updating the packages can be installed with apt  
 `apt update`  
 `apt install <hipSYCL package>`  
+Keep in mind that for ubuntu 18.04 due to technical limitations the package names are lower case (`hipsycl` instead of `hipSYCL`)
 
 ### Centos
 The following command will set up everything:  

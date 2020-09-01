@@ -505,6 +505,54 @@ auto make_test_value(const T<1>& a, const T<2>& b, const T<3>& c) {
   return std::get<dimensions - 1>(std::make_tuple(a, b, c));
 }
 
+template <template<int D> class T, int dimensions>
+void test_id_range_operators() {
+  const auto test_value = make_test_value<T, dimensions>({ 5 }, { 5, 7 }, { 5, 7, 11 });
+  const auto other_test_value = make_test_value<T, dimensions>({ 3 }, { 3, 4 }, { 3, 4, 9 });
+
+  {
+    // T + T
+    const auto result = test_value + other_test_value;
+    if(dimensions >= 1) BOOST_TEST(result[0] == 8);
+    if(dimensions >= 2) BOOST_TEST(result[1] == 11);
+    if(dimensions == 3) BOOST_TEST(result[2] == 20);
+  }
+
+  {
+    // T + size_t
+    const auto result = test_value + 2;
+    if(dimensions >= 1) BOOST_TEST(result[0] == 7);
+    if(dimensions >= 2) BOOST_TEST(result[1] == 9);
+    if(dimensions == 3) BOOST_TEST(result[2] == 13);
+  }
+
+  {
+    // T += T
+    auto result = test_value;
+    result+= other_test_value;
+    if(dimensions >= 1) BOOST_TEST(result[0] == 8);
+    if(dimensions >= 2) BOOST_TEST(result[1] == 11);
+    if(dimensions == 3) BOOST_TEST(result[2] == 20);
+  }
+
+  {
+    // T += size_t
+    auto result = test_value;
+    result += 2;
+    if(dimensions >= 1) BOOST_TEST(result[0] == 7);
+    if(dimensions >= 2) BOOST_TEST(result[1] == 9);
+    if(dimensions == 3) BOOST_TEST(result[2] == 13);
+  }
+
+  {
+    // size_t + T
+    auto result = 2 + test_value;
+    if(dimensions >= 1) BOOST_TEST(result[0] == 7);
+    if(dimensions >= 2) BOOST_TEST(result[1] == 9);
+    if(dimensions == 3) BOOST_TEST(result[2] == 13);
+  }
+}
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions::type) {
   namespace s = cl::sycl;
   constexpr auto d = _dimensions::value;
@@ -587,7 +635,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(range_api, _dimensions, test_dimensions::type) {
     BOOST_TEST(range.size() == 5 * (d >= 2 ? 7 : 1) * (d == 3 ? 11 : 1));
   }
 
-  // TODO: In-place and binary operators
+  test_id_range_operators<s::range, d>();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
@@ -678,7 +726,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(id_api, _dimensions, test_dimensions::type) {
     if(d == 3) BOOST_TEST(id[2] == 11);
   }
 
-  // TODO: In-place and binary operators
+  test_id_range_operators<s::id, d>();
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {

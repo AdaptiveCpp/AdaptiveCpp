@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -338,7 +338,7 @@ public:
 
   friend bool operator==(const buffer& lhs, const buffer& rhs)
   {
-    return lhs->_buffer == rhs->_buffer;
+    return lhs._buffer == rhs._buffer;
   }
 
   friend bool operator!=(const buffer& lhs, const buffer& rhs)

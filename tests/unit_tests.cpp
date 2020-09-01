@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -324,6 +324,75 @@ BOOST_AUTO_TEST_CASE(buffer_versioning) {
       BOOST_REQUIRE(acc[i] == buf_size - i);
     }
   }
+}
+
+// TODO: Extend this
+BOOST_AUTO_TEST_CASE(buffer_api) {
+  namespace s = cl::sycl;
+
+  s::buffer<int, 1> buf_a(32);
+  s::buffer<int, 1> buf_b(32);
+  auto buf_c = buf_a;
+
+  BOOST_REQUIRE(buf_a == buf_a);
+  BOOST_REQUIRE(buf_a != buf_b);
+  BOOST_REQUIRE(buf_a == buf_c);
+}
+
+// TODO: Extend this
+BOOST_AUTO_TEST_CASE(accessor_api) {
+  namespace s = cl::sycl;
+
+  s::buffer<int, 1> buf_a(32);
+  s::buffer<int, 1> buf_b(32);
+  auto buf_c = buf_a;
+
+  const auto run_test = [&](auto get_access) {
+    auto acc_a1 = get_access(buf_a);
+    auto acc_a2 = acc_a1;
+    auto acc_a3 = get_access(buf_a, s::range<1>(16));
+    auto acc_a4 = get_access(buf_a, s::range<1>(16), s::id<1>(4));
+    auto acc_a5 = get_access(buf_a);
+    auto acc_b1 = get_access(buf_b);
+    auto acc_c1 = get_access(buf_c);
+
+    BOOST_REQUIRE(acc_a1 == acc_a1);
+    BOOST_REQUIRE(acc_a2 == acc_a2);
+    BOOST_REQUIRE(acc_a1 != acc_a3);
+    BOOST_REQUIRE(acc_a1 != acc_a4);
+    BOOST_REQUIRE(acc_a1 != acc_b1);
+    // NOTE: A strict reading of the 1.2.1 Rev 7 spec, section 4.3.2 would imply
+    // that these should not be equal, as they are not copies of acc_a1.
+    BOOST_REQUIRE(acc_a1 == acc_a5);
+    BOOST_REQUIRE(acc_a1 == acc_c1);
+  };
+
+  // Test host accessors
+  run_test([&](auto buf, auto... args) {
+    return buf.template get_access<s::access::mode::read>(args...);
+  });
+
+  // Test device accessors
+  s::queue queue;
+  queue.submit([&](s::handler& cgh) {
+    run_test([&](auto buf, auto... args) {
+      return buf.template get_access<s::access::mode::read>(cgh, args...);
+    });
+    cgh.single_task<class accessor_api_device_accessors>([](){});
+  });
+
+  // Test local accessors
+  queue.submit([&](s::handler& cgh) {
+    s::accessor<int, 1, s::access::mode::read_write, s::access::target::local> acc_a(32, cgh);
+    s::accessor<int, 1, s::access::mode::read_write, s::access::target::local> acc_b(32, cgh);
+    auto acc_c = acc_a;
+
+    BOOST_REQUIRE(acc_a == acc_a);
+    BOOST_REQUIRE(acc_a != acc_b);
+    BOOST_REQUIRE(acc_a == acc_c);
+
+    cgh.parallel_for<class accessor_api_local_accessors>(s::nd_range<1>(1, 1), [](s::nd_item<1>){});
+  });
 }
 
 BOOST_AUTO_TEST_CASE(vec_api) {

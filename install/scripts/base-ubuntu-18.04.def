@@ -19,6 +19,6 @@ bash /add-repo-ubuntu.sh
 apt download hipsycl-rocm
 apt download hipsycl-base
 
-[ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ] && bash /install-cuda.sh 
+bash /install-cuda.sh 
 [ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ] && bash /install-llvm.sh || dpkg --force-all -i hipsycl-base*
 [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ] && bash /install-rocm.sh || dpkg --force-all -i hipsycl-rocm* 

@@ -282,7 +282,7 @@ public:
         else if constexpr(Dim == 2)
           local_range = sycl::range<2>{16, 16};
         else if constexpr(Dim == 3)
-          local_range = sycl::range<3>{8, 8, 8};
+          local_range = sycl::range<3>{4, 8, 8};
 
         sycl::range<Dim> grid_range = hiplike_dispatch::determine_grid_configuration(
             global_range, local_range);

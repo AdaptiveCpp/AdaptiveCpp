@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -386,6 +386,24 @@ access::target::constant_buffer)) && dimensions > 0 */
 
   /* -- common interface members -- */
   HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator==(const accessor &lhs, const accessor &rhs) {
+    bool buffer_same = true;
+
+#ifndef SYCL_DEVICE_ONLY
+    buffer_same = lhs._buff.get_shared_ptr() == rhs._buff.get_shared_ptr();
+#endif
+
+    return lhs._ptr == rhs._ptr && lhs._buffer_range == rhs._buffer_range &&
+           lhs._range == rhs._range && lhs._offset == rhs._offset && buffer_same;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator!=(const accessor& lhs, const accessor& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr bool is_placeholder() const
   {
     return isPlaceholder == access::placeholder::true_t;
@@ -692,6 +710,17 @@ public:
 
 
   /* -- common interface members -- */
+
+  friend bool operator==(const accessor& lhs, const accessor& rhs)
+  {
+    return lhs._addr == rhs._addr && lhs._num_elements == rhs._num_elements;
+  }
+
+  friend bool operator!=(const accessor& lhs, const accessor& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
   HIPSYCL_KERNEL_TARGET
   size_t get_size() const
   {

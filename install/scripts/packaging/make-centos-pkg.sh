@@ -16,7 +16,7 @@ mkdir -p ${RPM_ROOT}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL.spec
 Summary: Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
-Name: hipSYCL
+Name: hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION}
 Release: ${HIPSYCL_BUILD}
 License: BSD
@@ -24,7 +24,7 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_VERSION_STRING}
-Requires: python3, hipSYCL-base
+Requires: python3, hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
 AutoReq: no
 
 %description
@@ -43,7 +43,7 @@ EOF
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-base.spec
 Summary: base LLVM compiler stack for hipSYCL
-Name: hipSYCL-base
+Name: hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION}
 Release: ${HIPSYCL_BUILD}
 License: LLVM
@@ -66,7 +66,7 @@ EOF
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-rocm.spec
 Summary: ROCm stack for hipSYCL
-Name: hipSYCL-rocm
+Name: hipSYCL-rocm${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION}
 Release: ${HIPSYCL_BUILD}
 License: LLVM
@@ -74,7 +74,7 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-rocm-${HIPSYCL_VERSION_STRING}
-Requires: hipSYCL, numactl-devel, numactl-libs, pciutils-devel, pciutils-libs, perl, elfutils-libelf-devel
+Requires: hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}, numactl-devel, numactl-libs, pciutils-devel, pciutils-libs, perl, elfutils-libelf-devel
 
 %description
 %{summary}

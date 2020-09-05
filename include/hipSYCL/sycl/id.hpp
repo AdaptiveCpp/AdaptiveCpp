@@ -181,7 +181,7 @@ struct id {
   friend id<dimensions>& operator op(id<dimensions> &lhs, const id<dimensions> &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       lhs._data[i] op rhs._data[i]; \
-    return *lhs; \
+    return lhs; \
   }
 
   HIPSYCL_ID_BINARY_OP_IN_PLACE(+=)
@@ -200,7 +200,7 @@ struct id {
   friend id<dimensions>& operator op(id<dimensions> &lhs, const std::size_t &rhs) { \
     for(std::size_t i = 0; i < dimensions; ++i) \
       lhs._data[i] op rhs; \
-    return *lhs; \
+    return lhs; \
   }
 
   HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(+=)

@@ -19,6 +19,6 @@ pacman -S --noconfirm  gawk pkg-config python3 rsync
 # If we are not building rocm we need to pull it from the pkg repo.sh
 bash /add-repo-arch.sh
 
-[ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ] && bash /install-cuda.sh 
+bash /install-cuda.sh 
 [ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ] && bash /install-llvm.sh || pacman -Sdd --noconfirm hipSYCL-base
 [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ] && bash /install-rocm.sh || pacman -Sdd --noconfirm hipSYCL-rocm

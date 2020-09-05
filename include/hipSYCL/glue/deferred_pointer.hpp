@@ -73,6 +73,16 @@ public:
   T *get() const
   { return _ptr; }
 
+  friend bool operator==(const deferred_pointer<T> &a,
+                         const deferred_pointer<T> &b) {
+    return a._ptr == b._ptr;
+  }
+
+
+  friend bool operator!=(const deferred_pointer<T> &a,
+                         const deferred_pointer<T> &b) {
+    return !(a == b);
+  }
 private:
   
   T* _ptr;

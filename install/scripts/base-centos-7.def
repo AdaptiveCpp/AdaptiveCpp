@@ -25,7 +25,7 @@ bash /add-repo-centos.sh
 yum install --downloadonly --downloaddir=./ hipSYCL-rocm 
 yum install --downloadonly --downloaddir=./ hipSYCL-base 
 
-[ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ] && bash /install-cuda.sh
+bash /install-cuda.sh
 [ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ] && bash /install-llvm.sh || rpm -ivh hipSYCL-base* --nodeps
 [ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ] && bash /install-rocm.sh || rpm -ivh hipSYCL-rocm* --nodeps 
 #sh /install-hipsycl.sh

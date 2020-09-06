@@ -216,7 +216,7 @@ private:
 
 struct data_user
 {
-  dag_node_ptr user;
+  std::weak_ptr<dag_node> user;
   sycl::access::mode mode;
   sycl::access::target target;
   id<3> offset;
@@ -314,6 +314,8 @@ public:
     for(const auto& alloc : _allocations) {
       if(alloc.memory && alloc.is_owned && !_is_fork) {
         device_id dev = alloc.dev;
+        HIPSYCL_DEBUG_INFO << "data_region::~data_region: Freeing allocation "
+                           << alloc.memory << std::endl;
         generic_pointer_free(dev, alloc.memory);
       }
     }

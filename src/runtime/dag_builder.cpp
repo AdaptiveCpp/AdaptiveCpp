@@ -108,14 +108,16 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
         else {
           auto* buff_req = cast<buffer_memory_requirement>(req);
 
-          data_user_tracker& user_tracker = buff_req->get_data_region()->get_users();
+          data_user_tracker &user_tracker =
+              buff_req->get_data_region()->get_users();
 
-          user_tracker.for_each_user([&](data_user& user){
-            if(is_conflicting_access(mem_req, user))
+          user_tracker.for_each_user([&](data_user &user) {
+            auto user_ptr = user.user.lock();
+            if(user_ptr && is_conflicting_access(mem_req, user))
             {
               // No reason to take a dependency into account that is alreay completed
-              if(!user.user->is_complete())
-                req_node->add_requirement(user.user);
+              if(!user_ptr->is_complete())
+                req_node->add_requirement(user_ptr);
             }
           });
           

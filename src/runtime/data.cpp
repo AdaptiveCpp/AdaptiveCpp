@@ -74,8 +74,9 @@ data_user_tracker::get_users() const
 bool data_user_tracker::has_user(dag_node_ptr user) const
 {
   std::lock_guard<std::mutex> lock{_lock};
-  return std::find_if(_users.begin(), _users.end(), 
-    [user](const data_user& u){ return u.user == user;}) != _users.end();
+  return std::find_if(_users.begin(), _users.end(), [user](const data_user &u) {
+           return u.user.lock() == user;
+         }) != _users.end();
 }
 
 void data_user_tracker::release_dead_users()
@@ -83,7 +84,10 @@ void data_user_tracker::release_dead_users()
   std::lock_guard<std::mutex> lock{_lock};
   _users.erase(std::remove_if(_users.begin(), _users.end(),
                               [this](const data_user &user) -> bool {
-                                return user.user->is_complete();
+                                auto u = user.user.lock();
+                                if (!u)
+                                  return true;
+                                return u->is_complete();
                               }),
                _users.end());
 }
@@ -97,8 +101,9 @@ void data_user_tracker::add_user(
 {
   assert(!has_user(user));
   std::lock_guard<std::mutex> lock{_lock};
-  
-  _users.push_back(data_user{user, mode, target, offset, range});
+
+  _users.push_back(
+      data_user{std::weak_ptr<dag_node>(user), mode, target, offset, range});
 }
 
 

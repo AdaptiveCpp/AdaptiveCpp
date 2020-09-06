@@ -193,19 +193,20 @@ struct buffer_impl
           << std::endl;
 
       auto buffer_users = data->get_users().get_users();
-      for(auto& user : buffer_users) {
-        // This should not happen, as the scheduler registers users
-        // after submitting them
-        if(!user.user->is_submitted()) {
-          HIPSYCL_DEBUG_WARNING
-              << "buffer_impl::~buffer_impl: dag node is registered as user "
-                 "but not marked as submitted, performing emergency DAG flush."
-              << std::endl;
+      for (auto &user : buffer_users) {
+        auto user_ptr = user.user.lock();
+        if(user_ptr) {
+          if(!user_ptr->is_submitted()) {
+            HIPSYCL_DEBUG_INFO
+                << "buffer_impl::~buffer_impl: dag node is registered as user "
+                  "but not marked as submitted, performing emergency DAG flush."
+                << std::endl;
 
-          rt::application::dag().flush_sync();
+            rt::application::dag().flush_sync();
+          }
+          assert(user_ptr->is_submitted());
+          user_ptr->wait();
         }
-        assert(user.user->is_submitted());
-        user.user->wait();
       }
     }
   }

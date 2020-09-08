@@ -224,7 +224,7 @@ inline void parallel_for_ndrange_kernel(
         }
       }
       else if constexpr(Dim == 3){
-#pragma omp for collapse(3)
+      #pragma omp for collapse(3)
         for(size_t i = 0; i < num_groups.get(0); ++i) {
           for(size_t j = 0; j < num_groups.get(1); ++j) {
             for(size_t k = 0; k < num_groups.get(2); ++k) {
@@ -394,6 +394,7 @@ public:
     
     this->_type = type;
 
+#ifdef HIPSYCL_NO_FIBERS
     if (type == rt::kernel_type::ndrange_parallel_for) {
       this->_invoker = []() {};
       
@@ -409,7 +410,8 @@ public:
         "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md"
       };
     }
-
+#endif
+    
     this->_invoker = [=]() {
 
       bool is_with_offset = false;

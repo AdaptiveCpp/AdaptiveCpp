@@ -57,6 +57,98 @@ namespace hipsycl {
 namespace glue {
 namespace omp_dispatch {
 
+
+template <int Dim, class Function>
+void iterate_range(sycl::range<Dim> r, Function f) {
+
+  if constexpr (Dim == 1) {
+    for (size_t i = 0; i < r.get(0); ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    for (size_t i = 0; i < r.get(0); ++i) {
+      for (size_t j = 0; j < r.get(1); ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    for (size_t i = 0; i < r.get(0); ++i) {
+      for (size_t j = 0; j < r.get(1); ++j) {
+        for (size_t k = 0; k < r.get(2); ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+
+}
+
+template <int Dim, class Function>
+void iterate_range_omp_for(sycl::range<Dim> r, Function f) {
+
+  if constexpr (Dim == 1) {
+    #pragma omp for
+    for (size_t i = 0; i < r.get(0); ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    #pragma omp for collapse(2)
+    for (size_t i = 0; i < r.get(0); ++i) {
+      for (size_t j = 0; j < r.get(1); ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    #pragma omp for collapse(3)
+    for (size_t i = 0; i < r.get(0); ++i) {
+      for (size_t j = 0; j < r.get(1); ++j) {
+        for (size_t k = 0; k < r.get(2); ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
+template <int Dim, class Function>
+void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
+                           Function f) {
+
+  const size_t min_i = offset.get(0);
+  const size_t max_i = offset.get(0) + r.get(0);
+
+  if constexpr (Dim == 1) {
+  #pragma omp for
+    for (size_t i = min_i; i < max_i; ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    const size_t min_j = offset.get(1);
+    const size_t max_j = offset.get(1) + r.get(1);
+
+  #pragma omp for collapse(2)
+    for (size_t i = min_i; i < max_i; ++i) {
+      for (size_t j = min_j; j < max_j; ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    const size_t min_j = offset.get(1);
+    const size_t min_k = offset.get(2);
+    const size_t max_j = offset.get(1) + r.get(1);
+    const size_t max_k = offset.get(2) + r.get(2);
+
+  #pragma omp for collapse(3)
+    for (size_t i = min_i; i < max_i; ++i) {
+      for (size_t j = min_j; j < max_j; ++j) {
+        for (size_t k = min_k; k < max_k; ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
 template<class Function>
 inline 
 void single_task_kernel(Function f) noexcept
@@ -71,45 +163,14 @@ void parallel_for_kernel(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  const auto max_i = execution_range.get(0);
-
-  if constexpr(Dim == 1){
-#pragma omp parallel for
-    for(size_t i = 0; i < max_i; ++i){
+#pragma omp parallel
+  {
+    iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
-        sycl::detail::make_item<Dim>(sycl::id<1>{i}, 
-                                    execution_range);
+        sycl::detail::make_item<Dim>(idx, execution_range);
 
       f(this_item);
-    }
-  }
-  else if constexpr(Dim == 2){
-    const auto max_j = execution_range.get(1);
-#pragma omp parallel for collapse(2)
-    for(size_t i = 0; i < max_i; ++i)
-      for(size_t j = 0; j < max_j; ++j)
-      {
-        auto this_item = 
-          sycl::detail::make_item<Dim>(sycl::id<2>{i,j}, 
-                                      execution_range);
-
-        f(this_item);
-      }
-  }
-  else if constexpr(Dim == 3){
-    const auto max_j = execution_range.get(1);
-    const auto max_k = execution_range.get(2);
-#pragma omp parallel for collapse(3)
-    for(size_t i = 0; i < max_i; ++i)
-      for(size_t j = 0; j < max_j; ++j)
-        for(size_t k = 0; k < max_k; ++k)
-        {
-          auto this_item = 
-            sycl::detail::make_item<Dim>(sycl::id<3>{i,j,k}, 
-                                        execution_range);
-
-          f(this_item);
-        }
+    });
   }
 }
 
@@ -121,51 +182,18 @@ void parallel_for_kernel(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  const auto min_i = offset.get(0);
-  const auto max_i = execution_range.get(0)+min_i;
-  
-  if constexpr(Dim == 1){
-#pragma omp parallel for
-    for(size_t i = min_i; i < max_i; ++i){
+
+#pragma omp parallel
+  {
+    iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
-        sycl::detail::make_item<Dim>(sycl::id<1>{i}, 
-                                    execution_range, offset);
+        sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
       f(this_item);
-    }
-  } else if constexpr (Dim == 2) {
-    const auto min_j = offset.get(1);
-    const auto max_j = execution_range.get(1) + min_j;
-
-#pragma omp parallel for collapse(2)
-    for(size_t i = min_i; i < max_i; ++i)
-      for(size_t j = min_j; j < max_j; ++j)
-      {
-        auto this_item = 
-          sycl::detail::make_item<Dim>(sycl::id<2>{i,j}, 
-                                      execution_range, offset);
-
-        f(this_item);
-      }
-  }
-  else if constexpr(Dim == 3){
-    const auto min_j = offset.get(1);
-    const auto min_k = offset.get(2);
-    const auto max_j = execution_range.get(1)+min_j;
-    const auto max_k = execution_range.get(2)+min_k;
-#pragma omp parallel for collapse(3)
-    for(size_t i = min_i; i < max_i; ++i)
-      for(size_t j = min_j; j < max_j; ++j)
-        for(size_t k = min_k; k < max_k; ++k)
-        {
-          auto this_item = 
-            sycl::detail::make_item<Dim>(sycl::id<3>{i,j,k}, 
-                                        execution_range, offset);
-
-          f(this_item);
-        }
+    });
   }
 }
+
 
 template <int Dim, class Function>
 inline void parallel_for_ndrange_kernel(
@@ -184,7 +212,7 @@ inline void parallel_for_ndrange_kernel(
   static_assert(Dim > 0 && Dim <= 3,
                 "Only dimensions 1 - 3 are supported.");
 
-  #pragma omp parallel
+#pragma omp parallel
   {
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
@@ -207,66 +235,19 @@ inline void parallel_for_ndrange_kernel(
     };
 
     auto invoke_fiber = [&](sycl::id<Dim> local_id){
-      if constexpr(Dim == 1){
-      #pragma omp for
-        for(size_t i = 0; i < num_groups.get(0); ++i) {
-          execute_work_item(local_id, sycl::id<Dim>{i});
-          group_barrier.wait();
-        }
-      }
-      else if constexpr(Dim == 2){
-      #pragma omp for collapse(2)
-        for(size_t i = 0; i < num_groups.get(0); ++i) {
-          for(size_t j = 0; j < num_groups.get(1); ++j) {
-            execute_work_item(local_id, sycl::id<Dim>{i,j});
-            group_barrier.wait();
-          }
-        }
-      }
-      else if constexpr(Dim == 3){
-      #pragma omp for collapse(3)
-        for(size_t i = 0; i < num_groups.get(0); ++i) {
-          for(size_t j = 0; j < num_groups.get(1); ++j) {
-            for(size_t k = 0; k < num_groups.get(2); ++k) {
-              execute_work_item(local_id, sycl::id<Dim>{i,j,k});
-              group_barrier.wait();
-            }
-          }
-        }
-      }
+      iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id){
+        execute_work_item(local_id, group_id);
+        group_barrier.wait();
+      });
     };
 
-    if constexpr(Dim == 1) {
-      for(size_t i = 0; i < local_size.get(0); ++i){
-        fibers[i] = boost::fibers::fiber([=](){
-          invoke_fiber(sycl::id<Dim>{i});
-        });
-      }
-    }
-    else if constexpr(Dim == 2) {
-      size_t n = 0;
-      for(size_t i = 0; i < local_size.get(0); ++i){
-        for(size_t j = 0; j < local_size.get(1); ++j){
-          fibers[n] = boost::fibers::fiber([=](){
-            invoke_fiber(sycl::id<Dim>{i,j});
-          });
-          ++n;
-        }
-      }
-    }
-    else if constexpr(Dim == 3) {
-      size_t n = 0;
-      for(size_t i = 0; i < local_size.get(0); ++i){
-        for(size_t j = 0; j < local_size.get(1); ++j){
-          for(size_t k = 0; k < local_size.get(2); ++k){
-            fibers[n] = boost::fibers::fiber([=](){
-              invoke_fiber(sycl::id<Dim>{i,j,k});
-            });
-            ++n;
-          }
-        }
-      }
-    }
+    size_t n = 0;
+    iterate_range(local_size, [&](sycl::id<Dim> local_id){
+      fibers[n] = boost::fibers::fiber([=](){
+          invoke_fiber(local_id);
+      });
+      ++n;
+    });
 
     for(auto& fiber : fibers){
       fiber.join();
@@ -291,34 +272,11 @@ void parallel_for_workgroup(Function f,
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    if constexpr(Dim == 1){
-#pragma omp for
-      for(size_t i = 0; i < num_groups.get(0); ++i){
-        sycl::group<1> this_group{sycl::id<1>{i}, local_size, num_groups};
-        f(this_group);
-      }
-    }
-    else if constexpr(Dim == 2){
-#pragma omp for collapse(2)
-      for(size_t i = 0; i < num_groups.get(0); ++i){
-        for(size_t j = 0; j < num_groups.get(1); ++j){
-          sycl::group<2> this_group{sycl::id<2>{i,j}, local_size, num_groups};
-          f(this_group);
-        }
-      }
-    }
-    else if constexpr(Dim == 3){
-#pragma omp for collapse(3)
-      for(size_t i = 0; i < num_groups.get(0); ++i){
-        for(size_t j = 0; j < num_groups.get(1); ++j){
-          for(size_t k = 0; k < num_groups.get(2); ++k){
-            sycl::group<3> this_group{sycl::id<3>{i,j,k}, local_size, num_groups};
-            f(this_group);
-          }
-        }
-      }
-    }
-
+    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
+      sycl::group<Dim> this_group{group_id, local_size, num_groups};
+      f(this_group);
+    });
+ 
     sycl::detail::host_local_memory::release();
   }
 }
@@ -338,40 +296,15 @@ void parallel_region(Function f,
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    auto make_physical_item = [&](sycl::id<dimensions> group_id) {
-      return sycl::detail::make_sp_item(sycl::id<dimensions>{}, group_id,
-                                        group_size, num_groups);
-    };
+    iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
+      sycl::group<dimensions> this_group{group_id, group_size, num_groups};
 
-    if constexpr(dimensions == 1){
-    #pragma omp for
-      for(size_t i = 0; i < num_groups.get(0); ++i){
-        auto group_id = sycl::id<1>{i};
-        sycl::group<1> this_group{group_id, group_size, num_groups};
-        f(this_group, make_physical_item(group_id));
-      }
+      auto phys_item = sycl::detail::make_sp_item(
+          sycl::id<dimensions>{}, group_id, group_size, num_groups);
 
-    } else if constexpr(dimensions == 2){
-    #pragma omp for collapse(2)
-      for(size_t i = 0; i < num_groups.get(0); ++i)
-        for(size_t j = 0; j < num_groups.get(1); ++j)
-        {
-          auto group_id = sycl::id<2>{i,j};
-          sycl::group<2> this_group{group_id, group_size, num_groups};
-          f(this_group, make_physical_item(group_id));
-        } 
-    } else {
-    #pragma omp for collapse(3)
-      for(size_t i = 0; i < num_groups.get(0); ++i)
-        for(size_t j = 0; j < num_groups.get(1); ++j)
-          for(size_t k = 0; k < num_groups.get(2); ++k)
-          {
-            auto group_id = sycl::id<3>{i,j,k};
-            sycl::group<3> this_group{group_id, group_size, num_groups};
-            f(this_group, make_physical_item(group_id));
-          }
-
-    }    
+      f(this_group, phys_item);
+    });
+ 
     sycl::detail::host_local_memory::release();
   }
 }

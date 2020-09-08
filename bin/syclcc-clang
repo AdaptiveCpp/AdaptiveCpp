@@ -558,7 +558,9 @@ class pure_cpu_compiler:
 
     self._linker_args += [
       "-L"+hipsycl_library_path,
-      "-lhipSYCL-rt"
+      "-lhipSYCL-rt",
+      "-lboost_context",
+      "-lboost_fiber"
     ]
     if "clang" in os.path.basename(self._compiler):
       self._linker_args += ["-rpath",hipsycl_library_path]

@@ -31,6 +31,11 @@
 
 #include <cassert>
 
+#ifndef HIPSYCL_NO_FIBERS
+#include <boost/fiber/fiber.hpp>
+#include <boost/fiber/barrier.hpp>
+#endif
+
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
@@ -46,6 +51,7 @@
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+
 
 namespace hipsycl {
 namespace glue {
@@ -161,19 +167,114 @@ void parallel_for_kernel(Function f,
   }
 }
 
-template<int Dim, class Function>
-inline
-void parallel_for_ndrange_kernel(Function f, 
-                            const sycl::range<Dim> num_groups,
-                            const sycl::range<Dim> local_size,
-                            sycl::id<Dim> offset,
-                            size_t num_local_mem_bytes) noexcept
+template <int Dim, class Function>
+inline void parallel_for_ndrange_kernel(
+    Function f, const sycl::range<Dim> num_groups,
+    const sycl::range<Dim> local_size, sycl::id<Dim> offset,
+    size_t num_local_mem_bytes) noexcept
 {
-  rt::register_error(
-      __hipsycl_here(),
-      rt::error_info{"nd_range parallel for is unsupported on CPU because it "
-                     "cannot be implemented efficiently.",
+
+#ifdef HIPSYCL_NO_FIBERS
+  rt::register_error(__hipsycl_here(),
+                     rt::error_info{
+                         "nd_range parallel for on CPU requires fibers, but 
+                         fiber support is disabled",
                      rt::error_type::feature_not_supported});
+#else
+  static_assert(Dim > 0 && Dim <= 3,
+                "Only dimensions 1 - 3 are supported.");
+
+  #pragma omp parallel
+  {
+    sycl::detail::host_local_memory::request_from_threadprivate_pool(
+        num_local_mem_bytes);
+
+    std::vector<boost::fibers::fiber> fibers(local_size.size());
+    boost::fibers::barrier group_barrier{local_size.size()};
+
+    auto execute_work_item = [&](sycl::id<Dim> local_id,
+                                sycl::id<Dim> group_id){
+      sycl::nd_item<Dim> this_item{
+        &offset,
+        group_id,
+        local_id,
+        local_size,
+        num_groups,
+        &group_barrier
+      };
+      
+      f(this_item);
+    };
+
+    auto invoke_fiber = [&](sycl::id<Dim> local_id){
+      if constexpr(Dim == 1){
+      #pragma omp for
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          execute_work_item(local_id, sycl::id<Dim>{i});
+          group_barrier.wait();
+        }
+      }
+      else if constexpr(Dim == 2){
+      #pragma omp for collapse(2)
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          for(size_t j = 0; j < num_groups.get(1); ++j) {
+            execute_work_item(local_id, sycl::id<Dim>{i,j});
+            group_barrier.wait();
+          }
+        }
+      }
+      else if constexpr(Dim == 3){
+#pragma omp for collapse(3)
+        for(size_t i = 0; i < num_groups.get(0); ++i) {
+          for(size_t j = 0; j < num_groups.get(1); ++j) {
+            for(size_t k = 0; k < num_groups.get(2); ++k) {
+              execute_work_item(local_id, sycl::id<Dim>{i,j,k});
+              group_barrier.wait();
+            }
+          }
+        }
+      }
+    };
+
+    if constexpr(Dim == 1) {
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        fibers[i] = boost::fibers::fiber([=](){
+          invoke_fiber(sycl::id<Dim>{i});
+        });
+      }
+    }
+    else if constexpr(Dim == 2) {
+      size_t n = 0;
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        for(size_t j = 0; j < local_size.get(1); ++j){
+          fibers[n] = boost::fibers::fiber([=](){
+            invoke_fiber(sycl::id<Dim>{i,j});
+          });
+          ++n;
+        }
+      }
+    }
+    else if constexpr(Dim == 3) {
+      size_t n = 0;
+      for(size_t i = 0; i < local_size.get(0); ++i){
+        for(size_t j = 0; j < local_size.get(1); ++j){
+          for(size_t k = 0; k < local_size.get(2); ++k){
+            fibers[n] = boost::fibers::fiber([=](){
+              invoke_fiber(sycl::id<Dim>{i,j,k});
+            });
+            ++n;
+          }
+        }
+      }
+    }
+
+    for(auto& fiber : fibers){
+      fiber.join();
+    }
+
+    sycl::detail::host_local_memory::release();
+  }
+#endif
 }
 
 template<int Dim, class Function>

@@ -36,7 +36,7 @@
 #include "access.hpp"
 #include "accessor.hpp"
 #include "backend/backend.hpp"
-#include "hipSYCL/sycl/device.hpp"
+#include "device.hpp"
 #include "types.hpp"
 #include "id.hpp"
 #include "range.hpp"

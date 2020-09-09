@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_ND_ITEM_HPP
 #define HIPSYCL_ND_ITEM_HPP
 
+#include <functional>
+
 #include "id.hpp"
 #include "item.hpp"
 #include "range.hpp"
@@ -38,18 +40,14 @@
 #include "detail/thread_hierarchy.hpp"
 #include "detail/mem_fence.hpp"
 
-#ifndef HIPSYCL_NO_FIBERS
-#include <boost/fiber/barrier.hpp>
-#endif
-
 namespace hipsycl {
 namespace sycl {
 
 namespace detail {
-#ifdef HIPSYCL_NO_FIBERS
+#ifdef SYCL_DEVICE_ONLY
 using host_barrier_type = void;
 #else
-using host_barrier_type = boost::fibers::barrier;
+using host_barrier_type = std::function<void()>;
 #endif
 }
 
@@ -285,7 +283,7 @@ struct nd_item
 #ifdef SYCL_DEVICE_ONLY
     __syncthreads();
 #else
-    _group_barrier->wait();
+    (*_group_barrier)();
 #endif
   }
 

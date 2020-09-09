@@ -30,11 +30,7 @@
 
 
 #include <cassert>
-
-#ifndef HIPSYCL_NO_FIBERS
-#include <boost/fiber/fiber.hpp>
-#include <boost/fiber/barrier.hpp>
-#endif
+#include <omp.h>
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -52,102 +48,13 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 
+#include "../generic/host/collective_execution_engine.hpp"
+#include "../generic/host/iterate_range.hpp"
 
 namespace hipsycl {
 namespace glue {
 namespace omp_dispatch {
 
-
-template <int Dim, class Function>
-void iterate_range(sycl::range<Dim> r, Function f) {
-
-  if constexpr (Dim == 1) {
-    for (size_t i = 0; i < r.get(0); ++i) {
-      f(sycl::id<Dim>{i});
-    }
-  } else if constexpr (Dim == 2) {
-    for (size_t i = 0; i < r.get(0); ++i) {
-      for (size_t j = 0; j < r.get(1); ++j) {
-        f(sycl::id<Dim>{i, j});
-      }
-    }
-  } else if constexpr (Dim == 3) {
-    for (size_t i = 0; i < r.get(0); ++i) {
-      for (size_t j = 0; j < r.get(1); ++j) {
-        for (size_t k = 0; k < r.get(2); ++k) {
-          f(sycl::id<Dim>{i, j, k});
-        }
-      }
-    }
-  }
-
-}
-
-template <int Dim, class Function>
-void iterate_range_omp_for(sycl::range<Dim> r, Function f) {
-
-  if constexpr (Dim == 1) {
-    #pragma omp for
-    for (size_t i = 0; i < r.get(0); ++i) {
-      f(sycl::id<Dim>{i});
-    }
-  } else if constexpr (Dim == 2) {
-    #pragma omp for collapse(2)
-    for (size_t i = 0; i < r.get(0); ++i) {
-      for (size_t j = 0; j < r.get(1); ++j) {
-        f(sycl::id<Dim>{i, j});
-      }
-    }
-  } else if constexpr (Dim == 3) {
-    #pragma omp for collapse(3)
-    for (size_t i = 0; i < r.get(0); ++i) {
-      for (size_t j = 0; j < r.get(1); ++j) {
-        for (size_t k = 0; k < r.get(2); ++k) {
-          f(sycl::id<Dim>{i, j, k});
-        }
-      }
-    }
-  }
-}
-
-template <int Dim, class Function>
-void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
-                           Function f) {
-
-  const size_t min_i = offset.get(0);
-  const size_t max_i = offset.get(0) + r.get(0);
-
-  if constexpr (Dim == 1) {
-  #pragma omp for
-    for (size_t i = min_i; i < max_i; ++i) {
-      f(sycl::id<Dim>{i});
-    }
-  } else if constexpr (Dim == 2) {
-    const size_t min_j = offset.get(1);
-    const size_t max_j = offset.get(1) + r.get(1);
-
-  #pragma omp for collapse(2)
-    for (size_t i = min_i; i < max_i; ++i) {
-      for (size_t j = min_j; j < max_j; ++j) {
-        f(sycl::id<Dim>{i, j});
-      }
-    }
-  } else if constexpr (Dim == 3) {
-    const size_t min_j = offset.get(1);
-    const size_t min_k = offset.get(2);
-    const size_t max_j = offset.get(1) + r.get(1);
-    const size_t max_k = offset.get(2) + r.get(2);
-
-  #pragma omp for collapse(3)
-    for (size_t i = min_i; i < max_i; ++i) {
-      for (size_t j = min_j; j < max_j; ++j) {
-        for (size_t k = min_k; k < max_k; ++k) {
-          f(sycl::id<Dim>{i, j, k});
-        }
-      }
-    }
-  }
-}
 
 template<class Function>
 inline 
@@ -165,7 +72,7 @@ void parallel_for_kernel(Function f,
 
 #pragma omp parallel
   {
-    iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
+    host::iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
         sycl::detail::make_item<Dim>(idx, execution_range);
 
@@ -185,7 +92,7 @@ void parallel_for_kernel(Function f,
 
 #pragma omp parallel
   {
-    iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
+    host::iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
         sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
@@ -217,41 +124,20 @@ inline void parallel_for_ndrange_kernel(
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    std::vector<boost::fibers::fiber> fibers(local_size.size());
-    boost::fibers::barrier group_barrier{local_size.size()};
+    host::static_range_decomposition<Dim> group_decomposition{
+        num_groups, omp_get_num_threads(), omp_get_thread_num()};
 
-    auto execute_work_item = [&](sycl::id<Dim> local_id,
-                                sycl::id<Dim> group_id){
-      sycl::nd_item<Dim> this_item{
-        &offset,
-        group_id,
-        local_id,
-        local_size,
-        num_groups,
-        &group_barrier
-      };
-      
+    host::collective_execution_engine<Dim> engine{num_groups, local_size,
+                                                  offset, group_decomposition};
+
+    std::function<void()> barrier_impl = [&]() { engine.barrier(); };
+
+    engine.run_kernel([&](sycl::id<Dim> local_id, sycl::id<Dim> group_id) {
+      sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+                                   local_size, num_groups, &barrier_impl};
+
       f(this_item);
-    };
-
-    auto invoke_fiber = [&](sycl::id<Dim> local_id){
-      iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id){
-        execute_work_item(local_id, group_id);
-        group_barrier.wait();
-      });
-    };
-
-    size_t n = 0;
-    iterate_range(local_size, [&](sycl::id<Dim> local_id){
-      fibers[n] = boost::fibers::fiber([=](){
-          invoke_fiber(local_id);
-      });
-      ++n;
     });
-
-    for(auto& fiber : fibers){
-      fiber.join();
-    }
 
     sycl::detail::host_local_memory::release();
   }
@@ -272,7 +158,7 @@ void parallel_for_workgroup(Function f,
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
+    host::iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
       sycl::group<Dim> this_group{group_id, local_size, num_groups};
       f(this_group);
     });
@@ -296,7 +182,7 @@ void parallel_region(Function f,
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
+    host::iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
       sycl::group<dimensions> this_group{group_id, group_size, num_groups};
 
       auto phys_item = sycl::detail::make_sp_item(

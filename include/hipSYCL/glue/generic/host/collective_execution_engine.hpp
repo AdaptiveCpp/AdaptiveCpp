@@ -29,6 +29,10 @@
 #define HIPSYCL_COLLECTIVE_EXECUTION_ENGINE_HPP
 
 #ifndef HIPSYCL_NO_FIBERS
+#define HIPSYCL_HAS_FIBERS
+#endif
+
+#ifdef HIPSYCL_HAS_FIBERS
 
 #include <functional>
 
@@ -163,6 +167,6 @@ private:
 }
 } // namespace hipsycl
 
-#endif // HIPSYCL_NO_FIBERS
+#endif // HIPSYCL_HAS_FIBERS
 
 #endif

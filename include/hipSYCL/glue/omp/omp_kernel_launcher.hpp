@@ -178,8 +178,8 @@ inline void parallel_for_ndrange_kernel(
 #ifndef HIPSYCL_HAS_FIBERS
   rt::register_error(__hipsycl_here(),
                      rt::error_info{
-                         "nd_range parallel for on CPU requires fibers, but 
-                         fiber support is disabled",
+                         "nd_range parallel for on CPU requires fibers, but "
+                         "fiber support is disabled",
                      rt::error_type::feature_not_supported});
 #else
   static_assert(Dim > 0 && Dim <= 3,
@@ -294,7 +294,7 @@ public:
         "   can express the same algorithms, but may have functionality caveats in hipSYCL\n"
         "   and/or other SYCL implementations.\n"
         " * if you use hipSYCL exclusively, you are encouraged to use scoped parallelism:\n"
-        "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md"
+        "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md\n"
         " * if you absolutely need nd_range parallel for, enable fiber support in hipSYCL."
       };
     }

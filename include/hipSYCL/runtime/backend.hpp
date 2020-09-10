@@ -30,6 +30,7 @@
 
 #include <unordered_map>
 #include <memory>
+#include <vector>
 
 #include "device_id.hpp"
 

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_HIP_KERNEL_LAUNCHER_HPP
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
+#include "../generic/hiplike/hiplike_kernel_launcher.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 

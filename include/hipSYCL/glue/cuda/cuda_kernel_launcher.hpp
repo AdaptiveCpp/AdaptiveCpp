@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_CUDA_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_CUDA_KERNEL_LAUNCHER_HPP
 
-#include "../hiplike/hiplike_kernel_launcher.hpp"
+#include "../generic/hiplike/hiplike_kernel_launcher.hpp"
 #include "hipSYCL/runtime/cuda/cuda_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 

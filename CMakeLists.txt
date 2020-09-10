@@ -24,6 +24,8 @@ find_package(LLVM CONFIG)
 message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
 #find_package(Clang REQUIRED)
 
+find_package(Boost COMPONENTS context fiber REQUIRED)
+
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 # We currently search for hipcc to check for ROCm installation

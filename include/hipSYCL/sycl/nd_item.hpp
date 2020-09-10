@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_ND_ITEM_HPP
 #define HIPSYCL_ND_ITEM_HPP
 
+#include <functional>
+
 #include "id.hpp"
 #include "item.hpp"
 #include "range.hpp"
@@ -41,6 +43,13 @@
 namespace hipsycl {
 namespace sycl {
 
+namespace detail {
+#ifdef SYCL_DEVICE_ONLY
+using host_barrier_type = void;
+#else
+using host_barrier_type = std::function<void()>;
+#endif
+}
 
 class handler;
 
@@ -271,10 +280,10 @@ struct nd_item
   void barrier(access::fence_space accessSpace =
       access::fence_space::global_and_local) const
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
+#ifdef SYCL_DEVICE_ONLY
     __syncthreads();
 #else
-    detail::invalid_host_call();
+    (*_group_barrier)();
 #endif
   }
 
@@ -336,14 +345,19 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   nd_item(id<dimensions>* offset, 
           id<dimensions> group_id, id<dimensions> local_id, 
-          range<dimensions> local_range, range<dimensions> num_groups)
+          range<dimensions> local_range, range<dimensions> num_groups,
+          detail::host_barrier_type* host_group_barrier = nullptr)
     : _offset{offset}, 
       _group_id{group_id}, 
       _local_id{local_id}, 
       _local_range{local_range},
       _num_groups{num_groups},
       _global_id{group_id * local_range + local_id}
-  {}
+  {
+#ifndef SYCL_DEVICE_ONLY
+    _group_barrier = host_group_barrier;
+#endif
+  }
 #endif
 
 private:
@@ -355,6 +369,10 @@ private:
   const range<dimensions> _local_range;
   const range<dimensions> _num_groups;
   const id<dimensions> _global_id;
+#endif
+
+#ifndef SYCL_DEVICE_ONLY
+  detail::host_barrier_type* _group_barrier;
 #endif
 };
 

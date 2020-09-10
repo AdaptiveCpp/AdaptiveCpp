@@ -30,6 +30,7 @@
 
 
 #include <cassert>
+#include <clang/Basic/OperatorKinds.h>
 #include <omp.h>
 
 #include "hipSYCL/common/debug.hpp"
@@ -124,11 +125,13 @@ inline void parallel_for_ndrange_kernel(
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
+
     host::static_range_decomposition<Dim> group_decomposition{
-        num_groups, omp_get_num_threads(), omp_get_thread_num()};
+          num_groups, omp_get_num_threads()};
 
     host::collective_execution_engine<Dim> engine{num_groups, local_size,
-                                                  offset, group_decomposition};
+                                                  offset, group_decomposition,
+                                                  omp_get_thread_num()};
 
     std::function<void()> barrier_impl = [&]() { engine.barrier(); };
 

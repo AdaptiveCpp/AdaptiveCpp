@@ -57,10 +57,12 @@ public:
   collective_execution_engine(
       sycl::range<Dim> num_groups, sycl::range<Dim> local_size,
       sycl::id<Dim> offset,
-      const static_range_decomposition<Dim> &group_range_decomposition)
+      const static_range_decomposition<Dim> &group_range_decomposition,
+      int my_group_region)
       : _num_groups{num_groups}, _local_size{local_size}, _offset{offset},
         _group_barrier{local_size.size()}, _fibers_spawned{false},
-        _fibers(local_size.size()), _groups{group_range_decomposition} {}
+        _fibers(local_size.size()), _groups{group_range_decomposition},
+        _my_group_region{my_group_region} {}
 
   template <class WorkItemFunction>
   void run_kernel(WorkItemFunction f) {
@@ -72,19 +74,20 @@ public:
     // other fibers need to be spawned, only process first work item
     // as other work items will be processed by other fibers
     _fibers[0] = boost::fibers::fiber([this]() {
-      _groups.for_each_local_element([this](sycl::id<Dim> group_id) {
-        if(!_fibers_spawned){
-          iterate_range(_local_size, [&](sycl::id<Dim> local_id){
-            if(!_fibers_spawned)
-              execute_work_item(local_id, group_id);
+      _groups.for_each_local_element(
+          _my_group_region, [this](sycl::id<Dim> group_id) {
+            if (!_fibers_spawned) {
+              iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
+                if (!_fibers_spawned)
+                  execute_work_item(local_id, group_id);
+              });
+            } else {
+              barrier();
+              // Only execute work item 0 from now on
+              execute_work_item(sycl::id<Dim>{}, group_id);
+            }
+            ++_master_group_position;
           });
-        } else {
-          barrier();
-          // Only execute work item 0 from now on
-          execute_work_item(sycl::id<Dim>{}, group_id);
-        }
-        ++_master_group_position;
-      });
     });
 
     if (_fibers.size() > 0) {
@@ -124,13 +127,14 @@ private:
         std::size_t master_offset = _master_group_position;
         _fibers[n] = boost::fibers::fiber([local_id, this, master_offset]() {
           std::size_t current_group = 0;
-          _groups.for_each_local_element([&, this](sycl::id<Dim> group_id) {
-            if(current_group >= master_offset) {
-              barrier();
-              execute_work_item(local_id, group_id + master_offset);
-            }
-            ++current_group;
-          });
+          _groups.for_each_local_element(
+              _my_group_region, [&, this](sycl::id<Dim> group_id) {
+                if (current_group >= master_offset) {
+                  barrier();
+                  execute_work_item(local_id, group_id + master_offset);
+                }
+                ++current_group;
+              });
         });
       }
       ++n;
@@ -151,7 +155,8 @@ private:
   std::vector<boost::fibers::fiber> _fibers;
   std::function<void(sycl::id<Dim>, sycl::id<Dim>)> _kernel;
   std::size_t _master_group_position;
-  const static_range_decomposition<Dim>&  _groups;
+  const static_range_decomposition<Dim> &_groups;
+  int _my_group_region;
 };
 
 }

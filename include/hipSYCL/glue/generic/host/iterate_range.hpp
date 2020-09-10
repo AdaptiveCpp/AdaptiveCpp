@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_ITERATE_RANGE_HPP
 #define HIPSYCL_ITERATE_RANGE_HPP
 
-#include <bits/c++config.h>
 #include <cstdint>
 
 #include "hipSYCL/sycl/range.hpp"
@@ -108,27 +107,36 @@ void iterate_partial_range(sycl::range<Dim> whole_range, sycl::id<Dim> begin,
   } else if constexpr (Dim == 2) {
     std::size_t n = 0;
 
-    for (std::size_t i = begin.get(0);
-         i < whole_range.get(0) && n < num_elements; ++i) {
-      for (std::size_t j = begin.get(1);
-           j < whole_range.get(1) && n < num_elements; ++j) {
+    std::size_t i = begin.get(0);
+    std::size_t j = begin.get(1);
+    for (; i < whole_range.get(0); ++i) {
+      for (; j < whole_range.get(1); ++j) {
+        if (n >= num_elements)
+          return;
+        
         f(sycl::id<Dim>{i, j});
         ++n;
       }
+      j = 0;
     }
   } else if constexpr (Dim == 3) {
     std::size_t n = 0;
-    
-    for (std::size_t i = begin.get(0);
-         i < whole_range.get(0) && n < num_elements; ++i) {
-      for (std::size_t j = begin.get(1);
-           j < whole_range.get(1) && n < num_elements; ++j) {
-        for (std::size_t k = begin.get(2);
-             k < whole_range.get(2) && n < num_elements; ++k) {
+
+    std::size_t i = begin.get(0);
+    std::size_t j = begin.get(1);
+    std::size_t k = begin.get(2);
+    for (; i < whole_range.get(0); ++i) {
+      for (; j < whole_range.get(1); ++j) {
+        for (; k < whole_range.get(2); ++k) {
+          if (n >= num_elements)
+            return;
+          
           f(sycl::id<Dim>{i, j, k});
           ++n;
         }
+        k = 0;
       }
+      j = 0;
     }
   }
 }

@@ -9,7 +9,7 @@ ARCH_REPO_DIR=/data/repos/archlinux/x86_64/
 mkdir -p $ARCH_REPO_DIR
 
 cd $HIPSYCL_PKG_ARCH_PKG_DIR
-for f in *.tar.xz
+for f in *.tar.zst
 do
 	mv $f $ARCH_REPO_DIR
 	mv $f.sig $ARCH_REPO_DIR

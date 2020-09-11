@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -469,6 +469,18 @@ access::target::constant_buffer)) && dimensions > 0 */
 
 
   /* -- common interface members -- */
+
+  friend bool operator==(const accessor& lhs, const accessor& rhs)
+  {
+    return lhs._ptr == rhs._ptr && lhs._buffer_range == rhs._buffer_range &&
+      lhs._range == rhs._range && lhs._offset == rhs._offset;
+  }
+
+  friend bool operator!=(const accessor& lhs, const accessor& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
   HIPSYCL_UNIVERSAL_TARGET
   constexpr bool is_placeholder() const
   {
@@ -750,6 +762,17 @@ public:
 
 
   /* -- common interface members -- */
+
+  friend bool operator==(const accessor& lhs, const accessor& rhs)
+  {
+    return lhs._addr == rhs._addr && lhs._num_elements == rhs._num_elements;
+  }
+
+  friend bool operator!=(const accessor& lhs, const accessor& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
   HIPSYCL_KERNEL_TARGET
   size_t get_size() const
   {

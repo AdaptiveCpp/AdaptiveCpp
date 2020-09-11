@@ -32,15 +32,15 @@ mv ${BUILD_DIR}/hipsycl-pkg.tar.gz ${HIPSYCL_DIR}/pkg/
 
 cat << EOF > ${HIPSYCL_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL
+pkgname=hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs"
 arch=('x86_64')
 url="https://github.com/illuhad/hipSYCL"
 license=('BSD')
-depends=('hipSYCL-base' 'python')
-provides=('hipSYCL' 'SYCL')
+depends=('hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}' 'python')
+provides=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'SYCL${HIPSYCL_PKG_NAME_SUFFIX}')
 source=('hipsycl-pkg.tar.gz')
 md5sums=()
 
@@ -52,7 +52,7 @@ EOF
 
 cat << EOF > ${COMMON_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-base
+pkgname=hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="LLVM compiler stack for hipSYCL"
@@ -72,15 +72,15 @@ EOF
 
 cat << EOF > ${ROCM_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-rocm
+pkgname=hipSYCL-rocm${HIPSYCL_PKG_NAME_SUFFIX}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="ROCm compiler stack and libraries for hipSYCL"
 arch=('x86_64')
 url="https://github.com/illuhad/hipSYCL"
 license=('LLVM')
-depends=('hipSYCL' 'pciutils' 'libelf' 'perl' 'pkg-config')
-provides=('hipSYCL' 'SYCL')
+depends=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'pciutils' 'libelf' 'perl' 'pkg-config')
+provides=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'SYCL${HIPSYCL_PKG_NAME_SUFFIX}')
 source=('rocm-pkg.tar.gz')
 md5sums=()
 validpgpkeys=()
@@ -95,7 +95,7 @@ EOF
 
 cat << EOF > ${CUDA_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-cuda
+pkgname=hipSYCL-cuda${HIPSYCL_PKG_NAME_SUFFIX}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="CUDA stack for hipSYCL"

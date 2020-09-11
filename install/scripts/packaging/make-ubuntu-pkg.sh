@@ -16,19 +16,19 @@ mkdir -p ${COMMON_DIR}/DEBIAN
 mkdir -p ${HIPSYCL_DIR}/DEBIAN
 
 cat << EOF > ${HIPSYCL_DIR}/DEBIAN/control 
-Package: hipsycl
+Package: hipsycl${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
 Architecture: amd64
-Depends: hipsycl-base (>= 0.8), python3 (>= 3.0)
+Depends: hipsycl-base${HIPSYCL_PKG_NAME_SUFFIX}  (>= 0.8), python3 (>= 3.0)
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-Description: hipSYCL
+Description: hipSYCL${HIPSYCL_VERSION_STRING}
  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs 
 EOF
 
 cat << EOF > ${COMMON_DIR}/DEBIAN/control
-Package: hipsycl-base
+Package: hipsycl-base${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
@@ -40,19 +40,18 @@ Description: hipSYCL base compiler stack
 EOF
 
 cat << EOF > ${ROCM_DIR}/DEBIAN/control
-Package: hipsycl-rocm
+Package: hipsycl-rocm${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
 Architecture: amd64
-Depends: hipsycl (>= 0.8), perl, perl-modules, libpci-dev
+Depends: hipsycl${HIPSYCL_PKG_NAME_SUFFIX}  (>= 0.8), perl, perl-modules, libpci-dev
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-Description: ROCm compiler stack for hipSYCL
- Provides ROCm libraries for hipSYCL
+Description: ROCm compiler stack for hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}  Provides ROCm libraries for hipSYCL
 EOF
 
 cat << EOF > ${CUDA_DIR}/DEBIAN/control
-Package: hipsycl-cuda
+Package: hipsycl-cuda${HIPSYCL_PKG_NAME_SUFFIX}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional

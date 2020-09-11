@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_RUNTIME_BACKEND_HPP
 #define HIPSYCL_RUNTIME_BACKEND_HPP
 
-#include <unordered_map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "device_id.hpp"

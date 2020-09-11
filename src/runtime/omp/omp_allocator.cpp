@@ -38,7 +38,13 @@ void* omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
     // TODO: Return error?
     return allocate(1, size_bytes);
 
+  // ToDo: Mac OS CI has a problem with std::aligned_alloc
+  // but it's unclear if it's a Mac, or libc++, or toolchain issue
+#ifdef __APPLE__
+  return aligned_alloc(min_alignment, size_bytes);
+#else
   return std::aligned_alloc(min_alignment, size_bytes);
+#endif
 }
 
 void *omp_allocator::allocate_optimized_host(size_t min_alignment,

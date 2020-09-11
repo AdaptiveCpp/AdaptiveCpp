@@ -5,4 +5,5 @@ From: base-centos-7.sif
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
 
 %post
+yum install -y boost169-devel
 sh /install-hipsycl.sh

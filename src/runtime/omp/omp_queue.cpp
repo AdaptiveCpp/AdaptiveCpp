@@ -33,7 +33,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
-#include <bits/c++config.h>
+
 #include <memory>
 
 namespace hipsycl {

@@ -74,6 +74,7 @@ When targeting a GPU, you will need to provide a target GPU architecture. The ex
 * `gfx906`: AMD Vega 20 GPUs
 
 ## Documentation
+* hipSYCL [design and architecture](doc/architecture.md)
 * hipSYCL [compilation model](doc/compilation.md)
 * How to use raw HIP/CUDA inside hipSYCL code to create [optimized code paths](doc/hip-source-interop.md)
 * A simple SYCL example code for testing purposes can be found [here](doc/examples.md).

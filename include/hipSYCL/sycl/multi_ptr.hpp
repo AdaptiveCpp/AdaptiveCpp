@@ -194,7 +194,7 @@ public:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend multi_ptr& operator++(multi_ptr<ElementType, Space>& mp, int)
+  friend multi_ptr operator++(multi_ptr<ElementType, Space>& mp, int)
   {
     multi_ptr old = mp;
     ++(mp._ptr);
@@ -209,7 +209,7 @@ public:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend multi_ptr& operator--(multi_ptr<ElementType, Space>& mp, int)
+  friend multi_ptr operator--(multi_ptr<ElementType, Space>& mp, int)
   {
     multi_ptr old = mp;
     --(mp._ptr);
@@ -231,13 +231,13 @@ public:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend multi_ptr& operator+(const multi_ptr<ElementType, Space>& lhs, difference_type r)
+  friend multi_ptr operator+(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     return multi_ptr{lhs._ptr + r};
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend multi_ptr& operator-(const multi_ptr<ElementType, Space>& lhs, difference_type r)
+  friend multi_ptr operator-(const multi_ptr<ElementType, Space>& lhs, difference_type r)
   {
     return multi_ptr{lhs._ptr - r};
   }

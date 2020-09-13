@@ -39,7 +39,7 @@ if(HIPSYCL_ROCM_BACKEND_AVAILABLE)
   endif()
 endif()
 
-set(HIPSYCL_PLATFORM "" CACHE STRING "The platform that hipSYCL should target. One of ${HIPSYCL_PLATFORMS_STRING}.")
+set(HIPSYCL_PLATFORM "${HIPSYCL_PLATFORM}" CACHE STRING "The platform that hipSYCL should target. One of ${HIPSYCL_PLATFORMS_STRING}.")
 
 # If HIPSYCL_PLATFORM has not been explicitly set by the user, first try to find
 # the corresponding environment variable. If that isn't set either, and only

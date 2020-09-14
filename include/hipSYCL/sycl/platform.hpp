@@ -29,6 +29,12 @@
 #ifndef HIPSYCL_PLATFORM_HPP
 #define HIPSYCL_PLATFORM_HPP
 
+#include <vector>
+
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/backend.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+
 #include "types.hpp"
 #include "device_selector.hpp"
 #include "info/info.hpp"
@@ -42,27 +48,41 @@ class device_selector;
 class platform {
 
 public:
+  platform() : _platform{detail::get_host_device().get_backend(), 0} {}
+  
+  platform(rt::backend_id backend)
+      : _platform{backend, 0} {}
 
-  platform() {}
-
-  /* OpenCL interop is not supported
-  explicit platform(cl_platform_id platformID);
-  */
-
-  explicit platform(const device_selector &deviceSelector) {}
-
-
-  /* -- common interface members -- */
-
-  /* OpenCL interop is not supported
-  cl_platform_id get() const;
-  */
+  explicit platform(const device_selector &deviceSelector) {
+    auto dev = deviceSelector.select_device();
+    this->_platform = rt::platform_id{dev._device_id};
+  }
 
 
-  vector_class<device> get_devices(
-      info::device_type type = info::device_type::all) const
-  {
-    return device::get_devices();
+  std::vector<device>
+  get_devices(info::device_type type = info::device_type::all) const {
+    std::vector<device> result;
+    rt::backend *b = rt::application::backends().get(_platform.get_backend());
+    
+    int num_devices = b->get_hardware_manager()->get_num_devices();
+    for (int dev = 0; dev < num_devices; ++dev) {
+      bool is_cpu = b->get_hardware_manager()->get_device(dev)->is_cpu();
+      bool is_gpu = b->get_hardware_manager()->get_device(dev)->is_gpu();
+
+      bool include_device = false;
+      if (type == info::device_type::all ||
+          (type == info::device_type::accelerator && is_gpu) ||
+          (type == info::device_type::gpu && is_gpu) ||
+          (type == info::device_type::host && is_cpu) ||
+          (type == info::device_type::cpu && is_cpu)) {
+        include_device = true;
+      }
+
+      if (include_device)
+        result.push_back(device{rt::device_id{b->get_backend_descriptor(), dev}});
+    }
+  
+    return result;
   }
 
 
@@ -77,19 +97,31 @@ public:
 
 
   bool is_host() const {
-    return false;
+    return rt::application::get_backend(_platform.get_backend())
+               .get_backend_descriptor()
+               .hw_platform == rt::hardware_platform::cpu;
   }
 
 
   static std::vector<platform> get_platforms() {
-    return std::vector<platform>{platform()};
+    std::vector<platform> result;
+    rt::application::backends().for_each_backend([&](rt::backend *b) {
+      result.push_back(platform{b->get_unique_backend_id()});
+    });
+
+    return result;
   }
 
-  friend bool operator==(const platform& lhs, const platform& rhs)
-  { return true; }
+  friend bool operator==(const platform &lhs, const platform &rhs) {
+    return lhs._platform == rhs._platform;
+  }
 
-  friend bool operator!=(const platform& lhs, const platform& rhs)
-  { return !(lhs == rhs); }
+  friend bool operator!=(const platform &lhs, const platform &rhs) {
+    return !(lhs == rhs);
+  }
+
+private:
+  rt::platform_id _platform;
 };
 
 
@@ -106,13 +138,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, version)
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 {
-#ifdef HIPSYCL_PLATFORM_CUDA
-  return "hipSYCL [SYCL over CUDA/HIP] on NVIDIA CUDA";
-#elif defined HIPSYCL_PLATFORM_HCC
-  return "hipSYCL [SYCL over CUDA/HIP] on AMD ROCm";
-#else
-  return "hipSYCL [SYCL over CUDA/HIP] on hipCPU host device";
-#endif
+  rt::backend_id b = _platform.get_backend();
+  return rt::application::get_backend(b).get_name();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
@@ -126,8 +153,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, extensions)
 }
 
 inline platform device::get_platform() const  {
-  // We only have one platform
-  return platform{};
+  return platform{_device_id.get_backend()};
 }
 
 }// namespace sycl

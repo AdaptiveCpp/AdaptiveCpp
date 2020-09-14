@@ -113,6 +113,31 @@ private:
   int _device_id;
 };
 
+class platform_id {
+public:
+  platform_id(backend_id b, int platform)
+      : _backend{b}, _platform_id{platform} {}
+
+  platform_id() = default;
+
+  platform_id(device_id dev) : _backend{dev.get_backend()}, _platform_id{0} {}
+
+  backend_id get_backend() const { return _backend; }
+
+  int get_platform() const { return _platform_id; }
+
+  friend bool operator==(const platform_id &a, const platform_id &b) {
+    return a._backend == b._backend && a._platform_id == b._platform_id;
+  }
+
+  friend bool operator!=(const platform_id &a, const platform_id &b) {
+    return !(a == b);
+  }
+private:
+  backend_id _backend;
+  int _platform_id;
+};
+
 }
 }
 

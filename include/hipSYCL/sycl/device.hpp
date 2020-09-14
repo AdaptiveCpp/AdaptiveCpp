@@ -56,6 +56,7 @@ inline rt::device_id get_host_device() {
                        0};
 }
 
+
 }
 
 class device_selector;
@@ -63,6 +64,8 @@ class platform;
 
 class device {
   friend class queue;
+  friend class context;
+  friend class platform;
 public:
   device(rt::device_id id)
       : _device_id{id} {}
@@ -92,9 +95,16 @@ public:
                rt::hardware_platform::rocm;
   }
 
-  bool is_accelerator() const 
-  {
-    return !is_cpu();
+  bool is_accelerator() const { return !is_cpu(); }
+
+  bool hipSYCL_has_compiled_kernels() const {
+#ifdef HIPSYCL_PLATFORM_CPU
+    return is_cpu();
+#elif defined(HIPSYCL_PLATFORM_CUDA)
+    return _device_id.get_backend() == rt::backend_id::cuda;
+#elif defined(HIPSYCL_PLATFORM_ROCM)
+    return _device_id.get_backend() == rt::backend_id::hip;
+#endif
   }
 
   // Implemented in platform.hpp
@@ -578,7 +588,6 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, reference_count)
   // no reference counting is required.
   return 1;
 }
-
 
 } // namespace sycl
 } // namespace hipsycl

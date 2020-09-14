@@ -87,5 +87,9 @@ backend_allocator* omp_backend::get_allocator(device_id dev) const {
   return &_allocator;
 }
 
+std::string omp_backend::get_name() const {
+  return "OpenMP";
+}
+
 }
 }

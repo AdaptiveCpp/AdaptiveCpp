@@ -80,7 +80,17 @@ class gpu_selector : public device_selector
 public:
   virtual ~gpu_selector() {}
   virtual int operator()(const device &dev) const {
-    return dev.is_gpu();
+    if (dev.is_gpu()) {
+      // Would be good to prefer a device for which
+      // we have actually compiled kernel code, because,
+      // I don't know, a user might try to run kernels..
+      if (dev.hipSYCL_has_compiled_kernels())
+        return 2;
+      else
+        return 1;
+      
+    }
+    return 0;
   }
 };
 

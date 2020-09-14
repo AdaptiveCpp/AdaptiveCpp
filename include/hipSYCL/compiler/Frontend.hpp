@@ -210,17 +210,14 @@ inline std::string buildKernelName(clang::TemplateArgument SyclTagType) {
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
-  clang::MangleContext *MangleContext;
+  
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
-      : Instance{instance},
-        MangleContext{Instance.getASTContext().createMangleContext()}
+      : Instance{instance}
   {}
 
   ~FrontendASTVisitor()
-  {
-    delete this->MangleContext;
-  }
+  {}
   
   bool shouldVisitTemplateInstantiations() const { return true; }
 
@@ -382,7 +379,6 @@ public:
       {
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
                            << RD->getQualifiedNameAsString() << std::endl;
-        CompilationStateManager::getASTPassState().addImplicitHostDeviceFunction(getMangledName(RD));
         markAsHostDevice(RD);
         if (!RD->hasAttr<clang::CUDAHostAttr>())
           RD->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
@@ -455,20 +451,9 @@ private:
       }
     }
   
-    std::string MangledName = getMangledName(f);
-    if(CustomAttributes::SyclKernel.isAttachedTo(f))
-    {
+    
+    if(CustomAttributes::SyclKernel.isAttachedTo(f)){
       markAsKernel(f); 
-      CompilationStateManager::getASTPassState().addKernelFunction(MangledName);
-    }
-    else if(f->hasAttr<clang::CUDADeviceAttr>())
-    {
-      if(!f->getAttr<clang::CUDADeviceAttr>()->isImplicit())
-        CompilationStateManager::getASTPassState().addExplicitDeviceFunction(MangledName);
-    }
-    else if(f->hasAttr<clang::CUDAGlobalAttr>())
-    {
-      CompilationStateManager::getASTPassState().addKernelFunction(MangledName);
     }
   }
 
@@ -554,21 +539,6 @@ private:
     }
   }
 
-  std::string getMangledName(clang::FunctionDecl* decl)
-  {
-    if (!MangleContext->shouldMangleDeclName(decl)) {
-      return decl->getNameInfo().getName().getAsString();
-    }
-
-    std::string mangledName;
-    llvm::raw_string_ostream ostream(mangledName);
-
-    MangleContext->mangleName(decl, ostream);
-
-    ostream.flush();
-
-    return mangledName;
-  }
 };
 
 

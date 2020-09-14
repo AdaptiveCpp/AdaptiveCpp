@@ -29,7 +29,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "CL/sycl/detail/debug.hpp"
+#include "hipSYCL/common/debug.hpp"
 
 #include "boost/filesystem.hpp"
 #include "clang/Frontend/CompilerInstance.h"

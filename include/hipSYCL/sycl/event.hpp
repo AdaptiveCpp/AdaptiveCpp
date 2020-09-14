@@ -29,59 +29,92 @@
 #ifndef HIPSYCL_EVENT_HPP
 #define HIPSYCL_EVENT_HPP
 
+#include "hipSYCL/glue/error.hpp"
 #include "types.hpp"
 #include "backend/backend.hpp"
 #include "exception.hpp"
 #include "info/info.hpp"
-#include "detail/task_graph.hpp"
+
+#include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/application.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
-// ToDo: Replace with detail::task_graph_node
 class event {
 
 public:
   event()
-    : _is_null_event{true}
   {}
 
-  event(const detail::task_graph_node_ptr& evt)
-    : _is_null_event{false}, _evt{evt}
-  {}
+  event(
+      const rt::dag_node_ptr &evt,
+      async_handler handler =
+          [](exception_list e) { glue::default_async_handler(e); })
+      : _node{evt} {}
 
-
-  /* CL Interop is not supported
-  event(cl_event clEvent, const context& syclContext);
-
-  cl_event get();
-  */
-
-  vector_class<event> get_wait_list()
+  std::vector<event> get_wait_list()
   {
-    return vector_class<event>{};
+    if(_node) {
+      std::vector<event> events;
+
+      for(auto node : _node->get_requirements()) {
+        // TODO Is it correct to just use our handler here?
+        events.push_back(event{node, _handler});
+      }
+
+      return events;
+      
+    }
+    return std::vector<event>{};
   }
 
   void wait()
   {
-    if(!this->_is_null_event)
-      this->_evt->wait();
+    if(this->_node){
+      if(!this->_node->is_submitted())
+        rt::application::dag().flush_sync();
+      
+      assert(this->_node->is_submitted());
+      this->_node->wait();
+    }
   }
 
   static void wait(const vector_class<event> &eventList)
   {
+    // Only need a at most a single flush,
+    // so check if any of the events are unsubmitted,
+    // if so, perform a single flush.
+    bool flush = false;
     for(const event& evt: eventList)
+      if(evt._node)
+        if(!evt._node->is_submitted())
+          flush = true;
+
+    if(flush)
+      rt::application::dag().flush_sync();
+
+    for(const event& evt: eventList){
       const_cast<event&>(evt).wait();
+    }
   }
 
   void wait_and_throw()
   {
     wait();
+    glue::throw_asynchronous_errors(_handler);
   }
 
   static void wait_and_throw(const vector_class<event> &eventList)
   {
     wait(eventList);
+
+    // Just invoke handler of first event?
+    if(eventList.empty())
+      glue::throw_asynchronous_errors(
+          [](sycl::exception_list e) { glue::default_async_handler(e); });
+    else
+      glue::throw_asynchronous_errors(eventList.front()._handler);
   }
 
   template <info::event param>
@@ -92,23 +125,23 @@ public:
   { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
 
   friend bool operator ==(const event& lhs, const event& rhs)
-  { return lhs._evt == rhs._evt; }
+  { return lhs._node == rhs._node; }
 
   friend bool operator !=(const event& lhs, const event& rhs)
   { return !(lhs == rhs); }
 
 private:
 
-  bool _is_null_event;
-  detail::task_graph_node_ptr _evt;
+  rt::dag_node_ptr _node;
+  async_handler _handler;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 {
-  if(_evt->is_done())
+  if(_node->is_complete())
     return info::event_command_status::complete;
 
-  if(_evt->is_submitted())
+  if(_node->is_submitted())
     return info::event_command_status::running;
 
   return info::event_command_status::submitted;
@@ -116,7 +149,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count)
 {
-  return _evt.use_count();
+  return _node.use_count();
 }
 
 

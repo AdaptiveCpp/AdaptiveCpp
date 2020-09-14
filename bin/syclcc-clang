@@ -170,10 +170,7 @@ class syclcc_config:
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
 """  If set, only shows compilation commands that would be executed, 
-  but does not actually execute it."""),
-      'is-bootstrap': option("--hipsycl-bootstrap", "HIPSYCL_BOOTSTRAP", "default-use-bootstrap-mode",
-"""  Enter bootstrap mode. This is only required when building hipSYCL itself and 
-  should not be set by the user.""")
+  but does not actually execute it.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
@@ -408,10 +405,6 @@ class syclcc_config:
     return self._forwarded_args
 
   @property
-  def is_bootstrap(self):
-    return self._is_flag_set("is-bootstrap")
-
-  @property
   def is_dryrun(self):
     try:
       return self._is_flag_set("is-dryrun")
@@ -471,17 +464,16 @@ class clang_plugin_compiler:
       self._linker_args = config.cuda_link_line
 
       self._compiler_args = []
-      # In non-bootstrap mode, automatically link hipSYCL
-      if not config.is_bootstrap:
-        self._linker_args += [
-          "-rpath", hipsycl_library_path,
-          "-L"+hipsycl_library_path,
-          "-lhipSYCL_cuda"
-        ]
-        self._compiler_args += [
-          # Use the bundled HIP installation
-          "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
-        ]
+      # automatically link hipSYCL
+      self._linker_args += [
+        "-rpath", hipsycl_library_path,
+        "-L"+hipsycl_library_path,
+        "-lhipSYCL-rt"
+      ]
+      self._compiler_args += [
+        # Use the bundled HIP installation
+        "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
+      ]
       
       self._compiler_args += ["-x", "cuda",
                               "--cuda-gpu-arch=" + config.target_arch,
@@ -492,13 +484,13 @@ class clang_plugin_compiler:
       
       self._linker_args = config.rocm_link_line
 
-      # In non-bootstrap mode, automatically link hipSYCL
-      if not config.is_bootstrap:
-        self._linker_args += [
-          "-rpath", hipsycl_library_path,
-          "-L"+hipsycl_library_path,
-          "-lhipSYCL_rocm"
-        ]
+      # automatically link hipSYCL
+
+      self._linker_args += [
+        "-rpath", hipsycl_library_path,
+        "-L"+hipsycl_library_path,
+        "-lhipSYCL-rt"
+      ]
       
       
       self._compiler_args = [
@@ -516,12 +508,11 @@ class clang_plugin_compiler:
 
     self._common_compiler_args = config.common_compiler_args
 
-    if not config.is_bootstrap:
-      self._common_compiler_args += [
-        "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
-        "-DHIPSYCL_CLANG",
-        "-I" + os.path.join(config.hipsycl_installation_path, "include/")
-      ]
+    self._common_compiler_args += [
+      "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
+      "-DHIPSYCL_CLANG",
+      "-I" + os.path.join(config.hipsycl_installation_path, "include/")
+    ]
 
   def _get_rocm_clang_include_path(self, config):
     return config.clang_include_path
@@ -564,18 +555,20 @@ class pure_cpu_compiler:
         self._compiler_args += ["-Xclang"]
     self._compiler_args += ["-fopenmp"]
     self._compiler_args += config.common_compiler_args
-    if not config.is_bootstrap:
-      self._linker_args += [
-        "-L"+hipsycl_library_path,
-        "-lhipSYCL_cpu"
-      ]
-      if "clang" in os.path.basename(self._compiler):
-        self._linker_args += ["-rpath",hipsycl_library_path]
 
-      self._compiler_args += [
-        "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
-        "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
-      ]
+    self._linker_args += [
+      "-L"+hipsycl_library_path,
+      "-lhipSYCL-rt",
+      "-lboost_context",
+      "-lboost_fiber"
+    ]
+    if "clang" in os.path.basename(self._compiler):
+      self._linker_args += ["-rpath",hipsycl_library_path]
+
+    self._compiler_args += [
+      "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
+      "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
+    ]
 
   def run(self):
     command = [self._compiler] + self._compiler_args

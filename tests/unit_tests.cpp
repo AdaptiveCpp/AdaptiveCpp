@@ -233,13 +233,22 @@ BOOST_AUTO_TEST_CASE(placeholder_accessors) {
     for(size_t i = 0; i < num_elements; ++i) acc[i] = static_cast<int>(i);
   }
 
-  cl::sycl::accessor<int, 1, mode::read_write, target::global_buffer, placeholder::true_t>
-    ph_acc{buf};
+  cl::sycl::accessor<int, 1, mode::read_write, target::global_buffer,
+                     placeholder::true_t>
+      ph_acc{buf};
+
+  queue.submit([&](cl::sycl::handler& cgh) {
+    cgh.require(ph_acc);
+    cgh.parallel_for<class placeholder_accessors1>(cl::sycl::range<1>{num_elements},
+      [=](cl::sycl::id<1> tid) {
+        ph_acc[tid] *= 2;
+      });
+  });
 
   queue.submit([&](cl::sycl::handler& cgh) {
     auto ph_acc_copy = ph_acc; // Test that placeholder accessors can be copied
     cgh.require(ph_acc_copy);
-    cgh.parallel_for<class placeholder_accessors>(cl::sycl::range<1>{num_elements},
+    cgh.parallel_for<class placeholder_accessors2>(cl::sycl::range<1>{num_elements},
       [=](cl::sycl::id<1> tid) {
         ph_acc_copy[tid] *= 2;
       });
@@ -248,7 +257,7 @@ BOOST_AUTO_TEST_CASE(placeholder_accessors) {
   {
     auto acc = buf.get_access<mode::read>();
     for(size_t i = 0; i < num_elements; ++i) {
-      BOOST_REQUIRE(acc[i] == 2 * i);
+      BOOST_REQUIRE(acc[i] == 4 * i);
     }
   }
 }
@@ -363,8 +372,12 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     BOOST_REQUIRE(acc_a1 != acc_b1);
     // NOTE: A strict reading of the 1.2.1 Rev 7 spec, section 4.3.2 would imply
     // that these should not be equal, as they are not copies of acc_a1.
-    BOOST_REQUIRE(acc_a1 == acc_a5);
-    BOOST_REQUIRE(acc_a1 == acc_c1);
+    //
+    // These tests are currently commented out because the expected results
+    // differ between host and device accessors if the comparisons are
+    // tested in command group scope instead of kernel scope.
+    //BOOST_REQUIRE(acc_a1 == acc_a5);
+    //BOOST_REQUIRE(acc_a1 == acc_c1);
   };
 
   // Test host accessors
@@ -485,11 +498,9 @@ BOOST_AUTO_TEST_CASE(vec_api) {
 
 using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
 
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifndef HIPSYCL_TEST_NO_3D_COPIES
 using explicit_copy_test_dimensions = test_dimensions;
 #else
-// explicit buffer copies in 3D are currently not supported on
-// ROCm and CPU.
 using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
 #endif
 
@@ -1327,8 +1338,8 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
   auto automatic_requirement = s::vendor::hipsycl::automatic_require(q, acc);
   BOOST_CHECK(automatic_requirement.is_required());
 
-  q.submit([&] (s::handler& cgh) {
-    cgh.single_task<class auto_require_kernel0>([=] (){
+  q.submit([&](s::handler &cgh) {
+    cgh.single_task<class auto_require_kernel0>([=]() {
       acc[0] = 1;
     });
   });
@@ -1337,7 +1348,6 @@ BOOST_AUTO_TEST_CASE(auto_placeholder_require_extension) {
     auto host_acc = buff.get_access<s::access::mode::read>(); 
     BOOST_CHECK(host_acc[0] == 1);
   }
-
 
   q.submit([&] (s::handler& cgh) {
     cgh.single_task<class auto_require_kernel1>([=] (){
@@ -1392,13 +1402,15 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
     queue.submit([&](cl::sycl::handler& cgh) {
 
       auto acc = buf.get_access<cl::sycl::access::mode::read_write>(cgh);
+      auto scratch =
+          cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write,
+                             cl::sycl::access::target::local>{local_size,
+                                                                    cgh};
 
       cgh.parallel_for_work_group<class pfwi_dispatch>(
         cl::sycl::range<1>{global_size / local_size},
         cl::sycl::range<1>{local_size},
         [=](cl::sycl::group<1> wg) {
-
-          int scratch[local_size];
 
           wg.parallel_for_work_item<sync::local_barrier>(
             [&](cl::sycl::h_item<1> item) {

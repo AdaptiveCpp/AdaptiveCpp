@@ -37,12 +37,15 @@
 #include <boost/mpl/list_c.hpp>
 #include <boost/mpl/list.hpp>
 
+
+#include <hipSYCL/runtime/application.hpp>
 #define SYCL_SIMPLE_SWIZZLES
 #include <CL/sycl.hpp>
 
+
 struct reset_device_fixture {
   ~reset_device_fixture() {
-    cl::sycl::detail::application::reset();
+    hipsycl::rt::application::reset();
   }
 };
 

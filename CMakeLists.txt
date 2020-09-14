@@ -24,6 +24,8 @@ find_package(LLVM CONFIG)
 message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
 #find_package(Clang REQUIRED)
 
+find_package(Boost COMPONENTS context fiber REQUIRED)
+
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 # We currently search for hipcc to check for ROCm installation
@@ -90,7 +92,8 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
-set(WITH_CPU_BACKEND true CACHE BOOL "Build hipSYCL with support for host execution on CPUs")
+
+set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
@@ -104,7 +107,6 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
-
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -123,8 +125,8 @@ endif()
 add_subdirectory(src)
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
-
-set(ROCM_LINK_LINE "-rpath $HIPSYCL_ROCM_LIB_PATH -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lhsa-runtime64 -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hcc/lib -lhip_hcc -lamd_comgr -lhsa-runtime64" CACHE STRING "Necessary libraries for ROCm")
+set(ROCM_LINK_LINE "-rpath ${ROCM_PATH}/lib -rpath ${ROCM_PATH}/hcc/lib ${ROCM_LIBS}")
 set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 
 

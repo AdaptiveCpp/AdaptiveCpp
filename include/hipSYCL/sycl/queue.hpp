@@ -29,6 +29,12 @@
 #ifndef HIPSYCL_QUEUE_HPP
 #define HIPSYCL_QUEUE_HPP
 
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/glue/error.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -40,9 +46,9 @@
 #include "event.hpp"
 #include "handler.hpp"
 #include "info/info.hpp"
-#include "detail/stream.hpp"
 #include "detail/function_set.hpp"
 
+#include <exception>
 
 namespace hipsycl {
 namespace sycl {
@@ -67,51 +73,121 @@ class queue : public detail::property_carrying_object
   friend class detail::automatic_placeholder_requirement_impl;
 
 public:
+  explicit queue(const property_list &propList = {})
+      : queue{default_selector{},
+              [](exception_list e) { glue::default_async_handler(e); },
+              propList} {
+    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+  }
 
-  explicit queue(const property_list &propList = {});
+  explicit queue(const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : queue{default_selector{}, asyncHandler, propList} {
+    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+  }
 
-  queue(const async_handler &asyncHandler,
-        const property_list &propList = {});
+  explicit queue(const device_selector &deviceSelector,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler {
+    [](exception_list e) { glue::default_async_handler(e); }
+  }
+  {
 
-  queue(const device_selector &deviceSelector,
-        const property_list &propList = {});
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
 
-  queue(const device_selector &deviceSelector,
-        const async_handler &asyncHandler, const property_list &propList = {});
+    this->init();
+  }
 
-  queue(const device &syclDevice, const property_list &propList = {});
+  explicit queue(const device_selector &deviceSelector,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
 
-  queue(const device &syclDevice, const async_handler &asyncHandler,
-        const property_list &propList = {});
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
 
-  queue(const context &syclContext, const device_selector &deviceSelector,
-        const property_list &propList = {});
+    this->init();
+  }
 
-  queue(const context &syclContext, const device_selector &deviceSelector,
-        const async_handler &asyncHandler, const property_list &propList = {});
+  explicit queue(const device &syclDevice, const property_list &propList = {})
+      : detail::property_carrying_object{propList},
+        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const device &syclDevice, const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const context &syclContext,
+                 const device_selector &deviceSelector,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList},
+        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const context &syclContext,
+                 const device_selector &deviceSelector,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        deviceSelector.select_device()._device_id));
+
+    this->init();
+  }
+
+  
+  ~queue() {
+    this->throw_asynchronous();
+  }
 
 
-  /* CL Interop is not supported
-  queue(cl_command_queue clQueue, const context& syclContext,
-        const async_handler &asyncHandler = {});
-  */
+  context get_context() const {
+    return context{get_device().get_platform()};
+  }
 
-  /* -- common interface members -- */
+  device get_device() const {
+    if (_default_hints.has_hint<rt::hints::bind_to_device>()) {
+      rt::device_id id =
+          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+      return device{id};
+    }
+    return device{};
+  }
 
+  bool is_host() const { return get_device().is_host(); }
 
-  /* -- property interface members -- */
+  void wait() {
+    rt::application::dag().flush_sync();
+    rt::application::dag().wait();
+  }
 
+  void wait_and_throw() {
+    this->wait();
+    this->throw_asynchronous();
+  }
 
-  /* CL Interop is not supported
-  cl_command_queue get() const;
-  */
-
-  context get_context() const;
-
-  device get_device() const;
-
-  bool is_host() const;
-
+  void throw_asynchronous() {
+    glue::throw_asynchronous_errors(_handler);
+  }
 
   template <info::queue param>
   typename info::param_traits<info::queue, param>::return_type get_info() const;
@@ -119,34 +195,57 @@ public:
 
   template <typename T>
   event submit(T cgf) {
-    _stream->activate_device();
 
-    handler cgh{*this, _handler};
-
+    handler cgh{*this, _handler, _default_hints};
+    
     this->get_hooks()->run_all(cgh);
 
     cgf(cgh);
 
-    event evt = cgh._detail_get_event();
-
-    return evt;
+    rt::dag_node_ptr node = this->extract_dag_node(cgh);
+    
+    return event{node, _handler};
   }
 
   template <typename T>
   event submit(T cgf, const queue &secondaryQueue) {
-    _stream->activate_device();
-
     try {
-      handler cgh{*this, _handler};
+      handler cgh{*this, _handler, _default_hints};
 
       this->get_hooks()->run_all(cgh);
 
-      cgf(cgh);
+      size_t num_errors_begin =
+          rt::application::get_runtime().errors().num_errors();
 
-      // We need to wait to make sure everything is fine.
-      // ToDo: Check for asynchronous errors.
-      wait();
-      return event();
+      cgf(cgh);
+      // Flush so that we see any errors during submission
+      rt::application::dag().flush_sync();
+
+      size_t num_errors_end =
+          rt::application::get_runtime().errors().num_errors();
+
+      bool submission_failed = false;
+      // TODO This approach fails if an async handler has consumed
+      // the errors in the meantime
+      if(num_errors_end != num_errors_begin) {
+        // Need to check if there was a kernel error..
+        rt::application::get_runtime().errors().for_each_error(
+            [&](const rt::result &err) {
+              if (!err.is_success()) {
+                if (err.info().get_error_type() ==
+                    rt::error_type::kernel_error) {
+                  submission_failed = true;
+                }
+              }
+            });
+      }
+
+      if(!submission_failed) {
+        rt::dag_node_ptr node = this->extract_dag_node(cgh);
+        return event{node, _handler};
+      } else {
+        return secondaryQueue.submit(cgf);
+      }
     }
     catch(exception&) {
       return secondaryQueue.submit(cgf);
@@ -154,37 +253,53 @@ public:
 
   }
 
-
-  void wait();
-
-  /// \todo implement these properly
-  void wait_and_throw();
-
-  void throw_asynchronous();
-
   friend bool operator==(const queue& lhs, const queue& rhs)
-  { return (lhs._device == rhs._device) && (lhs._stream == rhs._stream); }
+  { return lhs._default_hints == rhs._default_hints; }
 
   friend bool operator!=(const queue& lhs, const queue& rhs)
   { return !(lhs == rhs); }
 
-  hipStream_t get_hip_stream() const;
-  detail::stream_ptr get_stream() const;
-
 private:
 
-  void init();
+  rt::dag_node_ptr extract_dag_node(sycl::handler& cgh) {
+  
+    const std::vector<rt::dag_node_ptr>& dag_nodes =
+      cgh.get_cg_nodes();
+
+    if(dag_nodes.empty()) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Command queue evaluation did not result in the creation "
+             "of events. Are there operations inside the command group?"
+          << std::endl;
+      return nullptr;
+    }
+    if(dag_nodes.size() > 1) {
+      HIPSYCL_DEBUG_ERROR
+          << "queue: Multiple events returned from command group evaluation; "
+             "multiple operations in a single command group is not SYCL "
+             "conformant. Returning event to the last operation"
+          << std::endl;
+    }
+    return dag_nodes.back();
+  }
+
+  
+  void init()
+  {
+    this->_hooks = detail::queue_submission_hooks_ptr{
+          new detail::queue_submission_hooks{}};
+  }
+
 
   detail::queue_submission_hooks_ptr get_hooks() const
   {
     return _hooks;
   }
 
-  device _device;
-  detail::stream_ptr _stream;
   async_handler _handler;
   detail::queue_submission_hooks_ptr _hooks;
 
+  rt::execution_hints _default_hints;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -199,10 +314,15 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, device)
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 {
-  return _stream.use_count();
+  return 1;
 }
 
 
+
+inline handler::handler(const queue &q, async_handler handler,
+                 const rt::execution_hints &hints)
+    : _queue{&q}, _local_mem_allocator{q.get_device()}, _handler{handler},
+      _execution_hints{hints} {}
 
 
 namespace detail{
@@ -215,7 +335,7 @@ class automatic_placeholder_requirement_impl
 public:
   automatic_placeholder_requirement_impl(sycl::queue &q, 
       sycl::accessor<dataT, dimensions, accessMode, accessTarget,
-                access::placeholder::true_t> acc)
+                access::placeholder::true_t>* acc)
     : _acc{acc}, _is_required{false}, _hooks{q.get_hooks()}
   {
     acquire();
@@ -240,16 +360,14 @@ public:
       release();
   }
 
-  bool is_required() const
-  {
-    return _is_required;
-  }
+  bool is_required() const { return _is_required; }
+  
 private:
   void acquire()
   {
     auto acc = _acc;
-    _hook_id = _hooks->add([acc](sycl::handler& cgh){
-      cgh.require(acc);
+    _hook_id = _hooks->add([acc] (sycl::handler& cgh) mutable{
+      cgh.require(*acc);
     });
 
     _is_required = true;
@@ -258,7 +376,7 @@ private:
   bool _is_required;
 
   sycl::accessor<dataT, dimensions, accessMode, accessTarget,
-                                  access::placeholder::true_t> _acc;
+                                  access::placeholder::true_t>* _acc;
 
   std::size_t _hook_id;
   detail::queue_submission_hooks_ptr _hooks;
@@ -279,9 +397,9 @@ public:
 
   automatic_placeholder_requirement(queue &q, 
       accessor<dataT, dimensions, accessMode, accessTarget,
-                access::placeholder::true_t> acc)
+                access::placeholder::true_t>& acc)
   {
-    _impl = std::make_unique<impl_type>(q, acc);
+    _impl = std::make_unique<impl_type>(q, &acc);
   }
 
   automatic_placeholder_requirement(std::unique_ptr<impl_type> impl)
@@ -310,14 +428,14 @@ private:
 template<typename dataT, int dimensions, access::mode accessMode,
             access::target accessTarget>
 inline auto automatic_require(queue &q, 
-    accessor<dataT, dimensions, accessMode, accessTarget,access::placeholder::true_t> acc)
+    accessor<dataT, dimensions, accessMode, accessTarget,access::placeholder::true_t>& acc)
 {
   using requirement_type = automatic_placeholder_requirement<
     dataT, dimensions, accessMode, accessTarget>;
 
   using impl_type = typename requirement_type::impl_type;
 
-  return requirement_type{std::make_unique<impl_type>(q, acc)};
+  return requirement_type{std::make_unique<impl_type>(q, &acc)};
 }
 
 } // hipsycl

@@ -41,22 +41,29 @@ namespace sycl {
 class device_selector
 {
 public:
-  virtual ~device_selector() {};
-  device select_device() const;
+  virtual ~device_selector(){};
+  
+  device select_device() const {
+    auto devices = device::get_devices();
+    if (devices.size() == 0)
+      throw platform_error{"No available devices!"};
+
+    int best_score = std::numeric_limits<int>::min();
+    device candidate;
+    for (const device &d : devices) {
+      int current_score = (*this)(d);
+      if (current_score > best_score) {
+        best_score = current_score;
+        candidate = d;
+      }
+    }
+    return candidate;
+  }
 
   virtual int operator()(const device& dev) const = 0;
 
 };
 
-namespace detail {
-class select_all_selector : public device_selector
-{
-public:
-  virtual ~select_all_selector(){}
-  virtual int operator()(const device &dev) const { return 1; }
-};
-
-} // namespace detail
 
 class error_selector : public device_selector
 {
@@ -64,30 +71,41 @@ public:
   virtual ~error_selector(){}
   virtual int operator()(const device& dev) const
   {
-    throw unimplemented{"hipSYCL presently only supports GPU platforms when using the CUDA and ROCm "
-                        "backends, and CPU platforms when compiling against hipCPU"};
+    throw unimplemented{"error_selector device selection invoked"};
   }
 };
 
-#ifdef __HIPCPU__
-using gpu_selector = error_selector;
-#else
-using gpu_selector = detail::select_all_selector;
-#endif
+class gpu_selector : public device_selector
+{
+public:
+  virtual ~gpu_selector() {}
+  virtual int operator()(const device &dev) const {
+    return dev.is_gpu();
+  }
+};
 
-#ifdef __HIPCPU__
-using cpu_selector = detail::select_all_selector;
-#else
-using cpu_selector = error_selector;
-#endif
+class cpu_selector : public device_selector
+{
+public:
+  virtual ~cpu_selector() {}
+  virtual int operator()(const device &dev) const {
+    return dev.is_cpu();
+  }
+};
 
 using host_selector = cpu_selector;
 
-#ifdef __HIPCPU__
+
+#ifdef HIPSYCL_PLATFORM_CPU
 using default_selector = host_selector;
 #else
 using default_selector = gpu_selector;
 #endif
+
+inline device::device(const device_selector &deviceSelector) {
+  this->_device_id = deviceSelector.select_device()._device_id;
+}
+
 
 }
 }

@@ -19,7 +19,7 @@ target_include_directories(hipSYCL_clang PRIVATE
   ../../include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE
-  ${LLVM_DEFINITIONS})
+  ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   
 if(NOT ${LLVM_ENABLE_EH})
   target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)

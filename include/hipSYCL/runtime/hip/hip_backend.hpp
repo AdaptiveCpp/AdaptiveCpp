@@ -53,6 +53,8 @@ public:
   virtual backend_executor* get_executor(device_id dev) const override;
   virtual backend_allocator *get_allocator(device_id dev) const override;
 
+  virtual std::string get_name() const override;
+
   virtual ~hip_backend(){}
 
 private:

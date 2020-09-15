@@ -90,6 +90,10 @@ backend_allocator *hip_backend::get_allocator(device_id dev) const {
   }
   return &(_allocators[dev.get_id()]);
 }
+
+std::string hip_backend::get_name() const {
+  return "HIP";
+}
   
 }
 }

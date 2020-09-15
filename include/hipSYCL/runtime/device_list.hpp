@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,62 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_RT_DEVICE_LIST_HPP
+#define HIPSYCL_RT_DEVICE_LIST_HPP
+
+#include <algorithm>
 #include <vector>
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
-
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+#include "device_id.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-
-class cuda_backend : public backend
-{
+class unique_device_list {
 public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
+  void add(const rt::device_id dev) {
+    if (std::find(_devices.begin(), _devices.end(), dev) != _devices.end()) {
+      _devices.push_back((dev));
+      if (std::find(_backends.begin(), _backends.end(), dev.get_backend()) !=
+          _backends.end()) {
+        _backends.push_back(dev.get_backend());
+      }
+    }
+  }
 
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
+  void add(const unique_device_list &other) {
+    other.for_each_device([this](rt::device_id dev) {
+      add(dev);
+    });
+  }
 
+  template <class F> void for_each_device(F f) const {
+    for (const rt::device_id &dev : _devices) {
+      f(dev);
+    }
+  }
+
+  template <class F> void for_each_backend(F f) const {
+    for (const rt::backend_id &b : _backends) {
+      f(b);
+    }
+  }
+
+  friend bool operator==(const unique_device_list &a,
+                         const unique_device_list &b) {
+    return a._devices == b._devices;
+  }
+
+  friend bool operator!=(const unique_device_list &a,
+                         const unique_device_list &b) {
+    return !(a == b);
+  }
 private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-  mutable std::vector<cuda_allocator> _allocators;
+  std::vector<rt::device_id> _devices;
+  std::vector<rt::backend_id> _backends;
 };
 
 }
-}
-
+} // namespace hipsycl
 
 #endif

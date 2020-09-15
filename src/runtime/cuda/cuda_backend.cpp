@@ -81,6 +81,10 @@ backend_allocator *cuda_backend::get_allocator(device_id dev) const {
   }
   return &(_allocators[dev.get_id()]);
 }
+
+std::string cuda_backend::get_name() const {
+  return "CUDA";
+}
   
 }
 }

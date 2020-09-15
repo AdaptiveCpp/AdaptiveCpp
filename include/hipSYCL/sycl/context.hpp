@@ -28,13 +28,19 @@
 #ifndef HIPSYCL_CONTEXT_HPP
 #define HIPSYCL_CONTEXT_HPP
 
+#include <cassert>
+#include <memory>
+#include <vector>
+
 #include "types.hpp"
 #include "platform.hpp"
 #include "exception.hpp"
 #include "device.hpp"
+#include "device_selector.hpp"
 #include "info/info.hpp"
 
-#include <cassert>
+#include "hipSYCL/runtime/device_list.hpp"
+#include "hipSYCL/glue/error.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -43,58 +49,81 @@ namespace sycl {
 class context
 {
 public:
-  explicit context(async_handler asyncHandler = {})
-  {}
+  friend class queue;
 
-  context(const device &dev, async_handler asyncHandler = {})
-    : _platform{dev.get_platform()}, _devices{dev}
-  {}
+  explicit context(async_handler handler = [](exception_list e) {
+    glue::default_async_handler(e);
+  }) {
+    default_selector selector;
+    this->init(handler, selector.select_device());
+  }
 
-  context(const platform &plt, async_handler asyncHandler = {})
-    : _platform{plt}, _devices(plt.get_devices())
-  {}
+  context(
+      const device &dev, async_handler handler = [](exception_list e) {
+        glue::default_async_handler(e);
+      }) {
+    this->init(handler, dev);
+  }
 
-  context(const vector_class<device> &deviceList,
-          async_handler asyncHandler = {})
-    : _devices{deviceList}
-  {
-    if(deviceList.empty())
-      throw platform_error{"context: Could not infer platform from empty device list"};
-
-    _platform = deviceList.front().get_platform();
-
-    for(const auto dev : deviceList) {
-      (void)(&dev);
-      assert(dev.get_platform() == _platform);
+  context(
+      const platform &plt, async_handler handler = [](exception_list e) {
+        glue::default_async_handler(e);
+      }) {
+    this->init(handler);
+    std::vector<device> devices = plt.get_devices();
+    for (const auto &dev : devices) {
+      _impl->devices.add(dev._device_id);
     }
   }
 
-  /* CL Interop is not supported
-  context(cl_context clContext, async_handler asyncHandler = {});
-  */
+  context(
+      const std::vector<device> &deviceList,
+      async_handler handler = [](exception_list e) {
+        glue::default_async_handler(e);
+      }) {
+    
+    if(deviceList.empty())
+      throw platform_error{"context: Cannot construct context for empty device list"};
 
-
-  /* -- common interface members -- */
-
-
-  /* CL interop is not supported
-  cl_context get() const;
-*/
+    this->init(handler);
+    for(const device& dev : deviceList) {
+      _impl->devices.add(dev._device_id);
+    }
+  }
 
   bool is_host() const {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return true;
-#else
-    return false;
-#endif
+    bool has_non_host_devices = false;
+    _impl->devices.for_each_device([&](rt::device_id d) {
+      if (!d.is_host())
+        has_non_host_devices = true;
+    });
+    return !has_non_host_devices;
   }
 
   platform get_platform() const {
-    return _platform;
+    std::size_t num_backends = 0;
+    rt::backend_id last_backend;
+    this->_impl->devices.for_each_backend([&](rt::backend_id b) {
+      ++num_backends;
+      last_backend = b;
+    });
+
+    if (num_backends > 1) {
+      HIPSYCL_DEBUG_WARNING
+          << "context: get_platform() was called but this context spans "
+             "multiple backends/platforms. Only returning last platform"
+          << std::endl;
+    }
+
+    return platform{last_backend};
   }
 
   vector_class<device> get_devices() const {
-    return _devices;
+    std::vector<device> devs;
+    _impl->devices.for_each_device([&](rt::device_id d) {
+      devs.push_back(d);
+    });
+    return devs;
   }
 
   template <info::context param>
@@ -103,13 +132,27 @@ public:
   }
 
 private:
-  platform _platform;
-  vector_class<device> _devices;
+  void init(async_handler handler) {
+    _impl = std::make_shared<context_impl>();
+    _impl->handler = handler;
+  }
+
+  void init(async_handler handler, const device &d) {
+    init(handler);
+    _impl->devices.add(d._device_id);
+  }
+  
+  struct context_impl {
+    rt::unique_device_list devices;
+    async_handler handler;
+  };
+
+  std::shared_ptr<context_impl> _impl;
 };
 
 
 HIPSYCL_SPECIALIZE_GET_INFO(context, reference_count)
-{ return 1; }
+{ return _impl.use_count(); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 { return get_platform(); }
@@ -118,8 +161,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
 
 inline context exception::get_context() const {
-  // ToDo That's not entirely correct, as different contexts
-  // can have different devices associated with them
+  // ToDo In hipSYCL, most operations are not associated
+  // with a context at all, so just return empty one?
   return context{};
 }
 

@@ -29,6 +29,7 @@
 #define HIPSYCL_RUNTIME_BACKEND_HPP
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -52,6 +53,8 @@ public:
   virtual backend_hardware_manager* get_hardware_manager() const = 0;
   virtual backend_executor* get_executor(device_id dev) const = 0;
   virtual backend_allocator *get_allocator(device_id dev) const = 0;
+
+  virtual std::string get_name() const = 0;
 
   virtual ~backend() {}
 

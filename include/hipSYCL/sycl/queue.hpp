@@ -88,11 +88,11 @@ public:
 
   explicit queue(const device_selector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _handler {
-    [](exception_list e) { glue::default_async_handler(e); }
-  }
-  {
+      : detail::property_carrying_object{propList},
+        _ctx{deviceSelector.select_device()} {
 
+    _handler = _ctx._impl->handler;
+    
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
         deviceSelector.select_device()._device_id));
 
@@ -102,7 +102,9 @@ public:
   explicit queue(const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+      : detail::property_carrying_object{propList},
+        _ctx{deviceSelector.select_device(), asyncHandler}, _handler{
+                                                                asyncHandler} {
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
         deviceSelector.select_device()._device_id));
@@ -111,9 +113,10 @@ public:
   }
 
   explicit queue(const device &syclDevice, const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+      : detail::property_carrying_object{propList}, _ctx{syclDevice} {
 
+    _handler = _ctx._impl->handler;
+    
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
         syclDevice._device_id));
 
@@ -122,7 +125,8 @@ public:
 
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+      : detail::property_carrying_object{propList},
+        _ctx{syclDevice, asyncHandler}, _handler{asyncHandler} {
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
         syclDevice._device_id));
@@ -133,11 +137,17 @@ public:
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _handler{[](exception_list e) { glue::default_async_handler(e); }} {
+      : detail::property_carrying_object{propList}, _ctx{syclContext} {
 
+    _handler = _ctx._impl->handler;
+    
+    device dev = deviceSelector.select_device();
+
+    if (!is_device_in_context(dev, syclContext))
+      throw invalid_object_error{"queue: Device is not in context"};
+    
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
+        dev._device_id));
 
     this->init();
   }
@@ -146,22 +156,27 @@ public:
                  const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _handler{asyncHandler} {
+      : detail::property_carrying_object{propList}, _ctx{syclContext},
+        _handler{asyncHandler} {
+
+    device dev = deviceSelector.select_device();
+
+    if (!is_device_in_context(dev, syclContext))
+      throw invalid_object_error{"queue: Device is not in context"};
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
-
+        dev._device_id));
+    
     this->init();
   }
 
-  
   ~queue() {
     this->throw_asynchronous();
   }
 
 
   context get_context() const {
-    return context{get_device().get_platform()};
+    return _ctx;
   }
 
   device get_device() const {
@@ -260,6 +275,14 @@ public:
   { return !(lhs == rhs); }
 
 private:
+  bool is_device_in_context(const device &dev, const context &ctx) const {    
+    std::vector<device> devices = ctx.get_devices();
+    for (const auto context_dev : devices) {
+      if (context_dev == dev)
+        return true;
+    }
+    return false;
+  }
 
   rt::dag_node_ptr extract_dag_node(sycl::handler& cgh) {
   
@@ -295,11 +318,12 @@ private:
   {
     return _hooks;
   }
-
-  async_handler _handler;
+  
   detail::queue_submission_hooks_ptr _hooks;
 
   rt::execution_hints _default_hints;
+  context _ctx;
+  async_handler _handler;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

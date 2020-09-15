@@ -21,13 +21,7 @@ function(add_sycl_to_target)
     ${ARGN}
   )
 
-  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cpu")
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cpu)
-  elseif(HIPSYCL_PLATFORM_CANONICAL MATCHES "cuda")
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cuda)
-  else()
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_rocm)
-  endif()
+  target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL-rt)
 
   # For now we have to link using syclcc, as CMake doesn't know about all
   # the required libraries that need to be linked with the target.

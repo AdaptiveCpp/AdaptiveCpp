@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+"""
+ *
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ *
+ * Copyright (c) 2020 Aksel Alpay and contributors
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ """
+
+import subprocess
+import sys
+import os
+
+GNU_COMPILER_ARG = '--launcher-gnu-compiler='
+SYCLCC_ARG = '--launcher-syclcc='
+
+if __name__ == '__main__':
+    syclcc_specific_args = []
+    command_offset = None
+    gnu_compiler_exe = None
+    syclcc_exe = None
+    for command_offset, arg in enumerate(sys.argv[1:], 1):
+        if arg.startswith(GNU_COMPILER_ARG):
+            gnu_compiler_exe = arg[len(GNU_COMPILER_ARG):]
+        elif arg.startswith(SYCLCC_ARG):
+            syclcc_exe = arg[len(SYCLCC_ARG):]
+        elif arg == '--':
+            command_offset += 1
+            break
+        elif arg.startswith('-'):
+            syclcc_specific_args.append(arg)
+        else:
+            break
+
+    if gnu_compiler_exe is None or syclcc_exe is None or command_offset is None or command_offset + 1 >= len(sys.argv) \
+            or '--help' in syclcc_specific_args:
+        print('Usage: {} {}<path> {}<path> [syclcc-specific-args...] '
+              'command [command-args...]'.format(sys.argv[0], GNU_COMPILER_ARG, SYCLCC_ARG), file=sys.stderr)
+        sys.exit(1)
+
+    command_in = sys.argv[command_offset]
+    gnu_compatible_args = sys.argv[command_offset + 1:]
+
+    # When invoked with a command line for expected compiler (e.g. clang++), replace with a syclcc invocation.
+    # Otherwise, e.g. for invocations of `ar` for linking static libraries, just continue with the command as-is.
+    if os.path.samefile(gnu_compiler_exe, command_in):
+        command_line = [syclcc_exe, *syclcc_specific_args, *gnu_compatible_args]
+    else:
+        command_line = [command_in, *gnu_compatible_args]
+
+    sys.exit(subprocess.run(command_line).returncode)

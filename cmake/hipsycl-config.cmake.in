@@ -1,14 +1,141 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 set(HIPSYCL_SYCLCC "@HIPSYCL_INSTALL_LOCATION@/bin/syclcc-clang")
+set(HIPSYCL_SYCLCC_LAUNCHER "@HIPSYCL_INSTALL_LOCATION@/bin/cmake-syclcc-launcher")
 set(HIPSYCL_CPU_BACKEND_AVAILABLE "@WITH_CPU_BACKEND@")
 set(HIPSYCL_CUDA_BACKEND_AVAILABLE "@WITH_CUDA_BACKEND@")
 set(HIPSYCL_ROCM_BACKEND_AVAILABLE "@WITH_ROCM_BACKEND@")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
-enable_language(SYCL)
 
 include(hipsycl-targets)
+
+set(HIPSYCL_PLATFORMS_STRING "")
+
+set(HIPSYCL_NUM_AVAILABLE_BACKENDS 0)
+if(HIPSYCL_CPU_BACKEND_AVAILABLE)
+  MATH(EXPR HIPSYCL_NUM_AVAILABLE_BACKENDS "${HIPSYCL_NUM_AVAILABLE_BACKENDS}+1")
+  if(NOT HIPSYCL_DEFAULT_PLATFORM)
+    set(HIPSYCL_DEFAULT_PLATFORM "cpu")
+  endif()
+  if(HIPSYCL_PLATFORMS_STRING)
+    set(HIPSYCL_PLATFORMS_STRING "${HIPSYCL_PLATFORMS_STRING}|cpu")
+  else()
+    set(HIPSYCL_PLATFORMS_STRING "cpu")
+  endif()
+endif()
+if(HIPSYCL_CUDA_BACKEND_AVAILABLE)
+  MATH(EXPR HIPSYCL_NUM_AVAILABLE_BACKENDS "${HIPSYCL_NUM_AVAILABLE_BACKENDS}+1")
+  if(NOT HIPSYCL_DEFAULT_PLATFORM)
+    set(HIPSYCL_DEFAULT_PLATFORM "cuda")
+  endif()
+  if(HIPSYCL_PLATFORMS_STRING)
+    set(HIPSYCL_PLATFORMS_STRING "${HIPSYCL_PLATFORMS_STRING}|cuda")
+  else()
+    set(HIPSYCL_PLATFORMS_STRING "cuda")
+  endif()
+endif()
+if(HIPSYCL_ROCM_BACKEND_AVAILABLE)
+  MATH(EXPR HIPSYCL_NUM_AVAILABLE_BACKENDS "${HIPSYCL_NUM_AVAILABLE_BACKENDS}+1")
+  if(NOT HIPSYCL_DEFAULT_PLATFORM)
+    set(HIPSYCL_DEFAULT_PLATFORM "rocm")
+  endif()
+  if(HIPSYCL_PLATFORMS_STRING)
+    set(HIPSYCL_PLATFORMS_STRING "${HIPSYCL_PLATFORMS_STRING}|rocm")
+  else()
+    set(HIPSYCL_PLATFORMS_STRING "rocm")
+  endif()
+endif()
+
+set(HIPSYCL_PLATFORM "${HIPSYCL_PLATFORM}" CACHE STRING "The platform that hipSYCL should target. One of ${HIPSYCL_PLATFORMS_STRING}.")
+
+# If HIPSYCL_PLATFORM has not been explicitly set by the user, first try to find
+# the corresponding environment variable. If that isn't set either, and only
+# a single platform is available, default to it. Otherwise throw an error.
+if(NOT HIPSYCL_PLATFORM)
+  set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
+  if(HIPSYCL_PLATFORM_ENV)
+    message("Found HIPSYCL_PLATFORM from environment: ${HIPSYCL_PLATFORM_ENV}")
+    set(HIPSYCL_DEFAULT_PLATFORM ${HIPSYCL_PLATFORM_ENV})
+  elseif(HIPSYCL_NUM_AVAILABLE_BACKENDS GREATER 1)
+    message(SEND_ERROR "More than one hipSYCL target platform is available.\n"
+      "Please specify HIPSYCL_PLATFORM=${HIPSYCL_PLATFORMS_STRING}")
+  endif()
+  set(HIPSYCL_PLATFORM ${HIPSYCL_DEFAULT_PLATFORM})
+  unset(HIPSYCL_PLATFORM_ENV)
+endif()
+
+# Determine canonical platform from aliases
+if(HIPSYCL_PLATFORM MATCHES "cpu|host|hipcpu")
+  set(HIPSYCL_PLATFORM_CANONICAL "cpu")
+elseif(HIPSYCL_PLATFORM MATCHES "cuda|nvidia")
+  set(HIPSYCL_PLATFORM_CANONICAL "cuda")
+elseif(HIPSYCL_PLATFORM MATCHES "rocm|amd|hip|hcc")
+  set(HIPSYCL_PLATFORM_CANONICAL "rocm")
+else()
+  message(SEND_ERROR "Unknown hipSYCL platform '${HIPSYCL_PLATFORM}'")
+endif()
+
+unset(HIPSYCL_PLATFORMS_STRING)
+unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
+unset(HIPSYCL_DEFAULT_PLATFORM)
+
+set(HIPSYCL_SYCLCC_EXTRA_ARGS "--hipsycl-platform=${HIPSYCL_PLATFORM}" CACHE STRING
+        "Extra compiler flags specific to syclcc that are incompatible with GCC/Clang")
+
+set(HIPSYCL_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")
+if(HIPSYCL_CLANG)
+  set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-clang=${HIPSYCL_CLANG}")
+endif()
+
+set(HIPSYCL_CUDA_PATH "" CACHE STRING "The path to the CUDA toolkit installation directory.")
+if(HIPSYCL_CUDA_PATH)
+  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda")
+    set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-cuda-path=${HIPSYCL_CUDA_PATH}")
+  else()
+    message(WARNING "HIPSYCL_CUDA_PATH (${HIPSYCL_CUDA_PATH}) is ignored for current platform (${HIPSYCL_PLATFORM})")
+  endif()
+endif()
+
+set(HIPSYCL_ROCM_PATH "" CACHE STRING "The path to the ROCm installation directory.")
+if(HIPSYCL_ROCM_PATH)
+  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm")
+    set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-rocm-path=${HIPSYCL_ROCM_PATH}")
+  else()
+    message(WARNING "HIPSYCL_ROCM_PATH (${HIPSYCL_ROCM_PATH}) is ignored for current platform (${HIPSYCL_PLATFORM})")
+  endif()
+endif()
+
+set(HIPSYCL_GPU_ARCH "" CACHE STRING "GPU architecture used by ROCm / CUDA.")
+if(HIPSYCL_GPU_ARCH)
+  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda" OR HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm")
+    set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-gpu-arch=${HIPSYCL_GPU_ARCH}")
+  else()
+    message(WARNING "HIPSYCL_GPU_ARCH (${HIPSYCL_GPU_ARCH}) is ignored for current platform (${HIPSYCL_PLATFORM})")
+  endif()
+else()
+  set(_TMP $ENV{HIPSYCL_GPU_ARCH})
+  if((HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda" OR HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm") AND NOT _TMP)
+    message(SEND_ERROR "Please specify HIPSYCL_GPU_ARCH")
+  endif()
+  unset(_TMP)
+endif()
+
+set(HIPSYCL_CPU_CXX "" CACHE STRING "The compiler that should be used when targeting only CPUs.")
+if(HIPSYCL_CPU_CXX)
+  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cpu")
+    set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-cpu-cxx=${HIPSYCL_CPU_CXX}")
+  else()
+    message(WARNING "HIPSYCL_CPU_CXX (${HIPSYCL_CPU_CXX}) is ignored for current platform (${HIPSYCL_PLATFORM})")
+  endif()
+endif()
+
+# To invoke syclcc, the add_sycl_to_target function sets a compiler and linker launch rule on the target that will pass
+# the entire GCC or Clang command line to bin/cmake-syclcc-launcher. The launcher will prepend syclcc-specific
+# arguments from HIPSYCL_SYCLCC_EXTRA_ARGS and replace GCC or Clang with syclcc in the command line.
+# This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
+# by clang(d)-based tooling and IDEs.
+set(HIPSYCL_SYCLCC_LAUNCH_RULE "${HIPSYCL_SYCLCC_LAUNCHER} --launcher-gnu-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${HIPSYCL_SYCLCC} ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
 
 function(add_sycl_to_target)
   set(options)
@@ -21,18 +148,8 @@ function(add_sycl_to_target)
     ${ARGN}
   )
 
-  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cpu")
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cpu)
-  elseif(HIPSYCL_PLATFORM_CANONICAL MATCHES "cuda")
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_cuda)
-  else()
-    target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL_rocm)
-  endif()
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${HIPSYCL_SYCLCC_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${HIPSYCL_SYCLCC_LAUNCH_RULE}")
 
-  # For now we have to link using syclcc, as CMake doesn't know about all
-  # the required libraries that need to be linked with the target.
-  set_target_properties(${ADD_SYCL_TARGET} PROPERTIES LINKER_LANGUAGE SYCL)
-
-  set_source_files_properties(${ADD_SYCL_SOURCES} PROPERTIES LANGUAGE SYCL)
+  target_link_libraries(${ADD_SYCL_TARGET} PUBLIC hipSYCL::hipSYCL-rt)
 endfunction()
-

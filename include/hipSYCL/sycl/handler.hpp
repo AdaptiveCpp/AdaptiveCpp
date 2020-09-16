@@ -529,9 +529,9 @@ private:
 
     rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
                                         data_src};
-    // Assume dest element size and allocation shape is the same as src
+    // Assume the allocation behind dest is large enough to hold src.get_range.size() contiguous elements
     rt::memory_location dest_location{detail::get_host_device(), extract_ptr(dest),
-                                      rt::id<3>{}, data_src->get_num_elements(),
+                                      rt::id<3>{}, rt::embed_in_range3(src.get_range()),
                                       data_src->get_element_size()};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
@@ -563,9 +563,9 @@ private:
 
     rt::device_id dev = get_explicit_accessor_target(dest);
 
-    // Assume same element size and allocation shape as for dest
+    // Assume src contains src.get_range.size() contiguous elements
     rt::memory_location source_location{detail::get_host_device(), extract_ptr(src),
-                                      rt::id<3>{}, data_dest->get_num_elements(),
+                                      rt::id<3>{}, rt::embed_in_range3(dest.get_range()),
                                       data_dest->get_element_size()};
     rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
                                       data_dest};

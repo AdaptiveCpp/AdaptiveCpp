@@ -475,7 +475,7 @@ void dag_expander::expand(
               // TODO: Find out optimal minimum alignment
               return application::get_backend(target_device.get_backend())
                   .get_allocator(target_device)
-                  ->allocate(128, num_elements.size() * element_size);
+                  ->allocate(0, num_elements.size() * element_size);
             };
 
             HIPSYCL_DEBUG_INFO

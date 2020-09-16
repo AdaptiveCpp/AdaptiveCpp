@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "application.hpp"
 #include "device_id.hpp"
 
 namespace hipsycl {
@@ -55,13 +56,13 @@ public:
   }
 
   template <class F> void for_each_device(F f) const {
-    for (const rt::device_id &dev : _devices) {
+    for (const device_id &dev : _devices) {
       f(dev);
     }
   }
 
   template <class F> void for_each_backend(F f) const {
-    for (const rt::backend_id &b : _backends) {
+    for (const backend_id &b : _backends) {
       f(b);
     }
   }
@@ -75,9 +76,40 @@ public:
                          const unique_device_list &b) {
     return !(a == b);
   }
+
+  std::size_t get_num_backends(hardware_platform plat) const {
+    std::size_t count = 0;
+
+    for_each_backend([&](backend_id b) {
+      if (application::get_backend(b).get_hardware_platform() == plat)
+        ++count;
+    });
+    
+    return count;
+  }
+
+  std::size_t get_num_backends() const { return _backends.size(); }
+
+  using backend_iterator = std::vector<backend_id>::const_iterator;
+  using device_iterator = std::vector<device_id>::const_iterator;
+
+  backend_iterator backends_begin() const { return _backends.begin(); }
+  backend_iterator backends_end() const { return _backends.end(); }
+  device_iterator devices_begin() const { return _devices.begin(); }
+  device_iterator devices_end() const { return _devices.end(); }
+
+  template <class UnaryPredicate>
+  device_iterator find_first_device(UnaryPredicate p) const {
+    return std::find_if(devices_begin(), devices_end(), p);
+  }
+
+  template <class UnaryPredicate>
+  backend_iterator find_first_backend(UnaryPredicate p) const {
+    return std::find_if(backends_begin(), backends_end(), p);
+  }
 private:
-  std::vector<rt::device_id> _devices;
-  std::vector<rt::backend_id> _backends;
+  std::vector<device_id> _devices;
+  std::vector<backend_id> _backends;
 };
 
 }

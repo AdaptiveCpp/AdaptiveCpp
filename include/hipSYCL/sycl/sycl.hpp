@@ -63,6 +63,7 @@
 #include "stream.hpp"
 #include "sub_group.hpp"
 #include "memory.hpp"
+#include "usm.hpp"
 
 #endif
 

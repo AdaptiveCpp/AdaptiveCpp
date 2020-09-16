@@ -45,11 +45,19 @@
 namespace hipsycl {
 namespace sycl {
 
+class context;
+
+namespace detail {
+const rt::unique_device_list& extract_context_devices(const context&);
+}
 
 class context
 {
 public:
   friend class queue;
+
+  friend const rt::unique_device_list &
+  detail::extract_context_devices(const context &);
 
   explicit context(async_handler handler = [](exception_list e) {
     glue::default_async_handler(e);
@@ -164,6 +172,14 @@ inline context exception::get_context() const {
   // ToDo In hipSYCL, most operations are not associated
   // with a context at all, so just return empty one?
   return context{};
+}
+
+namespace detail {
+
+inline const rt::unique_device_list &extract_context_devices(const context &ctx) {
+  return ctx._impl->devices;
+}
+
 }
 
 } // namespace sycl

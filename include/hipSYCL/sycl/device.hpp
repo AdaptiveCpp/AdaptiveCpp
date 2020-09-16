@@ -48,6 +48,8 @@
 namespace hipsycl {
 namespace sycl {
 
+class device;
+
 namespace detail {
 
 inline rt::device_id get_host_device() {
@@ -56,6 +58,7 @@ inline rt::device_id get_host_device() {
                        0};
 }
 
+rt::device_id extract_rt_device(const device&);
 
 }
 
@@ -66,6 +69,7 @@ class device {
   friend class queue;
   friend class context;
   friend class platform;
+  friend rt::device_id detail::extract_rt_device(const device&);
 public:
   device(rt::device_id id)
       : _device_id{id} {}
@@ -587,6 +591,14 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, reference_count)
   // hipSYCL device classes do not need any resources, and hence
   // no reference counting is required.
   return 1;
+}
+
+namespace detail {
+
+inline rt::device_id extract_rt_device(const device &d) {
+  return d._device_id;
+}
+
 }
 
 } // namespace sycl

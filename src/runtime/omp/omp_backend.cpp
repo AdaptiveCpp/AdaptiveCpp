@@ -45,7 +45,9 @@ std::unique_ptr<inorder_queue> make_omp_queue(device_id dev) {
 }
 
 omp_backend::omp_backend()
-    : _allocator{}, _hw{},
+    : _allocator{device_id{
+          backend_descriptor{get_hardware_platform(), get_api_platform()}, 0}},
+      _hw{},
       _executor(*this, [](device_id dev) -> std::unique_ptr<inorder_queue> {
         return make_omp_queue(dev);
       }) {}

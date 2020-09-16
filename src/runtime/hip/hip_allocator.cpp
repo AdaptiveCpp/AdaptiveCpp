@@ -32,8 +32,8 @@
 namespace hipsycl {
 namespace rt {
 
-hip_allocator::hip_allocator(int hip_device)
-    : _dev{hip_device}
+hip_allocator::hip_allocator(backend_descriptor desc, int hip_device)
+    : _backend_descriptor{desc}, _dev{hip_device}
 {}
       
 void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
@@ -84,6 +84,36 @@ bool hip_allocator::is_usm_accessible_from(backend_descriptor b) const
   // TODO: Formulate this better - this assumes that either CUDA+CPU or
   // ROCm + CPU are active at the same time
   return true;
+}
+
+result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
+{
+  hipPointerAttribute_t attribs;
+
+  auto err = hipPointerGetAttributes(&attribs, ptr);
+
+  if (err != hipSuccess) {
+    if (err == hipErrorInvalidValue)
+      return make_error(
+          __hipsycl_here(),
+          error_info{"hip_allocator: query_pointer(): pointer is unknown by backend",
+                     error_code{"HIP", err},
+                     error_type::invalid_parameter_error});
+    else
+      return make_error(
+          __hipsycl_here(),
+          error_info{"hip_allocator: query_pointer(): query failed",
+                     error_code{"HIP", err}});
+  }
+
+  out.dev = rt::device_id{_backend_descriptor, attribs.device};
+  out.is_from_host_backend = false;
+  out.is_optimized_host = attribs.memoryType == hipMemoryTypeHost;
+  // hipMemoryTypeUnified is not yet actually used by HIP due to
+  // to its very partial support for managed/USM memory
+  out.is_usm = attribs.memoryType == hipMemoryTypeUnified;
+  
+  return make_success();
 }
 
 }

@@ -34,8 +34,8 @@
 namespace hipsycl {
 namespace rt {
 
-cuda_allocator::cuda_allocator(int cuda_device)
-    : _dev{cuda_device}
+cuda_allocator::cuda_allocator(backend_descriptor desc, int cuda_device)
+    : _backend_descriptor{desc}, _dev{cuda_device}
 {}
       
 void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
@@ -86,6 +86,32 @@ bool cuda_allocator::is_usm_accessible_from(backend_descriptor b) const
   // TODO: Formulate this better - this assumes that either CUDA+CPU or
   // ROCm + CPU are active at the same time
   return true;
+}
+
+result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
+  cudaPointerAttributes attribs;
+  auto err = cudaPointerGetAttributes(&attribs, ptr);
+
+  if (err != cudaSuccess) {
+    if (err == cudaErrorInvalidValue)
+      return make_error(
+          __hipsycl_here(),
+          error_info{"cuda_allocator: query_pointer(): pointer is unknown by backend",
+                     error_code{"CUDA", err},
+                     error_type::invalid_parameter_error});
+    else
+      return make_error(
+          __hipsycl_here(),
+          error_info{"cuda_allocator: query_pointer(): query failed",
+                     error_code{"CUDA", err}});
+  }
+
+  out.dev = rt::device_id{_backend_descriptor, attribs.device};
+  out.is_from_host_backend = false;
+  out.is_optimized_host = attribs.type == cudaMemoryTypeHost;
+  out.is_usm = attribs.type == cudaMemoryTypeManaged;
+
+  return make_success();
 }
 
 }

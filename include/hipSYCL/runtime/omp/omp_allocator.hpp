@@ -36,6 +36,8 @@ namespace rt {
 class omp_allocator : public backend_allocator 
 {
 public:
+  omp_allocator(const device_id &my_device);
+  
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
   virtual void *allocate_optimized_host(size_t min_alignment,
@@ -45,6 +47,12 @@ public:
 
   virtual void *allocate_usm(size_t bytes) override;
   virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+
+  virtual result query_pointer(const void *ptr,
+                               pointer_info &out) const override;
+
+private:
+  device_id _my_device;
 };
 
 }

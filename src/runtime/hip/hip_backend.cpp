@@ -38,8 +38,10 @@ hip_backend::hip_backend()
                   return std::make_unique<hip_queue>(dev);
                 }} {
 
+  backend_descriptor backend_desc{get_hardware_platform(), get_api_platform()};
+
   for (int i = 0; i < _hw_manager.get_num_devices(); ++i) {
-    _allocators.push_back(hip_allocator{i});
+    _allocators.push_back(hip_allocator{backend_desc, i});
   }
 }
 

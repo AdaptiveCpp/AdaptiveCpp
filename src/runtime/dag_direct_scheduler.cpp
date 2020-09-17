@@ -95,7 +95,7 @@ result ensure_allocation_exists(buffer_memory_requirement *bmem_req,
     
     void *ptr = application::get_backend(target_dev.get_backend())
                     .get_allocator(target_dev)
-                    ->allocate(128, num_bytes);
+                    ->allocate(0, num_bytes);
 
     if(!ptr)
       return register_error(

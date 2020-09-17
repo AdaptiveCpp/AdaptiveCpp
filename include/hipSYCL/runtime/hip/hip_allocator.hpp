@@ -37,7 +37,7 @@ namespace rt {
 class hip_allocator : public backend_allocator 
 {
 public:
-  hip_allocator(int hip_device);
+  hip_allocator(backend_descriptor desc, int hip_device);
 
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
@@ -51,7 +51,9 @@ public:
   virtual void *allocate_usm(size_t bytes) override;
   virtual bool is_usm_accessible_from(backend_descriptor b) const override;
 
+  virtual result query_pointer(const void* ptr, pointer_info& out) const override;
 private:
+  backend_descriptor _backend_descriptor;
   int _dev;
 };
 

@@ -59,8 +59,6 @@ if(NOT EXISTS ${CLANG_INCLUDE_PATH})
 endif()
 message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 
-set(COMPILE_SOURCE_TRANSFORMATION_TOOLS false CACHE BOOL "Build optional source-to-source transformation tools for the legacy hipSYCL toolchain")
-
 if(HIPCC_COMPILER MATCHES "-NOTFOUND")
   set(ROCM_FOUND false)
 else()

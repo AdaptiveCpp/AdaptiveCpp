@@ -36,29 +36,9 @@ namespace hipsycl {
 namespace sycl {
 
 
-#ifdef __HIPSYCL_TRANSFORM__
-// During the source-to-source transformation step, we replace all calls
-// to the HCC/NVCC math libraries with calls to these placeholder functions.
-// This reduces the dependencies between hipSYCL and standard libraries and prevents
-// that the source-to-source transformation wants to change the declaration of
-// functions from the standard library.
-template<class T>
-__device__
-inline T __placeholder_function(T) {return T();}
 
-template<class T>
-__device__
-inline T __placeholder_function(T, T) {return T();}
-
-template<class T>
-__device__
-inline T __placeholder_function(T, T, T) {return T();}
-
-#define HIPSYCL_STD_FUNCTION(function_name) __placeholder_function
-
-#else
 #define HIPSYCL_STD_FUNCTION(function_name) function_name
-#endif
+
 
 
 #define HIPSYCL_PP_CONCATENATE_IMPL(a,b) a ## b

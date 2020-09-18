@@ -16,13 +16,11 @@ jobs:
         brew update
         brew install cmake
         brew install libomp
-        brew install llvm
         brew install boost
         set -e
     - name: build
       run: |
         mkdir build && cd build
-        BREW_LLVM=$(brew --prefix llvm)
-        cmake .. -DLLVM_DIR=$BREW_LLVM/lib/cmake/llvm -DCLANG_EXECUTABLE_PATH=$BREW_LLVM/bin/clang++
+        cmake ..
         make -j 2 VERBOSE=ON
 

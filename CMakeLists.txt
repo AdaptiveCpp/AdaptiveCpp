@@ -103,14 +103,6 @@ if(BUILD_CLANG_PLUGIN)
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
-set(COMPILE_SOURCE_TRANSFORMATION_TOOLS false CACHE BOOL "Build optional source-to-source transformation tools for the legacy hipSYCL toolchain")
-
-
-
-if(CUDA_FOUND)
-  set(USE_NVCC false CACHE BOOL "Build hipSYCL with nvcc instead of clang as CUDA compiler (not recommended!)")
-endif()
-
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions

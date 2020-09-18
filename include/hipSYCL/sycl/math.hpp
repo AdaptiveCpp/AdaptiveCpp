@@ -267,19 +267,6 @@ namespace native {
   __device__ inline double name(double x) \
   { return HIPSYCL_STD_FUNCTION(fast_dp_func)(x); } \
 
-#ifdef __HIPSYCL_TRANSFORM__
-
-
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(cos, sycl::cos, sycl::cos);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(exp, sycl::exp, sycl::exp);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(rsqrt, sycl::rsqrt, sycl::rsqrt);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log10, sycl::log10, sycl::log10);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log2, sycl::log2, sycl::log2);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log, sycl::log, sycl::log);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(sin, sycl::sin, sycl::sin);
-HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(tan, sycl::tan, sycl::tan);
-
-#else
 
 HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(cos, sycl::cos, __cosf);
 HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(exp, sycl::exp, __expf);
@@ -290,7 +277,6 @@ HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(log, sycl::log, __logf);
 HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(sin, sycl::sin, __sinf);
 HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(tan, sycl::tan, __tanf);
 
-#endif // __HIPSYCL_TRANSFORM__
 
 HIPSYCL_DEFINE_FAST_FUNCTION(sqrt, sycl::sqrt, __fsqrt_rn, __dsqrt_rn);
 

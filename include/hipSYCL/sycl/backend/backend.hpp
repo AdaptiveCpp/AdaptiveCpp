@@ -34,36 +34,29 @@
 // Use this macro to detect hipSYCL from SYCL code
 #define __HIPSYCL__
 
-// First, make sure the right HIP headers are included
-#ifdef __HIPSYCL_TRANSFORM__
-// During legacy source-to-source transformation,
-// include hipCPU since we treat all SYCL code as host
-// code during parsing.
- #include <hipCPU/hip/hip_runtime.h>
-#else
+
 // Otherwise include regular HIP headers if compiling
 // for GPU, and hipCPU if compiling for CPU
- #if defined(__CUDACC__)
-  #define HIPSYCL_PLATFORM_CUDA
-  // Silence deprecation warnings in hip which occur for newer CUDA versions
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  // Required until HIP submodule is updated to include
-  // https://github.com/ROCm-Developer-Tools/HIP/pull/1497
-  #pragma clang diagnostic ignored "-Wsometimes-uninitialized"
-  #include "hip/hip_runtime.h"
-  #pragma clang diagnostic pop
- #elif defined(__HIP__) || defined(__HCC__)
-  #define HIPSYCL_PLATFORM_HCC
-  #define HIPSYCL_PLATFORM_ROCM
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wunused-result"
-  #include <hip/hip_runtime.h>
-  #pragma clang diagnostic pop
- #else
-  #define HIPSYCL_PLATFORM_CPU
-  #include "hipCPU/hip/hip_runtime.h"
- #endif
+#if defined(__CUDACC__)
+ #define HIPSYCL_PLATFORM_CUDA
+ // Silence deprecation warnings in hip which occur for newer CUDA versions
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+ // Required until HIP submodule is updated to include
+ // https://github.com/ROCm-Developer-Tools/HIP/pull/1497
+ #pragma clang diagnostic ignored "-Wsometimes-uninitialized"
+ #include "hip/hip_runtime.h"
+ #pragma clang diagnostic pop
+#elif defined(__HIP__) || defined(__HCC__)
+ #define HIPSYCL_PLATFORM_HCC
+ #define HIPSYCL_PLATFORM_ROCM
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wunused-result"
+ #include <hip/hip_runtime.h>
+ #pragma clang diagnostic pop
+#else
+ #define HIPSYCL_PLATFORM_CPU
+ #include "hipCPU/hip/hip_runtime.h"
 #endif
 
 // Use this macro to mark functions that should be available

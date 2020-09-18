@@ -16,7 +16,6 @@ Most of these are managed by `detail/backend/backend.hpp`.
 * `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION` - defined if the hipSYCL custom `parallel_for_work_item` synchronization extension is supported.
 
 ## Mainly for hipSYCL developers
-* `__HIPSYCL_TRANSFORM__` defined by legacy `syclcc` during the source-to-source transformation step
 * `HIPSYCL_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.
 * `HIPSYCL_KERNEL_TARGET` - currently expands to `__host__ __device__`. Use for functions that should be available in kernels.
 * `__HIPSYCL_DEVICE_CALLABLE__` - defined if HIP/CUDA intrinsics (e.g. `__syncthreads()`) are available. Since hipCPU defines those as well, this is also defined on CPU! However, it is _not_ defined when compiling for CUDA/ROCm and currently processing the `__host__` side.

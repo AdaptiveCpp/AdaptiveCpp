@@ -156,7 +156,7 @@ install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/contrib)
 
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
-install(PROGRAMS bin/cmake-syclcc-launcher DESTINATION bin)
+install(PROGRAMS cmake/cmake-syclcc-launcher DESTINATION lib/cmake/hipSYCL)
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
 
@@ -166,9 +166,9 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in
                @ONLY)
 install(FILES
         ${CMAKE_BINARY_DIR}/hipsycl-config.cmake
-        DESTINATION lib/cmake)
+        DESTINATION lib/cmake/hipSYCL)
 install(EXPORT install_exports
         FILE "hipsycl-targets.cmake"
         NAMESPACE hipSYCL::
-        DESTINATION lib/cmake)
+        DESTINATION lib/cmake/hipSYCL)
 

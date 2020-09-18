@@ -30,7 +30,7 @@
 
 #include <cstdint>
 
-#include "backend/backend.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 #include "id.hpp"
 #include "range.hpp"
 #include "memory.hpp"

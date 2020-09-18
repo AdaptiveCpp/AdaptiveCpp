@@ -31,11 +31,11 @@
 #include <cassert>
 
 #include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/range.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/item.hpp"
-#include "hipSYCL/sycl/nd_item.hpp"
-#include "hipSYCL/sycl/group.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/item.hpp"
+#include "hipSYCL/sycl/libkernel/nd_item.hpp"
+#include "hipSYCL/sycl/libkernel/group.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"

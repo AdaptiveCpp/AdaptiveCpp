@@ -28,11 +28,12 @@
 #ifndef HIPSYCL_GROUP_HPP
 #define HIPSYCL_GROUP_HPP
 
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/access.hpp"
+
 #include "id.hpp"
 #include "range.hpp"
-#include "access.hpp"
 #include "device_event.hpp"
-#include "backend/backend.hpp"
 #include "detail/thread_hierarchy.hpp"
 #include "multi_ptr.hpp"
 #include "h_item.hpp"

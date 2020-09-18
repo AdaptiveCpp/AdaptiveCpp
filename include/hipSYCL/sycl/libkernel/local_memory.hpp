@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,75 +25,47 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_MEM_FENCE_HPP
-#define HIPSYCL_MEM_FENCE_HPP
+#ifndef HIPSYCL_LOCAL_MEMORY_HPP
+#define HIPSYCL_LOCAL_MEMORY_HPP
 
-#include "../backend/backend.hpp"
-#include "../access.hpp"
+#include <type_traits>
+
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "group.hpp"
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
 
-template<access::fence_space, access::mode>
-struct mem_fence_impl
+template<class T>
+class local_memory
 {
+public:
+  using scalar_type = typename std::remove_extent<T>::type;
+
+  template<int Dim>
   HIPSYCL_KERNEL_TARGET
-  static void mem_fence()
-  {
-#ifdef SYCL_DEVICE_ONLY
-    __threadfence();
-#else
-    // TODO What about CPU?
-#endif
+  local_memory(group<Dim>&) {}
+
+  template<class t = scalar_type, 
+          std::enable_if_t<std::is_array<T>::value>* = nullptr>
+  HIPSYCL_KERNEL_TARGET
+  scalar_type& operator[](std::size_t index) noexcept{
+    return _var[index];
   }
 
-};
-
-template<access::mode M>
-struct mem_fence_impl<access::fence_space::local_space, M>
-{
   HIPSYCL_KERNEL_TARGET
-  static void mem_fence()
-  {
-#ifdef SYCL_DEVICE_ONLY
-    __threadfence_block();
-#endif
+  T& operator()() noexcept{
+    return _var;
   }
+private:
+  // It is not possible to just mark this member as __shared__
+  // here (at least for HIP/CUDA), because member variables
+  // cannot be declared in local memory. The clang plugin
+  // therefore finds all declarations of type local_memory<T>
+  // and puts them in local memory.
+  T _var;
 };
 
-
-
-template <
-  access::fence_space Fence_space = access::fence_space::global_and_local,
-  access::mode Mode = access::mode::read_write
->
-HIPSYCL_KERNEL_TARGET
-inline void mem_fence()
-{
-  static_assert(Mode == access::mode::read ||
-                Mode == access::mode::write ||
-                Mode == access::mode::read_write,
-                "mem_fence() is only allowed for read, write "
-                "or read_write access modes.");
-  mem_fence_impl<Fence_space, Mode>::mem_fence();
-}
-
-template<access::mode Mode>
-HIPSYCL_KERNEL_TARGET
-inline void mem_fence(access::fence_space space)
-{
-  if(space == access::fence_space::local_space)
-    mem_fence<access::fence_space::local_space, Mode>();
-
-  else if(space == access::fence_space::global_space)
-    mem_fence<access::fence_space::global_space, Mode>();
-
-  else if(space == access::fence_space::global_and_local)
-    mem_fence<access::fence_space::global_and_local, Mode>();
-}
-
-}
 }
 }
 

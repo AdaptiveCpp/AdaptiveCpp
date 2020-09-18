@@ -30,11 +30,11 @@
 
 #include <cassert>
 
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/types.hpp"
 #include "../id.hpp"
 #include "../range.hpp"
-#include "../backend/backend.hpp"
-#include "../types.hpp"
-#include "../exception.hpp"
+
 
 namespace hipsycl {
 namespace sycl {

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,48 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LOCAL_MEMORY_HPP
-#define HIPSYCL_LOCAL_MEMORY_HPP
+#ifndef HIPSYCL_DEVICE_EVENT_HPP
+#define HIPSYCL_DEVICE_EVENT_HPP
 
-#include <type_traits>
-
-#include "backend/backend.hpp"
-#include "group.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
-template<class T>
-class local_memory
+class device_event
 {
 public:
-  using scalar_type = typename std::remove_extent<T>::type;
-
-  template<int Dim>
   HIPSYCL_KERNEL_TARGET
-  local_memory(group<Dim>&) {}
-
-  template<class t = scalar_type, 
-          std::enable_if_t<std::is_array<T>::value>* = nullptr>
-  HIPSYCL_KERNEL_TARGET
-  scalar_type& operator[](std::size_t index) noexcept{
-    return _var[index];
-  }
+  device_event(){}
 
   HIPSYCL_KERNEL_TARGET
-  T& operator()() noexcept{
-    return _var;
-  }
-private:
-  // It is not possible to just mark this member as __shared__
-  // here (at least for HIP/CUDA), because member variables
-  // cannot be declared in local memory. The clang plugin
-  // therefore finds all declarations of type local_memory<T>
-  // and puts them in local memory.
-  T _var;
+  void wait(){}
 };
 
 }
 }
+
 
 #endif

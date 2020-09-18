@@ -29,9 +29,9 @@
 #define HIPSYCL_VEC_HPP
 #include <cstddef>
 #include <type_traits>
-#include "backend/backend.hpp"
-#include "types.hpp"
-#include "access.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/types.hpp"
+#include "hipSYCL/sycl/access.hpp"
 #include "multi_ptr.hpp"
 #include "detail/vec.hpp"
 #include "detail/vec_common.hpp"

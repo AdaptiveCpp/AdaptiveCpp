@@ -28,9 +28,11 @@
 #ifndef HIPSYCL_MATH_HPP
 #define HIPSYCL_MATH_HPP
 
-#include "backend/backend.hpp"
 #include <type_traits>
 #include <cmath>
+
+#include "hipSYCL/sycl/backend/backend.hpp"
+
 #include "vec.hpp"
 #include "builtin.hpp"
 

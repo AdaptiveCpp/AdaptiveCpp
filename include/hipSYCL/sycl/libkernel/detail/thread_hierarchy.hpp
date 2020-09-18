@@ -28,9 +28,10 @@
 #ifndef HIPSYCL_THREAD_HIERARCHY_HPP
 #define HIPSYCL_THREAD_HIERARCHY_HPP
 
+#include "hipSYCL/sycl/backend/backend.hpp"
+
 #include "../id.hpp"
 #include "../range.hpp"
-#include "../backend/backend.hpp"
 #include "data_layout.hpp"
 
 namespace hipsycl {

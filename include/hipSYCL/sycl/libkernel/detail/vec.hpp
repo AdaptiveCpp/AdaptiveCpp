@@ -30,8 +30,8 @@
 
 #include <cstddef>
 #include <type_traits>
-#include "../backend/backend.hpp"
-#include "../types.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/types.hpp"
 
 
 namespace hipsycl {

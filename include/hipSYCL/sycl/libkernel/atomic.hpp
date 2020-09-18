@@ -30,9 +30,9 @@
 
 #include <type_traits>
 
-#include "access.hpp"
+#include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 #include "multi_ptr.hpp"
-#include "backend/backend.hpp"
 
 
 namespace hipsycl {

@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_BUILTIN_HPP
 #define HIPSYCL_BUILTIN_HPP
 
-#include "backend/backend.hpp"
+#include "hipSYCL/sycl/backend/backend.hpp"
 #include <type_traits>
 #include <cstdlib>
 

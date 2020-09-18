@@ -20,10 +20,6 @@ FORCE)
   endif()
 endif()
 
-find_package(LLVM CONFIG)
-message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
-#find_package(Clang REQUIRED)
-
 find_package(Boost COMPONENTS context fiber REQUIRED)
 
 # Check for CUDA/ROCm and clang
@@ -31,33 +27,6 @@ find_package(CUDA QUIET)
 # We currently search for hipcc to check for ROCm installation
 find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH})
 set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
-
-find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
-if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
-  message(SEND_ERROR "Could not find clang executable")
-endif()
-message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
-
-get_filename_component(LLVM_BIN_DIR ${CLANG_EXECUTABLE_PATH} DIRECTORY)
-get_filename_component(LLVM_PREFIX_DIR ${LLVM_BIN_DIR} DIRECTORY)
-# The path to the internal clang includes is currently required on ROCm
-# to let syclcc-clang fix a wrong order of system includes (clang's internal 
-# includes are not of high enough priority in the include path search order).
-# We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
-# which is a clang-specific header file.
-find_path(CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
-  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
-  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
-  ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
-  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
-  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
-  ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
-  DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
-
-if(NOT EXISTS ${CLANG_INCLUDE_PATH})
-    message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
-endif()
-message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 
 if(HIPCC_COMPILER MATCHES "-NOTFOUND")
   set(ROCM_FOUND false)
@@ -95,6 +64,44 @@ elseif(WITH_ROCM_BACKEND)
   set(DEFAULT_PLATFORM "rocm")
 else()
   set(DEFAULT_PLATFORM "cpu")
+endif()
+
+if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
+
+
+if(BUILD_CLANG_PLUGIN)
+  find_package(LLVM CONFIG)
+  message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
+  #find_package(Clang REQUIRED)
+
+  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
+  if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
+    message(SEND_ERROR "Could not find clang executable")
+  endif()
+  message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
+
+  get_filename_component(LLVM_BIN_DIR ${CLANG_EXECUTABLE_PATH} DIRECTORY)
+  get_filename_component(LLVM_PREFIX_DIR ${LLVM_BIN_DIR} DIRECTORY)
+  # The path to the internal clang includes is currently required on ROCm
+  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # includes are not of high enough priority in the include path search order).
+  # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
+  # which is a clang-specific header file.
+  find_path(CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
+    ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+    ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+    ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
+    ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+    ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+    ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
+    DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
+
+  if(NOT EXISTS ${CLANG_INCLUDE_PATH})
+      message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
+  endif()
+  message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")

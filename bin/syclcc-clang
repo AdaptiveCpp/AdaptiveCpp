@@ -463,36 +463,17 @@ class clang_plugin_compiler:
     if target == hipsycl_platform.CUDA:
       self._linker_args = config.cuda_link_line
 
-      self._compiler_args = []
-      # automatically link hipSYCL
-      self._linker_args += [
-        "-rpath", hipsycl_library_path,
-        "-L"+hipsycl_library_path,
-        "-lhipSYCL-rt"
-      ]
-      self._compiler_args += [
+      self._compiler_args = [
+        "-x", "cuda",
+        "--cuda-gpu-arch=" + config.target_arch,
+        "--cuda-path=" + config.cuda_path,
         # Use the bundled HIP installation
         "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
       ]
-      
-      self._compiler_args += ["-x", "cuda",
-                              "--cuda-gpu-arch=" + config.target_arch,
-                              "--cuda-path=" + config.cuda_path]
-      
+
     elif target == hipsycl_platform.HIP:
-      self._target = "hip"
-      
       self._linker_args = config.rocm_link_line
 
-      # automatically link hipSYCL
-
-      self._linker_args += [
-        "-rpath", hipsycl_library_path,
-        "-L"+hipsycl_library_path,
-        "-lhipSYCL-rt"
-      ]
-      
-      
       self._compiler_args = [
         "-x", "hip",
         "--cuda-gpu-arch=" + config.target_arch,
@@ -506,6 +487,17 @@ class clang_plugin_compiler:
         "-isystem", self._get_rocm_clang_include_path(config)
       ]
 
+    # clang erroneously sets feature detection flags for __float128 even though it is not supported for CUDA / HIP,
+    # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+    self._compiler_args += ["-U__FLOAT128__", "-U__SIZEOF_FLOAT128__"]
+
+    # automatically link hipSYCL
+    self._linker_args += [
+      "-rpath", hipsycl_library_path,
+      "-L"+hipsycl_library_path,
+      "-lhipSYCL-rt"
+    ]
+
     self._common_compiler_args = config.common_compiler_args
 
     self._common_compiler_args += [
@@ -518,7 +510,6 @@ class clang_plugin_compiler:
     return config.clang_include_path
 
   def run(self):
-
     command = [self._clang] + self._common_compiler_args
 
     if self._contains_compilation_stage:

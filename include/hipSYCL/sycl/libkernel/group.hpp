@@ -28,18 +28,21 @@
 #ifndef HIPSYCL_GROUP_HPP
 #define HIPSYCL_GROUP_HPP
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/access.hpp"
 
 #include "id.hpp"
 #include "range.hpp"
 #include "device_event.hpp"
-#include "detail/thread_hierarchy.hpp"
 #include "multi_ptr.hpp"
 #include "h_item.hpp"
 #include "detail/mem_fence.hpp"
 #include "sub_group.hpp"
 #include "sp_item.hpp"
+
+#ifdef SYCL_DEVICE_ONLY
+#include "detail/thread_hierarchy.hpp"
+#endif
 
 namespace hipsycl {
 namespace sycl {
@@ -276,16 +279,20 @@ struct group
     f(sg, make_sp_item(detail::get_local_id<dimensions>()));
     __syncthreads();
 #else
-    if constexpr(dimensions==1){
-#pragma omp simd
+    if constexpr (dimensions == 1) {
+#ifdef _OPENMP
+ #pragma omp simd
+#endif
       for(std::size_t i = 0; i < _local_range[0]; ++i){
         sub_group sg;
         f(sg, make_sp_item(sycl::id<1>{i}));
       }
     }
     else if constexpr(dimensions==2){
-      for(std::size_t i = 0; i < _local_range[0]; ++i){
-#pragma omp simd
+      for (std::size_t i = 0; i < _local_range[0]; ++i) {
+#ifdef _OPENMP
+ #pragma omp simd
+#endif
         for(std::size_t j = 0; j < _local_range[1]; ++j){
           sub_group sg;
           f(sg, make_sp_item(sycl::id<2>{i,j}));
@@ -294,8 +301,10 @@ struct group
     }
     else if constexpr(dimensions==3){
       for(std::size_t i = 0; i < _local_range[0]; ++i){
-        for(std::size_t j = 0; j < _local_range[1]; ++j){
-#pragma omp simd
+        for (std::size_t j = 0; j < _local_range[1]; ++j) {
+#ifdef _OPENMP
+ #pragma omp simd
+#endif
           for(std::size_t k = 0; k < _local_range[2]; ++k){
             sub_group sg;
             f(sg, make_sp_item(sycl::id<3>{i,j,k}));
@@ -356,11 +365,12 @@ struct group
     __syncthreads();
 
 #else
- #ifndef HIPCPU_NO_OPENMP
-   #pragma omp simd
- #endif
-   for(size_t i = 0; i < numElements; ++i)
-      dest[i] = src[i];
+
+#ifdef _OPENMP
+  #pragma omp simd
+#endif
+  for(size_t i = 0; i < numElements; ++i)
+    dest[i] = src[i];
 #endif
 
     return device_event{};
@@ -379,11 +389,11 @@ struct group
     __syncthreads();
 
 #else
- #ifndef HIPCPU_NO_OPENMP
-   #pragma omp simd
- #endif
-   for(size_t i = 0; i < numElements; ++i)
-      dest[i] = src[i * srcStride];
+#ifdef _OPENMP
+ #pragma omp simd
+#endif
+  for(size_t i = 0; i < numElements; ++i)
+    dest[i] = src[i * srcStride];
 #endif
 
     return device_event{};
@@ -402,9 +412,9 @@ struct group
     __syncthreads();
 
 #else
- #ifndef HIPCPU_NO_OPENMP
-   #pragma omp simd
- #endif
+#ifdef _OPENMP
+  #pragma omp simd
+#endif
    for(size_t i = 0; i < numElements; ++i)
       dest[i * destStride] = src[i];
 #endif
@@ -500,7 +510,7 @@ private:
   void iterate_over_work_items(const range<1> iteration_range,
                               workItemFunctionT&& func) const
   {
-    #ifndef HIPCPU_NO_OPENMP
+    #ifdef _OPENMP
       #pragma omp simd 
     #endif
     for(size_t i = 0; i < iteration_range.get(0); ++i)
@@ -521,7 +531,7 @@ private:
                               workItemFunctionT&& func) const
   {
     for(size_t i = 0; i < iteration_range.get(0); ++i)
-    #ifndef HIPCPU_NO_OPENMP
+    #ifdef _OPENMP
       #pragma omp simd 
     #endif
       for(size_t j = 0; j < iteration_range.get(1); ++j)
@@ -542,7 +552,7 @@ private:
   {
     for(size_t i = 0; i < iteration_range.get(0); ++i)
       for(size_t j = 0; j < iteration_range.get(1); ++j)
-  #ifndef HIPCPU_NO_OPENMP
+  #ifdef _OPENMP
     #pragma omp simd 
   #endif
         for(size_t k = 0; k < iteration_range.get(2); ++k)

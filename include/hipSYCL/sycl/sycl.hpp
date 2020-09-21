@@ -29,22 +29,15 @@
 #define HIPSYCL_SYCL_HPP
 
 
+// Use this macro to detect hipSYCL from SYCL code
+#define __HIPSYCL__
+
 #define CL_SYCL_LANGUAGE_VERSION 121
 #define __SYCL_SINGLE_SOURCE__
 
 #include "extensions.hpp"
-#include "backend/backend.hpp"
-#include "version.hpp"
-#include "types.hpp"
-#include "exception.hpp"
-#include "device_selector.hpp"
-#include "device.hpp"
-#include "platform.hpp"
-#include "queue.hpp"
-#include "program.hpp"
-#include "kernel.hpp"
-#include "usm.hpp"
-#include "buffer.hpp"
+
+#include "libkernel/backend.hpp"
 #include "libkernel/range.hpp"
 #include "libkernel/id.hpp"
 #include "libkernel/accessor.hpp"
@@ -64,6 +57,18 @@
 #include "libkernel/stream.hpp"
 #include "libkernel/sub_group.hpp"
 #include "libkernel/memory.hpp"
+
+#include "version.hpp"
+#include "types.hpp"
+#include "exception.hpp"
+#include "device_selector.hpp"
+#include "device.hpp"
+#include "platform.hpp"
+#include "queue.hpp"
+#include "program.hpp"
+#include "kernel.hpp"
+#include "buffer.hpp"
+#include "usm.hpp"
 
 
 #endif

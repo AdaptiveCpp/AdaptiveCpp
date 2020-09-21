@@ -29,7 +29,7 @@
 #define HIPSYCL_DEVICE_ARRAY_HPP
 
 #include <type_traits>
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 namespace hipsycl {
 namespace sycl {

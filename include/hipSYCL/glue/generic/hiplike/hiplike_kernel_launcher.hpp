@@ -30,7 +30,7 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/libkernel/item.hpp"
@@ -39,6 +39,8 @@
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+
+#include "clang.hpp"
 
 
 namespace hipsycl {

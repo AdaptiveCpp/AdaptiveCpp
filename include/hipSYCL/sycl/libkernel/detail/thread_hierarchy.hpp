@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_THREAD_HIERARCHY_HPP
 #define HIPSYCL_THREAD_HIERARCHY_HPP
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #include "../id.hpp"
 #include "../range.hpp"
@@ -398,31 +398,6 @@ inline size_t get_group_id<3>(int dimension)
     return hipBlockIdx_x;
   }
   return 0;
-}
-
-/// Flips dimensions such that the range is consistent with the mapping
-/// of SYCL index dimensions to backend dimensions.
-/// When launching a SYCL kernel, grid and blocksize should be transformed
-/// using this function.
-template<int dimensions>
-inline dim3 make_kernel_launch_range(dim3 range);
-
-template<>
-inline dim3 make_kernel_launch_range<1>(dim3 range)
-{
-  return dim3(range.x, 1, 1);
-}
-
-template<>
-inline dim3 make_kernel_launch_range<2>(dim3 range)
-{
-  return dim3(range.y, range.x, 1);
-}
-
-template<>
-inline dim3 make_kernel_launch_range<3>(dim3 range)
-{
-  return dim3(range.z, range.y, range.x);
 }
 
 }

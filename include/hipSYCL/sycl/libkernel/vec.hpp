@@ -29,7 +29,7 @@
 #define HIPSYCL_VEC_HPP
 #include <cstddef>
 #include <type_traits>
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/types.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "multi_ptr.hpp"

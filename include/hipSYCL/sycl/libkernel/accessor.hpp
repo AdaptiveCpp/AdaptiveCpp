@@ -46,7 +46,7 @@
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
 #include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #include "range.hpp"
 #include "item.hpp"

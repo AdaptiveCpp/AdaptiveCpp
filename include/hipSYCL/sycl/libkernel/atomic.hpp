@@ -31,7 +31,7 @@
 #include <type_traits>
 
 #include "hipSYCL/sycl/access.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "multi_ptr.hpp"
 
 
@@ -80,15 +80,11 @@ public:
   T exchange(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicExch(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_exchange_n(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -98,7 +94,6 @@ public:
                                memory_order successMemoryOrder = memory_order::relaxed,
                                memory_order failMemoryOrder = memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     T old = expected;
     expected = atomicCAS(_ptr, expected, desired);
@@ -107,9 +102,6 @@ public:
     assert(successMemoryOrder == memory_order::relaxed);
     assert(failMemoryOrder == memory_order::relaxed);
     return __atomic_compare_exchange_n(_ptr, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -120,15 +112,11 @@ public:
   T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicAdd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_fetch_add(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -139,15 +127,11 @@ public:
   T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicSub(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_fetch_sub(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -158,15 +142,11 @@ public:
   T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicAnd(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_fetch_and(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -177,15 +157,11 @@ public:
   T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicOr(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_fetch_or(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -196,15 +172,11 @@ public:
   T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicXor(_ptr, operand);
 #else
     assert(memoryOrder == memory_order::relaxed);
     return __atomic_fetch_xor(_ptr, operand, __ATOMIC_RELAXED);
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 
@@ -215,7 +187,6 @@ public:
   T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicMin(_ptr, operand);
 #else
@@ -226,9 +197,6 @@ public:
     } while(!compare_exchange_strong(old, operand));
     return operand;
 #endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
-#endif
   }
 
   /* Available only when: T != float */
@@ -238,7 +206,6 @@ public:
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef __HIPSYCL_DEVICE_CALLABLE__
 #ifdef SYCL_DEVICE_ONLY
     return atomicMax(_ptr, operand);
 #else
@@ -248,9 +215,6 @@ public:
         if (old > operand) return old;
     } while(!compare_exchange_strong(old, operand));
     return operand;
-#endif
-#else
-    return detail::invalid_host_call_dummy_return<T>();
 #endif
   }
 

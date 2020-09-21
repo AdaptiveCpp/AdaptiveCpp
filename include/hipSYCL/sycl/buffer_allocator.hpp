@@ -35,7 +35,7 @@
 #include <limits>
 #include <utility>
 
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 #include "exception.hpp"
 
 namespace hipsycl {

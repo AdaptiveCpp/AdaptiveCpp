@@ -31,7 +31,7 @@
 #include <type_traits>
 #include <cmath>
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #include "vec.hpp"
 #include "builtin.hpp"

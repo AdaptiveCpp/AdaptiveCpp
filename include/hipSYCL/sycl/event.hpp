@@ -31,7 +31,7 @@
 
 #include "hipSYCL/glue/error.hpp"
 #include "types.hpp"
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 #include "exception.hpp"
 #include "info/info.hpp"
 

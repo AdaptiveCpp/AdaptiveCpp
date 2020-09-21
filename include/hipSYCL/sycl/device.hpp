@@ -35,7 +35,7 @@
 
 #include "types.hpp"
 #include "info/info.hpp"
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 #include "exception.hpp"
 #include "version.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"

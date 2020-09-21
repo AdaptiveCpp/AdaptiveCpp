@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_LOCAL_MEM_ALLOCATOR_HPP
 #define HIPSYCL_LOCAL_MEM_ALLOCATOR_HPP
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
 #include <cstdlib>

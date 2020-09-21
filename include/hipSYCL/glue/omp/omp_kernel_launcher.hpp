@@ -35,7 +35,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"

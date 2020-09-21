@@ -3,13 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
-find_program(SYCLCC NAMES syclcc-clang CACHE STRING)
-if(SYCLCC MATCHES SYCLCC-NOTFOUND)
-  message(SEND_ERROR "hipSYCL syclcc-clang compiler not found, exiting.")
-  return()
-endif()
-
-set(CMAKE_CXX_COMPILER ${SYCLCC})
+find_package(hipSYCL)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -46,15 +40,19 @@ add_subdirectory(dump_test)
 add_executable(device_compilation_tests device_compilation_tests.cpp)
 target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(device_compilation_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET device_compilation_tests)
 
 add_executable(unit_tests unit_tests.cpp)
 target_include_directories(unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(unit_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET unit_tests)
 
 add_executable(math_unit_tests math_unit_tests.cpp)
 target_include_directories(math_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(math_unit_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET math_unit_tests)
 
 add_executable(rt_unit_tests runtime/runtime_test_suite.cpp runtime/dag_builder.cpp runtime/data.cpp)
 target_include_directories(rt_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(rt_unit_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET rt_unit_tests)

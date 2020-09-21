@@ -478,6 +478,9 @@ class clang_plugin_compiler:
       self._compiler_args += ["-x", "cuda",
                               "--cuda-gpu-arch=" + config.target_arch,
                               "--cuda-path=" + config.cuda_path]
+      # clang erroneously sets feature detection flags for __float128 even though it is not supported for CUDA,
+      # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+      self._compiler_args += ["-U__FLOAT128__", "-U__SIZEOF_FLOAT128__"]
       
     elif target == hipsycl_platform.HIP:
       self._target = "hip"

@@ -342,10 +342,6 @@ class syclcc_config:
         std_version = std_args[0].strip("c++").strip("gnu++")
         if std_version in self._insufficient_cpp_standards:
             raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
-        if std_args[0].startswith('gnu++') and self.target_platform == hipsycl_platform.CUDA:
-            print('syclcc warning: -std=' + std_args[0]
-                  + ' breaks the Clang CUDA target, expect compile errors in standard library. '
-                    'See https://bugs.llvm.org/show_bug.cgi?id=47559 for details.')
         return []
 
   @property

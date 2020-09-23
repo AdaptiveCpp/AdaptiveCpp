@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 set(HIPSYCL_SYCLCC "@HIPSYCL_INSTALL_LOCATION@/bin/syclcc-clang")
-set(HIPSYCL_SYCLCC_LAUNCHER "@HIPSYCL_INSTALL_LOCATION@/lib/cmake/hipSYCL/cmake-syclcc-launcher")
+set(HIPSYCL_SYCLCC_LAUNCHER "@HIPSYCL_INSTALL_LOCATION@/lib/cmake/hipSYCL/syclcc-launcher")
+set(HIPSYCL_SYCLCC_LAUNCH_RULE_IN_FILE "@HIPSYCL_INSTALL_LOCATION@/lib/cmake/hipSYCL/syclcc-launch.rule.in")
 set(HIPSYCL_CPU_BACKEND_AVAILABLE "@WITH_CPU_BACKEND@")
 set(HIPSYCL_CUDA_BACKEND_AVAILABLE "@WITH_CUDA_BACKEND@")
 set(HIPSYCL_ROCM_BACKEND_AVAILABLE "@WITH_ROCM_BACKEND@")
@@ -131,12 +132,20 @@ if(HIPSYCL_CPU_CXX)
 endif()
 
 # To invoke syclcc, the add_sycl_to_target function sets a compiler and linker launch rule on the target that will pass
-# the entire GCC or Clang command line to bin/cmake-syclcc-launcher. The launcher will prepend syclcc-specific
+# the entire GCC or Clang command line to lib/cmake/hipSYCL/syclcc-launcher. The launcher will prepend syclcc-specific
 # arguments from HIPSYCL_SYCLCC_EXTRA_ARGS and replace GCC or Clang with syclcc in the command line.
 # This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
 # by clang(d)-based tooling and IDEs.
 set(HIPSYCL_SYCLCC_LAUNCH_RULE "${HIPSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${HIPSYCL_SYCLCC} ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
 
+# All SYCL targets must be rebuilt when syclcc arguments change, e.g. by changing the target platform. Since the
+# contents of HIPSYCL_SYCLCC_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
+# the variables's content and have every object file within a SYCL target depend on it.
+set(HIPSYCL_SYCLCC_LAUNCH_RULE_FILE "${CMAKE_BINARY_DIR}/CMakeFiles/hipsycl-syclcc-launch.rule")
+configure_file("${HIPSYCL_SYCLCC_LAUNCH_RULE_IN_FILE}" "${HIPSYCL_SYCLCC_LAUNCH_RULE_FILE}" @ONLY)
+set(HIPSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS "${HIPSYCL_SYCLCC_LAUNCHER};${HIPSYCL_SYCLCC_LAUNCH_RULE_FILE}")
+
+# Do not call target_sources after add_sycl_to_target or dependency tracking on compiler flags will break in subtle ways
 function(add_sycl_to_target)
   set(options)
   set(one_value_keywords TARGET)
@@ -147,6 +156,21 @@ function(add_sycl_to_target)
     "${multi_value_keywords}"
     ${ARGN}
   )
+
+  # The SOURCES argument to add_sycl_to_target is ignored and exists only for compatibility with ComputeCpp, since
+  # the compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
+  # also set for all files in the list.
+  get_target_property(ADD_SYCL_SOURCES "${ADD_SYCL_TARGET}" SOURCES)
+
+  foreach(ADD_SYCL_SOURCE_ITER IN LISTS ADD_SYCL_SOURCES)
+    get_source_file_property(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_SOURCE_ITER}" OBJECT_DEPENDS)
+    if(ADD_SYCL_OBJECT_DEPENDS)
+      set(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS};${HIPSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
+    else()
+      set(ADD_SYCL_OBJECT_DEPENDS "${HIPSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
+    endif()
+    set_source_files_properties("${ADD_SYCL_SOURCE_ITER}" PROPERTIES OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS}")
+  endforeach()
 
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${HIPSYCL_SYCLCC_LAUNCH_RULE}")
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${HIPSYCL_SYCLCC_LAUNCH_RULE}")

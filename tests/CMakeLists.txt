@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
-find_package(hipSYCL)
+find_package(hipSYCL REQUIRED)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)

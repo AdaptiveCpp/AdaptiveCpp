@@ -30,7 +30,9 @@
 
 
 // Use this macro to detect hipSYCL from SYCL code
-#define __HIPSYCL__
+#ifndef __HIPSYCL__
+ #define __HIPSYCL__
+#endif
 
 #define CL_SYCL_LANGUAGE_VERSION 121
 #define __SYCL_SINGLE_SOURCE__

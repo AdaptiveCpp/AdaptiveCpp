@@ -81,8 +81,7 @@ unset(HIPSYCL_PLATFORMS_STRING)
 unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
 unset(HIPSYCL_DEFAULT_PLATFORM)
 
-set(HIPSYCL_SYCLCC_EXTRA_ARGS "--hipsycl-platform=${HIPSYCL_PLATFORM}" CACHE STRING
-        "Extra compiler flags specific to syclcc that are incompatible with GCC/Clang")
+set(HIPSYCL_SYCLCC_EXTRA_ARGS "--hipsycl-platform=${HIPSYCL_PLATFORM}")
 
 set(HIPSYCL_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")
 if(HIPSYCL_CLANG)

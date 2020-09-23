@@ -320,7 +320,7 @@ struct group
   HIPSYCL_KERNEL_TARGET
   void single_item(Function f) {
 #ifdef SYCL_DEVICE_ONLY
-    if(hipThreadIdx_x == 0)
+    if(__hipsycl_lid_x == 0)
       f();
 #else
     f();
@@ -454,7 +454,7 @@ private:
                                   workItemFunctionT&& func) const
   {
     const range<1> physical_range = this->get_local_range();
-    for(size_t i = hipThreadIdx_x; i < flexibleRange.get(0); i += physical_range.get(0))
+    for(size_t i = __hipsycl_lid_x; i < flexibleRange.get(0); i += physical_range.get(0))
     {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
       h_item<1> idx{id<1>{i}, flexibleRange};
@@ -474,8 +474,8 @@ private:
     // Reverse dimensions of hipThreadIdx_* compared to flexibleRange.get()
     // to make sure that the fastest index in SYCL terminology is mapped
     // to the fastest index of the backend
-    for(size_t i = hipThreadIdx_y; i < flexibleRange.get(0); i += physical_range.get(0))
-      for(size_t j = hipThreadIdx_x; j < flexibleRange.get(1); j += physical_range.get(1))
+    for(size_t i = __hipsycl_lid_y; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = __hipsycl_lid_x; j < flexibleRange.get(1); j += physical_range.get(1))
       {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{id<2>{i,j}, flexibleRange};
@@ -492,9 +492,9 @@ private:
                                   workItemFunctionT&& func) const
   { 
     const range<3> physical_range = this->get_local_range();
-    for(size_t i = hipThreadIdx_z; i < flexibleRange.get(0); i += physical_range.get(0))
-      for(size_t j = hipThreadIdx_y; j < flexibleRange.get(1); j += physical_range.get(1))
-        for(size_t k = hipThreadIdx_x; k < flexibleRange.get(2); k += physical_range.get(2))
+    for(size_t i = __hipsycl_lid_z; i < flexibleRange.get(0); i += physical_range.get(0))
+      for(size_t j = __hipsycl_lid_y; j < flexibleRange.get(1); j += physical_range.get(1))
+        for(size_t k = __hipsycl_lid_x; k < flexibleRange.get(2); k += physical_range.get(2))
         {
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{id<3>{i,j,k}, flexibleRange};

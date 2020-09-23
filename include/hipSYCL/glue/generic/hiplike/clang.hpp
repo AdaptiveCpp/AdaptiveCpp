@@ -30,7 +30,9 @@
 
 #include <cassert>
 
-#if !defined(HIPSYCL_CLANG)
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
+#if !defined(__HIPSYCL_CLANG__)
  #error "This file needs the hipSYCL clang plugin."
 #endif
 
@@ -54,16 +56,18 @@ hipError_t hipConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, hipSt
 
 #endif // __CUDA__
 
-
+#ifdef __CUDA__
+static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, cudaStream_t stream)
+{
+  __cudaPushCallConfiguration(grid, block, shared, stream);
+}
+#else
 static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
 {
-#ifdef __CUDA__
-  __cudaPushCallConfiguration(grid, block, shared, stream);
-#else
   hipError_t err = hipConfigureCall(grid, block, shared, stream);
   assert(err == hipSuccess);
-#endif
 }
+#endif
 
 
 #define __hipsycl_launch_kernel(f, grid, block, shared_mem, stream, ...) \

@@ -244,29 +244,31 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(trunc)
 
 namespace native {
 
+// TODO: Define these properly, including for host
+#ifdef SYCL_DEVICE_ONLY
 
 #define HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(name, fallback_func, fast_sp_func) \
   template<class float_type> \
-  __device__ inline float_type name(float_type x)\
+  HIPSYCL_KERNEL_TARGET inline float_type name(float_type x)\
   {return HIPSYCL_STD_FUNCTION(fallback_func)(x);} \
   \
   template<> \
-  __device__ inline float name(float x)\
+  HIPSYCL_KERNEL_TARGET inline float name(float x)\
   { return HIPSYCL_STD_FUNCTION(fast_sp_func)(x); }
 
 #define HIPSYCL_DEFINE_FAST_FUNCTION(name, fallback_func, \
                                      fast_sp_func,\
                                      fast_dp_func) \
   template<class float_type> \
-  __device__ inline float_type name(float_type x)\
+  HIPSYCL_KERNEL_TARGET inline float_type name(float_type x)\
   {return HIPSYCL_STD_FUNCTION(fallback_func)(x);} \
   \
   template<> \
-  __device__ inline float name(float x) \
+  HIPSYCL_KERNEL_TARGET inline float name(float x) \
   { return HIPSYCL_STD_FUNCTION(fast_sp_func)(x); } \
   \
   template<> \
-  __device__ inline double name(double x) \
+  HIPSYCL_KERNEL_TARGET inline double name(double x) \
   { return HIPSYCL_STD_FUNCTION(fast_dp_func)(x); } \
 
 
@@ -283,11 +285,11 @@ HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(tan, sycl::tan, __tanf);
 HIPSYCL_DEFINE_FAST_FUNCTION(sqrt, sycl::sqrt, __fsqrt_rn, __dsqrt_rn);
 
 template<class float_type>
-__device__
+HIPSYCL_KERNEL_TARGET
 inline float_type pow(float_type x, float_type y){return sycl::pow(x,y);}
 
 template<>
-__device__
+HIPSYCL_KERNEL_TARGET
 inline float pow(float x, float y) { return HIPSYCL_STD_FUNCTION(__powf)(x,y); }
 
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(cos, cos);
@@ -300,6 +302,8 @@ HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(sin, sin);
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(tan, tan);
 HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(sqrt, sqrt);
 HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(pow, pow);
+
+#endif
 
 } // native
 

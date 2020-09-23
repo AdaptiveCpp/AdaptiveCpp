@@ -44,8 +44,8 @@
 #include "libkernel/item.hpp"
 #include "libkernel/nd_item.hpp"
 #include "libkernel/group.hpp"
+#include "libkernel/detail/local_memory_allocator.hpp"
 #include "detail/util.hpp"
-#include "detail/local_memory_allocator.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/data.hpp"

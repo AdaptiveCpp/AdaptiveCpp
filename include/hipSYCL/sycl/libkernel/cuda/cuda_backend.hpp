@@ -32,7 +32,7 @@
 #if defined(__CUDACC__)
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 1
 
- #ifdef __HIPSYCL_ENABLE_CUDA__
+ #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   #include <cuda_runtime_api.h>
  #endif
 #else

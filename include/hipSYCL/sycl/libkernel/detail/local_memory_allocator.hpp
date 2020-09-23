@@ -117,11 +117,6 @@ public:
     alloc_threadprivate(num_bytes);
   }
 
-  static void request_from_hipcpu_pool()
-  {
-    alloc_hipcpu();
-  }
-
   static void release()
   {
     release_memory();
@@ -154,19 +149,6 @@ private:
       if(num_bytes > 0)
         _local_mem = new char [num_bytes];
     }
-  }
-
-  static void alloc_hipcpu() {
-    release_memory();
-
-    _origin = host_local_memory_origin::hipcpu;
-#ifdef __HIPCPU__
-    _local_mem = reinterpret_cast<char *>(HIP_DYNAMIC_SHARED_MEMORY);
-#else
-    throw unimplemented{
-        "Attempted to access local memory pool provided by hipCPU "
-        "in compilation phase without hipCPU"};
-#endif
   }
 
 

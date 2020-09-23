@@ -6,9 +6,8 @@
 * `HIPSYCL_PLATFORM_CUDA` - defined if compiling for CUDA
 * `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined if compiling for ROCm
 * `HIPSYCL_PLATFORM_CPU` - defined if compiling purely for CPU
-* `__HIPSYCL_DEVICE__` - defined if generating code for GPU
 * `SYCL_DEVICE_ONLY` - defined if generating code for GPU
-* `HIPSYCL_CLANG` - defined by `syclcc-clang` when compiling with the clang plugin
+* `__HIPSYCL_CLANG__` - defined by `syclcc-clang` when compiling with the clang plugin
 * `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE` - defined if hipSYCL supports (and has enabled) the extension for automatically requiring placeholder accessors.
 * `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION` - defined if the hipSYCL custom `parallel_for_work_item` synchronization extension is supported.
 

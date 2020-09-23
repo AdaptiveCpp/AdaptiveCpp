@@ -467,8 +467,7 @@ class clang_plugin_compiler:
         "-x", "cuda",
         "--cuda-gpu-arch=" + config.target_arch,
         "--cuda-path=" + config.cuda_path,
-        # Use the bundled HIP installation
-        "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
       ]
 
     elif target == hipsycl_platform.HIP:
@@ -484,7 +483,8 @@ class clang_plugin_compiler:
         # include path. This causes "file not found" errors when the
         # clang CUDA wrapper headers try to include the system headers
         # with #include_next <...>
-        "-isystem", self._get_rocm_clang_include_path(config)
+        "-isystem", self._get_rocm_clang_include_path(config),
+        "-D__HIPSYCL_ENABLE_HIP_TARGET__"
       ]
 
     # clang erroneously sets feature detection flags for __float128 even though it is not supported for CUDA / HIP,
@@ -502,7 +502,8 @@ class clang_plugin_compiler:
 
     self._common_compiler_args += [
       "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
-      "-DHIPSYCL_CLANG",
+      "-D__HIPSYCL_CLANG__",
+      "-D__HIPSYCL__",
       "-I" + os.path.join(config.hipsycl_installation_path, "include/")
     ]
 
@@ -540,7 +541,10 @@ class pure_cpu_compiler:
     hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
 
     self._linker_args = []
-    self._compiler_args = []
+    self._compiler_args = [
+      "-D__HIPSYCL__",
+      "-D__HIPSYCL_ENABLE_HOST_OMP_TARGET__"
+    ]
     if sys.platform == "darwin":
         # y'all still need libomp installed
         self._compiler_args += ["-Xclang"]

@@ -36,6 +36,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -49,7 +50,7 @@ namespace glue {
 namespace hiplike_dispatch {
 
 template<int dimensions>
-__device__
+__host__ __device__
 bool item_is_in_range(const sycl::item<dimensions, true>& item,
                       const sycl::range<dimensions>& execution_range,
                       const sycl::id<dimensions>& offset)
@@ -65,7 +66,7 @@ bool item_is_in_range(const sycl::item<dimensions, true>& item,
 }
 
 template<int dimensions>
-__device__
+__host__ __device__
 bool item_is_in_range(const sycl::item<dimensions, false>& item,
                       const sycl::range<dimensions>& execution_range)
 {

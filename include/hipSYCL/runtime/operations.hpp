@@ -495,6 +495,7 @@ public:
   }
 
   void add_requirement(std::unique_ptr<requirement> req);
+  void add_node_requirement(dag_node_ptr node);
 
   const std::vector<dag_node_ptr>& get() const;
   

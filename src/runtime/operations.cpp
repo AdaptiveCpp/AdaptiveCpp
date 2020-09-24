@@ -74,6 +74,11 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
   _reqs.push_back(node);
 }
 
+void requirements_list::add_node_requirement(dag_node_ptr node)
+{
+  _reqs.push_back(node);
+}
+
 const std::vector<dag_node_ptr>& requirements_list::get() const
 { return _reqs; }
 

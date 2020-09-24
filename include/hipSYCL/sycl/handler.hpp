@@ -37,6 +37,7 @@
 #include "accessor.hpp"
 #include "backend/backend.hpp"
 #include "device.hpp"
+#include "event.hpp"
 #include "types.hpp"
 #include "id.hpp"
 #include "range.hpp"
@@ -102,16 +103,15 @@ public:
     _requirements.add_requirement(std::move(req));
   }
 
-  //----- OpenCL interoperability interface is not supported
-  /*
+  void depends_on(event e) {
+    _requirements.add_node_requirement(e._node);
+  }
 
-template <typename T>
-void set_arg(int argIndex, T && arg);
-
-template <typename... Ts>
-void set_args(Ts &&... args);
-*/
-  //------ Kernel dispatch API
+  void depends_on(const std::vector<event> &events) {
+    for (auto e : events) {
+      depends_on(e);
+    }
+  }
 
 
   template <typename KernelName = class _unnamed_kernel, typename KernelType>

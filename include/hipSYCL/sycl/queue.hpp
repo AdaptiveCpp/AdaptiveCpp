@@ -67,7 +67,7 @@ using queue_submission_hooks_ptr =
 
 }
 
-namespace propert::queue {
+namespace property::queue {
 
 class in_order : public detail::property
 {};
@@ -290,7 +290,7 @@ private:
         cgh.depends_on(event{previous, _handler});
     }
     
-    cgh(cgf);
+    cgf(cgh);
 
     rt::dag_node_ptr node = this->extract_dag_node(cgh);
     if (is_in_order()) {

@@ -30,7 +30,7 @@
 
 #include "../types.hpp"
 #include "param_traits.hpp"
-#include "../range.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
 
 namespace hipsycl {
 namespace sycl {

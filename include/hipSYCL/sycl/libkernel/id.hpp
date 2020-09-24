@@ -29,10 +29,14 @@
 #ifndef HIPSYCL_ID_HPP
 #define HIPSYCL_ID_HPP
 
-#include "hipSYCL/runtime/util.hpp"
-#include "detail/device_array.hpp"
 #include <cassert>
 #include <type_traits>
+
+#include "hipSYCL/runtime/util.hpp"
+
+#include "backend.hpp"
+#include "detail/device_array.hpp"
+
 
 namespace hipsycl {
 namespace sycl {

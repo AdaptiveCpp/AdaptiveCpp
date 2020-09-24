@@ -29,11 +29,37 @@
 #define HIPSYCL_SYCL_HPP
 
 
+// Use this macro to detect hipSYCL from SYCL code
+#ifndef __HIPSYCL__
+ #define __HIPSYCL__
+#endif
+
 #define CL_SYCL_LANGUAGE_VERSION 121
 #define __SYCL_SINGLE_SOURCE__
 
 #include "extensions.hpp"
-#include "backend/backend.hpp"
+
+#include "libkernel/backend.hpp"
+#include "libkernel/range.hpp"
+#include "libkernel/id.hpp"
+#include "libkernel/accessor.hpp"
+#include "libkernel/nd_item.hpp"
+#include "libkernel/multi_ptr.hpp"
+#include "libkernel/group.hpp"
+#include "libkernel/h_item.hpp"
+#include "libkernel/sp_item.hpp"
+#include "libkernel/private_memory.hpp"
+#include "libkernel/local_memory.hpp"
+#include "libkernel/vec.hpp"
+#include "libkernel/builtin.hpp"
+#include "libkernel/math.hpp"
+#include "libkernel/common_functions.hpp"
+#include "libkernel/geometric_functions.hpp"
+#include "libkernel/atomic.hpp"
+#include "libkernel/stream.hpp"
+#include "libkernel/sub_group.hpp"
+#include "libkernel/memory.hpp"
+
 #include "version.hpp"
 #include "types.hpp"
 #include "exception.hpp"
@@ -41,29 +67,11 @@
 #include "device.hpp"
 #include "platform.hpp"
 #include "queue.hpp"
-#include "range.hpp"
-#include "id.hpp"
-#include "accessor.hpp"
-#include "buffer.hpp"
-#include "nd_item.hpp"
-#include "multi_ptr.hpp"
-#include "group.hpp"
-#include "h_item.hpp"
-#include "sp_item.hpp"
-#include "private_memory.hpp"
-#include "local_memory.hpp"
-#include "vec.hpp"
-#include "builtin.hpp"
-#include "math.hpp"
-#include "common_functions.hpp"
-#include "geometric_functions.hpp"
-#include "atomic.hpp"
 #include "program.hpp"
 #include "kernel.hpp"
-#include "stream.hpp"
-#include "sub_group.hpp"
-#include "memory.hpp"
+#include "buffer.hpp"
 #include "usm.hpp"
+
 
 #endif
 

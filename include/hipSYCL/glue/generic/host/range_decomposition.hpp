@@ -33,8 +33,8 @@
 #include <vector>
 #include <cassert>
 
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
 
 #include "iterate_range.hpp"
 

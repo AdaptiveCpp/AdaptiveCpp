@@ -30,15 +30,18 @@
 
 #include <cassert>
 
-#include "hipSYCL/sycl/backend/backend.hpp"
-#include "hipSYCL/sycl/range.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/item.hpp"
-#include "hipSYCL/sycl/nd_item.hpp"
-#include "hipSYCL/sycl/group.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/item.hpp"
+#include "hipSYCL/sycl/libkernel/nd_item.hpp"
+#include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+
+#include "clang.hpp"
 
 
 namespace hipsycl {
@@ -47,7 +50,7 @@ namespace glue {
 namespace hiplike_dispatch {
 
 template<int dimensions>
-__device__
+__host__ __device__
 bool item_is_in_range(const sycl::item<dimensions, true>& item,
                       const sycl::range<dimensions>& execution_range,
                       const sycl::id<dimensions>& offset)
@@ -63,7 +66,7 @@ bool item_is_in_range(const sycl::item<dimensions, true>& item,
 }
 
 template<int dimensions>
-__device__
+__host__ __device__
 bool item_is_in_range(const sycl::item<dimensions, false>& item,
                       const sycl::range<dimensions>& execution_range)
 {

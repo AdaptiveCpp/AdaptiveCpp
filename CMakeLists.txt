@@ -152,9 +152,6 @@ install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp"
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 
-install(DIRECTORY contrib/hipCPU/include/hipCPU DESTINATION include/hipSYCL/contrib)
-install(DIRECTORY contrib/HIP/include/ DESTINATION include/hipSYCL/contrib)
-
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
 install(PROGRAMS cmake/syclcc-launcher DESTINATION lib/cmake/hipSYCL)

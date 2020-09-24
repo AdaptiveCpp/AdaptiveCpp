@@ -29,7 +29,6 @@
 #ifndef HIPSYCL_VERSION_HPP
 #define HIPSYCL_VERSION_HPP
 
-#include "backend/backend.hpp"
 #include <string>
 
 #define HIPSYCL_VERSION_MAJOR 0

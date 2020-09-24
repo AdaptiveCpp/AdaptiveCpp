@@ -30,7 +30,7 @@
 
 #include <cstdint>
 
-#include "backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "range.hpp"
 #include "memory.hpp"
@@ -89,7 +89,7 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_group_linear_range() const {
-    int local_range = hipBlockDim_x * hipBlockDim_y * hipBlockDim_z;
+    int local_range = __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
     return (local_range + warpSize - 1) / warpSize;
   }
 
@@ -116,9 +116,9 @@ public:
 private:
   HIPSYCL_KERNEL_TARGET
   int local_tid() const {
-    int tid = hipThreadIdx_x 
-            + hipThreadIdx_y * hipBlockDim_x 
-            + hipThreadIdx_z * hipBlockDim_x * hipBlockDim_y;
+    int tid = __hipsycl_lid_x 
+            + __hipsycl_lid_y * __hipsycl_lsize_x 
+            + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
     return tid;
   }
 

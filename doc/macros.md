@@ -1,24 +1,19 @@
 # Macros used by hipSYCL
 
 # Read-only macros
-Most of these are managed by `detail/backend/backend.hpp`.
 
 * `__HIPSYCL__` - defined if compiling with hipSYCL
 * `HIPSYCL_PLATFORM_CUDA` - defined if compiling for CUDA
-* `HIPSYCL_PLATFORM_HCC` (**deprecated**) - defined if compiling for ROCm
-* `HIPSYCL_PLATFORM_ROCM` - defined if compiling for ROCm
+* `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined if compiling for ROCm
 * `HIPSYCL_PLATFORM_CPU` - defined if compiling purely for CPU
-* `__HIPSYCL_DEVICE__` - defined if generating code for GPU
 * `SYCL_DEVICE_ONLY` - defined if generating code for GPU
-* `HIPSYCL_CLANG` - defined by `syclcc-clang` when compiling with the clang plugin
-* `HIPSYCL_SVM_SUPPORTED` - defined when the backend supports unified memory
+* `__HIPSYCL_CLANG__` - defined by `syclcc-clang` when compiling with the clang plugin
 * `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE` - defined if hipSYCL supports (and has enabled) the extension for automatically requiring placeholder accessors.
 * `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION` - defined if the hipSYCL custom `parallel_for_work_item` synchronization extension is supported.
 
 ## Mainly for hipSYCL developers
 * `HIPSYCL_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.
 * `HIPSYCL_KERNEL_TARGET` - currently expands to `__host__ __device__`. Use for functions that should be available in kernels.
-* `__HIPSYCL_DEVICE_CALLABLE__` - defined if HIP/CUDA intrinsics (e.g. `__syncthreads()`) are available. Since hipCPU defines those as well, this is also defined on CPU! However, it is _not_ defined when compiling for CUDA/ROCm and currently processing the `__host__` side.
 
 # Configuration macros
 * `HIPSYCL_EXT_ENABLE_ALL` - define before including `sycl.hpp` to enable all extensions.

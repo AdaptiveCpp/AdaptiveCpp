@@ -35,10 +35,10 @@
 
 #include "types.hpp"
 #include "info/info.hpp"
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 #include "exception.hpp"
-#include "id.hpp"
 #include "version.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/application.hpp"

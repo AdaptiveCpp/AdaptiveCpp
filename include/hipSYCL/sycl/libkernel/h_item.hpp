@@ -30,6 +30,10 @@
 
 #include "item.hpp"
 
+#ifdef SYCL_DEVICE_ONLY
+#include "detail/thread_hierarchy.hpp"
+#endif
+
 namespace hipsycl {
 namespace sycl {
 
@@ -251,11 +255,11 @@ public:
 #endif
 private:
   // We do not really have to store both the physical and logical ids.
-  // * On GPU, the physical size can be retrieved from hipThreadIdx_x/y/z
+  // * On GPU, the physical size can be retrieved from __hipsycl_lid_x/y/z
   // * On CPU, we want to parallelize across the work groups and have (hopefully)
   //   vectorized loops over the work items, so the physical id is always 0.
   // The same reasoning holds for the local sizes:
-  // * On GPU, we get the physical range from hipBlockDim_x/y/z
+  // * On GPU, we get the physical range from __hipsycl_lsize_x/y/z
   // * On CPU, the physical range is always 1.
   //
   // Note that for the support of flexible work group sizes,

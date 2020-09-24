@@ -28,10 +28,9 @@
 #ifndef HIPSYCL_SP_ITEM_HPP
 #define HIPSYCL_SP_ITEM_HPP
 
-#include "backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "id.hpp"
 #include "range.hpp"
-#include "detail/thread_hierarchy.hpp"
 
 namespace hipsycl {
 namespace sycl {

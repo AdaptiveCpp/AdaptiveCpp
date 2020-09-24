@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_BACKEND_CLANG_HPP
-#define HIPSYCL_BACKEND_CLANG_HPP
+#ifndef HIPSYCL_HIPLIKE_GLUE_CLANG_HPP
+#define HIPSYCL_HIPLIKE_GLUE_CLANG_HPP
 
 #include <cassert>
+
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
+#if !defined(__HIPSYCL_CLANG__)
+ #error "This file needs the hipSYCL clang plugin."
+#endif
 
 #if (defined(__clang__) && defined(__HIP__)) || (defined(__clang__) && defined(__CUDA__))
 
@@ -50,16 +56,18 @@ hipError_t hipConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, hipSt
 
 #endif // __CUDA__
 
-
+#ifdef __CUDA__
+static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, cudaStream_t stream)
+{
+  __cudaPushCallConfiguration(grid, block, shared, stream);
+}
+#else
 static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
 {
-#ifdef __CUDA__
-  __cudaPushCallConfiguration(grid, block, shared, stream);
-#else
   hipError_t err = hipConfigureCall(grid, block, shared, stream);
   assert(err == hipSuccess);
-#endif
 }
+#endif
 
 
 #define __hipsycl_launch_kernel(f, grid, block, shared_mem, stream, ...) \
@@ -68,8 +76,7 @@ static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shar
   
 
 #else
- #error This file should only be included when compiling with clang \
-in CUDA or HIP mode with the hipSYCL clang plugin.
+ #error This file needs a CUDA or HIP compiler and the hipSYCL clang plugin
 #endif
 
-#endif // HIPSYCL_BACKEND_CLANG_HPP
+#endif // HIPSYCL_HIPLIKE_GLUE_CLANG_HPP

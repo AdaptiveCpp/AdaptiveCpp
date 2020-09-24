@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_MEM_FENCE_HPP
 #define HIPSYCL_MEM_FENCE_HPP
 
-#include "../backend/backend.hpp"
-#include "../access.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/access.hpp"
 
 namespace hipsycl {
 namespace sycl {

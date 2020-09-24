@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_MULTI_PTR_HPP
 #define HIPSYCL_MULTI_PTR_HPP
 
-#include "backend/backend.hpp"
-#include "access.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/access.hpp"
 
 #include <type_traits>
 

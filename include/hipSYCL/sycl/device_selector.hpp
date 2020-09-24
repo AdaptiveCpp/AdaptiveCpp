@@ -106,10 +106,10 @@ public:
 using host_selector = cpu_selector;
 
 
-#ifdef HIPSYCL_PLATFORM_CPU
-using default_selector = host_selector;
-#else
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 using default_selector = gpu_selector;
+#else
+using default_selector = host_selector;
 #endif
 
 inline device::device(const device_selector &deviceSelector) {

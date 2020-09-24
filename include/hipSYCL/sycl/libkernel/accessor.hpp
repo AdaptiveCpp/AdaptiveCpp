@@ -44,11 +44,12 @@
 #include "hipSYCL/runtime/data.hpp"
 
 #include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/buffer_allocator.hpp"
+#include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
 #include "range.hpp"
-#include "access.hpp"
 #include "item.hpp"
-#include "buffer_allocator.hpp"
-#include "backend/backend.hpp"
 #include "multi_ptr.hpp"
 #include "atomic.hpp"
 #include "detail/local_memory_allocator.hpp"

@@ -39,9 +39,9 @@
 #include <boost/fiber/fiber.hpp>
 #include <boost/fiber/barrier.hpp>
 
-#include "hipSYCL/sycl/range.hpp"
-#include "hipSYCL/sycl/id.hpp"
-#include "hipSYCL/sycl/nd_item.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/nd_item.hpp"
 
 #include "iterate_range.hpp"
 #include "range_decomposition.hpp"

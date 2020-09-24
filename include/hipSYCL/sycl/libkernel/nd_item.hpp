@@ -37,8 +37,11 @@
 #include "multi_ptr.hpp"
 #include "group.hpp"
 #include "device_event.hpp"
-#include "detail/thread_hierarchy.hpp"
 #include "detail/mem_fence.hpp"
+
+#ifdef SYCL_DEVICE_ONLY
+#include "detail/thread_hierarchy.hpp"
+#endif
 
 namespace hipsycl {
 namespace sycl {

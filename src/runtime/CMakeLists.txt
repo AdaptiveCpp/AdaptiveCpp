@@ -64,7 +64,6 @@ target_include_directories(hipSYCL-rt PRIVATE ${INCLUDE_DIRS})
 # explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
 target_include_directories(hipSYCL-rt
   INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>"
-  INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/hipSYCL/contrib>"
 )
 
 if(WITH_CUDA_BACKEND)

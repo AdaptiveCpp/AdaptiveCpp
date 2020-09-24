@@ -51,12 +51,12 @@
 #include "context.hpp"
 #include "buffer_allocator.hpp"
 
-#include "id.hpp"
-#include "range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
 
 #include "../common/reinterpret_pointer_cast.hpp"
 
-#include "accessor.hpp"
+#include "libkernel/accessor.hpp"
 
 namespace hipsycl {
 namespace sycl {

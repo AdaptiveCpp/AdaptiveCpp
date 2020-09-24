@@ -39,7 +39,7 @@
 #include "exception.hpp"
 
 #include "property.hpp"
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 #include "device.hpp"
 #include "device_selector.hpp"
 #include "context.hpp"

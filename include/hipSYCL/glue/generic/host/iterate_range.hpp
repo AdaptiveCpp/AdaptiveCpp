@@ -30,8 +30,8 @@
 
 #include <cstdint>
 
-#include "hipSYCL/sycl/range.hpp"
-#include "hipSYCL/sycl/id.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
 
 namespace hipsycl {
 namespace glue {

@@ -1294,10 +1294,10 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   auto host_acc2 = buff2d.get_access<s::access::mode::read>();
   auto host_acc3 = buff3d.get_access<s::access::mode::read>();
 
-#ifdef HIPSYCL_PLATFORM_CPU
-  const uint32_t subgroup_size = 1;
-#else
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
   const uint32_t subgroup_size = static_cast<uint32_t>(warpSize);
+#else
+  const uint32_t subgroup_size = 1;
 #endif
 
   for (size_t i = 0; i < size1d[0]; ++i) {

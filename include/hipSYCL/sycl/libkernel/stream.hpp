@@ -30,7 +30,7 @@
 
 #include <cstdio>
 
-#include "backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #include "id.hpp"
 #include "range.hpp"

@@ -28,8 +28,8 @@
 #ifndef HIPSYCL_MOBILE_SHARED_PTR_HPP
 #define HIPSYCL_MOBILE_SHARED_PTR_HPP
 
-#include "../backend/backend.hpp"
-#include "../types.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/types.hpp"
 
 namespace hipsycl {
 namespace sycl {

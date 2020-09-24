@@ -28,10 +28,11 @@
 #ifndef HIPSYCL_ITEM_HPP
 #define HIPSYCL_ITEM_HPP
 
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
 #include "id.hpp"
 #include "range.hpp"
-#include "detail/thread_hierarchy.hpp"
-#include "backend/backend.hpp"
+#include "detail/data_layout.hpp"
 
 #include <type_traits>
 

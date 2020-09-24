@@ -31,18 +31,18 @@
 #include <vector>
 #include <memory>
 
-#include "hipSYCL/sycl/backend/backend.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 
-#if defined(HIPSYCL_PLATFORM_ROCM)
+#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 #include "hip/hip_kernel_launcher.hpp"
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CUDA)
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
 #include "cuda/cuda_kernel_launcher.hpp"
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CPU)
+#if defined(__HIPSYCL_ENABLE_HOST_OMP_TARGET__)
 #include "omp/omp_kernel_launcher.hpp"
 #endif
 
@@ -56,7 +56,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       std::size_t dynamic_local_memory, Kernel k) {
 
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
-#ifdef HIPSYCL_PLATFORM_ROCM
+#ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
@@ -65,7 +65,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
 
-#ifdef HIPSYCL_PLATFORM_CUDA
+#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
@@ -74,7 +74,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
   
-#ifdef HIPSYCL_PLATFORM_CPU
+#ifdef __HIPSYCL_ENABLE_HOST_OMP_TARGET__
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,

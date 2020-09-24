@@ -35,7 +35,7 @@
 
 #include "hipSYCL/runtime/error.hpp"
 #include "types.hpp"
-#include "backend/backend.hpp"
+#include "libkernel/backend.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -52,11 +52,11 @@ target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURR
 target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})
 add_sycl_to_target(TARGET sycl_tests)
 
-add_executable(rt_unit_tests 
+add_executable(rt_tests 
   runtime/runtime_test_suite.cpp 
   runtime/dag_builder.cpp
   runtime/data.cpp)
 
-target_include_directories(rt_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(rt_unit_tests PRIVATE ${Boost_LIBRARIES})
-add_sycl_to_target(TARGET rt_unit_tests)
+target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET rt_tests)

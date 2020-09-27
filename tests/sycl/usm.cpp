@@ -149,8 +149,6 @@ BOOST_AUTO_TEST_CASE(in_order_queue) {
 
   BOOST_CHECK(q.is_in_order());
 
-  // Make sure that there are no dependencies between tasks
-  // by default
   sycl::event evt1 = q.submit([&](sycl::handler &cgh) {
     cgh.single_task<class In_order_queue_kernel1>([](){});
   });

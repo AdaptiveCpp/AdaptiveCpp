@@ -102,13 +102,22 @@ public:
   bool is_accelerator() const { return !is_cpu(); }
 
   bool hipSYCL_has_compiled_kernels() const {
-#ifdef HIPSYCL_PLATFORM_CPU
-    return is_cpu();
-#elif defined(HIPSYCL_PLATFORM_CUDA)
-    return _device_id.get_backend() == rt::backend_id::cuda;
-#elif defined(HIPSYCL_PLATFORM_ROCM)
-    return _device_id.get_backend() == rt::backend_id::hip;
+#if defined(__HIPSYCL_ENABLE_HOST_OMP_TARGET__)
+    if (is_cpu())
+      return true;
 #endif
+    
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
+    if(_device_id.get_backend() == rt::backend_id::cuda)
+      return true;
+#endif
+    
+#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+    if(_device_id.get_backend() == rt::backend_id::hip)
+      return true;
+#endif
+    
+    return false;
   }
 
   // Implemented in platform.hpp

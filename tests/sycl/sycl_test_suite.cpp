@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018 - 2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,37 +25,5 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_RUNTIME_HPP
-#define HIPSYCL_CUDA_RUNTIME_HPP
-
-#include "../allocator.hpp"
-
-namespace hipsycl {
-namespace rt {
-
-class cuda_allocator : public backend_allocator 
-{
-public:
-  cuda_allocator(backend_descriptor desc, int cuda_device);
-
-  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
-
-  virtual void *allocate_optimized_host(size_t min_alignment,
-                                        size_t bytes) override;
-  
-  virtual void free(void *mem) override;
-
-  virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
-
-  virtual result query_pointer(const void* ptr, pointer_info& out) const override;
-
-private:
-  backend_descriptor _backend_descriptor;
-  int _dev;
-};
-
-}
-}
-
-#endif
+#define BOOST_TEST_MODULE hipsycl unit tests
+#include <boost/test/unit_test.hpp>

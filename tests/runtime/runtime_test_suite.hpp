@@ -26,16 +26,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <hipSYCL/runtime/application.hpp>
 #include <boost/test/unit_test.hpp>
 
 #ifndef HIPSYCL_RT_TESTS_HPP
 #define HIPSYCL_RT_TESTS_HPP
 
-struct shutdown_runtime {
-  ~shutdown_runtime() {
-    hipsycl::rt::application::reset();
-  }
-};
+#include "../common/reset.hpp"
 
 #endif

@@ -25,11 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "unit_tests.hpp"
+#include "sycl_test_suite.hpp"
 
 #include <boost/mpl/joint_view.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(device_test_suite, reset_device_fixture)
+BOOST_FIXTURE_TEST_SUITE(math_tests, reset_device_fixture)
 
 // list of types classified as "genfloat" in the SYCL standard
 using math_test_genfloats = boost::mpl::list<

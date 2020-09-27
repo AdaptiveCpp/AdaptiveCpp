@@ -55,9 +55,39 @@ void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
   return ptr;
 }
 
-void cuda_allocator::free(void *mem)
-{
-  auto err = cudaFree(mem);
+void *cuda_allocator::allocate_optimized_host(size_t min_alignment,
+                                             size_t bytes) {
+  void *ptr;
+  auto err = cudaSetDevice(_dev);
+
+  err = cudaMallocHost(&ptr, bytes);
+
+  if (err != cudaSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"cuda_allocator: cudaMallocHost() failed",
+                              error_code{"CUDA", err},
+                              error_type::memory_allocation_error});
+    return nullptr;
+  }
+  return ptr;
+}
+
+void cuda_allocator::free(void *mem) {
+
+  pointer_info info;
+  result query_result = query_pointer(mem, info);
+
+  if (!query_result.is_success()) {
+    register_error(query_result);
+    return;
+  }
+  
+  cudaError_t err;
+  if (info.is_optimized_host)
+    err = cudaFreeHost(mem);
+  else
+    err = cudaFree(mem);
+  
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"cuda_allocator: cudaFree() failed",

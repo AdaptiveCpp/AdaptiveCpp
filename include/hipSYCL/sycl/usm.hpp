@@ -124,8 +124,21 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
                                                    const device &dev) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
-  rt::backend& backend_object = rt::application::get_backend(selected_backend);
-  return backend_object.get_allocator(detail::extract_rt_device(dev));
+  rt::backend &backend_object = rt::application::get_backend(selected_backend);
+  rt::device_id d = detail::extract_rt_device(dev);
+  
+  if(d.get_backend() == selected_backend)
+    return backend_object.get_allocator(detail::extract_rt_device(dev));
+  else
+    return backend_object.get_allocator(
+        rt::device_id{d.get_full_backend_descriptor(), 0});
+}
+
+inline rt::backend_allocator *select_device_allocator(const device &dev) {
+  rt::device_id d = detail::extract_rt_device(dev);
+
+  rt::backend& backend_object = rt::application::get_backend(d.get_backend());
+  return backend_object.get_allocator(d);
 }
 
 }
@@ -138,7 +151,7 @@ enum class alloc { host, device, shared, unknown };
 
 inline void *malloc_device(size_t num_bytes, const device &dev,
                            const context &ctx) {
-  return detail::select_usm_allocator(ctx, dev)->allocate(0, num_bytes);
+  return detail::select_device_allocator(dev)->allocate(0, num_bytes);
 }
 
 template <typename T>
@@ -158,7 +171,7 @@ T* malloc_device(std::size_t count, const queue &q) {
 
 inline void *aligned_alloc_device(std::size_t alignment, std::size_t num_bytes,
                                   const device &dev, const context &ctx) {
-  return detail::select_usm_allocator(ctx, dev)->allocate(alignment, num_bytes);
+  return detail::select_device_allocator(dev)->allocate(alignment, num_bytes);
 }
 
 template <typename T>
@@ -232,7 +245,7 @@ inline void *aligned_alloc_host(size_t alignment, size_t num_bytes,
 }
 
 template <typename T>
-void *aligned_alloc_host(std::size_t alignment, std::size_t count,
+T *aligned_alloc_host(std::size_t alignment, std::size_t count,
                          const queue &q) {
   return static_cast<T *>(
       aligned_alloc_host(alignment, count * sizeof(T), q.get_context()));
@@ -344,7 +357,7 @@ void free(T *ptr, sycl::queue &q) {
   free(static_cast<void*>(ptr), q.get_context());
 }
 
-usm::alloc get_pointer_type(const void *ptr, const context &ctx) {
+inline usm::alloc get_pointer_type(const void *ptr, const context &ctx) {
   rt::pointer_info info;
   rt::result res = detail::select_usm_allocator(ctx)->query_pointer(ptr, info);
 
@@ -359,7 +372,7 @@ usm::alloc get_pointer_type(const void *ptr, const context &ctx) {
     return usm::alloc::device;
 }
 
-sycl::device get_pointer_device(const void *ptr, const context &ctx) {
+inline sycl::device get_pointer_device(const void *ptr, const context &ctx) {
   rt::pointer_info info;
   rt::result res = detail::select_usm_allocator(ctx)->query_pointer(ptr, info);
 

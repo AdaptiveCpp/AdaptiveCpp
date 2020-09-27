@@ -34,7 +34,7 @@
 
 using namespace hipsycl;
 
-BOOST_FIXTURE_TEST_SUITE(dag_builder, shutdown_runtime)
+BOOST_FIXTURE_TEST_SUITE(dag_builder, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(default_hints) {
   rt::execution_hints hints;
   // Construct imaginary device

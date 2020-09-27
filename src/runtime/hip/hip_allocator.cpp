@@ -53,9 +53,39 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
   return ptr;
 }
 
-void hip_allocator::free(void *mem)
-{
-  auto err = hipFree(mem);
+void *hip_allocator::allocate_optimized_host(size_t min_alignment,
+                                             size_t bytes) {
+  void *ptr;
+  auto err = hipSetDevice(_dev);
+
+  err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);
+
+  if (err != hipSuccess) {
+    register_error(__hipsycl_here(),
+                   error_info{"hip_allocator: hipHostMalloc() failed",
+                              error_code{"HIP", err},
+                              error_type::memory_allocation_error});
+    return nullptr;
+  }
+  return ptr;
+}
+
+void hip_allocator::free(void *mem) {
+
+  pointer_info info;
+  result query_result = query_pointer(mem, info);
+
+  if (!query_result.is_success()) {
+    register_error(query_result);
+    return;
+  }
+  
+  hipError_t err;
+  if (info.is_optimized_host)
+    err = hipHostFree(mem);
+  else
+    err = hipFree(mem);
+  
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_allocator: hipFree() failed",

@@ -42,11 +42,21 @@ target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS
 target_link_libraries(device_compilation_tests PRIVATE ${Boost_LIBRARIES})
 add_sycl_to_target(TARGET device_compilation_tests)
 
-add_executable(sycl_tests 
-  sycl/sycl_test_suite.cpp 
+add_executable(sycl_tests
+  sycl/smoke/task_graph.cpp
+  sycl/accessor.cpp
+  sycl/buffer.cpp
+  sycl/explicit_copy.cpp
+  sycl/extensions.cpp
+  sycl/fill.cpp
+  sycl/id_range.cpp
+  sycl/item.cpp
+  sycl/kernel_invocation.cpp
   sycl/math.cpp
+  sycl/sub_group.cpp
+  sycl/sycl_test_suite.cpp 
   sycl/usm.cpp
-  sycl/tests.cpp)
+  sycl/vec.cpp)
 
 target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})

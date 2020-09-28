@@ -36,7 +36,7 @@
 
 using namespace hipsycl;
 
-BOOST_FIXTURE_TEST_SUITE(data, shutdown_runtime)
+BOOST_FIXTURE_TEST_SUITE(data, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(page_table) {
   rt::range_store::rect full_range{rt::id<3>{0, 0, 0},
                                    rt::range<3>{16, 16, 16}};

@@ -42,17 +42,21 @@ target_include_directories(device_compilation_tests PRIVATE ${Boost_INCLUDE_DIRS
 target_link_libraries(device_compilation_tests PRIVATE ${Boost_LIBRARIES})
 add_sycl_to_target(TARGET device_compilation_tests)
 
-add_executable(unit_tests unit_tests.cpp)
-target_include_directories(unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(unit_tests PRIVATE ${Boost_LIBRARIES})
-add_sycl_to_target(TARGET unit_tests)
+add_executable(sycl_tests 
+  sycl/sycl_test_suite.cpp 
+  sycl/math.cpp
+  sycl/usm.cpp
+  sycl/tests.cpp)
 
-add_executable(math_unit_tests math_unit_tests.cpp)
-target_include_directories(math_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(math_unit_tests PRIVATE ${Boost_LIBRARIES})
-add_sycl_to_target(TARGET math_unit_tests)
+target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET sycl_tests)
 
-add_executable(rt_unit_tests runtime/runtime_test_suite.cpp runtime/dag_builder.cpp runtime/data.cpp)
-target_include_directories(rt_unit_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(rt_unit_tests PRIVATE ${Boost_LIBRARIES})
-add_sycl_to_target(TARGET rt_unit_tests)
+add_executable(rt_tests 
+  runtime/runtime_test_suite.cpp 
+  runtime/dag_builder.cpp
+  runtime/data.cpp)
+
+target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES})
+add_sycl_to_target(TARGET rt_tests)

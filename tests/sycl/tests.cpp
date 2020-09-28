@@ -27,7 +27,7 @@
 
 #include <cstdint>
 
-#include "unit_tests.hpp"
+#include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(device_test_suite, reset_device_fixture)
 

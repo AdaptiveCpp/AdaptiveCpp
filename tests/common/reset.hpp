@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef HIPSYCL_UNIT_TESTS_HPP
-#define HIPSYCL_UNIT_TESTS_HPP
-
-#include <tuple>
-
-#define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
-#define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE hipsycl unit tests
-#include <boost/test/unit_test.hpp>
-#include <boost/mpl/list_c.hpp>
-#include <boost/mpl/list.hpp>
-
+ 
+#ifndef HIPSYCL_TESTS_RESET_HPP
+#define HIPSYCL_TESTS_RESET_HPP
 
 #include <hipSYCL/runtime/application.hpp>
-#define SYCL_SIMPLE_SWIZZLES
-#include <CL/sycl.hpp>
 
 
 struct reset_device_fixture {
@@ -49,9 +37,4 @@ struct reset_device_fixture {
   }
 };
 
-// Helper type to construct unique kernel names for all instantiations of
-// a templated test case.
-template<typename T, int dimensions, typename extra=T>
-struct kernel_name {};
-
-#endif // HIPSYCL_UNIT_TESTS_HPP
+#endif

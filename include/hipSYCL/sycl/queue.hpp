@@ -49,6 +49,8 @@
 #include "detail/function_set.hpp"
 
 #include <exception>
+#include <memory>
+#include <mutex>
 
 namespace hipsycl {
 namespace sycl {
@@ -62,6 +64,13 @@ using queue_submission_hooks =
   function_set<sycl::handler&>;
 using queue_submission_hooks_ptr = 
   shared_ptr_class<queue_submission_hooks>;
+
+}
+
+namespace property::queue {
+
+class in_order : public detail::property
+{};
 
 }
 
@@ -189,6 +198,9 @@ public:
   }
 
   bool is_host() const { return get_device().is_host(); }
+  bool is_in_order() const {
+    return _is_in_order;
+  }
 
   void wait() {
     rt::application::dag().flush_sync();
@@ -210,14 +222,13 @@ public:
 
   template <typename T>
   event submit(T cgf) {
+    std::lock_guard<std::mutex> lock{*_lock};
 
     handler cgh{*this, _handler, _default_hints};
     
     this->get_hooks()->run_all(cgh);
 
-    cgf(cgh);
-
-    rt::dag_node_ptr node = this->extract_dag_node(cgh);
+    rt::dag_node_ptr node = execute_submission(cgf, cgh);
     
     return event{node, _handler};
   }
@@ -225,14 +236,11 @@ public:
   template <typename T>
   event submit(T cgf, const queue &secondaryQueue) {
     try {
-      handler cgh{*this, _handler, _default_hints};
-
-      this->get_hooks()->run_all(cgh);
 
       size_t num_errors_begin =
           rt::application::get_runtime().errors().num_errors();
 
-      cgf(cgh);
+      event evt = submit(cgf);
       // Flush so that we see any errors during submission
       rt::application::dag().flush_sync();
 
@@ -256,8 +264,7 @@ public:
       }
 
       if(!submission_failed) {
-        rt::dag_node_ptr node = this->extract_dag_node(cgh);
-        return event{node, _handler};
+        return evt;
       } else {
         return secondaryQueue.submit(cgf);
       }
@@ -275,6 +282,23 @@ public:
   { return !(lhs == rhs); }
 
 private:
+  template <class Cgf>
+  rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
+    if (is_in_order()) {
+      auto previous = _previous_submission.lock();
+      if(previous)
+        cgh.depends_on(event{previous, _handler});
+    }
+    
+    cgf(cgh);
+
+    rt::dag_node_ptr node = this->extract_dag_node(cgh);
+    if (is_in_order()) {
+      _previous_submission = node;
+    }
+    return node;
+  }
+      
   bool is_device_in_context(const device &dev, const context &ctx) const {    
     std::vector<device> devices = ctx.get_devices();
     for (const auto context_dev : devices) {
@@ -306,9 +330,11 @@ private:
     return dag_nodes.back();
   }
 
-  
-  void init()
-  {
+
+  void init() {
+    _is_in_order = this->has_property<property::queue::in_order>();
+    _lock = std::make_shared<std::mutex>();
+
     this->_hooks = detail::queue_submission_hooks_ptr{
           new detail::queue_submission_hooks{}};
   }
@@ -324,6 +350,10 @@ private:
   rt::execution_hints _default_hints;
   context _ctx;
   async_handler _handler;
+  bool _is_in_order;
+
+  std::weak_ptr<rt::dag_node> _previous_submission;
+  std::shared_ptr<std::mutex> _lock;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

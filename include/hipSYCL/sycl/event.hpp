@@ -42,7 +42,7 @@ namespace hipsycl {
 namespace sycl {
 
 class event {
-
+  friend class handler;
 public:
   event()
   {}

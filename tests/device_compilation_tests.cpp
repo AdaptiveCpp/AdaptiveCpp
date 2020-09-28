@@ -25,7 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "unit_tests.hpp"
+#define BOOST_TEST_MODULE device compilation tests
+#include <boost/test/unit_test.hpp>
 
 #include <initializer_list>
 
@@ -34,6 +35,8 @@
 // then also include a few unit tests to assert the correct behavior of the
 // resulting programs.
 
+#include <CL/sycl.hpp>
+#include "common/reset.hpp"
 BOOST_FIXTURE_TEST_SUITE(device_compilation_test_suite, reset_device_fixture)
 
 int add_five(int v) {

@@ -132,8 +132,8 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   if(operation_node->get_operation()->is_requirement())
     add_conflicts_as_requirements(operation_node);
 
-  for(auto node : operation_node->get_requirements())
-    add_conflicts_as_requirements(node);
+  for (auto node : operation_node->get_requirements())
+      add_conflicts_as_requirements(node);
   
   add_to_data_users(operation_node, requirements);
 

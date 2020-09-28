@@ -40,9 +40,9 @@ namespace rt {
 class unique_device_list {
 public:
   void add(const rt::device_id dev) {
-    if (std::find(_devices.begin(), _devices.end(), dev) != _devices.end()) {
+    if (std::find(_devices.begin(), _devices.end(), dev) == _devices.end()) {
       _devices.push_back((dev));
-      if (std::find(_backends.begin(), _backends.end(), dev.get_backend()) !=
+      if (std::find(_backends.begin(), _backends.end(), dev.get_backend()) ==
           _backends.end()) {
         _backends.push_back(dev.get_backend());
       }

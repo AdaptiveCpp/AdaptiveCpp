@@ -42,9 +42,7 @@ public:
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
   virtual void *allocate_optimized_host(size_t min_alignment,
-                                        size_t bytes) override {
-    return allocate(min_alignment, bytes);
-  };
+                                        size_t bytes) override;
   
   virtual void free(void *mem) override;
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,53 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SYCL_TEST_SUITE_HPP
-#define HIPSYCL_SYCL_TEST_SUITE_HPP
 
-#include <tuple>
+#include "sycl_test_suite.hpp"
+#include <boost/test/unit_test_suite.hpp>
 
-#define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
-#define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
-#include <boost/mpl/list_c.hpp>
-#include <boost/mpl/list.hpp>
+BOOST_FIXTURE_TEST_SUITE(buffer_tests, reset_device_fixture)
 
 
-#define SYCL_SIMPLE_SWIZZLES
-#include <CL/sycl.hpp>
+BOOST_AUTO_TEST_CASE(buffer_versioning) {
+  namespace s = cl::sycl;
+  constexpr size_t buf_size = 32;
 
-#include "../common/reset.hpp"
+  s::queue queue;
+  s::buffer<int, 1> buf(buf_size);
+  {
+    auto acc = buf.get_access<s::access::mode::discard_write>();
+    for(int i = 0; i < buf_size; ++i) {
+      acc[i] = i;
+    }
+  }
 
-using test_dimensions = boost::mpl::list_c<int, 1, 2, 3>;
+  queue.submit([&](s::handler& cgh) {
+    auto acc = buf.get_access<s::access::mode::discard_write>(cgh);
+    cgh.parallel_for<class buffer_versioning>(buf.get_range(), [=](s::id<1> id) {
+      acc[id] = buf_size - id[0];
+    });
+  });
 
-
-template<int dimensions, template<int D> class T>
-void assert_array_equality(const T<dimensions>& a, const T<dimensions>& b) {
-  if(dimensions >= 1) BOOST_REQUIRE(a[0] == b[0]);
-  if(dimensions >= 2) BOOST_REQUIRE(a[1] == b[1]);
-  if(dimensions == 3) BOOST_REQUIRE(a[2] == b[2]);
+  {
+    auto acc = buf.get_access<s::access::mode::read>();
+    for(int i = 0; i < buf_size; ++i) {
+      BOOST_REQUIRE(acc[i] == buf_size - i);
+    }
+  }
 }
 
-template <template<int D> class T, int dimensions>
-auto make_test_value(const T<1>& a, const T<2>& b, const T<3>& c) {
-  return std::get<dimensions - 1>(std::make_tuple(a, b, c));
+// TODO: Extend this
+BOOST_AUTO_TEST_CASE(buffer_api) {
+  namespace s = cl::sycl;
+
+  s::buffer<int, 1> buf_a(32);
+  s::buffer<int, 1> buf_b(32);
+  auto buf_c = buf_a;
+
+  BOOST_REQUIRE(buf_a == buf_a);
+  BOOST_REQUIRE(buf_a != buf_b);
+  BOOST_REQUIRE(buf_a == buf_c);
 }
 
-// Helper type to construct unique kernel names for all instantiations of
-// a templated test case.
-template<typename T, int dimensions, typename extra=T>
-struct kernel_name {};
 
-#endif
+BOOST_AUTO_TEST_SUITE_END()

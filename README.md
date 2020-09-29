@@ -1,3 +1,5 @@
+**Note: The master branch is deprecated, all code has been removed from it. Users are encouraged to switch to `develop` or `stable` branches. Only documentation is archived and retained on the master branch to avoid breaking links from external sites that references these documents.**
+
 ![Project logo](/doc/img/logo/logo-color.png)
 
 # hipSYCL - a SYCL implementation for CPUs and GPUs

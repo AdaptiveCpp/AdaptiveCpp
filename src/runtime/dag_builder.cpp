@@ -185,6 +185,14 @@ dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
   return add_command_group(std::move(op), requirements, hints);
 }
 
+dag_node_ptr dag_builder::add_memset(std::unique_ptr<operation> op,
+                                      const requirements_list& requirements,
+                                      const execution_hints& hints)
+{
+  assert_is<memset_operation>(op.get());
+  return add_command_group(std::move(op), requirements, hints);
+}
+
 dag_node_ptr dag_builder::add_explicit_mem_requirement(
     std::unique_ptr<operation> req,
     const requirements_list &requirements, const execution_hints &hints)

@@ -50,7 +50,8 @@ public:
 
   virtual result submit_memcpy(const memcpy_operation&) override;
   virtual result submit_kernel(const kernel_operation&) override;
-  virtual result submit_prefetch(const prefetch_operation&) override;
+  virtual result submit_prefetch(const prefetch_operation &) override;
+  virtual result submit_memset(const memset_operation&) override;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend

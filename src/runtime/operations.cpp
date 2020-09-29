@@ -59,7 +59,7 @@ kernel_operation::get_launcher() const
 { return _launcher; }
 
 const std::vector<memory_requirement*>& 
-kernel_operation::get_requirements() const
+kernel_operation::get_memory_requirements() const
 { return _requirements; }
 
 

@@ -123,6 +123,17 @@ void memcpy_operation::dump(std::ostream &ostr, int indentation) const {
   ostr << _num_elements;
 }
 
+void prefetch_operation::dump(std::ostream& ostr, int indentation) const {
+  ostr << get_indentation(indentation);
+  ostr << "Prefetch: " << _num_bytes << " bytes from " << _ptr;
+}
+
+void memset_operation::dump(std::ostream &ostr, int indentation) const {
+  ostr << get_indentation(indentation);
+  ostr << "Memset: @" << _ptr << " " << _num_bytes << " bytes of value "
+       << get_pattern();
+}
+
 void memory_location::dump(std::ostream &ostr) const {
   _dev.dump(ostr);
   ostr << " #" << _element_size << " " << _offset << "+" << _allocation_shape;

@@ -215,7 +215,27 @@ result omp_queue::submit_prefetch(const prefetch_operation &) {
   // backend here)
   return make_success();
 }
+
+result omp_queue::submit_memset(const memset_operation & op) {
+  void *ptr = op.get_pointer();
+  std::size_t bytes = op.get_num_bytes();
+  int pattern = op.get_pattern();
   
+  if (!ptr) {
+    return register_error(
+        __hipsycl_here(),
+        error_info{
+            "omp_queue: submit_memset(): Invalid argument, pointer is null."});
+  }
+
+  _worker([=]() {
+    memset(ptr, pattern, bytes);
+  });
+
+  return make_success();
+    
+}
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
 result omp_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {

@@ -27,6 +27,7 @@
 
 
 #include "sycl_test_suite.hpp"
+#include <boost/test/unit_test_suite.hpp>
 
 using namespace cl;
 
@@ -170,6 +171,32 @@ BOOST_AUTO_TEST_CASE(in_order_queue) {
   BOOST_CHECK(evt3.get_wait_list()[0] == evt2);
 }
 
+BOOST_AUTO_TEST_CASE(shared_allocations) {
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+
+  std::size_t test_size = 4096;
+  int *shared_allocation = sycl::malloc_shared<int>(test_size, q);
+
+  q.single_task([=]() {
+    for (int i = 0; i < test_size; ++i) {
+      shared_allocation[i] = i;
+    }
+  });
+
+  q.parallel_for(sycl::range<1>{test_size},
+                 [=](sycl::id<1> idx) { shared_allocation[idx.get(0)] += 1; });
+
+  q.parallel_for(
+      sycl::nd_range<1>{sycl::range<1>{test_size}, sycl::range<1>{128}},
+      [=](sycl::id<1> idx) { shared_allocation[idx.get(0)] += 1; });
+
+  q.wait();
+
+  for (int i = 0; i < test_size; ++i)
+    BOOST_TEST(shared_allocation[i] == i + 2);
+
+  sycl::free(shared_allocation, q);
+}
 
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this

@@ -248,18 +248,6 @@ inline void free(void *ptr, const sycl::queue &q) {
   free(ptr, q.get_context());
 }
 
-// Not in the SYCL 2020 provisional spec, but probably simple oversight
-template <class T> void free(T *ptr, sycl::context &context) {
-  free(static_cast<void*>(ptr), context);
-}
-
-template<class T>
-void free(T *ptr, sycl::queue &q) {
-  free(static_cast<void*>(ptr), q.get_context());
-}
-
-
-
 template <typename T, usm::alloc AllocKind, std::size_t Alignment = 0>
 class usm_allocator {
 public:

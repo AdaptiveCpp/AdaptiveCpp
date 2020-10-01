@@ -369,7 +369,7 @@ public:
 
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation
-        return detail::extract_rt_device(get_pointer_device(src, _ctx));
+        return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
     };
 
     rt::device_id src_dev = determine_ptr_device(src);

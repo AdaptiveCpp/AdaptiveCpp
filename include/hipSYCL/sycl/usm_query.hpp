@@ -34,6 +34,7 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
+#include <exception>
 
 #ifndef HIPSYCL_USM_QUERY_HPP
 #define HIPSYCL_USM_QUERY_HPP

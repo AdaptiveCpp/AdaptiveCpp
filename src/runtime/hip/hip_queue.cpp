@@ -260,7 +260,7 @@ result hip_queue::submit_memset(const memset_operation &op) {
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
-                      error_info{"cuda_queue: hipMemsetAsync() failed",
+                      error_info{"hip_queue: hipMemsetAsync() failed",
                                  error_code{"HIP", err}});
   }
 

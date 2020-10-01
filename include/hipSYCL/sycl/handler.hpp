@@ -370,6 +370,8 @@ public:
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation
         return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
+      
+      throw invalid_parameter_error{"Invalid allocation type"};
     };
 
     rt::device_id src_dev = determine_ptr_device(src);

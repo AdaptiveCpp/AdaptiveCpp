@@ -49,7 +49,7 @@ public:
   using smallest_type = int;
 
   // ToDo: Query max shared memory of device and check when allocating
-  local_memory_allocator(const device&)
+  local_memory_allocator()
     : _num_allocated_bytes{0}
   {}
 

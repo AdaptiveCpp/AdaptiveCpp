@@ -60,6 +60,10 @@ public:
     return _queue->submit_prefetch(*op);
   }
 
+  virtual result dispatch_memset(memset_operation *op) final override {
+    return _queue->submit_memset(*op);
+  }
+
 private:
   inorder_queue* _queue;
 };

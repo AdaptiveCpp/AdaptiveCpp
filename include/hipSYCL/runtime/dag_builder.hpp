@@ -63,8 +63,11 @@ public:
                         const requirements_list& requirements,
                         const execution_hints& hints = {});
   dag_node_ptr add_prefetch(std::unique_ptr<operation> op,
-                            const requirements_list& requirements,
-                            const execution_hints& hints = {});
+                            const requirements_list &requirements,
+                            const execution_hints &hints = {});
+  dag_node_ptr add_memset(std::unique_ptr<operation> op,
+                          const requirements_list &requirements,
+                          const execution_hints &hints = {});
   dag_node_ptr
   add_explicit_mem_requirement(std::unique_ptr<operation> req,
                                const requirements_list &requirements,

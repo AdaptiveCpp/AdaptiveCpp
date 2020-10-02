@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +25,50 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_INORDER_QUEUE_HPP
-#define HIPSYCL_INORDER_QUEUE_HPP
 
-#include <memory>
+#ifndef HIPSYCL_BUILTIN_KERNELS_HPP
+#define HIPSYCL_BUILTIN_KERNELS_HPP
 
-#include "dag_node.hpp"
-#include "hints.hpp"
-#include "operations.hpp"
-#include "error.hpp"
+#include "backend.hpp"
+
+#include "accessor.hpp"
+#include "id.hpp"
+
+#include "hipSYCL/sycl/access.hpp"
 
 namespace hipsycl {
-namespace rt {
+namespace sycl {
 
-class inorder_queue
-{
+namespace detail::kernels {
+
+template<class T, int Dim, access::mode Mode, access::target Tgt>
+class fill_kernel {
 public:
+  fill_kernel(sycl::accessor<T, Dim, Mode, Tgt> dest, const T &src)
+      : _dest{dest}, _src{src} {}
 
-  /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
+  void operator()(sycl::id<Dim> tid) { _dest[tid] = _src; }
 
-  virtual result submit_memcpy(const memcpy_operation&) = 0;
-  virtual result submit_kernel(const kernel_operation&) = 0;
-  virtual result submit_prefetch(const prefetch_operation &) = 0;
-  virtual result submit_memset(const memset_operation&) = 0;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
-  virtual result submit_external_wait_for(dag_node_ptr node) = 0;
-
-  virtual ~inorder_queue(){}
+private:
+  sycl::accessor<T, Dim, Mode, Tgt> _dest;
+  T _src;
 };
+
+template<class T>
+class fill_kernel_usm {
+public:
+  fill_kernel_usm(T* ptr, T value)
+      : _dest{ptr}, _src{value} {}
+
+  void operator()(sycl::id<1> tid) { _dest[tid[0]] = _src; }
+
+private:
+  T* _dest;
+  T _src;
+};
+
+}
+
 
 }
 }

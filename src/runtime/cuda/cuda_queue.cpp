@@ -234,8 +234,29 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(const prefetch_operation&) {
-  assert(false && "Unimplemented");
+result cuda_queue::submit_prefetch(const prefetch_operation& op) {
+
+  cudaError_t err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                         _dev.get_id(), get_stream());
+
+  if (err != cudaSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: cudaMemPrefetchAsync() failed",
+                                 error_code{"CUDA", err}});
+  }
+  return make_success();
+}
+
+result cuda_queue::submit_memset(const memset_operation &op) {
+  
+  cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
+                                    op.get_num_bytes(), get_stream());
+
+  if (err != cudaSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: cudaMemsetAsync() failed",
+                                 error_code{"CUDA", err}});
+  }
 
   return make_success();
 }

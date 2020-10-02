@@ -233,8 +233,36 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
   return make_success();
 }
 
-result hip_queue::submit_prefetch(const prefetch_operation&) {
-  assert(false && "Unimplemented");
+result hip_queue::submit_prefetch(const prefetch_operation& op) {
+  // HIP does not yet support prefetching functions
+  HIPSYCL_DEBUG_WARNING << "Ignoring prefetch request because HIP does not yet "
+                           "support prefetching memory."
+                        << std::endl;
+
+  hipError_t err = hipSuccess;
+  
+  //hipError_t err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+  //                                     _dev.get_id(), get_stream());
+
+  if (err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: hipMemPrefetchAsync() failed",
+                                 error_code{"HIP", err}});
+  }
+
+  return make_success();
+}
+
+result hip_queue::submit_memset(const memset_operation &op) {
+
+  hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
+                                  op.get_num_bytes(), get_stream());
+
+  if (err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: hipMemsetAsync() failed",
+                                 error_code{"HIP", err}});
+  }
 
   return make_success();
 }

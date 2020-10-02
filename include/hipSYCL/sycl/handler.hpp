@@ -34,11 +34,14 @@
 
 #include "exception.hpp"
 #include "access.hpp"
+#include "context.hpp"
 #include "libkernel/backend.hpp"
 #include "device.hpp"
 #include "event.hpp"
 #include "types.hpp"
+#include "usm_query.hpp"
 #include "libkernel/accessor.hpp"
+#include "libkernel/builtin_kernels.hpp"
 #include "libkernel/id.hpp"
 #include "libkernel/range.hpp"
 #include "libkernel/nd_range.hpp"
@@ -63,9 +66,8 @@ namespace sycl {
 
 class queue;
 
-class handler
-{
-  friend class sycl::queue;
+class handler {
+  friend class queue;
 public:
   ~handler()
   {
@@ -333,35 +335,127 @@ public:
     static_assert(tgt != access::target::host_image,
                   "host_image targets are unsupported");
 
-    // Use a function object instead of lambda to avoid
-    // requiring a unique kernel name for each fill call
-    // TODO: hipSYCL rt currently does not have a dedicated operation
-    // for fills - implement for the ability to implement fill using
-    // backend functionality instead of a kernel
-    class fill_kernel
-    {
-    public:
-      fill_kernel(accessor<T, dim, mode, tgt> dest,
-                  const T& src)
-      : _dest{dest}, _src{src}
-      {}
-
-      void operator()(sycl::id<dim> tid)
-      {
-        _dest[tid] = _src;
-      }
-
-    private:
-      accessor<T, dim, mode, tgt> _dest;
-      T _src;
-    };
 
     this->submit_kernel<class _unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         dest.get_offset(), dest.get_range(),
         dest.get_range() /*local range unused for basic pf*/,
-        fill_kernel{dest, src});
+        detail::kernels::fill_kernel{dest, src});
   }
 
+  // ------ USM functions ------
+
+  void memcpy(void *dest, const void *src, std::size_t num_bytes) {
+
+    rt::dag_build_guard build{rt::application::dag()};
+
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit memcpy() is unsupported "
+                                    "for queues not bound to devices"};
+
+    rt::device_id queue_dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+  
+
+    auto determine_ptr_device = [&, this](const void *ptr) {
+      usm::alloc alloc_type = get_pointer_type(ptr, _ctx);
+      // For shared allocations, be optimistic and assume that data is
+      // already on target device
+      if (alloc_type == usm::alloc::shared)
+        return queue_dev;
+
+      if (alloc_type == usm::alloc::host ||
+          alloc_type == usm::alloc::unknown)
+        return detail::get_host_device();
+
+      if(alloc_type == usm::alloc::device)
+        // we are dealing with a device allocation
+        return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
+      
+      throw invalid_parameter_error{"Invalid allocation type"};
+    };
+
+    rt::device_id src_dev = determine_ptr_device(src);
+    rt::device_id dest_dev = determine_ptr_device(dest);
+    
+    rt::memory_location source_location{
+        src_dev, extract_ptr(src), rt::id<3>{},
+        rt::embed_in_range3(range<1>{num_bytes}), 1};
+
+    rt::memory_location dest_location{
+        dest_dev, extract_ptr(dest), rt::id<3>{},
+        rt::embed_in_range3(range<1>{num_bytes}), 1};
+    
+    auto op = rt::make_operation<rt::memcpy_operation>(
+        source_location, dest_location, rt::embed_in_range3(range<1>{num_bytes}));
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(op), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
+  }
+
+
+  template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {
+    // For special cases we can map this to a potentially more low-level memset
+    if (sizeof(T) == 1) {
+      unsigned char val = *reinterpret_cast<const unsigned char*>(&pattern);
+      
+      memset(ptr, static_cast<int>(val), count);
+    } else {
+      T *typed_ptr = static_cast<T *>(ptr);
+
+      if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
+        throw invalid_parameter_error{"handler: USM fill() is unsupported "
+                                      "for queues not bound to devices"};
+
+      this->submit_kernel<class _unnamed_kernel,
+                          rt::kernel_type::basic_parallel_for>(
+          sycl::id<1>{}, sycl::range<1>{count},
+          sycl::range<1>{count} /*local range unused for basic pf*/,
+          detail::kernels::fill_kernel_usm{typed_ptr, pattern});
+    }
+  }
+
+  void memset(void *ptr, int value, std::size_t num_bytes) {
+   
+    rt::dag_build_guard build{rt::application::dag()};
+
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit memset() is unsupported "
+                                    "for queues not bound to devices"};
+
+    auto op = rt::make_operation<rt::memset_operation>(
+        ptr, static_cast<unsigned char>(value), num_bytes);
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(op), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
+  }
+
+  void prefetch(const void *ptr, std::size_t num_bytes) {
+
+    rt::dag_build_guard build{rt::application::dag()};
+
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
+                                    "for queues not bound to devices"};
+
+    auto op = rt::make_operation<rt::prefetch_operation>(
+        ptr, num_bytes);
+
+    rt::dag_node_ptr node = build.builder()->add_prefetch(
+        std::move(op), _requirements, _execution_hints);
+
+    _command_group_nodes.push_back(node);
+  }
+
+  void mem_advise(const void *addr, std::size_t num_bytes, int advice) {
+    throw feature_not_supported{"mem_advise() is not yet supported"};
+  }
+
+
+  
   detail::local_memory_allocator& get_local_memory_allocator()
   {
     return _local_mem_allocator;
@@ -517,10 +611,12 @@ private:
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }
 
-  // defined in queue.hpp
-  handler(const queue& q, async_handler handler, const rt::execution_hints& hints);
-
-  const queue* _queue;
+  handler(const context &ctx, async_handler handler,
+                 const rt::execution_hints &hints)
+    : _ctx{ctx}, _handler{handler},
+      _execution_hints{hints} {}
+  
+  const context& _ctx;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;
 

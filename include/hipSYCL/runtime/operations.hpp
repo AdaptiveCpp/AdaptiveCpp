@@ -61,13 +61,15 @@ using dag_node_ptr = std::shared_ptr<dag_node>;
 class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
+class memset_operation;
 
 class operation_dispatcher
 {
 public:
   virtual result dispatch_kernel(kernel_operation* op) = 0;
   virtual result dispatch_memcpy(memcpy_operation* op) = 0;
-  virtual result dispatch_prefetch(prefetch_operation* op) = 0;
+  virtual result dispatch_prefetch(prefetch_operation *op) = 0;
+  virtual result dispatch_memset(memset_operation* op) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -260,6 +262,7 @@ private:
 
 class requirements_list;
 
+
 class kernel_operation : public operation
 {
 public:
@@ -270,7 +273,7 @@ public:
   kernel_launcher& get_launcher();
   const kernel_launcher& get_launcher() const;
 
-  const std::vector<memory_requirement*>& get_requirements() const;
+  const std::vector<memory_requirement*>& get_memory_requirements() const;
 
   void dump(std::ostream & ostr, int indentation=0) const override;
 
@@ -369,10 +372,44 @@ private:
   range<3> _num_elements;
 };
 
-/// A prefetch operation on SVM/USM memory
-class prefetch_operation : public operation
-{
-  // TBD
+/// USM prefetch
+class prefetch_operation : public operation {
+public:
+  prefetch_operation(const void *ptr, std::size_t num_bytes)
+  : _ptr{ptr}, _num_bytes{num_bytes} {}
+
+  result dispatch(operation_dispatcher* dispatcher) final override {
+    return dispatcher->dispatch_prefetch(this);
+  }
+
+  const void *get_pointer() const { return _ptr; }
+  std::size_t get_num_bytes() const { return _num_bytes; }
+
+  void dump(std::ostream&, int = 0) const override;
+private:
+  const void *_ptr;
+  std::size_t _num_bytes;
+};
+
+/// USM memset
+class memset_operation : public operation {
+public:
+  memset_operation(void *ptr, unsigned char pattern, std::size_t num_bytes)
+      : _ptr{ptr}, _pattern{pattern}, _num_bytes{num_bytes} {}
+  
+  result dispatch(operation_dispatcher* dispatcher) final override {
+    return dispatcher->dispatch_memset(this);
+  }
+
+  void *get_pointer() const { return _ptr; }
+  unsigned char get_pattern() const { return _pattern; }
+  std::size_t get_num_bytes() const { return _num_bytes; }
+
+  void dump(std::ostream&, int = 0) const override;
+private:
+  void *_ptr;
+  unsigned char _pattern;
+  std::size_t _num_bytes;
 };
 
 

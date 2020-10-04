@@ -54,7 +54,7 @@ namespace detail {
 
 inline rt::device_id get_host_device() {
   return rt::device_id{rt::backend_descriptor(rt::hardware_platform::cpu,
-                                              rt::api_platform::openmp_cpu),
+                                              rt::api_platform::omphost),
                        0};
 }
 
@@ -102,7 +102,7 @@ public:
   bool is_accelerator() const { return !is_cpu(); }
 
   bool hipSYCL_has_compiled_kernels() const {
-#if defined(__HIPSYCL_ENABLE_HOST_OMP_TARGET__)
+#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
     if (is_cpu())
       return true;
 #endif

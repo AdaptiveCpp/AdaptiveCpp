@@ -121,7 +121,13 @@ struct id {
   size_t operator[](int dimension) const {
     return this->_data[dimension];
   }
-
+/*
+  template <int D = dimensions, typename = std::enable_if_t<D == 1>>
+  HIPSYCL_UNIVERSAL_TARGET
+  operator size_t() const {
+    return this->_data[0];
+  }
+  */
   // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(op) \

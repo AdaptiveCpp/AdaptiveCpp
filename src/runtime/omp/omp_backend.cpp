@@ -53,7 +53,7 @@ omp_backend::omp_backend()
       }) {}
 
 api_platform omp_backend::get_api_platform() const {
-  return api_platform::openmp_cpu;
+  return api_platform::omphost;
 }
 
 hardware_platform omp_backend::get_hardware_platform() const {
@@ -61,7 +61,7 @@ hardware_platform omp_backend::get_hardware_platform() const {
 }
 
 backend_id omp_backend::get_unique_backend_id() const {
-  return backend_id::openmp_cpu;
+  return backend_id::omphost;
 }
   
 backend_hardware_manager* omp_backend::get_hardware_manager() const {

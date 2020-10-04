@@ -354,7 +354,7 @@ public:
   }
 
   virtual rt::backend_id get_backend() const final override {
-    return rt::backend_id::openmp_cpu;
+    return rt::backend_id::omphost;
   }
 
   virtual void invoke() final override {

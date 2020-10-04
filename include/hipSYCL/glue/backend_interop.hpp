@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,56 +25,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SYCL_HPP
-#define HIPSYCL_SYCL_HPP
+#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
+#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
 
 
-// Use this macro to detect hipSYCL from SYCL code
-#ifndef __HIPSYCL__
- #define __HIPSYCL__
-#endif
 
-#define SYCL_IMPLEMENTATION_HIPSYCL
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/platform.hpp"
+#include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/context.hpp"
+#include "hipSYCL/sycl/queue.hpp"
+#include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/kernel.hpp"
+#include "hipSYCL/sycl/libkernel/accessor.hpp"
+#include "hipSYCL/sycl/libkernel/stream.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+#include "hipSYCL/sycl/backend.hpp"
 
-#include "extensions.hpp"
+namespace hipsycl {
+namespace glue {
 
-#include "libkernel/backend.hpp"
-#include "libkernel/range.hpp"
-#include "libkernel/id.hpp"
-#include "libkernel/accessor.hpp"
-#include "libkernel/nd_item.hpp"
-#include "libkernel/multi_ptr.hpp"
-#include "libkernel/group.hpp"
-#include "libkernel/h_item.hpp"
-#include "libkernel/sp_item.hpp"
-#include "libkernel/private_memory.hpp"
-#include "libkernel/local_memory.hpp"
-#include "libkernel/vec.hpp"
-#include "libkernel/builtin.hpp"
-#include "libkernel/math.hpp"
-#include "libkernel/common_functions.hpp"
-#include "libkernel/geometric_functions.hpp"
-#include "libkernel/atomic.hpp"
-#include "libkernel/stream.hpp"
-#include "libkernel/sub_group.hpp"
-#include "libkernel/memory.hpp"
+template <sycl::backend b> struct backend_interop {
+  // Specializations should define for interop with a sycl type T:
+  //
+  // using native_T_type = <native-backend-type>
+  // static native_T_type get_native_T(const T&)
+  // T make_T(const native_T_type&, <potentially additional args>)
+  //
+  // In any case, the following should be defined:
+  // static constexpr bool can_make_T = <whether make_T exists>
+  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
+};
 
-#include "version.hpp"
-#include "types.hpp"
-#include "exception.hpp"
-#include "device_selector.hpp"
-#include "device.hpp"
-#include "platform.hpp"
-#include "queue.hpp"
-#include "program.hpp"
-#include "kernel.hpp"
-#include "buffer.hpp"
-#include "usm.hpp"
-#include "backend.hpp"
-#include "backend_interop.hpp"
+}
+} // namespace hipsycl
+
+#include "cuda/cuda_interop.hpp"
+#include "hip/hip_interop.hpp"
+#include "omp/omp_interop.hpp"
 
 #endif
-

@@ -45,6 +45,13 @@ hipSYCL has been repeatedly shown to deliver very competitive performance compar
 * *Tom Deakin and Simon McIntosh-Smith. 2020. Evaluating the performance of HPC-style SYCL applications. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 12, 1–11. DOI:https://doi.org/10.1145/3388333.3388643*
 
 
+### Benchmarking hipSYCL
+
+When targeting the CUDA or HIP backends, hipSYCL just massages the AST slightly to get `clang -x cuda` and `clang -x hip` to accept SYCL code. hipSYCL is not involved in the actual code generation. Therefore *any significant deviation in kernel performance compared to clang-compiled CUDA or clang-compiled HIP is unexpected.*
+
+As a consequence, if you compare it to other llvm-based compilers please make sure to compile hipSYCL against the same llvm version. Otherwise you would effectively be simply comparing the performance of two different LLVM versions. This is in particular true when comparing it to clang CUDA or clang HIP.
+
+
 ## Current state
 hipSYCL is not yet a fully conformant SYCL implementation, although many SYCL programs already work with hipSYCL.
 * A (likely incomplete) list of current [limitations](doc/limitations.md)

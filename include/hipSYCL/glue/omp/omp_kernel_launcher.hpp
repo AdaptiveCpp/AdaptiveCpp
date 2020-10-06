@@ -352,7 +352,10 @@ public:
                           0},
             static_cast<void*>(nullptr)};
 
-        k(handle);
+        // Need to perform additional copy to guarantee deferred_pointers/
+        // accessors are initialized
+        auto initialized_kernel_invoker = k;
+        initialized_kernel_invoker(handle);
       }
       else {
         assert(false && "Unsupported kernel type");

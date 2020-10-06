@@ -347,7 +347,10 @@ public:
         sycl::interop_handle handle{_queue->get_device(),
                                     static_cast<void *>(_queue)};
 
-        k(handle);
+        // Need to perform additional copy to guarantee deferred_pointers/
+        // accessors are initialized
+        auto initialized_kernel_invoker = k;
+        initialized_kernel_invoker(handle);
       }
       else {
         assert(false && "Unsupported kernel type");

@@ -227,34 +227,32 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
   sycl::buffer<int, 1> buff{initial_data.data(), sycl::range<1>{test_size}};
 
   q.submit([&](sycl::handler &cgh) {
-    auto acc = buff.get_access<sycl::access::mode::read>();
+    auto acc = buff.get_access<sycl::access::mode::read>(cgh);
 
     cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
       // All backends support obtaining native memory
       void *native_mem = h.get_native_mem<target_be>(acc);
 
-      if constexpr (target_be == sycl::backend::cuda ||
-                    target_be == sycl::backend::hip) {
-        
-        sycl::backend_traits<target_be>::native_type<sycl::device> dev =
-            h.get_native_device<target_be>();
-
-        // OpenMP backend doesn't support extracting a native queue
-        if constexpr (target_be == sycl::backend::cuda ||
-                      target_be == sycl::backend::hip) {
-          auto stream = h.get_native_queue<target_be>();
-
+      // OpenMP backend doesn't support extracting a native queue or device
 #ifdef HIPSYCL_PLATFORM_CUDA
-            cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
-                            cudaMemcpyDeviceToHost, stream);
+      auto stream = h.get_native_queue<target_be>();
+      // dev is not really used, just test that this function call works for now
+      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
+          h.get_native_device<target_be>();
+
+      cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                      cudaMemcpyDeviceToHost, stream);
+
+#elif defined(HIPSYCL_PLATFORM_ROCM)
+      
+      auto stream = h.get_native_queue<target_be>();
+      // dev is not really used, just test that this function call works for now
+      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
+          h.get_native_device<target_be>();
+
+      hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                      hipMemcpyDeviceToHost, stream);
 #endif
-#ifdef HIPSYCL_PLATFORM_ROCM
-            hipMemcpyAsync(target_ptr), native_mem, test_size * sizeof(int),
-                            hipMemcpyDeviceToHost, stream);
-#endif
-          
-        }
-      }
     });
   });
 

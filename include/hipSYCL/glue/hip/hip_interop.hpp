@@ -95,7 +95,7 @@ template <> struct backend_interop<sycl::backend::hip> {
   }
 #endif
 
-  static device make_sycl_device(int device_id) {
+  static sycl::device make_sycl_device(int device_id) {
     return sycl::device{
         rt::device_id{rt::backend_descriptor{rt::hardware_platform::rocm,
                                              rt::api_platform::hip},

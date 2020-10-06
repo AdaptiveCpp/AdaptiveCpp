@@ -455,6 +455,28 @@ public:
   }
 
 
+  template <class InteropFunction>
+  void hipSYCL_enqueue_custom_operation(InteropFunction f) {
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{
+          "handler: submitting custom operations is unsupported "
+          "for queues not bound to devices"};
+
+    rt::dag_build_guard build{rt::application::dag()};
+
+    auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
+        typeid(f).name(),
+        glue::make_kernel_launchers<class _unnamed, rt::kernel_type::custom>(
+            sycl::id<3>{}, sycl::range<3>{}, 
+            sycl::range<3>{},
+            0, f),
+        _requirements);
+    
+    rt::dag_node_ptr node = build.builder()->add_kernel(
+        std::move(custom_kernel_op), _requirements, _execution_hints);
+    
+    _command_group_nodes.push_back(node);
+  }
   
   detail::local_memory_allocator& get_local_memory_allocator()
   {

@@ -45,7 +45,8 @@ enum class kernel_type {
   basic_parallel_for,
   ndrange_parallel_for,
   hierarchical_parallel_for,
-  scoped_parallel_for
+  scoped_parallel_for,
+  custom
 };
 
 class backend_kernel_launcher

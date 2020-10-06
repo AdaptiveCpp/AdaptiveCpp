@@ -75,6 +75,7 @@
 #include "usm.hpp"
 #include "backend.hpp"
 #include "backend_interop.hpp"
+#include "interop_handle.hpp"
 
 #endif
 

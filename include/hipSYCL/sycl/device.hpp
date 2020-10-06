@@ -54,7 +54,7 @@ namespace detail {
 
 inline rt::device_id get_host_device() {
   return rt::device_id{rt::backend_descriptor(rt::hardware_platform::cpu,
-                                              rt::api_platform::omphost),
+                                              rt::api_platform::omp),
                        0};
 }
 

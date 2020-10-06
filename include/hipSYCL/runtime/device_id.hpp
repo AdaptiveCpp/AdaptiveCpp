@@ -45,13 +45,13 @@ enum class hardware_platform
 enum class api_platform {
   cuda,
   hip,
-  omphost
+  omp
 };
 
 enum class backend_id {
   cuda,
   hip,
-  omphost
+  omp
 };
 
 struct backend_descriptor
@@ -65,8 +65,8 @@ struct backend_descriptor
       : hw_platform{hw_plat}, sw_platform{sw_plat} {
 
     if (hw_plat == hardware_platform::cpu &&
-        sw_plat == api_platform::omphost)
-      id = backend_id::omphost;
+        sw_plat == api_platform::omp)
+      id = backend_id::omp;
     else if (sw_plat == api_platform::hip)
       id = backend_id::hip;
     else if (hw_plat == hardware_platform::cuda &&

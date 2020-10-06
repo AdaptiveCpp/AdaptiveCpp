@@ -25,24 +25,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SYCL_BACKEND_INTEROP_HPP
-#define HIPSYCL_SYCL_BACKEND_ITNEROP_HPP
 
 #include "hipSYCL/glue/backend_interop.hpp"
 
+#include "backend.hpp"
 #include "access.hpp"
 #include "platform.hpp"
 #include "device.hpp"
 #include "context.hpp"
-#include "queue.hpp"
 #include "buffer.hpp"
 #include "kernel.hpp"
+#include "event.hpp"
 #include "libkernel/accessor.hpp"
 #include "libkernel/stream.hpp"
 
+#ifndef HIPSYCL_SYCL_BACKEND_INTEROP_HPP
+#define HIPSYCL_SYCL_BACKEND_INTEROP_HPP
 
 namespace hipsycl {
 namespace sycl {
+
+class queue;
+
 namespace detail {
 
 
@@ -55,14 +59,14 @@ struct interop_traits {};
     using native_type = typename glue::backend_interop<B>::interop_trait_type; \
   };
 
-HIPSYCL_DEFINE_INTEROP_TRAIT(device, native_device_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(platform, native_platform_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(context, native_context_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(queue, native_queue_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(event, native_event_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(stream, native_stream_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(kernel, native_kernel_type)
-HIPSYCL_DEFINE_INTEROP_TRAIT(device_event, native_device_event_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::device, native_device_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::platform, native_platform_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::context, native_context_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::queue, native_queue_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::event, native_event_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::stream, native_stream_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::kernel, native_kernel_type)
+HIPSYCL_DEFINE_INTEROP_TRAIT(sycl::device_event, native_device_event_type)
 
 template <typename dataT, int dimensions, access::mode accessmode,
           access::target Target, access::placeholder isPlaceholder>
@@ -77,6 +81,7 @@ struct interop_traits<
 
 
 template <backend Backend> class backend_traits {
+public:
   template <class T>
   using native_type =
       typename detail::interop_traits<T>::template native_type<Backend>;
@@ -144,6 +149,11 @@ context make_context(
                                                            handler);
 }
 
+/*
+We don't support make_queue() interop as it's antithetical to the way
+queues work in hipSYCL, since there's no relation between a sycl::queue
+and a backend object.
+
 template <backend Backend>
 queue make_queue(
     const typename backend_traits<Backend>::template native_type<queue>
@@ -153,6 +163,7 @@ queue make_queue(
   return glue::backend_interop<Backend>::make_sycl_queue(backend_object, ctx,
                                                          handler);
 }
+*/
 
 template <backend Backend>
 event make_event(

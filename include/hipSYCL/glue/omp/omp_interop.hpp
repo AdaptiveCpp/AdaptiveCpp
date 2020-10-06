@@ -34,7 +34,7 @@ namespace hipsycl {
 namespace glue {
 
 #ifdef SYCL_EXT_HIPSYCL_BACKEND_OMPHOST
-template <> struct backend_interop<backend::omphost> {
+template <> struct backend_interop<backend::omp> {
   // Well, there's not a really a native error code type
   using error_type = int;
 

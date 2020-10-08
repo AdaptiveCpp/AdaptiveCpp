@@ -36,60 +36,110 @@ using explicit_copy_test_dimensions = test_dimensions;
 using explicit_copy_test_dimensions = boost::mpl::list_c<int, 1, 2>;
 #endif
 
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_host_ptr, _dimensions,
-  explicit_copy_test_dimensions::type) {
+    explicit_copy_test_dimensions::type) {
   namespace s = cl::sycl;
   // Specify type explicitly to workaround Clang bug #45538
   constexpr int d = _dimensions::value;
 
-  const auto buf_size = make_test_value<s::range, d>(
-    { 64 }, { 64, 96 }, { 64, 96, 48 });
+  // fill buffer portions that are not written to with a canary value to make sure copy() does not touch them
+  const size_t canary = 0xdeadbeef;
 
-  std::vector<size_t> host_buf_source(buf_size.size());
+  const auto buf_size = make_test_value<s::range, d>(
+      {64}, {64, 96}, {64, 96, 48});
+  const auto window_range = make_test_value<s::range, d>(
+      {32}, {32, 48}, {32, 48, 24});
+  const auto window_offset = make_test_value<s::id, d>(
+      {16}, {16, 24}, {16, 24, 12});
+
+  // host_buf_full: item = linear_id * 2
+  std::vector<size_t> host_buf_full(buf_size.size());
   for(size_t i = 0; i < buf_size[0]; ++i) {
-    const auto jb = (d >= 2 ? buf_size[1] : 1);
-    for(size_t j = 0; j < jb; ++j) {
-      const auto kb = (d == 3 ? buf_size[2] : 1);
-      for(size_t k = 0; k < kb; ++k) {
-        const size_t linear_id = i * jb * kb + j * kb + k;
-        host_buf_source[linear_id] = linear_id * 2;
+    const auto dim1_stride = (d >= 2 ? buf_size[1] : 1);
+    for(size_t j = 0; j < dim1_stride; ++j) {
+      const auto dim2_stride = (d == 3 ? buf_size[2] : 1);
+      for(size_t k = 0; k < dim2_stride; ++k) {
+        const size_t linear_id = i * dim1_stride * dim2_stride + j * dim2_stride + k;
+        host_buf_full[linear_id] = linear_id * 2;
+      }
+    }
+  }
+
+  // host_buf_contiguous: values within the window concatenated into contiguous memory
+  // host_buf_window: == host_buf_full within window, canary outside of window
+  std::vector<size_t> host_buf_contiguous(buf_size.size(), canary);
+  std::vector<size_t> host_buf_window(buf_size.size(), canary);
+  const auto full_dim0_stride = buf_size[0];
+  const auto contiguous_dim0_stride = window_range[0];
+  const auto window_dim0_offset = window_offset[0];
+  for (size_t i = window_dim0_offset; i < window_dim0_offset + contiguous_dim0_stride; ++i) {
+    const auto full_dim1_stride = (d >= 2 ? buf_size[1] : 1);
+    const auto contiguous_dim1_stride = (d >= 2 ? window_range[1] : 1);
+    const auto window_dim1_offset = (d >= 2 ? window_offset[1] : 0);
+    for (size_t j = window_dim1_offset; j < window_dim1_offset + contiguous_dim1_stride; ++j) {
+      const auto full_dim2_stride = (d == 3 ? buf_size[2] : 1);
+      const auto contiguous_dim2_stride = (d == 3 ? window_range[2] : 1);
+      const auto window_dim2_stride = (d == 3 ? window_offset[2] : 0);
+      for (size_t k = window_dim2_stride; k < window_dim2_stride + contiguous_dim2_stride; ++k) {
+        const size_t id_in_window = i * full_dim1_stride * full_dim2_stride + j * full_dim2_stride + k;
+        const size_t id_in_contiguous = (i - window_offset[0]) * contiguous_dim1_stride * contiguous_dim2_stride
+            + (j - window_dim1_offset) * contiguous_dim2_stride
+            + (k - window_dim2_stride);
+        host_buf_contiguous[id_in_contiguous] = host_buf_full[id_in_window];
+        host_buf_window[id_in_window] = host_buf_full[id_in_window];
       }
     }
   }
 
   cl::sycl::queue queue;
-  cl::sycl::buffer<size_t, d> buf{buf_size};
 
+  // copy full buffer without strides
+  cl::sycl::buffer<size_t, d> device_buf_full{buf_size};
   queue.submit([&](cl::sycl::handler& cgh) {
-    auto acc = buf.template get_access<cl::sycl::access::mode::discard_write>(cgh);
-    cgh.copy(host_buf_source.data(), acc);
+      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.copy(host_buf_full.data(), acc);
   });
 
+  // copy contiguous buffer into window on the device buffer
+  cl::sycl::buffer<size_t, d> device_buf_window{buf_size};
   queue.submit([&](cl::sycl::handler& cgh) {
-    auto acc = buf.template get_access<cl::sycl::access::mode::read_write>(cgh);
-    cgh.parallel_for<kernel_name<class explicit_buffer_copy_host_ptr_mul3, d>>(
-      buf_size, [=](cl::sycl::item<d> item) {
-        acc[item] = acc[item] * 3;
-      });
+      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.fill(acc, canary);
+  });
+  queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::discard_write>(cgh,
+          window_range, window_offset);
+      const auto fake_shared_ptr = std::shared_ptr<size_t>(host_buf_contiguous.data(), [](size_t *){});
+      cgh.copy(fake_shared_ptr, acc);
   });
 
-  std::shared_ptr<size_t> host_buf_result(new size_t[buf_size.size()],
-    std::default_delete<size_t[]>());
-  queue.submit([&](cl::sycl::handler& cgh) {
-    auto acc = buf.template get_access<cl::sycl::access::mode::read>(cgh);
-    cgh.copy(acc, host_buf_result);
-  }).wait();
+  std::vector<size_t> result_full(buf_size.size(), 0);
+  std::vector<size_t> result_contiguous(buf_size.size(), canary);
+  std::vector<size_t> result_window(buf_size.size(), canary);
 
-  for(size_t i = 0; i < buf_size[0]; ++i) {
-    const auto jb = (d >= 2 ? buf_size[1] : 1);
-    for(size_t j = 0; j < jb; ++j) {
-      const auto kb = (d == 3 ? buf_size[2] : 1);
-      for(size_t k = 0; k < kb; ++k) {
-        const size_t linear_id = i * jb * kb + j * kb + k;
-        BOOST_REQUIRE(host_buf_result.get()[linear_id] == linear_id * 6);
-      }
-    }
-  }
+  // copy back full buffer without strides
+  queue.submit([&](cl::sycl::handler &cgh) {
+      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::read>(cgh);
+      cgh.copy(acc, result_full.data());
+  });
+  // copy full buffer from device in strides to obtain contiguous buffer
+  queue.submit([&](cl::sycl::handler &cgh) {
+      auto acc = device_buf_full.template get_access<cl::sycl::access::mode::read>(cgh, window_range, window_offset);
+      cgh.copy(acc, result_contiguous.data());
+  });
+  /// copy window buffer without strides
+  queue.submit([&](cl::sycl::handler &cgh) {
+      auto acc = device_buf_window.template get_access<cl::sycl::access::mode::read>(cgh);
+      const auto fake_shared_ptr = std::shared_ptr<size_t>(result_window.data(), [](size_t *){});
+      cgh.copy(acc, fake_shared_ptr);
+  });
+
+  queue.wait();
+
+  BOOST_REQUIRE(result_full == host_buf_full);
+  BOOST_REQUIRE(result_contiguous == host_buf_contiguous);
+  BOOST_REQUIRE(result_window == host_buf_window);
 }
 
 template<int d, typename callback>

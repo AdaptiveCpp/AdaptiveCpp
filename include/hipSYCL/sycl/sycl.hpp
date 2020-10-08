@@ -34,6 +34,8 @@
  #define __HIPSYCL__
 #endif
 
+#define SYCL_IMPLEMENTATION_HIPSYCL
+
 #define CL_SYCL_LANGUAGE_VERSION 121
 #define __SYCL_SINGLE_SOURCE__
 
@@ -71,7 +73,9 @@
 #include "kernel.hpp"
 #include "buffer.hpp"
 #include "usm.hpp"
-
+#include "backend.hpp"
+#include "backend_interop.hpp"
+#include "interop_handle.hpp"
 
 #endif
 

@@ -37,6 +37,7 @@
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/sycl/interop_handle.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/libkernel/item.hpp"
@@ -344,7 +345,17 @@ public:
 
         omp_dispatch::parallel_region(k, get_grid_range(), local_range,
                                       dynamic_local_memory);
+      } else if constexpr (type == rt::kernel_type::custom) {
+        sycl::interop_handle handle{
+            rt::device_id{rt::backend_descriptor{rt::hardware_platform::cpu,
+                                                 rt::api_platform::omp},
+                          0},
+            static_cast<void*>(nullptr)};
 
+        // Need to perform additional copy to guarantee deferred_pointers/
+        // accessors are initialized
+        auto initialized_kernel_invoker = k;
+        initialized_kernel_invoker(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -354,7 +365,7 @@ public:
   }
 
   virtual rt::backend_id get_backend() const final override {
-    return rt::backend_id::openmp_cpu;
+    return rt::backend_id::omp;
   }
 
   virtual void invoke() final override {

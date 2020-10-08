@@ -256,7 +256,7 @@ hardware_context* omp_hardware_manager::get_device(std::size_t index) {
 
 device_id omp_hardware_manager::get_device_id(std::size_t index) const {
   return device_id{
-      backend_descriptor{hardware_platform::cpu, api_platform::openmp_cpu},
+      backend_descriptor{hardware_platform::cpu, api_platform::omp},
       static_cast<int>(index)};
 }
 

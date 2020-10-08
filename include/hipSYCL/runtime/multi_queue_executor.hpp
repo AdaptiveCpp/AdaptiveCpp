@@ -28,9 +28,11 @@
 #ifndef HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
 #define HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
 
+#include <cassert>
 #include <functional>
 
 #include "backend.hpp"
+#include "device_id.hpp"
 #include "executor.hpp"
 #include "inorder_queue.hpp"
 #include "generic/multi_event.hpp"
@@ -97,11 +99,16 @@ public:
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
 
-  std::unique_ptr<wait_for_external_node> 
-  virtual create_wait_for_external_node(
+  std::unique_ptr<wait_for_external_node> virtual create_wait_for_external_node(
       dag_node_ptr node, const node_scheduling_annotation &annotation,
       dag_node_ptr other,
       node_scheduling_annotation &other_annotation) const override;
+
+  template <class F> void for_each_queue(rt::device_id dev, F handler) const {
+    assert(dev.get_id() < _device_data.size());
+    for (std::size_t i = 0; i < _device_data[dev.get_id()].queues.size(); ++i)
+      handler(_device_data[dev.get_id()].queues[i].get());
+  }
 private:
   using final_nodes_map = std::unordered_map<inorder_queue*, dag_node_ptr>;
 

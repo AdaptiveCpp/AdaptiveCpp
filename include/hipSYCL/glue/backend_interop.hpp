@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,16 +25,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
-#endif
+#ifndef HIPSYCL_GLUE_BACKEND_INTEROP_HPP
+#define HIPSYCL_GLUE_BACKEND_INTEROP_HPP
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM
-#define HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/executor.hpp"
+#include "hipSYCL/runtime/multi_queue_executor.hpp"
+
+#include "hipSYCL/sycl/backend.hpp"
+
+namespace hipsycl {
+namespace glue {
+
+template <sycl::backend b> struct backend_interop {
+  // Specializations should define for interop with a sycl type T:
+  //
+  // using native_T_type = <native-backend-type>
+  // static native_T_type get_native_T(const T&)
+  // T make_T(const native_T_type&, <potentially additional args>)
+  //
+  // For interop_handle, the following is required:
+  // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
+  // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
+  // 
+  // In any case, the following should be defined:
+  // static constexpr bool can_make_T = <whether make_T exists>
+  // static constexpr bool can_extract_native_T = <whether get_native_T exists>
+};
+
+}
+} // namespace hipsycl
+
+#include "cuda/cuda_interop.hpp"
+#include "hip/hip_interop.hpp"
+#include "omp/omp_interop.hpp"
 
 #endif

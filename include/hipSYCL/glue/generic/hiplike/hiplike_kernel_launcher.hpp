@@ -37,6 +37,7 @@
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
+#include "hipSYCL/sycl/interop_handle.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -258,6 +259,10 @@ public:
     _queue = reinterpret_cast<Queue_type*>(q);
   }
 
+  Queue_type *get_queue() const {
+    return _queue;
+  }
+
   template <class KernelName, rt::kernel_type type, int Dim, class Kernel>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
@@ -273,74 +278,85 @@ public:
         if (offset[i] != 0)
           is_with_offset = true;
 
-      if constexpr(type == rt::kernel_type::single_task){
-        __hipsycl_launch_kernel(hiplike_dispatch::single_task_kernel<KernelName>,
-                                1,1, dynamic_local_memory, _queue->get_stream(),
-                                k);
+      if constexpr (type == rt::kernel_type::single_task) {
+        __hipsycl_launch_kernel(
+            hiplike_dispatch::single_task_kernel<KernelName>, 1, 1,
+            dynamic_local_memory, _queue->get_stream(), k);
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
         sycl::range<Dim> local_range;
-        if constexpr(Dim == 1)
+        if constexpr (Dim == 1)
           local_range = sycl::range<1>{128};
-        else if constexpr(Dim == 2)
+        else if constexpr (Dim == 2)
           local_range = sycl::range<2>{16, 16};
-        else if constexpr(Dim == 3)
+        else if constexpr (Dim == 3)
           local_range = sycl::range<3>{4, 8, 8};
 
-        sycl::range<Dim> grid_range = hiplike_dispatch::determine_grid_configuration(
-            global_range, local_range);
+        sycl::range<Dim> grid_range =
+            hiplike_dispatch::determine_grid_configuration(global_range,
+                                                            local_range);
 
         __hipsycl_launch_kernel(
             hiplike_dispatch::parallel_for_kernel<KernelName>,
             hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
             hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-            dynamic_local_memory, _queue->get_stream(), k, global_range, offset,
-            is_with_offset);
+            dynamic_local_memory, _queue->get_stream(), k, global_range,
+            offset, is_with_offset);
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
         for (int i = 0; i < Dim; ++i)
           assert(global_range[i] % local_range[i] == 0);
-        
-        sycl::range<Dim> grid_range = global_range / local_range;
-      
-        __hipsycl_launch_kernel(hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-                                dynamic_local_memory, _queue->get_stream(),
-                                k, offset);
-
-      } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
-        
-        for (int i = 0; i < Dim; ++i)
-          assert(global_range[i] % local_range[i] == 0);
 
         sycl::range<Dim> grid_range = global_range / local_range;
 
-        __hipsycl_launch_kernel(hiplike_dispatch::parallel_for_workgroup<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-                                dynamic_local_memory, _queue->get_stream(),
-                                k, local_range);
-        
-      } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+        __hipsycl_launch_kernel(
+            hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
+            hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+            hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
+            dynamic_local_memory, _queue->get_stream(), k, offset);
+
+      } else if constexpr (type ==
+                            rt::kernel_type::hierarchical_parallel_for) {
 
         for (int i = 0; i < Dim; ++i)
           assert(global_range[i] % local_range[i] == 0);
 
         sycl::range<Dim> grid_range = global_range / local_range;
 
-        __hipsycl_launch_kernel(hiplike_dispatch::parallel_region<KernelName>,
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-                                hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
-                                dynamic_local_memory, _queue->get_stream(),
-                                k, grid_range, local_range);
+        __hipsycl_launch_kernel(
+            hiplike_dispatch::parallel_for_workgroup<KernelName>,
+            hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+            hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
+            dynamic_local_memory, _queue->get_stream(), k, local_range);
+
+      } else if constexpr (type == rt::kernel_type::scoped_parallel_for) {
+
+        for (int i = 0; i < Dim; ++i)
+          assert(global_range[i] % local_range[i] == 0);
+
+        sycl::range<Dim> grid_range = global_range / local_range;
+
+        __hipsycl_launch_kernel(
+            hiplike_dispatch::parallel_region<KernelName>,
+            hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+            hiplike_dispatch::make_kernel_launch_range<Dim>(local_range),
+            dynamic_local_memory, _queue->get_stream(), k, grid_range,
+            local_range);
+      } else if constexpr (type == rt::kernel_type::custom) {
+        sycl::interop_handle handle{_queue->get_device(),
+                                    static_cast<void *>(_queue)};
+
+        // Need to perform additional copy to guarantee deferred_pointers/
+        // accessors are initialized
+        auto initialized_kernel_invoker = k;
+        initialized_kernel_invoker(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
       }
-      
     };
+    
   }
 
   virtual rt::backend_id get_backend() const final override {

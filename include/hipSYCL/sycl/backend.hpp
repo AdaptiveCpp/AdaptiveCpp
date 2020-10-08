@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,16 +25,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
+#ifndef HIPSYCL_SYCL_BACKEND_HPP
+#define HIPSYCL_SYCL_BACKEND_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
+#include "hipSYCL/runtime/device_id.hpp"
+
+#include "libkernel/backend.hpp"
+
+namespace hipsycl {
+namespace sycl {
+
+using backend = hipsycl::rt::backend_id;
+
+#if defined(HIPSYCL_PLATFORM_CPU) && defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
+ #define SYCL_EXT_HIPSYCL_BACKEND_OMPHOST
 #endif
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM
-#define HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
+#if defined(HIPSYCL_PLATFORM_HIP) && defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+ #define SYCL_EXT_HIPSYCL_BACKEND_HIP
+#endif
+
+#if defined(HIPSYCL_PLATFORM_CUDA) && defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
+ #define SYCL_EXT_HIPSYCL_BACKEND_CUDA
+#endif
+
+
+
+}
+} // namespace hipsycl
 
 #endif

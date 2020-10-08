@@ -60,7 +60,7 @@ std::ostream &operator<<(std::ostream &out, const api_platform value) {
   case rt::api_platform::hip:
     out << "HIP";
     break;
-  case rt::api_platform::openmp_cpu:
+  case rt::api_platform::omp:
     out << "OpenMP";
     break;
   default:
@@ -78,7 +78,7 @@ std::ostream &operator<<(std::ostream &out, const backend_id value) {
   case rt::backend_id::cuda:
     out << "CUDA";
     break;
-  case rt::backend_id::openmp_cpu:
+  case rt::backend_id::omp:
     out << "OpenMP";
     break;
   default:

@@ -205,6 +205,67 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     BOOST_TEST(host_result == host_acc[grp * Group_size]);
   }
 }
+#ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
+BOOST_AUTO_TEST_CASE(custom_enqueue) {
+  using namespace cl;
+
+#ifdef HIPSYCL_PLATFORM_CUDA
+  constexpr sycl::backend target_be = sycl::backend::cuda;
+#elif defined(HIPSYCL_PLATFORM_ROCM)
+  constexpr sycl::backend target_be = sycl::backend::hip;
+#else
+  constexpr sycl::backend target_be = sycl::backend::omp;
+#endif
+
+  sycl::queue q;
+  const std::size_t test_size = 1024;
+
+  std::vector<int> initial_data(test_size, 14);
+  std::vector<int> target_data(test_size);
+  int* target_ptr = target_data.data();
+
+  sycl::buffer<int, 1> buff{initial_data.data(), sycl::range<1>{test_size}};
+
+  q.submit([&](sycl::handler &cgh) {
+    auto acc = buff.get_access<sycl::access::mode::read>(cgh);
+
+    cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
+      // All backends support obtaining native memory
+      void *native_mem = h.get_native_mem<target_be>(acc);
+
+      // OpenMP backend doesn't support extracting a native queue or device
+#ifdef HIPSYCL_PLATFORM_CUDA
+      auto stream = h.get_native_queue<target_be>();
+      // dev is not really used, just test that this function call works for now
+      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
+          h.get_native_device<target_be>();
+
+      cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                      cudaMemcpyDeviceToHost, stream);
+
+#elif defined(HIPSYCL_PLATFORM_ROCM)
+      
+      auto stream = h.get_native_queue<target_be>();
+      // dev is not really used, just test that this function call works for now
+      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
+          h.get_native_device<target_be>();
+
+      hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                      hipMemcpyDeviceToHost, stream);
+#endif
+    });
+  });
+
+  q.wait();
+
+  if constexpr (target_be == sycl::backend::cuda ||
+                target_be == sycl::backend::hip) {
+    for (std::size_t i = 0; i < test_size; ++i) {
+      BOOST_TEST(initial_data[i] == target_data[i]);
+    }
+  }
+}
+#endif
 
 
 #endif

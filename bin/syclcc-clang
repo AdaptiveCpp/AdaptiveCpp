@@ -543,7 +543,7 @@ class pure_cpu_compiler:
     self._linker_args = []
     self._compiler_args = [
       "-D__HIPSYCL__",
-      "-D__HIPSYCL_ENABLE_HOST_OMP_TARGET__"
+      "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"
     ]
     if sys.platform == "darwin":
         # y'all still need libomp installed

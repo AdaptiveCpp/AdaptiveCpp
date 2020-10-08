@@ -42,7 +42,7 @@
 #include "cuda/cuda_kernel_launcher.hpp"
 #endif
 
-#if defined(__HIPSYCL_ENABLE_HOST_OMP_TARGET__)
+#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
 #include "omp/omp_kernel_launcher.hpp"
 #endif
 
@@ -74,7 +74,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
   
-#ifdef __HIPSYCL_ENABLE_HOST_OMP_TARGET__
+#ifdef __HIPSYCL_ENABLE_OMPHOST_TARGET__
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,

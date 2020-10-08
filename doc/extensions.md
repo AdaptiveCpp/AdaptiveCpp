@@ -17,6 +17,11 @@ Alternatively, instead of activating individual extensions, all extensions can b
 This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
 See [here](scoped-parallelism.md) for more details. **Scoped parallelism is the recommended way in hipSYCL to write programs that are performance portable between CPU and GPU backends.**
 
+### `HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION`
+
+This extension allows to enqueue custom device operations for efficient interoperability with backends. This extension does not need to be enabled explicitly and is always available.
+See [here](enqueue-custom-operation.md) for more details.
+
 ### `HIPSYCL_EXT_FP_ATOMICS`
 This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
 

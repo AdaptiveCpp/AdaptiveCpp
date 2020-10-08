@@ -537,6 +537,32 @@ public:
     });
   }
 
+  template<class InteropFunction>
+  event hipSYCL_enqueue_custom_operation(InteropFunction op) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.hipSYCL_enqueue_custom_operation(op);
+    });
+  }
+
+  template <class InteropFunction>
+  event hipSYCL_enqueue_custom_operation(InteropFunction op, event dependency) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependency);
+      cgh.hipSYCL_enqueue_custom_operation(op);
+    });
+  }
+
+  template <class InteropFunction>
+  event
+  hipSYCL_enqueue_custom_operation(InteropFunction op,
+                                   const std::vector<event> &dependencies) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependencies);
+      cgh.hipSYCL_enqueue_custom_operation(op);
+    });
+  }
+
+
 private:
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {

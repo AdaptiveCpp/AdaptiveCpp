@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
   rt::execution_hints hints;
   // Construct imaginary device
   rt::device_id id{rt::backend_descriptor{rt::hardware_platform::cpu,
-                                          rt::api_platform::openmp_cpu},
+                                          rt::api_platform::omp},
                    12345};
   
   hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(id));

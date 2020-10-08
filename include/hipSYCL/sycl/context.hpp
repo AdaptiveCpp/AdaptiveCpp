@@ -66,14 +66,14 @@ public:
     this->init(handler, selector.select_device());
   }
 
-  context(
+  explicit context(
       const device &dev, async_handler handler = [](exception_list e) {
         glue::default_async_handler(e);
       }) {
     this->init(handler, dev);
   }
 
-  context(
+  explicit context(
       const platform &plt, async_handler handler = [](exception_list e) {
         glue::default_async_handler(e);
       }) {
@@ -84,7 +84,7 @@ public:
     }
   }
 
-  context(
+  explicit context(
       const std::vector<device> &deviceList,
       async_handler handler = [](exception_list e) {
         glue::default_async_handler(e);

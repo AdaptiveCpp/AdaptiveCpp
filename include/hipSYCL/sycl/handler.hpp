@@ -427,7 +427,7 @@ public:
     auto op = rt::make_operation<rt::memset_operation>(
         ptr, static_cast<unsigned char>(value), num_bytes);
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
+    rt::dag_node_ptr node = build.builder()->add_memset(
         std::move(op), _requirements, _execution_hints);
 
     _command_group_nodes.push_back(node);

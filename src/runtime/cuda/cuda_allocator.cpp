@@ -136,11 +136,21 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
                      error_code{"CUDA", err}});
   }
 
+  // CUDA 11+ return cudaMemoryTypeUnregistered and cudaSuccess
+  // for unknown host pointers
+  if (attribs.type == cudaMemoryTypeUnregistered) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"cuda_allocator: query_pointer(): pointer is unknown by backend",
+                     error_code{"CUDA", err},
+                     error_type::invalid_parameter_error});
+  }
+
   out.dev = rt::device_id{_backend_descriptor, attribs.device};
   out.is_from_host_backend = false;
   out.is_optimized_host = attribs.type == cudaMemoryTypeHost;
   out.is_usm = attribs.type == cudaMemoryTypeManaged;
-
+  
   return make_success();
 }
 

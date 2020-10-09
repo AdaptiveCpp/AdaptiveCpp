@@ -89,17 +89,22 @@ if(BUILD_CLANG_PLUGIN)
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.
-  find_path(CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
+  find_path(FOUND_CLANG_INCLUDE_PATH __clang_cuda_runtime_wrapper.h HINTS
     ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
     ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
     ${LLVM_PREFIX_DIR}/include/clang/${LLVM_VERSION_MAJOR}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
-    DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
+    DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/ (Older clang/ROCm versions may need .../<llvm-version>/include")
 
+  if(EXISTS ${FOUND_CLANG_INCLUDE_PATH})
+    # Required for newer ROCm versions
+    set(CLANG_INCLUDE_PATH ${FOUND_CLANG_INCLUDE_PATH}/..)
+  endif()
+  
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
-      message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
+    message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
@@ -126,8 +131,8 @@ endif()
 add_subdirectory(src)
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
-set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hcc/lib -lhip_hcc -lamd_comgr -lhsa-runtime64" CACHE STRING "Necessary libraries for ROCm")
-set(ROCM_LINK_LINE "-rpath ${ROCM_PATH}/lib -rpath ${ROCM_PATH}/hcc/lib ${ROCM_LIBS}")
+set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
+set(ROCM_LINK_LINE "-rpath ${ROCM_PATH}/lib -rpath ${ROCM_PATH}/hip/lib ${ROCM_LIBS}")
 set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 
 

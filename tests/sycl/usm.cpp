@@ -50,7 +50,9 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
   int *shared_ptr = sycl::malloc_shared<int>(count, q);
   int *aligned_shared_ptr =
       sycl::aligned_alloc_shared<int>(sizeof(int), count, q);
-
+  std::vector<int> unregistered_data(100);
+  
+  
   BOOST_TEST(device_mem_ptr != nullptr);
   BOOST_TEST(aligned_device_mem_ptr != nullptr);
   BOOST_TEST(host_ptr != nullptr);
@@ -70,6 +72,7 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
     verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
     verify_allocation_type(shared_ptr, sycl::usm::alloc::host);
     verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::host);
+    verify_allocation_type(unregistered_data.data(), sycl::usm::alloc::host);
   }
   else {
     verify_allocation_type(device_mem_ptr, sycl::usm::alloc::device);
@@ -78,6 +81,7 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
     verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
     verify_allocation_type(shared_ptr, sycl::usm::alloc::shared);
     verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::shared);
+    verify_allocation_type(unregistered_data.data(), sycl::usm::alloc::unknown);
   }
 
   auto verify_device = [&](void *ptr) {

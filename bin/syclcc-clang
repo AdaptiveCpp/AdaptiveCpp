@@ -36,10 +36,6 @@ import sys
 import subprocess
 import string
 
-class hipsycl_platform:
-  PURE_CPU = "cpu"
-  CUDA = "cuda"
-  HIP = "hip"
 
 class OptionNotSet(Exception):
   def __init__(self, msg):
@@ -130,7 +126,7 @@ class syclcc_config:
     # 3.) the field in the config file.
     self._options = {
       'platform': option("--hipsycl-platform", "HIPSYCL_PLATFORM", "default-platform",
-"""  The platform that hipSYCL should target. Valid values: 
+"""  [deprecated] The platform that hipSYCL should target. Valid values: 
     * cuda: Target NVIDIA CUDA GPUs
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs"""),
@@ -147,7 +143,7 @@ class syclcc_config:
 """  The path to the ROCm installation directory"""),
 
       'gpu-arch': option("--hipsycl-gpu-arch", "HIPSYCL_GPU_ARCH", "default-gpu-arch",
-"""  The GPU architecture that should be targeted when compiling for GPUs.
+"""  [deprecated] The GPU architecture that should be targeted when compiling for GPUs.
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
     For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
@@ -165,7 +161,10 @@ class syclcc_config:
 
       'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
-    It is normally not necessary for the user to change this setting.""")
+    It is normally not necessary for the user to change this setting. """),
+    
+      'targets': option("--hipsycl-targets", "HIPSYCL_TARGETS", "default-targets",
+"""  Targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'""")
     }
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
@@ -175,6 +174,7 @@ class syclcc_config:
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
     self._forwarded_args = []
+    self._targets = None
     
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
@@ -344,26 +344,58 @@ class syclcc_config:
             raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
         return []
 
+  def _parse_targets(self, target_arg):
+    platform_substrings = target_arg.replace("'","").replace('"',"").split(';')
+    
+    result = {}
+    for p in platform_substrings:
+      platform_target_separated = p.split(':')
+      if len(platform_target_separated) > 2 or len(platform_target_separated) == 0:
+        raise RuntimeError("Invalid target description: " + p)
+      
+      platform = platform_target_separated[0].strip().lower()
+
+      if not platform in result:
+        result[platform] = []
+
+      if len(platform_target_separated) > 1:
+        targets = [t.strip().lower() for t in platform_target_separated[1].split(",")]
+        for t in targets:
+          if not t in result[platform]:
+            result[platform].append(t)
+
+    return result
+  
   @property
-  def target_platform(self):
-    platform = self._retrieve_option("platform")
+  def targets(self):
+    
+    if self._targets == None:
+      raw_target_string = ""
+      try:
+        raw_target_string = self._retrieve_option("targets")
+      except OptionNotSet:
+        # Legacy compatibility args
+        platform = self._retrieve_option("platform")
 
-    hip_platform_synonyms      = set(["rocm", "amd", "hip"])
-    cuda_platform_synonyms     = set(["nvidia", "cuda"])
-    pure_cpu_platform_synonyms = set(["host", "cpu", "hipcpu"])
+        hip_platform_synonyms      = set(["rocm", "amd", "hip"])
+        cuda_platform_synonyms     = set(["nvidia", "cuda"])
+        pure_cpu_platform_synonyms = set(["host", "cpu", "hipcpu", "omp"])
 
-    if platform in hip_platform_synonyms:
-      return hipsycl_platform.HIP
-    elif platform in cuda_platform_synonyms:
-      return hipsycl_platform.CUDA
-    elif platform in pure_cpu_platform_synonyms:
-      return hipsycl_platform.PURE_CPU
 
-    raise RuntimeError("Invalid hipSYCL platform: '{}'".format(platform))
+        if platform in hip_platform_synonyms:
+          target_arch = self._retrieve_option("gpu-arch")
+          raw_target_string = "hip:" + target_arch
+          
+        elif platform in cuda_platform_synonyms:
+          target_arch = self._retrieve_option("gpu-arch")
+          raw_target_string = "cuda:" + target_arch
+          
+        elif platform in pure_cpu_platform_synonyms:
+          raw_target_string = "omp"
 
-  @property
-  def target_arch(self):
-    return self._retrieve_option("gpu-arch")
+      self._targets = self._parse_targets(raw_target_string)
+
+    return self._targets
 
   @property
   def cuda_path(self):
@@ -448,132 +480,195 @@ def run_or_print(command, print_only):
     print(' '.join(command))
     return 0
 
-## clang-based compiler using the hipSYCL clang plugin for CUDA/ROCm
-class clang_plugin_compiler:
+
+class cuda_invocation:
   def __init__(self, config):
-    self._args = config.forwarded_compiler_arguments
+    if not "cuda" in config.targets:
+      raise RuntimeError("CUDA not among targets")
+    if len(config.targets["cuda"]) == 0:
+      raise OptionNotSet("No CUDA targets specified")
+
+    self._cuda_targets = config.targets["cuda"]
+    self._cuda_path = config.cuda_path
     self._clang = config.clang_path
-    self._contains_linking_stage = config.contains_linking_stage()
-    self._contains_compilation_stage = not config.is_pure_linking_stage()
-    self._is_dry_run = config.is_dryrun
+    self._linker_args = config.cuda_link_line
+    self._hipsycl_lib_path = os.path.join(config.hipsycl_installation_path, "lib/")
 
-    target = config.target_platform
-    hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
+  def get_compiler_preference(self):
+    return (self._clang, 100)
 
-    if target == hipsycl_platform.CUDA:
-      self._linker_args = config.cuda_link_line
+  def get_cxx_flags(self):
 
-      self._compiler_args = [
+    flags = [
         "-x", "cuda",
-        "--cuda-gpu-arch=" + config.target_arch,
-        "--cuda-path=" + config.cuda_path,
-        "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+        "--cuda-path=" + self._cuda_path,
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        # clang erroneously sets feature detection flags for 
+        # __float128 even though it is not supported for CUDA / HIP,
+        # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+        "-U__FLOAT128__", "-U__SIZEOF_FLOAT128__",
+        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
       ]
 
-    elif target == hipsycl_platform.HIP:
-      self._linker_args = config.rocm_link_line
+    for t in self._cuda_targets:
+      flags += ["--cuda-gpu-arch=" + t]
+      
+    return flags
 
-      self._compiler_args = [
+  def get_linker_flags(self):
+    return self._linker_args
+
+
+class hip_invocation:
+  def __init__(self, config):
+    if not "hip" in config.targets:
+      raise RuntimeError("HIP not among targets")
+    if len(config.targets["hip"]) == 0:
+      raise OptionNotSet("No HIP targets specified")
+
+    self._hip_targets = config.targets["hip"]
+    self._rocm_path = config.rocm_path
+    self._clang = config.clang_path
+    self._linker_args = config.rocm_link_line
+    self._clang_include_path = config.clang_include_path
+    self._hipsycl_lib_path = os.path.join(config.hipsycl_installation_path, "lib/")
+
+  def get_compiler_preference(self):
+    return (self._clang, 100)
+
+  def get_cxx_flags(self):
+
+    flags = [
         "-x", "hip",
-        "--cuda-gpu-arch=" + config.target_arch,
-        "--hip-device-lib-path=" + os.path.join(config.rocm_path, "lib"),
-        "-I" + os.path.join(config.rocm_path, "include"),
+        "--hip-device-lib-path=" + os.path.join(self._rocm_path, "lib"),
+        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        # clang erroneously sets feature detection flags for 
+        # __float128 even though it is not supported for CUDA / HIP,
+        # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+        "-U__FLOAT128__", "-U__SIZEOF_FLOAT128__",
+        "-I" + os.path.join(self._rocm_path, "include"),
         # This here is necessary because some distributions of clang
         # incorrectly have the gcc/system headers *before* clangs own
         # include path. This causes "file not found" errors when the
         # clang CUDA wrapper headers try to include the system headers
         # with #include_next <...>
-        "-isystem", self._get_rocm_clang_include_path(config),
-        "-D__HIPSYCL_ENABLE_HIP_TARGET__"
+        "-isystem", self._clang_include_path,
+        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
       ]
 
-    # clang erroneously sets feature detection flags for __float128 even though it is not supported for CUDA / HIP,
-    # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-    self._compiler_args += ["-U__FLOAT128__", "-U__SIZEOF_FLOAT128__"]
-
-    # automatically link hipSYCL
-    self._linker_args += [
-      "-rpath", hipsycl_library_path,
-      "-L"+hipsycl_library_path,
-      "-lhipSYCL-rt"
-    ]
-
-    self._common_compiler_args = config.common_compiler_args
-
-    self._common_compiler_args += [
-      "-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
-      "-D__HIPSYCL_CLANG__",
-      "-D__HIPSYCL__",
-      "-I" + os.path.join(config.hipsycl_installation_path, "include/")
-    ]
-
-  def _get_rocm_clang_include_path(self, config):
-    return config.clang_include_path
-
-  def run(self):
-    command = [self._clang] + self._common_compiler_args
-
-    if self._contains_compilation_stage:
-      command += self._compiler_args
-
-    if self._contains_linking_stage:
-      command += self._linker_args
-    
-    command += self._args
-    return run_or_print(command, self._is_dry_run)
-    
-    
-
-class pure_cpu_compiler:
-  def __init__(self, config):
-    self._args = config.forwarded_compiler_arguments
-    self._contains_linking_stage = config.contains_linking_stage()
-    self._is_dry_run = config.is_dryrun
-
-    try:
-      # First, see if any value for the pure cpu compiler
-      # is specified...
-      self._compiler = config.pure_cpu_compiler
-    except:
-      # if not, fall back to clang
-      self._compiler = config.clang_path
+    for t in self._hip_targets:
+      flags += ["--cuda-gpu-arch=" + t]
       
-    hipsycl_library_path = os.path.join(config.hipsycl_installation_path,"lib/")
+    return flags
 
-    self._linker_args = []
-    self._compiler_args = [
-      "-D__HIPSYCL__",
-      "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"
-    ]
+  def get_linker_flags(self):
+    return self._linker_args
+
+class omp_invocation:
+  def __init__(self, config):
+    if not "omp" in config.targets:
+      raise RuntimeError("OpenMP not among targets")
+    if len(config.targets["omp"]) != 0:
+      raise RuntimeError("OpenMP backend does not support specifiying target architecture")
+
+    self._cxx = config.pure_cpu_compiler
+
+  def get_compiler_preference(self):
+    return (self._cxx, 1)
+
+  def get_cxx_flags(self):
+
+    flags = [
+        "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__",
+      ]
+
     if sys.platform == "darwin":
         # y'all still need libomp installed
-        self._compiler_args += ["-Xclang"]
-    self._compiler_args += ["-fopenmp"]
-    self._compiler_args += config.common_compiler_args
+        flags += ["-Xclang"]
+    flags += ["-fopenmp"]
+      
+    return flags
 
-    self._linker_args += [
-      "-L"+hipsycl_library_path,
-      "-lhipSYCL-rt",
+  def get_linker_flags(self):
+    linker_args = [
       "-lboost_context",
       "-lboost_fiber"
     ]
-    if "clang" in os.path.basename(self._compiler):
-      self._linker_args += ["-rpath",hipsycl_library_path]
 
-    self._compiler_args += [
-      "-I" + os.path.join(config.hipsycl_installation_path, "include/"),
-      "-I" + os.path.join(config.hipsycl_installation_path, "include/hipSYCL/contrib")
+    if sys.platform == "darwin":
+        # y'all still need libomp installed
+        linker_args += ["-Xclang"]
+    linker_args += ["-fopenmp"]
+
+    return linker_args
+
+class compiler:
+  def __init__(self, config):
+    self._user_args = config.forwarded_compiler_arguments
+    self._requires_linking = config.contains_linking_stage()
+    self._requires_compilation = not config.is_pure_linking_stage()
+    self._is_dry_run = config.is_dryrun
+    self._targets = config.targets
+    self._common_compiler_args = config.common_compiler_args
+    self._hipsycl_path = config.hipsycl_installation_path
+    self._hipsycl_lib_path = os.path.join(self._hipsycl_path, "lib/")
+
+    self._backends = []
+
+    for backend in self._targets:
+      if backend == "omp":
+        self._backends.append(omp_invocation(config))
+      elif backend == "cuda":
+        self._backends.append(cuda_invocation(config))
+      elif backend == "hip":
+        self._backends.append(hip_invocation(config))
+      else:
+        raise RuntimeError("Unknown backend: "+backend)
+
+  @property
+  def common_cxx_flags(self):
+    args = [
+      "-I" + os.path.join(self._hipsycl_path, "include/"),
+      "-D__HIPSYCL__"
+    ] + self._common_compiler_args
+
+    return args
+
+  @property
+  def common_linker_flags(self):
+    linker_args = [
+      "-Wl,-rpath", self._hipsycl_lib_path,
+      "-L"+self._hipsycl_lib_path,
+      "-lhipSYCL-rt"
     ]
 
-  def run(self):
-    command = [self._compiler] + self._compiler_args
+    return linker_args
 
-    command += self._args
-    # For GCC, linked libraries must follow the object files
-    if self._contains_linking_stage:
-      command += self._linker_args
-    
-    return run_or_print(command, self._is_dry_run)
+  def run(self):
+    cxx_flags = self.common_cxx_flags
+    ld_flags = self.common_linker_flags
+    compiler_executable, compiler_priority = ("", 0)
+
+    for backend_args in self._backends:
+      cxx, priority = backend_args.get_compiler_preference()
+      if priority > compiler_priority:
+        compiler_executable = cxx
+
+      cxx_flags += backend_args.get_cxx_flags()
+      ld_flags += backend_args.get_linker_flags()
+
+    args = []
+    if self._requires_compilation:
+      args += cxx_flags
+    elif self._requires_linking:
+      args += ld_flags
+
+    args += self._user_args
+
+    return run_or_print([compiler_executable] + args,
+                        self._is_dry_run)
 
 def print_usage(config):
   print("syclcc [hipSYCL] for AMD and NVIDIA devices, Copyright (C) 2018,2019 Aksel Alpay")
@@ -603,21 +698,15 @@ if __name__ == '__main__':
         print_usage(config)
         sys.exit(0)
 
-    platform = config.target_platform
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():
         print("syclcc warning: No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
-
-    if platform == hipsycl_platform.CUDA or platform == hipsycl_platform.HIP:
-      compiler = clang_plugin_compiler(config)
-      sys.exit(compiler.run())
-    elif platform == hipsycl_platform.PURE_CPU:
-      compiler = pure_cpu_compiler(config)
-      sys.exit(compiler.run())
-    else:
-      raise RuntimeError("Internal error: Invalid platform '{}'".format(platform))
+    
+    c = compiler(config)
+    sys.exit(c.run())
   except Exception as e:
+    raise
     print("syclcc fatal error: "+str(e))
     sys.exit(-1)

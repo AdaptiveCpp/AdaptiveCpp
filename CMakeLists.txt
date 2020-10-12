@@ -96,7 +96,7 @@ if(BUILD_CLANG_PLUGIN)
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
-    DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/ (Older clang/ROCm versions may need .../<llvm-version>/include")
+    DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
 
   if(EXISTS ${FOUND_CLANG_INCLUDE_PATH})
     # Required for newer ROCm versions
@@ -104,7 +104,7 @@ if(BUILD_CLANG_PLUGIN)
   endif()
   
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
-    message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually.")
+    message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()

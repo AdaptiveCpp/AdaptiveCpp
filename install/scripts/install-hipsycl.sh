@@ -4,38 +4,48 @@ HIPSYCL_PKG_LLVM_VERSION_MINOR=${HIPSYCL_PKG_LLVM_VERSION_MINOR:-0}
 HIPSYCL_PKG_LLVM_VERSION_PATCH=${HIPSYCL_PKG_LLVM_VERSION_PATCH:-1}
 HIPSYCL_PKG_LLVM_REPO_BRANCH=${HIPSYCL_PKG_LLVM_REPO_BRANCH:-release/${HIPSYCL_PKG_LLVM_VERSION_MAJOR}.x}
 
-export INSTALL_PREFIX=${INSTALL_PREFIX:-/opt/hipSYCL}
+export HIPSYCL_INSTALL_PREFIX=${HIPSYCL_INSTALL_PREFIX:-/opt/hipSYCL}
 
 set -e
-BUILD_DIR=/tmp/hipSYCL-installer
-
+HIPSYCL_BUILD_DIR=${HIPSYCL_BUILD_DIR:-/tmp/hipSYCL-installer}
 HIPSYCL_REPO_USER=${HIPSYCL_REPO_USER:-illuhad}
 HIPSYCL_REPO_BRANCH=${HIPSYCL_REPO_BRANCH:-stable}
 HIPSYCL_WITH_CUDA=${HIPSYCL_WITH_CUDA:-ON}
 HIPSYCL_WITH_ROCM=${HIPSYCL_WITH_ROCM:-ON}
 
-LLVM_INCLUDE_PATH=$INSTALL_PREFIX/llvm/lib/clang/${HIPSYCL_PKG_LLVM_VERSION_MAJOR}.\
+LLVM_INCLUDE_PATH=$HIPSYCL_INSTALL_PREFIX/llvm/lib/clang/${HIPSYCL_PKG_LLVM_VERSION_MAJOR}.\
 ${HIPSYCL_PKG_LLVM_VERSION_MINOR}.\
 ${HIPSYCL_PKG_LLVM_VERSION_PATCH}/include
+if [ -d "$HIPSYCL_BUILD_DIR" ]; then
+       read -p  "The build directory already exists, do you want to use $HIPSYCL_BUILD_DIR anyways?[y]" -n 1 -r
+       echo 
+       if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+              echo "Please specify a different directory, exiting"
+              [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+       else
+              echo "Using the exisiting directory"
+       fi
+else
+echo "Cloning hipSYCL"
+git clone --recurse-submodules -b $HIPSYCL_REPO_BRANCH https://github.com/$HIPSYCL_REPO_USER/hipSYCL $HIPSYCL_BUILD_DIR
 
-rm -rf "$BUILD_DIR"
+fi
 
-git clone --recurse-submodules -b $HIPSYCL_REPO_BRANCH https://github.com/$HIPSYCL_REPO_USER/hipSYCL $BUILD_DIR
-mkdir -p $BUILD_DIR/build
-cd $BUILD_DIR/build
+mkdir -p $HIPSYCL_BUILD_DIR/build
+cd $HIPSYCL_BUILD_DIR/build
 
 cmake \
--DCMAKE_C_COMPILER=$INSTALL_PREFIX/llvm/bin/clang \
--DCMAKE_CXX_COMPILER=$INSTALL_PREFIX/llvm/bin/clang++ \
+-DCMAKE_C_COMPILER=$HIPSYCL_INSTALL_PREFIX/llvm/bin/clang \
+-DCMAKE_CXX_COMPILER=$HIPSYCL_INSTALL_PREFIX/llvm/bin/clang++ \
 -DWITH_CPU_BACKEND=ON \
 -DWITH_CUDA_BACKEND=$HIPSYCL_WITH_CUDA \
 -DWITH_ROCM_BACKEND=$HIPSYCL_WITH_ROCM \
--DLLVM_DIR=$INSTALL_PREFIX/llvm/lib/cmake/llvm \
--DROCM_PATH=$INSTALL_PREFIX/rocm \
--DCUDA_TOOLKIT_ROOT_DIR=$INSTALL_PREFIX/cuda \
--DCLANG_EXECUTABLE_PATH=$INSTALL_PREFIX/llvm/bin/clang++ \
+-DLLVM_DIR=$HIPSYCL_INSTALL_PREFIX/llvm/lib/cmake/llvm \
+-DROCM_PATH=$HIPSYCL_INSTALL_PREFIX/rocm \
+-DCUDA_TOOLKIT_ROOT_DIR=$HIPSYCL_INSTALL_PREFIX/cuda \
+-DCLANG_EXECUTABLE_PATH=$HIPSYCL_INSTALL_PREFIX/llvm/bin/clang++ \
 -DCLANG_INCLUDE_PATH=$LLVM_INCLUDE_PATH \
--DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+-DCMAKE_HIPSYCL_INSTALL_PREFIX=$HIPSYCL_INSTALL_PREFIX \
 -DROCM_LINK_LINE='-rpath $HIPSYCL_ROCM_LIB_PATH -rpath $HIPSYCL_ROCM_PATH/hsa/lib -L$HIPSYCL_ROCM_LIB_PATH -lhip_hcc -lamd_comgr -lamd_hostcall -lhsa-runtime64 -latmi_runtime -rpath $HIPSYCL_ROCM_PATH/hcc/lib -L$HIPSYCL_ROCM_PATH/hcc/lib -lmcwamp -lhc_am' \
 ..
 

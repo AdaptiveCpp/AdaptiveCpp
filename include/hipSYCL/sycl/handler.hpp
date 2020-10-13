@@ -638,7 +638,7 @@ private:
     : _ctx{ctx}, _handler{handler},
       _execution_hints{hints} {}
   
-  const context& _ctx;
+  const context _ctx;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;
 

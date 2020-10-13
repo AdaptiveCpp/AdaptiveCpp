@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
             auto id3 = item.get_id();
             if(d >= 1) id3[0] = item.get_id(0);
             if(d >= 2) id3[1] = item.get_id(1);
-            if(d == 3) id3[3] = item.get_id(2);
+            if(d == 3) id3[2] = item.get_id(2);
             acc3[item] = id3;
           }
         });
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(item_api, _dimensions, test_dimensions::type) {
             auto id3 = item.get_id();
             if(d >= 1) id3[0] = item.get_id(0);
             if(d >= 2) id3[1] = item.get_id(1);
-            if(d == 3) id3[3] = item.get_id(2);
+            if(d == 3) id3[2] = item.get_id(2);
             acc3[item] = id3;
           }
         });

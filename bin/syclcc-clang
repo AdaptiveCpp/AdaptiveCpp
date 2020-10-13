@@ -126,7 +126,7 @@ class syclcc_config:
     # 3.) the field in the config file.
     self._options = {
       'platform': option("--hipsycl-platform", "HIPSYCL_PLATFORM", "default-platform",
-"""  [deprecated] The platform that hipSYCL should target. Valid values: 
+"""  (deprecated) The platform that hipSYCL should target. Valid values:
     * cuda: Target NVIDIA CUDA GPUs
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs"""),
@@ -143,7 +143,7 @@ class syclcc_config:
 """  The path to the ROCm installation directory"""),
 
       'gpu-arch': option("--hipsycl-gpu-arch", "HIPSYCL_GPU_ARCH", "default-gpu-arch",
-"""  [deprecated] The GPU architecture that should be targeted when compiling for GPUs.
+"""  (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
     For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
@@ -164,7 +164,15 @@ class syclcc_config:
     It is normally not necessary for the user to change this setting. """),
     
       'targets': option("--hipsycl-targets", "HIPSYCL_TARGETS", "default-targets",
-"""  Targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'""")
+"""  Specify backends and targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'
+    Available backends:
+      * omp - OpenMP CPU backend
+      * cuda - CUDA backend 
+               Requires specification of targets of the form sm_XY,
+               e.g. sm_70 for Volta, sm_60 for Pascal
+      * hip  - HIP backend
+               Requires specification of targets of the form gfxXYZ,
+               e.g. gfx906 for Vega 20, gfx900 for Vega 10""")
     }
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
@@ -345,11 +353,12 @@ class syclcc_config:
         return []
 
   def _parse_targets(self, target_arg):
+    # Split backends by ;
     platform_substrings = target_arg.replace("'","").replace('"',"").split(';')
     
     result = {}
     for p in platform_substrings:
-      platform_target_separated = p.split(':')
+      platform_target_separated = p.split(':', 1)
       if len(platform_target_separated) > 2 or len(platform_target_separated) == 0:
         raise RuntimeError("Invalid target description: " + p)
       
@@ -375,23 +384,28 @@ class syclcc_config:
         raw_target_string = self._retrieve_option("targets")
       except OptionNotSet:
         # Legacy compatibility args
-        platform = self._retrieve_option("platform")
+        try:
+          platform = self._retrieve_option("platform")
 
-        hip_platform_synonyms      = set(["rocm", "amd", "hip"])
-        cuda_platform_synonyms     = set(["nvidia", "cuda"])
-        pure_cpu_platform_synonyms = set(["host", "cpu", "hipcpu", "omp"])
+          hip_platform_synonyms      = set(["rocm", "amd", "hip"])
+          cuda_platform_synonyms     = set(["nvidia", "cuda"])
+          pure_cpu_platform_synonyms = set(["host", "cpu", "hipcpu", "omp"])
 
 
-        if platform in hip_platform_synonyms:
-          target_arch = self._retrieve_option("gpu-arch")
-          raw_target_string = "hip:" + target_arch
-          
-        elif platform in cuda_platform_synonyms:
-          target_arch = self._retrieve_option("gpu-arch")
-          raw_target_string = "cuda:" + target_arch
-          
-        elif platform in pure_cpu_platform_synonyms:
-          raw_target_string = "omp"
+          if platform in hip_platform_synonyms:
+            target_arch = self._retrieve_option("gpu-arch")
+            raw_target_string = "hip:" + target_arch
+            
+          elif platform in cuda_platform_synonyms:
+            target_arch = self._retrieve_option("gpu-arch")
+            raw_target_string = "cuda:" + target_arch
+            
+          elif platform in pure_cpu_platform_synonyms:
+            raw_target_string = "omp"
+        except OptionNotSet:
+          raise OptionNotSet("Neither a --hipsycl-targets specification "
+                             "nor the legacy combination of --hipsycl-platform and "
+                             "--hipsycl-gpu-arch was provided")
 
       self._targets = self._parse_targets(raw_target_string)
 
@@ -604,6 +618,34 @@ class omp_invocation:
 
     return linker_args
 
+# This is a workaround to have access to a backend
+# that can execute host tasks when compiling for GPUs.
+# It should be removed once we have non-OpenMP host backends
+# (e.g. TBB)
+class omp_sequential_invocation:
+  def __init__(self, config):
+    self._cxx = config.pure_cpu_compiler
+
+  def get_compiler_preference(self):
+    return (self._cxx, 1)
+
+  def get_cxx_flags(self):
+
+    flags = [
+        "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__",
+      ]
+      
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = [
+      "-lboost_context",
+      "-lboost_fiber",
+      "-lomp"
+    ]
+    
+    return linker_args
+
 class compiler:
   def __init__(self, config):
     self._user_args = config.forwarded_compiler_arguments
@@ -615,6 +657,12 @@ class compiler:
     self._hipsycl_path = config.hipsycl_installation_path
     self._hipsycl_lib_path = os.path.join(self._hipsycl_path, "lib/")
 
+    if "hip" in self._targets and "cuda" in self._targets:
+      raise RuntimeError("CUDA and HIP cannot be targeted simultaneously")
+    # clang bug prevents clang -x cuda -fopenmp from working
+    if "omp" in self._targets and "cuda" in self._targets:
+      raise RuntimeError("CUDA and OpenMP cannot be targeted simultaneously")
+
     self._backends = []
 
     for backend in self._targets:
@@ -625,7 +673,13 @@ class compiler:
       elif backend == "hip":
         self._backends.append(hip_invocation(config))
       else:
-        raise RuntimeError("Unknown backend: "+backend)
+        raise RuntimeError("Unknown backend: " + backend)
+      
+    
+    if not "omp" in self._targets:
+      # We need at least OpenMP "lite" (i.e. without -fopenmp) to
+      # get access to things like host tasks
+     self._backends.append(omp_sequential_invocation(config))
 
   @property
   def common_cxx_flags(self):
@@ -655,6 +709,7 @@ class compiler:
       cxx, priority = backend_args.get_compiler_preference()
       if priority > compiler_priority:
         compiler_executable = cxx
+        compiler_priority = priority
 
       cxx_flags += backend_args.get_cxx_flags()
       ld_flags += backend_args.get_linker_flags()
@@ -662,7 +717,7 @@ class compiler:
     args = []
     if self._requires_compilation:
       args += cxx_flags
-    elif self._requires_linking:
+    if self._requires_linking:
       args += ld_flags
 
     args += self._user_args
@@ -671,7 +726,7 @@ class compiler:
                         self._is_dry_run)
 
 def print_usage(config):
-  print("syclcc [hipSYCL] for AMD and NVIDIA devices, Copyright (C) 2018,2019 Aksel Alpay")
+  print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2020 Aksel Alpay")
   print("Usage: syclcc <options>\n")
   print("Options are:")
   config.print_options()
@@ -707,6 +762,5 @@ if __name__ == '__main__':
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    raise
     print("syclcc fatal error: "+str(e))
     sys.exit(-1)

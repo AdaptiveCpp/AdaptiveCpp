@@ -73,8 +73,10 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
     launchers.emplace_back(std::move(launcher));
   }
 #endif
-  
-#ifdef __HIPSYCL_ENABLE_OMPHOST_TARGET__
+
+  // Don't try to compile host kernel during device passes
+#if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__) && \
+   !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,

@@ -29,6 +29,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <cassert>
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
@@ -64,9 +65,11 @@ void worker_thread::halt()
 {
   wait();
 
-  _continue = false;
-  _condition_wait.notify_one();
-
+  {
+    std::unique_lock<std::mutex> lock(_mutex);
+    _continue = false;
+    _condition_wait.notify_one();
+  }
   if(_worker_thread.joinable())
     _worker_thread.join();
 }

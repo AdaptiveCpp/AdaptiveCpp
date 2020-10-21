@@ -182,6 +182,24 @@ public:
         kernelFunc);
   }
 
+  // Reductions
+
+  template <typename KernelName = class _unnamed_kernel, typename KernelType,
+            int dimensions, typename... Reductions>
+  void parallel_reduce(range<dimensions> numWorkItems, Reductions... reductions,
+                       const KernelType &kernelFunc) {}
+
+  template <typename KernelName = class _unnamed_kernel, typename KernelType,
+            int dimensions, typename... Reductions>
+  void parallel_reduce(range<dimensions> numWorkItems,
+                       id<dimensions> workItemOffset, Reductions... reductions,
+                       const KernelType &kernelFunc) {}
+
+  template <typename KernelName = class _unnamed_kernel, typename KernelType,
+            int dimensions, typename... Reductions>
+  void parallel_reduce(nd_range<dimensions> executionRange,
+                       Reductions... reductions, const KernelType &kernelFunc) {}
+
   // Scoped parallelism API
   
   template <typename KernelName = class _unnamed_kernel,

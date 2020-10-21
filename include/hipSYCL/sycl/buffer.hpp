@@ -547,8 +547,15 @@ private:
     assert(_impl);
     auto host_device = detail::get_host_device();
     preallocate_host_buffer();
+
     std::memcpy(_impl->data->get_memory(host_device), data,
                 sizeof(T) * _range.size());
+    // Mark the modified range current so that the runtime
+    // knows that it needs to transfer this data if it is
+    // accessed on device
+    _impl->data->mark_range_current(host_device,
+                                    rt::embed_in_id3(sycl::id<3>{}),
+                                    rt::embed_in_range3(get_range()));
   }
 
   void init_policies_from_properties_or_default(default_policies dpol)

@@ -29,7 +29,7 @@ In order to successfully build and install hipSYCL, the following major requirem
   * hipSYCL requires clang for CUDA compilation. clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
   * Read more about [compatible clang and CUDA versions for the CUDA backend](install-cuda.md).
 * *For the ROCm backend*: 
-  * **ROCm >= 2.0** must be installed. 
+  * A recent **ROCm** must be installed. 
   * hipSYCL requires clang for ROCm compilation. While AMD's clang forks can in principle be used, regular clang is usually easier to set up. Read more about [compatible clang versions for the ROCm backend](install-rocm.md).
 * *For the CPU backend*: Any C++ compiler with **OpenMP** support should do.
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
@@ -40,7 +40,7 @@ In order to successfully build and install hipSYCL, the following major requirem
 If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
 * `LLVM_DIR` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**
 * `CLANG_EXECUTABLE_PATH` must be pointed to the `clang++` executable from this LLVM installation.
-* `CLANG_INCLUDE_PATH` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`.
+* `CLANG_INCLUDE_PATH` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`. Newer ROCm versions will require the parent directory instead, i.e. `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>`.
 
 #### Building and installing 
 

@@ -39,6 +39,7 @@
 #include "detail/mem_fence.hpp"
 #include "sub_group.hpp"
 #include "sp_item.hpp"
+#include "memory.hpp"
 
 #ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
@@ -97,15 +98,21 @@ using global_and_local_mem_fence = mem_fence<
 }
 }
 
-template <int dimensions = 1>
+template <int Dimensions = 1>
 struct group
 {
 
+  using id_type = id<Dimensions>;
+  using range_type = range<Dimensions>;
+  using linear_id_type = size_t;
+  static constexpr int dimensions = Dimensions;
+  static constexpr memory_scope fence_scope = memory_scope::work_group;
+
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_id() const
+  id<Dimensions> get_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>();
+    return detail::get_group_id<Dimensions>();
 #else
     return _group_id;
 #endif
@@ -115,17 +122,17 @@ struct group
   size_t get_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>(dimension);
+    return detail::get_group_id<Dimensions>(dimension);
 #else
     return _group_id[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_global_range() const
+  range<Dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_size<dimensions>();
+    return detail::get_global_size<Dimensions>();
 #else
     return _num_groups * _local_range;
 #endif
@@ -135,7 +142,7 @@ struct group
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_size<dimensions>(dimension);
+    return detail::get_global_size<Dimensions>(dimension);
 #else
     return _num_groups[dimension] * _local_range[dimension];
 #endif
@@ -144,10 +151,10 @@ struct group
   /// \return The physical local range for flexible work group sizes,
   /// the logical local range otherwise.
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_local_range() const
+  range<Dimensions> get_local_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_size<dimensions>();
+    return detail::get_local_size<Dimensions>();
 #else
     return _local_range;
 #endif
@@ -157,7 +164,7 @@ struct group
   size_t get_local_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_size<dimensions>(dimension);
+    return detail::get_local_size<Dimensions>(dimension);
 #else
     return _local_range[dimension];
 #endif
@@ -168,10 +175,10 @@ struct group
   // claim that it should return the range "of the current group", 
   // i.e. the local range which makes no sense.
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_group_range() const
+  range<Dimensions> get_group_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>();
+    return detail::get_grid_size<Dimensions>();
 #else
     return _num_groups;
 #endif
@@ -181,7 +188,7 @@ struct group
   size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>(dimension);
+    return detail::get_grid_size<Dimensions>(dimension);
 #else
     return _num_groups[dimension];
 #endif
@@ -191,26 +198,26 @@ struct group
   size_t operator[](int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>(dimension);
+    return detail::get_group_id<Dimensions>(dimension);
 #else
     return _group_id[dimension];
 #endif
   }
 
-  friend bool operator==(const group<dimensions>& lhs, const group<dimensions>& rhs){
+  friend bool operator==(const group<Dimensions>& lhs, const group<Dimensions>& rhs){
     return lhs._group_id == rhs._group_id &&
            lhs._local_range == rhs._local_range &&
            lhs._num_groups == rhs._num_groups;
   }
 
-  friend bool operator!=(const group<dimensions>& lhs, const group<dimensions>& rhs){
+  friend bool operator!=(const group<Dimensions>& lhs, const group<Dimensions>& rhs){
     return !(lhs == rhs);
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_linear() const
   {
-    return detail::linear_id<dimensions>::get(get_id(),
+    return detail::linear_id<Dimensions>::get(get_id(),
                                               get_group_range());
   }
 
@@ -222,9 +229,9 @@ struct group
   {
 #ifdef SYCL_DEVICE_ONLY
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    h_item<dimensions> idx{detail::get_local_id<dimensions>(), detail::get_local_size<dimensions>()};
+    h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
   #else
-    h_item<dimensions> idx{detail::get_local_id<dimensions>(), _local_range, _group_id, _num_groups};
+    h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
   #endif
     func(idx);
 #else
@@ -244,7 +251,7 @@ struct group
     typename Finalizer,
     typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET
-  void parallel_for_work_item(range<dimensions> flexibleRange,
+  void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
 #ifdef SYCL_DEVICE_ONLY
@@ -257,7 +264,7 @@ struct group
 
   template<typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET
-  void parallel_for_work_item(range<dimensions> flexibleRange,
+  void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
     parallel_for_work_item<vendor::hipsycl::synchronization::local_barrier>(
@@ -268,7 +275,7 @@ struct group
   HIPSYCL_KERNEL_TARGET
   void distribute_for(distributeForFunctionT f) const {
 
-    auto make_sp_item = [this](sycl::id<dimensions> local_id){
+    auto make_sp_item = [this](sycl::id<Dimensions> local_id){
       return detail::make_sp_item(
             local_id, get_id(), 
             get_local_range(), get_group_range());
@@ -276,10 +283,10 @@ struct group
 
 #ifdef SYCL_DEVICE_ONLY
     sub_group sg;
-    f(sg, make_sp_item(detail::get_local_id<dimensions>()));
+    f(sg, make_sp_item(detail::get_local_id<Dimensions>()));
     __syncthreads();
 #else
-    if constexpr (dimensions == 1) {
+    if constexpr (Dimensions == 1) {
 #ifdef _OPENMP
  #pragma omp simd
 #endif
@@ -288,7 +295,7 @@ struct group
         f(sg, make_sp_item(sycl::id<1>{i}));
       }
     }
-    else if constexpr(dimensions==2){
+    else if constexpr(Dimensions==2){
       for (std::size_t i = 0; i < _local_range[0]; ++i) {
 #ifdef _OPENMP
  #pragma omp simd
@@ -299,7 +306,7 @@ struct group
         }
       }
     }
-    else if constexpr(dimensions==3){
+    else if constexpr(Dimensions==3){
       for(std::size_t i = 0; i < _local_range[0]; ++i){
         for (std::size_t j = 0; j < _local_range[1]; ++j) {
 #ifdef _OPENMP
@@ -427,25 +434,25 @@ struct group
   void wait_for(eventTN...) const {}
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-  group(id<dimensions> group_id,
-        range<dimensions> local_range,
-        range<dimensions> num_groups)
+  group(id<Dimensions> group_id,
+        range<Dimensions> local_range,
+        range<Dimensions> num_groups)
   : _group_id{group_id}, 
     _local_range{local_range}, 
     _num_groups{num_groups}
   {}
 
 private:
-  const id<dimensions> _group_id;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
+  const id<Dimensions> _group_id;
+  const range<Dimensions> _local_range;
+  const range<Dimensions> _num_groups;
 #endif
 
 #ifdef SYCL_DEVICE_ONLY
   size_t get_linear_local_id() const
   {
-    return detail::linear_id<dimensions>::get(detail::get_local_id<dimensions>(),
-                                              detail::get_local_size<dimensions>());
+    return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
+                                              detail::get_local_size<Dimensions>());
   }
 
   template<typename workItemFunctionT>

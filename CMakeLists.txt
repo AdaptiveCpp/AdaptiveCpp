@@ -128,13 +128,12 @@ else()
   set(SYCLCC_CONFIG_FILE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/hipSYCL/)
 endif()
 
-add_subdirectory(src)
-
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 set(ROCM_LINK_LINE "-rpath ${ROCM_PATH}/lib -rpath ${ROCM_PATH}/hip/lib ${ROCM_LIBS}")
 set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 
+add_subdirectory(src)
 
 set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",

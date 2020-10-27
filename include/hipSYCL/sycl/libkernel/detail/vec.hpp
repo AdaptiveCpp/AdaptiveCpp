@@ -78,26 +78,102 @@ template<> struct logical_vector_op_result<detail::dp_float>
 
 template <int...> struct vector_index_sequence {};
 
+namespace emulated_types {
+
+using uchar = unsigned char;
+using ushort = unsigned short;
+using uint = unsigned int;
+using longlong = long long;
+using ulong = unsigned long;
+using ulonglong = unsigned long long;
+
+template <class T, int Dim>
+constexpr size_t get_required_alignment() {
+  // Alignment requirements according to SYCL spec.
+  if(Dim == 3) return sizeof(T) * 4;
+  return sizeof(T) * Dim;
+}
+
+template <class BaseT, int Dim, class NativeT>
+constexpr bool can_use_native_type() {
+  return alignof(NativeT) == get_required_alignment<BaseT, Dim>() &&
+    sizeof(NativeT) == alignof(NativeT);
+}
+
 template <class T, int Dim> struct emulated_vector {};
 
 template <class T>
-struct emulated_vector<T,1> { T x; };
+struct alignas(get_required_alignment<T,1>()) emulated_vector<T,1> { T x; };
 
 template <class T>
-struct emulated_vector<T,2> { T x; T y; };
+struct alignas(get_required_alignment<T,2>()) emulated_vector<T,2> { T x; T y; };
 
 template <class T>
-struct emulated_vector<T,3> { T x; T y; T z; };
+struct alignas(get_required_alignment<T,3>()) emulated_vector<T,3> { T x; T y; T z; };
 
 template <class T>
-struct emulated_vector<T,4> { T x; T y; T z; T w; };
+struct alignas(get_required_alignment<T,4>()) emulated_vector<T,4> { T x; T y; T z; T w; };
 
+// This is a hack for the host device where float1,2,3,4 etc don't exist...
+// TODO: Reimplement vec<> properly
+#define HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(T)                                \
+  using T##1 = emulated_vector<T, 1>;                                          \
+  using T##2 = emulated_vector<T, 2>;                                          \
+  using T##3 = emulated_vector<T, 3>;                                          \
+  using T##4 = emulated_vector<T, 4>;
+
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(char)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(bool)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(uchar)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(short)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(ushort)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(uint)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(int)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(long)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(ulong)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(float)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(longlong)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(ulonglong)
+HIPSYCL_DEFINE_EMULATED_VECTOR_TYPES(double)
+
+} // namespace emulated_types
 
 template<class T, int N>
 struct intrinsic_vector
 {
   static constexpr bool exists = false;
 };
+
+// If the compiler supports device compilation, try to use native vector types.
+// A native type can only be used if it fulfills the expected size and alignment
+// requirements. (This assumes that all types are available and named as we
+// expect, which works for HIP/CUDA, but might need adjustment if additional
+// backends are added in the future).
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE
+
+#define HIPSYCL_DEFINE_INTRINSIC_VECTOR( \
+  T,                  \
+  num_elements,       \
+  native_type,        \
+  emulated_type)      \
+template<> struct intrinsic_vector<T,num_elements> \
+{ \
+  using type = std::conditional_t< \
+    emulated_types::can_use_native_type<T,num_elements,native_type>(), \
+    native_type, emulated_type>; \
+  static constexpr bool exists = true; \
+}
+
+#define HIPSYCL_DEFINE_INTRINSIC_VECTORS( \
+  T,           \
+  type_prefix) \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 1, ::type_prefix##1, emulated_types::type_prefix##1); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 2, ::type_prefix##2, emulated_types::type_prefix##2); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 3, ::type_prefix##3, emulated_types::type_prefix##3); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 4, ::type_prefix##4, emulated_types::type_prefix##4);
+
+// If this is a pure host compiler, always use emulated types.
+#else
 
 #define HIPSYCL_DEFINE_INTRINSIC_VECTOR( \
   T,                  \
@@ -109,171 +185,29 @@ template<> struct intrinsic_vector<T,num_elements> \
   static constexpr bool exists = true; \
 }
 
-#ifdef SYCL_DEVICE_ONLY
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 1, ::char1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 2, ::char2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 3, ::char3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 4, ::char4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 1, ::char1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 2, ::char2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 3, ::char3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 4, ::char4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 1, ::uchar1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 2, ::uchar2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 3, ::uchar3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 4, ::uchar4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 1, ::short1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 2, ::short2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 3, ::short3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 4, ::short4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 1, ::ushort1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 2, ::ushort2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 3, ::ushort3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 4, ::ushort4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 1, ::int1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 2, ::int2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 3, ::int3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 4, ::int4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 1, ::uint1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 2, ::uint2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 3, ::uint3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 4, ::uint4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 1, ::long1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 2, ::long2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 3, ::long3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 4, ::long4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 1, ::ulong1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 2, ::ulong2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 3, ::ulong3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 4, ::ulong4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 1, ::float1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 2, ::float2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 3, ::float3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 4, ::float4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 1, ::longlong1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 2, ::longlong2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 3, ::longlong3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 4, ::longlong4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 1, ::ulonglong1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 2, ::ulonglong2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 3, ::ulonglong3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 4, ::ulonglong4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 1, ::double1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 2, ::double2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 3, ::double3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 4, ::double4);
-
-#else
-// This is a hack for the host device where float1,2,3,4 etc don't exist...
-// TODO: Reimplement vec<> properly
-#define HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(T)                                 \
-  using T##1 = emulated_vector<T, 1>;                                          \
-  using T##2 = emulated_vector<T, 2>;                                          \
-  using T##3 = emulated_vector<T, 3>;                                          \
-  using T##4 = emulated_vector<T, 4>;                                          
-  
-
-using unsigned_char = unsigned char;
-using unsigned_short = unsigned short;
-using unsigned_int = unsigned int;
-using long_long     = long long;
-using unsigned_long = unsigned long;
-using unsigned_long_long = unsigned long long;
-
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(char)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(unsigned_char)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(bool)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(short)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(unsigned_short)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(unsigned_int)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(int)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(long)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(unsigned_long)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(float)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(long_long)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(unsigned_long_long)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(double)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(char)
-HIPSYCL_DEFINE_EMULATE_VECTOR_TYPES(bool)
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 1, char1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 2, char2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 3, char3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(char, 4, char4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 1, bool1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 2, bool2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 3, bool3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(bool, 4, bool4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 1, unsigned_char1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 2, unsigned_char2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 3, unsigned_char3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned char, 4, unsigned_char4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 1, short1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 2, short2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 3, short3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(short, 4, short4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 1, unsigned_short1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 2, unsigned_short2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 3, unsigned_short3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned short, 4, unsigned_short4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 1, int1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 2, int2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 3, int3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(int, 4, int4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 1, unsigned_int1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 2, unsigned_int2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 3, unsigned_int3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned int, 4, unsigned_int4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 1, long1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 2, long2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 3, long3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long, 4, long4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 1, unsigned_long1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 2, unsigned_long2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 3, unsigned_long3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long, 4, unsigned_long4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 1, float1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 2, float2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 3, float3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(float, 4, float4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 1, long_long1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 2, long_long2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 3, long_long3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(long long, 4, long_long4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 1, unsigned_long_long1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 2, unsigned_long_long2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 3, unsigned_long_long3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(unsigned long long, 4, unsigned_long_long4);
-
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 1, double1);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 2, double2);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 3, double3);
-HIPSYCL_DEFINE_INTRINSIC_VECTOR(double, 4, double4);
+#define HIPSYCL_DEFINE_INTRINSIC_VECTORS( \
+  T,           \
+  type_prefix) \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 1, emulated_types::type_prefix##1); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 2, emulated_types::type_prefix##2); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 3, emulated_types::type_prefix##3); \
+HIPSYCL_DEFINE_INTRINSIC_VECTOR(T, 4, emulated_types::type_prefix##4);
 
 #endif
+
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(char, char);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(bool, char);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(unsigned char, uchar);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(short, short);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(unsigned short, ushort);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(int, int);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(unsigned int, uint);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(long, long);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(unsigned long, ulong);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(float, float);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(long long, longlong);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(unsigned long long, ulonglong);
+HIPSYCL_DEFINE_INTRINSIC_VECTORS(double, double);
 
 template<class T, int N, int Index>
 struct vector_accessor

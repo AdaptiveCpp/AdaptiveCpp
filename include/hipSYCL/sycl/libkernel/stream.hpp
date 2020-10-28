@@ -181,6 +181,16 @@ inline const stream& operator<<(const stream& os, const char* v) {
   printf("%s", v); return os;
 }
 
+HIPSYCL_KERNEL_TARGET
+inline const stream& operator<<(const stream& os, float v){
+  printf("%f", v); return os;
+}
+
+HIPSYCL_KERNEL_TARGET
+inline const stream& operator<<(const stream& os, double v){
+  printf("%f", v); return os;
+}
+
 template<class T>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, T* v) {

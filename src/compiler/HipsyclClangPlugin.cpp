@@ -24,35 +24,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "hipSYCL/compiler/FrontendPlugin.hpp"
+#include "hipSYCL/compiler/IR.hpp"
+#include "hipSYCL/compiler/LoopSplitter.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
-#include "hipSYCL/compiler/FrontendPlugin.hpp"
-#include "hipSYCL/compiler/IR.hpp"
+#include "llvm/Pass.h"
+#include "llvm/Passes/PassPlugin.h"
 
 namespace hipsycl {
 namespace compiler {
 // Register and activate passes
 
-static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> 
-HipsyclFrontendPlugin {
-  "hipsycl_frontend", 
-  "enable hipSYCL frontend action"
-};
+static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> HipsyclFrontendPlugin{
+    "hipsycl_frontend", "enable hipSYCL frontend action"};
 
-static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &,
-                                          llvm::legacy::PassManagerBase &PM) {
+static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new FunctionPruningIRPass{});
 }
 
 static llvm::RegisterStandardPasses
-  RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                         registerFunctionPruningIRPass);
+    RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                           registerFunctionPruningIRPass);
 
 static llvm::RegisterStandardPasses
-  RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
-                                             registerFunctionPruningIRPass);
+    RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
+                                               registerFunctionPruningIRPass);
+
+static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy> splitterAnnotationReg("splitter-annot-ana",
+                                                                            "hipSYCL splitter annotation analysis pass",
+                                                                            true /* Only looks at CFG */,
+                                                                            true /* Analysis Pass */);
+
+static void registerLoopSplitAtBarrierPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopSplitAtBarrierPassLegacy{});
+}
+
+static llvm::RegisterStandardPasses
+    RegisterLoopSplitAtBarrierPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                            registerLoopSplitAtBarrierPass);
+
+static llvm::RegisterStandardPasses
+    RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
+                                                registerLoopSplitAtBarrierPass);
 
 } // namespace compiler
 } // namespace hipsycl
-

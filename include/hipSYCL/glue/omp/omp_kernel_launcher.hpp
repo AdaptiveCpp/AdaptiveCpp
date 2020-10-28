@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 
-
 #include <cassert>
 #include <tuple>
 #include <omp.h>
@@ -181,7 +180,7 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
 }
 
 template<class Function>
-inline 
+inline
 void single_task_kernel(Function f) noexcept
 {
   f();
@@ -196,7 +195,7 @@ inline void parallel_for_kernel(Function f,
 
   reducible_parallel_invocation([&, f](auto& ... reducers){
     iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
-      auto this_item = 
+      auto this_item =
         sycl::detail::make_item<Dim>(idx, execution_range);
 
       f(this_item, reducers...);
@@ -213,7 +212,7 @@ inline void parallel_for_kernel_offset(Function f,
 
   reducible_parallel_invocation([&, f](auto& ... reducers){
     iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
-      auto this_item = 
+      auto this_item =
         sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
       f(this_item, reducers...);
@@ -227,13 +226,90 @@ inline void parallel_for_ndrange_kernel(
     const sycl::range<Dim> local_size, sycl::id<Dim> offset,
     size_t num_local_mem_bytes, Reductions... reductions) noexcept
 {
+  static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1 - 3 are supported.");
 
 #ifndef HIPSYCL_HAS_FIBERS
-  rt::register_error(__hipsycl_here(),
-                     rt::error_info{
-                         "nd_range parallel for on CPU requires fibers, but "
-                         "fiber support is disabled",
-                     rt::error_type::feature_not_supported});
+
+#pragma omp parallel
+  {
+    sycl::detail::host_local_memory::request_from_threadprivate_pool(
+        num_local_mem_bytes);
+
+    std::function<void()> barrier_impl = [] {
+      assert(false && "splitting seems to have failed");
+      throw sycl::nd_range_error{
+          "Reached barrier, but should have been removed from the compiler!"};
+    };
+
+//    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
+//      iterate_range_omp_for(local_size, [&](sycl::id<Dim> local_id) {
+//        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+//                                     local_size, num_groups, &barrier_impl};
+//        f(this_item);
+//      });
+//    });
+
+    if constexpr (Dim == 1) {
+      const size_t n_groups = num_groups[0];
+      const size_t n_local = local_size[0];
+#pragma omp for
+      for (size_t g_x = 0; g_x < n_groups; ++g_x) {
+        sycl::id<Dim> group_id{g_x};
+        for (size_t l_x = 0; l_x < n_local; ++l_x) {
+          sycl::id<Dim> local_id{l_x};
+          sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+                                       local_size, num_groups, &barrier_impl};
+          f(this_item);
+        }
+      }
+    } else if constexpr (Dim == 2) {
+#pragma omp for collapse(2)
+      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
+        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
+
+          sycl::id<Dim> group_id{g_x, g_y};
+          for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
+            for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
+              sycl::id<Dim> local_id{l_x, l_y};
+              sycl::nd_item<Dim> this_item{&offset,    group_id,
+                                           local_id,   local_size,
+                                           num_groups, &barrier_impl};
+              f(this_item);
+            }
+          }
+        }
+      }
+    } else if constexpr (Dim == 3) {
+#pragma omp for collapse(3)
+      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
+        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
+          for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
+
+            sycl::id<Dim> group_id{g_x, g_y, g_z};
+            for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
+              for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
+                for (size_t l_z = 0; l_z < local_size[2]; ++l_z) {
+                  sycl::id<Dim> local_id{l_x, l_y, l_z};
+                  sycl::nd_item<Dim> this_item{&offset,    group_id,
+                                               local_id,   local_size,
+                                               num_groups, &barrier_impl};
+                  f(this_item);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    sycl::detail::host_local_memory::release();
+  }
+
+  // rt::register_error(__hipsycl_here(),
+  //                    rt::error_info{
+  //                        "nd_range parallel for on CPU requires fibers, but "
+  //                        "fiber support is disabled",
+  //                    rt::error_type::feature_not_supported});
 #else
   static_assert(Dim > 0 && Dim <= 3,
                 "Only dimensions 1 - 3 are supported.");
@@ -246,7 +322,7 @@ inline void parallel_for_ndrange_kernel(
     void* group_shared_memory_ptr = nullptr;
 
     host::static_range_decomposition<Dim> group_decomposition{
-          num_groups, omp_get_num_threads()};
+        num_groups, omp_get_num_threads()};
 
     host::collective_execution_engine<Dim> engine{num_groups, local_size,
                                                   offset, group_decomposition,
@@ -341,7 +417,7 @@ inline void parallel_region(Function f,
 class omp_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
-  
+
   omp_kernel_launcher() {}
   virtual ~omp_kernel_launcher(){}
 
@@ -355,25 +431,29 @@ public:
 
     this->_type = type;
 
-#ifndef HIPSYCL_HAS_FIBERS
-    if (type == rt::kernel_type::ndrange_parallel_for) {
-      this->_invoker = []() {};
-      
-      throw sycl::feature_not_supported{
-        "Support for nd_range kernels on CPU is disabled without fibers because they cannot be\n"
-        "implemented efficiently in pure-library SYCL implementations such as hipSYCL on CPU. We recommend:\n"
-        " * to verify that you really need the features of nd_range parallel for.\n"
-        "   If you do not need local memory, use basic parallel for instead.\n"
-        " * users targeting SYCL 1.2.1 may use hierarchical parallel for, which\n"
-        "   can express the same algorithms, but may have functionality caveats in hipSYCL\n"
-        "   and/or other SYCL implementations.\n"
-        " * if you use hipSYCL exclusively, you are encouraged to use scoped parallelism:\n"
-        "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md\n"
-        " * if you absolutely need nd_range parallel for, enable fiber support in hipSYCL."
-      };
-    }
-#endif
-    
+    // #ifndef HIPSYCL_HAS_FIBERS
+    //     if (type == rt::kernel_type::ndrange_parallel_for) {
+    //       this->_invoker = []() {};
+
+    //       throw sycl::feature_not_supported{
+    //         "Support for nd_range kernels on CPU is disabled without fibers
+    //         because they cannot be\n" "implemented efficiently in
+    //         pure-library SYCL implementations such as hipSYCL on CPU. We
+    //         recommend:\n" " * to verify that you really need the features of
+    //         nd_range parallel for.\n" "   If you do not need local memory,
+    //         use basic parallel for instead.\n" " * users targeting SYCL 1.2.1
+    //         may use hierarchical parallel for, which\n" "   can express the
+    //         same algorithms, but may have functionality caveats in hipSYCL\n"
+    //         "   and/or other SYCL implementations.\n"
+    //         " * if you use hipSYCL exclusively, you are encouraged to use
+    //         scoped parallelism:\n" "
+    //         https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md\n"
+    //         " * if you absolutely need nd_range parallel for, enable fiber
+    //         support in hipSYCL."
+    //       };
+    //     }
+    // #endif
+
     this->_invoker = [=]() {
 
       bool is_with_offset = false;
@@ -394,11 +474,11 @@ public:
       };
 
       if constexpr(type == rt::kernel_type::single_task){
-      
+
         omp_dispatch::single_task_kernel(k);
-      
+
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
-        
+
         if(!is_with_offset) {
           omp_dispatch::parallel_for_kernel(k, global_range, reductions...);
         } else {
@@ -434,7 +514,7 @@ public:
       else {
         assert(false && "Unsupported kernel type");
       }
-      
+
     };
   }
 

@@ -769,7 +769,8 @@ class omp_invocation:
     return (self._cxx, 1)
 
   def get_cxx_flags(self):
-    flags =["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
+             "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
       
     return flags

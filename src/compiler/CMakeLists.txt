@@ -12,7 +12,7 @@ endif()
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 add_library(hipSYCL_clang SHARED
-  HipsyclClangPlugin.cpp)
+  HipsyclClangPlugin.cpp LoopSplitter.cpp)
 
 target_include_directories(hipSYCL_clang PRIVATE
   ${LLVM_INCLUDE_DIRS}

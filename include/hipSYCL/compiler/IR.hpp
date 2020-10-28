@@ -57,7 +57,7 @@ struct FunctionPruningIRPass : public llvm::ModulePass
     : llvm::ModulePass(ID)
   {}
 
-  llvm::StringRef getPassName() const
+  llvm::StringRef getPassName() const override
   {
     return "hipSYCL function pruning pass";
   }

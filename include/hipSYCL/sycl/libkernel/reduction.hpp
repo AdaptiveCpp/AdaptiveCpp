@@ -28,6 +28,10 @@
 #ifndef HIPSYCL_SYCL_REDUCTION_HPP
 #define HIPSYCL_SYCL_REDUCTION_HPP
 
+#include <type_traits>
+#include "backend.hpp"
+#include "functional.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -35,26 +39,114 @@ namespace detail {
 
 template <class T, typename BinaryOperation>
 struct pointer_reduction_descriptor {
-  T* data;
-  T identity;
+  using value_type = T;
+  using combiner_type = BinaryOperation;
+
+  value_type* data;
+  value_type identity;
   BinaryOperation combiner;
 
-  T *get_pointer() {
+  value_type *get_pointer() const {
     return data;
   }
 };
 
 template <class AccessorT, typename BinaryOperation>
 struct accessor_reduction_descriptor {
+  using value_type = typename AccessorT::value_type;
+  using combiner_type = BinaryOperation;
+
   AccessorT acc;
-  typename AccessorT::value_type identity;
+  value_type identity;
   BinaryOperation combiner;
 
-  typename AccessorT::value_type *get_pointer() {
+  value_type *get_pointer() const {
     return acc.get_pointer();
   }
 };
 
+} // namespace detail
+
+/// Reducer implementation, builds on \c BackendReducerImpl concept.
+/// \c BackendReducerImpl concept:
+///   - defines value_type for reduction data type
+///   - defines combiner_type for the binary combiner operation
+///   - defines value_type identity() const
+///   - defines void combine(const value_type&)
+template <class BackendReducerImpl> class reducer {
+public:
+  
+  using value_type    = typename BackendReducerImpl::value_type;
+  using combiner_type = typename BackendReducerImpl::combiner_type;
+
+  reducer(const reducer &) = delete;
+  reducer(BackendReducerImpl &impl)
+      : _impl{impl} {}
+
+  reducer& operator= (const reducer&) = delete;
+
+  void combine(const value_type &partial) {
+    return _impl.combine(partial);
+  }
+
+  // TODO
+  // /* Only available if Dimensions > 1 */
+  // __unspecified__ &operator[](size_t index) const;
+
+  /* Only available if identity value is known */
+  value_type identity() const {
+    return _impl.identity();
+  }
+
+private:
+  BackendReducerImpl& _impl;
+};
+
+#define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
+  class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
+  std::enable_if_t<std::is_same_v<                                             \
+            Op, T<typename reducer<BackendReducerImpl>::value_type>>> * =      \
+            nullptr
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
+void operator+=(reducer<BackendReducerImpl> &r,
+                const typename reducer<BackendReducerImpl>::value_type &v) {
+  r.combine(v);
+}
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::multiplies)>
+void operator*=(reducer<BackendReducerImpl> &r,
+                const typename reducer<BackendReducerImpl>::value_type &v) {
+  r.combine(v);
+}
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_and)>
+void operator&=(reducer<BackendReducerImpl> &r,
+                const typename reducer<BackendReducerImpl>::value_type &v) {
+  r.combine(v);
+}
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_or)>
+void operator|=(reducer<BackendReducerImpl> &r,
+                const typename reducer<BackendReducerImpl>::value_type &v) {
+  r.combine(v);
+}
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_xor)>
+void operator^=(reducer<BackendReducerImpl> &r,
+                const typename reducer<BackendReducerImpl>::value_type &v) {
+  r.combine(v);
+}
+
+template <class BackendReducerImpl,
+          HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
+void operator++(reducer<BackendReducerImpl> &r) {
+  r.combine(1);
 }
 
 
@@ -95,6 +187,7 @@ __unspecified__ reduction(span<T, Extent> vars, BinaryOperation combiner);
 template <typename T, typename Extent, typename BinaryOperation>
 __unspecified__ reduction(span<T, Extent> vars, const T& identity, BinaryOperation combiner);
 */
+
 
 }
 } // namespace hipsycl

@@ -187,18 +187,35 @@ public:
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
             int dimensions, typename... Reductions>
   void parallel_reduce(range<dimensions> numWorkItems, Reductions... reductions,
-                       const KernelType &kernelFunc) {}
+                       const KernelType &kernelFunc) {
+    
+    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+        sycl::id<dimensions>{}, numWorkItems,
+        numWorkItems /* local range is ignored for basic parallel for*/,
+        kernelFunc, reductions...);
+  }
 
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
             int dimensions, typename... Reductions>
   void parallel_reduce(range<dimensions> numWorkItems,
                        id<dimensions> workItemOffset, Reductions... reductions,
-                       const KernelType &kernelFunc) {}
+                       const KernelType &kernelFunc) {
+    
+    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+        workItemOffset, numWorkItems,
+        numWorkItems /* local range is ignored for basic parallel for*/,
+        kernelFunc, reductions...);
+  }
 
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
             int dimensions, typename... Reductions>
   void parallel_reduce(nd_range<dimensions> executionRange,
-                       Reductions... reductions, const KernelType &kernelFunc) {}
+                       Reductions... reductions, const KernelType &kernelFunc) {
+                         
+    this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
+        executionRange.get_offset(), executionRange.get_global_range(),
+        executionRange.get_local_range(), kernelFunc, reductions...);
+  }
 
   // Scoped parallelism API
   
@@ -511,10 +528,12 @@ private:
     return _execution_hints.get_hint<rt::hints::bind_to_device>()
         ->get_device_id();
   }
-  template <
-    class KernelName, rt::kernel_type KernelType, class KernelFuncType, int Dim>
+
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim, typename... Reductions>
   void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
-                     sycl::range<Dim> local_range, KernelFuncType f) {
+                     sycl::range<Dim> local_range, KernelFuncType f,
+                     Reductions... reductions) {
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
     rt::dag_build_guard build{rt::application::dag()};
@@ -522,9 +541,8 @@ private:
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
         glue::make_kernel_launchers<KernelName, KernelType>(
-            offset, local_range, 
-            global_range,
-            shared_mem_size, f),
+            offset, local_range, global_range, shared_mem_size, f,
+            reductions...),
         _requirements);
     
     rt::dag_node_ptr node = build.builder()->add_kernel(
@@ -532,7 +550,6 @@ private:
     
     _command_group_nodes.push_back(node);
   }
-
 
   template<class T>
   void* extract_ptr(std::shared_ptr<T> ptr)

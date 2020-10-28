@@ -47,7 +47,7 @@ public:
   fill_kernel(sycl::accessor<T, Dim, Mode, Tgt> dest, const T &src)
       : _dest{dest}, _src{src} {}
 
-  void operator()(sycl::id<Dim> tid) { _dest[tid] = _src; }
+  void operator()(sycl::id<Dim> tid) const { _dest[tid] = _src; }
 
 private:
   sycl::accessor<T, Dim, Mode, Tgt> _dest;
@@ -60,7 +60,7 @@ public:
   fill_kernel_usm(T* ptr, T value)
       : _dest{ptr}, _src{value} {}
 
-  void operator()(sycl::id<1> tid) { _dest[tid[0]] = _src; }
+  void operator()(sycl::id<1> tid) const { _dest[tid[0]] = _src; }
 
 private:
   T* _dest;

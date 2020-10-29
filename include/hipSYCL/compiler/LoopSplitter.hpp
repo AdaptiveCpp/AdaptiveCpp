@@ -44,7 +44,7 @@ namespace compiler {
  */
 class SplitterAnnotationAnalysisLegacy : public llvm::FunctionPass {
   llvm::Optional<llvm::SmallPtrSet<llvm::Function *, 2>> splitterFuncs_;
-  static constexpr char *SplitterAnnotation = "hipsycl_splitter";
+  static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
 
 public:
   static char ID;

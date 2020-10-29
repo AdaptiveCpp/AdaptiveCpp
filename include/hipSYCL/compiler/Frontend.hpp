@@ -68,15 +68,20 @@ namespace detail {
 
 ///
 /// Utility type to generate the set of all function declarations
-/// implictly or explictly reachable from some initial declaration.
+/// implicitly or explicitly reachable from some initial declaration.
 ///
 class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
   public:
     using FunctionSet = std::unordered_set<clang::FunctionDecl*>;
 
-    CompleteCallSet(clang::Decl* D)
+    explicit CompleteCallSet(clang::Decl* D)
     {
       TraverseDecl(D);
+    }
+
+    explicit CompleteCallSet(clang::Stmt* S)
+    {
+      TraverseStmt(S);
     }
 
     bool VisitFunctionDecl(clang::FunctionDecl* FD)
@@ -121,7 +126,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
       if(FD){
         const clang::FunctionDecl* ActualDefinition;
         if(FD->isDefined(ActualDefinition)) {
-          
+
           DefinitionDecl = const_cast<clang::FunctionDecl*>(ActualDefinition);
         }
       }
@@ -130,7 +135,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
               DefinitionDecl)) == visitedDecls.end())
         return clang::RecursiveASTVisitor<CompleteCallSet>::TraverseDecl(
             DefinitionDecl);
-      
+
       return true;
     }
 
@@ -174,7 +179,7 @@ inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA, clang:
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
-  
+
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
       : Instance{instance},
@@ -188,7 +193,7 @@ public:
 #endif
   {
 #ifdef _WIN32
-    // necessary, to rely on device mangling. API introduced in 
+    // necessary, to rely on device mangling. API introduced in
     // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
     KernelNameMangler->setDeviceMangleContext(
       Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
@@ -204,9 +209,23 @@ public:
   /// Return whether this visitor should recurse into implicit
   /// code, e.g., implicit constructors and destructors.
   bool shouldVisitImplicitCode() const { return true; }
-  
+
   // We also need to have look at all statements to identify Lambda declarations
   bool VisitStmt(clang::Stmt *S) {
+
+    if(clang::isa<clang::OMPParallelDirective>(S))
+    { // todo: maybe check, that we really are in hipsycl kernel?
+      detail::CompleteCallSet CCS(S);
+      for(auto &F : CCS.getReachableDecls())
+      {
+        if (!clang::isNoexceptExceptionSpec(F->getExceptionSpecType()))
+        {
+          HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: "
+                             << F->getQualifiedNameAsString() << std::endl;
+          F->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
+        }
+      }
+    }
 
     if(clang::isa<clang::LambdaExpr>(S))
     {
@@ -215,10 +234,10 @@ public:
       if(callOp)
         this->VisitFunctionDecl(callOp);
     }
-    
+
     return true;
   }
-  
+
   bool VisitDecl(clang::Decl* D){
     if(clang::VarDecl* V = clang::dyn_cast<clang::VarDecl>(D)){
       if(isLocalMemory(V))
@@ -231,7 +250,7 @@ public:
   bool VisitFunctionDecl(clang::FunctionDecl *f) {
     if(!f)
       return true;
-    
+
     this->processFunctionDecl(f);
 
     return true;
@@ -286,7 +305,7 @@ public:
           // lambda numbering across host and device passes
 #if LLVM_VERSION_MAJOR < 10
           const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-          
+
           if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
                KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
           {
@@ -305,7 +324,7 @@ public:
     }
 
     bool ForceCustomNameMangling = LLVM_VERSION_MAJOR >= 11;
-    
+
     if (NameRequired || ForceCustomNameMangling)
     {
       std::string KernelName;
@@ -371,15 +390,13 @@ public:
           CustomAttributes::SyclKernel.isAttachedTo(F)) {
 
         auto* NewAttr = clang::CUDAGlobalAttr::CreateImplicit(Instance.getASTContext());
-        
+
         F->addAttr(NewAttr);
       }
     }
 
     for(auto F : UserKernels)
     {
-      std::unordered_set<clang::FunctionDecl*> UserKernels;
-
       // Mark all functions called by user kernels as host / device.
       detail::CompleteCallSet CCS(F);
       for (auto&& RD : CCS.getReachableDecls())
@@ -426,11 +443,12 @@ private:
     if(!f)
       return;
 
-    if(f->getQualifiedNameAsString() 
+    if(f->getQualifiedNameAsString()
         == "hipsycl::glue::hiplike_dispatch::parallel_for_workgroup")
     {
-      clang::FunctionDecl* Kernel = f;
-      
+      clang::FunctionDecl* Kernel =
+        f;
+
       HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
                         << Kernel->getQualifiedNameAsString() << std::endl;
 
@@ -453,12 +471,14 @@ private:
           }
         }
       }
-    
+
     }
-  
-    
+
+
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
-      markAsKernel(f); 
+
+      markAsKernel(f);
+
     }
   }
 
@@ -468,7 +488,7 @@ private:
     const clang::CXXRecordDecl* R = V->getType()->getAsCXXRecordDecl();
     if(R)
       return R->getQualifiedNameAsString() == "hipsycl::sycl::private_memory";
-  
+
     return false;
   }
 
@@ -477,7 +497,7 @@ private:
     const clang::CXXRecordDecl* R = V->getType()->getAsCXXRecordDecl();
     if(R)
       return R->getQualifiedNameAsString() == "hipsycl::sycl::local_memory";
-  
+
     return false;
   }
 
@@ -511,7 +531,7 @@ private:
       }
     }
   }
-  
+
   void storeVariableInLocalMemory(clang::VarDecl* V) const {
     HIPSYCL_DEBUG_INFO
                   << "AST Processing: Marking variable "
@@ -532,10 +552,10 @@ private:
 
 
 class FrontendASTConsumer : public clang::ASTConsumer {
-  
+
   FrontendASTVisitor Visitor;
   clang::CompilerInstance& Instance;
-  
+
 public:
   FrontendASTConsumer(clang::CompilerInstance &I)
       : Visitor{I}, Instance{I}
@@ -550,7 +570,7 @@ public:
   }
 
   void HandleTranslationUnit(clang::ASTContext& context) override {
-    
+
     CompilationStateManager::getASTPassState().setDeviceCompilation(
         Instance.getSema().getLangOpts().CUDAIsDevice);
 
@@ -591,7 +611,7 @@ public:
     {
       clang::MultiplexConsumer& MC = static_cast<clang::MultiplexConsumer&>(C);
       if(CompilationStateManager::getASTPassState().isDeviceCompilation()){
-      
+
         for (clang::FunctionDecl *HDFunction :
             Visitor.getMarkedHostDeviceFunctions()) {
           clang::DeclGroupRef DG{HDFunction};

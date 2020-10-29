@@ -235,10 +235,9 @@ inline void parallel_for_ndrange_kernel(
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    std::function<void()> barrier_impl = [] {
+    std::function<void()> barrier_impl = [] () noexcept {
       assert(false && "splitting seems to have failed");
-      throw sycl::nd_range_error{
-          "Reached barrier, but should have been removed from the compiler!"};
+      std::terminate();
     };
 
 //    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {

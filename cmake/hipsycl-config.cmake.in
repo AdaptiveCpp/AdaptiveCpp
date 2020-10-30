@@ -48,40 +48,66 @@ if(HIPSYCL_ROCM_BACKEND_AVAILABLE)
   endif()
 endif()
 
+set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to syclcc.")
+
+set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS}" CACHE STRING "The platforms and architectures hipSYCL should target, in the format <platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>] where platforms are one of ${HIPSYCL_PLATFORMS_STRING}.")
+# IF HIPSYCL_TARGETS has not been explicitly set by the user, first tro to find the corresponding environment variable.
+# If found, takes precedence over deprecated HIPSYCL_PLATFORM and HIPSYCL_GPU_ARCH
+# IF not found, fallback to deprecated HIPSYCL_PLATFORM and HIPSYCL_GPU_ARCH logic
+if(NOT HIPSYCL_TARGETS)
+  set(HIPYSCL_TARGETS_ENV $ENV{HIPSYCL_TARGETS})
+  if(HIPSYCL_TARGETS_ENV)
+    message("Found HIPYSCL_TARGETS from environment: ${HIPSYCL_TARGETS_ENV}")
+    set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS_ENV}")
+  endif()
+endif()
+if(HIPSYCL_TARGETS)
+  # Canonicalize all targets
+  set (HIPSYCL_TARGETS_CANONICAL "${HIPSYCL_TARGETS}")
+  string(REGEX REPLACE "cpu|host|hipcpu|openmp|omp" "omp" HIPSYCL_TARGETS_CANONICAL "${HIPSYCL_TARGETS_CANONICAL}")
+  string(REGEX REPLACE "cuda|nvidia" "cuda" HIPSYCL_TARGETS_CANONICAL "${HIPSYCL_TARGETS_CANONICAL}")
+  string(REGEX REPLACE "rocm|amd|hip|hcc" "hip" HIPSYCL_TARGETS_CANONICAL "${HIPSYCL_TARGETS_CANONICAL}")
+  set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-targets=\"${HIPSYCL_TARGETS_CANONICAL}\"")
+endif()
+
 set(HIPSYCL_PLATFORM "${HIPSYCL_PLATFORM}" CACHE STRING "The platform that hipSYCL should target. One of ${HIPSYCL_PLATFORMS_STRING}.")
 
 # If HIPSYCL_PLATFORM has not been explicitly set by the user, first try to find
 # the corresponding environment variable. If that isn't set either, and only
 # a single platform is available, default to it. Otherwise throw an error.
-if(NOT HIPSYCL_PLATFORM)
-  set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
-  if(HIPSYCL_PLATFORM_ENV)
-    message("Found HIPSYCL_PLATFORM from environment: ${HIPSYCL_PLATFORM_ENV}")
-    set(HIPSYCL_DEFAULT_PLATFORM ${HIPSYCL_PLATFORM_ENV})
-  elseif(HIPSYCL_NUM_AVAILABLE_BACKENDS GREATER 1)
-    message(SEND_ERROR "More than one hipSYCL target platform is available.\n"
-      "Please specify HIPSYCL_PLATFORM=${HIPSYCL_PLATFORMS_STRING}")
-  endif()
-  set(HIPSYCL_PLATFORM ${HIPSYCL_DEFAULT_PLATFORM})
-  unset(HIPSYCL_PLATFORM_ENV)
-endif()
-
-# Determine canonical platform from aliases
-if(HIPSYCL_PLATFORM MATCHES "cpu|host|hipcpu")
-  set(HIPSYCL_PLATFORM_CANONICAL "cpu")
-elseif(HIPSYCL_PLATFORM MATCHES "cuda|nvidia")
-  set(HIPSYCL_PLATFORM_CANONICAL "cuda")
-elseif(HIPSYCL_PLATFORM MATCHES "rocm|amd|hip|hcc")
-  set(HIPSYCL_PLATFORM_CANONICAL "rocm")
+if(HIPSYCL_TARGETS AND HIPSYCL_PLATFORM)
+  message("Both HIPSYCL_TARGETS=${HIPSYCL_TARGETS} and (deprecated) HIPSYCL_PLATFORM=${HIPSYCL_PLATFORM} set, using HIPSYCL_TARGETS.")
 else()
-  message(SEND_ERROR "Unknown hipSYCL platform '${HIPSYCL_PLATFORM}'")
+  if(NOT HIPSYCL_PLATFORM)
+    set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
+    if(HIPSYCL_PLATFORM_ENV)
+      message("Found HIPSYCL_PLATFORM from environment: ${HIPSYCL_PLATFORM_ENV}")
+      set(HIPSYCL_DEFAULT_PLATFORM ${HIPSYCL_PLATFORM_ENV})
+    elseif(HIPSYCL_NUM_AVAILABLE_BACKENDS GREATER 1)
+      message(SEND_ERROR "More than one hipSYCL target platform is available.\n"
+        "Please specify HIPSYCL_PLATFORM=${HIPSYCL_PLATFORMS_STRING}")
+    endif()
+    set(HIPSYCL_PLATFORM ${HIPSYCL_DEFAULT_PLATFORM})
+    unset(HIPSYCL_PLATFORM_ENV)
+  endif()
+
+  # Determine canonical platform from aliases
+  if(HIPSYCL_PLATFORM MATCHES "cpu|host|hipcpu")
+    set(HIPSYCL_PLATFORM_CANONICAL "cpu")
+  elseif(HIPSYCL_PLATFORM MATCHES "cuda|nvidia")
+    set(HIPSYCL_PLATFORM_CANONICAL "cuda")
+  elseif(HIPSYCL_PLATFORM MATCHES "rocm|amd|hip|hcc")
+    set(HIPSYCL_PLATFORM_CANONICAL "rocm")
+  else()
+    message(SEND_ERROR "Unknown hipSYCL platform '${HIPSYCL_PLATFORM}'")
+  endif()
+
+  unset(HIPSYCL_PLATFORMS_STRING)
+  unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
+  unset(HIPSYCL_DEFAULT_PLATFORM)
+
+  set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-platform=${HIPSYCL_PLATFORM}")
 endif()
-
-unset(HIPSYCL_PLATFORMS_STRING)
-unset(HIPSYCL_NUM_AVAILABLE_BACKENDS)
-unset(HIPSYCL_DEFAULT_PLATFORM)
-
-set(HIPSYCL_SYCLCC_EXTRA_ARGS "--hipsycl-platform=${HIPSYCL_PLATFORM}")
 
 set(HIPSYCL_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")
 if(HIPSYCL_CLANG)
@@ -90,7 +116,7 @@ endif()
 
 set(HIPSYCL_CUDA_PATH "" CACHE STRING "The path to the CUDA toolkit installation directory.")
 if(HIPSYCL_CUDA_PATH)
-  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda")
+  if((HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda") OR (HIPSYCL_TARGETS_CANONICAL MATCHES "cuda"))
     set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-cuda-path=${HIPSYCL_CUDA_PATH}")
   else()
     message(WARNING "HIPSYCL_CUDA_PATH (${HIPSYCL_CUDA_PATH}) is ignored for current platform (${HIPSYCL_PLATFORM})")
@@ -99,7 +125,7 @@ endif()
 
 set(HIPSYCL_ROCM_PATH "" CACHE STRING "The path to the ROCm installation directory.")
 if(HIPSYCL_ROCM_PATH)
-  if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm")
+  if((HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm") OR (HIPSYCL_TARGETS_CANONICAL MATCHES "rocm"))
     set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-rocm-path=${HIPSYCL_ROCM_PATH}")
   else()
     message(WARNING "HIPSYCL_ROCM_PATH (${HIPSYCL_ROCM_PATH}) is ignored for current platform (${HIPSYCL_PLATFORM})")
@@ -107,7 +133,7 @@ if(HIPSYCL_ROCM_PATH)
 endif()
 
 set(HIPSYCL_GPU_ARCH "" CACHE STRING "GPU architecture used by ROCm / CUDA.")
-if(HIPSYCL_GPU_ARCH)
+if(HIPSYCL_GPU_ARCH AND NOT HIPSYCL_TARGETS)
   if(HIPSYCL_PLATFORM_CANONICAL STREQUAL "cuda" OR HIPSYCL_PLATFORM_CANONICAL STREQUAL "rocm")
     set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-gpu-arch=${HIPSYCL_GPU_ARCH}")
   else()

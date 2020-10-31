@@ -197,43 +197,132 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
     HIPSYCL_DEBUG_INFO << "Not work-item loop!" << std::endl;
     return false;
   }
-  llvm::Loop *IL = L;
-
   auto &LIW = getAnalysis<llvm::LoopInfoWrapperPass>();
   auto &DTW = getAnalysis<llvm::DominatorTreeWrapperPass>();
-  //  auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
+  auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>();
 
+  llvm::Function *F = L->getBlocks()[0]->getParent();
+
+  llvm::AssumptionCache AC(*F);
+
   llvm::SmallPtrSet<llvm::Function *, 8> splitterCallers;
-  if (!FillTransitiveSplitterCallers(*IL, SAA, splitterCallers)) {
+  if (!FillTransitiveSplitterCallers(*L, SAA, splitterCallers)) {
     HIPSYCL_DEBUG_INFO << "Transitively no splitter found." << std::endl;
     return false;
   }
 
-  bool changed = InlineCallsInLoop(IL, splitterCallers, SAA, LIW, DTW);
+  bool changed = InlineCallsInLoop(L, splitterCallers, SAA, LIW, DTW);
 
   llvm::SmallVector<llvm::CallBase *, 8> barriers;
-  FindAllSplitterCalls(*IL, SAA, barriers);
+  FindAllSplitterCalls(*L, SAA, barriers);
 
   if (barriers.empty()) {
     HIPSYCL_DEBUG_INFO << "No splitter found." << std::endl;
     return changed;
   }
-  barriers[0]->getParent()->getParent()->print(llvm::errs());
-  barriers[0]->getParent()->getParent()->viewCFG();
 
+  std::size_t bC = 0;
+  llvm::LoopInfo &LI = LIW.getLoopInfo();
+  llvm::DominatorTree &DT = DTW.getDomTree();
   for (auto *barrier : barriers) {
     changed = true;
-    HIPSYCL_DEBUG_INFO << "Found barrier at " << barrier->getCalledFunction()->getName() << std::endl;
+    HIPSYCL_DEBUG_INFO << "Found splitter at " << barrier->getCalledFunction()->getName() << std::endl;
 
-    // todo: split loop at instruction.
+    HIPSYCL_DEBUG_INFO << "Found header: " << L->getHeader() << std::endl;
+    HIPSYCL_DEBUG_INFO << "Found pre-header: " << L->getLoopPreheader() << std::endl;
+    HIPSYCL_DEBUG_INFO << "Found exit block: " << L->getExitBlock() << std::endl;
+
+    auto *oldBlock = barrier->getParent();
+    if (LI.getLoopFor(oldBlock) != L) {
+      HIPSYCL_DEBUG_ERROR << "Barrier must be directly in item loop for now." << std::endl;
+      continue;
+    }
+
+    llvm::Loop *parentLoop = L->getParentLoop();
+    llvm::BasicBlock *header = L->getHeader();
+    llvm::BasicBlock *preHeader = L->getLoopPreheader();
+    llvm::BasicBlock *exitBlock = L->getExitBlock();
+    llvm::BasicBlock *latch = L->getLoopLatch();
+
+    llvm::Loop &newLoop = *LI.AllocateLoop();
+    parentLoop->addChildLoop(&newLoop);
+    LPM.addLoop(newLoop);
+
+    llvm::ValueToValueMapTy vMap;
+    vMap[preHeader] = header;
+
+    llvm::ClonedCodeInfo clonedCodeInfo;
+    auto *newHeader =
+        llvm::CloneBasicBlock(header, vMap, llvm::Twine("split") + llvm::Twine(bC), F, &clonedCodeInfo, nullptr);
+    vMap[header] = newHeader;
+    newLoop.addBlockEntry(newHeader);
+    newLoop.moveToHeader(newHeader);
+
+    auto *newLatch =
+        llvm::CloneBasicBlock(latch, vMap, llvm::Twine("split") + llvm::Twine(bC), F, &clonedCodeInfo, nullptr);
+    vMap[latch] = newLatch;
+    newLoop.addBlockEntry(newLatch);
+
+    auto *newBlock = llvm::SplitBlock(oldBlock, barrier, &DT, &LI);
+    L->removeBlockFromLoop(newBlock);
+    newLoop.addBlockEntry(newBlock);
+    barrier->eraseFromParent();
+
+    // connect new loop
+    newHeader->getTerminator()->setSuccessor(0, newBlock);
+    newHeader->getTerminator()->setSuccessor(1, exitBlock);
+
+    llvm::SmallVector<llvm::BasicBlock *, 2> preds{llvm::pred_begin(latch), llvm::pred_end(latch)};
+    for (auto *pred : preds) {
+      std::size_t succIdx = 0;
+      for (auto *succ : llvm::successors(pred)) {
+        if (succ == latch)
+          break;
+        ++succIdx;
+      }
+      pred->getTerminator()->setSuccessor(succIdx, newLatch);
+    }
+
+    newLatch->getTerminator()->setSuccessor(0, newHeader);
+
+    // fix old loop
+    header->getTerminator()->setSuccessor(1, newHeader);
+    oldBlock->getTerminator()->setSuccessor(0, latch);
+
+    for (auto *subLoop : L->getSubLoops()) {
+      auto *newParent = LI.getLoopFor(subLoop->getLoopPreheader());
+      if (newParent != L) {
+        HIPSYCL_DEBUG_INFO << "new parent for subloop: " << newParent << std::endl;
+        L->removeChildLoop(subLoop);
+        newParent->addChildLoop(subLoop);
+      }
+    }
+
+    llvm::SmallVector<llvm::BasicBlock *, 8> bbToRemap{newLoop.block_begin(), newLoop.block_end()};
+    llvm::remapInstructionsInBlocks(bbToRemap, vMap);
+
+    for (auto *block : L->getParentLoop()->blocks()) {
+      if (!block->getParent())
+        block->print(llvm::errs());
+    }
+
+    L = UpdateDTAndLI(LIW, DTW, L->getHeader(), *L->getHeader()->getParent());
+
+    HIPSYCL_DEBUG_INFO << "new exit block: " << LIW.getLoopInfo().getLoopFor(newBlock)->getExitBlock() << std::endl;
+    HIPSYCL_DEBUG_INFO << "old exit block: " << L->getExitBlock() << std::endl;
+
+    llvm::simplifyLoop(L->getParentLoop(), &DTW.getDomTree(), &LIW.getLoopInfo(), &SE, &AC, nullptr, false);
   }
-
   return changed;
 }
 
 void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-  llvm::getLoopAnalysisUsage(AU);
+  AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
+  AU.addRequired<llvm::LoopInfoWrapperPass>();
+  AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  AU.addRequired<llvm::DominatorTreeWrapperPass>();
+  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
 
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();

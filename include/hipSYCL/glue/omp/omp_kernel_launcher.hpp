@@ -269,26 +269,29 @@ inline void parallel_for_workgroup(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_kernel_invocation([&, f](auto&& ... sequential_reducers){
+  reducible_kernel_invocation(
+      [&, f, num_groups, local_size](auto &&... sequential_reducers) {
 #pragma omp parallel
-    {
-      sycl::detail::host_local_memory::request_from_threadprivate_pool(
-          num_local_mem_bytes);
+        {
+          sycl::detail::host_local_memory::request_from_threadprivate_pool(
+              num_local_mem_bytes);
 
-      iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
-        sycl::group<Dim> this_group{group_id, local_size, num_groups};
-        f(this_group, omp_reducer{sequential_reducers}...);
-      });
-  
-      sycl::detail::host_local_memory::release();
-    }
-  }, reductions...);
+          iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
+            sycl::group<Dim> this_group{group_id, local_size, num_groups};
+            f(this_group, omp_reducer{sequential_reducers}...);
+          });
+
+          sycl::detail::host_local_memory::release();
+        }
+      },
+      reductions...);
 }
 
 
 template <class Function, int dimensions, typename... Reductions>
-inline void parallel_region(Function f, sycl::range<dimensions> num_groups,
-                            sycl::range<dimensions> group_size,
+inline void parallel_region(Function f,
+                            const sycl::range<dimensions> num_groups,
+                            const sycl::range<dimensions> group_size,
                             std::size_t num_local_mem_bytes,
                             Reductions... reductions)
 {
@@ -296,7 +299,7 @@ inline void parallel_region(Function f, sycl::range<dimensions> num_groups,
                 "Only dimensions 1,2,3 are supported");
 
   reducible_kernel_invocation(
-      [&, f](auto &&... sequential_reducers) {
+      [&, f, num_groups, group_size](auto &&... sequential_reducers) {
 #pragma omp parallel
         {
           sycl::detail::host_local_memory::request_from_threadprivate_pool(

@@ -77,7 +77,7 @@ set(HIPSYCL_PLATFORM "${HIPSYCL_PLATFORM}" CACHE STRING "The platform that hipSY
 # a single platform is available, default to it. Otherwise throw an error.
 if(HIPSYCL_TARGETS AND HIPSYCL_PLATFORM)
   message("Both HIPSYCL_TARGETS=${HIPSYCL_TARGETS} and (deprecated) HIPSYCL_PLATFORM=${HIPSYCL_PLATFORM} set, using HIPSYCL_TARGETS.")
-else()
+elseif(NOT HIPSYCL_TARGETS)
   if(NOT HIPSYCL_PLATFORM)
     set(HIPSYCL_PLATFORM_ENV $ENV{HIPSYCL_PLATFORM})
     if(HIPSYCL_PLATFORM_ENV)

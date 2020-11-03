@@ -42,6 +42,10 @@ struct pointer_reduction_descriptor {
   using value_type = T;
   using combiner_type = BinaryOperation;
 
+  pointer_reduction_descriptor(value_type *output_data, value_type op_identity,
+                               BinaryOperation op)
+      : data{output_data}, identity{op_identity}, combiner{op} {}
+
   value_type* data;
   value_type identity;
   BinaryOperation combiner;
@@ -55,6 +59,10 @@ template <class AccessorT, typename BinaryOperation>
 struct accessor_reduction_descriptor {
   using value_type = typename AccessorT::value_type;
   using combiner_type = BinaryOperation;
+
+  accessor_reduction_descriptor(AccessorT output_data, value_type op_identity,
+                                BinaryOperation op)
+      : acc{output_data}, identity{op_identity}, combiner{op} {}
 
   AccessorT acc;
   value_type identity;

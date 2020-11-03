@@ -56,27 +56,29 @@ template <class T> struct cache_line_aligned {
 template<class ReductionDescriptor>
 class sequential_reducer {
 public:
-  sequential_reducer(int num_threads, ReductionDescriptor &desc)
-      : _desc{desc}, _per_thread_results(num_threads, identity())
-  {}
-
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
+
+  sequential_reducer(int num_threads, ReductionDescriptor &desc)
+      : _desc{desc},
+        _per_thread_results(num_threads,
+                            cache_line_aligned<value_type>{identity()}) {}
 
   value_type identity() const { return _desc.identity; }
 
   void combine(int my_thread_id, const value_type& v) {
-    _per_thread_results[my_thread_id] =
-        _desc.combiner(_per_thread_results[my_thread_id], v);
+    _per_thread_results[my_thread_id].value =
+        _desc.combiner(_per_thread_results[my_thread_id].value, v);
   }
 
   // This should be executed in a single threaded scope.
   // Sums up all the partial results and stores in the result data buffer
   void finalize_result() {
     for (std::size_t i = 1; i < _per_thread_results.size(); ++i) {
-      combine(0, _per_thread_results[i]);
+      _per_thread_results[0].value = _desc.combiner(
+          _per_thread_results[0].value, _per_thread_results[i].value);
     }
-    *(_desc.data) = _per_thread_results[0];
+    *(_desc.get_pointer()) = _per_thread_results[0].value;
   }
 private:
   ReductionDescriptor &_desc;

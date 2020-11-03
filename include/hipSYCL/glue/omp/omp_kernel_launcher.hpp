@@ -173,6 +173,11 @@ void single_task_kernel(Function f) noexcept
   f();
 }
 
+template<class F, typename... Args>
+void invoke(F&& f, Args... args) {
+  f(args...);
+}
+
 template <int Dim, class Function, typename... Reductions>
 inline void parallel_for_kernel(Function f,
                                 const sycl::range<Dim> execution_range,
@@ -187,7 +192,7 @@ inline void parallel_for_kernel(Function f,
         auto this_item = 
           sycl::detail::make_item<Dim>(idx, execution_range);
 
-        f(this_item, omp_reducer{sequential_reducers}...);
+        invoke(f, this_item, omp_reducer{sequential_reducers}...);
       });
     }
   }, reductions...);
@@ -207,7 +212,7 @@ inline void parallel_for_kernel_offset(Function f,
         auto this_item = 
           sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
-        f(this_item, omp_reducer{sequential_reducers}...);
+        invoke(f, this_item, omp_reducer{sequential_reducers}...);
       });
     }
   }, reductions...);
@@ -251,7 +256,7 @@ inline void parallel_for_ndrange_kernel(
         sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
                                     local_size, num_groups, &barrier_impl};
 
-        f(this_item, omp_reducer{sequential_reducers}...);
+        invoke(f, this_item, omp_reducer{sequential_reducers}...);
       });
 
       sycl::detail::host_local_memory::release();
@@ -278,7 +283,7 @@ inline void parallel_for_workgroup(Function f,
 
           iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
             sycl::group<Dim> this_group{group_id, local_size, num_groups};
-            f(this_group, omp_reducer{sequential_reducers}...);
+            invoke(f, this_group, omp_reducer{sequential_reducers}...);
           });
 
           sycl::detail::host_local_memory::release();
@@ -312,7 +317,7 @@ inline void parallel_region(Function f,
             auto phys_item = sycl::detail::make_sp_item(
                 sycl::id<dimensions>{}, group_id, group_size, num_groups);
 
-            f(this_group, phys_item, omp_reducer{sequential_reducers}...);
+            invoke(f, this_group, phys_item, omp_reducer{sequential_reducers}...);
           });
 
           sycl::detail::host_local_memory::release();
@@ -385,9 +390,9 @@ public:
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
         
         if(!is_with_offset) {
-          omp_dispatch::parallel_for_kernel(k, global_range);
+          omp_dispatch::parallel_for_kernel(k, global_range, reductions...);
         } else {
-          omp_dispatch::parallel_for_kernel_offset(k, global_range, offset);
+          omp_dispatch::parallel_for_kernel_offset(k, global_range, offset, reductions...);
         }
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {

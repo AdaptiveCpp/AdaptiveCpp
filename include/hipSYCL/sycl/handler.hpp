@@ -184,37 +184,38 @@ public:
 
   // Reductions
 
+  // TODO: Only single reduction for now
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int dimensions, typename... Reductions>
-  void parallel_reduce(range<dimensions> numWorkItems, Reductions... reductions,
+            int dimensions, /*typename... Reductions*/ typename Reduction>
+  void parallel_reduce(range<dimensions> numWorkItems, Reduction red,
                        const KernelType &kernelFunc) {
     
     this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
         sycl::id<dimensions>{}, numWorkItems,
         numWorkItems /* local range is ignored for basic parallel for*/,
-        kernelFunc, reductions...);
+        kernelFunc, red);
   }
 
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int dimensions, typename... Reductions>
+            int dimensions, /*typename... Reductions*/ typename Reduction>
   void parallel_reduce(range<dimensions> numWorkItems,
-                       id<dimensions> workItemOffset, Reductions... reductions,
+                       id<dimensions> workItemOffset, Reduction red,
                        const KernelType &kernelFunc) {
     
     this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
         workItemOffset, numWorkItems,
         numWorkItems /* local range is ignored for basic parallel for*/,
-        kernelFunc, reductions...);
+        kernelFunc, red);
   }
 
   template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int dimensions, typename... Reductions>
+            int dimensions, /*typename... Reductions*/ typename Reduction>
   void parallel_reduce(nd_range<dimensions> executionRange,
-                       Reductions... reductions, const KernelType &kernelFunc) {
+                       Reduction red, const KernelType &kernelFunc) {
                          
     this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
         executionRange.get_offset(), executionRange.get_global_range(),
-        executionRange.get_local_range(), kernelFunc, reductions...);
+        executionRange.get_local_range(), kernelFunc, red);
   }
 
   // Scoped parallelism API

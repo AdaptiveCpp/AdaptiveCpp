@@ -43,6 +43,7 @@
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 
 #include "clang.hpp"
+#include "hiplike_reducer.hpp"
 
 
 namespace hipsycl {
@@ -98,10 +99,12 @@ __sycl_kernel void single_task_kernel(Function f)
   device_invocation(f);
 }
 
-template <typename KernelName, class Function, int dimensions>
+template <typename KernelName, class Function, int dimensions,
+          typename... Reductions>
 __sycl_kernel void
 parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
-                    sycl::id<dimensions> offset, bool with_offset) {
+                    sycl::id<dimensions> offset, bool with_offset,
+                    Reductions... reductions) {
   // Note: We currently cannot have with_offset as template parameter
   // because this might cause clang to emit two kernels with the same
   // mangled name (variants with and without offset) if an explicit kernel

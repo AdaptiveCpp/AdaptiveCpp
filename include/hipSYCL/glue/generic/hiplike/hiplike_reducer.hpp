@@ -25,69 +25,58 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_GLUE_HOST_SEQUENTIAL_REDUCER_HPP
-#define HIPSYCL_GLUE_HOST_SEQUENTIAL_REDUCER_HPP
-
-#include <new>
-#include <vector>
+#ifndef HIPSYCL_GLUE_HIPLIKE_REDUCER_HPP
+#define HIPSYCL_GLUE_HIPLIKE_REDUCER_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/reduction.hpp"
 
 namespace hipsycl {
 namespace glue {
-namespace host {
-
-#ifndef HIPSYCL_FORCE_CACHE_LINE_SIZE
-#define HIPSYCL_FORCE_CACHE_LINE_SIZE 128
-#endif
-
-#ifdef HIPSYCL_FORCE_CACHE_LINE_SIZE
-constexpr std::size_t cache_line_size = HIPSYCL_FORCE_CACHE_LINE_SIZE;
-#else
-// This C++17 feature is unfortunately not yet widely supported
-constexpr std::size_t cache_line_size =
-    std::hardware_destructive_interference_size;
-#endif
-
-template <class T> struct cache_line_aligned {
-  alignas(cache_line_size) T value;
-};
+namespace hiplike {
 
 template<class ReductionDescriptor>
-class sequential_reducer {
-public:
+class local_reducer {
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
 
-  sequential_reducer(int num_threads, ReductionDescriptor &desc)
-      : _desc{desc},
-        _per_thread_results(num_threads,
-                            cache_line_aligned<value_type>{identity()}) {}
+  __host__ __device__ local_reducer(ReductionDescriptor &desc, int my_lid,
+                                    value_type *local_memory,
+                                    value_type *local_output)
+      : _desc{desc}, _my_lid{my_lid}, _my_value{identity()},
+        _local_memory{local_memory}, _local_output{local_output} {}
 
+  __host__ __device__
   value_type identity() const { return _desc.identity; }
 
-  void combine(int my_thread_id, const value_type& v) {
-    _per_thread_results[my_thread_id].value =
-        _desc.combiner(_per_thread_results[my_thread_id].value, v);
+  __host__ __device__
+  void combine(const value_type& v) {
+    _my_value = _desc.combiner(_my_value, v);
   }
 
-  // This should be executed in a single threaded scope.
-  // Sums up all the partial results and stores in the result data buffer
+  __host__ __device__
   void finalize_result() {
-    for (std::size_t i = 1; i < _per_thread_results.size(); ++i) {
-      _per_thread_results[0].value = _desc.combiner(
-          _per_thread_results[0].value, _per_thread_results[i].value);
+    _local_memory[_my_lid] = _my_value;
+    // TODO Optimize this - may be able to share
+    // code with group algorithms
+    // TODO What if local size is not power of two?
+#ifdef SYCL_DEVICE_ONLY
+    __syncthreads();
+    for(int i = local_size/2; i > 0; i /= 2) {
+      if(_my_lid < i)
+        _local_memory[_my_lid] = _local_memory[_my_lid + i];
+      __syncthreads();
     }
-    *(_desc.get_pointer()) = _per_thread_results[0].value;
+#endif
+    if(_my_lid == 0)
+      _local_output = _local_memory[0];
   }
+
 private:
   ReductionDescriptor &_desc;
-  // TODO: new does not necessarily respect over-aligned alignas requirements.
-  // Depending on the value of std::max_align_t and cache_line_size,
-  // alignment may be off and not match cache lines.
-  std::vector<cache_line_aligned<value_type>> _per_thread_results;
-
+  const int _my_lid;
+  value_type _my_value;
+  value_type* _local_memory;
+  value_type* _local_output;
 };
 
 }

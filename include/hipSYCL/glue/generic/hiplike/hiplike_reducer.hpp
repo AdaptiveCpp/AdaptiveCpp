@@ -39,7 +39,7 @@ class local_reducer {
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
 
-  __host__ __device__ local_reducer(ReductionDescriptor &desc, int my_lid,
+  __host__ __device__ local_reducer(const ReductionDescriptor &desc, int my_lid,
                                     value_type *local_memory,
                                     value_type *local_output)
       : _desc{desc}, _my_lid{my_lid}, _my_value{identity()},
@@ -72,7 +72,7 @@ class local_reducer {
   }
 
 private:
-  ReductionDescriptor &_desc;
+  const ReductionDescriptor &_desc;
   const int _my_lid;
   value_type _my_value;
   value_type* _local_memory;

@@ -98,7 +98,7 @@ public:
   }
 
   // TODO
-  // /* Only available if Dimensions > 1 */
+  // /* Only available if Dimensions > 0 */
   // __unspecified__ &operator[](size_t index) const;
 
   /* Only available if identity value is known */

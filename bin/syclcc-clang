@@ -693,7 +693,7 @@ class compiler:
   @property
   def common_linker_flags(self):
     linker_args = [
-      "-Wl,-rpath", self._hipsycl_lib_path,
+      "-Wl,-rpath="+self._hipsycl_lib_path,
       "-L"+self._hipsycl_lib_path,
       "-lhipSYCL-rt"
     ]

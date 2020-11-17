@@ -41,9 +41,11 @@ class local_reducer {
 
   __host__ __device__ local_reducer(const ReductionDescriptor &desc, int my_lid,
                                     value_type *local_memory,
-                                    value_type *local_output)
+                                    value_type *local_output,
+                                    value_type *global_input = nullptr)
       : _desc{desc}, _my_lid{my_lid}, _my_value{identity()},
-        _local_memory{local_memory}, _local_output{local_output} {}
+        _local_memory{local_memory}, _local_output{local_output},
+        _global_input{global_input} {}
 
   __host__ __device__
   value_type identity() const { return _desc.identity; }
@@ -71,12 +73,16 @@ class local_reducer {
       _local_output = _local_memory[0];
   }
 
+  __device__ void combine_global_input(int my_global_id) {
+    combine(_global_input[my_global_id]);
+  }
 private:
   const ReductionDescriptor &_desc;
   const int _my_lid;
   value_type _my_value;
   value_type* _local_memory;
   value_type* _local_output;
+  value_type* _global_input;
 };
 
 }

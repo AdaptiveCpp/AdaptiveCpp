@@ -254,11 +254,11 @@ public:
   { return _impl.template get<0>(); }
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_count() const
+  static constexpr int get_count()
   { return numElements; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_size() const
+  static constexpr size_t get_size()
   { return numElements * sizeof (dataT); }
 
   // ToDo

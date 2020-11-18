@@ -113,14 +113,14 @@ void device_invocation(F f, Reductions... reductions)
   }, reductions...);
 }
 
-template <typename... Reductions>
+template <typename KernelName, typename... Reductions>
 __sycl_kernel void reduction_kernel(int num_input_elements,
-                                    Reductions... reductions) {
+                                Reductions... reductions) {
   device_invocation_with_local_reducer(
       [&] __host__ __device__(auto &... local_reducers) {
         int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
         if(gid < num_input_elements){
-          (reductions.combine_global_input(gid), ...);
+          (local_reducers.combine_global_input(gid), ...);
         }
       },
       reductions...);
@@ -394,12 +394,16 @@ public:
         _local_memory_offset);
   }
 
-  __device__ 
+  __host__ __device__ 
   void* get_reduction_output_buffer() const {
+#ifdef SYCL_DEVICE_ONLY
     if(!_is_final)
       return _scratch_memory_out;
     else
       return _descriptor.get_pointer();
+#else
+    return nullptr;
+#endif
   }
 
   __device__ hiplike::local_reducer<ReductionDescriptor>
@@ -417,7 +421,8 @@ public:
         static_cast<value_type*>(get_reduction_input_buffer());
 
     return hiplike::local_reducer<ReductionDescriptor>{
-        _descriptor, my_local_id, get_local_scratch_mem(), group_output_ptr,
+        _descriptor, my_local_id,
+        static_cast<value_type *>(get_local_scratch_mem()), group_output_ptr,
         global_input_ptr};
   }
 
@@ -640,7 +645,7 @@ public:
                 std::size_t local_size = reduction_stages[stage].local_size.size();
 
                 __hipsycl_launch_kernel(
-                    hiplike_dispatch::reduction_kernel,
+                    hiplike_dispatch::reduction_kernel<class _force_unnamed_kernel>,
                     hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{num_groups}),
                     hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{local_size}),
                     reduction_stages[stage].allocated_local_memory,

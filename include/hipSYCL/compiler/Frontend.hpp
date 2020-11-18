@@ -288,28 +288,33 @@ public:
     if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
-        if (RecordDecl->getNameAsString() == "_unnamed_kernel") {
+        auto KernelName = RecordDecl->getNameAsString();
+        if (KernelName == "_unnamed_kernel" ||
+            KernelName == "_force_unnamed_kernel") {
           // If no name is provided, rely on clang name mangling
-          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-              KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
-          {
 
-            // Earlier clang versions suffer from potentially inconsistent
-            // lambda numbering across host and device passes
+          // Earlier clang versions suffer from potentially inconsistent
+          // lambda numbering across host and device passes
 #if LLVM_VERSION_MAJOR < 10
+          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
+          // Don't check if the argument is a lambda if _force_unnamed_kernel is
+          // provided. This is necessary because _force_unnamed_kernel is used
+          // by some internal kernels (e.g. for reductions) that don't have
+          // kernel arguments in the same way as user-provided kernels.
+          if (KernelName == "_force_unnamed_kernel" ||
+              (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda()))
+          {
             auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
                 KernelFunctorType->getDecl())->getSourceRange().getBegin();
             auto ID = Instance.getASTContext().getDiagnostics()
               .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
                   "Optional kernel lambda naming requires clang >= 10");
             Instance.getASTContext().getDiagnostics().Report(SL, ID);
-#else
-             NameRequired = false;
-#endif
           }
-          else
-            NameRequired = false;
+#endif
+
+          NameRequired = false;
         }
       }
     }

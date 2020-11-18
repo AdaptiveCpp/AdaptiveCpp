@@ -36,6 +36,7 @@ namespace hiplike {
 
 template<class ReductionDescriptor>
 class local_reducer {
+public:
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
 
@@ -72,7 +73,7 @@ class local_reducer {
     }
 #endif
     if(_my_lid == 0)
-      _local_output = _local_memory[0];
+      *_local_output = _local_memory[0];
   }
 
   __device__ void combine_global_input(int my_global_id) {

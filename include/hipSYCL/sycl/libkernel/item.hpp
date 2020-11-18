@@ -73,7 +73,7 @@ struct item_base
     return this->global_id[dimension];
   }
 
-  HIPSYCL_KERNEL_TARGET size_t operator[](int dimension)
+  HIPSYCL_KERNEL_TARGET size_t operator[](int dimension) const
   {
     return this->global_id[dimension];
   }

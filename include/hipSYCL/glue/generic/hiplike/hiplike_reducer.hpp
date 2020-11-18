@@ -63,6 +63,8 @@ class local_reducer {
     // TODO What if local size is not power of two?
 #ifdef SYCL_DEVICE_ONLY
     __syncthreads();
+    const int local_size =
+        __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
     for(int i = local_size/2; i > 0; i /= 2) {
       if(_my_lid < i)
         _local_memory[_my_lid] = _local_memory[_my_lid + i];

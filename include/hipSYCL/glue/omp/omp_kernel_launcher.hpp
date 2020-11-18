@@ -173,9 +173,12 @@ void single_task_kernel(Function f) noexcept
   f();
 }
 
-template<class F, typename... Args>
-void invoke(F&& f, Args... args) {
-  f(args...);
+template<class F, typename... OmpReducers>
+void invoke(F&& f, OmpReducers... reducers) {
+  auto invoke_f = [&](auto... reducers) {
+    f(reducers...);
+  };
+  invoke_f(sycl::reducer{reducers}...);
 }
 
 template <int Dim, class Function, typename... Reductions>
@@ -192,7 +195,9 @@ inline void parallel_for_kernel(Function f,
         auto this_item = 
           sycl::detail::make_item<Dim>(idx, execution_range);
 
-        invoke(f, this_item, omp_reducer{sequential_reducers}...);
+        invoke([&](auto& ... reducers){
+          f(this_item, reducers...);
+        }, omp_reducer{sequential_reducers}...);
       });
     }
   }, reductions...);
@@ -212,7 +217,9 @@ inline void parallel_for_kernel_offset(Function f,
         auto this_item = 
           sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
-        invoke(f, this_item, omp_reducer{sequential_reducers}...);
+        invoke([&](auto& ... reducers){
+          f(this_item, reducers...);
+        }, omp_reducer{sequential_reducers}...);
       });
     }
   }, reductions...);
@@ -256,7 +263,9 @@ inline void parallel_for_ndrange_kernel(
         sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
                                     local_size, num_groups, &barrier_impl};
 
-        invoke(f, this_item, omp_reducer{sequential_reducers}...);
+        invoke([&](auto& ... reducers){
+          f(this_item, reducers...);
+        }, omp_reducer{sequential_reducers}...);
       });
 
       sycl::detail::host_local_memory::release();
@@ -281,9 +290,11 @@ inline void parallel_for_workgroup(Function f,
           sycl::detail::host_local_memory::request_from_threadprivate_pool(
               num_local_mem_bytes);
 
-          iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
+          iterate_range_omp_for(num_groups, [&, f](sycl::id<Dim> group_id) {
             sycl::group<Dim> this_group{group_id, local_size, num_groups};
-            invoke(f, this_group, omp_reducer{sequential_reducers}...);
+
+            invoke([&](auto &... reducers) { f(this_group, reducers...); },
+                   omp_reducer{sequential_reducers}...);
           });
 
           sycl::detail::host_local_memory::release();
@@ -317,7 +328,10 @@ inline void parallel_region(Function f,
             auto phys_item = sycl::detail::make_sp_item(
                 sycl::id<dimensions>{}, group_id, group_size, num_groups);
 
-            invoke(f, this_group, phys_item, omp_reducer{sequential_reducers}...);
+            invoke([&](auto &... reducers) {
+                f(this_group, phys_item, reducers...);
+              },
+              omp_reducer{sequential_reducers}...);
           });
 
           sycl::detail::host_local_memory::release();

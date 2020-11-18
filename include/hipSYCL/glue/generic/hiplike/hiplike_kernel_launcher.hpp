@@ -30,6 +30,7 @@
 
 #include <cassert>
 #include <utility>
+#include <cstdlib>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
@@ -94,7 +95,7 @@ device_invocation_with_local_reducer(F f, Reductions... reductions) {
 #ifdef SYCL_DEVICE_ONLY
   auto invoker = [&, f] __host__ __device__ (auto... reducers) {
 
-    f(reducer{reducers}...);
+    f(reducers...);
     (reducers.finalize_result(), ...);
   };
   invoker(reductions.construct_reducer()...);
@@ -108,11 +109,11 @@ __host__ __device__
 void device_invocation(F f, Reductions... reductions)
 {
   device_invocation_with_local_reducer([&](auto& ... local_reducers){
-    f(reducer{local_reducers}...);
+    f(sycl::reducer{local_reducers}...);
   }, reductions...);
 }
 
-template <class T, typename... Reduction>
+template <typename... Reductions>
 __sycl_kernel void reduction_kernel(int num_input_elements,
                                     Reductions... reductions) {
   device_invocation_with_local_reducer(
@@ -325,15 +326,15 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
 }
 
 
-template<class ReductionDescriptor>
+template<class ReductionDescriptor, class ReductionStage>
 class hiplike_reduction_descriptor {
 public:
   using value_type = typename ReductionDescriptor::value_type;
 
-  template <int Dim>
   __host__ hiplike_reduction_descriptor(
-      rt::device_id dev, const std::vector<reduction_stage<Dim>> &stages,
-      std::vector<void *> &managed_scratch_memory, ReductionDescriptor desc)
+      const ReductionDescriptor& desc,
+      rt::device_id dev, const std::vector<ReductionStage> &stages,
+      std::vector<void *> &managed_scratch_memory)
       : _descriptor{desc}, _is_final{false}, _scratch_memory_in{nullptr},
         _scratch_memory_out{nullptr} {
     
@@ -369,10 +370,9 @@ public:
     }
   }
 
-  template <int Dim>
   __host__ void proceed_to_stage(std::size_t stage_index,
                                  std::size_t num_stages,
-                                 reduction_stage<Dim> &stage) {
+                                 ReductionStage &stage) {
 
     this->initialize_local_memory(stage.local_size.size(),
                                   stage.allocated_local_memory);
@@ -385,7 +385,9 @@ public:
     }
   }
 
-  __device__
+  // Must be __host__ __device__ in order to be able to call
+  // hiplike_dynamic_local_memory()
+  __host__ __device__
   void* get_local_scratch_mem() const {
     return static_cast<void *>(
         static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
@@ -400,7 +402,8 @@ public:
       return _descriptor.get_pointer();
   }
 
-  __device__ local_reducer<ReductionDescriptor> construct_reducer() const {
+  __device__ hiplike::local_reducer<ReductionDescriptor>
+  construct_reducer() const {
     int my_local_id = __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
                       __hipsycl_lid_y * __hipsycl_lsize_x + __hipsycl_lid_x;
     int my_group_id =
@@ -413,7 +416,7 @@ public:
     value_type* global_input_ptr =
         static_cast<value_type*>(get_reduction_input_buffer());
 
-    return local_reducer<ReductionDescriptor>{
+    return hiplike::local_reducer<ReductionDescriptor>{
         _descriptor, my_local_id, get_local_scratch_mem(), group_output_ptr,
         global_input_ptr};
   }
@@ -424,7 +427,7 @@ public:
 
   __host__ __device__
   const ReductionDescriptor& get_descriptor() const {
-    return return _descriptor;
+    return _descriptor;
   }
 
   
@@ -440,7 +443,7 @@ private:
         ceil_division(allocated_local_mem_size, alignment) *
         alignment;
 
-    allocated_local_mem_size = local_memory_offset + 
+    allocated_local_mem_size = _local_memory_offset + 
         work_group_size * sizeof(value_type);
   }
 
@@ -450,16 +453,17 @@ private:
   void* _scratch_memory_out;
 
   int _local_memory_offset;
-  ReductionDescrptor _descriptor;
+  ReductionDescriptor _descriptor;
 };
 
-template <class F, typename... ReductionDescriptors>
+template <class F, class ReductionStage, typename... ReductionDescriptors>
+__host__
 void invoke_reducible_kernel(F &&handler, rt::device_id dev,
-                              std::size_t num_scratch_elements,
+                              const std::vector<ReductionStage>& stages,
                               std::vector<void *> &managed_scratch_memory,
                               ReductionDescriptors&& ... descriptors) {
-  handler(hiplike_reduction_descriptor{dev, num_scratch_elements,
-                                       managed_scratch_memory, descriptors}...);
+  handler(hiplike_reduction_descriptor{descriptors, dev, stages,
+                                       managed_scratch_memory}...);
 }
 
 } // hiplike_dispatch
@@ -469,9 +473,9 @@ class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
   hiplike_kernel_launcher()
-      : _queue{nullptr}, _reduction_scratch{nullptr}, _invoker{[]() {}} {}
+      : _queue{nullptr}, _invoker{[]() {}} {}
 
-  ~hiplike_kernel_launcher() {
+  virtual ~hiplike_kernel_launcher() {
     assert(_queue);
     for(void* scratch_ptr : _managed_reduction_scratch) {
       rt::application::get_backend(Backend_id)
@@ -513,7 +517,7 @@ public:
     _invoker = [=]() {
       assert(_queue != nullptr);
 
-      std::vector<reduction_stage<Dim>> reduction_stages;
+      std::vector<hiplike_dispatch::reduction_stage<Dim>> reduction_stages;
       constexpr bool has_reductions = sizeof...(Reductions) > 0;
 
       if constexpr (has_reductions) {
@@ -545,20 +549,22 @@ public:
       else {
 
         auto reducible_kernel_invoker =
-            [&] mutable(auto... reduction_descriptors) {
+            [&] (auto... reduction_descriptors) {
               for (std::size_t stage = 0; stage < reduction_stages.size();
                    ++stage) {
 
                 (reduction_descriptors.proceed_to_stage(
                      stage, reduction_stages.size(),
-                     reduction_stages[stage].allocated_local_memory),
+                     reduction_stages[stage]),
                  ...);
 
                 // Reductions will need local memory only *after* the
                 // user-provided
                 // kernel has completed, so we can reuse the same memory
                 int required_dynamic_local_mem = std::max(
-                    dynamic_local_memory, reduction_stages[stage].allocated_local_memory);
+                    static_cast<int>(dynamic_local_memory),
+                    reduction_stages[stage].allocated_local_memory);
+                
                 if (stage == 0) {
                   if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
@@ -634,9 +640,9 @@ public:
                 std::size_t local_size = reduction_stages[stage].local_size.size();
 
                 __hipsycl_launch_kernel(
-                    hipsycl_dispatch::reduction_kernel,
-                    hiplike_dispatch::make_kernel_launch_range<1>(num_groups),
-                    hiplike_dispatch::make_kernel_launch_range<1>(local_size),
+                    hiplike_dispatch::reduction_kernel,
+                    hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{num_groups}),
+                    hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{local_size}),
                     reduction_stages[stage].allocated_local_memory,
                     _queue->get_stream(),
                     reduction_stages[stage].global_size.size(),
@@ -647,7 +653,7 @@ public:
         };
      
         hiplike_dispatch::invoke_reducible_kernel(
-            kernel_invoker, _queue->get_device(), grid_range.size(),
+            reducible_kernel_invoker, _queue->get_device(), reduction_stages,
             _managed_reduction_scratch, reductions...);
       }
     };
@@ -665,8 +671,6 @@ public:
   virtual rt::kernel_type get_kernel_type() const final override {
     return _type;
   }
-
-  virtual ~hiplike_kernel_launcher() {}
   
 private:
   Queue_type *_queue;

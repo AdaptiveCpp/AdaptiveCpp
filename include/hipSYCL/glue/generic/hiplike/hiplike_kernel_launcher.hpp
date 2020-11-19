@@ -515,26 +515,11 @@ public:
         effective_local_range = sycl::range<3>{4, 8, 8};
     }
 
-    sycl::range<Dim> grid_range =
-        hiplike_dispatch::determine_grid_configuration(global_range,
-                                                       effective_local_range);
-
     _invoker = [=]() {
       assert(_queue != nullptr);
 
-      std::vector<hiplike_dispatch::reduction_stage<Dim>> reduction_stages;
-      constexpr bool has_reductions = sizeof...(Reductions) > 0;
-
-      if constexpr (has_reductions) {
-        reduction_stages = hiplike_dispatch::determine_reduction_stages(
-            global_range, local_range, grid_range);
-      }
-
-      bool is_with_offset = false;
-      for (std::size_t i = 0; i < Dim; ++i)
-        if (offset[i] != 0)
-          is_with_offset = true;
-
+      // Simple cases first: Kernel types that don't support
+      // reductions
       if constexpr (type == rt::kernel_type::single_task) {
        
         __hipsycl_launch_kernel(
@@ -550,112 +535,133 @@ public:
         // deferred_pointers/ accessors are initialized
         auto initialized_kernel_invoker = k;
         initialized_kernel_invoker(handle);
-      }
-      else {
 
-        auto reducible_kernel_invoker =
-            [&] (auto... reduction_descriptors) {
-              for (std::size_t stage = 0; stage < reduction_stages.size();
-                   ++stage) {
+      } else {
 
-                (reduction_descriptors.proceed_to_stage(
-                     stage, reduction_stages.size(),
-                     reduction_stages[stage]),
-                 ...);
+        sycl::range<Dim> grid_range =
+            hiplike_dispatch::determine_grid_configuration(
+                global_range, effective_local_range);
 
-                // Reductions will need local memory only *after* the
-                // user-provided
-                // kernel has completed, so we can reuse the same memory
-                int required_dynamic_local_mem = std::max(
-                    static_cast<int>(dynamic_local_memory),
-                    reduction_stages[stage].allocated_local_memory);
-                
-                if (stage == 0) {
-                  if constexpr (type == rt::kernel_type::basic_parallel_for) {
+        std::vector<hiplike_dispatch::reduction_stage<Dim>> reduction_stages;
+        constexpr bool has_reductions = sizeof...(Reductions) > 0;
 
-                    __hipsycl_launch_kernel(
-                        hiplike_dispatch::parallel_for_kernel<KernelName>,
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            grid_range),
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            effective_local_range),
-                        required_dynamic_local_mem, _queue->get_stream(), k,
-                        global_range, offset, is_with_offset,
-                        reduction_descriptors...);
+        if constexpr (has_reductions) {
+          reduction_stages = hiplike_dispatch::determine_reduction_stages(
+              global_range, local_range, grid_range);
+        }
 
-                  } else if constexpr (type ==
-                                       rt::kernel_type::ndrange_parallel_for) {
+        bool is_with_offset = false;
+        for (std::size_t i = 0; i < Dim; ++i)
+          if (offset[i] != 0)
+            is_with_offset = true;
 
-                    for (int i = 0; i < Dim; ++i)
-                      assert(global_range[i] % effective_local_range[i] == 0);
+        auto reducible_kernel_invoker = [&](auto... reduction_descriptors) {
 
-                    __hipsycl_launch_kernel(
-                        hiplike_dispatch::parallel_for_ndrange_kernel<
-                            KernelName>,
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            grid_range),
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            effective_local_range),
-                        required_dynamic_local_mem, _queue->get_stream(), k,
-                        offset, reduction_descriptors...);
+          int required_dynamic_local_mem =
+              static_cast<int>(dynamic_local_memory);
 
-                  } else if constexpr (type == rt::kernel_type::
-                                                   hierarchical_parallel_for) {
+          if constexpr (has_reductions) {
+            assert(reduction_stages.size() > 0);
+            // Proceed to reduction stage 0, i.e. the user-provided kernel
+            (reduction_descriptors.proceed_to_stage(
+                0, reduction_stages.size(), reduction_stages[0]),
+            ...);
 
-                    for (int i = 0; i < Dim; ++i)
-                      assert(global_range[i] % effective_local_range[i] == 0);
+            // Reductions will need local memory only *after* the
+            // user-provided
+            // kernel has completed, so we can reuse the same memory
+            required_dynamic_local_mem =
+                std::max(required_dynamic_local_mem,
+                        reduction_stages[0].allocated_local_memory);
+          }
 
-                    __hipsycl_launch_kernel(
-                        hiplike_dispatch::parallel_for_workgroup<KernelName>,
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            grid_range),
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            effective_local_range),
-                        required_dynamic_local_mem, _queue->get_stream(), k,
-                        effective_local_range, reduction_descriptors...);
+          if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-                  } else if constexpr (type ==
-                                       rt::kernel_type::scoped_parallel_for) {
+            __hipsycl_launch_kernel(
+                hiplike_dispatch::parallel_for_kernel<KernelName>,
+                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                hiplike_dispatch::make_kernel_launch_range<Dim>(
+                    effective_local_range),
+                required_dynamic_local_mem, _queue->get_stream(), k,
+                global_range, offset, is_with_offset, reduction_descriptors...);
 
-                    for (int i = 0; i < Dim; ++i)
-                      assert(global_range[i] % effective_local_range[i] == 0);
+          } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
-                    __hipsycl_launch_kernel(
-                        hiplike_dispatch::parallel_region<KernelName>,
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            grid_range),
-                        hiplike_dispatch::make_kernel_launch_range<Dim>(
-                            effective_local_range),
-                        required_dynamic_local_mem, _queue->get_stream(), k,
-                        grid_range, effective_local_range,
-                        reduction_descriptors...);
+            for (int i = 0; i < Dim; ++i)
+              assert(global_range[i] % effective_local_range[i] == 0);
 
-                  } else {
-                    assert(false && "Unsupported kernel type");
-                  }
-            } else {
-              // Launch dedicated reduction kernel
-              // 
-              // Avoid instantiation of dedicated reduction kernel
-              // if there are no reductions for compatibility reasons
-              // (requires unique lambda name mangling if the reduction
-              //  combiner is a lambda function)
-              if constexpr (has_reductions) {
-                std::size_t num_groups = reduction_stages[stage].num_groups.size();
-                std::size_t local_size = reduction_stages[stage].local_size.size();
+            __hipsycl_launch_kernel(
+                hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
+                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                hiplike_dispatch::make_kernel_launch_range<Dim>(
+                    effective_local_range),
+                required_dynamic_local_mem, _queue->get_stream(), k, offset,
+                reduction_descriptors...);
 
-                __hipsycl_launch_kernel(
-                    hiplike_dispatch::reduction_kernel<class _force_unnamed_kernel>,
-                    hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{num_groups}),
-                    hiplike_dispatch::make_kernel_launch_range<1>(sycl::range<1>{local_size}),
-                    reduction_stages[stage].allocated_local_memory,
-                    _queue->get_stream(),
-                    reduction_stages[stage].global_size.size(),
-                    reduction_descriptors...);
-              }
+          } else if constexpr (type ==
+                               rt::kernel_type::hierarchical_parallel_for) {
+
+            for (int i = 0; i < Dim; ++i)
+              assert(global_range[i] % effective_local_range[i] == 0);
+
+            __hipsycl_launch_kernel(
+                hiplike_dispatch::parallel_for_workgroup<KernelName>,
+                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                hiplike_dispatch::make_kernel_launch_range<Dim>(
+                    effective_local_range),
+                required_dynamic_local_mem, _queue->get_stream(), k,
+                effective_local_range, reduction_descriptors...);
+
+          } else if constexpr (type == rt::kernel_type::scoped_parallel_for) {
+
+            for (int i = 0; i < Dim; ++i)
+              assert(global_range[i] % effective_local_range[i] == 0);
+
+            __hipsycl_launch_kernel(
+                hiplike_dispatch::parallel_region<KernelName>,
+                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                hiplike_dispatch::make_kernel_launch_range<Dim>(
+                    effective_local_range),
+                required_dynamic_local_mem, _queue->get_stream(), k, grid_range,
+                effective_local_range, reduction_descriptors...);
+
+          } else {
+            assert(false && "Unsupported kernel type");
+          }
+          // Launch subsequent dedicated reduction kernels if necessary
+          for (std::size_t stage = 1; stage < reduction_stages.size();
+               ++stage) {
+
+            (reduction_descriptors.proceed_to_stage(
+                 stage, reduction_stages.size(), reduction_stages[stage]),
+             ...);
+            // Launch dedicated reduction kernel
+            //
+            // Avoid instantiation of dedicated reduction kernel
+            // if there are no reductions for compatibility reasons
+            // (requires unique lambda name mangling if the reduction
+            //  combiner is a lambda function)
+            if constexpr (has_reductions) {
+              std::size_t num_groups =
+                  reduction_stages[stage].num_groups.size();
+              std::size_t local_size =
+                  reduction_stages[stage].local_size.size();
+
+              __hipsycl_launch_kernel(
+                  hiplike_dispatch::reduction_kernel<
+                      class _force_unnamed_kernel>,
+                  hiplike_dispatch::make_kernel_launch_range<1>(
+                      sycl::range<1>{num_groups}),
+                  hiplike_dispatch::make_kernel_launch_range<1>(
+                      sycl::range<1>{local_size}),
+                  reduction_stages[stage].allocated_local_memory,
+                  _queue->get_stream(),
+                  reduction_stages[stage].global_size.size(),
+                  reduction_descriptors...);
             }
           }
         };
+        
      
         hiplike_dispatch::invoke_reducible_kernel(
             reducible_kernel_invoker, _queue->get_device(), reduction_stages,

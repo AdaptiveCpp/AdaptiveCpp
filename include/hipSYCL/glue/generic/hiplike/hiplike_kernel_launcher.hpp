@@ -90,7 +90,7 @@ bool item_is_in_range(const sycl::item<dimensions, false>& item,
 // Invoke on device and construct local_reducer objects
 template <class F, typename... Reductions>
 __host__ __device__ void
-device_invocation_with_local_reducer(F f, Reductions... reductions) {
+device_invocation_with_local_reducers(F&& f, Reductions... reductions) {
 
 #ifdef SYCL_DEVICE_ONLY
   auto invoker = [&, f] __host__ __device__ (auto... reducers) {
@@ -106,22 +106,22 @@ device_invocation_with_local_reducer(F f, Reductions... reductions) {
 
 template<class F, typename... Reductions>
 __host__ __device__
-void device_invocation(F f, Reductions... reductions)
+void device_invocation(F&& f, Reductions... reductions)
 {
-  device_invocation_with_local_reducer([&](auto& ... local_reducers){
+  device_invocation_with_local_reducers([&](auto& ... local_reducers){
     f(sycl::reducer{local_reducers}...);
   }, reductions...);
 }
 
-template <typename KernelName, typename... Reductions>
-__sycl_kernel void reduction_kernel(int num_input_elements,
-                                Reductions... reductions) {
-  device_invocation_with_local_reducer(
+template <typename KernelName, class Function, typename... Reductions>
+__sycl_kernel void
+primitive_parallel_for_with_local_reducers(Function f,
+                                           Reductions... reductions) {
+
+  device_invocation_with_local_reducers(
       [&] __host__ __device__(auto &... local_reducers) {
         int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
-        if(gid < num_input_elements){
-          (local_reducers.combine_global_input(gid), ...);
-        }
+        f(gid, local_reducers...);
       },
       reductions...);
 }
@@ -301,10 +301,7 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
                            sycl::range<Dimensions> num_groups) {
   std::vector<reduction_stage<Dimensions>> stages;
 
-  auto is_final_reduce = [](sycl::range<Dimensions> num_groups) {
-    return num_groups.size() == 1;
-  };
-
+  // add user-provided, initial stage
   stages.push_back(reduction_stage<Dimensions>{
       local_size, num_groups, global_size});
 
@@ -322,6 +319,7 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
     stages.push_back(reduction_stage<Dimensions>{
         local_size, current_num_groups, current_num_work_items});
   }
+  
   return stages;
 }
 
@@ -547,7 +545,7 @@ public:
 
         if constexpr (has_reductions) {
           reduction_stages = hiplike_dispatch::determine_reduction_stages(
-              global_range, local_range, grid_range);
+              global_range, effective_local_range, grid_range);
         }
 
         bool is_with_offset = false;
@@ -647,16 +645,21 @@ public:
               std::size_t local_size =
                   reduction_stages[stage].local_size.size();
 
+              int num_elements = reduction_stages[stage].global_size.size();
+
               __hipsycl_launch_kernel(
-                  hiplike_dispatch::reduction_kernel<
-                      class _force_unnamed_kernel>,
+                  hiplike_dispatch::primitive_parallel_for_with_local_reducers<
+                      class _unnamed_kernel>,
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{local_size}),
                   reduction_stages[stage].allocated_local_memory,
                   _queue->get_stream(),
-                  reduction_stages[stage].global_size.size(),
+                  [=](int gid, auto &... local_reducers) {
+                    if(gid < num_elements)
+                      (local_reducers.combine_global_input(gid), ...);
+                  },
                   reduction_descriptors...);
             }
           }

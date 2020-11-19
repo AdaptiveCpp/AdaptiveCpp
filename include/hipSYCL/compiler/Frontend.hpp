@@ -289,21 +289,16 @@ public:
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
         auto KernelName = RecordDecl->getNameAsString();
-        if (KernelName == "_unnamed_kernel" ||
-            KernelName == "_force_unnamed_kernel") {
+        if (KernelName == "_unnamed_kernel") {
           // If no name is provided, rely on clang name mangling
 
           // Earlier clang versions suffer from potentially inconsistent
           // lambda numbering across host and device passes
 #if LLVM_VERSION_MAJOR < 10
           const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-          // Don't check if the argument is a lambda if _force_unnamed_kernel is
-          // provided. This is necessary because _force_unnamed_kernel is used
-          // by some internal kernels (e.g. for reductions) that don't have
-          // kernel arguments in the same way as user-provided kernels.
-          if (KernelName == "_force_unnamed_kernel" ||
-              (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda()))
+          
+          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
           {
             auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
                 KernelFunctorType->getDecl())->getSourceRange().getBegin();

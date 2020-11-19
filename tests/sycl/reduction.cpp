@@ -63,7 +63,8 @@ void run_scalar_reduction_test(const Combiner &combiner, const T &identity,
   {
     auto host_acc = output_buff.template get_access<sycl::access::mode::read>();
 
-    BOOST_CHECK(host_acc[0] == expected);
+    auto result = host_acc[0];
+    BOOST_TEST(result == expected);
   }
 }
 

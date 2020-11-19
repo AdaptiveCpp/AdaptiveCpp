@@ -66,18 +66,22 @@ public:
     __syncthreads();
     const int local_size =
         __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-    for(int i = local_size/2; i > 0; i /= 2) {
+    for (int i = local_size / 2; i > 0; i /= 2) {
       if(_my_lid < i)
-        _local_memory[_my_lid] = _local_memory[_my_lid + i];
+        _local_memory[_my_lid] =
+            _desc.combiner(_local_memory[_my_lid], _local_memory[_my_lid + i]);
       __syncthreads();
     }
-#endif
-    if(_my_lid == 0)
+    if (_my_lid == 0) {
       *_local_output = _local_memory[0];
+    }
+#endif
   }
 
-  __device__ void combine_global_input(int my_global_id) {
+  __host__ __device__ void combine_global_input(int my_global_id) {
+#ifdef SYCL_DEVICE_ONLY
     combine(_global_input[my_global_id]);
+#endif
   }
 private:
   const ReductionDescriptor &_desc;

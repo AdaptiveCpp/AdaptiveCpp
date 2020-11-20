@@ -53,7 +53,7 @@ void run_scalar_reduction_test(const Combiner &combiner, const T &identity,
     auto output_acc =
         output_buff.template get_access<sycl::access::mode::discard_write>(cgh);
 
-    cgh.parallel_reduce<class reduction_kernel>(
+    cgh.parallel_for<class reduction_kernel>(
         sycl::range<1>{test_size},
         sycl::reduction(output_acc, 0, sycl::plus<T>{}),
         [=](sycl::id<1> idx, auto &reducer) {

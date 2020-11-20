@@ -30,6 +30,8 @@
 #define HIPSYCL_UTIL_HPP
 
 #include <atomic>
+#include <tuple>
+#include <utility>
 
 namespace hipsycl {
 namespace sycl {
@@ -64,6 +66,33 @@ public:
 private:
   spin_lock& _lock;
 };
+
+template<typename Tuple, std::size_t... Ints>
+std::tuple<std::tuple_element_t<Ints, Tuple>...>
+extract_tuple(Tuple&& tuple, std::index_sequence<Ints...>) {
+ return { std::get<Ints>(std::forward<Tuple>(tuple))... };
+}
+
+
+template<class F, typename... Args>
+void separate_last_argument_and_apply(F&& f, Args&& ... args) {
+  
+  static_assert(
+      sizeof...(args) > 0,
+      "Cannot extract last argument from template pack for empty pack");
+  
+  constexpr std::size_t last_index = sizeof...(args) - 1;
+
+  auto last_element =
+      std::get<last_index>(std::forward_as_tuple(std::forward<Args>(args)...));
+
+  auto preceding_elements =
+      extract_tuple(std::forward_as_tuple(std::forward<Args>(args)...),
+                    std::make_index_sequence<last_index>());
+
+  std::apply(f,
+             std::tuple_cat(std::make_tuple(last_element), preceding_elements));
+}
 
 }
 }

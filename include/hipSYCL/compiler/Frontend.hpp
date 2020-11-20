@@ -40,6 +40,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Mangle.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Mangle.h"
@@ -136,72 +137,27 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 /// Builds a kernel name from a RecordDecl, taking into account template specializations.
 /// Returns an empty string if the name is not a valid kernel name.
 ///
-inline std::string buildKernelNameFromRecordDecl(const clang::RecordDecl *Decl) {
-  std::stringstream SS;
-  SS << "$" << Decl->getNameAsString();
+inline std::string buildKernelNameFromRecordType(const clang::QualType &RecordType, clang::ASTContext &Ctx) {
+  std::string KernelName;
+  llvm::raw_string_ostream SS(KernelName);
 
-  if(auto TD = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(Decl))
-  {
-    for(auto arg : TD->getTemplateArgs().asArray())
-    {
-      switch (arg.getKind())
-      {
-        case clang::TemplateArgument::Type:
-        {
-          if(arg.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-             arg.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
-          {
-            return ""; // Lambdas are not supported
-          }
+  auto MangleCtx = clang::ItaniumMangleContext::create(Ctx, Ctx.getDiagnostics());
+  MangleCtx->mangleTypeName(RecordType, SS);
 
-          auto RecordType = llvm::dyn_cast<clang::RecordType>(arg.getAsType().getTypePtr());
-          auto RecordDecl = llvm::dyn_cast_or_null<clang::RecordDecl>(
-            RecordType ? RecordType->getDecl() : nullptr);
-
-          if(RecordDecl)
-          {
-            auto declName = buildKernelNameFromRecordDecl(RecordDecl);
-            if(declName.empty()) return "";
-            SS << "_" << declName;
-          }
-          else
-          {
-            auto qualifiedName = arg.getAsType().getAsString();
-            std::replace(qualifiedName.begin(), qualifiedName.end(), ' ', '_');
-            SS << "_" << qualifiedName;
-          }
-          break;
-        }
-        case clang::TemplateArgument::Integral:
-          SS << "_" << arg.getAsIntegral().toString(10);
-          break;
-        case clang::TemplateArgument::NullPtr:
-          SS << "_nullptr";
-          break;
-        case clang::TemplateArgument::Template:
-        {
-          std::string QualifiedName = arg.getAsTemplate().getAsTemplateDecl()->getTemplatedDecl()->getQualifiedNameAsString();
-          SS << "__" << std::regex_replace(QualifiedName, std::regex("::"), "__");
-          break;
-        }
-        default: return ""; // Everything else is not supported
-      }
-    }
-  }
-
-  return SS.str();
+  return KernelName;
 }
 
-inline std::string buildKernelName(clang::TemplateArgument SyclTagType) {
-  assert(SyclTagType.getKind() == clang::TemplateArgument::ArgKind::Type);
-  auto RecordType = llvm::dyn_cast<clang::RecordType>(SyclTagType.getAsType().getTypePtr());
+inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA) {
+  assert(SyclTagTypeTA.getKind() == clang::TemplateArgument::ArgKind::Type);
+  auto SyclTagType = SyclTagTypeTA.getAsType();
+  auto RecordType = llvm::dyn_cast<clang::RecordType>(SyclTagType.getTypePtr());
   if(RecordType == nullptr || !llvm::isa<clang::RecordDecl>(RecordType->getDecl()))
   {
     // We only support structs/classes as kernel names
     return "";
   }
-  auto DeclName = buildKernelNameFromRecordDecl(RecordType->getAsRecordDecl());
-  if(DeclName.empty()) return "";
+  auto &Ctx = RecordType->getDecl()->getASTContext();
+  auto DeclName = buildKernelNameFromRecordType(SyclTagType, Ctx);
   return "__hipsycl_kernel_" + DeclName;
 }
 

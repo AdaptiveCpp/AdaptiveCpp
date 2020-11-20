@@ -1,0 +1,16 @@
+name: Linux build and test
+
+jobs:
+  test:
+    name: Test with clang ${{ matrix.clang_version }} and ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang_version: [10, 11]
+        os: [ubuntu-20.04, ubuntu-18.04]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+  

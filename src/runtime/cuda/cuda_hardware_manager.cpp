@@ -41,7 +41,10 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
   int num_devices = 0;
 
   auto err = cudaGetDeviceCount(&num_devices);
-  if (err != cudaSuccess) {
+  if(err == cudaErrorNoDevice)
+    num_devices = 0;
+  
+  if (err != cudaSuccess && err != cudaErrorNoDevice) {
     register_error(
         __hipsycl_here(),
         error_info{"cuda_hardware_manager: Could not obtain number of devices",

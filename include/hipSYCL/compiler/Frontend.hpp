@@ -132,6 +132,56 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
     FunctionSet visitedDecls;
 };
 
+inline std::string buildKernelNameFromRecordDecl(const clang::RecordDecl *Decl);
+
+inline bool stringifyTemplateArgs(std::stringstream &SS, const llvm::ArrayRef<clang::TemplateArgument> &TArgs) {
+  for (auto arg : TArgs) {
+    switch (arg.getKind()) {
+      case clang::TemplateArgument::Type: {
+        if (arg.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+            arg.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda()) {
+          return false; // Lambdas are not supported
+        }
+
+        auto RecordType = llvm::dyn_cast<clang::RecordType>(arg.getAsType().getTypePtr());
+        auto RecordDecl = llvm::dyn_cast_or_null<clang::RecordDecl>(
+            RecordType ? RecordType->getDecl() : nullptr);
+
+        if (RecordDecl) {
+          auto declName = buildKernelNameFromRecordDecl(RecordDecl);
+          if (declName.empty()) return false;
+          SS << "_" << declName;
+        } else {
+          auto qualifiedName = arg.getAsType().getAsString();
+          std::replace(qualifiedName.begin(), qualifiedName.end(), ' ', '_');
+          SS << "_" << qualifiedName;
+        }
+        break;
+      }
+      case clang::TemplateArgument::Integral:
+        SS << "_" << arg.getAsIntegral().toString(10);
+        break;
+      case clang::TemplateArgument::NullPtr:
+        SS << "_nullptr";
+        break;
+      case clang::TemplateArgument::Template: {
+        std::string QualifiedName = arg.getAsTemplate().getAsTemplateDecl()->getTemplatedDecl()->getQualifiedNameAsString();
+        SS << "__" << std::regex_replace(QualifiedName, std::regex("::"), "__");
+        break;
+      }
+      case clang::TemplateArgument::Pack: {
+        if (!stringifyTemplateArgs(SS, arg.pack_elements())) {
+          return false;
+        }
+        break;
+      }
+      default:
+        return false; // Everything else is not supported
+    }
+  }
+  return true;
+}
+
 ///
 /// Builds a kernel name from a RecordDecl, taking into account template specializations.
 /// Returns an empty string if the name is not a valid kernel name.
@@ -142,50 +192,8 @@ inline std::string buildKernelNameFromRecordDecl(const clang::RecordDecl *Decl) 
 
   if(auto TD = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(Decl))
   {
-    for(auto arg : TD->getTemplateArgs().asArray())
-    {
-      switch (arg.getKind())
-      {
-        case clang::TemplateArgument::Type:
-        {
-          if(arg.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-             arg.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
-          {
-            return ""; // Lambdas are not supported
-          }
-
-          auto RecordType = llvm::dyn_cast<clang::RecordType>(arg.getAsType().getTypePtr());
-          auto RecordDecl = llvm::dyn_cast_or_null<clang::RecordDecl>(
-            RecordType ? RecordType->getDecl() : nullptr);
-
-          if(RecordDecl)
-          {
-            auto declName = buildKernelNameFromRecordDecl(RecordDecl);
-            if(declName.empty()) return "";
-            SS << "_" << declName;
-          }
-          else
-          {
-            auto qualifiedName = arg.getAsType().getAsString();
-            std::replace(qualifiedName.begin(), qualifiedName.end(), ' ', '_');
-            SS << "_" << qualifiedName;
-          }
-          break;
-        }
-        case clang::TemplateArgument::Integral:
-          SS << "_" << arg.getAsIntegral().toString(10);
-          break;
-        case clang::TemplateArgument::NullPtr:
-          SS << "_nullptr";
-          break;
-        case clang::TemplateArgument::Template:
-        {
-          std::string QualifiedName = arg.getAsTemplate().getAsTemplateDecl()->getTemplatedDecl()->getQualifiedNameAsString();
-          SS << "__" << std::regex_replace(QualifiedName, std::regex("::"), "__");
-          break;
-        }
-        default: return ""; // Everything else is not supported
-      }
+    if (!stringifyTemplateArgs(SS, TD->getTemplateArgs().asArray())) {
+      return "";
     }
   }
 

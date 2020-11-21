@@ -18,15 +18,20 @@ jobs:
         submodules: 'recursive'
     - name: install dependencies
       run: |
-        sudo apt install libboost-all-dev libnuma-dev
+        sudo apt install libboost-all-dev libnuma-dev cmake
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm_version}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
         sudo apt update
         sudo apt install rocm-dev
-        wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
+        wget -q https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
         sudo sh ./cuda_10.0.130_410.48_linux --override --silent --toolkit --toolkitpath /opt/hipSYCL/cuda
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
-        
+        sudo apt install libclang-${{matrix.clang_version}}-dev
+    - name: build hipSYCL
+      run: |
+         mkdir build && cd build
+         cmake -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda -DROCM_PATH=/opt/rocm ..
+         make -j2 install
   

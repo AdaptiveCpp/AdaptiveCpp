@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [10, 11]
+        clang_version: [10]
         rocm_version: [3.8]
         os: [ubuntu-20.04, ubuntu-18.04]
 
@@ -18,7 +18,7 @@ jobs:
         submodules: 'recursive'
     - name: install dependencies
       run: |
-        sudo apt install libboost-all-dev libnuma-dev cmake
+        sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm_version}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
         sudo apt update
@@ -28,10 +28,33 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
-        sudo apt install libclang-${{matrix.clang_version}}-dev
+        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}}
+        wget -q https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip
+        unzip boost_1_70_0.zip
+        cd boost_1_70_0
+        ./bootstrap.sh --prefix=/usr
+        sudo ./b2 link=static,shared install -j$(nproc) || true
+        cd ..
     - name: build hipSYCL
       run: |
          mkdir build && cd build
-         cmake -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda -DROCM_PATH=/opt/rocm ..
+         cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda -DROCM_PATH=/opt/rocm ..
          make -j2 install
-  
+    - name: build CPU tests
+      run: |
+         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+         cmake -DHIPSYCL_PLATFORM=cpu -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+         make -j2
+    - name: build CUDA tests
+      run: |
+         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
+         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
+         cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+         make -j2
+    - name: build ROCm tests
+      run: |
+         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
+         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
+         cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+         make -j2

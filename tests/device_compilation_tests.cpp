@@ -26,6 +26,7 @@
  */
 
 #define BOOST_TEST_MODULE device compilation tests
+#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 
 #include <initializer_list>

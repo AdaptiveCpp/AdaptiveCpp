@@ -1,5 +1,7 @@
 name: Linux build and test
 
+on: [push, pull_request]
+
 jobs:
   test:
     name: Test with clang ${{ matrix.clang_version }} and ${{ matrix.os }}
@@ -7,10 +9,24 @@ jobs:
     strategy:
       matrix:
         clang_version: [10, 11]
+        rocm_version: [3.8]
         os: [ubuntu-20.04, ubuntu-18.04]
 
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
+    - name: install dependencies
+      run: |
+        sudo apt install libboost-all-dev libnuma-dev
+        wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
+        echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm_version}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
+        sudo apt update
+        sudo apt install rocm-dev
+        wget https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
+        sudo sh ./cuda_10.0.130_410.48_linux --override --silent --toolkit --toolkitpath /opt/hipSYCL/cuda
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh ${{matrix.clang_version}}
+        
   

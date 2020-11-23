@@ -137,17 +137,15 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 /// Builds a kernel name from a RecordDecl, taking into account template specializations.
 /// Returns an empty string if the name is not a valid kernel name.
 ///
-inline std::string buildKernelNameFromRecordType(const clang::QualType &RecordType, clang::ASTContext &Ctx) {
+inline std::string buildKernelNameFromRecordType(const clang::QualType &RecordType, clang::MangleContext *Mangler) {
   std::string KernelName;
   llvm::raw_string_ostream SS(KernelName);
-
-  auto MangleCtx = clang::ItaniumMangleContext::create(Ctx, Ctx.getDiagnostics());
-  MangleCtx->mangleTypeName(RecordType, SS);
+  Mangler->mangleTypeName(RecordType, SS);
 
   return KernelName;
 }
 
-inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA) {
+inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA, clang::MangleContext *Mangler) {
   assert(SyclTagTypeTA.getKind() == clang::TemplateArgument::ArgKind::Type);
   auto SyclTagType = SyclTagTypeTA.getAsType();
   auto RecordType = llvm::dyn_cast<clang::RecordType>(SyclTagType.getTypePtr());
@@ -156,8 +154,7 @@ inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA) {
     // We only support structs/classes as kernel names
     return "";
   }
-  auto &Ctx = RecordType->getDecl()->getASTContext();
-  auto DeclName = buildKernelNameFromRecordType(SyclTagType, Ctx);
+  auto DeclName = buildKernelNameFromRecordType(SyclTagType, Mangler);
   return "__hipsycl_kernel_" + DeclName;
 }
 
@@ -170,6 +167,7 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
       : Instance{instance}
+      , KernelNameMangler(instance.getASTContext().createMangleContext())
   {}
 
   ~FrontendASTVisitor()
@@ -272,7 +270,7 @@ public:
 
     if (NameRequired)
     {
-      std::string KernelName = detail::buildKernelName(KernelNameArgument);
+      std::string KernelName = detail::buildKernelName(KernelNameArgument, KernelNameMangler.get());
 
       // Abort with error diagnostic if no kernel name could be built
       if(KernelName.empty())
@@ -358,6 +356,7 @@ private:
   std::unordered_set<clang::FunctionDecl*> MarkedHostDeviceFunctions;
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
   std::unordered_set<clang::FunctionDecl*> UserKernels;
+  std::unique_ptr<clang::MangleContext> KernelNameMangler;
 
   void markAsHostDevice(clang::FunctionDecl* F)
   {

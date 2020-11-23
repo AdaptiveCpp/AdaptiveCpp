@@ -42,16 +42,18 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
 
   auto err = cudaGetDeviceCount(&num_devices);
   if (err != cudaSuccess) {
-    register_error(
+    num_devices = 0;
+
+    print_warning(
         __hipsycl_here(),
         error_info{"cuda_hardware_manager: Could not obtain number of devices",
                    error_code{"CUDA", err}});
   }
-  else {
-    for (int dev = 0; dev < num_devices; ++dev) {
-      _devices.push_back(std::move(cuda_hardware_context{dev}));
-    }
+  
+  for (int dev = 0; dev < num_devices; ++dev) {
+    _devices.push_back(std::move(cuda_hardware_context{dev}));
   }
+
 }
 
 

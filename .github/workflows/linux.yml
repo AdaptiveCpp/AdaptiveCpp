@@ -4,11 +4,11 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Test with clang ${{ matrix.clang_version }} and ${{ matrix.os }}
+    name: clang ${{ matrix.clang_version }} and ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [10]
+        clang_version: [10, 11, 12]
         rocm_version: [3.8]
         os: [ubuntu-20.04, ubuntu-18.04]
 
@@ -50,13 +50,13 @@ jobs:
       run: |
          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
-         cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+         cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DHIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS=ON /home/runner/work/hipSYCL/hipSYCL/tests
          make -j2
     - name: build ROCm tests
       run: |
          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
-         cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+         cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DHIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS=ON /home/runner/work/hipSYCL/hipSYCL/tests
          make -j2
     - name: run CPU tests
       run: |

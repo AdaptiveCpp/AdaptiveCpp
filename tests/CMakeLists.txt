@@ -35,6 +35,9 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(HIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS)
+  add_definitions(-DHIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS)
+endif()
 
 add_subdirectory(platform_api)
 

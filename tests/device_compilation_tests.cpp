@@ -302,7 +302,7 @@ void forward_declared1(){forward_declared2();}
 
 void forward_declared2() {}
 
-
+#ifndef HIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS
 BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
   cl::sycl::queue q;
 
@@ -336,6 +336,7 @@ BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
   
   q.wait_and_throw();
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

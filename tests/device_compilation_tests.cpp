@@ -302,7 +302,7 @@ void forward_declared1(){forward_declared2();}
 
 void forward_declared2() {}
 
-#ifndef HIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS
+#ifndef HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS
 BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
   cl::sycl::queue q;
 

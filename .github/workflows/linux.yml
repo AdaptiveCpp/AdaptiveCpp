@@ -4,31 +4,52 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang_version }} and ${{ matrix.os }}
+    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [10, 11, 12]
+        clang_version: [10]
         rocm_version: [3.8]
         os: [ubuntu-20.04, ubuntu-18.04]
-
+        cuda: [10.0, 10.2, 11.0]
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
-    - name: install dependencies
+    - name: install CUDA 10.0
+      if: matrix.cuda == 10.0
+      run: |
+        mkdir -p /opt/hipSYCL/cuda
+        wget -q -O cuda.sh https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
+        sudo sh ./cuda.sh --override --silent --toolkit --toolkitpath /opt/hipSYCL/cuda
+    - name: install CUDA 10.2
+      if: matrix.cuda == 10.2
+      run: |
+        mkdir -p /opt/hipSYCL/cuda
+        wget -q -O cuda.sh https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
+        sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/hipSYCL/cuda
+    - name: install CUDA 11.0
+      if: matrix.cuda == 11.0
+      run: |
+        mkdir -p /opt/hipSYCL/cuda
+        wget -q -O cuda.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
+        sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/hipSYCL/cuda || true
+        echo "CUDA Version 11.0.0" | sudo tee /opt/hipSYCL/cuda/version.txt
+    - name: install ROCm
       run: |
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm_version}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
         sudo apt update
         sudo apt install rocm-dev
-        wget -q https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
-        sudo sh ./cuda_10.0.130_410.48_linux --override --silent --toolkit --toolkitpath /opt/hipSYCL/cuda
+    - name: install LLVM
+      run: |
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
         sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}}
+    - name: install boost
+      run: |
         wget -q https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip
         unzip boost_1_70_0.zip
         cd boost_1_70_0
@@ -50,13 +71,13 @@ jobs:
       run: |
          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
-         cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DHIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS=ON /home/runner/work/hipSYCL/hipSYCL/tests
+         cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
          make -j2
     - name: build ROCm tests
       run: |
          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
-         cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DHIPSYCL_WITHOUT_UNNAMED_LAMBDA_TESTS=ON /home/runner/work/hipSYCL/hipSYCL/tests
+         cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
          make -j2
     - name: run CPU tests
       run: |

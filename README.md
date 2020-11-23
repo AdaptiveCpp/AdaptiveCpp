@@ -1,7 +1,6 @@
 ![Project logo](/doc/img/logo/logo-color.png)
 
 # hipSYCL - a SYCL implementation for CPUs and GPUs
-[![Build Status](https://travis-ci.com/illuhad/hipSYCL.svg?branch=stable)](https://travis-ci.com/illuhad/hipSYCL)
 
 hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on leveraging existing toolchains such as CUDA or HIP. hipSYCL currently targets the following devices:
 * Any CPU via OpenMP

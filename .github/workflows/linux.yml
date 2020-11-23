@@ -58,3 +58,7 @@ jobs:
          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
          cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
          make -j2
+    - name: run CPU tests
+      run: |
+         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+         ./sycl_tests

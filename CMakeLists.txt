@@ -20,8 +20,8 @@ FORCE)
   endif()
 endif()
 
+set(ENV{BOOST_ROOT} ${BOOST_PATH})
 find_package(Boost COMPONENTS context fiber REQUIRED)
-
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 # We currently search for hipcc to check for ROCm installation
@@ -130,9 +130,36 @@ endif()
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
-set(ROCM_LINK_LINE "-rpath ${ROCM_PATH}/lib -rpath ${ROCM_PATH}/hip/lib ${ROCM_LIBS}")
-set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
-
+if(NOT ROCM_LINK_LINE)
+  set(ROCM_LINK_LINE "-rpath $HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}")
+endif()
+if(NOT ROCM_CXX_FLAGS)
+  # clang erroneously sets feature detection flags for 
+  # __float128 even though it is not supported for CUDA / HIP,
+  # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib ")
+endif()
+if(NOT CUDA_LINK_LINE) 
+  set(CUDA_LINK_LINE "-rpath $HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+endif()
+if(NOT CUDA_CXX_FLAGS)	
+  # clang erroneously sets feature detection flags for 
+  # __float128 even though it is not supported for CUDA / HIP,
+  # see https://bugs.llvm.org/show_bug.cgi?id=47559.
+  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__")
+endif()
+if(NOT OMP_LINK_LINE)
+  set(OMP_LINK_LINE "-L${BOOST_PATH}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_PATH}/lib -fopenmp")
+endif()
+if(NOT OMP_CXX_FLAGS) 
+  set(OMP_CXX_FLAGS "-I${BOOST_PATH}/include -fopenmp")
+endif()
+if(NOT SEQUENTIAL_LINK_LINE) 
+  set(SEQUENTIAL_LINK_LINE "-L${BOOST_PATH}/lib -lboost_context -lboost_fiber -lomp  -Wl,-rpath=${BOOST_PATH}/lib")
+endif()
+if(NOT SEQUENTIAL_CXX_FLAGS) 
+  set(SEQUENTIAL_CXX_FLAGS "-I${BOOST_PATH}/include")
+endif()
 add_subdirectory(src)
 
 set(SYCLCC_CONFIG_FILE "{
@@ -142,11 +169,18 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
+  \"default-boost-path\" : \"${BOOST_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
+  \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
+  \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
+  \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
+  \"default-omp-cxx-flags\" : \"${OMP_CXX_FLAGS}\",
   \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\"
+  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
+  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
+  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
 }
 ")
 

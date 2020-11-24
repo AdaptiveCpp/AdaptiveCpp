@@ -20,8 +20,8 @@ FORCE)
   endif()
 endif()
 
+set(BOOST_ROOT ${BOOST_PATH})
 find_package(Boost COMPONENTS context fiber REQUIRED)
-
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 # We currently search for hipcc to check for ROCm installation
@@ -142,6 +142,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
+  \"default-boost-path\" : \"${BOOST_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",

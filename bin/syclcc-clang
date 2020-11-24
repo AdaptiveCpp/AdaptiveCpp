@@ -142,6 +142,9 @@ class syclcc_config:
       'rocm-path': option("--hipsycl-rocm-path", "HIPSYCL_ROCM_PATH", "default-rocm-path",
 """  The path to the ROCm installation directory"""),
 
+      'boost-path': option("--hipsycl-boost-path", "HIPSYCL_BOOST_PATH", "default-boost-path",
+"""  The path to the boost installation directory"""),
+
       'gpu-arch': option("--hipsycl-gpu-arch", "HIPSYCL_GPU_ARCH", "default-gpu-arch",
 """  (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
@@ -420,6 +423,10 @@ class syclcc_config:
     return self._retrieve_option("rocm-path")
 
   @property
+  def boost_path(self):
+    return self._retrieve_option("boost-path")
+
+  @property
   def clang_path(self):
     return self._retrieve_option("clang")
 
@@ -588,6 +595,7 @@ class omp_invocation:
       raise RuntimeError("OpenMP backend does not support specifiying target architecture")
 
     self._cxx = config.pure_cpu_compiler
+    self._boost = config.boost_path
 
   def get_compiler_preference(self):
     return (self._cxx, 1)
@@ -597,6 +605,9 @@ class omp_invocation:
     flags = [
         "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__",
       ]
+    # if not specified we use the system boost
+    if self._boost != "":
+        flags += ["-I" + os.path.join(self._boost, "include")]
 
     if sys.platform == "darwin":
         # y'all still need libomp installed
@@ -610,6 +621,12 @@ class omp_invocation:
       "-lboost_context",
       "-lboost_fiber"
     ]
+
+    if self._boost != "":
+        linker_args += [
+                "-L" + os.path.join(self._boost, "lib"),
+                "-Wl,-rpath=" + os.path.join(self._boost, "lib")
+                ]
 
     if sys.platform == "darwin":
         # y'all still need libomp installed
@@ -625,6 +642,7 @@ class omp_invocation:
 class omp_sequential_invocation:
   def __init__(self, config):
     self._cxx = config.pure_cpu_compiler
+    self._boost = config.boost_path
 
   def get_compiler_preference(self):
     return (self._cxx, 1)
@@ -635,6 +653,9 @@ class omp_sequential_invocation:
         "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__",
       ]
       
+    if self._boost != "":
+        flags += ["-I" + os.path.join(self._boost, "include")]
+
     return flags
 
   def get_linker_flags(self):
@@ -643,7 +664,12 @@ class omp_sequential_invocation:
       "-lboost_fiber",
       "-lomp"
     ]
-    
+
+    if self._boost != "":
+        linker_args += [
+                "-L" + os.path.join(self._boost, "lib"),
+                "-Wl,-rpath=" + os.path.join(self._boost, "lib")
+                ]
     return linker_args
 
 class compiler:

@@ -599,23 +599,25 @@ public:
     // attributes. Since we do not implement HandleTopLevelDecl(), the only
     // consumers affected are the BackendConsumers which will then generate the
     // required IR for device code.
-    if(CompilationStateManager::getASTPassState().isDeviceCompilation()){
-      clang::ASTConsumer& C = Instance.getASTConsumer();
-      if(clang::isa<clang::MultiplexConsumer>(&C))
-      {
-        clang::MultiplexConsumer& MC = static_cast<clang::MultiplexConsumer&>(C);
-
+    clang::ASTConsumer& C = Instance.getASTConsumer();
+    if(clang::isa<clang::MultiplexConsumer>(&C))
+    {
+      clang::MultiplexConsumer& MC = static_cast<clang::MultiplexConsumer&>(C);
+      if(CompilationStateManager::getASTPassState().isDeviceCompilation()){
+      
         for (clang::FunctionDecl *HDFunction :
             Visitor.getMarkedHostDeviceFunctions()) {
           clang::DeclGroupRef DG{HDFunction};
 
           MC.HandleTopLevelDecl(DG);
         }
-        for(clang::FunctionDecl* Kernel : Visitor.getKernels()){
+      }
+      // We need to reemit kernels both in host and device passes
+      // to make sure the right stubs are generated
+      for(clang::FunctionDecl* Kernel : Visitor.getKernels()){
           clang::DeclGroupRef DG{Kernel};
 
           MC.HandleTopLevelDecl(DG);
-        }
       }
     }
   }

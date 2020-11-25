@@ -213,6 +213,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_d2d,
     });
 }
 
+#ifdef HIPSYCL_ENABLE_COPY_WITH_HOST_ACCESSOR_TESTS
 BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2d,
   _dimensions, explicit_copy_test_dimensions::type) {
   constexpr auto d = _dimensions::value;
@@ -257,5 +258,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(explicit_buffer_copy_two_accessors_h2h,
     cgh.copy(src_acc, dst_acc);
   });
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

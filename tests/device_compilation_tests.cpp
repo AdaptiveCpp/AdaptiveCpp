@@ -338,5 +338,28 @@ BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
 }
 #endif
 
+template <class ...>
+struct VariadicKernelTP {};
+
+template <auto ...>
+struct VariadicKernelNTTP {};
+
+BOOST_AUTO_TEST_CASE(variadic_kernel_name) {
+    cl::sycl::queue queue;
+    cl::sycl::buffer<size_t, 1> buf(1);
+    {
+      queue.submit([&](cl::sycl::handler& cgh) {
+          auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+          cgh.parallel_for<VariadicKernelTP<int, bool, char>>(cl::sycl::range<1>(1), [=](cl::sycl::item<1>) {});
+      });
+    }
+    {
+      queue.submit([&](cl::sycl::handler& cgh) {
+          auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+          cgh.parallel_for<VariadicKernelNTTP<1, true, 'a'>>(cl::sycl::range<1>(1), [=](cl::sycl::item<1>) {});
+      });
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
 

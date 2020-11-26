@@ -46,8 +46,7 @@ public:
   {
     std::lock_guard<std::mutex> lock{_lock};
 
-    HIPSYCL_DEBUG_ERROR << "Runtime has registered error: ";
-    res.dump(common::output_stream::get().get_stream());
+    print_result(res);
     
     _errors.push_back(res);
   }

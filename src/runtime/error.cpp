@@ -88,7 +88,6 @@ void result::dump(std::ostream& ostr) const {
           << "(): " << _impl->info.what();
     if (_impl->info.error_code().is_code_specified())
       ostr << " (error code = " << _impl->info.error_code().str() << ")";
-    ostr << std::endl;
   }
 }
 

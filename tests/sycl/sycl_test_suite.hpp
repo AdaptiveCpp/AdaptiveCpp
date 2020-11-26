@@ -31,7 +31,6 @@
 #include <tuple>
 
 #define BOOST_MPL_CFG_GPU_ENABLED // Required for nvcc
-#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 #include <boost/mpl/list_c.hpp>
 #include <boost/mpl/list.hpp>

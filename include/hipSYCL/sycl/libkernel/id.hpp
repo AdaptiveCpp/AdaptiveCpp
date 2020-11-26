@@ -249,6 +249,11 @@ private:
   detail::device_array<std::size_t, dimensions> _data;
 };
 
+// Deduction guides
+id(size_t) -> id<1>;
+id(size_t, size_t) -> id<2>;
+id(size_t, size_t, size_t) -> id<3>;
+
 namespace detail {
 namespace id{
 

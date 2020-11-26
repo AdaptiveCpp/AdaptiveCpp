@@ -659,9 +659,6 @@ class compiler:
 
     if "hip" in self._targets and "cuda" in self._targets:
       raise RuntimeError("CUDA and HIP cannot be targeted simultaneously")
-    # clang bug prevents clang -x cuda -fopenmp from working
-    if "omp" in self._targets and "cuda" in self._targets:
-      raise RuntimeError("CUDA and OpenMP cannot be targeted simultaneously")
 
     self._backends = []
 

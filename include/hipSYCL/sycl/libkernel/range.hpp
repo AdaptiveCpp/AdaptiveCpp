@@ -233,6 +233,11 @@ private:
 
 };
 
+// deduction guides
+range(size_t) -> range<1>;
+range(size_t, size_t) -> range<2>;
+range(size_t, size_t, size_t) -> range<3>;
+
 namespace detail {
 namespace range {
 

@@ -473,7 +473,7 @@ private:
           }
         }
       }
-      else if(auto C = clang::dyn_cast<clang::CompoundStmt>(*S))
+      else if(clang::dyn_cast<clang::CompoundStmt>(*S))
       {
         storeLocalVariablesInLocalMemory(*S, F);
       }

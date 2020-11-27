@@ -374,10 +374,10 @@ struct group
 #else
 
 #ifdef _OPENMP
-  #pragma omp simd
+    #pragma omp simd
 #endif
-  for(size_t i = 0; i < numElements; ++i)
-    dest[i] = src[i];
+    for(size_t i = 0; i < numElements; ++i)
+      dest[i] = src[i];
 #endif
 
     return device_event{};
@@ -397,10 +397,10 @@ struct group
 
 #else
 #ifdef _OPENMP
- #pragma omp simd
+    #pragma omp simd
 #endif
-  for(size_t i = 0; i < numElements; ++i)
-    dest[i] = src[i * srcStride];
+    for(size_t i = 0; i < numElements; ++i)
+      dest[i] = src[i * srcStride];
 #endif
 
     return device_event{};

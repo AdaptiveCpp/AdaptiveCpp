@@ -116,14 +116,14 @@ bool multi_queue_executor::is_taskgraph() const {
 
 backend_execution_lane_range
 multi_queue_executor::get_memcpy_execution_lane_range(device_id dev) const {
-  assert(dev.get_id() < _device_data.size());
+  assert(static_cast<std::size_t>(dev.get_id()) < _device_data.size());
 
   return this->_device_data[dev.get_id()].memcpy_lanes;
 }
 
 backend_execution_lane_range
 multi_queue_executor::get_kernel_execution_lane_range(device_id dev) const {
-  assert(dev.get_id() < _device_data.size());
+  assert(static_cast<std::size_t>(dev.get_id()) < _device_data.size());
 
   return this->_device_data[dev.get_id()].kernel_lanes;
 }
@@ -269,7 +269,7 @@ void multi_queue_executor::submit_node(
         // Check that the target node has an event right after it.
         // Otherwise, if we use the generic batch-end event, it
         // *might* create a deadlock
-        std::size_t target_node_id = op->get_target_node()->get_node_id();
+        //std::size_t target_node_id = op->get_target_node()->get_node_id();
 
         q->submit_external_wait_for(op->get_target_node());
       }

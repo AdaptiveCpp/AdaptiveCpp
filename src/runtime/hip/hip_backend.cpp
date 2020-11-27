@@ -40,7 +40,7 @@ hip_backend::hip_backend()
 
   backend_descriptor backend_desc{get_hardware_platform(), get_api_platform()};
 
-  for (int i = 0; i < _hw_manager.get_num_devices(); ++i) {
+  for (int i = 0; i < static_cast<int>(_hw_manager.get_num_devices()); ++i) {
     _allocators.push_back(hip_allocator{backend_desc, i});
   }
 }
@@ -87,7 +87,7 @@ backend_allocator *hip_backend::get_allocator(device_id dev) const {
         error_info{"hip_backend: Passed device id from other backend to HIP backend"});
     return nullptr;
   }
-  if (dev.get_id() >= _allocators.size()) {
+  if (static_cast<std::size_t>(dev.get_id()) >= _allocators.size()) {
     register_error(__hipsycl_here(), error_info{"hip_backend: Device id is out of bounds"});
   }
   return &(_allocators[dev.get_id()]);

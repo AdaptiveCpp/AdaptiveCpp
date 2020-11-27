@@ -100,13 +100,13 @@ private:
   device_id _assigned_device;
   backend_executor *_assigned_executor;
   std::size_t _assigned_execution_lane;
-  bool _is_virtual;
 
   std::shared_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;
 
   std::atomic<bool> _is_submitted;
   mutable std::atomic<bool> _is_complete;
+  bool _is_virtual;
   std::atomic<bool> _is_cancelled;
 
   std::size_t _node_id;

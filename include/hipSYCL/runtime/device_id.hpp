@@ -57,8 +57,8 @@ enum class backend_id {
 struct backend_descriptor
 {
   backend_id id;
-  api_platform sw_platform;
   hardware_platform hw_platform;
+  api_platform sw_platform;
 
   backend_descriptor() = default;
   backend_descriptor(hardware_platform hw_plat, api_platform sw_plat)

@@ -112,8 +112,8 @@ public:
   }
 
 private:
-  bool _has_error_code;
   std::string _component;
+  bool _has_error_code;
   int _code;
 };
 

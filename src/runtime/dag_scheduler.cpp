@@ -79,7 +79,8 @@ void for_all_device_assignments(
     Handler h) 
 {
   // Make sure we're not accessing invalid nodes
-  if(current_node_index < is_device_predetermined.size()) {
+  if (static_cast<std::size_t>(current_node_index) <
+      is_device_predetermined.size()) {
 
     // If this device is pretermined, simply move to the next node
     if(is_device_predetermined[current_node_index]) {
@@ -87,7 +88,8 @@ void for_all_device_assignments(
                                  current_state, current_device_index,
                                  current_node_index + 1, h);
     } else {
-      if(current_device_index < devices_to_try.size()) {
+      if (static_cast<std::size_t>(current_device_index) <
+          devices_to_try.size()) {
         // If we are at a valid device, put in the current scheduling
         // configuration
         current_state[current_node_index].set_target_device(

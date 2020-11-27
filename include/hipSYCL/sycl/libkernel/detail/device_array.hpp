@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_DEVICE_ARRAY_HPP
 #define HIPSYCL_DEVICE_ARRAY_HPP
 
+#include <cstddef>
 #include <type_traits>
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 

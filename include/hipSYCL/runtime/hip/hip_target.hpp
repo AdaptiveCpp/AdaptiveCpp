@@ -40,7 +40,9 @@
 #define __HIP_PLATFORM_NVCC__
 #include <hip/hip_runtime.h>
 #elif defined(HIPSYCL_RT_HIP_TARGET_ROCM)
+#ifndef __HIP_PLATFORM_HCC__
 #define __HIP_PLATFORM_HCC__
+#endif
 #include <hip/hip_runtime.h>
 #elif defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)
 #include "hipCPU/hip/hip_runtime.h"

@@ -1,4 +1,5 @@
 
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(HIPSYCL_SOURCES
   application.cpp
@@ -74,8 +75,14 @@ endif()
 
 if(WITH_ROCM_BACKEND) 
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_HIP_BACKEND=1 HIPSYCL_RT_HIP_TARGET_ROCM=1)
-  target_include_directories(hipSYCL-rt PRIVATE ${ROCM_PATH}/include)
-  target_link_libraries(hipSYCL-rt PRIVATE ${ROCM_LIBS})
+  if(NOT HIP_FOUND)
+    target_include_directories(hipSYCL-rt PRIVATE ${ROCM_PATH}/include)
+    target_link_libraries(hipSYCL-rt PRIVATE ${ROCM_LIBS})
+  else()
+    # Supress warnings because wrongly set CXX arguments
+    target_compile_options(hipSYCL-rt PRIVATE -Wno-unused-command-line-argument)
+    target_link_libraries(hipSYCL-rt PRIVATE hip::host)
+  endif()
 endif()
 
 if(WITH_CPU_BACKEND)

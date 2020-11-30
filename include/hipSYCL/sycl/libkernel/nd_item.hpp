@@ -248,7 +248,7 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_group_range(int dimension) const
+  size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<dimensions>(dimension);

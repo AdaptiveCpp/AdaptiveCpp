@@ -35,6 +35,8 @@
 #include <sstream>
 #include <memory>
 
+#include "hipSYCL/common/debug.hpp"
+
 namespace hipsycl {
 namespace rt {
 
@@ -110,8 +112,8 @@ public:
   }
 
 private:
-  bool _has_error_code;
   std::string _component;
+  bool _has_error_code;
   int _code;
 };
 
@@ -188,6 +190,36 @@ inline result make_error(
 result register_error(
     const source_location &origin, const error_info &info);
 void register_error(const result& err);
+
+inline void print_result(const result& res, bool warn_only = false){
+
+  std::stringstream sstr;
+  res.dump(sstr);
+  
+  if(!res.is_success()) {
+    if(!warn_only) { 
+      HIPSYCL_DEBUG_ERROR << sstr.str() << std::endl;
+    } else {
+      HIPSYCL_DEBUG_WARNING << sstr.str() << std::endl;
+    }
+  } else {
+    HIPSYCL_DEBUG_INFO << sstr.str() << std::endl;
+  }
+}
+
+inline result print_error(const source_location &origin,
+                          const error_info &info) {
+  result r = make_error(origin, info);
+  print_result(r);
+  return r;
+}
+
+inline result print_warning(const source_location &origin,
+                            const error_info &info) {
+  result r = make_error(origin, info);
+  print_result(r, true);
+  return r;
+}
 
 }
 }

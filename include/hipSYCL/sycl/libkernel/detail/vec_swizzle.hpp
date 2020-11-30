@@ -184,11 +184,11 @@ public:
   { return _swizzled_access.get_vector().template get<0>(); }
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_count() const
+  static constexpr int get_count()
   { return N; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_size() const
+  static constexpr size_t get_size()
   { return get_count() * sizeof(T); }
 
   // ToDo

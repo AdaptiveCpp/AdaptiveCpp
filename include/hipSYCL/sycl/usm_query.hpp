@@ -99,6 +99,11 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
     });
     assert(backend_it != devs.backends_end());
     selected_backend = *backend_it;
+  } else {
+    // Prevent warnings about uninitialized use of selected_backend
+    selected_backend = detail::get_host_device().get_backend();
+    throw memory_allocation_error{
+        "USM: Could not select backend to use for USM memory operation"};
   }
   
   return selected_backend;

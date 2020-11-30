@@ -556,6 +556,10 @@ class hip_invocation:
     flags = [
         "-x", "hip",
         "--hip-device-lib-path=" + os.path.join(self._rocm_path, "lib"),
+        #--rocm-path is not yet supported by clang 10
+        #"--rocm-path=" + self._rocm_path, use -nogpuinc instead
+        # as we already handle includes
+        "-nogpuinc",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-D__HIPSYCL_CLANG__",
         # clang erroneously sets feature detection flags for 

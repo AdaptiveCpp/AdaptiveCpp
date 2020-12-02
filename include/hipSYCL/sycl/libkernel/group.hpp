@@ -446,7 +446,13 @@ private:
   const id<Dimensions> _group_id;
   const range<Dimensions> _local_range;
   const range<Dimensions> _num_groups;
+public:
 #endif
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return get_local_linear_id() == 0;
+  }
 
 #ifdef SYCL_DEVICE_ONLY
   size_t get_linear_local_id() const

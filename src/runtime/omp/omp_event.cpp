@@ -27,27 +27,28 @@
 
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 
+
 namespace hipsycl {
 namespace rt {
 
 omp_node_event::omp_node_event()
-: _is_complete{std::make_shared<std::atomic<bool>>(false)}
+: _signal_channel{std::make_shared<signal_channel>()}
 {}
 
 omp_node_event::~omp_node_event()
 {}
 
 bool omp_node_event::is_complete() const {
-  return _is_complete->load();
+  return _signal_channel->has_signalled();
 }
 
 void omp_node_event::wait() {
-  while(!_is_complete->load()) ;
+  _signal_channel->wait();
 }
 
-std::shared_ptr<std::atomic<bool>> 
-omp_node_event::get_completion_flag() const {
-  return _is_complete;
+std::shared_ptr<signal_channel>
+omp_node_event::get_signal_channel() const {
+  return _signal_channel;
 }
 
 }

@@ -82,10 +82,10 @@ std::unique_ptr<dag_node_event> omp_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "omp_queue: Inserting event into queue..." << std::endl;
   
   auto evt = std::make_unique<omp_node_event>();
-  auto completion_flag = evt->get_completion_flag();
+  auto signal_channel = evt->get_signal_channel();
 
-  _worker([completion_flag]{
-    completion_flag->store(true);
+  _worker([signal_channel]{
+    signal_channel->signal();
   });
 
   return evt;

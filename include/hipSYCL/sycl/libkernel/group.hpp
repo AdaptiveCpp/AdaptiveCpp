@@ -367,7 +367,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
+    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i];
     __syncthreads();
 
@@ -391,7 +391,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
+    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i * srcStride];
     __syncthreads();
 
@@ -414,7 +414,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     const size_t physical_local_size = get_local_range().size();
     
-    for(size_t i = get_linear_local_id(); i < numElements; i += physical_local_size)
+    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i * destStride] = src[i];
     __syncthreads();
 
@@ -434,25 +434,70 @@ struct group
   void wait_for(eventTN...) const {}
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+
+  using host_barrier_type = std::function<void()>;
+
   group(id<Dimensions> group_id,
         range<Dimensions> local_range,
-        range<Dimensions> num_groups)
+        range<Dimensions> num_groups,
+        host_barrier_type* group_barrier = nullptr,
+        id_type local_id = 0,
+        void *local_memory_ptr = nullptr)
   : _group_id{group_id}, 
     _local_range{local_range}, 
-    _num_groups{num_groups}
+    _num_groups{num_groups},
+    _group_barrier{group_barrier},
+    _local_id{local_id},
+    _local_memory_ptr(local_memory_ptr)
   {}
+
+  void barrier() {
+    (*_group_barrier)();
+  }
+
+  id_type get_local_id() const
+  {
+    return _local_id;
+  }
+
+  linear_id_type get_local_linear_id() const
+  {
+    return detail::linear_id<Dimensions>::get(_local_id,
+                                              _local_range);
+  }
+
+  void *get_local_memory_ptr() const
+  {
+    return _local_memory_ptr;
+  }
 
 private:
   const id<Dimensions> _group_id;
   const range<Dimensions> _local_range;
   const range<Dimensions> _num_groups;
+  const host_barrier_type* _group_barrier;
+  const id_type _local_id;
+  void *_local_memory_ptr;
+public:
 #endif
 
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return get_local_linear_id() == 0;
+  }
+
 #ifdef SYCL_DEVICE_ONLY
-  size_t get_linear_local_id() const
+
+  size_t get_local_linear_id() const
   {
     return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
                                               detail::get_local_size<Dimensions>());
+  }
+
+  [[deprecated]]
+  size_t get_linear_local_id() const
+  {
+    return get_local_linear_id();
   }
 
   template<typename workItemFunctionT>

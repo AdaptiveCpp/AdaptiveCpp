@@ -54,6 +54,10 @@ add_executable(sycl_tests
   sycl/explicit_copy.cpp
   sycl/extensions.cpp
   sycl/fill.cpp
+  sycl/group_functions/group_functions_misc.cpp
+  sycl/group_functions/group_functions_binary_reduce.cpp
+  sycl/group_functions/group_functions_reduce.cpp
+  sycl/group_functions/group_functions_scan.cpp
   sycl/id_range.cpp
   sycl/item.cpp
   sycl/kernel_invocation.cpp

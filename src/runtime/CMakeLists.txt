@@ -54,16 +54,16 @@ if(WITH_CPU_BACKEND)
     omp/omp_queue.cpp)
 endif()
 
-set(INCLUDE_DIRS
-  ${HIPSYCL_SOURCE_DIR}/include
-  ${HIPSYCL_SOURCE_DIR})
-
 add_library(hipSYCL-rt SHARED ${HIPSYCL_SOURCES})
-target_include_directories(hipSYCL-rt PRIVATE ${INCLUDE_DIRS})
-# syclcc already knows about these include directories, but clangd-based tooling does not. Specifying them
-# explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
+
+# syclcc already knows about these include directories, but clangd-based tooling does not.
+# Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
 target_include_directories(hipSYCL-rt
-  INTERFACE "$<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>"
+  PUBLIC
+    $<BUILD_INTERFACE:${HIPSYCL_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  PRIVATE
+    ${HIPSYCL_SOURCE_DIR}
 )
 
 if(WITH_CUDA_BACKEND)
@@ -88,6 +88,7 @@ if(WITH_CPU_BACKEND)
   endif()
 
   target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
+
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_OMP_BACKEND=1)
 endif()
 

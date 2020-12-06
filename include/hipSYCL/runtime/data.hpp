@@ -209,8 +209,8 @@ private:
     return pos[0] * _size[1] * _size[2] + pos[1] * _size[2] + pos[2]; 
   }
 
-  std::vector<data_state> _contained_data;
   range<3> _size;
+  std::vector<data_state> _contained_data;
 };
 
 
@@ -284,11 +284,12 @@ public:
   /// dimension must be a multiple of the page size
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
-  data_region(range<3> num_elements, std::size_t element_size,
-              range<3> page_size,
-              destruction_handler on_destruction = [](data_region*){})
-      : _element_size{element_size}, _num_elements{num_elements},
-        _page_size{page_size}, _on_destruction{on_destruction}, _is_fork{false} {
+  data_region(
+      range<3> num_elements, std::size_t element_size, range<3> page_size,
+      destruction_handler on_destruction = [](data_region *) {})
+      : _element_size{element_size}, _is_fork{false},
+        _on_destruction{on_destruction}, _page_size{page_size},
+        _num_elements{num_elements} {
 
     unset_id();
 
@@ -307,7 +308,6 @@ public:
                        << _num_pages[0] << " " << _num_pages[1] << " "
                        << _num_pages[2] << std::endl;
   }
-
 
   ~data_region() {
     _on_destruction(this);
@@ -482,7 +482,7 @@ public:
   {
     auto ptr = std::make_unique<data_region>(*this);
     ptr->_is_fork = true;
-    return std::move(ptr);
+    return ptr;
   }
 
   void apply_fork(data_region *fork)

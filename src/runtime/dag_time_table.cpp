@@ -45,7 +45,6 @@ cost_type get_runtime_cost(const dag_interpreter &interpreter,
     c += op->get_runtime_costs();
   });
 
-  std::size_t node_id = node->get_node_id();
   
   cost_type max_synchronization_duration = 0.0;
   for(auto synchronization_op : annotation.get_synchronization_ops()) {

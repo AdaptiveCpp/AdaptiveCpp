@@ -166,7 +166,7 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return group<dimensions>{};
 #else
-    return group<dimensions>{_group_id, _local_range, _num_groups};
+    return group<dimensions>{_group_id, _local_range, _num_groups, _group_barrier, get_local_id(), _local_memory_ptr};
 #endif
   }
 
@@ -248,7 +248,7 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_group_range(int dimension) const
+  size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_grid_size<dimensions>(dimension);
@@ -349,13 +349,15 @@ struct nd_item
   nd_item(id<dimensions>* offset, 
           id<dimensions> group_id, id<dimensions> local_id, 
           range<dimensions> local_range, range<dimensions> num_groups,
-          detail::host_barrier_type* host_group_barrier = nullptr)
+          detail::host_barrier_type* host_group_barrier = nullptr,
+          void* local_memory_ptr = nullptr)
     : _offset{offset}, 
       _group_id{group_id}, 
       _local_id{local_id}, 
       _local_range{local_range},
       _num_groups{num_groups},
-      _global_id{group_id * local_range + local_id}
+      _global_id{group_id * local_range + local_id},
+      _local_memory_ptr(local_memory_ptr)
   {
 #ifndef SYCL_DEVICE_ONLY
     _group_barrier = host_group_barrier;
@@ -372,6 +374,7 @@ private:
   const range<dimensions> _local_range;
   const range<dimensions> _num_groups;
   const id<dimensions> _global_id;
+  void *_local_memory_ptr;
 #endif
 
 #ifndef SYCL_DEVICE_ONLY

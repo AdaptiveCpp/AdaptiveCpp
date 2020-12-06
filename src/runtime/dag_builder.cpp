@@ -47,6 +47,25 @@ namespace rt {
 
 namespace {
 
+// Add this node to the data users of the memory region of the specified
+// requirement
+void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
+  assert(mem_req);
+  if (mem_req->is_buffer_requirement()) {
+
+    auto &data_users = cast<buffer_memory_requirement>(mem_req)
+                           ->get_data_region()
+                           ->get_users();
+
+    if (!data_users.has_user(node)) {
+      data_users.add_user(
+          node, mem_req->get_access_mode(), mem_req->get_access_target(),
+          mem_req->get_access_offset3d(), mem_req->get_access_range3d());
+    }
+  } else
+    assert(false && "dag: Image requirements are not yet implemented");
+}
+
 // Add this node to the data users of the memory regions
 // referenced in the requirements
 void add_to_data_users(dag_node_ptr node, const requirements_list& reqs)
@@ -55,21 +74,7 @@ void add_to_data_users(dag_node_ptr node, const requirements_list& reqs)
     if(req->get_operation()->is_requirement()){
       auto* mem_req = cast<memory_requirement>(req->get_operation());
 
-      if(mem_req->is_buffer_requirement())
-      {
-        auto& data_users = cast<buffer_memory_requirement>(mem_req)->
-            get_data_region()->get_users();
-
-        if(!data_users.has_user(node))
-          data_users.add_user(node, 
-                              mem_req->get_access_mode(),
-                              mem_req->get_access_target(),
-                              mem_req->get_access_offset3d(),
-                              mem_req->get_access_range3d());
-      }
-      else
-        assert(false && "dag: Image requirements are not yet implemented");
-    
+      add_to_data_users(node, mem_req);
     }
   }
 }
@@ -129,8 +134,15 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   auto operation_node = std::make_shared<dag_node>(
       hints, requirements.get(), std::move(op));
   
-  if(operation_node->get_operation()->is_requirement())
+  if(operation_node->get_operation()->is_requirement()) {
     add_conflicts_as_requirements(operation_node);
+    // if this is an explicit requirement, we need to add *this*
+    // operation to the users of the requirement it refers to.
+    requirement* req = cast<requirement>(operation_node->get_operation());
+    if(req->is_memory_requirement())
+      add_to_data_users(operation_node, cast<memory_requirement>(
+                                            operation_node->get_operation()));
+  }
 
   for (auto node : operation_node->get_requirements())
       add_conflicts_as_requirements(node);

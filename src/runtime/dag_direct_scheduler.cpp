@@ -204,7 +204,6 @@ result submit_requirement(dag_node_ptr req) {
 
   // Make sure that all required allocations exist
   // (they must exist when we try initialize device pointers!)
-  bool allocation_failed = false;
   result res = make_success();
   execute_if_buffer_requirement(req, [&](buffer_memory_requirement *bmem_req) {
     res = ensure_allocation_exists(bmem_req, req->get_assigned_device());

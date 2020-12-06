@@ -93,6 +93,8 @@ cuda_queue::~cuda_queue() {
 
 /// Inserts an event into the stream
 std::unique_ptr<dag_node_event> cuda_queue::insert_event() {
+  this->activate_device();
+
   cudaEvent_t evt;
   cudaError_t err = cudaEventCreate(&evt);
 

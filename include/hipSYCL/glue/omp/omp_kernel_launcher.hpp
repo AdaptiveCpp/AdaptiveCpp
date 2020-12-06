@@ -45,6 +45,7 @@
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
+#include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -249,6 +250,7 @@ inline void parallel_for_ndrange_kernel(
       sycl::detail::host_local_memory::request_from_threadprivate_pool(
           num_local_mem_bytes);
 
+      void* group_shared_memory_ptr = nullptr;
 
       host::static_range_decomposition<Dim> group_decomposition{
             num_groups, omp_get_num_threads()};
@@ -260,12 +262,20 @@ inline void parallel_for_ndrange_kernel(
       std::function<void()> barrier_impl = [&]() { engine.barrier(); };
 
       engine.run_kernel([&](sycl::id<Dim> local_id, sycl::id<Dim> group_id) {
-        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-                                    local_size, num_groups, &barrier_impl};
 
-        invoke([&](auto& ... reducers){
-          f(this_item, reducers...);
-        }, omp_reducer{sequential_reducers}...);
+        auto linear_group_id =
+            sycl::detail::linear_id<Dim>::get(group_id, num_groups);
+
+        sycl::nd_item<Dim> this_item{&offset,
+                                     group_id,
+                                     local_id,
+                                     local_size,
+                                     num_groups,
+                                     &barrier_impl,
+                                     &group_shared_memory_ptr};
+
+        invoke([&](auto &...reducers) { f(this_item, reducers...); },
+               omp_reducer{sequential_reducers}...);
       });
 
       sycl::detail::host_local_memory::release();

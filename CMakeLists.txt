@@ -125,7 +125,7 @@ set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL
 if(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION)
   set(SYCLCC_CONFIG_FILE_INSTALL_DIR /etc/hipSYCL/)
 else()
-  set(SYCLCC_CONFIG_FILE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/hipSYCL/)
+  set(SYCLCC_CONFIG_FILE_INSTALL_DIR etc/hipSYCL)
 endif()
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
@@ -152,26 +152,52 @@ set(SYCLCC_CONFIG_FILE "{
 
 file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
+if(WIN32)
+  set(HIPSYCL_INSTALL_CMAKE_DIR
+    "cmake" CACHE PATH "Install path for CMake config files")
+else()
+  set(HIPSYCL_INSTALL_CMAKE_DIR
+    "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
+endif()
+
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
-install(PROGRAMS cmake/syclcc-launcher DESTINATION lib/cmake/hipSYCL)
-install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION lib/cmake/hipSYCL)
+install(PROGRAMS cmake/syclcc-launcher DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
 
-set(HIPSYCL_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX})
-configure_file(${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in
-               ${CMAKE_BINARY_DIR}/hipsycl-config.cmake
-               @ONLY)
-install(FILES
-        ${CMAKE_BINARY_DIR}/hipsycl-config.cmake
-        DESTINATION lib/cmake/hipSYCL)
-install(EXPORT install_exports
-        FILE "hipsycl-targets.cmake"
-        NAMESPACE hipSYCL::
-        DESTINATION lib/cmake/hipSYCL)
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
+# Set relative paths for install root in the following variables so that
+# configure_package_config_file will generate paths relative whatever is
+# the future install root
+set(HIPSYCL_INSTALL_COMPILER_DIR bin)
+set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
+set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in
+    ${PROJECT_BINARY_DIR}/hipsycl-config.cmake
+    INSTALL_DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+    PATH_VARS
+    HIPSYCL_INSTALL_COMPILER_DIR
+    HIPSYCL_INSTALL_LAUNCHER_DIR
+    HIPSYCL_INSTALL_LAUNCHER_RULE_DIR
+)
+install(FILES
+  ${PROJECT_BINARY_DIR}/hipsycl-config.cmake
+  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+)
+install(EXPORT install_exports
+  FILE "hipsycl-targets.cmake"
+  NAMESPACE hipSYCL::
+  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+)
+mark_as_advanced(
+  HIPSYCL_INSTALL_CMAKE_DIR
+)

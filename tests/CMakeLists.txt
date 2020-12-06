@@ -1,6 +1,8 @@
 project(hipsycl-tests)
 cmake_minimum_required(VERSION 3.5)
 
+set(Boost_USE_STATIC_LIBS off)
+set(BUILD_SHARED_LIBS on)
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
 find_package(hipSYCL REQUIRED)
@@ -33,6 +35,9 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
+  add_definitions(-DHIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
+endif()
 
 add_subdirectory(platform_api)
 
@@ -49,6 +54,10 @@ add_executable(sycl_tests
   sycl/explicit_copy.cpp
   sycl/extensions.cpp
   sycl/fill.cpp
+  sycl/group_functions/group_functions_misc.cpp
+  sycl/group_functions/group_functions_binary_reduce.cpp
+  sycl/group_functions/group_functions_reduce.cpp
+  sycl/group_functions/group_functions_scan.cpp
   sycl/id_range.cpp
   sycl/item.cpp
   sycl/kernel_invocation.cpp

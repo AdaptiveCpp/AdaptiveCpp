@@ -27,6 +27,7 @@
 
 #include <cuda_runtime_api.h>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
@@ -48,6 +49,10 @@ cuda_device_manager::cuda_device_manager() {
 void cuda_device_manager::activate_device(int device_id)
 {
   if (_device != device_id) {
+
+    HIPSYCL_DEBUG_INFO << "cuda_device_manager: Switchting to device "
+                       << device_id << std::endl;
+
     auto err = cudaSetDevice(device_id);
 
     if (err != cudaSuccess){
@@ -56,6 +61,9 @@ void cuda_device_manager::activate_device(int device_id)
         error_info{
             "cuda_device_manager: Could not set active CUDA device",
             error_code{"CUDA", err}});
+    }
+    else {
+      _device = device_id;
     }
   }
 }

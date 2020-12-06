@@ -41,7 +41,7 @@ dag_node::dag_node(const execution_hints &hints,
     : _hints{hints}, _requirements{requirements},
       _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
-      _node_id{std::numeric_limits<std::size_t>::max()} {}
+      _is_cancelled{false}, _node_id{std::numeric_limits<std::size_t>::max()} {}
 
 bool dag_node::is_submitted() const { return _is_submitted; }
 

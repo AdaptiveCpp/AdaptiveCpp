@@ -498,6 +498,19 @@ using constant_ptr = multi_ptr<ElementType, access::address_space::constant_spac
 template <typename ElementType>
 using private_ptr = multi_ptr<ElementType, access::address_space::private_space>;
 
+// Deduction guides
+template <int dimensions, access::mode Mode, access::placeholder isPlaceholder, class T>
+multi_ptr( accessor<T, dimensions, Mode, access::target::global_buffer, isPlaceholder>)
+-> multi_ptr<T, access::address_space::global_space>;
+
+template <int dimensions, access::mode Mode, access::placeholder isPlaceholder, class T>
+multi_ptr(accessor<T, dimensions, Mode, access::target::constant_buffer, isPlaceholder>)
+-> multi_ptr<T, access::address_space::constant_space>;
+
+template <int dimensions, access::mode Mode, access::placeholder isPlaceholder, class T>
+multi_ptr(accessor<T, dimensions, Mode, access::target::local, isPlaceholder>)
+-> multi_ptr<T, access::address_space::local_space>;
+
 } // namespace sycl
 } // namespace hipsycl
 

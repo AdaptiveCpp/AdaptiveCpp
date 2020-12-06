@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
@@ -47,6 +48,10 @@ hip_device_manager::hip_device_manager() {
 void hip_device_manager::activate_device(int device_id)
 {
   if (_device != device_id) {
+
+    HIPSYCL_DEBUG_INFO << "hip_device_manager: Switchting to device "
+                       << device_id << std::endl;
+
     auto err = hipSetDevice(device_id);
 
     if (err != hipSuccess){
@@ -55,6 +60,8 @@ void hip_device_manager::activate_device(int device_id)
         error_info{
             "hip_device_manager: Could not set active HIP device",
             error_code{"HIP", err}});
+    } else {
+      _device = device_id;
     }
   }
 }

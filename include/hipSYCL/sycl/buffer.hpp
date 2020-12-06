@@ -674,6 +674,23 @@ private:
   std::shared_ptr<detail::buffer_impl> _impl;
 };
 
+// Deduction guides
+template <class InputIterator, class AllocatorT>
+buffer(InputIterator, InputIterator, AllocatorT, const property_list & = {}) 
+-> buffer<typename std::iterator_traits<InputIterator>::value_type, 1, AllocatorT>;
+
+template <class InputIterator>
+buffer(InputIterator, InputIterator, const property_list & = {}) 
+-> buffer<typename std::iterator_traits<InputIterator>::value_type, 1>; 
+
+template <class T, int dimensions, class AllocatorT>
+buffer(const T *, const range<dimensions> &, AllocatorT, const property_list & = {})
+-> buffer<T, dimensions, AllocatorT>;
+
+template <class T, int dimensions>
+buffer(const T *, const range<dimensions> &, const property_list & = {}) 
+-> buffer<T, dimensions>;
+
 namespace detail::accessor {
 
 template<class AccessorType, class BufferType, int Dim>

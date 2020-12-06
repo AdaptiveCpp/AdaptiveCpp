@@ -313,6 +313,7 @@ class syclcc_config:
   def _get_omp_substitution_vars(self):
     return {
       'HIPSYCL_PATH' : self.hipsycl_installation_path,
+      'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
     }
 
   def _substitute_template_string(self, template_string, substitution_dict):
@@ -579,9 +580,6 @@ class cuda_invocation:
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        # clang erroneously sets feature detection flags for 
-        # __float128 even though it is not supported for CUDA / HIP,
-        # see https://bugs.llvm.org/show_bug.cgi?id=47559.
         "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
       ]
     flags += self._cxx_flags
@@ -618,11 +616,6 @@ class hip_invocation:
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        # This here is necessary because some distributions of clang
-        # incorrectly have the gcc/system headers *before* clangs own
-        # include path. This causes "file not found" errors when the
-        # clang CUDA wrapper headers try to include the system headers
-        # with #include_next <...>
         "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
       ]
     for t in self._hip_targets:

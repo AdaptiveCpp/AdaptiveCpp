@@ -1,5 +1,5 @@
 project(hipsycl-tests)
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 
 set(Boost_USE_STATIC_LIBS off)
 set(BUILD_SHARED_LIBS on)

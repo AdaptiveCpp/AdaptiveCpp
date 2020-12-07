@@ -59,7 +59,7 @@ namespace omp_dispatch {
 
 
 template <int Dim, class Function>
-void iterate_range_omp_for(sycl::range<Dim> r, Function f) {
+void iterate_range_omp_for(sycl::range<Dim> r, Function f) noexcept {
 
   if constexpr (Dim == 1) {
     #pragma omp for
@@ -87,7 +87,7 @@ void iterate_range_omp_for(sycl::range<Dim> r, Function f) {
 
 template <int Dim, class Function>
 void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
-                           Function f) {
+                           Function f) noexcept {
 
   const std::size_t min_i = offset.get(0);
   const std::size_t max_i = offset.get(0) + r.get(0);

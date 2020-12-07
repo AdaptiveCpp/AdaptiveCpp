@@ -38,7 +38,7 @@ namespace glue {
 namespace host {
 
 template <int Dim, class Function>
-void iterate_range(sycl::range<Dim> r, Function f) {
+void iterate_range(sycl::range<Dim> r, Function f) noexcept {
 
   if constexpr (Dim == 1) {
     for (std::size_t i = 0; i < r.get(0); ++i) {
@@ -62,7 +62,8 @@ void iterate_range(sycl::range<Dim> r, Function f) {
 }
 
 template <int Dim, class Function>
-void iterate_range(sycl::id<Dim> offset, sycl::range<Dim> r, Function f) {
+void iterate_range(sycl::id<Dim> offset, sycl::range<Dim> r,
+                   Function f) noexcept {
 
   const std::size_t min_i = offset.get(0);
   const std::size_t max_i = offset.get(0) + r.get(0);
@@ -98,7 +99,7 @@ void iterate_range(sycl::id<Dim> offset, sycl::range<Dim> r, Function f) {
 
 template <int Dim, class Function>
 void iterate_partial_range(sycl::range<Dim> whole_range, sycl::id<Dim> begin,
-                           std::size_t num_elements, Function f) {
+                           std::size_t num_elements, Function f) noexcept {
 
   if constexpr (Dim == 1) {
     for (std::size_t i = begin.get(0); i < begin.get(0) + num_elements; ++i) {
@@ -140,7 +141,6 @@ void iterate_partial_range(sycl::range<Dim> whole_range, sycl::id<Dim> begin,
     }
   }
 }
-
 }
 }
 } // namespace hipsycl

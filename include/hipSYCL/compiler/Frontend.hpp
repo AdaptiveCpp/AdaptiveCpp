@@ -376,58 +376,37 @@ private:
     if(f->getQualifiedNameAsString() 
         == "hipsycl::glue::hiplike_dispatch::parallel_for_workgroup")
     {
-      clang::FunctionDecl* Kernel = 
-        this->getKernelFromHierarchicalParallelFor(f);
+      clang::FunctionDecl* Kernel = f;
+      
+      HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
+                        << Kernel->getQualifiedNameAsString() << std::endl;
 
-      if (Kernel) 
+      // Mark local variables as shared memory, unless they are explicitly marked private.
+      // Do this not only for the kernel itself, but consider all functions called by the kernel.
+      detail::CompleteCallSet CCS(Kernel);
+      for(auto&& RD : CCS.getReachableDecls())
       {
-        HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
-                          << Kernel->getQualifiedNameAsString() << std::endl;
-
-        // Mark local variables as shared memory, unless they are explicitly marked private.
-        // Do this not only for the kernel itself, but consider all functions called by the kernel.
-        detail::CompleteCallSet CCS(Kernel);
-        for(auto&& RD : CCS.getReachableDecls())
+        // To prevent every local variable in any function being marked as shared,
+        // we only consider functions that receive a hipsycl::sycl::group as their parameter.
+        for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
         {
-          // To prevent every local variable in any function being marked as shared,
-          // we only consider functions that receive a hipsycl::sycl::group as their parameter.
-          for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
-          {
-            auto Type = (*Param)->getOriginalType().getTypePtr();
-            if(auto DeclType = Type->getAsCXXRecordDecl()) {
-              if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
-              {
-                storeLocalVariablesInLocalMemory(RD->getBody(), RD);
-                break;
-              }
+          auto Type = (*Param)->getOriginalType().getTypePtr();
+          if(auto DeclType = Type->getAsCXXRecordDecl()) {
+            if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
+            {
+              storeLocalVariablesInLocalMemory(RD->getBody(), RD);
+              break;
             }
           }
         }
       }
+    
     }
   
     
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
       markAsKernel(f); 
     }
-  }
-
-  clang::FunctionDecl* getKernelFromHierarchicalParallelFor(
-    clang::FunctionDecl* KernelDispatch) const
-  {
-    if (auto *B = KernelDispatch->getBody()) 
-    {
-      for (auto S = B->child_begin();
-          S != B->child_end(); ++S)
-      {
-        if(auto* C = clang::dyn_cast<clang::CallExpr>(*S))
-        {
-          if(clang::FunctionDecl* F = C->getDirectCallee())
-            return F;
-        }
-      }
-    }
-    return nullptr;
   }
 
 

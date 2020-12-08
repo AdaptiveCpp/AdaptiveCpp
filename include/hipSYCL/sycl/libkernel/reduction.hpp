@@ -42,6 +42,7 @@ struct pointer_reduction_descriptor {
   using value_type = T;
   using combiner_type = BinaryOperation;
 
+  HIPSYCL_UNIVERSAL_TARGET
   pointer_reduction_descriptor(value_type *output_data, value_type op_identity,
                                BinaryOperation op)
       : data{output_data}, identity{op_identity}, combiner{op} {}
@@ -50,6 +51,7 @@ struct pointer_reduction_descriptor {
   value_type identity;
   BinaryOperation combiner;
 
+  HIPSYCL_UNIVERSAL_TARGET
   value_type *get_pointer() const {
     return data;
   }
@@ -60,6 +62,7 @@ struct accessor_reduction_descriptor {
   using value_type = typename AccessorT::value_type;
   using combiner_type = BinaryOperation;
 
+  HIPSYCL_UNIVERSAL_TARGET
   accessor_reduction_descriptor(AccessorT output_data, value_type op_identity,
                                 BinaryOperation op)
       : acc{output_data}, identity{op_identity}, combiner{op} {}
@@ -68,6 +71,7 @@ struct accessor_reduction_descriptor {
   value_type identity;
   BinaryOperation combiner;
 
+  HIPSYCL_UNIVERSAL_TARGET
   value_type *get_pointer() const {
     return acc.get_pointer();
   }
@@ -87,12 +91,17 @@ public:
   using value_type    = typename BackendReducerImpl::value_type;
   using combiner_type = typename BackendReducerImpl::combiner_type;
 
+  HIPSYCL_KERNEL_TARGET
   reducer(const reducer &) = delete;
+
+  HIPSYCL_KERNEL_TARGET
   reducer(BackendReducerImpl &impl)
       : _impl{impl} {}
 
+  HIPSYCL_KERNEL_TARGET
   reducer& operator= (const reducer&) = delete;
 
+  HIPSYCL_KERNEL_TARGET
   void combine(const value_type &partial) {
     return _impl.combine(partial);
   }
@@ -118,6 +127,7 @@ private:
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
+HIPSYCL_KERNEL_TARGET
 void operator+=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
   r.combine(v);
@@ -125,6 +135,7 @@ void operator+=(reducer<BackendReducerImpl> &r,
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::multiplies)>
+HIPSYCL_KERNEL_TARGET
 void operator*=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
   r.combine(v);
@@ -132,6 +143,7 @@ void operator*=(reducer<BackendReducerImpl> &r,
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_and)>
+HIPSYCL_KERNEL_TARGET
 void operator&=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
   r.combine(v);
@@ -139,6 +151,7 @@ void operator&=(reducer<BackendReducerImpl> &r,
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_or)>
+HIPSYCL_KERNEL_TARGET
 void operator|=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
   r.combine(v);
@@ -146,6 +159,7 @@ void operator|=(reducer<BackendReducerImpl> &r,
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::bit_xor)>
+HIPSYCL_KERNEL_TARGET
 void operator^=(reducer<BackendReducerImpl> &r,
                 const typename reducer<BackendReducerImpl>::value_type &v) {
   r.combine(v);
@@ -153,6 +167,7 @@ void operator^=(reducer<BackendReducerImpl> &r,
 
 template <class BackendReducerImpl,
           HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(sycl::plus)>
+HIPSYCL_KERNEL_TARGET
 void operator++(reducer<BackendReducerImpl> &r) {
   r.combine(1);
 }

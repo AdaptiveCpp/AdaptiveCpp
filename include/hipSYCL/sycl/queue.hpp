@@ -307,11 +307,12 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
-  event parallel_for(range<Dims> NumWorkItems, const KernelType &kernel) {
+  template <typename KernelName = class _unnamed_kernel, 
+            typename... ReductionsAndKernel, int Dims>
+  event parallel_for(range<Dims> NumWorkItems, 
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.parallel_for<KernelName>(NumWorkItems, kernel);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
     });
   }
 

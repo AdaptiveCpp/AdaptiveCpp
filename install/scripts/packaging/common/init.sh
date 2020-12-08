@@ -31,12 +31,13 @@ rm -rf ${HIPSYCL_DIR}/opt || true
 # create build directories
 mkdir -p ${CUDA_DIR}/opt/hipSYCL/cuda
 mkdir -p ${ROCM_DIR}/opt/hipSYCL/rocm
-mkdir -p ${COMMON_DIR}/opt/hipSYCL/llvm
+mkdir -p ${COMMON_DIR}/opt/hipSYCL
 mkdir -p ${HIPSYCL_DIR}/opt/hipSYCL
 
 # sort installed binaries into build paths
 cp -R /opt/hipSYCL/rocm/* ${ROCM_DIR}/opt/hipSYCL/rocm || true
-cp -R /opt/hipSYCL/llvm/* ${COMMON_DIR}/opt/hipSYCL/llvm || true
+cp -R /opt/hipSYCL/llvm ${COMMON_DIR}/opt/hipSYCL || true
+cp -R /opt/hipSYCL/boost ${COMMON_DIR}/opt/hipSYCL || true
 
 cp -R /opt/hipSYCL/bin     ${HIPSYCL_DIR}/opt/hipSYCL || true
 cp -R /opt/hipSYCL/etc     ${HIPSYCL_DIR}/opt/hipSYCL || true

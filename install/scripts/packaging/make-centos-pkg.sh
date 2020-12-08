@@ -13,6 +13,7 @@ HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
 RPM_ROOT=${BUILD_DIR}/rpm
 mkdir -p ${RPM_ROOT}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
 
+[ "$HIPSYCL_WITH_ROCM" = "ON" ] &&  rocm_dep=", hipSYCL-rocm${HIPSYCL_PKG_TYPE}"
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL.spec
 Summary: Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
@@ -24,7 +25,7 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_VERSION_STRING}
-Requires: python3, hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}, boost169-devel
+Requires: python3, hipSYCL-base${HIPSYCL_PKG_TYPE} $rocm_dep
 AutoReq: no
 
 %description
@@ -32,6 +33,8 @@ AutoReq: no
 
 %install
 cp -R ${HIPSYCL_DIR}/* %{buildroot}
+
+%global __python %{__python3}
 
 %files
 /opt/hipSYCL/bin
@@ -43,7 +46,7 @@ EOF
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-base.spec
 Summary: base LLVM compiler stack for hipSYCL
-Name: hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
+Name: hipSYCL-base${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION}
 Release: ${HIPSYCL_BUILD}
 License: LLVM
@@ -51,7 +54,8 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-base-${HIPSYCL_VERSION_STRING}
-Requires: devtoolset-7
+Requires: devtoolset-7, binutils, lbzip2
+AutoReq: no
 
 %description
 %{summary}
@@ -59,14 +63,17 @@ Requires: devtoolset-7
 %install
 cp -R ${COMMON_DIR}/* %{buildroot}
 
+%global __python %{__python3}
+
 %files
 /opt/hipSYCL/llvm
+/opt/hipSYCL/boost
 
 EOF
 
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-rocm.spec
 Summary: ROCm stack for hipSYCL
-Name: hipSYCL-rocm${HIPSYCL_PKG_NAME_SUFFIX}
+Name: hipSYCL-rocm${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION}
 Release: ${HIPSYCL_BUILD}
 License: LLVM
@@ -74,7 +81,8 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-rocm-${HIPSYCL_VERSION_STRING}
-Requires: hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}, numactl-devel, numactl-libs, pciutils-devel, pciutils-libs, perl, elfutils-libelf-devel
+Requires: numactl-devel, numactl-libs, pciutils-devel, pciutils-libs, perl, elfutils-libelf-devel
+AutoReq: no
 
 %description
 %{summary}
@@ -82,6 +90,8 @@ Requires: hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}, numactl-devel, numactl-libs, pciuti
 %install
 cp -R ${ROCM_DIR}/* %{buildroot}
   
+%global __python %{__python3}
+
 %files
 /opt/hipSYCL/rocm
 
@@ -105,6 +115,7 @@ AutoReq: no
 %install
 cp -R ${CUDA_DIR}/* %{buildroot}
 
+%global __python %{__python3}
 
 %files
 /opt/hipSYCL/cuda

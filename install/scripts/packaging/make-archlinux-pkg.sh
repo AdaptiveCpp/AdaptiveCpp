@@ -30,6 +30,7 @@ mv ${BUILD_DIR}/rocm-pkg.tar.gz ${ROCM_DIR}/pkg/
 mv ${BUILD_DIR}/common-pkg.tar.gz ${COMMON_DIR}/pkg/
 mv ${BUILD_DIR}/hipsycl-pkg.tar.gz ${HIPSYCL_DIR}/pkg/
 
+[ "$HIPSYCL_WITH_ROCM" = "ON" ] &&  rocm_dep="'hipSYCL-rocm${HIPSYCL_PKG_TYPE}'"
 cat << EOF > ${HIPSYCL_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
 pkgname=hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}
@@ -39,8 +40,8 @@ pkgdesc="Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs"
 arch=('x86_64')
 url="https://github.com/illuhad/hipSYCL"
 license=('BSD')
-depends=('hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}' 'python' 'boost')
-provides=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'SYCL${HIPSYCL_PKG_NAME_SUFFIX}')
+depends=('hipSYCL-base${HIPSYCL_PKG_TYPE}' 'python' $rocm_dep )
+provides=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'SYCL${HIPSYCL_PKG_NAME_SUFFIX}' )
 source=('hipsycl-pkg.tar.gz')
 md5sums=()
 
@@ -52,7 +53,7 @@ EOF
 
 cat << EOF > ${COMMON_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-base${HIPSYCL_PKG_NAME_SUFFIX}
+pkgname=hipSYCL-base${HIPSYCL_PKG_TYPE}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="LLVM compiler stack for hipSYCL"
@@ -72,15 +73,15 @@ EOF
 
 cat << EOF > ${ROCM_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-rocm${HIPSYCL_PKG_NAME_SUFFIX}
+pkgname=hipSYCL-rocm${HIPSYCL_PKG_TYPE}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="ROCm compiler stack and libraries for hipSYCL"
 arch=('x86_64')
 url="https://github.com/illuhad/hipSYCL"
 license=('LLVM')
-depends=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'pciutils' 'libelf' 'perl' 'pkg-config')
-provides=('hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}' 'SYCL${HIPSYCL_PKG_NAME_SUFFIX}')
+depends=( 'pciutils' 'libelf' 'perl' 'pkg-config')
+provides=('hipSYCL${HIPSYCL_PKG_TYPE}' 'SYCL${HIPSYCL_PKG_TYPE}')
 source=('rocm-pkg.tar.gz')
 md5sums=()
 validpgpkeys=()
@@ -95,7 +96,7 @@ EOF
 
 cat << EOF > ${CUDA_DIR}/pkg/PKGBUILD
 # Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-pkgname=hipSYCL-cuda${HIPSYCL_PKG_NAME_SUFFIX}
+pkgname=hipSYCL-cuda${HIPSYCL_PKG_TYPE}
 pkgver=${HIPSYCL_VERSION}
 pkgrel=${HIPSYCL_BUILD}
 pkgdesc="CUDA stack for hipSYCL"

@@ -1,31 +1,30 @@
 BootStrap: docker
 From: centos:centos7
 
+%environment
+HIPSYCL_BASE_CC=gcc
+HIPSYCL_BASE_CXX=g++
+. /opt/rh/devtoolset-7/enable
 %setup
-cp ./install-rocm.sh ${SINGULARITY_ROOTFS}/install-rocm.sh
-cp ./install-cuda.sh ${SINGULARITY_ROOTFS}/install-cuda.sh 
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
-cp ./install-llvm.sh ${SINGULARITY_ROOTFS}/install-llvm.sh
-cp ./add-repo-centos.sh ${SINGULARITY_ROOTFS}/add-repo-centos.sh
+cp ./install-cuda.sh ${SINGULARITY_ROOTFS}/install-cuda.sh
+cp ./install-base-spack.sh ${SINGULARITY_ROOTFS}/install-base-spack.sh
+cp ./spack-install-hipsycl-centos.sh ${SINGULARITY_ROOTFS}/spack-install-hipsycl.sh 
+cp ./spack-install-llvm.sh ${SINGULARITY_ROOTFS}/spack-install-llvm.sh 
+cp ./spack-install-boost.sh ${SINGULARITY_ROOTFS}/spack-install-boost.sh 
+cp ./spack-install-rocm.sh ${SINGULARITY_ROOTFS}/spack-install-rocm.sh 
+cp ./spack-syclcc.json ${SINGULARITY_ROOTFS}/syclcc.json
 
 %post
 yum update -y
-yum install -y epel-release centos-release-scl
-yum install -y cmake3
+yum install epel-release -y
+yum install -y rpm-build sed unzip python34 python3 git parallel wget perl perl-Data-Dumper cmake3 curl patch 
+yum install centos-release-scl -y
+yum install devtoolset-7 -y
+yum install lbzip2 -y
+#We neeed proper cmake 
+yum remove cmake
 ln -s /usr/bin/cmake3 /usr/bin/cmake
-yum install -y numactl-devel numactl-libs pciutils-devel pciutils-libs  wget perl perl-Data-Dumper perl-Data-Dumper-*  gcc-c++ git devtoolset-7 rpm-build rpmdevtools elfutils-libelf-devel
-source /opt/rh/devtoolset-7/enable
-# required for aomp build
-yum install -y gawk pkgconfig python34 python3 rsync mesa-libGL-devel
-export HIPSYCL_BASE_CC=gcc
-export HIPSYCL_BASE_CXX=g++
-
-bash /add-repo-centos.sh
-
-yum install --downloadonly --downloaddir=./ hipSYCL-rocm 
-yum install --downloadonly --downloaddir=./ hipSYCL-base 
-
 bash /install-cuda.sh
-[ "$HIPSYCL_PKG_BUILD_BASE" = "ON" ] && bash /install-llvm.sh || rpm -ivh hipSYCL-base* --nodeps
-[ "$HIPSYCL_PKG_BUILD_ROCM" = "ON" ] && bash /install-rocm.sh || rpm -ivh hipSYCL-rocm* --nodeps 
-#sh /install-hipsycl.sh
+#bash /install-base-spack.sh
+

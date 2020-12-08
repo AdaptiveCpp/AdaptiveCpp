@@ -10,6 +10,8 @@ HIPSYCL_PKG_BUILD_HIPSYCL=${HIPSYCL_PKG_BUILD_HIPSYCL:-ON}
 HIPSYCL_PKG_BUILD_ROCM=${HIPSYCL_PKG_BUILD_ROCM:-ON}
 HIPSYCL_PKG_BUILD_CUDA=${HIPSYCL_PKG_BUILD_CUDA:-OFF}
 
+[ "$HIPSYCL_WITH_ROCM" = "ON" ] &&  rocm_dep=", hipsycl-rocm${HIPSYCL_PKG_TYPE}   (>= 0.8)"
+
 mkdir -p ${CUDA_DIR}/DEBIAN
 mkdir -p ${ROCM_DIR}/DEBIAN
 mkdir -p ${COMMON_DIR}/DEBIAN
@@ -21,37 +23,37 @@ Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
 Architecture: amd64
-Depends: hipsycl-base${HIPSYCL_PKG_NAME_SUFFIX}  (>= 0.8), python3 (>= 3.0), libboost-fiber-dev, libboost-context-dev, libboost-filesystem-dev
+Depends: hipsycl-base${HIPSYCL_PKG_TYPE}  (>= 0.8), python3 (>= 3.0)$rocm_dep 
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
 Description: hipSYCL${HIPSYCL_VERSION_STRING}
  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs 
 EOF
 
 cat << EOF > ${COMMON_DIR}/DEBIAN/control
-Package: hipsycl-base${HIPSYCL_PKG_NAME_SUFFIX}
+Package: hipsycl-base${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
 Architecture: amd64
-Depends: g++, libnuma1
+Depends: g++, libnuma1, build-essential
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
 Description: hipSYCL base compiler stack
  Provides an LLVM compiler stack for hipSYCL
 EOF
 
 cat << EOF > ${ROCM_DIR}/DEBIAN/control
-Package: hipsycl-rocm${HIPSYCL_PKG_NAME_SUFFIX}
+Package: hipsycl-rocm${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional
 Architecture: amd64
-Depends: hipsycl${HIPSYCL_PKG_NAME_SUFFIX}  (>= 0.8), perl, perl-modules, libpci-dev
+Depends:  libpci-dev
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-Description: ROCm compiler stack for hipSYCL${HIPSYCL_PKG_NAME_SUFFIX}  Provides ROCm libraries for hipSYCL
+Description: ROCm compiler stack for hipSYCL${HIPSYCL_PKG_TYPE}  Provides ROCm libraries for hipSYCL
 EOF
 
 cat << EOF > ${CUDA_DIR}/DEBIAN/control
-Package: hipsycl-cuda${HIPSYCL_PKG_NAME_SUFFIX}
+Package: hipsycl-cuda${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
 Priority: optional

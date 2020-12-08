@@ -5,5 +5,4 @@ From: base-ubuntu-18.04.sif
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
 
 %post
-apt install -y libboost-fiber-dev libboost-context-dev libboost-filesystem-dev
 sh /install-hipsycl.sh

@@ -78,10 +78,6 @@ private:
   int _my_thread_id;
 };
 
-template <class Reducer> void bind_to_thread(Reducer &r) {
-  r._my_thread_id = omp_get_thread_num();
-}
-
 template <class SequentialReducer>
 void finalize_reduction(SequentialReducer &reducer) {
   reducer.finalize_result();

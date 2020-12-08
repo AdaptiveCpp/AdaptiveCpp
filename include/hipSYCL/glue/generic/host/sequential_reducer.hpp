@@ -68,6 +68,7 @@ public:
   value_type identity() const { return _desc.identity; }
 
   void combine(int my_thread_id, const value_type& v) {
+    assert(my_thread_id < _per_thread_results.size());
     _per_thread_results[my_thread_id].value =
         _desc.combiner(_per_thread_results[my_thread_id].value, v);
   }
@@ -79,6 +80,7 @@ public:
       _per_thread_results[0].value = _desc.combiner(
           _per_thread_results[0].value, _per_thread_results[i].value);
     }
+    
     *(_desc.get_pointer()) = _per_thread_results[0].value;
   }
 private:

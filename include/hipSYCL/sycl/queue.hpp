@@ -403,7 +403,7 @@ public:
 
   template <typename KernelName = class _unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
+  event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
                 const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
@@ -413,7 +413,7 @@ public:
 
   template <typename KernelName = class _unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
+  event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
                 const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
@@ -424,7 +424,7 @@ public:
 
   template <typename KernelName = class _unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
+  event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
                 const std::vector<event> &dependencies,
                 const ReductionsAndKernel &... redu_kernel) {

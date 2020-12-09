@@ -194,7 +194,7 @@ inline void parallel_for_kernel(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_parallel_invocation([&, f](auto&& ... reducers){
+  reducible_parallel_invocation([&, f](auto& ... reducers){
     iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
         sycl::detail::make_item<Dim>(idx, execution_range);
@@ -211,7 +211,7 @@ inline void parallel_for_kernel_offset(Function f,
                                        Reductions... reductions) noexcept {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_parallel_invocation([&, f](auto&& ... reducers){
+  reducible_parallel_invocation([&, f](auto& ... reducers){
     iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
       auto this_item = 
         sycl::detail::make_item<Dim>(idx, execution_range, offset);
@@ -238,7 +238,7 @@ inline void parallel_for_ndrange_kernel(
   static_assert(Dim > 0 && Dim <= 3,
                 "Only dimensions 1 - 3 are supported.");
 
-  reducible_parallel_invocation([&, f](auto&& ... reducers){
+  reducible_parallel_invocation([&, f](auto& ... reducers){
 
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
@@ -286,7 +286,7 @@ inline void parallel_for_workgroup(Function f,
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
   reducible_parallel_invocation(
-      [&, f, num_groups, local_size](auto &&... reducers) {
+      [&, f, num_groups, local_size](auto &... reducers) {
 
         sycl::detail::host_local_memory::request_from_threadprivate_pool(
             num_local_mem_bytes);
@@ -314,7 +314,7 @@ inline void parallel_region(Function f,
                 "Only dimensions 1,2,3 are supported");
 
   reducible_parallel_invocation(
-      [&, f, num_groups, group_size](auto &&... reducers) {
+      [&, f, num_groups, group_size](auto &... reducers) {
 
         sycl::detail::host_local_memory::request_from_threadprivate_pool(
             num_local_mem_bytes);

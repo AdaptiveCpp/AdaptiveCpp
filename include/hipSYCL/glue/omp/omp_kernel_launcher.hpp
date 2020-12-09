@@ -30,6 +30,7 @@
 
 
 #include <cassert>
+#include <tuple>
 #include <omp.h>
 
 #include "hipSYCL/common/debug.hpp"
@@ -44,6 +45,7 @@
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
 
@@ -83,18 +85,33 @@ void finalize_reduction(SequentialReducer &reducer) {
   reducer.finalize_result();
 }
 
-template <class Function, typename... SequentialReducers>
-void make_omp_reduction(Function f, SequentialReducers... reducers) {
-
-  f(reducers...);
-
-  (finalize_reduction(reducers), ...);
-}
-
 template <class Function, typename... Reductions>
-void reducible_kernel_invocation(Function kernel, Reductions... reductions) {
+void reducible_parallel_invocation(Function kernel,
+                                   Reductions... reductions) noexcept {
   int max_threads = omp_get_max_threads();
-  make_omp_reduction(kernel, host::sequential_reducer{max_threads, reductions}...);
+
+  auto sequential_reducers =
+      std::make_tuple(host::sequential_reducer{max_threads, reductions}...);
+
+#pragma omp parallel shared(sequential_reducers)
+  {
+    auto make_omp_reducers = [&](auto &... seq_reducers) {
+      return std::make_tuple(omp_reducer{seq_reducers}...);
+    };
+    auto omp_reducers = std::apply(make_omp_reducers, sequential_reducers);
+
+    auto make_sycl_reducers = [&](auto &... omp_reds) {
+      return std::make_tuple(sycl::reducer{omp_reds}...);
+    };
+    auto sycl_reducers = std::apply(make_sycl_reducers, omp_reducers);
+
+    std::apply(kernel, sycl_reducers);
+  }
+
+  auto finalize_all = [&](auto &... seq_reducers) {
+    (finalize_reduction(seq_reducers), ...);
+  };
+  std::apply(finalize_all, sequential_reducers);
 }
 
 template <int Dim, class Function>
@@ -170,14 +187,6 @@ void single_task_kernel(Function f) noexcept
   f();
 }
 
-template<class F, typename... OmpReducers>
-void invoke(F&& f, OmpReducers... reducers) {
-  auto invoke_f = [&](auto... reducers) {
-    f(reducers...);
-  };
-  invoke_f(sycl::reducer{reducers}...);
-}
-
 template <int Dim, class Function, typename... Reductions>
 inline void parallel_for_kernel(Function f,
                                 const sycl::range<Dim> execution_range,
@@ -185,18 +194,13 @@ inline void parallel_for_kernel(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_kernel_invocation([&, f](auto&& ... sequential_reducers){
-#pragma omp parallel
-    {
-      iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
-        auto this_item = 
-          sycl::detail::make_item<Dim>(idx, execution_range);
+  reducible_parallel_invocation([&, f](auto&& ... reducers){
+    iterate_range_omp_for(execution_range, [&](sycl::id<Dim> idx) {
+      auto this_item = 
+        sycl::detail::make_item<Dim>(idx, execution_range);
 
-        invoke([&](auto& ... reducers){
-          f(this_item, reducers...);
-        }, omp_reducer{sequential_reducers}...);
-      });
-    }
+      f(this_item, reducers...);
+    });
   }, reductions...);
 }
 
@@ -207,18 +211,13 @@ inline void parallel_for_kernel_offset(Function f,
                                        Reductions... reductions) noexcept {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_kernel_invocation([&, f](auto&& ... sequential_reducers){
-#pragma omp parallel
-    {
-      iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
-        auto this_item = 
-          sycl::detail::make_item<Dim>(idx, execution_range, offset);
+  reducible_parallel_invocation([&, f](auto&& ... reducers){
+    iterate_range_omp_for(offset, execution_range, [&](sycl::id<Dim> idx) {
+      auto this_item = 
+        sycl::detail::make_item<Dim>(idx, execution_range, offset);
 
-        invoke([&](auto& ... reducers){
-          f(this_item, reducers...);
-        }, omp_reducer{sequential_reducers}...);
-      });
-    }
+      f(this_item, reducers...);
+    });
   }, reductions...);
 }
 
@@ -239,43 +238,40 @@ inline void parallel_for_ndrange_kernel(
   static_assert(Dim > 0 && Dim <= 3,
                 "Only dimensions 1 - 3 are supported.");
 
+  reducible_parallel_invocation([&, f](auto&& ... reducers){
 
-  reducible_kernel_invocation([&, f](auto&& ... sequential_reducers){
-#pragma omp parallel
-    {
-      sycl::detail::host_local_memory::request_from_threadprivate_pool(
-          num_local_mem_bytes);
+    sycl::detail::host_local_memory::request_from_threadprivate_pool(
+        num_local_mem_bytes);
 
-      void* group_shared_memory_ptr = nullptr;
+    void* group_shared_memory_ptr = nullptr;
 
-      host::static_range_decomposition<Dim> group_decomposition{
-            num_groups, omp_get_num_threads()};
+    host::static_range_decomposition<Dim> group_decomposition{
+          num_groups, omp_get_num_threads()};
 
-      host::collective_execution_engine<Dim> engine{num_groups, local_size,
-                                                    offset, group_decomposition,
-                                                    omp_get_thread_num()};
+    host::collective_execution_engine<Dim> engine{num_groups, local_size,
+                                                  offset, group_decomposition,
+                                                  omp_get_thread_num()};
 
-      std::function<void()> barrier_impl = [&]() { engine.barrier(); };
+    std::function<void()> barrier_impl = [&]() { engine.barrier(); };
 
-      engine.run_kernel([&](sycl::id<Dim> local_id, sycl::id<Dim> group_id) {
+    engine.run_kernel([&](sycl::id<Dim> local_id, sycl::id<Dim> group_id) {
 
-        auto linear_group_id =
-            sycl::detail::linear_id<Dim>::get(group_id, num_groups);
+      auto linear_group_id =
+          sycl::detail::linear_id<Dim>::get(group_id, num_groups);
 
-        sycl::nd_item<Dim> this_item{&offset,
-                                     group_id,
-                                     local_id,
-                                     local_size,
-                                     num_groups,
-                                     &barrier_impl,
-                                     &group_shared_memory_ptr};
+      sycl::nd_item<Dim> this_item{&offset,
+                                    group_id,
+                                    local_id,
+                                    local_size,
+                                    num_groups,
+                                    &barrier_impl,
+                                    &group_shared_memory_ptr};
 
-        invoke([&](auto &...reducers) { f(this_item, reducers...); },
-               omp_reducer{sequential_reducers}...);
-      });
+      f(this_item, reducers...);
+    });
 
-      sycl::detail::host_local_memory::release();
-    }
+    sycl::detail::host_local_memory::release();
+  
   }, reductions...);
 #endif
 }
@@ -289,22 +285,19 @@ inline void parallel_for_workgroup(Function f,
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1,2,3 are supported");
 
-  reducible_kernel_invocation(
-      [&, f, num_groups, local_size](auto &&... sequential_reducers) {
-#pragma omp parallel
-        {
-          sycl::detail::host_local_memory::request_from_threadprivate_pool(
-              num_local_mem_bytes);
+  reducible_parallel_invocation(
+      [&, f, num_groups, local_size](auto &&... reducers) {
 
-          iterate_range_omp_for(num_groups, [&, f](sycl::id<Dim> group_id) {
-            sycl::group<Dim> this_group{group_id, local_size, num_groups};
+        sycl::detail::host_local_memory::request_from_threadprivate_pool(
+            num_local_mem_bytes);
 
-            invoke([&](auto &... reducers) { f(this_group, reducers...); },
-                   omp_reducer{sequential_reducers}...);
-          });
+        iterate_range_omp_for(num_groups, [&, f](sycl::id<Dim> group_id) {
+          sycl::group<Dim> this_group{group_id, local_size, num_groups};
 
-          sycl::detail::host_local_memory::release();
-        }
+          f(this_group, reducers...);
+        });
+
+        sycl::detail::host_local_memory::release();
       },
       reductions...);
 }
@@ -320,28 +313,25 @@ inline void parallel_region(Function f,
   static_assert(dimensions > 0 && dimensions <= 3,
                 "Only dimensions 1,2,3 are supported");
 
-  reducible_kernel_invocation(
-      [&, f, num_groups, group_size](auto &&... sequential_reducers) {
-#pragma omp parallel
-        {
-          sycl::detail::host_local_memory::request_from_threadprivate_pool(
-              num_local_mem_bytes);
+  reducible_parallel_invocation(
+      [&, f, num_groups, group_size](auto &&... reducers) {
 
-          iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
-            sycl::group<dimensions> this_group{group_id, group_size,
-                                               num_groups};
+        sycl::detail::host_local_memory::request_from_threadprivate_pool(
+            num_local_mem_bytes);
 
-            auto phys_item = sycl::detail::make_sp_item(
-                sycl::id<dimensions>{}, group_id, group_size, num_groups);
+        iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
+          sycl::group<dimensions> this_group{group_id, group_size,
+                                              num_groups};
 
-            invoke([&](auto &... reducers) {
-                f(this_group, phys_item, reducers...);
-              },
-              omp_reducer{sequential_reducers}...);
-          });
+          auto phys_item = sycl::detail::make_sp_item(
+              sycl::id<dimensions>{}, group_id, group_size, num_groups);
 
-          sycl::detail::host_local_memory::release();
-        }
+          f(this_group, phys_item, reducers...);
+            
+        });
+
+        sycl::detail::host_local_memory::release();
+        
       },
       reductions...);
 }

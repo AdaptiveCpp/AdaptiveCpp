@@ -95,6 +95,9 @@ public:
   reducer(const reducer &) = delete;
 
   HIPSYCL_KERNEL_TARGET
+  reducer(reducer&&) = default;
+
+  HIPSYCL_KERNEL_TARGET
   reducer(BackendReducerImpl &impl)
       : _impl{impl} {}
 

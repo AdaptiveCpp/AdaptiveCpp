@@ -748,10 +748,11 @@ class compiler:
     args = []
     if self._requires_compilation:
       args += cxx_flags
-    if self._requires_linking:
-      args += ld_flags
 
     args += self._user_args
+
+    if self._requires_linking:
+      args += ld_flags
 
     return run_or_print([compiler_executable] + args,
                         self._is_dry_run)

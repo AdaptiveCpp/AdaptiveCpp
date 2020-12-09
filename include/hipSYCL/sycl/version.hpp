@@ -34,7 +34,7 @@
 #define HIPSYCL_VERSION_MAJOR 0
 #define HIPSYCL_VERSION_MINOR 9
 #define HIPSYCL_VERSION_PATCH 0
-#define HIPSYCL_VERSION_TYPE "prerelease"
+#define HIPSYCL_VERSION_TYPE "git"
 
 namespace hipsycl {
 namespace sycl {
@@ -47,7 +47,7 @@ static std::string version_string()
       + "." + std::to_string(HIPSYCL_VERSION_PATCH)
       + "-" + std::string(HIPSYCL_VERSION_TYPE);
 
-  return "hipSYCL [hipSYCL-next/rt2] " + hipsycl_version;
+  return "hipSYCL " + hipsycl_version;
 }
 
 }

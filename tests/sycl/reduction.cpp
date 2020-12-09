@@ -241,10 +241,16 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
                   sycl::reduction(output0, T{0}, sycl::plus<T>{}),
                   sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
                   [=](sycl::group<1> grp, auto& add_reducer, auto& mul_reducer){
-        
+        // On omp backend, this is executed in a pragma omp simd loop.
+        // It seems clang generates incorrect code when doing two
+        // reductions inside the same simd loop, so we need to split
+        // them in two loops.
+        grp.parallel_for_work_item([&](sycl::h_item<1> idx){
+          mul_reducer *= input1[idx.get_global_id()[0]];
+        });
+
         grp.parallel_for_work_item([&](sycl::h_item<1> idx){
           add_reducer += input0[idx.get_global_id()[0]];
-          mul_reducer *= input1[idx.get_global_id()[0]];
         });
       });
     });
@@ -259,11 +265,13 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
                     auto& add_reducer, auto& mul_reducer){
       
       grp.distribute_for([&](sycl::sub_group, sycl::logical_item<1> idx){
-        add_reducer += input0[idx.get_global_linear_id()];
         mul_reducer *= input1[idx.get_global_linear_id()];
       });
-    });
 
+      grp.distribute_for([&](sycl::sub_group, sycl::logical_item<1> idx){
+        add_reducer += input0[idx.get_global_linear_id()];
+      });
+    });
 
     verify();
   }

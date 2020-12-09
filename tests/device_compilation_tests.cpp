@@ -175,7 +175,7 @@ struct KernelFunctor {
   using Accessor = cl::sycl::accessor<size_t, 1, cl::sycl::access::mode::discard_write>;
   KernelFunctor(Accessor acc) : acc(acc) {};
 
-  void operator()(cl::sycl::item<1> item) {
+  void operator() (cl::sycl::item<1> item) const {
     acc[0] = 300 + item.get_linear_id();
   }
 

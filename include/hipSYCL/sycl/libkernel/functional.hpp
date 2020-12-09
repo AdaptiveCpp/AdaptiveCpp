@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,51 +26,60 @@
  */
 
 
-#ifndef HIPSYCL_BUILTIN_KERNELS_HPP
-#define HIPSYCL_BUILTIN_KERNELS_HPP
+#ifndef HIPSYCL_SYCL_FUNCTIONAL_HPP
+#define HIPSYCL_SYCL_FUNCTIONAL_HPP
 
 #include "backend.hpp"
-
-#include "accessor.hpp"
-#include "id.hpp"
-
-#include "hipSYCL/sycl/access.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
-namespace detail::kernels {
-
-template<class T, int Dim, access::mode Mode, access::target Tgt>
-class fill_kernel {
-public:
-  fill_kernel(sycl::accessor<T, Dim, Mode, Tgt> dest, const T &src)
-      : _dest{dest}, _src{src} {}
-
-  void operator()(sycl::id<Dim> tid) const { _dest[tid] = _src; }
-
-private:
-  sycl::accessor<T, Dim, Mode, Tgt> _dest;
-  T _src;
+template <typename T> struct plus {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x + y; }
 };
 
-template<class T>
-class fill_kernel_usm {
-public:
-  fill_kernel_usm(T* ptr, T value)
-      : _dest{ptr}, _src{value} {}
-
-  void operator()(sycl::id<1> tid) const { _dest[tid[0]] = _src; }
-
-private:
-  T* _dest;
-  T _src;
+template <typename T> struct multiplies {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x * y; }
 };
 
-}
+template <typename T> struct bit_and {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x & y; }
+};
 
+template <typename T> struct bit_or {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x | y; }
+};
 
-}
+template <typename T> struct bit_xor {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x ^ y; }
+};
+
+template <typename T> struct logical_and {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return static_cast<T>(x && y); }
+};
+
+template <typename T> struct logical_or {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return static_cast<T>(x || y); }
+};
+
+template <typename T> struct minimum {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return (x < y) ? x : y; }
+};
+
+template <typename T> struct maximum {
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
+};
+
+} // namespace sycl
 }
 
 #endif

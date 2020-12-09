@@ -242,28 +242,28 @@ public:
     if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
-        if (RecordDecl->getNameAsString() == "_unnamed_kernel") {
+        auto KernelName = RecordDecl->getNameAsString();
+        if (KernelName == "_unnamed_kernel") {
           // If no name is provided, rely on clang name mangling
-          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-              KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
-          {
 
-            // Earlier clang versions suffer from potentially inconsistent
-            // lambda numbering across host and device passes
+          // Earlier clang versions suffer from potentially inconsistent
+          // lambda numbering across host and device passes
 #if LLVM_VERSION_MAJOR < 10
+          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
+          
+          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
+               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
+          {
             auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
                 KernelFunctorType->getDecl())->getSourceRange().getBegin();
             auto ID = Instance.getASTContext().getDiagnostics()
               .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
                   "Optional kernel lambda naming requires clang >= 10");
             Instance.getASTContext().getDiagnostics().Report(SL, ID);
-#else
-             NameRequired = false;
-#endif
           }
-          else
-            NameRequired = false;
+#endif
+
+          NameRequired = false;
         }
       }
     }
@@ -376,58 +376,37 @@ private:
     if(f->getQualifiedNameAsString() 
         == "hipsycl::glue::hiplike_dispatch::parallel_for_workgroup")
     {
-      clang::FunctionDecl* Kernel = 
-        this->getKernelFromHierarchicalParallelFor(f);
+      clang::FunctionDecl* Kernel = f;
+      
+      HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
+                        << Kernel->getQualifiedNameAsString() << std::endl;
 
-      if (Kernel) 
+      // Mark local variables as shared memory, unless they are explicitly marked private.
+      // Do this not only for the kernel itself, but consider all functions called by the kernel.
+      detail::CompleteCallSet CCS(Kernel);
+      for(auto&& RD : CCS.getReachableDecls())
       {
-        HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
-                          << Kernel->getQualifiedNameAsString() << std::endl;
-
-        // Mark local variables as shared memory, unless they are explicitly marked private.
-        // Do this not only for the kernel itself, but consider all functions called by the kernel.
-        detail::CompleteCallSet CCS(Kernel);
-        for(auto&& RD : CCS.getReachableDecls())
+        // To prevent every local variable in any function being marked as shared,
+        // we only consider functions that receive a hipsycl::sycl::group as their parameter.
+        for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
         {
-          // To prevent every local variable in any function being marked as shared,
-          // we only consider functions that receive a hipsycl::sycl::group as their parameter.
-          for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
-          {
-            auto Type = (*Param)->getOriginalType().getTypePtr();
-            if(auto DeclType = Type->getAsCXXRecordDecl()) {
-              if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
-              {
-                storeLocalVariablesInLocalMemory(RD->getBody(), RD);
-                break;
-              }
+          auto Type = (*Param)->getOriginalType().getTypePtr();
+          if(auto DeclType = Type->getAsCXXRecordDecl()) {
+            if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
+            {
+              storeLocalVariablesInLocalMemory(RD->getBody(), RD);
+              break;
             }
           }
         }
       }
+    
     }
   
     
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
       markAsKernel(f); 
     }
-  }
-
-  clang::FunctionDecl* getKernelFromHierarchicalParallelFor(
-    clang::FunctionDecl* KernelDispatch) const
-  {
-    if (auto *B = KernelDispatch->getBody()) 
-    {
-      for (auto S = B->child_begin();
-          S != B->child_end(); ++S)
-      {
-        if(auto* C = clang::dyn_cast<clang::CallExpr>(*S))
-        {
-          if(clang::FunctionDecl* F = C->getDirectCallee())
-            return F;
-        }
-      }
-    }
-    return nullptr;
   }
 
 

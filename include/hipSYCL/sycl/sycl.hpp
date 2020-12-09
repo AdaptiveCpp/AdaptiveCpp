@@ -62,6 +62,8 @@
 #include "libkernel/sub_group.hpp"
 #include "libkernel/memory.hpp"
 #include "libkernel/group_functions.hpp"
+#include "libkernel/functional.hpp"
+#include "libkernel/reduction.hpp"
 
 #include "version.hpp"
 #include "types.hpp"

@@ -49,18 +49,20 @@
 namespace hipsycl {
 namespace glue {
 
-template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel>
+template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
+          typename... Reductions>
 std::vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       sycl::range<Dim> global_range,
-                      std::size_t dynamic_local_memory, Kernel k) {
+                      std::size_t dynamic_local_memory, Kernel k,
+                      Reductions... reductions) {
 
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k);
+                                        dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -69,7 +71,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k);
+                                        dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -80,7 +82,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k);
+                                        dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif

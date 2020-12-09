@@ -124,36 +124,48 @@ public:
   }
 
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelType, int dimensions>
-  void parallel_for(range<dimensions> numWorkItems, KernelType kernelFunc)
-  {
-    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
-        sycl::id<dimensions>{}, numWorkItems,
-        numWorkItems /* local range is ignored for basic parallel for*/,
-        kernelFunc);
-  }
-
-  template <typename KernelName = class _unnamed_kernel,
-            typename KernelType, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
-                    id<dimensions> workItemOffset, KernelType kernelFunc)
-  {
-    this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
-        workItemOffset, numWorkItems,
-        numWorkItems /* local range is ignored for basic parallel for*/,
-        kernelFunc);
+                    const ReductionsAndKernel &... redu_kernel) {
+
+    auto invoker = [&](auto&& kernel, auto&&... reductions){
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          sycl::id<dimensions>{}, numWorkItems,
+          numWorkItems /* local range is ignored for basic parallel for*/,
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelType, int dimensions>
-  void parallel_for(nd_range<dimensions> executionRange, KernelType kernelFunc)
-  {
-    this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
-        executionRange.get_offset(), executionRange.get_global_range(),
-        executionRange.get_local_range(),
-        kernelFunc);
+            typename... ReductionsAndKernel, int dimensions>
+  void parallel_for(range<dimensions> numWorkItems,
+                    id<dimensions> workItemOffset,
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          workItemOffset, numWorkItems,
+          numWorkItems /* local range is ignored for basic parallel for*/,
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int dimensions>
+  void parallel_for(nd_range<dimensions> executionRange,
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::ndrange_parallel_for>(
+          executionRange.get_offset(), executionRange.get_global_range(),
+          executionRange.get_local_range(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
 
   // Hierarchical kernel dispatch API
 
@@ -171,29 +183,35 @@ public:
   */
 
   template <typename KernelName = class _unnamed_kernel,
-            typename WorkgroupFunctionType, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
-                               WorkgroupFunctionType kernelFunc)
-  {
-    this->submit_kernel<KernelName, rt::kernel_type::hierarchical_parallel_for>(
-        sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
-        workGroupSize,
-        kernelFunc);
+                               const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto &&kernel, auto &&... reductions) {
+      this->submit_kernel<KernelName,
+                          rt::kernel_type::hierarchical_parallel_for>(
+          sycl::id<dimensions>{}, numWorkGroups * workGroupSize, workGroupSize,
+          kernel, reductions...);
+    };
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   // Scoped parallelism API
   
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelFunctionType, int dimensions>
+            typename... ReductionsAndKernel, int dimensions>
   void parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
-                KernelFunctionType f)
+                const ReductionsAndKernel& ... redu_kernel)
   {
-    this->submit_kernel<KernelName, rt::kernel_type::scoped_parallel_for>(
-        sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
-        workGroupSize,
-        f);
+    auto invoker = [&](auto&& kernel, auto&&... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::scoped_parallel_for>(
+          sycl::id<dimensions>{}, numWorkGroups * workGroupSize,
+          workGroupSize,
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
   /*
@@ -493,10 +511,12 @@ private:
     return _execution_hints.get_hint<rt::hints::bind_to_device>()
         ->get_device_id();
   }
-  template <
-    class KernelName, rt::kernel_type KernelType, class KernelFuncType, int Dim>
+
+  template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
+            int Dim, typename... Reductions>
   void submit_kernel(sycl::id<Dim> offset, sycl::range<Dim> global_range,
-                     sycl::range<Dim> local_range, KernelFuncType f) {
+                     sycl::range<Dim> local_range, KernelFuncType f,
+                     Reductions... reductions) {
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
     rt::dag_build_guard build{rt::application::dag()};
@@ -504,9 +524,8 @@ private:
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
         glue::make_kernel_launchers<KernelName, KernelType>(
-            offset, local_range, 
-            global_range,
-            shared_mem_size, f),
+            offset, local_range, global_range, shared_mem_size, f,
+            reductions...),
         _requirements);
     
     rt::dag_node_ptr node = build.builder()->add_kernel(
@@ -514,7 +533,6 @@ private:
     
     _command_group_nodes.push_back(node);
   }
-
 
   template<class T>
   void* extract_ptr(std::shared_ptr<T> ptr)

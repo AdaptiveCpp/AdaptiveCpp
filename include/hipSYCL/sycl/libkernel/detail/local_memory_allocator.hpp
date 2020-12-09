@@ -31,6 +31,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
+#include <cassert>
 #include <cstdlib>
 #include <array>
 
@@ -163,6 +164,21 @@ private:
 #pragma omp threadprivate(_origin)
 };
 
+HIPSYCL_KERNEL_TARGET
+inline void* hiplike_dynamic_local_memory() {
+#ifdef SYCL_DEVICE_ONLY
+  #ifdef HIPSYCL_PLATFORM_CUDA
+    extern __shared__ int local_mem [];
+    return static_cast<void*>(local_mem);
+  #endif
+  #ifdef HIPSYCL_PLATFORM_ROCM
+    return __amdgcn_get_dynamicgroupbaseptr();
+  #endif
+#else
+  assert(false && "this function should only be called on device");
+  return nullptr;
+#endif
+}
 
 class local_memory
 {
@@ -174,13 +190,8 @@ public:
   static T* get_ptr(const address addr)
   {
 #ifdef SYCL_DEVICE_ONLY
- #ifdef HIPSYCL_PLATFORM_CUDA
-    extern __shared__ local_memory_allocator::smallest_type local_mem_data [];
-    return reinterpret_cast<T*>(reinterpret_cast<char*>(local_mem_data) + addr);
- #elif defined(HIPSYCL_PLATFORM_ROCM)
-    return reinterpret_cast<T*>(
-      reinterpret_cast<char*>(__amdgcn_get_dynamicgroupbaseptr()) + addr);
- #endif
+    return reinterpret_cast<T *>(
+        reinterpret_cast<char *>(hiplike_dynamic_local_memory()) + addr);
 #elif defined(HIPSYCL_PLATFORM_CPU) 
     return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr);
 #else

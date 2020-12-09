@@ -307,126 +307,133 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
-  event parallel_for(range<Dims> NumWorkItems, const KernelType &kernel) {
+  template <typename KernelName = class _unnamed_kernel, 
+            typename... ReductionsAndKernel, int Dims>
+  event parallel_for(range<Dims> NumWorkItems, 
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.parallel_for<KernelName>(NumWorkItems, kernel);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
-                     const KernelType &kernel) {
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.parallel_for<KernelName>(NumWorkItems, kernel);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
                      const std::vector<event> &dependencies,
-                     const KernelType &kernel) {
+                     const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.parallel_for<KernelName>(NumWorkItems, kernel);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
-                     const KernelType &KernelFunc) {
+                     const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset, KernelFunc);
+      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset,
+                                   redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
-                     event dependency, const KernelType &KernelFunc) {
+                     event dependency,
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset, KernelFunc);
+      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset,
+                                   redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const std::vector<event> &dependencies,
-                     const KernelType &KernelFunc) {
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset, KernelFunc);
+      cgh.parallel_for<KernelName>(NumWorkItems, WorkItemOffset,
+                                   redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
-                     const KernelType &KernelFunc) {
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.parallel_for<KernelName>(ExecutionRange, KernelFunc);
+      cgh.parallel_for<KernelName>(ExecutionRange, redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange, event dependency,
-                     const KernelType &KernelFunc) {
+                     const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.parallel_for<KernelName>(ExecutionRange, KernelFunc);
+      cgh.parallel_for<KernelName>(ExecutionRange, redu_kernel...);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType,
-            int Dims>
+  template <typename KernelName = class _unnamed_kernel,
+            typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const std::vector<event> &dependencies,
-                     const KernelType &KernelFunc) {
+                     const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.parallel_for<KernelName>(ExecutionRange, KernelFunc);
+      cgh.parallel_for<KernelName>(ExecutionRange, redu_kernel...);
     });
   }
 
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelFunctionType, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
-                range<dimensions> workGroupSize, KernelFunctionType f) {
+            typename... ReductionsAndKernel, int dimensions>
+  event parallel(range<dimensions> numWorkGroups,
+                range<dimensions> workGroupSize,
+                const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
-      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, f);
+      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, redu_kernel...);
     });
   }
 
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelFunctionType, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
+            typename... ReductionsAndKernel, int dimensions>
+  event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
-                KernelFunctionType f) {
+                const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
-      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, f);
+      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, redu_kernel...);
     });
   }
 
   template <typename KernelName = class _unnamed_kernel,
-            typename KernelFunctionType, int dimensions>
-  void parallel(range<dimensions> numWorkGroups,
+            typename... ReductionsAndKernel, int dimensions>
+  event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
-                const std::vector<event> &dependencies, KernelFunctionType f) {
+                const std::vector<event> &dependencies,
+                const ReductionsAndKernel &... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependencies);
-      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, f);
+      cgh.parallel<KernelName>(numWorkGroups, workGroupSize, redu_kernel...);
     });
   }
-  
+
   event memcpy(void *dest, const void *src, std::size_t num_bytes) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.memcpy(dest, src, num_bytes);

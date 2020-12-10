@@ -59,12 +59,12 @@ T *get_local_memory_ptr(Group g, size_t number_elements = 1) {
 }
 
 template<typename T, typename Group>
-void free_local_memory_ptr(Group g, T *local_memory_ptr) {
-  if (sizeof(T) > sizeof(void *)) {
+void free_local_memory_ptr(Group g, T *local_memory_ptr, size_t number_elements = 1) {
+  if (sizeof(T) * number_elements > sizeof(void *)) {
     group_barrier(g);
 
     if (g.leader())
-      delete[] static_cast<void *>(local_memory_ptr);
+      delete[] local_memory_ptr;
   }
 }
 
@@ -429,7 +429,7 @@ T group_reduce(Group g, T x, BinaryOperation binary_op) {
 
   T tmp = detail::group_reduce(g, x, binary_op, scratch);
 
-  detail::free_local_memory_ptr(g, scratch);
+  detail::free_local_memory_ptr(g, scratch, 1024);
 
   return tmp;
 }
@@ -465,7 +465,7 @@ T group_exclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
 
   group_barrier(g);
 
-  detail::free_local_memory_ptr(g, scratch);
+  detail::free_local_memory_ptr(g, scratch, 1024);
 
   return tmp;
 }
@@ -499,7 +499,7 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
 
   group_barrier(g);
 
-  detail::free_local_memory_ptr(g, scratch);
+  detail::free_local_memory_ptr(g, scratch, 1024);
 
   return tmp;
 }

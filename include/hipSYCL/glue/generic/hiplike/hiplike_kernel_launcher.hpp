@@ -440,7 +440,6 @@ private:
                                         int &allocated_local_mem_size) {
     
     std::size_t alignment = alignof(value_type);
-    std::size_t element_size = sizeof(value_type);
 
     this->_local_memory_offset =
         ceil_division(allocated_local_mem_size, alignment) *

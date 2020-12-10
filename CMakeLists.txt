@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.5)
-project(hipSYCL)
+set(hipSYCL_VERSION 0.9.0)
+project(hipSYCL VERSION ${hipSYCL_VERSION})
 
 set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
@@ -214,6 +215,12 @@ install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTAL
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake"
+  VERSION ${hipSYCL_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
 # the future install root
@@ -231,6 +238,7 @@ configure_package_config_file(
 )
 install(FILES
   ${PROJECT_BINARY_DIR}/hipsycl-config.cmake
+  ${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
 )
 install(EXPORT install_exports

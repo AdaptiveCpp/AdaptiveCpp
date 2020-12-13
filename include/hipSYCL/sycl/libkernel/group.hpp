@@ -441,7 +441,7 @@ struct group
         range<Dimensions> local_range,
         range<Dimensions> num_groups,
         host_barrier_type* group_barrier = nullptr,
-        id_type local_id = 0,
+        id_type local_id = {},
         void *local_memory_ptr = nullptr)
   : _group_id{group_id}, 
     _local_range{local_range}, 

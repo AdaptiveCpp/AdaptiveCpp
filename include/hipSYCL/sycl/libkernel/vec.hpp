@@ -43,7 +43,7 @@ template<class T, int N>
 class vec_storage {
 public:
   static constexpr std::size_t effective_size = (N == 3) ? 4 : N;
-  static constexpr int alignment = effective_size * N;
+  static constexpr int alignment = effective_size * sizeof(T);
 
   using interop_type = vec_storage<T,N>;
   using value_type = T;
@@ -68,7 +68,14 @@ public:
 
   template<class F>
   HIPSYCL_UNIVERSAL_TARGET
-  void for_each(F f) {
+  void for_each(F&& f) {
+    for(int i = 0; i < N; ++i)
+      f(i, _storage[i]);
+  }
+
+  template<class F>
+  HIPSYCL_UNIVERSAL_TARGET
+  void for_each(F&& f) const {
     for(int i = 0; i < N; ++i)
       f(i, _storage[i]);
   }
@@ -87,12 +94,11 @@ private:
 template<class TargetStorage, int... SwizzleIndices>
 class swizzled_view_storage {
 public:
-  static constexpr std::size_t effective_size = (N == 3) ? 4 : N;
-  static constexpr int alignment = effective_size * N;
 
   using interop_type = typename TargetStorage::interop_type;
   using value_type = typename TargetStorage::value_type;
 
+  HIPSYCL_UNIVERSAL_TARGET
   swizzled_view_storage(TargetStorage& s)
   : _original_data{s} {}
 
@@ -120,10 +126,16 @@ public:
 
   template<class F>
   HIPSYCL_UNIVERSAL_TARGET
-  void for_each(F f) {
+  void for_each(F&& f) {
     (f(SwizzleIndices, _original_data.template get<SwizzleIndices>()), ...);
   }
 
+  template<class F>
+  HIPSYCL_UNIVERSAL_TARGET
+  void for_each(F&& f) const {
+    (f(SwizzleIndices, _original_data.template get<SwizzleIndices>()), ...);
+  }
+  
   HIPSYCL_UNIVERSAL_TARGET
   interop_type interop() const {
     return _original_data.interop();
@@ -144,7 +156,6 @@ template<> struct logical_vector_op_result<int8_t>
 
 template<> struct logical_vector_op_result<uint8_t>
 { using type = int8_t; };
-
 
 template<> struct logical_vector_op_result<int16_t>
 { using type = int16_t; };
@@ -169,6 +180,14 @@ template<> struct logical_vector_op_result<uint64_t>
 
 template<> struct logical_vector_op_result<int64_t>
 { using type = int64_t; };
+
+template <class Vector_type, class Function>
+HIPSYCL_UNIVERSAL_TARGET
+void for_each_vector_element(Vector_type& v, Function&& f);
+
+template <class Vector_type, class Function>
+HIPSYCL_UNIVERSAL_TARGET
+void for_each_vector_element(const Vector_type& v, Function&& f);
 
 }
 
@@ -206,52 +225,87 @@ struct elem
 };
 
 
-template<typename T, int N, class VectorStorage = detail::vec_storage<T,N>>
+template <typename T, int N, class VectorStorage = detail::vec_storage<T, N>>
 class vec {
+
+  template <class Vector_type, class Function>
+  HIPSYCL_UNIVERSAL_TARGET
+  friend void detail::for_each_vector_element(Vector_type &v, Function &&f);
+
+  template <class Vector_type, class Function>
+  HIPSYCL_UNIVERSAL_TARGET
+  friend void detail::for_each_vector_element(const Vector_type &v,
+                                              Function &&f);
+
 public:
   static_assert(N == 1 || N == 2 || N == 3 || N == 4 || N == 8 || N == 16,
                 "Invalid number of vec elements");
+  static_assert(std::is_same_v<bool, T> || std::is_same_v<char, T> ||
+                    std::is_same_v<signed char, T> ||
+                    std::is_same_v<unsigned char, T> ||
+                    std::is_same_v<short int, T> ||
+                    std::is_same_v<unsigned short int, T> ||
+                    std::is_same_v<int, T> || std::is_same_v<unsigned int, T> ||
+                    std::is_same_v<long int, T> ||
+                    std::is_same_v<unsigned long int, T> ||
+                    std::is_same_v<long long int, T> ||
+                    std::is_same_v<unsigned long long int, T> ||
+                    std::is_same_v<float, T> || std::is_same_v<double, T>,
+                "Invalid data type for vec<>");
 
   using element_type = T;
 
   using vector_t = typename VectorStorage::interop_type;
 
   HIPSYCL_UNIVERSAL_TARGET
+  vec(const VectorStorage& v)
+  : _data{v} {}
+
+  // The regular constructors are only available when we are not
+  // a swizzled vector view
+  template<class S = VectorStorage,
+            std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
+                             bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET
   vec() {
     for(int i = 0; i < N; ++i)
       _data[i] = T{};
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  vec(VectorStorage v)
-  : _data{v} {}
-
-  HIPSYCL_UNIVERSAL_TARGET
-  explicit vec(const T& value) {
+  template <class S = VectorStorage,
+            std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
+                             bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET explicit vec(const T &value) {
     for(int i = 0; i < N; ++i)
       _data[i] = value;
   }
 
-  template<typename... Args>
-  HIPSYCL_UNIVERSAL_TARGET
-  vec(const Args&... args) {
-    static_assert((count_num_elements(args) + ...) == N,
+  template <typename... Args, class S = VectorStorage,
+            std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
+                             bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {
+    static_assert((count_num_elements<Args>() + ...) == N,
                   "Argument mismatch with vector size");
 
     int current_init_index = 0;
     (partial_initialization(current_init_index, args), ...);
   }
 
-  template<class Storage>
-  HIPSYCL_UNIVERSAL_TARGET
-  vec(const vec<T, N, Storage>& other) {
+  template <class OtherStorage, class S = VectorStorage,
+            std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
+                             bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET vec(const vec<T, N, OtherStorage> &other)
+  {
     for(int i = 0; i < N; ++i)
-      _data[i] = other._data[i];
+      _data[i] = other[i];
   }
 
-  HIPSYCL_UNIVERSAL_TARGET
-  vec(vector_t v)
-  : _data{v} {}
+  // Only available if vector_t is not already the storage
+  // backend to avoid ambiguous overloads
+  template <
+      class Storage = VectorStorage,
+      std::enable_if_t<!std::is_same_v<vector_t, Storage>, bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET vec(vector_t v) : _data{v} {}
 
   HIPSYCL_UNIVERSAL_TARGET
   operator vector_t() const {
@@ -392,9 +446,10 @@ public:
     return _data[index];
   }
 
-  vec& operator=(const vec& rhs) {
+  template<class Storage>
+  vec& operator=(const vec<T,N,Storage>& rhs) {
     for(int i = 0; i < N; ++i)
-      _data[i] = rhs._data[i];
+      _data[i] = rhs[i];
     return *this;
   }
 
@@ -417,32 +472,32 @@ public:
     return _data.template get<id>();                                           \
   }
 
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 4, x, 0)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 4, y, 1)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 4, z, 2)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 4, w, 3)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 4, x, 0)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 4, y, 1)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 4, z, 2)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 4, w, 3)
 
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N == 4, r, 0)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N == 4, g, 1)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N == 4, b, 2)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N == 4, a, 3)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim == 4, r, 0)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim == 4, g, 1)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim == 4, b, 2)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim == 4, a, 3)
 
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s0, 0)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s1, 1)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s2, 2)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s3, 3)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s4, 4)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s5, 5)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s6, 6)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s7, 7)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s8, 8)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, s9, 9)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sA, 10)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sB, 11)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sC, 12)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sD, 13)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sE, 14)
-  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(N <= 16, sF, 15)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s0, 0)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s1, 1)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s2, 2)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s3, 3)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s4, 4)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s5, 5)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s6, 6)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s7, 7)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s8, 8)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, s9, 9)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sA, 10)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sB, 11)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sC, 12)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sD, 13)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sE, 14)
+  HIPSYCL_DEFINE_VECTOR_ACCESS_IF(Dim <= 16, sF, 15)
 
 #define HIPSYCL_DEFINE_VECTOR_SWIZZLE2(name, Dim, i0, i1) \
   template<int n = N, \
@@ -481,7 +536,7 @@ public:
 
 #define HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(op, t)                            \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
-  friend vec<t, N> operator op(const vec<t, N> &lhs, const vec<t, N> &rhs) {   \
+  friend vec<t, N> operator op(const vec &lhs, const vec &rhs) {               \
     vec<t, N> result;                                                          \
     for (int i = 0; i < N; ++i) {                                              \
       result._data[i] = lhs._data[i] op rhs._data[i];                          \
@@ -510,10 +565,17 @@ public:
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(^, t)
 
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(>>, t)
+  
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(<<, t)
 
   #define HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(op, t)                       \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
-  friend vec<t, N> operator op(const vec<t, N> &lhs, const t& rhs) {           \
+  friend vec<t, N> operator op(const vec &lhs, const t& rhs) {                 \
     vec<t, N> result;                                                          \
     for (int i = 0; i < N; ++i) {                                              \
       result._data[i] = lhs._data[i] op rhs;                                   \
@@ -541,6 +603,53 @@ public:
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(^, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(>>, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_SCALAR(<<, t)
+
+#define HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(op, t)                         \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend vec<t, N> operator op(const t &lhs, const vec& rhs) {                 \
+    vec<t, N> result;                                                          \
+    for (int i = 0; i < N; ++i) {                                              \
+      result._data[i] = lhs op rhs._data[i];                                   \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(%, t)
+
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(+, T)
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(-, T)
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(*, T)
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(/, T)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(&, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(|, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(^, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(>>, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_BINARY_VEC_OP_SCALAR_VEC(<<, t)
 
   #define HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(op, t)                         \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
@@ -572,6 +681,13 @@ public:
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(^=, t)
 
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(>>=, t)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_VEC(<<=, t)
 
   #define HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(op, t)                      \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
@@ -603,6 +719,13 @@ public:
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(^=, t)
 
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(>>=, t)
+  
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(<<=, t)
 
   HIPSYCL_UNIVERSAL_TARGET
   friend vec& operator++(vec& v) {
@@ -652,19 +775,76 @@ public:
     return result;
   }
 
-  //HIPSYCL_UNIVERSAL_TARGET
-  //friend auto operator &&(const vec& lhs, const vec& rhs) {
+#define HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(op)                                     \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend auto operator op(const vec &lhs, const vec &rhs) {                    \
+    using return_t = typename detail::logical_vector_op_result<T>::type;       \
+    vec<return_t, N> result;                                                   \
+    for (int i = 0; i < N; ++i) {                                              \
+      result[i] = static_cast<return_t>(lhs[i] op rhs[i]);                     \
+    }                                                                          \
+    return result;                                                             \
+  }
 
-  //}
 
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(&&)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(||)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(==)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(!=)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(>)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(<)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(>=)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_VEC(<=)
+
+#define HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(op)                                  \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend auto operator op(const vec &lhs, const T &rhs) {                      \
+    using return_t = typename detail::logical_vector_op_result<T>::type;       \
+    vec<return_t, N> result;                                                   \
+    for (int i = 0; i < N; ++i) {                                              \
+      result[i] = static_cast<return_t>(lhs[i] op rhs);                        \
+    }                                                                          \
+    return result;                                                             \
+  }
+
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(&&)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(||)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(==)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(!=)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(>)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(<)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(>=)
+  HIPSYCL_LOGICAL_VEC_OP_VEC_SCALAR(<=)
+
+  template <typename t = T,
+            std::enable_if_t<std::is_integral_v<t>, bool> = true>
+  HIPSYCL_UNIVERSAL_TARGET
+  friend vec<t, N> operator~(const vec &v) {
+    vec<t, N> result;
+
+    for (int i = 0; i < N; ++i) {
+      result[i] = ~(v[i]);
+    }
+
+    return result;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend vec<typename detail::logical_vector_op_result<T>::type, N>
+  operator!(const vec &v) {
+    vec<typename detail::logical_vector_op_result<T>::type, N> result;
+    for (int i = 0; i < N; ++i)
+      result[i] = !static_cast<bool>(v[i]);
+    return result;
+  }
 private:
   template <typename Arg>
   HIPSYCL_UNIVERSAL_TARGET
-  static constexpr int count_num_elements(const Arg &x) {
-    if constexpr(std::is_same_v<Arg, T>)
+  static constexpr int count_num_elements() {
+    if constexpr(std::is_scalar_v<Arg>)
       return 1;
     else if(std::is_same_v<typename Arg::element_type, T>)
-      return x.get_count();
+      return Arg::get_count();
     // ToDo: Trigger error
     return 0;
   }
@@ -672,15 +852,15 @@ private:
   template<typename Arg>
   HIPSYCL_UNIVERSAL_TARGET
   void partial_initialization(int& current_init_index, const Arg& x) {
-    if constexpr(std::is_same_v<Arg, T>) {
+    if constexpr(std::is_scalar_v<Arg>) {
       _data[current_init_index] = x;
       ++current_init_index;
     } else {
       // Assume we are dealing with another vector
-      constexpr int count = count_num_elements(x);
+      constexpr int count = count_num_elements<Arg>();
       
       for(int i = 0; i < count; ++i) {
-        _data[i + current_init_index] = x._data[i];
+        _data[i + current_init_index] = x[i];
       }
       
       current_init_index += count;
@@ -749,6 +929,55 @@ using double3 = vec<double, 3>;
 using double4 = vec<double, 4>;
 using double8 = vec<double, 8>;
 using double16 = vec<double, 16>;
+
+namespace detail {
+
+
+template <class Vector_type, class Function>
+HIPSYCL_UNIVERSAL_TARGET
+void for_each_vector_element(Vector_type &v, Function &&f) {
+  v._data.for_each(f);
+}
+
+template <class Vector_type, class Function>
+HIPSYCL_UNIVERSAL_TARGET
+void for_each_vector_element(const Vector_type &v, Function &&f) {
+  v._data.for_each(f);
+}
+
+
+template <class T, int N, class Function>
+HIPSYCL_UNIVERSAL_TARGET
+void transform_vector(vec<T, N> &v, Function &&f) {
+  for_each_vector_element(v, [&](int idx, T &val) {
+    val = f(val);
+  });
+}
+
+template <class T, int N, class Function>
+HIPSYCL_UNIVERSAL_TARGET vec<T, N> binary_vector_operation(const vec<T, N> &v1,
+                                                           const vec<T, N> &v2,
+                                                           Function &&f) {
+  vec<T, N> result;
+  for_each_vector_element(result, [&](int idx, T &target_val) {
+    target_val = f(v1[idx], v2[idx]);
+  });
+  return result;
+}
+
+template <class T, int N, class Function>
+HIPSYCL_UNIVERSAL_TARGET vec<T, N> trinary_vector_operation(const vec<T, N> &v1,
+                                                            const vec<T, N> &v2,
+                                                            const vec<T, N> &v3,
+                                                            Function &&f) {
+  vec<T, N> result;
+  for_each_vector_element(result, [&](int idx, T &target_val) {
+    target_val = f(v1[idx], v2[idx], v3[idx]);
+  });
+  return result;
+}
+
+}
 
 }
 }

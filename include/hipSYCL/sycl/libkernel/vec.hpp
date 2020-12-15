@@ -369,7 +369,9 @@ public:
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   auto lo() const {
-    if constexpr(Dim == 2) {
+    if constexpr(Dim == 1) {
+      return swizzle<0>();
+    } else if constexpr(Dim == 2) {
       return swizzle<0>();
     } else if constexpr(Dim == 3 || Dim == 4) {
       return swizzle<0,1>();
@@ -386,7 +388,9 @@ public:
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   auto hi() const {
-    if constexpr(Dim == 2) {
+    if constexpr(Dim == 1) {
+      return swizzle<0>();
+    } else if constexpr(Dim == 2) {
       return swizzle<1>();
     } else if constexpr(Dim == 3 || Dim == 4) {
       return swizzle<2,3>();
@@ -403,7 +407,9 @@ public:
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   auto odd() const {
-    if constexpr(Dim == 2) {
+    if constexpr(Dim == 1) {
+      return swizzle<0>();
+    } else if constexpr(Dim == 2) {
       return swizzle<1>();
     } else if constexpr(Dim == 3 || Dim == 4) {
       return swizzle<1,3>();
@@ -421,7 +427,9 @@ public:
   template<int Dim = N, std::enable_if_t<(Dim > 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   auto even() const {
-    if constexpr(Dim == 2) {
+    if constexpr(Dim ==1) {
+      return swizzle<0>();
+    } else if constexpr(Dim == 2) {
       return swizzle<0>();
     } else if constexpr(Dim == 3 || Dim == 4) {
       return swizzle<0,2>();

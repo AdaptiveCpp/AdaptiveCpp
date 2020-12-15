@@ -92,7 +92,7 @@ public:
   }
 
   settings() {
-    int default_debug_level = 1;
+    int default_debug_level = 2;
 #ifdef HIPSYCL_DEBUG_LEVEL
     default_debug_level = HIPSYCL_DEBUG_LEVEL;
 #endif

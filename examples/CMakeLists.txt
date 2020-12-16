@@ -14,7 +14,7 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
 FORCE)
   else()
-    set(HIPSYCL_DEBUG_LEVEL 1 CACHE INTEGER
+    set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
 FORCE)
   endif()

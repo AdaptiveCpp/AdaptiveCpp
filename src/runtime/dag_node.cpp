@@ -43,6 +43,14 @@ dag_node::dag_node(const execution_hints &hints,
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
       _is_cancelled{false}, _node_id{std::numeric_limits<std::size_t>::max()} {}
 
+dag_node::~dag_node() {
+  if(!is_complete()){
+    HIPSYCL_DEBUG_WARNING << "dag_node: Destructor invoked before operation "
+                             "has completed, this should never happen."
+                          << std::endl;
+  }
+}
+
 bool dag_node::is_submitted() const { return _is_submitted; }
 
 bool dag_node::is_complete() const {

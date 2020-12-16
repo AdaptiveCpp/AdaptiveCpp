@@ -269,5 +269,135 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
 
 #endif
+#ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET
+BOOST_AUTO_TEST_CASE(cg_property_retarget) {
+  using namespace cl;
+
+  auto all_devices = sycl::device::get_devices();
+
+  std::vector<sycl::device> target_devices;
+  for(const auto& dev : all_devices) {
+    if (dev.hipSYCL_has_compiled_kernels() && dev.is_gpu()) {
+      target_devices.push_back(dev);
+    }
+  }
+  sycl::device host_device{sycl::detail::get_host_device()};
+
+  if(target_devices.size() > 0) {
+    sycl::queue q{target_devices[0], sycl::property_list{sycl::property::queue::in_order{}}};
+    int* ptr = sycl::malloc_shared<int>(1, q);
+    *ptr = 0;
+
+    q.parallel_for<class retarget_gpu_kernel>(sycl::range{128}, 
+      [=](sycl::id<1> idx){
+      
+      if(idx[0] == 0)
+        ++ptr[0];
+    });
+
+    q.submit({sycl::property::command_group::hipSYCL_retarget{host_device}},
+      [&](sycl::handler& cgh){
+        cgh.single_task<class retarget_host_kernel>([=](){
+          ++ptr[0];
+        });  
+      });
+
+    q.wait();
+
+    BOOST_TEST(ptr[0] == 2);
+
+    sycl::free(ptr, q);
+  }
+}
+#endif
+
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+__host__ __device__
+int get_total_group_size() {
+#ifdef SYCL_DEVICE_ONLY
+  return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+#else
+  return 0;
+#endif
+}
+#endif
+
+#ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
+BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
+  using namespace cl;
+
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+
+  int* gsize = sycl::malloc_shared<int>(3, q);
+
+  auto group_size1d = sycl::range{100};
+  auto group_size2d = sycl::range{9,9};
+  auto group_size3d = sycl::range{5,5,5};
+
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+  #define HIPLIKE_MODEL
+#endif
+
+  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+               group_size1d}},
+           [&](sycl::handler &cgh) {
+             cgh.parallel_for<class property_preferred_group_size1>(
+                 sycl::range{1000}, [=](sycl::id<1> idx) {
+                   if (idx[0] == 0) {
+#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
+                     gsize[0] = get_total_group_size();
+#else
+                     gsize[0] = 1;
+#endif
+                   }
+                 });
+           });
+
+  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+               group_size2d}},
+           [&](sycl::handler &cgh) {
+             cgh.parallel_for<class property_preferred_group_size2>(
+                 sycl::range{30,30}, [=](sycl::id<2> idx) {
+                   if (idx[0] == 0 && idx[1] == 0) {
+#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
+                     gsize[1] = get_total_group_size();
+#else
+                     gsize[1] = 2;
+#endif
+                   }
+                 });
+           });
+
+
+  q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
+               group_size3d}},
+           [&](sycl::handler &cgh) {
+             cgh.parallel_for<class property_preferred_group_size3>(
+                 sycl::range{10,10,10}, [=](sycl::id<3> idx) {
+                   if (idx[0] == 0 && idx[1] == 0) {
+#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
+                     gsize[2] = get_total_group_size();
+#else
+                     gsize[2] = 3;
+#endif
+                   }
+                 });
+           });
+
+  q.wait();
+
+#ifdef HIPLIKE_MODEL
+  BOOST_TEST(gsize[0] == group_size1d.size());
+  BOOST_TEST(gsize[1] == group_size2d.size());
+  BOOST_TEST(gsize[2] == group_size3d.size());
+#else
+  BOOST_TEST(gsize[0] == 1);
+  BOOST_TEST(gsize[1] == 2);
+  BOOST_TEST(gsize[2] == 3);
+#endif
+
+  sycl::free(gsize, q);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

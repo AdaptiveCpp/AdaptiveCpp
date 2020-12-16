@@ -107,6 +107,10 @@ public:
   backend_iterator find_first_backend(UnaryPredicate p) const {
     return std::find_if(backends_begin(), backends_end(), p);
   }
+
+  bool contains_device(const device_id& dev) const {
+    return std::find(_devices.begin(), _devices.end(), dev) != _devices.end();
+  }
 private:
   std::vector<device_id> _devices;
   std::vector<backend_id> _backends;

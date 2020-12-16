@@ -67,6 +67,27 @@ using queue_submission_hooks_ptr =
 
 }
 
+
+namespace property::command_group {
+
+template<int Dim>
+struct hipSYCL_prefer_group_size : public detail::property{
+  hipSYCL_prefer_group_size(range<Dim> r)
+  : size{r} {}
+
+  range<Dim> size;
+};
+
+struct hipSYCL_retarget : public detail::property{
+  hipSYCL_retarget(const device& d)
+  : dev{d} {}
+
+  sycl::device dev;
+};
+
+}
+
+
 namespace property::queue {
 
 class in_order : public detail::property
@@ -221,11 +242,40 @@ public:
 
 
   template <typename T>
-  event submit(T cgf) {
+  event submit(const property_list& prop_list, T cgf) {
     std::lock_guard<std::mutex> lock{*_lock};
 
-    handler cgh{get_context(), _handler, _default_hints};
+    rt::execution_hints hints = _default_hints;
     
+    if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
+
+      rt::execution_hints custom_hints;
+
+      rt::device_id dev = detail::extract_rt_device(
+          prop_list.get_property<property::command_group::hipSYCL_retarget>()
+              .dev);
+
+      if(!detail::extract_context_devices(_ctx).contains_device(dev)) {
+        HIPSYCL_DEBUG_WARNING
+            << "queue: Warning: Retargeting operation for a device that is not "
+               "part of the queue's context. This can cause terrible problems if the "
+               "operation uses USM allocations that were allocated using the "
+               "queue's context."
+            << std::endl;
+      }
+
+      custom_hints.add_hint(
+          rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+      
+      hints.overwrite_with(custom_hints);
+    }
+
+    handler cgh{get_context(), _handler, hints};
+    
+    apply_preferred_group_size<1>(prop_list, cgh);
+    apply_preferred_group_size<2>(prop_list, cgh);
+    apply_preferred_group_size<3>(prop_list, cgh);
+
     this->get_hooks()->run_all(cgh);
 
     rt::dag_node_ptr node = execute_submission(cgf, cgh);
@@ -233,14 +283,21 @@ public:
     return event{node, _handler};
   }
 
+
   template <typename T>
-  event submit(T cgf, const queue &secondaryQueue) {
+  event submit(T cgf) {
+    return submit(property_list{}, cgf);
+  }
+
+  template <typename T>
+  event submit(T cgf, const queue &secondaryQueue,
+               const property_list &prop_list = {}) {
     try {
 
       size_t num_errors_begin =
           rt::application::get_runtime().errors().num_errors();
 
-      event evt = submit(cgf);
+      event evt = submit(prop_list, cgf);
       // Flush so that we see any errors during submission
       rt::application::dag().flush_sync();
 
@@ -266,13 +323,12 @@ public:
       if(!submission_failed) {
         return evt;
       } else {
-        return secondaryQueue.submit(cgf);
+        return secondaryQueue.submit(prop_list, cgf);
       }
     }
     catch(exception&) {
-      return secondaryQueue.submit(cgf);
+      return secondaryQueue.submit(prop_list, cgf);
     }
-
   }
 
   friend bool operator==(const queue& lhs, const queue& rhs)
@@ -571,6 +627,18 @@ public:
 
 
 private:
+  template<int Dim>
+  void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
+    if(prop_list.has_property<property::command_group::hipSYCL_prefer_group_size<Dim>>()){
+      sycl::range<Dim> preferred_group_size =
+          prop_list
+              .get_property<
+                  property::command_group::hipSYCL_prefer_group_size<Dim>>()
+              .size;
+      cgh.set_preferred_group_size(preferred_group_size);
+    }
+  }
+
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
     if (is_in_order()) {

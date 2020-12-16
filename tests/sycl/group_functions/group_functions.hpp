@@ -177,28 +177,16 @@ T get_offset(size_t margin, size_t divisor = 1) {
   }
 
   if constexpr (std::is_signed_v<T>) {
-    return static_cast<T>(std::numeric_limits<T>::min() / divisor + margin);
+    return static_cast<T>(std::numeric_limits<T>::min() / divisor + margin + 1);
   }
-  return static_cast<T>(std::numeric_limits<T>::max() / divisor - margin);
+  return static_cast<T>(std::numeric_limits<T>::max() / divisor - margin - 1);
 }
 
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
   using eT = elementType<T>;
-  if (std::numeric_limits<eT>::max() <= margin) {
-    return T{};
-  }
-  if constexpr (std::is_floating_point_v<eT>) {
-    return T{};
-  }
-
-  if constexpr (std::is_signed_v<T>) {
-    return initialize_type<T>(
-        static_cast<eT>(std::numeric_limits<eT>::min() / divisor + margin));
-  }
-  return initialize_type<T>(
-      static_cast<eT>(std::numeric_limits<eT>::max() / divisor - margin));
+  return initialize_type<T>(get_offset<eT>(margin + 16, divisor));
 }
 
 template<typename T>

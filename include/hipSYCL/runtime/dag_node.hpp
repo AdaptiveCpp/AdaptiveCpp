@@ -51,6 +51,8 @@ public:
           const std::vector<dag_node_ptr>& requirements,
           std::unique_ptr<operation> op);
 
+  ~dag_node();
+
   bool is_submitted() const;
   bool is_complete() const;
   bool is_cancelled() const;

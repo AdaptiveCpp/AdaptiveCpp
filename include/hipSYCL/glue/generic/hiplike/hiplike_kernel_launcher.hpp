@@ -504,12 +504,19 @@ public:
 
     sycl::range<Dim> effective_local_range = local_range;
     if constexpr (type == rt::kernel_type::basic_parallel_for) {
-      if constexpr (Dim == 1)
-        effective_local_range = sycl::range<1>{128};
-      else if constexpr (Dim == 2)
-        effective_local_range = sycl::range<2>{16, 16};
-      else if constexpr (Dim == 3)
-        effective_local_range = sycl::range<3>{4, 8, 8};
+      // If local range is non 0, we use it as a hint to override
+      // the default selection
+      if(local_range.size() == 0) {
+        if constexpr (Dim == 1)
+          effective_local_range = sycl::range<1>{128};
+        else if constexpr (Dim == 2)
+          effective_local_range = sycl::range<2>{16, 16};
+        else if constexpr (Dim == 3)
+          effective_local_range = sycl::range<3>{4, 8, 8};
+      }
+      HIPSYCL_DEBUG_INFO << "hiplike_kernel_launcher: Submitting high-level "
+                            "parallel for with selected total group size of "
+                         << effective_local_range.size() << std::endl;
     }
 
     _invoker = [=]() {

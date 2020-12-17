@@ -131,7 +131,7 @@ public:
     auto invoker = [&](auto&& kernel, auto&&... reductions){
       this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           sycl::id<dimensions>{}, numWorkItems,
-          numWorkItems /* local range is ignored for basic parallel for*/,
+          get_preferred_group_size<dimensions>(),
           kernel, reductions...);
     };
 
@@ -146,7 +146,7 @@ public:
     auto invoker = [&](auto&& kernel, auto&& ... reductions) {
       this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
-          numWorkItems /* local range is ignored for basic parallel for*/,
+          get_preferred_group_size<dimensions>(),
           kernel, reductions...);
     };
 
@@ -356,7 +356,7 @@ public:
 
     this->submit_kernel<class _unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         dest.get_offset(), dest.get_range(),
-        dest.get_range() /*local range unused for basic pf*/,
+        get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
   }
 
@@ -429,7 +429,7 @@ public:
       this->submit_kernel<class _unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
           sycl::id<1>{}, sycl::range<1>{count},
-          sycl::range<1>{count} /*local range unused for basic pf*/,
+          get_preferred_group_size<1>(),
           detail::kernels::fill_kernel_usm{typed_ptr, pattern});
     }
   }
@@ -651,10 +651,39 @@ private:
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }
 
+  
   handler(const context &ctx, async_handler handler,
-                 const rt::execution_hints &hints)
-    : _ctx{ctx}, _handler{handler},
-      _execution_hints{hints} {}
+          const rt::execution_hints &hints)
+      : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
+        _preferred_group_size1d{}, _preferred_group_size2d{},
+        _preferred_group_size3d{} {}
+
+  template<int Dim>
+  range<Dim>& get_preferred_group_size() {
+    if constexpr(Dim == 1) {
+      return _preferred_group_size1d;
+    } else if constexpr(Dim == 2) {
+      return _preferred_group_size2d;
+    } else {
+      return _preferred_group_size3d;
+    }
+  }
+
+  template<int Dim>
+  const range<Dim>& get_preferred_group_size() const {
+    if constexpr(Dim == 1) {
+      return _preferred_group_size1d;
+    } else if constexpr(Dim == 2) {
+      return _preferred_group_size2d;
+    } else {
+      return _preferred_group_size3d;
+    }
+  }
+  
+  template<int Dim>
+  void set_preferred_group_size(range<Dim> r) {
+    get_preferred_group_size<Dim>() = r;
+  }
   
   const context _ctx;
   detail::local_memory_allocator _local_mem_allocator;
@@ -663,6 +692,10 @@ private:
   rt::requirements_list _requirements;
   rt::execution_hints _execution_hints;
   std::vector<rt::dag_node_ptr> _command_group_nodes;
+
+  range<1> _preferred_group_size1d;
+  range<2> _preferred_group_size2d;
+  range<3> _preferred_group_size3d;
 };
 
 namespace detail::handler {

@@ -49,6 +49,9 @@
 namespace hipsycl {
 namespace glue {
 
+/// Construct kernel launchers.
+/// Note: For basic parallel for kernels, local range may argument may be ignored.
+///       If it is non-0, it *may* be used as a hint for the backend.
 template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
           typename... Reductions>
 std::vector<std::unique_ptr<rt::backend_kernel_launcher>>

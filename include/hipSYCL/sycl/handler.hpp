@@ -476,7 +476,7 @@ public:
       hints.overwrite_with(rt::make_execution_hint<rt::hints::bind_to_device>(
           usm_dev));
     }
-    
+
     auto op = rt::make_operation<rt::prefetch_operation>(
         ptr, num_bytes, target_dev);
 
@@ -485,7 +485,7 @@ public:
 
     _command_group_nodes.push_back(node);
   }
-  
+
   void prefetch(const void *ptr, std::size_t num_bytes) {
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -503,7 +503,7 @@ public:
       // Otherwise, run prefetch on the queue's device to the
       // queue's device
       rt::dag_build_guard build{rt::application::dag()};
-      
+
       auto op = rt::make_operation<rt::prefetch_operation>(
           ptr, num_bytes, executing_dev);
 
@@ -535,7 +535,7 @@ public:
             sycl::range<3>{},
             0, f),
         _requirements);
-    
+
     rt::dag_node_ptr node = build.builder()->add_kernel(
         std::move(custom_kernel_op), _requirements, _execution_hints);
     
@@ -573,7 +573,7 @@ private:
             offset, local_range, global_range, shared_mem_size, f,
             reductions...),
         _requirements);
-    
+
     rt::dag_node_ptr node = build.builder()->add_kernel(
         std::move(kernel_op), _requirements, _execution_hints);
     

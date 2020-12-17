@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,7 +91,20 @@ std::unique_ptr<dag_node_event> omp_queue::insert_event() {
   return evt;
 }
 
-result omp_queue::submit_memcpy(const memcpy_operation &op) {
+std::unique_ptr<omp_timestamp_profiler> omp_queue::begin_profiling(const operation &op) {
+  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
+    return nullptr;
+  auto profiler = std::make_unique<omp_timestamp_profiler>();
+  profiler->record_submit();
+  return profiler;
+}
+
+void omp_queue::finish_profiling(operation &op, std::unique_ptr<omp_timestamp_profiler> profiler) {
+  if (!profiler) return;
+  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
+}
+
+result omp_queue::submit_memcpy(memcpy_operation &op) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
 
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
@@ -117,7 +130,11 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
     bool is_dest_contiguous =
         is_contigous(dest_offset, transferred_range, dest_allocation_shape);
 
-    _worker([=]() {
+    auto profiler = begin_profiling(op);
+
+    _worker([=, profiler=profiler.get()]() {
+      if (profiler) profiler->record_start();
+
       auto linear_index = [](id<3> id, range<3> allocation_shape) {
         return id[2] + allocation_shape[2] * id[1] +
                allocation_shape[2] * allocation_shape[1] * id[0];
@@ -172,7 +189,11 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
           ++current_src_offset[0];
         }
       }
+
+      if (profiler) profiler->record_finish();
     });
+
+    finish_profiling(op, std::move(profiler));
 
   } else {
     return register_error(
@@ -185,7 +206,7 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
   return make_success();
 }
 
-result omp_queue::submit_kernel(const kernel_operation &op) {
+result omp_queue::submit_kernel(kernel_operation &op) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
   rt::backend_kernel_launcher *launcher = 
@@ -198,25 +219,32 @@ result omp_queue::submit_kernel(const kernel_operation &op) {
         error_type::runtime_error});
   }
 
-  _worker([=]() {
+  auto profiler = begin_profiling(op);
+
+  _worker([=, profiler=profiler.get()]() {
     HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
+    if (profiler) profiler->record_start();
     launcher->invoke();
+    if (profiler) profiler->record_finish();
   });
 
+  finish_profiling(op, std::move(profiler));
   return make_success();
 }
 
-result omp_queue::submit_prefetch(const prefetch_operation &) {
+result omp_queue::submit_prefetch(prefetch_operation &op) {
   HIPSYCL_DEBUG_INFO
       << "omp_queue: Received prefetch submission request, ignoring"
       << std::endl;
   // Yeah, what are you going to do? Prefetching CPU memory on CPU? Go home!
   // (TODO: maybe we should handle the case that we have USM memory from another
   // backend here)
+  if (op.is_instrumented() && op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
+    op.get_instrumentations().provide<rt::timestamp_profiler>(omp_timestamp_profiler::make_no_op());
   return make_success();
 }
 
-result omp_queue::submit_memset(const memset_operation & op) {
+result omp_queue::submit_memset(memset_operation & op) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
@@ -228,10 +256,15 @@ result omp_queue::submit_memset(const memset_operation & op) {
             "omp_queue: submit_memset(): Invalid argument, pointer is null."});
   }
 
-  _worker([=]() {
+  auto profiler = begin_profiling(op);
+
+  _worker([=, profiler=profiler.get()]() {
+    if (profiler) profiler->record_start();
     memset(ptr, pattern, bytes);
+    if (profiler) profiler->record_finish();
   });
 
+  finish_profiling(op, std::move(profiler));
   return make_success();
     
 }

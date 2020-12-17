@@ -25,44 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_EVENT_HPP
-#define HIPSYCL_CUDA_EVENT_HPP
+#ifndef HIPSYCL_CUDA_INSTRUMENTATION_HPP
+#define HIPSYCL_CUDA_INSTRUMENTATION_HPP
 
-#include "../event.hpp"
+#include "cuda_event.hpp"
+#include "../instrumentation.hpp"
 
-// Note: CUevent_st* == cudaEvent_t 
-struct CUevent_st;
+// Note: CUstream_st* == cudaStream_t
+struct CUstream_st;
 
 namespace hipsycl {
 namespace rt {
 
-struct cuda_event_deleter {
-  void operator()(CUevent_st *evt) const;
-};
-
-/// Manages a cudaEvent_t.
-using cuda_unique_event = std::unique_ptr<CUevent_st, cuda_event_deleter>;
-
-cuda_unique_event make_cuda_event();
-
-class cuda_node_event : public dag_node_event
+class cuda_timestamp_profiler final : public timestamp_profiler
 {
 public:
-  /// \c evt Must have been properly initialized and recorded.
-  cuda_node_event(device_id dev, cuda_unique_event evt);
+  // host and device "timestamps" for converting relative time measurements
+  // from cudaEventElapsedTime to absolute profiler_clock times
+  class baseline {
+  public:
+    // precondition: activate device
+    static baseline record(CUstream_st *stream);
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
+    CUevent_st *get_device_event() const { return _device_event.get(); }
+    profiler_clock::time_point get_host_time() const { return _host_time; }
 
-  CUevent_st* get_event() const;
-  device_id get_device() const;
+  private:
+    cuda_unique_event _device_event;
+    profiler_clock::time_point _host_time;
+  };
+
+  // queue_created_device and queue_created_host must represent the same instance in time.
+  // queue_create_device must be recorded and synchronized already.
+  explicit cuda_timestamp_profiler(const baseline *b);
+
+  // precondition: activate device
+  void record_before_operation(CUstream_st *stream);
+  void record_after_operation(CUstream_st *stream);
+
+  virtual profiler_clock::time_point await_event(event event) const override;
+
 private:
-  device_id _dev;
-  cuda_unique_event _evt;
+  const baseline *_baseline;  // shared, owned by the cuda_queue
+  profiler_clock::time_point _operation_submitted;
+  cuda_unique_event _operation_started;
+  cuda_unique_event _operation_finished;
 };
 
 }
 }
-
 
 #endif

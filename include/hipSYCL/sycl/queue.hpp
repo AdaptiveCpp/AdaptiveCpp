@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018,2019 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,9 @@ namespace property::queue {
 class in_order : public detail::property
 {};
 
+class enable_profiling : public detail::property
+{};
+
 }
 
 
@@ -122,35 +125,25 @@ public:
         _ctx{deviceSelector.select_device()} {
 
     _handler = _ctx._impl->handler;
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
 
-    this->init();
+    this->init(deviceSelector.select_device()._device_id);
   }
 
   explicit queue(const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
       : detail::property_carrying_object{propList},
-        _ctx{deviceSelector.select_device(), asyncHandler}, _handler{
-                                                                asyncHandler} {
+        _ctx{deviceSelector.select_device(), asyncHandler}, _handler{asyncHandler} {
 
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
-
-    this->init();
+    this->init(deviceSelector.select_device()._device_id);
   }
 
   explicit queue(const device &syclDevice, const property_list &propList = {})
       : detail::property_carrying_object{propList}, _ctx{syclDevice} {
 
     _handler = _ctx._impl->handler;
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
 
-    this->init();
+    this->init(syclDevice._device_id);
   }
 
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
@@ -158,10 +151,7 @@ public:
       : detail::property_carrying_object{propList},
         _ctx{syclDevice, asyncHandler}, _handler{asyncHandler} {
 
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
-
-    this->init();
+    this->init(syclDevice._device_id);
   }
 
   explicit queue(const context &syclContext,
@@ -175,11 +165,8 @@ public:
 
     if (!is_device_in_context(dev, syclContext))
       throw invalid_object_error{"queue: Device is not in context"};
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
 
-    this->init();
+    this->init(dev._device_id);
   }
 
   explicit queue(const context &syclContext,
@@ -194,10 +181,7 @@ public:
     if (!is_device_in_context(dev, syclContext))
       throw invalid_object_error{"queue: Device is not in context"};
 
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
-    
-    this->init();
+    this->init(dev._device_id);
   }
 
   ~queue() {
@@ -709,7 +693,12 @@ private:
   }
 
 
-  void init() {
+  void init(rt::device_id device_id) {
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(device_id));
+    if (this->has_property<property::queue::enable_profiling>()) {
+      _default_hints.add_hint(rt::make_execution_hint<rt::hints::enable_profiling>());
+    }
+
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
 

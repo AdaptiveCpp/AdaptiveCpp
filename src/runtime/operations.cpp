@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,13 +27,36 @@
 
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
 
 namespace hipsycl {
 namespace rt {
 
+namespace {
+
+template<typename T>
+T &ensure_instance(std::unique_ptr<T> &ptr) {
+  if (!ptr) {
+    ptr = std::make_unique<T>();
+  }
+  return *ptr;
+}
+
+}
+
+operation::operation() noexcept = default;
+operation::~operation() = default;
+
+instrumentation_set &operation::get_instrumentations() {
+  return ensure_instance(_instr_set);
+}
+
+const instrumentation_set &operation::get_instrumentations() const {
+  return ensure_instance(_instr_set);
+}
+
 kernel_operation::kernel_operation(
-    const std::string &kernel_name, 
-    std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
+    const std::string &kernel_name, std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
     const requirements_list& reqs)
     : _kernel_name{kernel_name}, _launcher{std::move(kernels)}
 {

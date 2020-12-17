@@ -31,6 +31,8 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
+
 #include <mutex>
 
 // TODO: Implement the following optimizations:
@@ -155,7 +157,15 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
 dag_node_ptr
 dag_builder::add_command_group(std::unique_ptr<operation> op,
                                const requirements_list &requirements,
-                               const execution_hints &hints) {
+                               const execution_hints &hints)
+{
+  assert(op);
+
+  // Since requirements may be optimized away, requirements, even if issued explicitly,
+  // currently cannot be profiled
+  if (!op->is_requirement() && hints.has_hint<hints::enable_profiling>()) {
+    op->get_instrumentations().instrument<rt::timestamp_profiler>();
+  }
 
   std::lock_guard<std::mutex> lock{_mutex};
 

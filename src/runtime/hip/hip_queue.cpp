@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ void hip_queue::activate_device() const {
   hip_device_manager::get().activate_device(_dev.get_id());
 }
 
-hip_queue::hip_queue(device_id dev) : _dev{dev} {
+hip_queue::hip_queue(device_id dev) : _dev{dev}, _stream{nullptr} {
   this->activate_device();
 
   auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
@@ -73,7 +73,10 @@ hip_queue::hip_queue(device_id dev) : _dev{dev} {
     register_error(__hipsycl_here(),
                    error_info{"hip_queue: Couldn't construct backend stream",
                               error_code{"HIP", err}});
+    return;
   }
+
+  _profiler_baseline = hip_timestamp_profiler::baseline::record(_stream);
 }
 
 hipStream_t hip_queue::get_stream() const { return _stream; }
@@ -91,19 +94,12 @@ hip_queue::~hip_queue() {
 std::unique_ptr<dag_node_event> hip_queue::insert_event() {
   this->activate_device();
 
-  hipEvent_t evt;
-  hipError_t err = hipEventCreate(&evt);
-
-  if (err != hipSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
-    
+  auto evt = make_hip_event();
+  if (!evt) {
     return nullptr;
   }
 
-  err = hipEventRecord(evt, this->get_stream());
-
+  auto err = hipEventRecord(evt.get(), this->get_stream());
   if (err != hipSuccess) {
     register_error(
         __hipsycl_here(),
@@ -111,10 +107,26 @@ std::unique_ptr<dag_node_event> hip_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_unique<hip_node_event>(_dev, evt);
+  return std::make_unique<hip_node_event>(_dev, std::move(evt));
 }
 
-result hip_queue::submit_memcpy(const memcpy_operation & op) {
+std::unique_ptr<hip_timestamp_profiler> hip_queue::begin_profiling(const operation &op) const {
+  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
+    return nullptr;
+  this->activate_device();
+  auto profiler = std::make_unique<hip_timestamp_profiler>(&_profiler_baseline);
+  profiler->record_before_operation(_stream);
+  return profiler;
+}
+
+void hip_queue::finish_profiling(operation &op,
+                                 std::unique_ptr<hip_timestamp_profiler> profiler) const {
+  if (!profiler) return;
+  profiler->record_after_operation(_stream);
+  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
+}
+
+result hip_queue::submit_memcpy(memcpy_operation & op) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -171,6 +183,8 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   
   assert(dimension >= 1 && dimension <= 3);
 
+  auto profiler = begin_profiling(op);
+
   hipError_t err = hipSuccess;
   if (dimension == 1) {
 
@@ -211,6 +225,8 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
     err = hipMemcpy3DAsync(&params, get_stream());
   }
 
+  finish_profiling(op, std::move(profiler));
+
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"hip_queue: Couldn't submit memcpy",
@@ -220,7 +236,7 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   return make_success();
 }
 
-result hip_queue::submit_kernel(const kernel_operation &op) {
+result hip_queue::submit_kernel(kernel_operation &op) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l =
@@ -228,16 +244,19 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
   
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
-  
   l->set_params(this);
+
+  auto profiler = begin_profiling(op);
   l->invoke();
+  finish_profiling(op, std::move(profiler));
 
   return make_success();
 }
 
-result hip_queue::submit_prefetch(const prefetch_operation& op) {
+result hip_queue::submit_prefetch(prefetch_operation& op) {
 
 #ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+  auto profiler = begin_profiling(op);
   hipError_t err = hipSuccess;
   
   if (op.get_target().is_host()) {
@@ -247,6 +266,7 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
     err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
                               _dev.get_id(), get_stream());
   }
+  finish_profiling(op, std::move(profiler));
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
@@ -263,10 +283,12 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
   return make_success();
 }
 
-result hip_queue::submit_memset(const memset_operation &op) {
+result hip_queue::submit_memset(memset_operation &op) {
 
+  auto profiler = begin_profiling(op);
   hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
                                   op.get_num_bytes(), get_stream());
+  finish_profiling(op, std::move(profiler));
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),

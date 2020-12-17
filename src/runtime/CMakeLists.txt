@@ -30,6 +30,7 @@ if(WITH_CUDA_BACKEND)
   set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
     cuda/cuda_event.cpp
     cuda/cuda_queue.cpp
+    cuda/cuda_instrumentation.cpp
     cuda/cuda_allocator.cpp
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
@@ -40,6 +41,7 @@ if(WITH_ROCM_BACKEND)
   set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
     hip/hip_event.cpp
     hip/hip_queue.cpp
+    hip/hip_instrumentation.cpp
     hip/hip_allocator.cpp
     hip/hip_device_manager.cpp
     hip/hip_hardware_manager.cpp
@@ -52,6 +54,7 @@ if(WITH_CPU_BACKEND)
     omp/omp_backend.cpp
     omp/omp_event.cpp
     omp/omp_hardware_manager.cpp
+    omp/omp_instrumentation.cpp
     omp/omp_queue.cpp)
 endif()
 

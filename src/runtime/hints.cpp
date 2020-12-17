@@ -60,6 +60,10 @@ dag_node_ptr explicit_require::get_requirement() const
   return _dag_node;
 }
 
+enable_profiling::enable_profiling()
+    : execution_hint{execution_hint_type::enable_profiling}
+{}
+
 } // hints
 
 void execution_hints::add_hint(execution_hint_ptr hint)

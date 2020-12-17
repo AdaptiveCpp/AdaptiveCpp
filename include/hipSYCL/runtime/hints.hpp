@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ enum class execution_hint_type
   // Mark a DAG node as explicitly requiring another node
   // (TODO: not yet implemented)
   explicit_require,
+  enable_profiling,
 };
 
 class execution_hint
@@ -84,7 +85,7 @@ public:
   static constexpr execution_hint_type type = 
     execution_hint_type::bind_to_device;
 
-  bind_to_device(device_id d);
+  explicit bind_to_device(device_id d);
 
   device_id get_device_id() const;
 private:
@@ -97,12 +98,20 @@ public:
   static constexpr execution_hint_type type = 
     execution_hint_type::explicit_require;
 
-  explicit_require(dag_node_ptr node);
+  explicit explicit_require(dag_node_ptr node);
 
   dag_node_ptr get_requirement() const;
 
 private:
   dag_node_ptr _dag_node;
+};
+
+class enable_profiling : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type = execution_hint_type::enable_profiling;
+
+  enable_profiling();
 };
 
 } // hints

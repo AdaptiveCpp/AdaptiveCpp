@@ -22,7 +22,12 @@ FORCE)
 endif()
 
 set(ENV{BOOST_ROOT} ${BOOST_PATH})
-find_package(Boost COMPONENTS context fiber REQUIRED)
+find_package(Boost COMPONENTS context fiber )
+
+if(NOT Boost_FOUND)
+  message(FATAL_ERROR "Please provide the path to the root dir of the boost installation using the -DBOOST_PATH flag")
+endif()
+
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)

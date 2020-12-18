@@ -20,11 +20,15 @@ FORCE)
 FORCE)
   endif()
 endif()
-set(ENV{BOOST_ROOT} ${BOOST_ROOT})
+
+if (NOT ${BOOST_ROOT} STREQUAL "")
+  set(ENV{BOOST_ROOT} ${BOOST_ROOT})
+endif()
+
 find_package(Boost COMPONENTS context fiber )
 
 if(NOT Boost_FOUND)
-  message(FATAL_ERROR "Please provide the path to the root dir of the boost installation using the -DBOOST_ROOT flag")
+  message(FATAL_ERROR "Please provide the path to the root directory of the boost installation using the -DBOOST_ROOT option")
 endif()
 
 # Check for CUDA/ROCm and clang

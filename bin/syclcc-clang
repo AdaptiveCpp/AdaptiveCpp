@@ -644,18 +644,11 @@ class omp_invocation:
   def get_cxx_flags(self):
     flags =["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
-
-    if sys.platform == "darwin":
-        # y'all still need libomp installed
-        flags += ["-Xclang"]
       
     return flags
 
   def get_linker_flags(self):
     linker_args = self._linker_args
-    if sys.platform == "darwin":
-        # y'all still need libomp installed
-        linker_args += ["-Xclang"]
 
     return linker_args
 

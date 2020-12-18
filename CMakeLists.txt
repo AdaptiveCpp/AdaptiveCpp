@@ -20,7 +20,7 @@ FORCE)
 FORCE)
   endif()
 endif()
-
+set(ENV{BOOST_ROOT} ${BOOST_ROOT})
 find_package(Boost COMPONENTS context fiber )
 
 if(NOT Boost_FOUND)

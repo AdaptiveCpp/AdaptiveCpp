@@ -94,7 +94,8 @@ private:
       T *target_ptr = *reinterpret_cast<T**>(_ptr);
       if (target_ptr){
         
-        HIPSYCL_DEBUG_INFO << "deferred_pointer: Initialized to " << target_ptr
+        HIPSYCL_DEBUG_INFO << "deferred_pointer: Initialized to "
+                           << static_cast<void*>(target_ptr)
                            << std::endl;
 
         _ptr = target_ptr;

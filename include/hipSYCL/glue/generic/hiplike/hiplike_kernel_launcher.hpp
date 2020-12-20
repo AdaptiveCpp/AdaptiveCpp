@@ -478,8 +478,14 @@ public:
       : _queue{nullptr}, _invoker{[]() {}} {}
 
   virtual ~hiplike_kernel_launcher() {
-    assert(_queue);
+    
     for(void* scratch_ptr : _managed_reduction_scratch) {
+      // Only assert(_queue) here instead of outside of the loop.
+      // If this kernel_launcher was never invoked, it can
+      // happen that _queue was never initialized!
+      // But if we have reduction scratch allocations, we know
+      // that we have been invoked.
+      assert(_queue);
       rt::application::get_backend(Backend_id)
           .get_allocator(_queue->get_device())
           ->free(scratch_ptr);

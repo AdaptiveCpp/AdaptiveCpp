@@ -309,7 +309,7 @@ public:
     HIPSYCL_DEBUG_INFO << "handler: Spawning async host access task"
                        << std::endl;
 
-    if(!acc._buff)
+    if(!acc._buff.get())
       throw sycl::invalid_parameter_error{
           "update_host(): Accessor is not bound to buffer"};
 
@@ -322,7 +322,7 @@ public:
     rt::dag_build_guard build{rt::application::dag()};
 
     auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-        data, acc.get_offset(), acc.get_range(), mode, tgt);
+        data, rt::make_id(acc.get_offset()), rt::make_range(acc.get_range()), mode, tgt);
 
     rt::execution_hints enforce_bind_to_host;
     enforce_bind_to_host.add_hint(

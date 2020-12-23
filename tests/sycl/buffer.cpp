@@ -73,5 +73,24 @@ BOOST_AUTO_TEST_CASE(buffer_api) {
   BOOST_REQUIRE(buf_a == buf_c);
 }
 
+BOOST_AUTO_TEST_CASE(buffer_update_host) {
+  cl::sycl::queue q;
+  std::vector<int> host_buf(4);
+  cl::sycl::buffer<int> sycl_buf(host_buf.data(), host_buf.size());
+
+  q.submit([&](cl::sycl::handler& cgh) {
+    auto acc = sycl_buf.get_access<cl::sycl::access::mode::read_write>(cgh);
+    cgh.parallel_for<class update_host_test>(sycl_buf.get_range(), [=](cl::sycl::item<1> item){
+      acc[item] += item.get_id()[0];
+    });
+  });
+
+  q.submit([&](cl::sycl::handler& cgh) {
+    cgh.update_host(sycl_buf.get_access<cl::sycl::access::mode::read>(cgh));
+  }).wait();
+
+  BOOST_CHECK(host_buf == (std::vector{0, 1, 2, 3}));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

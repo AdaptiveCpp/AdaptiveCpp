@@ -443,8 +443,9 @@ void dag_scheduler::submit(dag* d)
       i < enumerator.get_data_region_index_space_size();
       ++i) {
 
-    best_state->expansion_result.original_data_region(i)->apply_fork(
-      best_state->expansion_result.memory_state(i));
+    // This code is broken and will be removed soon
+    //best_state->expansion_result.original_data_region(i)->apply_fork(
+    //  best_state->expansion_result.memory_state(i));
   }
 
   // Assign final data to nodes

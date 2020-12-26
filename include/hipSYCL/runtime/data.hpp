@@ -259,6 +259,85 @@ private:
   mutable std::mutex _lock;
 };
 
+template <class Memory_descriptor>
+struct data_allocation {
+
+  using allocation_function = std::function<Memory_descriptor(
+      range<3> num_elements, std::size_t element_size)>;
+  
+  device_id dev;
+  Memory_descriptor memory;
+  range_store invalid_pages;
+  bool is_owned;
+};
+
+template <class Memory_descriptor> class allocation_list {
+public:
+  template<class BinaryPredicate>
+  bool add_if_unique(BinaryPredicate&& comparator, data_allocation<Memory_descriptor> &&new_alloc) {
+    std::lock_guard<std::mutex> lock{_mutex};
+
+    for (const auto &alloc : _allocations) {
+      if (comparator(alloc, new_alloc))
+        return false;
+    }
+
+    _allocations.push_back(new_alloc);
+    return true;
+  }
+
+  template <class Handler> void for_each_allocation_while(Handler &&h) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+
+    for (const auto &alloc : _allocations) {
+      if (!h(alloc))
+        break;
+    }
+  }
+
+  template <class Handler> void for_each_allocation_while(Handler &&h) {
+    std::lock_guard<std::mutex> lock{_mutex};
+
+    for (auto &alloc : _allocations) {
+      if (!h(alloc))
+        break;
+    }
+  }
+
+  template <class UnaryPredicate, class Handler>
+  bool select_and_handle(UnaryPredicate &&selector, Handler &&h) {
+    std::lock_guard<std::mutex> lock{_mutex};
+    for (auto &alloc : _allocations) {
+      if (selector(alloc)) {
+        h(alloc);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  template <class UnaryPredicate, class Handler>
+  bool select_and_handle(UnaryPredicate &&selector, Handler &&h) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+    for (const auto &alloc : _allocations) {
+      if (selector(alloc)) {
+        h(alloc);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  template <class UnaryPredicate>
+  bool has_match(UnaryPredicate &&selector) const {
+    return select_and_handle(selector, [](const auto&){});
+  }
+private:
+  std::vector<data_allocation<Memory_descriptor>> _allocations;
+  mutable std::mutex _mutex;
+};
+
+
 /// Manages data regions on different devices under
 /// the assumptions:
 /// * different devices may have copies of the same data regions
@@ -273,11 +352,35 @@ template<class Memory_descriptor = void*>
 class data_region
 {
 public:
-  using page_range = std::pair<id<3>, range<3>>;
-  using allocation_function = std::function<Memory_descriptor(
-      range<3> num_elements, std::size_t element_size)>;
+  /// Controls when two allocations are considered equal in order
+  /// to maintain the requirement that allocations are unique.
+  class default_allocation_comparator {
+  public:
+    bool operator()(const data_allocation<Memory_descriptor> &a1,
+                    const data_allocation<Memory_descriptor> &a2) const {
+      return a1.dev == a2.dev;
+    }
+  };
+  /// Controls which allocation is selected when looking for an
+  /// allocation to use on a given device.
+  /// Together with \c default_allocation_comparator, this currently
+  /// enforces the policy that each device has its own dedicated allocation.
+  /// However in the future it may be desirable to share allocations
+  /// between multiple devices, e.g. different CPU backends.
+  class default_allocation_selector {
+  public:
+    default_allocation_selector(rt::device_id dev) : _dev{dev} {}
 
-  using destruction_handler = std::function<void(data_region*)>;
+    bool operator()(const data_allocation<Memory_descriptor> &alloc) const {
+      return alloc.dev == _dev;
+    }
+  private: device_id _dev;
+  };
+
+  using page_range = std::pair<id<3>, range<3>>;
+  using allocation_function =
+      typename data_allocation<Memory_descriptor>::allocation_function;
+
 
   /// Construct object
   /// \param num_elements The 3D number of elements in each dimension. Each
@@ -285,13 +388,9 @@ public:
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
   data_region(
-      range<3> num_elements, std::size_t element_size, range<3> page_size,
-      destruction_handler on_destruction = [](data_region *) {})
-      : _element_size{element_size}, _is_fork{false},
-        _on_destruction{on_destruction}, _page_size{page_size},
+      range<3> num_elements, std::size_t element_size, range<3> page_size)
+      : _element_size{element_size}, _page_size{page_size},
         _num_elements{num_elements} {
-
-    unset_id();
 
     for(std::size_t i = 0; i < 3; ++i){
       assert(page_size[i] > 0);
@@ -310,30 +409,31 @@ public:
   }
 
   ~data_region() {
-    _on_destruction(this);
-    for(const auto& alloc : _allocations) {
-      if(alloc.memory && alloc.is_owned && !_is_fork) {
+    _allocations.for_each_allocation_while([](auto& alloc) {
+      if(alloc.memory && alloc.is_owned) {
         device_id dev = alloc.dev;
         HIPSYCL_DEBUG_INFO << "data_region::~data_region: Freeing allocation "
                            << alloc.memory << std::endl;
         generic_pointer_free(dev, alloc.memory);
       }
-    }
+      return true;
+    });
   }
 
-  bool has_allocation(const device_id& d) const
-  {
-    return find_allocation(d) != _allocations.end();
+  /// Iterate over all allocations, abort as soon as \c h() returns false.
+  /// \param h A callable of signature \c bool(const data_allocation&)
+  template <class Handler> void for_each_allocation_while(Handler &&h) const {
+    _allocations.for_each_allocation_while(h);
   }
 
-  void add_placeholder_allocation(const device_id &d,  allocation_function f)
-  {
-    assert(!has_allocation(d));
+  /// Iterate over all allocations, abort as soon as \c h() returns false.
+  /// \param h A callable of signature \c bool(data_allocation&)
+  template <class Handler> void for_each_allocation_while(Handler &&h) {
+    _allocations.for_each_allocation_while(h);
+  }
 
-    this->add_empty_allocation(d, nullptr, true);
-
-    auto alloc = this->find_allocation(d);
-    alloc->delayed_allocator = f;
+  bool has_allocation(const device_id &d) const {
+    return _allocations.has_match(default_allocation_selector{d});
   }
 
   void add_empty_allocation(const device_id &d,
@@ -342,11 +442,8 @@ public:
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
-    _allocations.push_back(data_allocation{
-        d, memory_context, range_store{_num_pages}, takes_ownership});
-
-    _allocations.back().invalid_pages.add(
-        std::make_pair(id<3>{0, 0, 0}, _num_pages));
+    this->add_allocation<initial_data_state::invalid>(d, memory_context,
+                                                      takes_ownership);
   }
 
   void add_nonempty_allocation(const device_id &d,
@@ -354,27 +451,21 @@ public:
                                bool takes_ownership = false) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
-    // TODO in principle we would also need to invalidate other allocations.
+
+    // TODO in principle we would also need to invalidate other allocations,
+    // if we get a *new* allocation that should now be considered valid.
     // In practice this is not really needed because this function
     // is only invoked at the initialization of a buffer if constructed
-    // with a host pointer.
-    _allocations.push_back(data_allocation{
-      d, memory_context, range_store{_num_pages}, takes_ownership});
-    _allocations.back().invalid_pages.remove(
-        std::make_pair(id<3>{0,0,0},_num_pages));
-  }
-
-  void remove_allocation(const device_id& d)
-  {
-    assert(has_allocation(d));
-    _allocations.erase(find_allocation(d));
+    // with an existing pointer (e.g. host pointer).
+    this->add_allocation<initial_data_state::valid>(d, memory_context,
+                                                    takes_ownership);
   }
 
   /// Converts an offset into the data buffer (in element numbers) and the
   /// data length (in element numbers) into an equivalent \c page_range.
-  page_range get_page_range(id<3> data_offset,
-                            range<3> data_range) const
-  {
+  page_range get_page_range(id<3> data_offset, range<3> data_range) const {
+    // Is thread safe without lock because it doesn't modify internal state
+    // and doesn't access mutable members.
     id<3> page_begin{0,0,0};
     
     for(int i = 0; i < 3; ++i)
@@ -402,8 +493,10 @@ public:
 
     assert(has_allocation(d));
 
-    auto alloc = find_allocation(d);
-    alloc->invalid_pages.remove(pr);
+    _allocations.select_and_handle(default_allocation_selector{d},
+                                   [&](auto &alloc) {
+      alloc.invalid_pages.remove(pr);              
+    });
   }
   
   /// Marks an allocation range on a given device most recent
@@ -413,14 +506,16 @@ public:
   {
     page_range pr = get_page_range(data_offset, data_size);
 
-    for(auto it = _allocations.begin(); 
-      it != _allocations.end(); ++it){
-      
-      if(it->dev == d)
-        it->invalid_pages.remove(pr);
-      else
-        it->invalid_pages.add(pr);
-    }
+    default_allocation_selector argument_match{d};
+
+    _allocations.for_each_allocation_while([&](auto &alloc) {
+      if (argument_match(alloc)) {
+        alloc.invalid_pages.remove(pr);
+      } else {
+        alloc.invalid_pages.add(pr);
+      }
+      return true;
+    });
   }
 
   void get_outdated_regions(const device_id& d,
@@ -436,10 +531,14 @@ public:
     range<3> num_pages = pr.second;
 
     // Find outdated regions among pages
-    auto allocation = find_allocation(d);
-    allocation->invalid_pages.intersections_with(
-      std::make_pair(first_page, num_pages), out);
-
+    bool was_found = _allocations.select_and_handle(
+        default_allocation_selector{d}, [&](auto &alloc) {
+          alloc.invalid_pages.intersections_with(
+              std::make_pair(first_page, num_pages), out);
+        });
+    
+    assert(was_found);
+    
     // Convert back to num elements
     for(range_store::rect& r : out) {
       for(int i = 0; i < 3; ++i) {
@@ -458,13 +557,16 @@ public:
 
     page_range pr = get_page_range(data_range.first, data_range.second);
 
-    for(const auto& alloc : _allocations) {
-      if(alloc.dev != d){
+    default_allocation_selector selector{d};
+    _allocations.for_each_allocation_while([&](const auto &alloc) {
+      // Find all valid pages that are *not* accessible on the given device
+      if (!selector(alloc)) {
         if(alloc.invalid_pages.entire_range_empty(pr)) {
           update_sources.push_back(std::make_pair(alloc.dev, data_range));
         }
       }
-    }
+      return true;
+    });
     if(update_sources.empty()){
       assert(false && "Could not find valid data source for updating data buffer - "
               "this can happen if several data transfers are required to update accessed range, "
@@ -477,19 +579,6 @@ public:
 
   const data_user_tracker& get_users() const
   { return _user_tracker; }
-
-  std::unique_ptr<data_region> create_fork() const
-  {
-    auto ptr = std::make_unique<data_region>(*this);
-    ptr->_is_fork = true;
-    return ptr;
-  }
-
-  void apply_fork(data_region *fork)
-  {
-    fork->materialize_placeholder_allocations();
-    *this = *fork;
-  }
 
   /// Set an id for this data region. This is used by the \c dag_enumerator
   /// to efficiently identify this object during dag expansion/scheduling
@@ -509,65 +598,68 @@ public:
   Memory_descriptor get_memory(device_id dev) const
   {
     assert(has_allocation(dev));
-    return find_allocation(dev)->memory;
+
+    Memory_descriptor mem{};
+    bool was_found = _allocations.select_and_handle(
+        default_allocation_selector{dev}, [&](const auto &alloc) {
+          mem = alloc.memory;
+    });
+
+    assert(was_found);
+    return mem;
   }
 
   bool has_initialized_content(id<3> data_offset,
                                range<3> data_range) const {
     page_range pr = get_page_range(data_offset, data_range);
 
-    for (auto &alloc : _allocations) {
-      if (!alloc.invalid_pages.entire_range_filled(pr))
-        return true;
-    }
-    return false;
-  }
-private:
-  std::size_t _enumerated_id;
-  std::size_t _element_size;
-  bool _is_fork;
+    bool found_valid_pages = false;
 
-  struct data_allocation
-  {
-    device_id dev;
-    Memory_descriptor memory;
-    range_store invalid_pages;
-    bool is_owned;
-    
-    allocation_function delayed_allocator;
+    _allocations.for_each_allocation_while([&](const auto &alloc) {
+      if (!alloc.invalid_pages.entire_range_filled(pr)) {
+        found_valid_pages = true;
+        return false;
+      }
+      return true;
+    });
+
+    return found_valid_pages;
+  }
+
+private:
+  
+  std::size_t _element_size;
+
+  allocation_list<Memory_descriptor> _allocations;
+
+  enum class initial_data_state {
+    valid,
+    invalid
   };
 
-  std::vector<data_allocation> _allocations;
-  destruction_handler _on_destruction;
+  template<initial_data_state InitialState>
+  void add_allocation(const device_id &d, Memory_descriptor memory_context,
+                      bool takes_ownership = true) {
+    // Make sure that there isn't already an allocation on the given device
+    assert(!has_allocation(d));
 
-  void materialize_placeholder_allocations()
-  {
-    for (data_allocation &alloc : _allocations) {
-      if (alloc.memory == nullptr) {
-        alloc.memory =
-            alloc.delayed_allocator(_num_elements, _element_size);
-        
-        alloc.delayed_allocator = allocation_function{};
-      }
-    }  
-  }
-  
-  typename std::vector<data_allocation>::iterator
-  find_allocation(device_id dev)
-  {
-    return std::find_if(_allocations.begin(), _allocations.end(),
-      [dev](const data_allocation& current){
-        return current.dev == dev;
-    });
-  }
+    data_allocation<Memory_descriptor> new_alloc{
+        d, memory_context, range_store{_num_pages}, takes_ownership};
 
-  typename std::vector<data_allocation>::const_iterator
-  find_allocation(device_id dev) const
-  {
-    return std::find_if(_allocations.cbegin(), _allocations.cend(),
-      [dev](const data_allocation& current){
-        return current.dev == dev;
-    });
+    if constexpr(InitialState == initial_data_state::invalid) {
+      new_alloc.invalid_pages.add(std::make_pair(id<3>{0, 0, 0}, _num_pages));
+    } else {
+      new_alloc.invalid_pages.remove(std::make_pair(id<3>{0, 0, 0}, _num_pages));
+    }
+
+    bool was_inserted = _allocations.add_if_unique(
+        default_allocation_comparator{}, std::move(new_alloc));
+
+    // If another thread has added an allocation for this device in the meantime
+    // this may fail. The API however currently does not allow for this to
+    // happen as allocations are either added at buffer construction, or
+    // later on by the scheduler.
+    assert(was_inserted);
   }
 
   range<3> _page_size;
@@ -575,6 +667,8 @@ private:
   range<3> _num_elements;
 
   data_user_tracker _user_tracker;
+
+  std::size_t _enumerated_id;
 };
 
 using buffer_data_region = data_region<void*>;

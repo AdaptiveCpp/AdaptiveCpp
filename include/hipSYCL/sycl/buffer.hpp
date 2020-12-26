@@ -599,11 +599,8 @@ private:
     // to user
     rt::range<3> page_size = rt::embed_in_range3(range);
 
-    auto on_destruction = [](rt::buffer_data_region* data) {};
-
     _impl->data = std::make_shared<rt::buffer_data_region>(
-        rt::embed_in_range3(range), sizeof(T), page_size,
-        on_destruction);
+        rt::embed_in_range3(range), sizeof(T), page_size);
   }
 
   void preallocate_host_buffer()

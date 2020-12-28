@@ -1,5 +1,23 @@
 #!/bin/bash
 set -e
+set -o xtrace
+
+if [ "$#" -ne 2 ]; then
+  echo "
+  Usage: <distro> <[script to run] OR build>
+    distro: the distro to install the software for
+    script_to_run: Execute the install script loacted in HIPSYCL_PKG_SCRIPT_DIR, ( by defauld install/scripts)
+    build: Build the base image into the HIPSYCL_PKG_CONTAINER_DIR folder. the scripts that are necessary are copid to the image
+        during the build time the definition file is located at: HIPSYCL_PKG_SCRIPT_DIR/base-<distro>.def
+
+  Important ENV variables:
+    - HIPSYCL_PKG_CONTAINER_DIR
+  "
+  exit -1
+fi
+distro=$1
+candidate=$2
+
 HIPSYCL_PKG_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 HIPSYCL_PKG_CONTAINER_DIR=${HIPSYCL_PKG_CONTAINER_DIR:-$HIPSYCL_PKG_SCRIPT_DIR/containers}
 HIPSYCL_PKG_LLVM_REPO_BRANCH=${HIPSYCL_PKG_LLVM_REPO_BRANCH:-release/9.x}
@@ -17,6 +35,8 @@ SINGULARITYENV_HIPSYCL_PKG_LLVM_VERSION_MINOR=$HIPSYCL_PKG_LLVM_VERSION_MINOR
 SINGULARITYENV_HIPSYCL_PKG_LLVM_VERSION_PATCH=$HIPSYCL_PKG_LLVM_VERSION_PATCH
 SINGULARITYENV_HIPSYCL_PKG_AOMP_RELEASE=$HIPSYCL_PKG_AOMP_RELEASE
 SINGULARITYENV_HIPSYCL_PKG_AOMP_TAG=$HIPSYCL_PKG_AOMP_TAG
+SINGULARITYENV_HIPSYCL_BUILD_DIR_PREFIX="/tmp/hipsycl-build-for-"
+SINGULARITYENV_HIPSYCL_BUILD_DIR=$SINGULARITYENV_HIPSYCL_BUILD_DIR_PREFIX$distro
 
 export SINGULARITYENV_HIPSYCL_PKG_BUILD_CUDA
 export SINGULARITYENV_HIPSYCL_PKG_BUILD_ROCM
@@ -27,22 +47,25 @@ export SINGULARITYENV_HIPSYCL_PKG_LLVM_VERSION_MINOR
 export SINGULARITYENV_HIPSYCL_PKG_LLVM_VERSION_PATCH 
 export SINGULARITYENV_HIPSYCL_PKG_AOMP_RELEASE
 export SINGULARITYENV_HIPSYCL_PKG_AOMP_TAG
+export SINGULARITYENV_HIPSYCL_BUILD_DIR
 
 
 echo $HIPSYCL_PKG_CONTAINER_DIR
 cd $HIPSYCL_PKG_SCRIPT_DIR
 mkdir -p $HIPSYCL_PKG_CONTAINER_DIR
-supported_distros=("archlinux-rolling" "centos-7" "ubuntu-18.04")
-for distro in "${supported_distros[@]}"
-do
-	echo "Building $distro image... with base pkgs"
-	sudo -E singularity build --sandbox -F $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro base-$distro.def
-	echo "Building $distro hipSYCL base via spack"
-	sudo -E singularity exec --writable --no-home \
-  $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro bash /spack-install-llvm.sh
-	sudo -E singularity exec --writable --no-home \
-  $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro bash /spack-install-boost.sh
-	sudo -E singularity exec --writable --no-home \
-  $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro bash /spack-install-rocm.sh
-done
+mkdir -p /tmp/hipsycl-pkg-builder
 
+if [ "$candidate" = "build" ]; then
+  echo "Building $distro image... with base pkgs"
+  singularity build --fakeroot --sandbox -F $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro base-definitions/$distro.def
+  echo "Building $distro hipSYCL base via spack"
+elif [ "$candidate" = "cleanup" ]; then
+  rm -rf $SINGULARITYENV_HIPSYCL_BUILD_DIR
+else
+  #echo $HIPSYCL_PKG_LLVM_VERSION_MAJOR
+  tmpdir=$HIPSYCL_PKG_CONTAINER_DIR/tmp-$distro
+  mkdir -p $tmpdir
+  singularity -d exec --fakeroot --writable --no-home  -B $HIPSYCL_PKG_SCRIPT_DIR:/mnt \
+  $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro \
+  bash /mnt/$candidate.sh
+fi

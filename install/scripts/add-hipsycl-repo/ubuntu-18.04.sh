@@ -1,6 +1,6 @@
 #!/bin/bash
-apt update -y 
-apt install -y wget gawk gnupg apt-utils build-essential
+
+add-apt-repository -y ppa:ubuntu-toolchain-r/test
 echo "deb http://repo.urz.uni-heidelberg.de/sycl$1/deb/ ./bionic main" > /etc/apt/sources.list.d/hipsycl.list
 wget -q -O - http://repo.urz.uni-heidelberg.de/sycl/hipsycl.asc | apt-key add -
 apt update

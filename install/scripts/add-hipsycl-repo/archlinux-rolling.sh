@@ -1,6 +1,5 @@
 #!/bin/bash 
-
-pacman -Sy --noconfirm awk wget make base-devel
+set -o xtrace
 
 echo '[hipsycl]' >> /etc/pacman.conf
 echo "Server = http://repo.urz.uni-heidelberg.de/sycl${1}/archlinux/x86_64" >> /etc/pacman.conf

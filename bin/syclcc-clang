@@ -706,13 +706,12 @@ class compiler:
      self._backends.append(omp_sequential_invocation(config))
 
   @property
-  def common_cxx_flags(self):
-    args = [
-      "-I" + os.path.join(self._hipsycl_path, "include/"),
-      "-D__HIPSYCL__"
-    ] + self._common_compiler_args
+  def common_cxx_include_path(self):
+    return ["-I" + os.path.join(self._hipsycl_path, "include/")]
 
-    return args
+  @property
+  def common_cxx_flags(self):
+    return self.common_cxx_include_path + ["-D__HIPSYCL__"] + self._common_compiler_args
 
   @property
   def common_linker_flags(self):
@@ -741,6 +740,8 @@ class compiler:
     args = []
     if self._requires_compilation:
       args += cxx_flags
+    else:
+      args += self.common_cxx_include_path
 
     args += self._user_args
 

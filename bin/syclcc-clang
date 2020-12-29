@@ -740,7 +740,8 @@ class compiler:
     args = []
     if self._requires_compilation:
       args += cxx_flags
-    else:
+
+    if not self._requires_compilation and not self._requires_linking:
       args += self.common_cxx_include_path
 
     args += self._user_args

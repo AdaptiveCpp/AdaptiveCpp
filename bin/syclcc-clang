@@ -677,7 +677,7 @@ class compiler:
   def __init__(self, config):
     self._user_args = config.forwarded_compiler_arguments
     self._requires_linking = config.contains_linking_stage()
-    self._requires_compilation = not config.is_pure_linking_stage()
+    self._requires_compilation = not config.is_pure_linking_stage() and config.contains_linking_stage()
     self._is_dry_run = config.is_dryrun
     self._targets = config.targets
     self._common_compiler_args = config.common_compiler_args

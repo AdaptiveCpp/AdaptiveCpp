@@ -546,7 +546,7 @@ class syclcc_config:
         for ending in source_file_endings:
           if arg.lower().endswith(ending):
             return False
-    return True
+    return self.contains_linking_stage()
 
 def run_or_print(command, print_only):
   if not print_only:

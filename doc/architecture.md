@@ -41,6 +41,7 @@ However, in order to actually run kernels on a particular device, it is addition
 Because the runtime is compiled like any regular C++ library, it *must not use functionality from the SYCL interface*, since the SYCL interface in general *cannot* be compiled by a regular C++ compiler.
 In other words, while the SYCL interface calls into the runtime, the inverse is not true. The interaction between SYCL interface and runtime is one-way.
 
+The hipSYCL runtime follows a [specification](runtime-spec.md) that expands on the Khronos SYCL specification.
 
 ## Compiler
 

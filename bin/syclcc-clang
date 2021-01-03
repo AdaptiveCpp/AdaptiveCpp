@@ -373,8 +373,13 @@ class syclcc_config:
       split_arg = arg.split("=")
       if split_arg[0]=="-std":
         std_args.append(split_arg[1])
+    compiling_c = False
+    for a0, a1 in zip(self._args, self._args[1:]):
+      if a0=="-x" and a1=="c":
+        compiling_c = True
+        break
     if not std_args:
-       return ["-std=c++17"]
+      return ["-std=c++17"] if not compiling_c else []
     else:
         if len(std_args) > 1:
             raise RuntimeError("Multiple c++ standards defined")
@@ -533,13 +538,13 @@ class syclcc_config:
   def is_preprocessing(self):
     for arg in self.forwarded_compiler_arguments:
       if (arg == "-E" or
-          arg == "-fsyntax-only" or
-          arg == "-S"):
+          arg == "-fsyntax-only"):
         return True
 
   def is_compiling_only(self):
     for arg in self.forwarded_compiler_arguments:
-      if (arg == "-c"):
+      if (arg == "-c" or
+          arg == "-S"):
         return True
 
   def contains_linking_stage(self):
@@ -746,11 +751,9 @@ class compiler:
       ld_flags += backend_args.get_linker_flags()
 
     args = []
-    if self._requires_compilation:
+    if self._requires_compilation or not self._requires_linking:
+      # preprocessing/compiling need cxx_flags
       args += cxx_flags
-
-    if not self._requires_compilation and not self._requires_linking:
-      args += self.common_cxx_include_path
 
     args += self._user_args
 

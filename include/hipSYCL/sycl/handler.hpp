@@ -451,7 +451,7 @@ public:
     _command_group_nodes.push_back(node);
   }
 
-  void prefetch(const void *ptr, std::size_t num_bytes) {
+  void prefetch_host(const void *ptr, std::size_t num_bytes) {
 
     rt::dag_build_guard build{rt::application::dag()};
 
@@ -459,13 +459,59 @@ public:
       throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
                                     "for queues not bound to devices"};
 
+    rt::device_id executing_dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+
+    // The device to which we prefetch
+    rt::device_id target_dev = detail::get_host_device();
+
+    // If this queue is on the host, we need to execute on the backend
+    // that has provided the USM pointer instead.
+    rt::execution_hints hints = _execution_hints;
+
+    if (executing_dev.is_host()) {
+
+      auto usm_dev = detail::extract_rt_device(get_pointer_device(ptr, _ctx));
+
+      hints.overwrite_with(rt::make_execution_hint<rt::hints::bind_to_device>(
+          usm_dev));
+    }
+    
     auto op = rt::make_operation<rt::prefetch_operation>(
-        ptr, num_bytes);
+        ptr, num_bytes, target_dev);
 
     rt::dag_node_ptr node = build.builder()->add_prefetch(
-        std::move(op), _requirements, _execution_hints);
+        std::move(op), _requirements, hints);
 
     _command_group_nodes.push_back(node);
+  }
+  
+  void prefetch(const void *ptr, std::size_t num_bytes) {
+
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
+                                    "for queues not bound to devices"};
+
+    rt::device_id executing_dev =
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+
+    if (executing_dev.is_host())
+      // If this queue is bound to a host device, run prefetch_host()
+      // to potentially get data back to host.
+      prefetch_host(ptr, num_bytes);
+    else {
+      // Otherwise, run prefetch on the queue's device to the
+      // queue's device
+      rt::dag_build_guard build{rt::application::dag()};
+      
+      auto op = rt::make_operation<rt::prefetch_operation>(
+          ptr, num_bytes, executing_dev);
+
+      rt::dag_node_ptr node = build.builder()->add_prefetch(
+          std::move(op), _requirements, _execution_hints);
+
+      _command_group_nodes.push_back(node);
+    }
   }
 
   void mem_advise(const void *addr, std::size_t num_bytes, int advice) {

@@ -180,3 +180,24 @@ Compared to using multiple queues bound to different devices, using a single que
 
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
+
+## HIPSYCL_EXT_PREFETCH_HOST
+
+Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.
+This is a more convenient alternative to constructing a host queue and executing regular `prefetch()` there.
+
+### API reference
+
+```c++
+/// Prefetches num_bytes from the USM pointer ptr to host memory
+void handler::prefetch_host(const void *ptr, std::size_t num_bytes);
+
+/// Queue shortcuts
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes);
+
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes, 
+                          event dependency);
+
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
+                          const std::vector<event> &dependencies);
+```

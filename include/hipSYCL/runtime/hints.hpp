@@ -113,7 +113,9 @@ class execution_hints
 {
 public:
   void add_hint(execution_hint_ptr hint);
-  void overwrite_with(const execution_hints& other);
+  void overwrite_with(const execution_hints &other);
+  void overwrite_with(execution_hint_ptr hint);
+  
   bool has_hint(execution_hint_type type) const;
   execution_hint* get_hint(execution_hint_type type) const;
 

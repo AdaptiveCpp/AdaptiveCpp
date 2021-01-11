@@ -405,10 +405,11 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   q.wait();
 
   // Test prefetching to host using a host_queue
-  sycl::queue host_queue{q.get_context(), sycl::host_selector{}};
-  host_queue.prefetch(shared_mem, test_size * sizeof(int));
-  host_queue.wait();
-
+  {
+    sycl::queue host_queue{q.get_context(), sycl::host_selector{}};
+    host_queue.prefetch(shared_mem, test_size * sizeof(int));
+    host_queue.wait();
+  }
   for (std::size_t i = 0; i < test_size; ++i)
     BOOST_TEST(shared_mem[i] == i + 1);
   

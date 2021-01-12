@@ -43,10 +43,12 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   if (err != hipSuccess) {
     num_devices = 0;
 
-    print_warning(
-        __hipsycl_here(),
-        error_info{"hip_hardware_manager: Could not obtain number of devices",
-                   error_code{"HIP", err}});
+    if(err != hipErrorNoDevice){
+      print_warning(
+          __hipsycl_here(),
+          error_info{"hip_hardware_manager: Could not obtain number of devices",
+                    error_code{"HIP", err}});
+    }
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {

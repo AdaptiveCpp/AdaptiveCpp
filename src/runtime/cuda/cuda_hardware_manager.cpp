@@ -44,10 +44,12 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
   if (err != cudaSuccess) {
     num_devices = 0;
 
-    print_warning(
-        __hipsycl_here(),
-        error_info{"cuda_hardware_manager: Could not obtain number of devices",
-                   error_code{"CUDA", err}});
+    if(err != cudaErrorNoDevice) {
+      print_warning(
+          __hipsycl_here(),
+          error_info{"cuda_hardware_manager: Could not obtain number of devices",
+                    error_code{"CUDA", err}});
+    }
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {

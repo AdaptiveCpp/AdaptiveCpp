@@ -399,5 +399,29 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   sycl::free(gsize, q);
 }
 #endif
+#ifdef HIPSYCL_EXT_PREFETCH_HOST
+BOOST_AUTO_TEST_CASE(prefetch_host) {
+  using namespace cl;
+
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+
+  std::size_t test_size = 4096;
+  int *shared_mem = sycl::malloc_shared<int>(test_size, q);
+
+  for (std::size_t i = 0; i < test_size; ++i)
+    shared_mem[i] = i;
+
+  q.parallel_for<class usm_prefetch_host_test_kernel>(
+      sycl::range<1>{test_size},
+      [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
+  q.prefetch_host(shared_mem, test_size * sizeof(int));
+  q.wait_and_throw();
+
+  for (std::size_t i = 0; i < test_size; ++i)
+    BOOST_TEST(shared_mem[i] == i + 1);
+
+  sycl::free(shared_mem, q);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

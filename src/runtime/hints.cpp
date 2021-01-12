@@ -82,6 +82,16 @@ void execution_hints::overwrite_with(const execution_hints& other)
   }
 }
 
+void execution_hints::overwrite_with(execution_hint_ptr hint) {
+  for (std::size_t i = 0; i < _hints.size(); ++i) {
+    if (_hints[i]->get_hint_type() == hint->get_hint_type()) {
+      _hints[i] = hint;
+      return;
+    }
+  }
+  _hints.push_back(hint);
+}
+
 bool execution_hints::has_hint(execution_hint_type type) const
 {
   return get_hint(type) != nullptr;

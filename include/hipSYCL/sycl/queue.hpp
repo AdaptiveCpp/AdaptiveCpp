@@ -578,6 +578,27 @@ public:
     });
   }
 
+  event prefetch_host(const void *ptr, std::size_t num_bytes) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.prefetch_host(ptr, num_bytes);
+    });
+  }
+
+  event prefetch_host(const void *ptr, std::size_t num_bytes, event dependency) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependency);
+      cgh.prefetch_host(ptr, num_bytes);
+    });
+  }
+
+  event prefetch_host(const void *ptr, std::size_t num_bytes,
+                      const std::vector<event> &dependencies) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependencies);
+      cgh.prefetch_host(ptr, num_bytes);
+    });
+  }
+
   event mem_advise(const void *addr, std::size_t num_bytes, int advice) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.mem_advise(addr, num_bytes, advice);

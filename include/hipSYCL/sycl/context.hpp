@@ -148,6 +148,10 @@ private:
   void init(async_handler handler, const device &d) {
     init(handler);
     _impl->devices.add(d._device_id);
+    if(!d.is_host()) {
+      // Always need to add the host device
+      _impl->devices.add(detail::get_host_device());
+    }
   }
   
   struct context_impl {

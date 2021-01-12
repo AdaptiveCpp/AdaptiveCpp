@@ -243,8 +243,13 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
 
   hipError_t err = hipSuccess;
   
-  //hipError_t err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+  //if (op.get_target().is_host()) {
+  //  err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+  //                                     hipCpuDeviceId, get_stream());
+  //} else {
+  //  err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
   //                                     _dev.get_id(), get_stream());
+  //}
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),

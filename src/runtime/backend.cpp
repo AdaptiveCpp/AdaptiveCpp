@@ -30,6 +30,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include <algorithm>
 
 #ifdef HIPSYCL_RT_ENABLE_HIP_BACKEND
@@ -64,6 +65,23 @@ backend_manager::backend_manager()
   HIPSYCL_DEBUG_INFO << "backend_manager: Registering OpenMP backend..." << std::endl;
   _backends.push_back(std::make_unique<omp_backend>());
 #endif
+
+  this->for_each_backend([](backend *b) {
+    HIPSYCL_DEBUG_INFO << "Discovered devices from backend '" << b->get_name()
+                       << "': " << std::endl;
+    backend_hardware_manager* hw_manager = b->get_hardware_manager();
+    if(hw_manager->get_num_devices() == 0) {
+      HIPSYCL_DEBUG_INFO << "  <no devices>" << std::endl;
+    } else {
+      for(std::size_t i = 0; i < hw_manager->get_num_devices(); ++i){
+        hardware_context* hw = hw_manager->get_device(i);
+
+        HIPSYCL_DEBUG_INFO << "  device " << i << ": " << std::endl;
+        HIPSYCL_DEBUG_INFO << "    vendor: " << hw->get_vendor_name() << std::endl;
+        HIPSYCL_DEBUG_INFO << "    name: " << hw->get_device_name() << std::endl;
+      }
+    }
+  });
 }
 
 backend_manager::~backend_manager()

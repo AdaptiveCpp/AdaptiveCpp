@@ -63,7 +63,10 @@ public:
   // Query the given pointer for its properties. If pointer is unknown,
   // returns non-success result.
   virtual result query_pointer(const void* ptr, pointer_info& out) const = 0;
-  
+
+  virtual result mem_advise(const void *addr, std::size_t num_bytes,
+                            int advise) const = 0;
+
   virtual ~backend_allocator(){}
 };
 

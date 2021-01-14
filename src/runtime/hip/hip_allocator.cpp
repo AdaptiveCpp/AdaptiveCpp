@@ -139,11 +139,37 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   out.dev = rt::device_id{_backend_descriptor, attribs.device};
   out.is_from_host_backend = false;
   out.is_optimized_host = attribs.memoryType == hipMemoryTypeHost;
-  // hipMemoryTypeUnified is not yet actually used by HIP due to
-  // to its very partial support for managed/USM memory
+#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+  out.is_usm = attribs.isManaged;
+#else
+  // query for hipMemoryTypeUnified as dummy; this is not actually
+  // correct as HIP versions that do not support attribs.isManaged
+  // have no way of querying whether something was malloc'd with
+  // hipMallocManaged().
   out.is_usm = attribs.memoryType == hipMemoryTypeUnified;
+#endif
   
   return make_success();
+}
+
+result hip_allocator::mem_advise(const void *addr, std::size_t num_bytes,
+                                int advise) const {
+#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+  hipError_t err = hipMemAdvise(addr, num_bytes,
+                                static_cast<hipMemoryAdvise>(advise), _dev);
+  if(err != hipSuccess) {
+    return make_error(
+      __hipsycl_here(),
+      error_info{"hip_allocator: hipMemAdvise() failed", error_code{"HIP", err}}
+    );
+  }
+
+  return make_success();
+#else
+  HIPSYCL_DEBUG_WARNING << "hip_allocator: Ignoring mem_advise() hint"
+                        << std::endl;
+  return make_success();
+#endif
 }
 
 }

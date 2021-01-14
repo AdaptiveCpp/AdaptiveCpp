@@ -154,5 +154,20 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   return make_success();
 }
 
+result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
+                            int advise) const {
+
+  cudaError_t err = cudaMemAdvise(addr, num_bytes,
+                                  static_cast<cudaMemoryAdvise>(advise), _dev);
+  if(err != cudaSuccess) {
+    return make_error(
+      __hipsycl_here(),
+      error_info{"cuda_allocator: cudaMemAdvise() failed", error_code{"CUDA", err}}
+    );
+  }
+
+  return make_success();
+}
+
 }
 }

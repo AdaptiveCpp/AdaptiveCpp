@@ -375,8 +375,8 @@ private:
 /// USM prefetch
 class prefetch_operation : public operation {
 public:
-  prefetch_operation(const void *ptr, std::size_t num_bytes)
-  : _ptr{ptr}, _num_bytes{num_bytes} {}
+  prefetch_operation(const void *ptr, std::size_t num_bytes, device_id target)
+      : _ptr{ptr}, _num_bytes{num_bytes}, _target{target} {}
 
   result dispatch(operation_dispatcher* dispatcher) final override {
     return dispatcher->dispatch_prefetch(this);
@@ -384,11 +384,13 @@ public:
 
   const void *get_pointer() const { return _ptr; }
   std::size_t get_num_bytes() const { return _num_bytes; }
+  device_id get_target() const { return _target; }
 
   void dump(std::ostream&, int = 0) const override;
 private:
   const void *_ptr;
   std::size_t _num_bytes;
+  device_id _target;
 };
 
 /// USM memset

@@ -238,8 +238,14 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
 
 result cuda_queue::submit_prefetch(const prefetch_operation& op) {
 
-  cudaError_t err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+  cudaError_t err = cudaSuccess;
+  if (op.get_target().is_host()) {
+    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
+                                         cudaCpuDeviceId, get_stream());
+  } else {
+    err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
                                          _dev.get_id(), get_stream());
+  }
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),

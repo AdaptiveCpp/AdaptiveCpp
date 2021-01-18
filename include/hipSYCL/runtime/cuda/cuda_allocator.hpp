@@ -50,6 +50,8 @@ public:
 
   virtual result query_pointer(const void* ptr, pointer_info& out) const override;
 
+  virtual result mem_advise(const void *addr, std::size_t num_bytes,
+                            int advise) const override;
 private:
   backend_descriptor _backend_descriptor;
   int _dev;

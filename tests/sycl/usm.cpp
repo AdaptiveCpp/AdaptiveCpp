@@ -28,6 +28,8 @@
 #include <exception>
 #include <vector>
 
+#include "hipSYCL/sycl/device.hpp"
+#include "hipSYCL/sycl/device_selector.hpp"
 #include "sycl_test_suite.hpp"
 #include <boost/test/unit_test_suite.hpp>
 
@@ -401,6 +403,13 @@ BOOST_AUTO_TEST_CASE(prefetch) {
       [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
   
   q.wait();
+
+  // Test prefetching to host using a host_queue
+  {
+    sycl::queue host_queue{q.get_context(), sycl::host_selector{}};
+    host_queue.prefetch(shared_mem, test_size * sizeof(int));
+    host_queue.wait();
+  }
   for (std::size_t i = 0; i < test_size; ++i)
     BOOST_TEST(shared_mem[i] == i + 1);
   

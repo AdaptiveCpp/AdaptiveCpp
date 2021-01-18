@@ -248,6 +248,25 @@ inline void free(void *ptr, const sycl::queue &q) {
   free(ptr, q.get_context());
 }
 
+// hipSYCL synchronous mem_advise extension
+inline void mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const context &ctx, const device &dev) {
+
+  rt::backend_allocator* b = detail::select_usm_allocator(ctx, dev);
+  assert(b);
+
+  rt::result r = b->mem_advise(ptr,  num_bytes, advise);
+
+  if(!r.is_success())
+    std::rethrow_exception(glue::throw_result(r));
+}
+
+inline void mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const queue& q) {
+  mem_advise(ptr, num_bytes, advise, q.get_context(), q.get_device());
+}
+
+// USM allocator
 template <typename T, usm::alloc AllocKind, std::size_t Alignment = 0>
 class usm_allocator {
 public:
@@ -314,9 +333,7 @@ public:
 private:
   context _ctx;
   device _dev;
-
 };
-
 }
 } // namespace hipsycl
 

@@ -89,6 +89,42 @@ Compared to using multiple queues bound to different devices, using a single que
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
 
+## HIPSYCL_EXT_PREFETCH_HOST
+
+Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.
+This is a more convenient alternative to constructing a host queue and executing regular `prefetch()` there.
+
+### API reference
+
+```c++
+/// Prefetches num_bytes from the USM pointer ptr to host memory
+void handler::prefetch_host(const void *ptr, std::size_t num_bytes);
+
+/// Queue shortcuts
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes);
+
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes, 
+                          event dependency);
+
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
+                          const std::vector<event> &dependencies);
+```
+
+## HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
+
+Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In hipSYCL, the synchronous variant is expected to be more efficient.
+
+### API reference
+
+```c++
+void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const context &ctx, const device &dev);
+
+void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const queue& q);
+
+```
+
 ### `HIPSYCL_EXT_FP_ATOMICS`
 This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
 

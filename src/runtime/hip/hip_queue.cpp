@@ -259,8 +259,8 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
                            "support prefetching memory."
                         << std::endl;
 
-  return make_success();
 #endif
+  return make_success();
 }
 
 result hip_queue::submit_memset(const memset_operation &op) {

@@ -609,6 +609,43 @@ public:
     return mem;
   }
 
+  data_allocation<Memory_descriptor> get_allocation(device_id dev) const {
+    assert(has_allocation(dev));
+
+    data_allocation<Memory_descriptor> found_alloc;
+    bool was_found = _allocations.select_and_handle(
+        default_allocation_selector{dev}, [&](const auto &alloc) {
+          found_alloc = alloc;
+    });
+
+    assert(was_found);
+    return found_alloc;
+  }
+
+  template <class Handler>
+  bool find_and_handle_allocation(device_id dev, Handler &&h) const {
+    return _allocations.select_and_handle(default_allocation_selector{dev}, h);
+  }
+
+  template <class Handler>
+  bool find_and_handle_allocation(device_id dev, Handler &&h) {
+    return _allocations.select_and_handle(default_allocation_selector{dev}, h);
+  }
+
+  template <class Handler>
+  bool find_and_handle_allocation(Memory_descriptor mem, Handler &&h) const {
+    return _allocations.select_and_handle([mem](const auto &alloc) {
+      return alloc.memory == mem;
+    }, h);
+  }
+
+  template <class Handler>
+  bool find_and_handle_allocation(Memory_descriptor mem, Handler &&h) {
+    return _allocations.select_and_handle([mem](const auto &alloc) {
+      return alloc.memory == mem;
+    }, h);
+  }
+  
   bool has_initialized_content(id<3> data_offset,
                                range<3> data_range) const {
     page_range pr = get_page_range(data_offset, data_range);

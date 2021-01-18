@@ -201,3 +201,18 @@ event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
 event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
                           const std::vector<event> &dependencies);
 ```
+
+## HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
+
+Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In hipSYCL, the synchronous variant is expected to be more efficient.
+
+### API reference
+
+```c++
+void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const context &ctx, const device &dev);
+
+void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
+                       const queue& q);
+
+```

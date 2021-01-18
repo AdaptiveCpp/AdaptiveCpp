@@ -27,6 +27,7 @@
 #include <cstdlib>
 
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/omp/omp_allocator.hpp"
 
 namespace hipsycl {
@@ -79,6 +80,13 @@ result omp_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_from_host_backend = true;
   out.dev = _my_device;
 
+  return make_success();
+}
+
+result omp_allocator::mem_advise(const void *addr, std::size_t num_bytes,
+                                 int advise) const {
+  HIPSYCL_DEBUG_WARNING << "omp_allocator: Ignoring mem_advise() hint"
+                        << std::endl;
   return make_success();
 }
 

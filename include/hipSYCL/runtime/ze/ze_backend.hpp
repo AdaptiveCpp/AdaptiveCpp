@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,48 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_ALLOCATOR_HPP
-#define HIPSYCL_HIP_ALLOCATOR_HPP
+#ifndef HIPSYCL_ZE_BACKEND_HPP
+#define HIPSYCL_ZE_BACKEND_HPP
 
-#include "../allocator.hpp"
-#include "hip_target.hpp"
+
+#include <vector>
+#include <memory>
+#include <level_zero/ze_api.h>
+
+#include "../backend.hpp"
+#include "../multi_queue_executor.hpp"
+
+#include "ze_hardware_manager.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class hip_allocator : public backend_allocator 
+
+class ze_backend : public backend
 {
 public:
-  hip_allocator(backend_descriptor desc, int hip_device);
-
-  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
-
-  virtual void *allocate_optimized_host(size_t min_alignment,
-                                        size_t bytes) override;
+  ze_backend();
+  virtual api_platform get_api_platform() const override;
+  virtual hardware_platform get_hardware_platform() const override;
+  virtual backend_id get_unique_backend_id() const override;
   
-  virtual void free(void *mem) override;
+  virtual backend_hardware_manager* get_hardware_manager() const override;
+  virtual backend_executor* get_executor(device_id dev) const override;
+  virtual backend_allocator *get_allocator(device_id dev) const override;
 
-  virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+  virtual std::string get_name() const override;
+  
+  virtual ~ze_backend(){}
 
-  virtual result query_pointer(const void* ptr, pointer_info& out) const override;
-
-  virtual result mem_advise(const void *addr, std::size_t num_bytes,
-                            int advise) const override;
 private:
-  backend_descriptor _backend_descriptor;
-  int _dev;
+  std::unique_ptr<ze_hardware_manager> _hardware_manager;
+  //mutable multi_queue_executor _executor;
+  //mutable std::vector<cuda_allocator> _allocators;
 };
+
 
 }
 }
 
 #endif
+

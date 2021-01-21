@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,19 +25,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_ALLOCATOR_HPP
-#define HIPSYCL_HIP_ALLOCATOR_HPP
+#ifndef HIPSYCL_ZE_ALLOCATOR_HPP
+#define HIPSYCL_ZE_ALLOCATOR_HPP
 
 #include "../allocator.hpp"
-#include "hip_target.hpp"
+#include "ze_hardware_manager.hpp"
+
+#include <level_zero/ze_api.h>
 
 namespace hipsycl {
 namespace rt {
 
-class hip_allocator : public backend_allocator 
+class ze_allocator : public backend_allocator 
 {
 public:
-  hip_allocator(backend_descriptor desc, int hip_device);
+  ze_allocator(const ze_hardware_context& dev, const ze_hardware_manager* hw_manager);
 
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 
@@ -54,8 +56,11 @@ public:
   virtual result mem_advise(const void *addr, std::size_t num_bytes,
                             int advise) const override;
 private:
-  backend_descriptor _backend_descriptor;
-  int _dev;
+  ze_context_handle_t _ctx;
+  ze_device_handle_t _dev;
+  uint32_t _global_mem_ordinal;
+
+  const ze_hardware_manager* _hw_manager;
 };
 
 }

@@ -46,6 +46,13 @@ if(WITH_ROCM_BACKEND)
     hip/hip_backend.cpp)
 endif()
 
+if(WITH_LEVEL_ZERO_BACKEND)
+  set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
+    ze/ze_backend.cpp
+    ze/ze_hardware_manager.cpp
+    ze/ze_allocator.cpp)
+endif()
+
 if(WITH_CPU_BACKEND)
   set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
     omp/omp_allocator.cpp
@@ -83,6 +90,11 @@ if(WITH_ROCM_BACKEND)
     target_compile_options(hipSYCL-rt PRIVATE -Wno-unused-command-line-argument)
     target_link_libraries(hipSYCL-rt PRIVATE hip::host)
   endif()
+endif()
+
+if(WITH_LEVEL_ZERO_BACKEND)
+  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_LEVEL_ZERO_BACKEND=1)
+  target_link_libraries(hipSYCL-rt PRIVATE -lze_loader)
 endif()
 
 if(WITH_CPU_BACKEND)

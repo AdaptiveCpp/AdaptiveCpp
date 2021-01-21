@@ -41,6 +41,10 @@
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #endif
 
+#ifdef HIPSYCL_RT_ENABLE_LEVEL_ZERO_BACKEND
+#include "hipSYCL/runtime/ze/ze_backend.hpp"
+#endif
+
 #ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
 #endif
@@ -64,6 +68,11 @@ backend_manager::backend_manager()
 #ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
   HIPSYCL_DEBUG_INFO << "backend_manager: Registering OpenMP backend..." << std::endl;
   _backends.push_back(std::make_unique<omp_backend>());
+#endif
+
+#ifdef HIPSYCL_RT_ENABLE_LEVEL_ZERO_BACKEND
+  HIPSYCL_DEBUG_INFO << "backend_manager: Registering Level Zero backend..." << std::endl;
+  _backends.push_back(std::make_unique<ze_backend>());
 #endif
 
   this->for_each_backend([](backend *b) {

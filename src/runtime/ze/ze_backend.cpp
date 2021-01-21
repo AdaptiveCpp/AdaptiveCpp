@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_ALLOCATOR_HPP
-#define HIPSYCL_HIP_ALLOCATOR_HPP
+#include <level_zero/ze_api.h>
 
-#include "../allocator.hpp"
-#include "hip_target.hpp"
+#include "hipSYCL/runtime/ze/ze_backend.hpp"
+#include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+
 
 namespace hipsycl {
 namespace rt {
 
-class hip_allocator : public backend_allocator 
-{
-public:
-  hip_allocator(backend_descriptor desc, int hip_device);
+ze_backend::ze_backend() {
+  ze_result_t err = zeInit(0);
 
-  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+  if (err != ZE_RESULT_SUCCESS) {
+    print_error(__hipsycl_here(),
+                error_info{"ze_backend: Call to zeInit() failed",
+                            error_code{"ze", static_cast<int>(err)}});
+    return;
+  }
 
-  virtual void *allocate_optimized_host(size_t min_alignment,
-                                        size_t bytes) override;
+  _hardware_manager = std::make_unique<ze_hardware_manager>();
+}
+
+api_platform ze_backend::get_api_platform() const {
+  return api_platform::level_zero;
+}
+
+hardware_platform ze_backend::get_hardware_platform() const {
+  return hardware_platform::level_zero;
+}
+
+backend_id ze_backend::get_unique_backend_id() const {
+  return backend_id::level_zero;
+}
   
-  virtual void free(void *mem) override;
+backend_hardware_manager* ze_backend::get_hardware_manager() const {
+  return _hardware_manager.get();
+}
 
-  virtual void *allocate_usm(size_t bytes) override;
-  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+backend_executor* ze_backend::get_executor(device_id dev) const {
+  return nullptr;
+}
 
-  virtual result query_pointer(const void* ptr, pointer_info& out) const override;
+backend_allocator *ze_backend::get_allocator(device_id dev) const {
+  return nullptr;
+}
 
-  virtual result mem_advise(const void *addr, std::size_t num_bytes,
-                            int advise) const override;
-private:
-  backend_descriptor _backend_descriptor;
-  int _dev;
-};
+std::string ze_backend::get_name() const {
+  return "Level Zero";
+}
 
 }
 }
-
-#endif

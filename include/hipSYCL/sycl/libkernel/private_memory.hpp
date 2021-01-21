@@ -32,6 +32,7 @@
 
 #include "group.hpp"
 #include "h_item.hpp"
+#include "sp_item.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -48,6 +49,12 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   T& operator()(const h_item<Dimensions>&)
+  {
+    return _data;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const logical_item<Dimensions>&)
   {
     return _data;
   }
@@ -70,14 +77,23 @@ public:
   HIPSYCL_KERNEL_TARGET
   T& operator()(const h_item<Dimensions>& idx)
   {
-    auto id = idx.get_local_id();
+    return get(idx.get_local_id(), idx.get_local_range());
+  }
 
-    return _data.get()[detail::linear_id<Dimensions>::get(
-        id, idx.get_local_range())];
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const logical_item<Dimensions>& idx)
+  {
+    return get(idx.get_local_id(), idx.get_local_range());
   }
 
 private:
   std::unique_ptr<T []> _data;
+
+  HIPSYCL_KERNEL_TARGET
+  T& get(id<Dimensions> id, range<Dimensions> local_range)
+  {
+    return _data.get()[detail::linear_id<Dimensions>::get(id, local_range)];
+  }
 };
 #endif
 

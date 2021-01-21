@@ -132,6 +132,14 @@ template<class F>
 void sub_group::single_item(F f);
 ```
 
+## New functions `private_memory`
+
+```c++
+// Return managed data for the logical work item
+T& operator()(const logical_item<Dim> &item) noexcept;
+};
+```
+
 ## class `local_memory<T>`
 
 ```c++

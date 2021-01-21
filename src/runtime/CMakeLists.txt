@@ -50,7 +50,8 @@ if(WITH_LEVEL_ZERO_BACKEND)
   set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
     ze/ze_backend.cpp
     ze/ze_hardware_manager.cpp
-    ze/ze_allocator.cpp)
+    ze/ze_allocator.cpp
+    ze/ze_event.cpp)
 endif()
 
 if(WITH_CPU_BACKEND)

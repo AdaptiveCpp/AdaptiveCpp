@@ -53,6 +53,22 @@ private:
   ze_driver_handle_t _driver;
 };
 
+class ze_event_pool_manager
+{
+public:
+  ze_event_pool_manager(ze_context_handle_t ctx,
+                        ze_device_handle_t* devices, uint32_t num_devices);
+  ~ze_event_pool_manager();
+
+  ze_event_pool_handle_t get() const;
+
+  ze_context_handle_t get_context() const;
+
+private:
+  ze_event_pool_handle_t _pool;
+  ze_context_handle_t _ctx;
+};
+
 class ze_hardware_context : public hardware_context
 {
 public:
@@ -116,6 +132,7 @@ private:
   std::vector<ze_hardware_context> _devices;
   std::vector<ze_driver_handle_t> _drivers;
   std::vector<ze_context_manager> _contexts;
+  std::vector<ze_event_pool_manager> _event_pools;
 
   hardware_platform _hw_platform;
 };

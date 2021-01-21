@@ -71,6 +71,45 @@ ze_context_manager::~ze_context_manager() {
   }
 }
 
+
+ze_event_pool_manager::ze_event_pool_manager(ze_context_handle_t ctx, 
+  ze_device_handle_t* devices, uint32_t num_devices) 
+  : _ctx{ctx} {
+  
+  ze_event_pool_desc_t desc;
+  desc.stype = ZE_STRUCTURE_TYPE_EVENT_POOL_DESC;
+  desc.pNext = nullptr;
+  desc.flags = 0;
+  desc.count = 4096; // ToDo check what this means precisely
+
+  ze_result_t err = zeEventPoolCreate(ctx, &desc, num_devices, devices, &_pool);
+
+  if(err != ZE_RESULT_SUCCESS) {
+    register_error(__hipsycl_here(),
+                  error_info{"ze_event_pool_manager: Could not construct event pool",
+                             error_code{"ze", static_cast<int>(err)}});
+  }
+}
+
+ze_event_pool_manager::~ze_event_pool_manager() {
+  ze_result_t err = zeEventPoolDestroy(_pool);
+  
+  if(err != ZE_RESULT_SUCCESS) {
+    register_error(__hipsycl_here(),
+                  error_info{"ze_event_pool_manager: Could not destroy event pool",
+                             error_code{"ze", static_cast<int>(err)}});
+  }
+}
+
+ze_event_pool_handle_t ze_event_pool_manager::get() const {
+  return _pool;
+}
+
+ze_context_handle_t ze_event_pool_manager::get_context() const {
+  return _ctx;
+}
+  
+
 ze_hardware_context::ze_hardware_context(ze_driver_handle_t driver,
                                          ze_device_handle_t device,
                                          ze_context_handle_t ctx)
@@ -375,6 +414,8 @@ ze_hardware_manager::ze_hardware_manager() {
         num_devices = 0;
       }
 
+      
+
       if(num_devices > 0) {
         std::vector<ze_device_handle_t> devices(num_devices);
         
@@ -384,7 +425,15 @@ ze_hardware_manager::ze_hardware_manager() {
           _devices.push_back(ze_hardware_context{drivers[i], devices[dev],
                                                  _contexts.back().get()});
         }
+
+        _event_pools.push_back(
+            ze_event_pool_manager{_contexts.back().get(), devices.data(),
+                                  static_cast<uint32_t>(devices.size())});
+      } else {
+        _event_pools.push_back(ze_event_pool_manager{
+            _contexts.back().get(), nullptr, 0});
       }
+      
     }
   }
 }

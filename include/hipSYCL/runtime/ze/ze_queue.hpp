@@ -25,53 +25,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_ZE_QUEUE_HPP
+#define HIPSYCL_ZE_QUEUE_HPP
+
 #include <level_zero/ze_api.h>
 
-#include "hipSYCL/runtime/ze/ze_event.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#include "../executor.hpp"
+#include "../inorder_queue.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-ze_node_event::ze_node_event(ze_event_handle_t evt,
-                             std::shared_ptr<ze_event_pool_handle_t> pool)
-    : _evt{evt}, _pool{pool} {}
+class ze_hardware_manager;
 
-ze_node_event::~ze_node_event() {
-  ze_result_t err = zeEventDestroy(_evt);
+class ze_queue : public inorder_queue
+{
+public:
+  ze_queue(ze_hardware_manager* hw_manager, std::size_t device_index);
 
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not destroy event",
-                             error_code{"ze", static_cast<int>(err)}});
+  virtual ~ze_queue();
+
+  /// Inserts an event into the stream
+  virtual std::unique_ptr<dag_node_event> insert_event() override;
+
+  virtual result submit_memcpy(const memcpy_operation&) override;
+  virtual result submit_kernel(const kernel_operation&) override;
+  virtual result submit_prefetch(const prefetch_operation &) override;
+  virtual result submit_memset(const memset_operation&) override;
+  
+  /// Causes the queue to wait until an event on another queue has occured.
+  /// the other queue must be from the same backend
+  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_external_wait_for(dag_node_ptr node) override;
+
+  ze_command_list_handle_t get_ze_command_list() const {
+    return _command_list;
   }
-}
-
-bool ze_node_event::is_complete() const {
-  ze_result_t err = zeEventQueryStatus(_evt);
-
-  if(err != ZE_RESULT_SUCCESS && err != ZE_RESULT_NOT_READY) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not query event status",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-
-  return err == ZE_RESULT_SUCCESS;
-}
-
-void ze_node_event::wait() {
-
-  ze_result_t err = zeEventHostSynchronize(_evt, UINT64_MAX);
-
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not wait for event",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-}
-
-
+private:
+  ze_command_list_handle_t _command_list;
+  ze_hardware_manager* _hw_manager;
+  std::size_t _device_index;
+};
 
 }
 }
 
+#endif

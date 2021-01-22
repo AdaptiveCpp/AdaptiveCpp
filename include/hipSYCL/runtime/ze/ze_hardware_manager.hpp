@@ -57,16 +57,26 @@ class ze_event_pool_manager
 {
 public:
   ze_event_pool_manager(ze_context_handle_t ctx,
-                        ze_device_handle_t* devices, uint32_t num_devices);
+                        const std::vector<ze_device_handle_t>& _devices,
+                        std::size_t pool_size = 128);
   ~ze_event_pool_manager();
 
-  ze_event_pool_handle_t get() const;
+  std::shared_ptr<ze_event_pool_handle_t> get_pool() const;
 
-  ze_context_handle_t get_context() const;
+  ze_context_handle_t get_ze_context() const;
+
+  std::shared_ptr<ze_event_pool_handle_t>
+  allocate_event(uint32_t &event_ordinal);
 
 private:
-  ze_event_pool_handle_t _pool;
+  void spawn_pool();
+
+  std::vector<ze_device_handle_t> _devices;
   ze_context_handle_t _ctx;
+  std::shared_ptr<ze_event_pool_handle_t> _pool;
+
+  std::size_t _pool_size;
+  uint32_t _num_used_events;
 };
 
 class ze_hardware_context : public hardware_context
@@ -127,6 +137,7 @@ public:
   
   ze_context_handle_t get_ze_context(std::size_t device_index) const;
   result device_handle_to_device_id(ze_device_handle_t d, device_id &out) const;
+  ze_event_pool_manager* get_event_pool_manager(std::size_t device_index);
 
 private:
   std::vector<ze_hardware_context> _devices;

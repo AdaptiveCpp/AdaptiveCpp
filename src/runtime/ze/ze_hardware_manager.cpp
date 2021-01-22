@@ -71,42 +71,86 @@ ze_context_manager::~ze_context_manager() {
   }
 }
 
+ze_event_pool_manager::ze_event_pool_manager(
+    ze_context_handle_t ctx, const std::vector<ze_device_handle_t> &devices,
+    std::size_t pool_size)
+    : _devices{devices}, _ctx{ctx}, _pool_size{pool_size}, _num_used_events{0} {
 
-ze_event_pool_manager::ze_event_pool_manager(ze_context_handle_t ctx, 
-  ze_device_handle_t* devices, uint32_t num_devices) 
-  : _ctx{ctx} {
-  
+  this->spawn_pool();
+}
+
+void ze_event_pool_manager::spawn_pool(){
+
   ze_event_pool_desc_t desc;
   desc.stype = ZE_STRUCTURE_TYPE_EVENT_POOL_DESC;
   desc.pNext = nullptr;
   desc.flags = 0;
-  desc.count = 4096; // ToDo check what this means precisely
+  desc.count = _pool_size;
 
-  ze_result_t err = zeEventPoolCreate(ctx, &desc, num_devices, devices, &_pool);
+  ze_event_pool_handle_t pool;
+
+  ze_device_handle_t* devs = nullptr;
+  uint32_t num_devices = 0;
+  if(_devices.size() > 0) {
+    devs = _devices.data();
+    num_devices = static_cast<uint32_t>(_devices.size());
+  }
+
+  ze_result_t err = zeEventPoolCreate(_ctx, &desc, num_devices, devs, &pool);
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(__hipsycl_here(),
                   error_info{"ze_event_pool_manager: Could not construct event pool",
                              error_code{"ze", static_cast<int>(err)}});
+  } else {
+    // Assign new pool
+    auto deleter = [](ze_event_pool_handle_t* ptr) {
+        if(ptr) {
+          ze_result_t err = zeEventPoolDestroy(*ptr);
+    
+          if(err != ZE_RESULT_SUCCESS) {
+            register_error(__hipsycl_here(),
+                          error_info{"ze_event_pool_manager: Could not destroy event pool",
+                                    error_code{"ze", static_cast<int>(err)}});
+          }
+
+          delete ptr;
+        }
+      };
+
+    _pool = std::shared_ptr<ze_event_pool_handle_t>{
+      new ze_event_pool_handle_t{pool}, deleter 
+    };
+
+    // Reset number of used events
+    _num_used_events = 0;
   }
 }
 
-ze_event_pool_manager::~ze_event_pool_manager() {
-  ze_result_t err = zeEventPoolDestroy(_pool);
-  
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_event_pool_manager: Could not destroy event pool",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-}
+ze_event_pool_manager::~ze_event_pool_manager() {}
 
-ze_event_pool_handle_t ze_event_pool_manager::get() const {
+std::shared_ptr<ze_event_pool_handle_t> ze_event_pool_manager::get_pool() const {
   return _pool;
 }
 
-ze_context_handle_t ze_event_pool_manager::get_context() const {
+ze_context_handle_t ze_event_pool_manager::get_ze_context() const {
   return _ctx;
+}
+
+std::shared_ptr<ze_event_pool_handle_t> 
+ze_event_pool_manager::allocate_event(uint32_t& event_ordinal) {
+  if(_num_used_events+1 >= _pool_size) {
+    // If pool is full, spawn a new pool
+    spawn_pool();
+    event_ordinal = 0;
+
+  } else {
+    uint32_t ordinal = _num_used_events;
+    ++_num_used_events;
+
+    event_ordinal = ordinal;
+  }
+  return _pool;
 }
   
 
@@ -415,9 +459,9 @@ ze_hardware_manager::ze_hardware_manager() {
       }
 
       
-
+      std::vector<ze_device_handle_t> devices;
       if(num_devices > 0) {
-        std::vector<ze_device_handle_t> devices(num_devices);
+        devices.resize(num_devices);
         
         err = zeDeviceGet(drivers[i], &num_devices, devices.data());
 
@@ -426,14 +470,10 @@ ze_hardware_manager::ze_hardware_manager() {
                                                  _contexts.back().get()});
         }
 
-        _event_pools.push_back(
-            ze_event_pool_manager{_contexts.back().get(), devices.data(),
-                                  static_cast<uint32_t>(devices.size())});
-      } else {
-        _event_pools.push_back(ze_event_pool_manager{
-            _contexts.back().get(), nullptr, 0});
       }
-      
+
+      _event_pools.push_back(
+          ze_event_pool_manager{_contexts.back().get(), devices});
     }
   }
 }
@@ -472,6 +512,19 @@ result ze_hardware_manager::device_handle_to_device_id(ze_device_handle_t d, dev
   return make_error(__hipsycl_here(),
                     error_info{"ze_hardware_manager: Could not convert "
                                "ze_device_handle_t to hipSYCL device id"});
+}
+
+ze_event_pool_manager* ze_hardware_manager::get_event_pool_manager(std::size_t device_index) {
+  assert(device_index < _devices.size());
+
+  ze_context_handle_t ctx = _devices[device_index].get_ze_context();
+
+  for(auto& pool : _event_pools) {
+    if(pool.get_ze_context() == ctx) {
+      return &pool;
+    }
+  }
+  return nullptr;
 }
 
 }

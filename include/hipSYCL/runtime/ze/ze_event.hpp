@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <memory>
 #include <level_zero/ze_api.h>
 
 #ifndef HIPSYCL_ZE_EVENT_HPP
@@ -40,15 +41,16 @@ class ze_node_event : public dag_node_event
 {
 public:
   /// Takes ownership of supplied ze_event_handle_t
-  ze_node_event(ze_event_handle_t evt);
+  ze_node_event(ze_event_handle_t evt, 
+    std::shared_ptr<ze_event_pool_handle_t> pool);
   ~ze_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
 
 private:
-  
   ze_event_handle_t _evt;
+  std::shared_ptr<ze_event_pool_handle_t> _pool;
 };
 
 

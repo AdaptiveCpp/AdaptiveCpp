@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2018-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -422,6 +422,83 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
 
   sycl::free(shared_mem, q);
 }
+#endif
+#ifdef HIPSYCL_EXT_BUFFER_USM_INTEROP
+BOOST_AUTO_TEST_CASE(buffer_introspection) {
+  using namespace cl;
+
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  sycl::range size{1024};
+
+  int* usm_ptr = nullptr;
+  {
+    sycl::buffer<int> buff{size};
+
+    q.submit([&](sycl::handler& cgh){
+      auto acc = buff.get_access<sycl::access::mode::discard_write>(cgh);
+      // Force allocation of buffer on target device
+      cgh.single_task([=](){});
+    });
+
+    q.wait();
+
+    BOOST_TEST(buff.has_allocation(q.get_device()));
+    usm_ptr = buff.get_pointer(q.get_device());
+    BOOST_TEST(usm_ptr != nullptr);
+
+    // Query information
+    sycl::buffer_allocation<int> alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.ptr == usm_ptr);
+    BOOST_CHECK(alloc.dev == q.get_device());
+    BOOST_TEST(alloc.is_owned == true);
+
+    // This doesn't change anything as the allocation is already
+    // owned because the buffer constructor was not provided a pointer.
+    // Execute both variants to make sure both interfaces work.
+    buff.own_allocation(usm_ptr);
+    buff.own_allocation(q.get_device());
+    alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.is_owned == true);
+
+    // Disown allocation so that we can use it outside the
+    // buffer scope
+    buff.disown_allocation(usm_ptr);
+
+    alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.is_owned == false);
+
+    std::vector<int*> allocations;
+    buff.for_each_allocation([&](const sycl::buffer_allocation<int>& a){
+      allocations.push_back(a.ptr);
+    });
+    
+    BOOST_TEST(allocations.size() >= 1);
+    bool found = false;
+    for(std::size_t i = 0; i < allocations.size(); ++i) {
+      if(allocations[i] == usm_ptr)
+        found = true;
+    }
+    BOOST_TEST(found);
+  }
+
+  // Use extracted USM pointer directly
+  std::vector<int> host_mem(size[0]);
+
+  q.parallel_for(size, [usm_ptr](sycl::id<1> idx){
+    usm_ptr[idx[0]] = idx[0];
+  });
+  q.memcpy(host_mem.data(), usm_ptr, sizeof(int)*size[0]);
+  q.wait();
+
+  for(std::size_t i = 0; i < host_mem.size(); ++i) {
+    BOOST_CHECK(host_mem[i] == i);
+  }
+
+  sycl::free(usm_ptr, q);
+
+
+}
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -554,7 +554,7 @@ public:
   /// \c invalid_parameter_error is thrown.
   void own_allocation(const T *ptr) {
     bool found = _impl->data->find_and_handle_allocation(
-        static_cast<void *>(ptr),
+        static_cast<void *>(const_cast<T*>(ptr)),
         [&](rt::data_allocation<void *> &rt_allocation) {
           rt_allocation.is_owned = true;
         });
@@ -587,7 +587,7 @@ public:
   /// is described by \c ptr.
   void disown_allocation(const T *ptr) {
     bool found = _impl->data->find_and_handle_allocation(
-        static_cast<void *>(ptr),
+        static_cast<void *>(const_cast<T*>(ptr)),
         [&](rt::data_allocation<void *> &rt_allocation) {
           rt_allocation.is_owned = false;
         });
@@ -611,7 +611,7 @@ public:
     // allocations are never freed before buffer destruction,
     // it is not a race condition to assume that the allocation still
     // exists after the check above.
-    return _impl->data->get_memory(rt_dev);
+    return static_cast<T*>(_impl->data->get_memory(rt_dev));
   }
 
   /// \return Whether the buffer contains an allocation for the given device.
@@ -642,7 +642,8 @@ public:
 
     buffer_allocation<T> result = null_allocation();
     bool found = _impl->data->find_and_handle_allocation(
-        static_cast<void *>(ptr), [&](const auto &rt_allocation) {
+        static_cast<void *>(const_cast<T*>(ptr)), 
+        [&](const auto &rt_allocation) {
       result = rt_data_allocation_to_buffer_alloc(rt_allocation);
     });
 

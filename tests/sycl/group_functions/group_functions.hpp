@@ -7,22 +7,23 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef TESTS_GROUP_FUNCTIONS_HH
@@ -43,20 +44,21 @@ using namespace cl;
 
 #ifdef TESTS_GROUPFUNCTION_FULL
 using test_types =
-    boost::mpl::list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
-                     sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>, sycl::vec<int, 8>,
-                     sycl::vec<short, 16>, sycl::vec<long, 3>, sycl::vec<unsigned int, 3>>;
+    boost::mpl::list<char, int, unsigned int, long long, float, double,
+                     sycl::vec<int, 1>, sycl::vec<int, 2>, sycl::vec<int, 3>,
+                     sycl::vec<int, 4>, sycl::vec<int, 8>, sycl::vec<short, 16>,
+                     sycl::vec<long, 3>, sycl::vec<unsigned int, 3>>;
 #else
-using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
+using test_types =
+    boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
 #endif
 
 namespace detail {
 
-template<typename T>
+template <typename T>
 using elementType = std::remove_reference_t<decltype(T{}.s0())>;
 
-template<typename T, int N>
-std::string type_to_string(sycl::vec<T, N> v) {
+template <typename T, int N> std::string type_to_string(sycl::vec<T, N> v) {
   std::stringstream ss{};
 
   ss << "(";
@@ -89,15 +91,14 @@ std::string type_to_string(sycl::vec<T, N> v) {
   return ss.str();
 }
 
-template<typename T>
-std::string type_to_string(T x) {
+template <typename T> std::string type_to_string(T x) {
   std::stringstream ss{};
   ss << +x;
 
   return ss.str();
 }
 
-template<typename T, int N>
+template <typename T, int N>
 bool compare_type(sycl::vec<T, N> v1, sycl::vec<T, N> v2) {
   bool ret = true;
   if constexpr (1 <= N)
@@ -128,20 +129,17 @@ bool compare_type(sycl::vec<T, N> v1, sycl::vec<T, N> v2) {
   return ret;
 }
 
-template<typename T>
-bool compare_type(T x1, T x2) {
-  return x1 == x2;
-}
+template <typename T> bool compare_type(T x1, T x2) { return x1 == x2; }
 
-template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-T initialize_type(T init) {
+template <typename T,
+          typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET T initialize_type(T init) {
   return init;
 }
 
-template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-T initialize_type(elementType<T> init) {
+template <typename T,
+          typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET T initialize_type(elementType<T> init) {
   constexpr size_t N = T::get_count();
 
   if constexpr (std::is_same_v<elementType<T>, bool>)
@@ -156,7 +154,8 @@ T initialize_type(elementType<T> init) {
   } else if constexpr (N == 4) {
     return T{init, init + 1, init + 2, init + 3};
   } else if constexpr (N == 8) {
-    return T{init, init + 1, init + 2, init + 3, init + 4, init + 5, init + 6, init + 7};
+    return T{init,     init + 1, init + 2, init + 3,
+             init + 4, init + 5, init + 6, init + 7};
   } else if constexpr (N == 16) {
     return T{init,      init + 1,  init + 2,  init + 3, init + 4,  init + 5,
              init + 6,  init + 7,  init + 8,  init + 9, init + 10, init + 11,
@@ -166,9 +165,10 @@ T initialize_type(elementType<T> init) {
   static_assert(true, "invalide vector type!");
 }
 
-template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-T get_offset(size_t margin, size_t divisor = 1) {
+template <typename T,
+          typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET T get_offset(size_t margin, size_t divisor = 1) {
+  return T{};
   if (std::numeric_limits<T>::max() <= margin) {
     return T{};
   }
@@ -182,16 +182,15 @@ T get_offset(size_t margin, size_t divisor = 1) {
   return static_cast<T>(std::numeric_limits<T>::max() / divisor - margin - 1);
 }
 
-template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-T get_offset(size_t margin, size_t divisor = 1) {
+template <typename T,
+          typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET T get_offset(size_t margin, size_t divisor = 1) {
   using eT = elementType<T>;
   return initialize_type<T>(get_offset<eT>(margin + 16, divisor));
 }
 
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-elementType<T> local_value(size_t id, size_t offsetBase) {
+template <typename T>
+HIPSYCL_KERNEL_TARGET elementType<T> local_value(size_t id, size_t offsetBase) {
   const size_t N = T{}.get_count();
 
   auto offset = get_offset<elementType<T>>(offsetBase);
@@ -214,7 +213,7 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
   for (size_t i = 2 * local_size; i < 4 * local_size; ++i)
     buffer[i] = true;
 
-  buffer[10]                  = true;
+  buffer[10] = true;
   buffer[2 * local_size + 10] = false;
 
   BOOST_REQUIRE(buffer[0] == false);
@@ -227,12 +226,14 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
   BOOST_REQUIRE(buffer[10 + local_size * 3] == true);
 }
 
-template<typename T, int Line>
-void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global_size,
-                         std::vector<bool> expected, std::string name,
-                         size_t break_size = 0, size_t offset = 0) {
-  std::vector<std::string> cases{"everything except one false", "everything false",
-                                 "everything except one true", "everything true"};
+template <typename T, int Line>
+void check_binary_reduce(std::vector<T> buffer, size_t local_size,
+                         size_t global_size, std::vector<bool> expected,
+                         std::string name, size_t break_size = 0,
+                         size_t offset = 0) {
+  std::vector<std::string> cases{
+      "everything except one false", "everything false",
+      "everything except one true", "everything true"};
   BOOST_REQUIRE(global_size / local_size == expected.size());
   for (size_t i = 0; i < global_size / local_size; ++i) {
     for (size_t j = 0; j < local_size; ++j) {
@@ -240,7 +241,7 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
       if (break_size != 0 && j == break_size)
         break;
 
-      T computed      = buffer[i * local_size + j + offset];
+      T computed = buffer[i * local_size + j + offset];
       T expectedValue = initialize_type<T>(expected[i]);
 
       BOOST_TEST(compare_type(expectedValue, computed),
@@ -256,81 +257,93 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
 
 } // namespace detail
 
-template<int N, int M, typename T>
-class test_kernel;
+template <int N, int M, typename T> class test_kernel;
 
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
-         typename ValidationFunction>
-void test_nd_group_function_1d(size_t local_size, size_t global_size, size_t offset_margin,
-                               size_t offset_divisor, size_t buffer_size,
-                               DataGenerator dg, TestedFunction f, ValidationFunction vf) {
-  sycl::queue queue;
-  std::vector<T> host_buf(buffer_size, T{});
+template <int CallingLine, typename T, typename DataGenerator,
+          typename TestedFunction, typename ValidationFunction>
+void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
+                               TestedFunction f, ValidationFunction vf) {
+  std::vector<size_t> local_sizes = {25, 144, 256};
+  std::vector<size_t> global_sizes = {100, 576, 1024};
+  for (int i = 0; i < local_sizes.size(); ++i) {
+    size_t local_size = local_sizes[i];
+    size_t global_size = global_sizes[i];
 
-  dg(host_buf);
+    sycl::queue queue;
+    std::vector<T> host_buf(elements_per_thread * global_size, T{});
 
-  std::vector<T> original_host_buf(host_buf);
+    dg(host_buf, local_size, global_size);
 
-  {
-    sycl::buffer<T, 1> buf{host_buf.data(), host_buf.size()};
+    std::vector<T> original_host_buf(host_buf);
 
-    queue.submit([&](sycl::handler &cgh) {
-      using namespace sycl::access;
-      auto acc = buf.template get_access<mode::read_write>(cgh);
+    {
+      sycl::buffer<T, 1> buf{host_buf.data(), host_buf.size()};
 
-      cgh.parallel_for<class test_kernel<1, CallingLine, T>>(
-        sycl::nd_range<1>{global_size, local_size},
-        [=](sycl::nd_item<1> item) {
-        auto g  = item.get_group();
-        auto sg = item.get_sub_group();
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        auto acc = buf.template get_access<mode::read_write>(cgh);
 
-        T local_value = acc[item.get_global_linear_id()];
+        cgh.parallel_for<class test_kernel<1, CallingLine, T>>(
+          sycl::nd_range<1>{global_size, local_size},
+          [=](sycl::nd_item<1> item) {
+          auto g = item.get_group();
+          auto sg = item.get_sub_group();
 
-        f(acc, item.get_global_linear_id(), sg, g, local_value);
+          T local_value = acc[item.get_global_linear_id()];
+
+          f(acc, item.get_global_linear_id(), sg, g, local_value);
+        });
       });
-    });
-  }
+    }
 
-  vf(host_buf, original_host_buf);
+    vf(host_buf, original_host_buf, local_size, global_size);
+  }
 }
 
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
-         typename ValidationFunction>
-void test_nd_group_function_2d(size_t local_size_x, size_t local_size_y,
-                               size_t global_size_x, size_t global_size_y,
-                               size_t offset_margin, size_t offset_divisor,
-                               size_t buffer_size, DataGenerator dg, TestedFunction f,
-                               ValidationFunction vf) {
-  sycl::queue queue;
-  std::vector<T> host_buf(buffer_size, T{});
+template <int CallingLine, typename T, typename DataGenerator,
+          typename TestedFunction, typename ValidationFunction>
+void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
+                               TestedFunction f, ValidationFunction vf) {
+  std::vector<size_t> local_sizes = {5, 12, 16};
+  std::vector<size_t> global_sizes = {10, 24, 32};
+  for (int i = 0; i < local_sizes.size(); ++i) {
+    size_t local_size = local_sizes[i];
+    size_t global_size = global_sizes[i];
 
-  dg(host_buf);
+    sycl::queue queue;
+    std::vector<T> host_buf(elements_per_thread * global_size * global_size,
+                            T{});
 
-  std::vector<T> original_host_buf(host_buf);
+    dg(host_buf, local_size * local_size, global_size * global_size);
 
-  {
-    sycl::buffer<T, 1> buf{host_buf.data(), host_buf.size()};
+    std::vector<T> original_host_buf(host_buf);
 
-    queue.submit([&](sycl::handler &cgh) {
-      using namespace sycl::access;
-      auto acc = buf.template get_access<mode::read_write>(cgh);
+    {
+      sycl::buffer<T, 1> buf{host_buf.data(), host_buf.size()};
 
-      cgh.parallel_for<class test_kernel<2, CallingLine, T>>(
-        sycl::nd_range<2>{sycl::range<2>(global_size_x, global_size_y), sycl::range<2>(local_size_x, local_size_y)},
-        [=](sycl::nd_item<2> item) {
-        auto g                  = item.get_group();
-        auto sg                 = item.get_sub_group();
-        size_t custom_linear_id = item.get_local_linear_id() +
-                                  local_size_x * local_size_y * item.get_group_linear_id();
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        auto acc = buf.template get_access<mode::read_write>(cgh);
 
-        T local_value = acc[custom_linear_id];
+        cgh.parallel_for<class test_kernel<2, CallingLine, T>>(
+          sycl::nd_range<2>{sycl::range<2>(global_size, global_size), sycl::range<2>(local_size, local_size)},
+          [=](sycl::nd_item<2> item) {
+          auto g = item.get_group();
+          auto sg = item.get_sub_group();
+          size_t custom_linear_id =
+              item.get_local_linear_id() +
+              local_size * local_size * item.get_group_linear_id();
 
-        f(acc, custom_linear_id, sg, g, local_value);
+          T local_value = acc[custom_linear_id];
+
+          f(acc, custom_linear_id, sg, g, local_value);
+        });
       });
-    });
-  }
+    }
 
-  vf(host_buf, original_host_buf);
+    vf(host_buf, original_host_buf, local_size * local_size,
+       global_size * global_size);
+  }
 }
 
 #endif // TESTS_GROUP_FUNCTIONS_HH

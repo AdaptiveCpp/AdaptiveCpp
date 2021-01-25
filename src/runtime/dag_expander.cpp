@@ -456,11 +456,14 @@ void dag_expander::expand(
           // Find the right fork of this data region
           std::size_t data_region_id = mem_req->get_data_region()->get_id();
 
-          if (out.memory_state(data_region_id) == nullptr)
-            out.add_data_region_fork(
-                data_region_id,
-                std::move(mem_req->get_data_region()->create_fork()),
-                mem_req->get_data_region().get());
+          // This code is broken and will be removed soon.
+          //
+          //if (out.memory_state(data_region_id) == nullptr)
+          //  out.add_data_region_fork(
+          //      data_region_id,
+          //      std::move(mem_req->get_data_region()->create_fork()),
+          //      mem_req->get_data_region().get());
+          
 
           buffer_data_region *data = out.memory_state(data_region_id);
 
@@ -483,8 +486,9 @@ void dag_expander::expand(
                 << target_device.get_id() << ", backend "
                 << static_cast<int>(target_device.get_backend())
                 << " for data region " << mem_req->get_data_region() << std::endl;
-            
-            data->add_placeholder_allocation(target_device, allocator);
+
+            // This code is broken and will be removed in the future
+            //data->add_placeholder_allocation(target_device, allocator);
           }
 
           // Look for outdated regions and potentiallly necessary data

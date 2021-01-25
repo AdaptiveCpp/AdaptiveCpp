@@ -284,14 +284,11 @@ public:
   /// dimension must be a multiple of the page size
   /// \param page_size The size (numbers of elements) of the granularity of data
   /// management
-  data_region(
-      range<3> num_elements, std::size_t element_size, range<3> page_size,
-      destruction_handler on_destruction = [](data_region *) {})
-      : _element_size{element_size}, _is_fork{false},
-        _on_destruction{on_destruction}, _page_size{page_size},
-        _num_elements{num_elements} {
-
-    unset_id();
+  data_region(range<3> num_elements, std::size_t element_size,
+              range<3> page_size,
+              destruction_handler on_destruction = [](data_region *) {})
+      : _element_size{element_size}, _on_destruction{on_destruction},
+        _page_size{page_size}, _num_elements{num_elements} {
 
     for(std::size_t i = 0; i < 3; ++i){
       assert(page_size[i] > 0);
@@ -312,7 +309,7 @@ public:
   ~data_region() {
     _on_destruction(this);
     for(const auto& alloc : _allocations) {
-      if(alloc.memory && alloc.is_owned && !_is_fork) {
+      if(alloc.memory && alloc.is_owned) {
         device_id dev = alloc.dev;
         HIPSYCL_DEBUG_INFO << "data_region::~data_region: Freeing allocation "
                            << alloc.memory << std::endl;
@@ -478,30 +475,6 @@ public:
   const data_user_tracker& get_users() const
   { return _user_tracker; }
 
-  std::unique_ptr<data_region> create_fork() const
-  {
-    auto ptr = std::make_unique<data_region>(*this);
-    ptr->_is_fork = true;
-    return ptr;
-  }
-
-  void apply_fork(data_region *fork)
-  {
-    fork->materialize_placeholder_allocations();
-    *this = *fork;
-  }
-
-  /// Set an id for this data region. This is used by the \c dag_enumerator
-  /// to efficiently identify this object during dag expansion/scheduling
-  void set_enumerated_id(std::size_t id) { _enumerated_id = id; }
-  std::size_t get_id() const { return _enumerated_id; }
-
-  void unset_id()
-  { _enumerated_id = std::numeric_limits<std::size_t>::max(); }
-
-  bool has_id() const
-  { return _enumerated_id != std::numeric_limits<std::size_t>::max(); }
-
   std::size_t get_element_size() const { return _element_size; }
 
   range<3> get_num_elements() const { return _num_elements; }
@@ -525,7 +498,6 @@ public:
 private:
   std::size_t _enumerated_id;
   std::size_t _element_size;
-  bool _is_fork;
 
   struct data_allocation
   {
@@ -539,18 +511,6 @@ private:
 
   std::vector<data_allocation> _allocations;
   destruction_handler _on_destruction;
-
-  void materialize_placeholder_allocations()
-  {
-    for (data_allocation &alloc : _allocations) {
-      if (alloc.memory == nullptr) {
-        alloc.memory =
-            alloc.delayed_allocator(_num_elements, _element_size);
-        
-        alloc.delayed_allocator = allocation_function{};
-      }
-    }  
-  }
   
   typename std::vector<data_allocation>::iterator
   find_allocation(device_id dev)

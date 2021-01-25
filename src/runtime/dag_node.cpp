@@ -41,7 +41,7 @@ dag_node::dag_node(const execution_hints &hints,
     : _hints{hints}, _requirements{requirements},
       _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
-      _is_cancelled{false}, _node_id{std::numeric_limits<std::size_t>::max()} {}
+      _is_cancelled{false} {}
 
 dag_node::~dag_node() {
   if(!is_complete()){
@@ -153,24 +153,9 @@ void dag_node::wait() const
   _is_complete = true;
 }
 
-void dag_node::assign_node_id(std::size_t id) {
-  assert(!has_node_id());
-
-  _node_id = id;
-}
-
-bool dag_node::has_node_id() const{
-  return _node_id != std::numeric_limits<std::size_t>::max();
-}
-
 std::shared_ptr<dag_node_event>
 dag_node::get_event() const{
   return _event;
-}
-
-std::size_t dag_node::get_node_id() const {
-  assert(has_node_id());
-  return _node_id;
 }
 
 void dag_node::for_each_nonvirtual_requirement(

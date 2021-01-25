@@ -66,43 +66,9 @@ public:
   backend_execution_lane_range
   get_kernel_execution_lane_range(device_id dev) const override;
 
-  virtual void submit_dag(
-      const dag_interpreter &interpreter, const dag_enumerator &enumerator,
-      const std::vector<node_scheduling_annotation> &annotations) override;
-
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
                   const std::vector<dag_node_ptr> &reqs) override;
-
-  // The create_event_* functions will typically be called
-  // * by the scheduler, to implement features such as profiling;
-  // * by this (or another) backend_executor in order to implement
-  //   the create_wait_* functions since they typically require events
-  //   after the node they wait for
-  virtual std::unique_ptr<event_before_node>
-  create_event_before(dag_node_ptr node) const override;
-
-  virtual std::unique_ptr<event_after_node>
-  create_event_after(dag_node_ptr node) const override;
-
-  // The create_wait_* functions will be called by the scheduler to mark
-  // synchronization points
-  std::unique_ptr<wait_for_node_on_same_lane>
-  virtual create_wait_for_node_same_lane(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const override;
-
-  std::unique_ptr<wait_for_node_on_same_backend>
-  virtual create_wait_for_node_same_backend(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const override;
-
-  std::unique_ptr<wait_for_external_node> virtual create_wait_for_external_node(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const override;
 
   template <class F> void for_each_queue(rt::device_id dev, F handler) const {
     assert(dev.get_id() < _device_data.size());
@@ -111,12 +77,6 @@ public:
   }
 private:
   using final_nodes_map = std::unordered_map<inorder_queue*, dag_node_ptr>;
-
-  void submit_node(dag_node_ptr node, 
-    const dag_interpreter& interpreter,
-    const std::vector<node_scheduling_annotation> &annotations,
-    std::shared_ptr<dag_node_event> generic_batch_event,
-    final_nodes_map& final_nodes);
 
   struct per_device_data
   {

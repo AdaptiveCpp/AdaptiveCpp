@@ -580,17 +580,6 @@ public:
   const data_user_tracker& get_users() const
   { return _user_tracker; }
 
-  /// Set an id for this data region. This is used by the \c dag_enumerator
-  /// to efficiently identify this object during dag expansion/scheduling
-  void set_enumerated_id(std::size_t id) { _enumerated_id = id; }
-  std::size_t get_id() const { return _enumerated_id; }
-
-  void unset_id()
-  { _enumerated_id = std::numeric_limits<std::size_t>::max(); }
-
-  bool has_id() const
-  { return _enumerated_id != std::numeric_limits<std::size_t>::max(); }
-
   std::size_t get_element_size() const { return _element_size; }
 
   range<3> get_num_elements() const { return _num_elements; }
@@ -664,7 +653,6 @@ public:
   }
 
 private:
-  
   std::size_t _element_size;
 
   allocation_list<Memory_descriptor> _allocations;
@@ -704,8 +692,6 @@ private:
   range<3> _num_elements;
 
   data_user_tracker _user_tracker;
-
-  std::size_t _enumerated_id;
 };
 
 using buffer_data_region = data_region<void*>;

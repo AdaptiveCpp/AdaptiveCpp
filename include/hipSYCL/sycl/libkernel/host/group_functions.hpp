@@ -51,9 +51,9 @@ T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
   group_barrier(g);
 
   if (g.leader()) {
-    T result = binary_op(scratch[0], scratch[1]);
+    T result = scratch[0];
 
-    for (int i = 2; i < g.get_local_range().size(); ++i)
+    for (int i = 1; i < g.get_local_range().size(); ++i)
       result = binary_op(result, scratch[i]);
 
     scratch[0] = result;
@@ -219,9 +219,9 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
   }
 
   if (g.leader()) {
-    result = *(first++);
-    while (first != last)
-      result = binary_op(result, *(first++));
+#pragma omp simd
+    for (T *i = first; i < last; ++i)
+      result = binary_op(result, *i);
   }
   return result;
 }
@@ -240,7 +240,17 @@ T leader_reduce(Group g, T *first, T *last, V init, BinaryOperation binary_op) {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
-  T result = leader_reduce(g, first, last, binary_op);
+  T result{};
+
+  if (first >= last) {
+    return T{};
+  }
+
+  if (g.leader()) {
+    result = *(first++);
+    while (first != last)
+      result = binary_op(result, *(first++));
+  }
   return group_broadcast(g, result);
 }
 
@@ -328,8 +338,8 @@ T *inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-  auto lid   = g.get_local_linear_id();
+  T *  scratch = static_cast<T *>(g.get_local_memory_ptr());
+  auto lid     = g.get_local_linear_id();
 
   if (lid == local_linear_id) {
     scratch[0] = x;

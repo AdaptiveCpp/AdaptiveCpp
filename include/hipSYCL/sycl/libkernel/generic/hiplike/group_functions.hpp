@@ -46,62 +46,6 @@ namespace sycl {
 
 namespace detail {
 
-template<typename T, int N>
-void writeToMemory(T *scratch, vec<T, N> v) {
-  if constexpr (1 <= N)
-    scratch[0] = v.s0();
-  if constexpr (2 <= N)
-    scratch[1] = v.s1();
-  if constexpr (3 <= N)
-    scratch[2] = v.s2();
-  if constexpr (4 <= N)
-    scratch[3] = v.s3();
-  if constexpr (8 <= N) {
-    scratch[4] = v.s4();
-    scratch[5] = v.s5();
-    scratch[6] = v.s6();
-    scratch[7] = v.s7();
-  }
-  if constexpr (16 <= N) {
-    scratch[8]  = v.s8();
-    scratch[9]  = v.s9();
-    scratch[10] = v.sA();
-    scratch[11] = v.sB();
-    scratch[12] = v.sC();
-    scratch[13] = v.sD();
-    scratch[14] = v.sE();
-    scratch[15] = v.sF();
-  }
-}
-
-template<typename T, int N>
-void readFromMemory(T *scratch, vec<T, N> &v) {
-  if constexpr (1 <= N)
-    v.s0() = scratch[0];
-  if constexpr (2 <= N)
-    v.s1() = scratch[1];
-  if constexpr (3 <= N)
-    v.s2() = scratch[2];
-  if constexpr (4 <= N)
-    v.s3() = scratch[3];
-  if constexpr (8 <= N) {
-    v.s4() = scratch[4];
-    v.s5() = scratch[5];
-    v.s6() = scratch[6];
-    v.s7() = scratch[7];
-  }
-  if constexpr (16 <= N) {
-    v.s8() = scratch[8];
-    v.s9() = scratch[9];
-    v.sA() = scratch[10];
-    v.sB() = scratch[11];
-    v.sC() = scratch[12];
-    v.sD() = scratch[13];
-    v.sE() = scratch[14];
-    v.sF() = scratch[15];
-  }
-}
-
 // reduce implementation
 template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
@@ -126,42 +70,6 @@ T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
   }
 
   return binary_op(scratch[0], scratch[1]);
-}
-
-template<typename Group, typename T, int N, typename BinaryOperation,
-         typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-vec<T, N> group_reduce(Group g, vec<T, N> x, BinaryOperation binary_op, T *scratch) {
-  auto   lid    = g.get_local_linear_id();
-  size_t lrange = g.get_local_range().size();
-
-  if (lrange == 1)
-    return x;
-
-  detail::writeToMemory(scratch + lid * N, x);
-  group_barrier(g);
-
-  size_t outputs = lrange;
-  for (size_t i = (lrange + 1) / 2; i > 1; i = (i + 1) / 2) {
-
-    if (lid < i && lid + i < outputs) {
-      vec<T, N> v1, v2;
-
-      detail::readFromMemory(scratch + lid * N, v1);
-      detail::readFromMemory(scratch + (lid + i) * N, v2);
-
-      detail::writeToMemory(scratch + lid * N, binary_op(v1, v2));
-    }
-
-    outputs = outputs / 2 + outputs % 2;
-    group_barrier(g);
-  }
-
-  vec<T, N> v1, v2;
-
-  detail::readFromMemory(scratch, v1);
-  detail::readFromMemory(scratch + N, v2);
-  return binary_op(v1, v2);
 }
 
 // any_of
@@ -477,7 +385,8 @@ T *eleader_xclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation 
 template<typename Group, typename T, typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
-  __shared__ T scratch[1];
+  __shared__ std::aligned_storage_t<sizeof(T), alignof(T)> scratch_storage;
+  T *scratch = reinterpret_cast<T *>(&scratch_storage);
   auto         lid = g.get_local_linear_id();
 
   if (lid == local_linear_id)
@@ -487,26 +396,10 @@ T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id =
   return scratch[0];
 }
 
-template<typename Group, typename T, int N, typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-vec<T, N> group_broadcast(Group g, vec<T, N> x, typename Group::linear_id_type local_linear_id = 0) {
-  __shared__ T scratch[N];
-  auto         lid = g.get_local_linear_id();
-
-  if (lid == local_linear_id)
-    detail::writeToMemory(scratch, x);
-  group_barrier(g);
-
-  detail::readFromMemory(scratch, x);
-
-  return x;
-}
-
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::id_type local_id) {
   auto target_lid = detail::linear_id<g.dimensions>::get(local_id, detail::get_local_size<g.dimensions>());
-
   return group_broadcast(g, x, target_lid);
 }
 
@@ -530,60 +423,19 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op) {
-  __shared__ T scratch[1024];
-
-  return detail::group_reduce(g, x, binary_op, scratch);
-}
-
-template<typename Group, typename T, int N, typename BinaryOperation,
-         typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-vec<T, N> group_reduce(Group g, vec<T, N> x, BinaryOperation binary_op) {
-  __shared__ T scratch[1024 * N];
+  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
+  T *scratch = reinterpret_cast<T *>(&scratch_storage);
 
   return detail::group_reduce(g, x, binary_op, scratch);
 }
 
 // exclusive_scan
-template<typename Group, typename T, int N, typename V, typename BinaryOperation,
-         typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-vec<T, N> group_exclusive_scan(Group g, vec<T, N> x, V init, BinaryOperation binary_op) {
-  __shared__ T scratch[1024 * N];
-  auto         lid               = g.get_local_linear_id();
-  auto         group_local_range = g.get_local_range().size();
-
-  if (lid + 1 < group_local_range) {
-    detail::writeToMemory(scratch + (lid + 1) * N, x);
-  } else {
-    detail::writeToMemory(scratch, init);
-  }
-  group_barrier(g);
-
-  for (size_t i = 1; i < group_local_range; i *= 2) {
-    size_t    next_id = lid - i;
-    vec<T, N> v1, v2;
-    if (i <= lid && lid < group_local_range) {
-      detail::readFromMemory(scratch + lid * N, v1);
-      detail::readFromMemory(scratch + next_id * N, v2);
-    }
-    group_barrier(g);
-    if (i <= lid && lid < group_local_range) {
-      detail::writeToMemory(scratch + lid * N, binary_op(v1, v2));
-    }
-    group_barrier(g);
-  }
-
-  vec<T, N> v;
-  detail::readFromMemory(scratch + lid * N, v);
-  return v;
-}
-
 template<typename Group, typename T, typename V, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
-  __shared__ T scratch[1024];
+  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
+  T *scratch = reinterpret_cast<T *>(&scratch_storage);
   auto         lid               = g.get_local_linear_id();
   auto         group_local_range = g.get_local_range().size();
 
@@ -612,42 +464,14 @@ T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
   return scratch[lid];
 }
 
+
 // inclusive_scan
-template<typename Group, typename T, int N, typename BinaryOperation,
-         typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
-HIPSYCL_KERNEL_TARGET
-vec<T, N> group_inclusive_scan(Group g, vec<T, N> x, BinaryOperation binary_op) {
-  __shared__ T scratch[1024 * N];
-  auto         lid               = g.get_local_linear_id();
-  auto         group_local_range = g.get_local_range().size();
-
-  detail::writeToMemory(scratch + lid * N, x);
-  group_barrier(g);
-
-  for (size_t i = 1; i < group_local_range; i *= 2) {
-    size_t    next_id = lid - i;
-    vec<T, N> v1, v2;
-    if (i <= lid && lid < group_local_range) {
-      detail::readFromMemory(scratch + lid * N, v1);
-      detail::readFromMemory(scratch + next_id * N, v2);
-    }
-    group_barrier(g);
-    if (i <= lid && lid < group_local_range) {
-      detail::writeToMemory(scratch + lid * N, binary_op(v1, v2));
-    }
-    group_barrier(g);
-  }
-
-  vec<T, N> v;
-  detail::readFromMemory(scratch + lid * N, v);
-  return v;
-}
-
 template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  __shared__ T scratch[1024];
+  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
+  T *scratch = reinterpret_cast<T *>(&scratch_storage);
   auto         lid               = g.get_local_linear_id();
   auto         group_local_range = g.get_local_range().size();
 

@@ -48,13 +48,6 @@ T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_lin
   return detail::shuffle_impl(x, local_linear_id);
 }
 
-template<typename T, int N>
-HIPSYCL_KERNEL_TARGET
-sycl::vec<T, N> group_broadcast(sub_group g, sycl::vec<T, N> x,
-                                typename sub_group::linear_id_type local_linear_id = 0) {
-  return detail::shuffle_impl(x, local_linear_id);
-}
-
 // barrier
 template<typename Group>
 HIPSYCL_KERNEL_TARGET

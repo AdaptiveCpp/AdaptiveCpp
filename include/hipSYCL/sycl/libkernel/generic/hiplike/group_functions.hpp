@@ -34,7 +34,6 @@
 #include "../../backend.hpp"
 #include "../../detail/data_layout.hpp"
 #include "../../detail/thread_hierarchy.hpp"
-#include "warp_shuffle.hpp"
 #include "../../id.hpp"
 #include "../../sub_group.hpp"
 #include "../../vec.hpp"
@@ -52,24 +51,38 @@ template<typename Group, typename T, typename BinaryOperation,
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
 
-  auto   lid    = g.get_local_linear_id();
-  size_t lrange = g.get_local_range().size();
+  auto      lid    = g.get_local_linear_id();
+  size_t    lrange = (g.get_local_range().size() + warpSize - 1) / warpSize;
+  sub_group sg{};
 
-  if (lrange == 1)
-    return x;
-
-  scratch[lid] = x;
+  x            = group_reduce(sg, x, binary_op);
+  if (sg.leader())
+    scratch[lid / warpSize] = x;
   group_barrier(g);
 
-  size_t outputs = lrange;
-  for (size_t i = (lrange + 1) / 2; i > 1; i = (i + 1) / 2) {
-    if (lid < i && lid + i < outputs)
-      scratch[lid] = binary_op(scratch[lid], scratch[lid + i]);
-    outputs = outputs / 2 + outputs % 2;
+  if (lrange == 1)
+    return scratch[0];
+
+  if (g.get_local_range().size() / warpSize != warpSize) {
+    size_t outputs = lrange;
+    for (size_t i = (lrange + 1) / 2; i > 1; i = (i + 1) / 2) {
+      if (lid < i && lid + i < outputs)
+        scratch[lid] = binary_op(scratch[lid], scratch[lid + i]);
+      outputs = outputs / 2 + outputs % 2;
+      group_barrier(g);
+    }
+    group_barrier(g);
+    return binary_op(scratch[0], scratch[1]);
+  } else {
+    if (lid < warpSize)
+      x = group_reduce(sg, scratch[lid], binary_op);
+
+    if (lid == 0)
+      scratch[0] = x;
+
     group_barrier(g);
   }
-
-  return binary_op(scratch[0], scratch[1]);
+  return scratch[0];
 }
 
 // any_of
@@ -206,12 +219,12 @@ bool leader_none_of(Group g, T *first, T *last, Predicate pred) {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024, alignof(T)> scratch_storage;
-  T *                                                             scratch = reinterpret_cast<T *>(&scratch_storage);
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
+  T *scratch = reinterpret_cast<T *>(&scratch_storage);
 
-  const size_t group_range         = g.get_local_range().size();
-  const size_t num_elements        = last - first;
-  const size_t lid                 = g.get_local_linear_id();
+  const size_t group_range  = g.get_local_range().size();
+  const size_t num_elements = last - first;
+  const size_t lid          = g.get_local_linear_id();
 
   T *start_ptr = first + lid;
 
@@ -256,6 +269,7 @@ T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
       outputs = outputs / 2 + outputs % 2;
       group_barrier(g);
     }
+    group_barrier(g);
 
     return binary_op(scratch[0], scratch[1]);
   }
@@ -281,37 +295,61 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) { return 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
-  auto lid = g.get_local_linear_id();
+  auto                                                     lid          = g.get_local_linear_id();
+  auto                                                     wid          = lid / warpSize;
+  size_t                                                   lrange       = g.get_local_range().size();
+  const size_t                                             num_elements = last - first;
+  const size_t                                             iterations   = (num_elements + lrange - 1) / lrange;
+  sub_group                                                sg{};
 
-  if (g.leader()) {
-    if (first == last)
-      return result;
+  const size_t warp_size = (wid == lrange / warpSize && lrange % warpSize != 0) ? lrange % warpSize : warpSize;
 
-    *(result++) = binary_op(init, *(first++));
-    while (first != last) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
-    }
+  size_t offset = lid;
+  T      carry_over = init;
+  T      local_x;
+
+  for (int i = 0; i < iterations; ++i) {
+    const size_t offset = lid + i*lrange;
+    local_x = (offset < num_elements) ? first[offset] : V{};
+    local_x = group_inclusive_scan(g, local_x, carry_over, binary_op);
+
+    if (offset < num_elements)
+      result[offset] = local_x;
+
+    carry_over = group_broadcast(g, local_x, lrange-1);
   }
-  return group_broadcast(g, result);
+
+  return result + num_elements;
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_op) {
-  auto lid = g.get_local_linear_id();
+  auto                                                     lid          = g.get_local_linear_id();
+  auto                                                     wid          = lid / warpSize;
+  size_t                                                   lrange       = g.get_local_range().size();
+  const size_t                                             num_elements = last - first;
+  const size_t                                             iterations   = (num_elements + lrange - 1) / lrange;
 
-  if (g.leader()) {
-    if (first == last)
-      return result;
+  T      carry_over;
+  T      local_x;
 
-    *(result++) = *(first++);
-    while (first != last) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
+  for (int i = 0; i < iterations; ++i) {
+    const size_t offset = lid + i*lrange;
+    local_x = (offset < num_elements) ? first[offset] : V{};
+    if (i > 0) {
+      local_x = group_inclusive_scan(g, local_x, carry_over, binary_op);
+    } else {
+      local_x = group_inclusive_scan(g, local_x, binary_op);
     }
+
+    if (offset < num_elements)
+      result[offset] = local_x;
+
+    carry_over = group_broadcast(g, local_x, lrange-1);
   }
-  return group_broadcast(g, result);
+
+  return result + num_elements;
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
@@ -362,8 +400,8 @@ template<typename Group, typename T, typename std::enable_if_t<!std::is_same_v<G
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
   __shared__ std::aligned_storage_t<sizeof(T), alignof(T)> scratch_storage;
-  T *scratch = reinterpret_cast<T *>(&scratch_storage);
-  auto         lid = g.get_local_linear_id();
+  T *                                                      scratch = reinterpret_cast<T *>(&scratch_storage);
+  auto                                                     lid     = g.get_local_linear_id();
 
   if (lid == local_linear_id)
     scratch[0] = x;
@@ -399,7 +437,7 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
   T *scratch = reinterpret_cast<T *>(&scratch_storage);
 
   return detail::group_reduce(g, x, binary_op, scratch);
@@ -410,66 +448,73 @@ template<typename Group, typename T, typename V, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
-  T *scratch = reinterpret_cast<T *>(&scratch_storage);
-  auto         lid               = g.get_local_linear_id();
-  auto         group_local_range = g.get_local_range().size();
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
+  T *    scratch           = reinterpret_cast<T *>(&scratch_storage);
+  auto   lid               = g.get_local_linear_id();
+  auto   wid               = lid / warpSize;
+  size_t lrange            = 1;
+  auto   group_local_range = g.get_local_range();
+  for (int i = 0; i < g.dimensions; ++i)
+    lrange *= group_local_range[i];
 
-  if (lid + 1 < group_local_range) {
-    scratch[lid + 1] = x;
-  } else {
-    scratch[0] = init;
-  }
+  sub_group sg{};
+
+  auto local_x  = group_inclusive_scan(sg, x, binary_op);
+  auto last_wid = (wid + 1) * warpSize - 1;
+  if (lid == (lrange < last_wid ? lrange - 1 : last_wid))
+    scratch[wid] = local_x;
   group_barrier(g);
 
-  for (size_t i = 1; i < group_local_range; i *= 2) {
-    size_t next_id = lid - i;
-    T      local_x;
-    T      other_x;
-    if (i <= lid && lid < group_local_range) {
-      local_x = scratch[lid];
-      other_x = scratch[next_id];
-    }
+  size_t scratch_index = (lid < 1024 / warpSize) ? lid : 0;
+  T      tmp           = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
 
-    group_barrier(g);
-    if (i <= lid && lid < group_local_range)
-      scratch[lid] = binary_op(local_x, other_x);
-    group_barrier(g);
-  }
+  if (lid < (lrange + warpSize - 1) / warpSize)
+    scratch[lid] = tmp;
+  group_barrier(g);
 
-  return scratch[lid];
+  auto prefix = init;
+  if (wid != 0)
+    prefix = binary_op(init, scratch[wid - 1]);
+  local_x = binary_op(prefix, local_x);
+
+  local_x = detail::shuffle_up_impl(local_x, 1);
+  if (lid % warpSize == 0)
+    return prefix;
+  return local_x;
 }
-
 
 // inclusive_scan
 template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T)*1024, alignof(T)> scratch_storage;
-  T *scratch = reinterpret_cast<T *>(&scratch_storage);
-  auto         lid               = g.get_local_linear_id();
-  auto         group_local_range = g.get_local_range().size();
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
+  T *    scratch = reinterpret_cast<T *>(&scratch_storage);
+  auto   lid     = g.get_local_linear_id();
+  auto   wid     = lid / warpSize;
+  size_t lrange  = g.get_local_range().size();
 
-  scratch[lid] = x;
+  sub_group sg{};
+
+  auto local_x  = group_inclusive_scan(sg, x, binary_op);
+  auto last_wid = (wid + 1) * warpSize - 1;
+  if (lid == (lrange < last_wid ? lrange - 1 : last_wid))
+    scratch[wid] = local_x;
   group_barrier(g);
 
-  for (size_t i = 1; i < group_local_range; i *= 2) {
-    size_t next_id = lid - i;
-    T      local_x;
-    T      other_x;
-    if (i <= lid && lid < group_local_range) {
-      local_x = scratch[lid];
-      other_x = scratch[next_id];
+  if (lid  < warpSize) {
+    size_t scratch_index = (lid < (lrange + warpSize-1) / warpSize) ? lid : 0;
+    T tmp           = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
+
+    if (lid < 1024/warpSize) {
+      scratch[lid] = tmp;
     }
-
-    group_barrier(g);
-    if (i <= lid && lid < group_local_range)
-      scratch[lid] = binary_op(local_x, other_x);
-    group_barrier(g);
   }
+  group_barrier(g);
 
-  return scratch[lid];
+  if (wid == 0)
+    return local_x;
+  return binary_op(scratch[wid - 1], local_x);
 }
 
 } // namespace sycl

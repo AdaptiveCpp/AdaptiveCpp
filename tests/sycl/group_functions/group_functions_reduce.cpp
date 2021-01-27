@@ -269,7 +269,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
                        << " at position " << i << " instead of "
                        << detail::type_to_string(expected) << " for local_size " << local_size << " and case: no init");
         if (!detail::compare_type(expected, computed))
-          break;
+          ;//break;
       }
     };
 

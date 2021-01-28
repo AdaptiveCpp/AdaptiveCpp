@@ -790,13 +790,13 @@ private:
             rt::application::get_backend(host_device.get_backend())
                 .get_allocator(host_device)
                 ->allocate_optimized_host(
-                    0, _impl->data->get_num_elements().size() * sizeof(T));
+                    alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       } else {
         host_ptr =
             rt::application::get_backend(host_device.get_backend())
                 .get_allocator(host_device)
                 ->allocate(
-                    0, _impl->data->get_num_elements().size() * sizeof(T));
+                    alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       }
 
       if(!host_ptr)

@@ -167,36 +167,45 @@ public:
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclContext} {
-
-    _handler = _ctx._impl->handler;
-    
-    device dev = deviceSelector.select_device();
-
-    if (!is_device_in_context(dev, syclContext))
-      throw invalid_object_error{"queue: Device is not in context"};
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
-
-    this->init();
+      : queue(syclContext, deviceSelector.select_device(), propList) {
   }
 
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclContext},
-        _handler{asyncHandler} {
+      : queue(syclContext, deviceSelector.select_device(), asyncHandler, propList) {
+  }
 
-    device dev = deviceSelector.select_device();
+  explicit queue(const context &syclContext,
+                 const device &syclDevice,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _ctx{syclContext} {
 
-    if (!is_device_in_context(dev, syclContext))
+    _handler = _ctx._impl->handler;
+
+    if (!is_device_in_context(syclDevice, syclContext))
       throw invalid_object_error{"queue: Device is not in context"};
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
-    
+        syclDevice._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const context &syclContext,
+                 const device &syclDevice,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _ctx{syclContext},
+        _handler{asyncHandler} {
+
+    if (!is_device_in_context(syclDevice, syclContext))
+      throw invalid_object_error{"queue: Device is not in context"};
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
     this->init();
   }
 

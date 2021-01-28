@@ -117,6 +117,15 @@ omp_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_group_size:
     return std::numeric_limits<std::size_t>::max();
     break;
+  case device_uint_property::max_num_sub_groups:
+    return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::sub_group_independent_forward_progress:
+    return 0;
+    break;
+  case device_uint_property::sub_group_size:
+    return 1;
+    break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
     break;

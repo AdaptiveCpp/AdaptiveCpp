@@ -108,6 +108,13 @@ BOOST_AUTO_TEST_CASE(sub_group) {
       }
     }
   }
+
+  const s::device dev = q.get_device();
+  const std::vector<size_t> supported_subgroup_sizes = dev.get_info<cl::sycl::info::device::sub_group_sizes>();
+  BOOST_CHECK(supported_subgroup_sizes.size() == 1);
+  BOOST_CHECK(supported_subgroup_sizes[0] == subgroup_size);
+  const int max_num_subgroups = dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
+  BOOST_CHECK(max_num_subgroups >= 1);
 }
 
 

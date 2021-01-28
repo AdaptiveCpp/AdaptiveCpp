@@ -172,6 +172,15 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_group_size:
     return _properties->maxThreadsPerBlock;
     break;
+  case device_uint_property::max_num_sub_groups:
+    return _properties->maxThreadsPerBlock / _properties->warpSize;
+    break;
+  case device_uint_property::sub_group_independent_forward_progress:
+    return (_properties->major >= 7) ? 1 : 0; // True on Volta or newer
+    break;
+  case device_uint_property::sub_group_size:
+    return _properties->warpSize;
+    break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
     break;

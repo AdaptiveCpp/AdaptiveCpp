@@ -90,8 +90,18 @@ if(WITH_CPU_BACKEND)
     endif()
     target_include_directories(hipSYCL-rt PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
   endif()
-
-  target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
+  
+  if(WIN32)
+    # FindOpenMP does a bad job here, finding any library.. so add some more hints..
+    find_library(hipSYCL_OpenMP_libomp_LIBRARY
+      NAMES libomp libgomp libiomp5 HINTS
+      ${CMAKE_${LANG}_IMPLICIT_LINK_DIRECTORIES}
+      ${LLVM_PREFIX_DIR}/lib
+    )
+    target_link_libraries(hipSYCL-rt PRIVATE ${hipSYCL_OpenMP_libomp_LIBRARY} OpenMP::OpenMP_CXX)
+  else()
+    target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
+  endif()
 
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_OMP_BACKEND=1)
 endif()
@@ -99,7 +109,8 @@ endif()
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib/static)
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib)
 
 
 

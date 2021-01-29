@@ -35,10 +35,15 @@ target_link_libraries(hipSYCL_clang
   ${Boost_LIBRARIES})
 if(APPLE)
     target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
+elseif(WIN32)
+	set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
+	target_link_directories(hipSYCL_clang PRIVATE ${CLANG_LIBRARY_DIR})
+	target_link_libraries(hipSYCL_clang clang)
 else()
     target_link_libraries(hipSYCL_clang -Wl,-znodelete)
 endif()
 
 install(TARGETS hipSYCL_clang
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib/static)
+        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION lib)

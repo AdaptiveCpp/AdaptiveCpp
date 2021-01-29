@@ -38,6 +38,7 @@ omp_allocator::omp_allocator(const device_id &my_device)
     : _my_device{my_device} {}
 
 void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+#ifndef _WIN32
   if (min_alignment <= 1)
     return malloc(size_bytes);
   
@@ -52,6 +53,16 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 #else
   return std::aligned_alloc(min_alignment, size_bytes);
 #endif
+#else
+  if(min_alignment >= 1 && size_bytes % min_alignment != 0)
+    return nullptr;
+
+  if(min_alignment < alignof(void*))
+    min_alignment = alignof(void*); 
+  min_alignment = power_of_2_ceil(min_alignment);
+
+  return _aligned_malloc(size_bytes, min_alignment);
+#endif
 }
 
 void *omp_allocator::allocate_optimized_host(size_t min_alignment,
@@ -60,7 +71,11 @@ void *omp_allocator::allocate_optimized_host(size_t min_alignment,
 };
 
 void omp_allocator::free(void *mem) {
+#ifndef _WIN32
   std::free(mem);
+#else
+  _aligned_free(mem);
+#endif
 }
 
 void* omp_allocator::allocate_usm(size_t bytes) {

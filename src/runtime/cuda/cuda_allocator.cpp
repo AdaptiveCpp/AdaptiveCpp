@@ -156,7 +156,7 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
 
 result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                             int advise) const {
-
+#ifndef _WIN32
   cudaError_t err = cudaMemAdvise(addr, num_bytes,
                                   static_cast<cudaMemoryAdvise>(advise), _dev);
   if(err != cudaSuccess) {
@@ -167,6 +167,11 @@ result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
   }
 
   return make_success();
+#else
+  HIPSYCL_DEBUG_WARNING << "cuda_allocator: Ignoring mem_advise() hint"
+                        << std::endl;
+  return make_success();
+#endif // _WIN32
 }
 
 }

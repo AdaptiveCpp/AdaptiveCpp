@@ -37,6 +37,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Attr.h"
@@ -104,6 +105,10 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
 
     bool TraverseDecl(clang::Decl* D)
     {
+      // fixme: investigate where the invalid decls come from..
+      if(!D)
+        return true;
+
       clang::Decl* DefinitionDecl = D;
       clang::FunctionDecl* FD = clang::dyn_cast<clang::FunctionDecl>(D);
 
@@ -167,8 +172,17 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
       : Instance{instance}
-      , KernelNameMangler(instance.getASTContext().createMangleContext())
-  {}
+      , KernelNameMangler(clang::ItaniumMangleContext::create(
+        instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+  {
+#ifdef _WIN32
+    // necessary, to rely on device mangling. API introduced in 
+    // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
+    KernelNameMangler->setDeviceMangleContext(
+      Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
+      && Instance.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily());
+#endif // _WIN32
+  }
 
   ~FrontendASTVisitor()
   {}

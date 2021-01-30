@@ -252,12 +252,11 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op) {
                       error_info{"cuda_queue: cudaMemPrefetchAsync() failed",
                                  error_code{"CUDA", err}});
   }
-  return make_success();
 #else
   HIPSYCL_DEBUG_WARNING << "cuda_queue: Ignoring prefetch() hint"
                         << std::endl;
-  return make_success();
 #endif // _WIN32
+  return make_success();
 }
 
 result cuda_queue::submit_memset(const memset_operation &op) {

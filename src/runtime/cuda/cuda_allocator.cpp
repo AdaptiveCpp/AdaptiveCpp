@@ -165,13 +165,11 @@ result cuda_allocator::mem_advise(const void *addr, std::size_t num_bytes,
       error_info{"cuda_allocator: cudaMemAdvise() failed", error_code{"CUDA", err}}
     );
   }
-
-  return make_success();
 #else
   HIPSYCL_DEBUG_WARNING << "cuda_allocator: Ignoring mem_advise() hint"
                         << std::endl;
-  return make_success();
 #endif // _WIN32
+  return make_success();
 }
 
 }

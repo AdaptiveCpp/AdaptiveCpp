@@ -201,7 +201,9 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
   \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
   \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
+  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\",
+  \"default-is-explicit-multipass\" : \"false\",
+  \"default-save-temps\" : \"false\"
 }
 ")
 

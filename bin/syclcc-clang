@@ -657,8 +657,8 @@ static std::array __hipsycl_cuda_bundle {
 };
 """
     result += "static const unsigned long long __hipsycl_cuda_bundle_id={}ull;\n".format(
-      uuid.uuid1().int>>64)
-"""
+      uuid.uuid1().int >> 64)
+    result += """
 #endif
 """
     return result

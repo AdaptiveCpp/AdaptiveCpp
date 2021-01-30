@@ -34,7 +34,7 @@
 
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h> //for make_cudaPitchedPtr
-
+#include <cuda.h> // For kernels launched from modules
 
 #include <cassert>
 #include <memory>
@@ -304,6 +304,46 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
+result cuda_queue::submit_kernel_from_module(cuda_module_manager &manager,
+                                             const cuda_module &module,
+                                             const std::string &kernel_name,
+                                             const rt::range<3> &grid_size,
+                                             const rt::range<3> &block_size,
+                                             unsigned dynamic_shared_mem,
+                                             void **kernel_args) {
+
+  this->activate_device();
+
+  CUmodule cumodule;
+  result res = manager.load(_dev, module, cumodule);
+  if (!res.is_success())
+    return res;
+
+  CUfunction f;
+  CUresult err = cuModuleGetFunction(&f, cumodule, kernel_name.c_str());
+
+  if (err != CUDA_SUCCESS) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: could not extract kernel from module",
+                                 error_code{"CU", static_cast<int>(err)}});
+  }
+
+  err = cuLaunchKernel(f, static_cast<unsigned>(grid_size.get(0)),
+                       static_cast<unsigned>(grid_size.get(1)),
+                       static_cast<unsigned>(grid_size.get(2)),
+                       static_cast<unsigned>(block_size.get(0)),
+                       static_cast<unsigned>(block_size.get(1)),
+                       static_cast<unsigned>(block_size.get(2)),
+                       dynamic_shared_mem, _stream, kernel_args, nullptr);
+
+  if (err != CUDA_SUCCESS) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: could not submit kernel from module",
+                                 error_code{"CU", static_cast<int>(err)}});
+  }
+  
+  return make_success();
+}
 }
 }
 

@@ -33,7 +33,8 @@ if(WITH_CUDA_BACKEND)
     cuda/cuda_allocator.cpp
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
-    cuda/cuda_backend.cpp)
+    cuda/cuda_backend.cpp
+    cuda/cuda_module.cpp)
 endif()
 
 if(WITH_ROCM_BACKEND)

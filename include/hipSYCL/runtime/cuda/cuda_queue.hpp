@@ -31,6 +31,8 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 
+#include "cuda_module.hpp"
+
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
 // It's not possible to include both HIP and CUDA headers since they
 // define conflicting symbols. Therefore we should not include
@@ -65,6 +67,14 @@ public:
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
   device_id get_device() const { return _dev; }
+
+  result submit_kernel_from_module(cuda_module_manager& manager,
+                                   const cuda_module &module,
+                                   const std::string &kernel_name,
+                                   const rt::range<3> &grid_size,
+                                   const rt::range<3> &block_size,
+                                   unsigned dynamic_shared_mem,
+                                   void** kernel_args);
 private:
   void activate_device() const;
   

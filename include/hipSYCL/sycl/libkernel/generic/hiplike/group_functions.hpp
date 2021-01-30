@@ -77,16 +77,12 @@ template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, T *first, T *last) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = false;
 
-  auto local = *start_ptr;
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local |= *p;
 
   return group_any_of(g, local);
@@ -96,16 +92,12 @@ template<typename Group, typename T, typename Predicate>
 HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, T *first, T *last, Predicate pred) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = false;
 
-  auto local = pred(*start_ptr);
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local |= pred(*p);
 
   return group_any_of(g, local);
@@ -128,16 +120,12 @@ template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, T *first, T *last) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = true;
 
-  auto local = *start_ptr;
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local &= *p;
 
   return group_all_of(g, local);
@@ -147,16 +135,12 @@ template<typename Group, typename T, typename Predicate>
 HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, T *first, T *last, Predicate pred) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = true;
 
-  auto local = pred(*start_ptr);
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local &= pred(*p);
 
   return group_all_of(g, local);
@@ -179,16 +163,12 @@ template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 bool none_of(Group g, T *first, T *last) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = false;
 
-  auto local = *start_ptr;
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local |= *p;
 
   return group_none_of(g, local);
@@ -198,16 +178,12 @@ template<typename Group, typename T, typename Predicate>
 HIPSYCL_KERNEL_TARGET
 bool none_of(Group g, T *first, T *last, Predicate pred) {
   auto group_range        = g.get_local_range().size();
-  auto elements_per_group = (last - first + group_range - 1) / group_range;
-  T *  start_ptr          = first + elements_per_group * g.get_local_linear_id();
-  T *  end_prt            = start_ptr + elements_per_group;
+  auto lid        = g.get_local_linear_id();
+  T *  start_ptr          = first + lid;
 
-  if (end_prt > last)
-    end_prt = last;
+  bool local = false;
 
-  auto local = pred(*start_ptr);
-
-  for (T *p = start_ptr + 1; p < end_prt; ++p)
+  for (T *p = start_ptr; p < last; p += group_range)
     local |= pred(*p);
 
   return group_none_of(g, local);

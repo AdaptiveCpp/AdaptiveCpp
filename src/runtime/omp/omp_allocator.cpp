@@ -41,7 +41,10 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 #ifndef _WIN32
   if (min_alignment <= 1)
     return malloc(size_bytes);
-  
+#else
+  min_alignment = std::max(min_alignment, 1ULL);
+#endif
+
   if(size_bytes % min_alignment != 0)
     return nullptr;
   min_alignment = power_of_2_ceil(min_alignment);
@@ -50,17 +53,9 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
   // but it's unclear if it's a Mac, or libc++, or toolchain issue
 #ifdef __APPLE__
   return aligned_alloc(min_alignment, size_bytes);
-#else
+#elif !defined(_WIN32)
   return std::aligned_alloc(min_alignment, size_bytes);
-#endif
 #else
-  if(min_alignment >= 1 && size_bytes % min_alignment != 0)
-    return nullptr;
-
-  if(min_alignment < alignof(void*))
-    min_alignment = alignof(void*); 
-  min_alignment = power_of_2_ceil(min_alignment);
-
   return _aligned_malloc(size_bytes, min_alignment);
 #endif
 }

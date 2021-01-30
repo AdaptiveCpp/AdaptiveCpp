@@ -32,9 +32,10 @@
 #include <cassert>
 
 #include <cuda_runtime_api.h>
+#include <cuda.h>
 
-#include "hipSYCL/runtime/cuda/cuda_module.hpp
-#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp
+#include "hipSYCL/runtime/cuda/cuda_module.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/common/debug.hpp"
 
@@ -60,8 +61,8 @@ void trim_right_space_and_parenthesis(std::string &s) {
 }
 
 cuda_module::cuda_module(cuda_module_id_t module_id, const std::string &target,
-                         const std::string &code_content) _id{module_id},
-    _target{target}, _content{code_content} {
+                         const std::string &code_content)
+    : _id{module_id}, _target{target}, _content{code_content} {
 
   std::istringstream code_stream(code_content);
   std::string line;
@@ -74,13 +75,12 @@ cuda_module::cuda_module(cuda_module_id_t module_id, const std::string &target,
     if (pos != std::string::npos) {
       line = line.substr(pos+kernel_identifier.size());
       trim_left(line);
-      trim_right(line);
+      trim_right_space_and_parenthesis(line);
       HIPSYCL_DEBUG_INFO << "Detected kernel in module: " << line << std::endl;
       _kernel_names.push_back(line);
     }
   }
 }
-
 
 const std::vector<std::string> &
 cuda_module::get_kernel_names() const {
@@ -126,7 +126,7 @@ cuda_module_manager::cuda_module_manager(std::size_t num_devices)
 
 cuda_module_manager::~cuda_module_manager() {
   for (std::size_t i = 0; i < _cuda_modules.size(); ++i) {
-    if (mod) {
+    if (_cuda_modules[i]) {
       cuda_device_manager::get().activate_device(i);
       auto err = cuModuleUnload(_cuda_modules[i]);
 
@@ -151,6 +151,7 @@ cuda_module_manager::obtain_module(cuda_module_id_t id,
   }
 
   _modules.push_back(cuda_module(id, target, content));
+  return _modules.back();
 }
 
 result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
@@ -184,9 +185,11 @@ result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
     }
   }
 
-  auto err = cuModuleLoadDataEx(&(_cuda_modules[dev_id]),
-                                static_cast<void *>(module.get_content()), 0,
-                                nullptr, nullptr);
+  auto err = cuModuleLoadDataEx(
+      &(_cuda_modules[dev_id]),
+      static_cast<void *>(const_cast<char *>(module.get_content().c_str())),
+      0, nullptr,
+      nullptr);
 
   if (err != CUDA_SUCCESS) {
     return make_error(__hipsycl_here(),
@@ -195,18 +198,10 @@ result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
   }
   _active_modules[dev_id] = module.get_id();
   out = _cuda_modules[dev_id];
-  
+
   return make_success();
 }
 
-CUmod_st *cuda_module_manager::get_cuda_module(const cuda_module &module,
-                                               rt::device_id dev) const {
-  assert(dev.backend() == backend_id::cuda);
-  assert(dev.get_id() < _cuda_modules.size());
-  return _cuda_modules[dev.get_id()];
-}
-  
-}
 
 } // namespace rt
 } // namespace hipsycl

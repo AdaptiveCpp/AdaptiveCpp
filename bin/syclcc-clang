@@ -35,7 +35,8 @@ import os.path
 import sys
 import subprocess
 import string
-
+import tempfile
+import uuid
 
 class OptionNotSet(Exception):
   def __init__(self, msg):
@@ -195,7 +196,15 @@ class syclcc_config:
     self._flags = {
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
 """  If set, only shows compilation commands that would be executed, 
-  but does not actually execute it.""")
+  but does not actually execute it. """),
+      'is-explicit-multipass': option("--hipsycl-explicit-multipass", "HIPSYCL_EXPLICIT_MULTIPASS",
+      "default-is-explicit-multipass",
+"""  If set, executes device passes as separate compiler invocation and lets hipSYCL control embedding device
+  images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
+  incompatible. In this mode, source code level interoperability may not be supported in the host pass.
+  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. """),
+      'should-save-temps': option("--hipsycl-save-temps", "HIPSYCL_SAVE_TEMPS", "default-save-temps",
+"""  If set, do not delete temporary files created during compilation.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._hipsycl_args = []
@@ -519,6 +528,20 @@ class syclcc_config:
       return False
   
   @property
+  def is_explicit_multipass(self):
+    try:
+      return self._is_flag_set("is-explicit-multipass")
+    except OptionNotSet:
+      return False
+
+  @property
+  def save_temps(self):
+    try:
+      return self._is_flag_set("should-save-temps")
+    except OptionNotSet:
+      return False
+
+  @property
   def common_compiler_args(self):
     return self._common_compiler_args
   
@@ -539,14 +562,19 @@ class syclcc_config:
         return False
     return True
 
-  def is_pure_linking_stage(self):
-    source_file_endings = set([".cpp",".cxx",".c++",".cc",".c", ".hip", ".cu"])
+  @property
+  def source_file_arguments(self):
+    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu"])
+    source_files = []
     for arg in self.forwarded_compiler_arguments:
       if not arg.startswith("-"):
         for ending in source_file_endings:
           if arg.lower().endswith(ending):
-            return False
-    return True
+            source_files.append(arg)
+    return source_files
+
+  def is_pure_linking_stage(self):
+    return len(self.source_file_arguments) == 0
 
 def run_or_print(command, print_only):
   if not print_only:
@@ -554,6 +582,95 @@ def run_or_print(command, print_only):
   else:
     print(' '.join(command))
     return 0
+
+class cuda_multipass_invocation:
+  def __init__(self, config):
+    self._config = config
+    self._temp_dir = None
+    self._hipsycl_lib_path = os.path.join(
+      config.hipsycl_installation_path, "lib/")
+    self.set_temp_dir("/tmp")
+
+  def set_temp_dir(self, temp_dir):
+    self._temp_dir = temp_dir
+    self._integration_header = os.path.join(
+      self._temp_dir,"__hipsycl_embedded_cuda_kernels.hpp")
+
+  def get_requested_targets(self):
+    return self._config.targets["cuda"]
+
+  def get_device_compiler(self):
+    return self._config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._config.clang_path, 100)
+
+  def get_flags(self, target):
+    flags = self._config.cuda_cxx_flags
+    flags += [
+        "-x", "cuda",
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so"),
+        "--cuda-path=" + self._config.cuda_path,
+        "--cuda-device-only",
+        "--cuda-gpu-arch=" + target,
+        "-S",
+        "-o",self._explicit_pass_output_file(target)
+      ]
+
+    return flags
+
+  # CXX flags for main pass
+  def get_cxx_flags(self):
+    return [
+      "-D__HIPSYCL_MULTIPASS_CUDA_HEADER__='{}'".format(
+            self._integration_header),
+      "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+    ]
+
+  # Linker flags for main pass
+  def get_linker_flags(self):
+    return self._config.cuda_link_line
+
+  def _explicit_pass_output_file(self, target):
+    return os.path.join(self._temp_dir, "nvptx-"+target+".hipsycl_kernels")
+
+  def _generate_integration_header_content(self, targets, ptx_files):
+    ptx_content = []
+    for filename in ptx_files:
+      with open(filename, 'r') as f:
+        ptx_content.append(f.read())
+
+    result = """ 
+#ifndef HIPSYCL_CUDA_INTEGRATION_HEADER_HPP
+#define HIPSYCL_CUDA_INTEGRATION_HEADER_HPP
+
+static std::array __hipsycl_cuda_bundle {
+"""
+    for target, ptx in zip(targets, ptx_content):
+      result += "__hipsycl_cuda_embedded_object {{ std::string {{ {0} }}, std::string {{R\"__hipsycl_embedded({1})__hipsycl_embedded\"}} }},\n".format(target, ptx)
+    #remove trailing ,
+    if result.endswith(",\n"):
+      result = result[:-2]+"\n"
+    result += """
+};
+"""
+    result += "static const unsigned long long __hipsycl_cuda_bundle_id={}ull;\n".format(
+      uuid.uuid1().int>>64)
+"""
+#endif
+"""
+    return result
+
+  def create_kernel_bundle(self, targets):
+    ptx_files = [self._explicit_pass_output_file(target) for target in targets]
+
+    header_content = self._generate_integration_header_content(
+      targets, ptx_files)
+    
+    with open(self._integration_header, 'w') as f:
+      f.write(header_content)
 
 
 class cuda_invocation:
@@ -683,27 +800,60 @@ class compiler:
     self._common_compiler_args = config.common_compiler_args
     self._hipsycl_path = config.hipsycl_installation_path
     self._hipsycl_lib_path = os.path.join(self._hipsycl_path, "lib/")
+    self._is_explicit_multipass = config.is_explicit_multipass
+    self._save_temps = config.save_temps
 
     if "hip" in self._targets and "cuda" in self._targets:
-      raise RuntimeError("CUDA and HIP cannot be targeted simultaneously")
+        if not self._is_explicit_multipass:
+          print("syclcc warning: CUDA and HIP cannot be targeted "
+              "simultaneously in non-explicit multipass; enabling explicit "
+              "multipass compilation.")
+          self._is_explicit_multipass = True
 
     self._backends = []
+    self._multipass_backends = []
 
     for backend in self._targets:
       if backend == "omp":
         self._backends.append(omp_invocation(config))
       elif backend == "cuda":
-        self._backends.append(cuda_invocation(config))
+        if self._is_explicit_multipass:
+          self._multipass_backends.append(
+            cuda_multipass_invocation(config))
+        else:
+          self._backends.append(cuda_invocation(config))
       elif backend == "hip":
         self._backends.append(hip_invocation(config))
       else:
         raise RuntimeError("Unknown backend: " + backend)
-      
+
+    self._backends += self._multipass_backends  
     
     if not "omp" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))
+
+    self._source_files = config.source_file_arguments
+    self._multipass_user_args = self._construct_multipass_user_args()
+
+  def _construct_multipass_user_args(self):
+    args = list(self._user_args)
+
+    # For multipass, we nyeed to remove -c and -o arguments
+    if "-c" in args:
+      args.remove("-c")
+    if "-o" in args:
+      idx = args.index("-o")
+      # Also remove argument to -o
+      if idx + 1 < len(args):
+        args.pop(idx + 1)
+      args.pop(idx)
+    # Need to remove source file arguments
+    for source_file in self._source_files:
+      if source_file in args:
+        args.remove(source_file)
+    return args
 
   @property
   def common_cxx_flags(self):
@@ -724,7 +874,35 @@ class compiler:
 
     return linker_args
 
-  def run(self):
+  def _run_device_passes(self, temp_dir, multipass_backend):
+    if len(self._source_files) > 1:
+      raise RuntimeError("Multipass compilations only support a single source file "
+                        "as argument")
+    if len(self._source_files) == 0:
+      raise RuntimeError("No input file for compilation was identified")
+
+    multipass_backend.set_temp_dir(temp_dir)
+    cxx = multipass_backend.get_device_compiler()
+    targets = multipass_backend.get_requested_targets()
+
+    for target in targets:
+      flags = self.common_cxx_flags + multipass_backend.get_flags(target)
+      flags += self._multipass_user_args
+      flags += [self._source_files[0]]
+
+      ret_val = run_or_print([cxx] + flags,
+                            self._is_dry_run)
+      if ret_val != 0:
+        sys.exit(ret_val)
+
+    if not self._is_dry_run:
+      multipass_backend.create_kernel_bundle(targets)
+
+  def _run(self, temp_dir):
+    if len(self._multipass_backends) > 0 and self._requires_compilation:
+      for b in self._multipass_backends:
+        self._run_device_passes(temp_dir, b)
+
     cxx_flags = self.common_cxx_flags
     ld_flags = self.common_linker_flags
     compiler_executable, compiler_priority = ("", 0)
@@ -749,6 +927,17 @@ class compiler:
 
     return run_or_print([compiler_executable] + args,
                         self._is_dry_run)
+
+  def run(self):
+    temp_prefix = "hipSYCL-syclcc-"
+    if not self._save_temps:
+      with tempfile.TemporaryDirectory(prefix=temp_prefix) as temp_dir:
+        return self._run(temp_dir)
+    else:
+      temp_dir = tempfile.mkdtemp(prefix=temp_prefix)
+      print("syclcc: Using temporary directory:",temp_dir)
+      return self._run(temp_dir)
+
 
 def print_usage(config):
   print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2020 Aksel Alpay")

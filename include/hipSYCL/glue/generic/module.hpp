@@ -60,30 +60,44 @@ static std::array<__hipsycl_cuda_embedded_object, 0> __hipsycl_cuda_bundle;
 namespace hipsycl {
 namespace glue {
 
-template<rt::backend_id Backend>
-class this_module {
-public:
-  struct embedded_object {
-    std::string target;
-    std::string data;
-  };
+template <rt::backend_id Backend>
+struct this_module {
 
-  static unsigned long long get_module_id() { return __hipsycl_cuda_bundle_id; }
+  template <class Handler> static void for_each_object(Handler &&h) {}
+  template <class Handler> static void for_each_target(Handler &&h) {}
+  static const std::string* get_code_object(const std::string& target);
   
-  static std::vector<embedded_object> content() {
-    std::vector<embedded_object> result;
-
-    if constexpr (Backend == rt::backend_id::cuda) {
-#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-      for(const auto& obj : __hipsycl_cuda_bundle) {
-        result.push_back(embedded_object{obj.target, obj.data});
-      }
-#endif
-    }
-
-    return result;
-  }
+  static constexpr std::size_t num_objects = 0;
+  static constexpr std::size_t module_id = 0;
 };
+
+template <>
+struct this_module<rt::backend_id::cuda> {
+
+  template <class Handler> static void for_each_object(Handler &&h) {  
+    for (const auto &obj : __hipsycl_cuda_bundle) {
+      h(obj);
+    }
+  }
+
+  template <class Handler> static void for_each_target(Handler &&h) {
+    for (const auto &obj : __hipsycl_cuda_bundle) {
+      h(obj.target);
+    }
+  }
+
+  static const std::string* get_code_object(const std::string &target) {
+    for (const auto &obj : __hipsycl_cuda_bundle) {
+      if (obj.target == target)
+        return &(obj.data);
+    }
+    return nullptr;
+  }
+  
+  static constexpr std::size_t num_objects = __hipsycl_cuda_bundle.size();
+  static constexpr std::size_t module_id = __hipsycl_cuda_bundle_id;
+};
+
 
 }
 } // namespace hipsycl

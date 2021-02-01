@@ -32,7 +32,6 @@
 #include <utility>
 #include <cstdlib>
 
-
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
@@ -50,9 +49,13 @@
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
 
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/cuda/cuda_backend.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 #include "hipSYCL/glue/generic/module.hpp"
 #ifdef HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
@@ -71,11 +74,11 @@
 #ifndef __sycl_kernel
  #define __sycl_kernel
 #endif
-#ifndef __hipsycl_launch_kernel
+#ifndef __hipsycl_launch_integrated_kernel
 
-// TODO
-#define __hipsycl_launch_kernel(f, grid, block, shared_mem, stream, ...)       \
-  f(__VA_ARGS__);
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+                                           ...)                                \
+  assert(false && "Dummy integrated kernel launch was called");
 
 struct dim3 {
   dim3() = default;
@@ -532,6 +535,16 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
+#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, dispatcher, grid, \
+                                block, shared_mem, stream, ...)                \
+  if (is_launch_from_module()) {                                               \
+    invoke_from_module<KernelNameT, KernelBodyT>(dispatcher, grid, block,      \
+                                                 shared_mem, __VA_ARGS__);     \
+  } else {                                                                     \
+    __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
+                                       __VA_ARGS__)                            \
+  }
+
   hiplike_kernel_launcher()
       : _queue{nullptr}, _invoker{[]() {}} {}
 
@@ -589,9 +602,11 @@ public:
       // Simple cases first: Kernel types that don't support
       // reductions
       if constexpr (type == rt::kernel_type::single_task) {
-       
-        __hipsycl_launch_kernel(
-            hiplike_dispatch::single_task_kernel<KernelName>, 1, 1,
+
+        __hipsycl_invoke_kernel(
+            hiplike_dispatch::single_task_kernel<KernelName>, KernelName,
+            Kernel, "single_task_kernel",
+            dim3(1, 1, 1), dim3(1, 1, 1),
             dynamic_local_memory, _queue->get_stream(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
@@ -645,8 +660,9 @@ public:
 
           if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-            __hipsycl_launch_kernel(
-                hiplike_dispatch::parallel_for_kernel<KernelName>,
+            __hipsycl_invoke_kernel(
+                hiplike_dispatch::parallel_for_kernel<KernelName>, KernelName,
+                Kernel, "parallel_for_kernel",
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -658,8 +674,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
+            __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
+                KernelName, Kernel, "parallel_for_ndrange_kernel",
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -672,8 +689,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
+            __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_workgroup<KernelName>,
+                KernelName, Kernel, "parallel_for_workgroup",
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -685,8 +703,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
+            __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_region<KernelName>,
+                KernelName, Kernel, "parallel_region",
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -717,19 +736,23 @@ public:
 
               int num_elements = reduction_stages[stage].global_size.size();
 
-              __hipsycl_launch_kernel(
+              auto pure_reduction_kernel = [=](int gid,
+                                               auto &...local_reducers) {
+                if (gid < num_elements)
+                  (local_reducers.combine_global_input(gid), ...);
+              };
+
+              __hipsycl_invoke_kernel(
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
                       class _unnamed_kernel>,
+                  class _unnamed_kernel, decltype(pure_reduction_kernel),
+                  "primitive_parallel_for_with_local_reducers",
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{local_size}),
                   reduction_stages[stage].allocated_local_memory,
-                  _queue->get_stream(),
-                  [=](int gid, auto &... local_reducers) {
-                    if(gid < num_elements)
-                      (local_reducers.combine_global_input(gid), ...);
-                  },
+                  _queue->get_stream(), pure_reduction_kernel,
                   reduction_descriptors...);
             }
           }
@@ -755,8 +778,106 @@ public:
   virtual rt::kernel_type get_kernel_type() const final override {
     return _type;
   }
-  
+
 private:
+  bool is_launch_from_module() const {
+#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+    return Backend_id == rt::backend_id::cuda;
+#else
+    return false;
+#endif
+  }
+  template <class KernelName, class KernelBodyT, typename... Args>
+  void invoke_from_module(const std::string &dispatcher, dim3 grid_size,
+                          dim3 block_size, unsigned dynamic_shared_mem,
+                          Args... args) {
+    if constexpr (Backend_id == rt::backend_id::cuda) {
+#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+      if (this_module<rt::backend_id::cuda>::num_objects == 0) {
+        rt::register_error(
+            __hipsycl_here(),
+            rt::error_info{
+                "hiplike_kernel_launcher: Cannot invoke CUDA kernel: No code "
+                "objects present in this module."});
+        return;
+      }
+      
+      rt::hardware_context *ctx =
+          rt::application::get_backend(rt::backend_id::cuda)
+              .get_hardware_manager()
+              ->get_device(_queue->get_device().get_id());
+
+      std::string target_arch = ctx->get_device_arch();
+      std::string selected_arch;
+      this_module<rt::backend_id::cuda>::for_each_target(
+          [&](const std::string &available_code_arch) {
+            if (available_code_arch == target_arch) {
+              selected_arch = target_arch;
+            }
+          });
+
+      if (selected_arch.size() == 0) {
+        // TODO: Improve selection when we don't have an exact match
+        this_module<rt::backend_id::cuda>::for_each_target(
+            [&](const std::string &available_code_arch) {
+              selected_arch = target_arch;
+            });
+        
+        HIPSYCL_DEBUG_WARNING
+            << "hiplike_kernel_launcher: No exact target architecture match "
+               "found in this compilation unit; selecting kernel for "
+            << selected_arch << std::endl;
+      }
+
+      const std::string *code =
+          this_module<rt::backend_id::cuda>::get_code_object(selected_arch);
+      assert(code && "Invalid code object");
+
+      rt::cuda_backend *b = cast<rt::cuda_backend>(
+          &(rt::application::get_backend(rt::backend_id::cuda)));
+
+      const rt::cuda_module &code_module = b->get_module_manager().obtain_module(
+          this_module<rt::backend_id::cuda>::module_id, selected_arch, *code);
+
+      std::string kernel_name;
+      // First check if there is a kernel in the module that matches
+      // the expected explicitly named kernel name
+      if (!code_module.guess_kernel_name(
+              "__hipsycl_kernel", typeid(KernelName).name(), kernel_name)) {
+
+        // We are dealing with an unnamed kernel, so check if we can find
+        // a matching unnamed kernel
+        if (!code_module.guess_kernel_name(
+                dispatcher, typeid(KernelBodyT).name(), kernel_name)) {
+
+          rt::register_error(
+              __hipsycl_here(),
+              rt::error_info{"hiplike_kernel_launcher: No matching CUDA kernel "
+                             "found in module"});
+          return;
+        }
+      }
+
+      std::array<void *, sizeof...(Args)> kernel_args{
+        static_cast<void *>(&args)...
+      };
+
+      rt::result err = _queue->submit_kernel_from_module(
+          b->get_module_manager(), code_module, kernel_name,
+          rt::range<3>{grid_size.x, grid_size.y, grid_size.z},
+          rt::range<3>{block_size.x, block_size.y, block_size.z},
+          dynamic_shared_mem, kernel_args.data());
+
+      if (!err.is_success())
+        rt::register_error(err);
+#else
+      assert(false && "No module available to invoke kernels from");
+#endif
+    } else {
+      assert(false && "Backend does not support kernel launch from module");
+    }
+  }
+
   Queue_type *_queue;
   rt::kernel_type _type;
   std::function<void ()> _invoker;

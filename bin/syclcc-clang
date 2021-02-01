@@ -624,7 +624,7 @@ class cuda_multipass_invocation:
   # CXX flags for main pass
   def get_cxx_flags(self):
     return [
-      "-D__HIPSYCL_MULTIPASS_CUDA_HEADER__='{}'".format(
+      "-D__HIPSYCL_MULTIPASS_CUDA_HEADER__=\"{}\"".format(
             self._integration_header),
       "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
     ]
@@ -649,7 +649,7 @@ class cuda_multipass_invocation:
 static std::array __hipsycl_cuda_bundle {
 """
     for target, ptx in zip(targets, ptx_content):
-      result += "__hipsycl_cuda_embedded_object {{ std::string {{ {0} }}, std::string {{R\"__hipsycl_embedded({1})__hipsycl_embedded\"}} }},\n".format(target, ptx)
+      result += "__hipsycl_cuda_embedded_object {{ std::string {{\"{0}\"}}, std::string {{R\"__hipsycl_embed({1})__hipsycl_embed\"}} }},\n".format(target, ptx)
     #remove trailing ,
     if result.endswith(",\n"):
       result = result[:-2]+"\n"

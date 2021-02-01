@@ -57,7 +57,10 @@
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
+#include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
+
+
 #ifdef HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
  #include "clang.hpp"
  #include "hiplike_reducer.hpp"
@@ -744,8 +747,8 @@ public:
 
               __hipsycl_invoke_kernel(
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
-                      class _unnamed_kernel>,
-                  class _unnamed_kernel, decltype(pure_reduction_kernel),
+                      __hipsycl_unnamed_kernel>,
+                  __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
                   "primitive_parallel_for_with_local_reducers",
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),

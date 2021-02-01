@@ -243,7 +243,7 @@ public:
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
         auto KernelName = RecordDecl->getNameAsString();
-        if (KernelName == "_unnamed_kernel") {
+        if (KernelName == "__hipsycl_unnamed_kernel") {
           // If no name is provided, rely on clang name mangling
 
           // Earlier clang versions suffer from potentially inconsistent

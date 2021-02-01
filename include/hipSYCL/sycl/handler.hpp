@@ -59,6 +59,7 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
+#include "hipSYCL/glue/kernel_names.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -116,14 +117,14 @@ public:
   }
 
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType>
+  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
   void single_task(KernelType kernelFunc)
   {
     this->submit_kernel<KernelName, rt::kernel_type::single_task>(
       sycl::id<1>{0}, sycl::range<1>{1}, sycl::range<1>{1}, kernelFunc);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -138,7 +139,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
@@ -153,7 +154,7 @@ public:
     detail::separate_last_argument_and_apply(invoker, redu_kernel...);
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {
@@ -171,7 +172,7 @@ public:
 
   /// \todo flexible ranges are currently unsupported
   /*
-  template <typename KernelName= class _unnamed_kernel,
+  template <typename KernelName= __hipsycl_unnamed_kernel,
             typename WorkgroupFunctionType, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                WorkgroupFunctionType kernelFunc)
@@ -182,7 +183,7 @@ public:
   }
   */
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for_work_group(range<dimensions> numWorkGroups,
                                range<dimensions> workGroupSize,
@@ -198,7 +199,7 @@ public:
 
   // Scoped parallelism API
   
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -354,7 +355,7 @@ public:
                   "host_image targets are unsupported");
 
 
-    this->submit_kernel<class _unnamed_kernel, rt::kernel_type::basic_parallel_for>(
+    this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
         dest.get_offset(), dest.get_range(),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
@@ -426,7 +427,7 @@ public:
         throw invalid_parameter_error{"handler: USM fill() is unsupported "
                                       "for queues not bound to devices"};
 
-      this->submit_kernel<class _unnamed_kernel,
+      this->submit_kernel<__hipsycl_unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
           sycl::id<1>{}, sycl::range<1>{count},
           get_preferred_group_size<1>(),

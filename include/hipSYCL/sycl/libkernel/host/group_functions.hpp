@@ -269,10 +269,10 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOp
 
   if (g.leader()) {
     *(result++) = init;
-    while (first != last - 1) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
-    }
+    size_t num_elements = last-first - 1;
+#pragma omp simd
+    for (size_t i = 0; i < num_elements; ++i)
+      result[i] = binary_op(result[i - 1], first[i]);
   }
   return result;
 }
@@ -286,7 +286,13 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
-  auto ret = leader_exclusive_scan(g, first, last, result, init, binary_op);
+  if (g.leader()) {
+    *(result++) = init;
+    while (first != last - 1) {
+      *result = binary_op(*(result - 1), *(first++));
+      result++;
+    }
+  }
   return group_broadcast(g, result);
 }
 
@@ -305,12 +311,12 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOp
 
   if (g.leader()) {
     *(result++) = binary_op(init, *(first++));
-    while (first != last) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
-    }
+    size_t num_elements = last-first;
+#pragma omp simd
+    for (size_t i = 0; i < num_elements; ++i)
+      result[i] = binary_op(result[i - 1], first[i]);
   }
-  return result;
+  return last;
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
@@ -322,8 +328,17 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
-  auto ret = leader_inclusive_scan(g, first, last,result, init, binary_op);
-  return group_broadcast(g, ret);
+  if (first == last)
+    return result;
+
+  if (g.leader()) {
+    *(result++) = binary_op(init, *(first++));
+    while (first != last) {
+      *result = binary_op(*(result - 1), *(first++));
+      result++;
+    }
+  }
+  return group_broadcast(g, result);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>

@@ -60,44 +60,58 @@ static std::array<__hipsycl_cuda_embedded_object, 0> __hipsycl_cuda_bundle;
 namespace hipsycl {
 namespace glue {
 
-template <rt::backend_id Backend>
-struct this_module {
+namespace this_module {
 
-  template <class Handler> static void for_each_object(Handler &&h) {}
-  template <class Handler> static void for_each_target(Handler &&h) {}
-  static const std::string* get_code_object(const std::string& target);
-  
-  static constexpr std::size_t num_objects = 0;
-  static constexpr std::size_t module_id = 0;
-};
-
-template <>
-struct this_module<rt::backend_id::cuda> {
-
-  template <class Handler> static void for_each_object(Handler &&h) {  
+// These functions cannot be moved to a struct because member functions
+// cannot have static linkage.
+template <rt::backend_id Backend, class Handler>
+static void for_each_object(Handler &&h) {
+  if constexpr(Backend == rt::backend_id::cuda) {
     for (const auto &obj : __hipsycl_cuda_bundle) {
       h(obj);
     }
   }
+}
 
-  template <class Handler> static void for_each_target(Handler &&h) {
+template <rt::backend_id Backend, class Handler>
+static void for_each_target(Handler &&h) {
+  if constexpr(Backend == rt::backend_id::cuda) {
     for (const auto &obj : __hipsycl_cuda_bundle) {
       h(obj.target);
     }
   }
+}
 
-  static const std::string* get_code_object(const std::string &target) {
+template <rt::backend_id Backend>
+static const std::string *get_code_object(const std::string &target) {
+  if constexpr (Backend == rt::backend_id::cuda) {
     for (const auto &obj : __hipsycl_cuda_bundle) {
       if (obj.target == target)
         return &(obj.data);
     }
-    return nullptr;
   }
-  
-  static constexpr std::size_t num_objects = __hipsycl_cuda_bundle.size();
-  static constexpr std::size_t module_id = __hipsycl_cuda_bundle_id;
-};
+  return nullptr;
+}
 
+template <rt::backend_id Backend>
+static constexpr std::size_t get_num_objects() {
+  if constexpr (Backend == rt::backend_id::cuda) {
+    return __hipsycl_cuda_bundle.size();
+  } else {
+    return 0;
+  }
+}
+
+template <rt::backend_id Backend>
+static constexpr std::size_t get_module_id() {
+  if constexpr (Backend == rt::backend_id::cuda) {
+    return __hipsycl_cuda_bundle_id;
+  } else {
+    return 0;
+  }
+}
+
+} // this_module
 
 }
 } // namespace hipsycl

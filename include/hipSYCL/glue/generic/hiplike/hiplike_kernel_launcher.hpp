@@ -799,7 +799,7 @@ private:
 #if !defined(__clang_major__) || __clang_major__ < 11
   #error Multipass compilation requires clang >= 11
 #endif
-      if (this_module<rt::backend_id::cuda>::num_objects == 0) {
+      if (this_module::get_num_objects<rt::backend_id::cuda>() == 0) {
         rt::register_error(
             __hipsycl_here(),
             rt::error_info{
@@ -807,7 +807,7 @@ private:
                 "objects present in this module."});
         return;
       }
-      
+
       rt::hardware_context *ctx =
           rt::application::get_backend(rt::backend_id::cuda)
               .get_hardware_manager()
@@ -815,7 +815,7 @@ private:
 
       std::string target_arch = ctx->get_device_arch();
       std::string selected_arch;
-      this_module<rt::backend_id::cuda>::for_each_target(
+      this_module::for_each_target<rt::backend_id::cuda>(
           [&](const std::string &available_code_arch) {
             if (available_code_arch == target_arch) {
               selected_arch = target_arch;
@@ -824,7 +824,7 @@ private:
 
       if (selected_arch.size() == 0) {
         // TODO: Improve selection when we don't have an exact match
-        this_module<rt::backend_id::cuda>::for_each_target(
+        this_module::for_each_target<rt::backend_id::cuda>(
             [&](const std::string &available_code_arch) {
               selected_arch = available_code_arch;
             });
@@ -836,14 +836,20 @@ private:
       }
 
       const std::string *code =
-          this_module<rt::backend_id::cuda>::get_code_object(selected_arch);
+          this_module::get_code_object<rt::backend_id::cuda>(selected_arch);
       assert(code && "Invalid code object");
 
       rt::cuda_backend *b = cast<rt::cuda_backend>(
           &(rt::application::get_backend(rt::backend_id::cuda)));
 
-      const rt::cuda_module &code_module = b->get_module_manager().obtain_module(
-          this_module<rt::backend_id::cuda>::module_id, selected_arch, *code);
+      HIPSYCL_DEBUG_INFO << "Obtaining module with id "
+                         << this_module::get_module_id<rt::backend_id::cuda>()
+                         << std::endl;
+
+      const rt::cuda_module &code_module =
+          b->get_module_manager().obtain_module(
+              this_module::get_module_id<rt::backend_id::cuda>(), selected_arch,
+              *code);
 
       std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
       std::string mangled_kernel_body_type = __builtin_unique_stable_name(KernelBodyT);

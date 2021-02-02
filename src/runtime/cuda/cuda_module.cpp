@@ -157,7 +157,7 @@ cuda_module_manager::obtain_module(cuda_module_id_t id,
 result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
                                  CUmod_st *&out) {
   
-  assert(dev.backend() == backend_id::cuda);
+  assert(dev.get_backend() == backend_id::cuda);
 
   int dev_id = dev.get_id();
   assert(dev_id < _cuda_modules.size());

@@ -823,7 +823,7 @@ private:
         // TODO: Improve selection when we don't have an exact match
         this_module<rt::backend_id::cuda>::for_each_target(
             [&](const std::string &available_code_arch) {
-              selected_arch = target_arch;
+              selected_arch = available_code_arch;
             });
         
         HIPSYCL_DEBUG_WARNING

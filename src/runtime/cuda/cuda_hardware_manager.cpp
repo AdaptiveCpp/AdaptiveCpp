@@ -124,7 +124,7 @@ std::string cuda_hardware_context::get_vendor_name() const {
 }
 
 std::string cuda_hardware_context::get_device_arch() const {
-  return "sm_" + std::to_string(_properties->major) + "." +
+  return "sm_" + std::to_string(_properties->major) +
          std::to_string(_properties->minor);
 }
 

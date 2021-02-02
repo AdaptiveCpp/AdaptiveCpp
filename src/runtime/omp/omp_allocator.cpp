@@ -38,9 +38,13 @@ omp_allocator::omp_allocator(const device_id &my_device)
     : _my_device{my_device} {}
 
 void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+#ifndef _WIN32
   if (min_alignment <= 1)
     return malloc(size_bytes);
-  
+#else
+  min_alignment = std::max(min_alignment, 1ULL);
+#endif
+
   if(size_bytes % min_alignment != 0)
     return nullptr;
   min_alignment = power_of_2_ceil(min_alignment);
@@ -49,8 +53,10 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
   // but it's unclear if it's a Mac, or libc++, or toolchain issue
 #ifdef __APPLE__
   return aligned_alloc(min_alignment, size_bytes);
-#else
+#elif !defined(_WIN32)
   return std::aligned_alloc(min_alignment, size_bytes);
+#else
+  return _aligned_malloc(size_bytes, min_alignment);
 #endif
 }
 
@@ -60,7 +66,11 @@ void *omp_allocator::allocate_optimized_host(size_t min_alignment,
 };
 
 void omp_allocator::free(void *mem) {
+#ifndef _WIN32
   std::free(mem);
+#else
+  _aligned_free(mem);
+#endif
 }
 
 void* omp_allocator::allocate_usm(size_t bytes) {

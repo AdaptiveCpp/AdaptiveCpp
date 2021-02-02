@@ -237,7 +237,7 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
 }
 
 result cuda_queue::submit_prefetch(const prefetch_operation& op) {
-
+#ifndef _WIN32
   cudaError_t err = cudaSuccess;
   if (op.get_target().is_host()) {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
@@ -252,6 +252,10 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op) {
                       error_info{"cuda_queue: cudaMemPrefetchAsync() failed",
                                  error_code{"CUDA", err}});
   }
+#else
+  HIPSYCL_DEBUG_WARNING << "cuda_queue: Ignoring prefetch() hint"
+                        << std::endl;
+#endif // _WIN32
   return make_success();
 }
 

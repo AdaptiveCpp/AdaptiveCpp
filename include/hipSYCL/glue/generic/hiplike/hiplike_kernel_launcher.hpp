@@ -796,6 +796,9 @@ private:
                           Args... args) {
     if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#if !defined(__clang_major__) || __clang_major__ < 11
+  #error Multipass compilation requires clang >= 11
+#endif
       if (this_module<rt::backend_id::cuda>::num_objects == 0) {
         rt::register_error(
             __hipsycl_here(),
@@ -842,24 +845,31 @@ private:
       const rt::cuda_module &code_module = b->get_module_manager().obtain_module(
           this_module<rt::backend_id::cuda>::module_id, selected_arch, *code);
 
+      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
+      std::string mangled_kernel_body_type = __builtin_unique_stable_name(KernelBodyT);
+      // This will hold the actual kernel name in the device image
       std::string kernel_name;
       // First check if there is a kernel in the module that matches
       // the expected explicitly named kernel name
       if (!code_module.guess_kernel_name(
-              "__hipsycl_kernel", typeid(KernelName).name(), kernel_name)) {
+              "__hipsycl_kernel", kernel_name_tag, kernel_name)) {
 
         // We are dealing with an unnamed kernel, so check if we can find
         // a matching unnamed kernel
         if (!code_module.guess_kernel_name(
-                dispatcher, typeid(KernelBodyT).name(), kernel_name)) {
+                dispatcher, mangled_kernel_body_type, kernel_name)) {
 
           rt::register_error(
               __hipsycl_here(),
               rt::error_info{"hiplike_kernel_launcher: No matching CUDA kernel "
-                             "found in module"});
+                             "found in module for kernel with name tag " +
+                             kernel_name_tag + " and type " +
+                             mangled_kernel_body_type});
           return;
         }
       }
+      HIPSYCL_DEBUG_INFO << "Selected kernel from module for execution: " << kernel_name
+                         << std::endl;
 
       std::array<void *, sizeof...(Args)> kernel_args{
         static_cast<void *>(&args)...

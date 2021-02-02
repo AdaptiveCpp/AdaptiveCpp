@@ -171,9 +171,15 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
   
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
-      : Instance{instance}
-      , KernelNameMangler(clang::ItaniumMangleContext::create(
-        instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+      : Instance{instance},
+#if LLVM_VERSION_MAJOR >= 11
+        // Construct unique name mangler if supported
+      KernelNameMangler(clang::ItaniumMangleContext::create(
+          instance.getASTContext(), instance.getASTContext().getDiagnostics(), true))
+#else
+      KernelNameMangler(clang::ItaniumMangleContext::create(
+          instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+#endif
   {
 #ifdef _WIN32
     // necessary, to rely on device mangling. API introduced in 

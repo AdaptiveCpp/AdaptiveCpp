@@ -214,6 +214,19 @@ struct buffer_impl
 
 }
 
+// This class is part of the USM-buffer interop API
+template <class T> struct buffer_allocation {
+  // the USM allocation used for this device
+  T *ptr;
+  // the device for which this allocation is used.
+  // Note that the runtime may only maintain
+  // a single allocation for all host devices.
+  device dev;
+
+  // Whether the runtime will delete this allocation
+  // when the buffer is released.
+  bool is_owned;
+};
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
@@ -502,7 +515,148 @@ public:
     return !(lhs == rhs);
   }
 
+  // --- The following methods are part the hipSYCL buffer introspection API
+  // which is part of the hipSYCL buffer-USM interoperability framework.
+
+  /// Iterate over each allocation.
+  /// \param h Handler that will be invoked for each allocation.
+  ///  Signature: void(const buffer_allocation<T>&)
+  template <class Handler>
+  void for_each_allocation(Handler &&h) const{
+    _impl->data->for_each_allocation_while(
+        [&h](const rt::data_allocation<void *> &alloc) {
+          buffer_allocation<T> a = rt_data_allocation_to_buffer_alloc(alloc);
+          h(a);
+
+          return true;
+        });
+  }
+
+  /// Instruct buffer to free the allocation on the specified device at buffer
+  /// destruction.
+  /// Throws \c invalid_parameter_error if no allocation for specified device
+  /// exists.
+  void own_allocation(const device &dev) {
+
+    rt::device_id rt_dev = detail::extract_rt_device(dev);
+
+    bool found = _impl->data->find_and_handle_allocation(
+        rt_dev,
+        [](rt::data_allocation<void *> &alloc) { alloc.is_owned = true; });
+
+    if (!found)
+      throw invalid_parameter_error{
+          "Buffer does not contain allocation for specified device"};
+  }
+  /// Instruct buffer to free the allocation at buffer destruction.
+  /// \c ptr must be an existing allocation managed by the buffer.
+  /// If \c ptr cannot be found among the managed memory allocations,
+  /// \c invalid_parameter_error is thrown.
+  void own_allocation(const T *ptr) {
+    bool found = _impl->data->find_and_handle_allocation(
+        static_cast<void *>(const_cast<T*>(ptr)),
+        [&](rt::data_allocation<void *> &rt_allocation) {
+          rt_allocation.is_owned = true;
+        });
+
+    if (!found) {
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
+    }
+  }
+
+  /// Instruct buffer to not free the allocation on the specified device at buffer
+  /// destruction.
+  /// Throws \c invalid_parameter_error if no allocation for specified device
+  /// exists.
+  void disown_allocation(const device &dev) {
+    rt::device_id rt_dev = detail::extract_rt_device(dev);
+
+    bool found = _impl->data->find_and_handle_allocation(
+        rt_dev,
+        [](rt::data_allocation<void *> &alloc) { alloc.is_owned = false; });
+
+    if (!found)
+      throw invalid_parameter_error{
+          "Buffer does not contain allocation for specified device"};
+  }
+
+  /// Instruct buffer to not free the allocation associated with the provided
+  /// pointer.
+  /// Throws \c invalid_parameter_error if no allocation managed by the buffer
+  /// is described by \c ptr.
+  void disown_allocation(const T *ptr) {
+    bool found = _impl->data->find_and_handle_allocation(
+        static_cast<void *>(const_cast<T*>(ptr)),
+        [&](rt::data_allocation<void *> &rt_allocation) {
+          rt_allocation.is_owned = false;
+        });
+
+    if (!found) {
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
+    }
+  }
+
+  /// Get USM pointer for the buffer allocation of the specified device.
+  /// \return The USM pointer associated with the device, or nullptr if
+  /// the buffer does not contain an allocation for the device.
+  T *get_pointer(const device &dev) const {
+    rt::device_id rt_dev = detail::extract_rt_device(dev);
+
+    if (!_impl->data->has_allocation(rt_dev))
+      return nullptr;
+
+    // Because the hipSYCL buffer-accessor model spec guarantees that
+    // allocations are never freed before buffer destruction,
+    // it is not a race condition to assume that the allocation still
+    // exists after the check above.
+    return static_cast<T*>(_impl->data->get_memory(rt_dev));
+  }
+
+  /// \return Whether the buffer contains an allocation for the given device.
+  bool has_allocation(const device &dev) const {
+    rt::device_id rt_dev = detail::extract_rt_device(dev);
+
+    return _impl->data->has_allocation(rt_dev);
+  }
+
+  /// \return the buffer allocation object associated with the provided
+  /// device. If the buffer does not contain an allocation for the specified
+  /// device, throws \c invalid_parameter_error.
+  buffer_allocation<T> get_allocation(const device &dev) const {
+    rt::device_id rt_dev = detail::extract_rt_device(dev);
+
+    if (!_impl->data->has_allocation(rt_dev))
+      throw invalid_parameter_error{
+          "No allocation for the given device was found"};
+
+    auto rt_allocation = _impl->data->get_allocation(rt_dev);
+    return rt_data_allocation_to_buffer_alloc(rt_allocation);
+  }
+
+  /// \return the buffer allocation object associated with the provided pointer.
+  /// If the buffer does not contain an allocation described by ptr,
+  /// throws \c invalid_parameter_error.
+  buffer_allocation<T> get_allocation(const T *ptr) const {
+
+    buffer_allocation<T> result = null_allocation();
+    bool found = _impl->data->find_and_handle_allocation(
+        static_cast<void *>(const_cast<T*>(ptr)), 
+        [&](const auto &rt_allocation) {
+      result = rt_data_allocation_to_buffer_alloc(rt_allocation);
+    });
+
+    if (!found) {
+      throw invalid_parameter_error{"Provided pointer was not found among the "
+                                    "managed buffer allocations."};
+    }
+    return result;
+  }
+
+  // -- End of hipSYCL buffer-USM introspection API
 private:
+  
   struct default_policies
   {
     bool destructor_waits;
@@ -510,6 +664,27 @@ private:
     bool use_external_storage; 
   };
 
+  static buffer_allocation<T> rt_data_allocation_to_buffer_alloc(
+      const rt::data_allocation<void*> &alloc) {
+
+    buffer_allocation<T> buffer_alloc;
+    buffer_alloc.dev = sycl::device{alloc.dev};
+    buffer_alloc.is_owned = alloc.is_owned;
+    buffer_alloc.ptr = static_cast<T *>(alloc.memory);
+
+    return buffer_alloc;
+  }
+
+  static buffer_allocation<T> null_allocation() {
+    buffer_allocation<T> result;
+    result.ptr = nullptr;
+    result.is_owned = false;
+    result.dev = detail::get_host_device();
+
+    return result;
+  }
+  
+  
   template <typename Destination = std::nullptr_t>
   void set_write_back_target(Destination finalData = nullptr)
   {
@@ -599,11 +774,8 @@ private:
     // to user
     rt::range<3> page_size = rt::embed_in_range3(range);
 
-    auto on_destruction = [](rt::buffer_data_region* data) {};
-
     _impl->data = std::make_shared<rt::buffer_data_region>(
-        rt::embed_in_range3(range), sizeof(T), page_size,
-        on_destruction);
+        rt::embed_in_range3(range), sizeof(T), page_size);
   }
 
   void preallocate_host_buffer()
@@ -618,13 +790,13 @@ private:
             rt::application::get_backend(host_device.get_backend())
                 .get_allocator(host_device)
                 ->allocate_optimized_host(
-                    0, _impl->data->get_num_elements().size() * sizeof(T));
+                    alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       } else {
         host_ptr =
             rt::application::get_backend(host_device.get_backend())
                 .get_allocator(host_device)
                 ->allocate(
-                    0, _impl->data->get_num_elements().size() * sizeof(T));
+                    alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       }
 
       if(!host_ptr)

@@ -65,10 +65,6 @@ public:
   void assign_to_executor(backend_executor* ctx);
   void assign_to_device(device_id dev);
   void assign_to_execution_lane(std::size_t lane_id);
-  // The dag_enumerater uses this function to assign a
-  // node id that is unique to this DAG batch.
-  // After a node id has been set, it cannot be set again.
-  void assign_node_id(std::size_t id);
 
   device_id get_assigned_device() const;
   backend_executor *get_assigned_executor() const;
@@ -87,9 +83,6 @@ public:
   // in which case the function will additionally wait
   // until the event exists.
   void wait() const;
-
-  bool has_node_id() const;
-  std::size_t get_node_id() const;
 
   std::shared_ptr<dag_node_event> get_event() const;
 
@@ -111,7 +104,6 @@ private:
   bool _is_virtual;
   std::atomic<bool> _is_cancelled;
 
-  std::size_t _node_id;
 };
 
 }

@@ -29,6 +29,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/omp/omp_allocator.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -42,6 +43,7 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
   
   if(size_bytes % min_alignment != 0)
     return nullptr;
+  min_alignment = power_of_2_ceil(min_alignment);
 
   // ToDo: Mac OS CI has a problem with std::aligned_alloc
   // but it's unclear if it's a Mac, or libc++, or toolchain issue

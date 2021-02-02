@@ -30,7 +30,6 @@
 
 #include "dag.hpp"
 #include "dag_builder.hpp"
-#include "dag_scheduler.hpp"
 #include "dag_direct_scheduler.hpp"
 #include "dag_submitted_ops.hpp"
 #include "generic/async_worker.hpp"
@@ -55,7 +54,7 @@ public:
   void flush_sync();
   // Wait for completion of all submitted operations
   void wait();
-  void register_submitted_ops(const dag_interpreter &);
+  
   void register_submitted_ops(dag_node_ptr);
 private:
   void trigger_flush_opportunity();
@@ -64,7 +63,7 @@ private:
 
   std::unique_ptr<dag_builder> _builder;
   worker_thread _worker;
-  dag_scheduler _predictive_scheduler;
+  
   dag_direct_scheduler _direct_scheduler;
   dag_submitted_ops _submitted_ops;
 };

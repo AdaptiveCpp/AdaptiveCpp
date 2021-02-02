@@ -14,12 +14,7 @@ set(HIPSYCL_SOURCES
   dag.cpp
   dag_node.cpp
   dag_builder.cpp
-  dag_expander.cpp
-  dag_enumerator.cpp
-  dag_interpreter.cpp
-  dag_scheduler.cpp
   dag_direct_scheduler.cpp
-  dag_time_table.cpp
   dag_manager.cpp
   dag_submitted_ops.cpp
   generic/async_worker.cpp

@@ -36,10 +36,7 @@
 namespace hipsycl {
 namespace rt {
 
-class dag_interpreter;
-class dag_enumerator;
 class dag_direct_scheduler;
-class node_scheduling_annotation;
 
 struct backend_execution_lane_range
 {
@@ -64,43 +61,8 @@ public:
   get_kernel_execution_lane_range(device_id dev) const = 0;
 
   virtual void
-  submit_dag(const dag_interpreter &interpreter,
-             const dag_enumerator &enumerator,
-             const std::vector<node_scheduling_annotation> &annotations) = 0;
-
-  virtual void
   submit_directly(dag_node_ptr node, operation *op,
                   const std::vector<dag_node_ptr> &reqs) = 0;
-
-  // The create_event_* functions will typically be called
-  // * by the scheduler, to implement features such as profiling;
-  // * by this (or another) backend_executor in order to implement
-  //   the create_wait_* functions since they typically require events
-  //   after the node they wait for
-  virtual std::unique_ptr<event_before_node>
-  create_event_before(dag_node_ptr node) const = 0;
-
-  virtual std::unique_ptr<event_after_node>
-  create_event_after(dag_node_ptr node) const = 0;
-
-  // The create_wait_* functions will be called by the scheduler to mark
-  // synchronization points
-  virtual std::unique_ptr<wait_for_node_on_same_lane>
-  create_wait_for_node_same_lane(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
-
-  virtual std::unique_ptr<wait_for_node_on_same_backend>
-  create_wait_for_node_same_backend(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
-
-  virtual std::unique_ptr<wait_for_external_node> create_wait_for_external_node(
-      dag_node_ptr node, const node_scheduling_annotation &annotation,
-      dag_node_ptr other,
-      node_scheduling_annotation &other_annotation) const = 0;
 
   virtual ~backend_executor(){}
 };

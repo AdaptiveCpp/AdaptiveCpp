@@ -7,6 +7,8 @@ find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
 find_package(hipSYCL REQUIRED)
 
+find_package(Threads REQUIRED)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -75,8 +77,9 @@ add_sycl_to_target(TARGET sycl_tests)
 add_executable(rt_tests 
   runtime/runtime_test_suite.cpp 
   runtime/dag_builder.cpp
-  runtime/data.cpp)
+  runtime/data.cpp
+  runtime/device_manager.cpp)
 
 target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES})
+target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)

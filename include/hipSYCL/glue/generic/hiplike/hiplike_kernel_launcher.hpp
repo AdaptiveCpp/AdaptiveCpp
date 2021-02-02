@@ -540,7 +540,7 @@ class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 public:
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, dispatcher, grid, \
                                 block, shared_mem, stream, ...)                \
-  if (is_launch_from_module()) {                                               \
+  if constexpr(is_launch_from_module()) {                                      \
     invoke_from_module<KernelNameT, KernelBodyT>(dispatcher, grid, block,      \
                                                  shared_mem, __VA_ARGS__);     \
   } else {                                                                     \
@@ -783,13 +783,14 @@ public:
   }
 
 private:
-  bool is_launch_from_module() const {
+  static constexpr bool is_launch_from_module() {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
     return Backend_id == rt::backend_id::cuda;
 #else
     return false;
 #endif
   }
+
   template <class KernelName, class KernelBodyT, typename... Args>
   void invoke_from_module(const std::string &dispatcher, dim3 grid_size,
                           dim3 block_size, unsigned dynamic_shared_mem,
@@ -839,7 +840,7 @@ private:
           this_module::get_code_object<rt::backend_id::cuda>(selected_arch);
       assert(code && "Invalid code object");
 
-      rt::cuda_backend *b = cast<rt::cuda_backend>(
+      rt::cuda_backend *b = rt::cast<rt::cuda_backend>(
           &(rt::application::get_backend(rt::backend_id::cuda)));
 
       HIPSYCL_DEBUG_INFO << "Obtaining module with id "

@@ -173,6 +173,10 @@ result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
 
   // Replace module with new one
   cuda_device_manager::get().activate_device(dev_id);
+  // This guarantees that the CUDA runtime API initializes the CUDA
+  // context on that device. This is important for the subsequent driver
+  // API calls which assume that CUDA context has been created.
+  cudaFree(0);
 
   if (_cuda_modules[dev_id]) {
     auto err = cuModuleUnload(_cuda_modules[dev_id]);

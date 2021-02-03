@@ -1,10 +1,18 @@
 # hipSYCL compilation model
 
-hipSYCL relies on the fact that both HIP/CUDA and SYCL are single-source programming models based on C++. In principle, this allows SYCL to be implemented as a HIP/CUDA library that simply wraps CUDA or HIP device or runtime functions. This wrapper could be very thin in practice with negligible performance impact due to aggressive inlining by device compilers. The SYCL application could then be compiled with regular CUDA or ROCm compilers. As a side effect, this approach also brings access to CUDA and HIP specific features from SYCL code. This is exactly the idea behind hipSYCL.
 
-Reality is unfortunately more complicated because the HIP/CUDA programming model is more restrictive than SYCL. For example, CUDA and HIP require that functions should be explicitly marked by the programmer whether they should be compiled for device or host. SYCL does not require this. To account for such restrictions, hipSYCL uses a clang plugin that adds additional AST and IR passes to augment clang's CUDA/HIP support to also support SYCL code.
-This process is fully integrated in the `syclcc-clang` compiler wrapper, so users can just call `syclcc-clang` like a regular compiler and do not need to worry about the details. Users can also use `syclcc` (an alias for `syclcc-clang`) if they wish to save a couple of letters when typing.
+hipSYCL relies on the fact that both HIP/CUDA and SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains CUDA and HIP toolchains to also support SYCL code. hipSYCL does that by using clang's CUDA and HIP toolchains with a custom clang plugin.
 
-See below for an illustration of the hipSYCL compilation model.
+hipSYCL distinguishes two modes of compilation:
+* *integrated multipass*, where host and device compilation passes are handled by clang's CUDA and HIP drivers. This mode allows for the most interoperability with backends because backend-specific language extensions are also available in the host pass. For example, kernels can be launched using the `<<<>>>` syntax. However, limitations in clang's compilation drivers also affect hipSYCL in this mode. In particular, CUDA and HIP cannot be targeted simultaneously because host code cannot support language extensions from *both* at the same time.
+* *explicit multipass*, where host and device compilation passes are handled by hipSYCL's `syclcc` compiler driver. Here, `syclcc` invokes backend-specific device passes, which then result in a compiled kernel for the target device. `syclcc` then embeds the compiled kernel image into the host binary. At runtime, the kernel is extracted from the image and invoked using runtime functions instead of language extensions. Therefore, in the host pass only C++ support is required. As a consequence, explicit multipass compilation for one backend can be combined with arbitrary other backends simultaneously, allowing hipSYCL to target multiple device backends at the same time.
 
-<img src="img/hipsycl-compilation.png" width="300">
+Not all backends support all modes:
+
+
+| Backend | Integrated multipass? | Explicit multipass? | Comment |
+|------------------|-------------------|------------------|------------------|
+| OpenMP | N/A | N/A | Does not require multipass compilation |
+| CUDA   | Yes | Yes |  |
+| HIP   | Yes | No |  |
+

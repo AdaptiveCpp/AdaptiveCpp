@@ -42,11 +42,11 @@ namespace glue {
 
 template <> struct backend_interop<sycl::backend::cuda> {
   // Well, there's not a really a native error code type
-  using error_type = cudaError_t;
+  using error_type = int;
 
   using native_mem_type = void *;
   using native_device_type = int;
-  using native_queue_type = cudaStream_t;
+  using native_queue_type = CUstream_st*;
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {

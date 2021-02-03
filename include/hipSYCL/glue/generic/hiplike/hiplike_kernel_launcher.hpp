@@ -538,11 +538,11 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, dispatcher, grid, \
-                                block, shared_mem, stream, ...)                \
-  if constexpr(is_launch_from_module()) {                                      \
-    invoke_from_module<KernelNameT, KernelBodyT>(dispatcher, grid, block,      \
-                                                 shared_mem, __VA_ARGS__);     \
+#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, grid, block,      \
+                                shared_mem, stream, ...)                       \
+  if constexpr (is_launch_from_module()) {                                     \
+    invoke_from_module<KernelNameT, KernelBodyT>(grid, block, shared_mem,      \
+                                                 __VA_ARGS__);                 \
   } else {                                                                     \
     __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
                                        __VA_ARGS__)                            \
@@ -608,9 +608,8 @@ public:
 
         __hipsycl_invoke_kernel(
             hiplike_dispatch::single_task_kernel<KernelName>, KernelName,
-            Kernel, "single_task_kernel",
-            dim3(1, 1, 1), dim3(1, 1, 1),
-            dynamic_local_memory, _queue->get_stream(), k);
+            Kernel, dim3(1, 1, 1), dim3(1, 1, 1), dynamic_local_memory,
+            _queue->get_stream(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
        
@@ -665,7 +664,7 @@ public:
 
             __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_kernel<KernelName>, KernelName,
-                Kernel, "parallel_for_kernel",
+                Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -679,7 +678,7 @@ public:
 
             __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
-                KernelName, Kernel, "parallel_for_ndrange_kernel",
+                KernelName, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -694,7 +693,7 @@ public:
 
             __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_workgroup<KernelName>,
-                KernelName, Kernel, "parallel_for_workgroup",
+                KernelName, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -707,8 +706,8 @@ public:
               assert(global_range[i] % effective_local_range[i] == 0);
 
             __hipsycl_invoke_kernel(
-                hiplike_dispatch::parallel_region<KernelName>,
-                KernelName, Kernel, "parallel_region",
+                hiplike_dispatch::parallel_region<KernelName>, KernelName,
+                Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -749,7 +748,6 @@ public:
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
                       __hipsycl_unnamed_kernel>,
                   __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
-                  "primitive_parallel_for_with_local_reducers",
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),
                   hiplike_dispatch::make_kernel_launch_range<1>(
@@ -792,9 +790,9 @@ private:
   }
 
   template <class KernelName, class KernelBodyT, typename... Args>
-  void invoke_from_module(const std::string &dispatcher, dim3 grid_size,
-                          dim3 block_size, unsigned dynamic_shared_mem,
-                          Args... args) {
+  void invoke_from_module(dim3 grid_size, dim3 block_size,
+                          unsigned dynamic_shared_mem, Args... args) {
+    
     if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
 #if !defined(__clang_major__) || __clang_major__ < 11
@@ -864,7 +862,7 @@ private:
         // We are dealing with an unnamed kernel, so check if we can find
         // a matching unnamed kernel
         if (!code_module.guess_kernel_name(
-                dispatcher, mangled_kernel_body_type, kernel_name)) {
+                "__hipsycl_kernel", mangled_kernel_body_type, kernel_name)) {
 
           rt::register_error(
               __hipsycl_here(),

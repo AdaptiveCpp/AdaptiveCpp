@@ -69,7 +69,7 @@ cuda_module::cuda_module(cuda_module_id_t module_id, const std::string &target,
 
   while (std::getline(code_stream, line)) {
 
-    std::string kernel_identifier = ".visible .entry";
+    const std::string kernel_identifier = ".visible .entry";
     auto pos = line.find(kernel_identifier);
 
     if (pos != std::string::npos) {
@@ -150,7 +150,7 @@ cuda_module_manager::obtain_module(cuda_module_id_t id,
     }
   }
 
-  _modules.push_back(cuda_module(id, target, content));
+  _modules.emplace_back(cuda_module(id, target, content));
   return _modules.back();
 }
 

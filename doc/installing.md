@@ -23,7 +23,9 @@ We also provide scripts for packaging hipSYCL and its dependencies. For more inf
 ### Software dependencies
 In order to successfully build and install hipSYCL, the following major requirements must be met:
 
-* **LLVM and clang >= 8** must be installed, including development files.
+* **LLVM and clang >= 8** must be installed, including development files. Certain features require more specific clang versions:
+  * Unnamed kernel lambdas from SYCL 2020 require clang >= 10
+  * Explicit multipass compilation (targeting multiple device backends simultaneously) requires a clang distribution that supports `__builtin_unique_stable_name()`. This is the case for offical clang 11 and DPC++/Intel's clang fork. This feature is currently being reworked in upstream clang and it is unclear if it will already be available again in clang 12.
 * *For the CUDA backend*: 
   * **CUDA >= 9.2** must be installed.
   * hipSYCL requires clang for CUDA compilation. clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).

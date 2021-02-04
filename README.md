@@ -7,6 +7,8 @@ hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on
 * NVIDIA GPUs via CUDA
 * AMD GPUs via HIP/ROCm
 
+hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. See here for details on the hipSYCL [compilation model](doc/compilation.md).
+
 The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
 ![SYCL implementations](/doc/img/sycl-targets.png)
 

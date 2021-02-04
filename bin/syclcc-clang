@@ -373,8 +373,13 @@ class syclcc_config:
       split_arg = arg.split("=")
       if split_arg[0]=="-std":
         std_args.append(split_arg[1])
+    compiling_c = False
+    for a0, a1 in zip(self._args, self._args[1:]):
+      if a0=="-x" and a1=="c":
+        compiling_c = True
+        break
     if not std_args:
-       return ["-std=c++17"]
+      return ["-std=c++17"] if not compiling_c else []
     else:
         if len(std_args) > 1:
             raise RuntimeError("Multiple c++ standards defined")
@@ -530,23 +535,31 @@ class syclcc_config:
           return True
     return False
   
-  def contains_linking_stage(self):
+  def is_preprocessing(self):
     for arg in self.forwarded_compiler_arguments:
       if (arg == "-E" or
-          arg == "-fsyntax-only" or
-          arg == "-S" or
-          arg == "-c"):
-        return False
-    return True
+          arg == "-fsyntax-only"):
+        return True
 
-  def is_pure_linking_stage(self):
+  def is_compiling_only(self):
+    for arg in self.forwarded_compiler_arguments:
+      if (arg == "-c" or
+          arg == "-S"):
+        return True
+
+  def contains_linking_stage(self):
+    return not self.is_preprocessing() and not self.is_compiling_only()
+
+  def is_linking_only(self):
     source_file_endings = set([".cpp",".cxx",".c++",".cc",".c", ".hip", ".cu"])
     for arg in self.forwarded_compiler_arguments:
+      if arg == "-x":
+          return False
       if not arg.startswith("-"):
         for ending in source_file_endings:
           if arg.lower().endswith(ending):
             return False
-    return True
+    return self.contains_linking_stage()
 
 def run_or_print(command, print_only):
   if not print_only:
@@ -677,7 +690,7 @@ class compiler:
   def __init__(self, config):
     self._user_args = config.forwarded_compiler_arguments
     self._requires_linking = config.contains_linking_stage()
-    self._requires_compilation = not config.is_pure_linking_stage()
+    self._requires_compilation = not config.is_linking_only() and not config.is_preprocessing()
     self._is_dry_run = config.is_dryrun
     self._targets = config.targets
     self._common_compiler_args = config.common_compiler_args
@@ -706,13 +719,12 @@ class compiler:
      self._backends.append(omp_sequential_invocation(config))
 
   @property
-  def common_cxx_flags(self):
-    args = [
-      "-I" + os.path.join(self._hipsycl_path, "include/"),
-      "-D__HIPSYCL__"
-    ] + self._common_compiler_args
+  def common_cxx_include_path(self):
+    return ["-I" + os.path.join(self._hipsycl_path, "include/")]
 
-    return args
+  @property
+  def common_cxx_flags(self):
+    return self.common_cxx_include_path + ["-D__HIPSYCL__"] + self._common_compiler_args
 
   @property
   def common_linker_flags(self):
@@ -739,7 +751,8 @@ class compiler:
       ld_flags += backend_args.get_linker_flags()
 
     args = []
-    if self._requires_compilation:
+    if self._requires_compilation or not self._requires_linking:
+      # preprocessing/compiling need cxx_flags
       args += cxx_flags
 
     args += self._user_args
@@ -778,7 +791,7 @@ if __name__ == '__main__':
         print_usage(config)
         sys.exit(0)
 
-    if not config.is_pure_linking_stage():
+    if not config.is_linking_only():
       if not config.has_optimization_flag():
         print("syclcc warning: No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "

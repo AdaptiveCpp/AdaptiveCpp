@@ -36,6 +36,8 @@
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
+#include <xsimd/xsimd.hpp>
+#include "../functional.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -224,6 +226,34 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
       result = binary_op(result, *i);
   }
   return result;
+}
+
+
+template<typename Group, typename T, std::enable_if_t<!std::is_same_v<T, xsimd::simd_type<T>>, int> = 0>
+HIPSYCL_KERNEL_TARGET
+T leader_reduce(Group g, T *first, T *last, plus<T> binary_op) {
+  T result{};
+
+  using v_type = xsimd::simd_type<T>;
+  constexpr size_t inc = v_type::size;
+
+  if (first >= last) {
+    return T{};
+  }
+
+  if (g.leader()) {
+    result = T{};
+
+    while (first + inc < last) {
+      v_type x = xsimd::load_aligned(first);
+      result += xsimd::hadd(x);
+      first += inc;
+    }
+    while (first < last) {
+      result += *(first++);
+    }
+  }
+  return T(result);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>

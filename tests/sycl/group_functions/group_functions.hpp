@@ -43,21 +43,20 @@
 using namespace cl;
 
 #ifdef TESTS_GROUPFUNCTION_FULL
-using test_types =
-    boost::mpl::list<char, int, unsigned int, long long, float, double,
-                     sycl::vec<int, 1>, sycl::vec<int, 2>, sycl::vec<int, 3>,
-                     sycl::vec<int, 4>, sycl::vec<int, 8>, sycl::vec<short, 16>,
-                     sycl::vec<long, 3>, sycl::vec<unsigned int, 3>>;
+using test_types = boost::mpl::list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
+                                    sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>, sycl::vec<int, 8>,
+                                    sycl::vec<short, 16>, sycl::vec<long, 3>, sycl::vec<unsigned int, 3>>;
 #else
 using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
 #endif
 
 namespace detail {
 
-template <typename T>
+template<typename T>
 using elementType = std::remove_reference_t<decltype(T{}.s0())>;
 
-template <typename T, int N> std::string type_to_string(sycl::vec<T, N> v) {
+template<typename T, int N>
+std::string type_to_string(sycl::vec<T, N> v) {
   std::stringstream ss{};
 
   ss << "(";
@@ -90,14 +89,15 @@ template <typename T, int N> std::string type_to_string(sycl::vec<T, N> v) {
   return ss.str();
 }
 
-template <typename T> std::string type_to_string(T x) {
+template<typename T>
+std::string type_to_string(T x) {
   std::stringstream ss{};
   ss << +x;
 
   return ss.str();
 }
 
-template <typename T, int N>
+template<typename T, int N>
 bool compare_type(sycl::vec<T, N> v1, sycl::vec<T, N> v2) {
   bool ret = true;
   if constexpr (1 <= N)
@@ -128,17 +128,18 @@ bool compare_type(sycl::vec<T, N> v1, sycl::vec<T, N> v2) {
   return ret;
 }
 
-template <typename T> bool compare_type(T x1, T x2) { return x1 == x2; }
-
-template <typename T,
-          typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET T initialize_type(T init) {
-  return init;
+template<typename T>
+bool compare_type(T x1, T x2) {
+  return x1 == x2;
 }
 
-template <typename T,
-          typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET T initialize_type(elementType<T> init) {
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET
+T initialize_type(T init) { return init; }
+
+template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET
+T initialize_type(elementType<T> init) {
   constexpr size_t N = T::get_count();
 
   if constexpr (std::is_same_v<elementType<T>, bool>)
@@ -153,20 +154,18 @@ HIPSYCL_KERNEL_TARGET T initialize_type(elementType<T> init) {
   } else if constexpr (N == 4) {
     return T{init, init + 1, init + 2, init + 3};
   } else if constexpr (N == 8) {
-    return T{init,     init + 1, init + 2, init + 3,
-             init + 4, init + 5, init + 6, init + 7};
+    return T{init, init + 1, init + 2, init + 3, init + 4, init + 5, init + 6, init + 7};
   } else if constexpr (N == 16) {
-    return T{init,      init + 1,  init + 2,  init + 3, init + 4,  init + 5,
-             init + 6,  init + 7,  init + 8,  init + 9, init + 10, init + 11,
-             init + 12, init + 13, init + 14, init + 15};
+    return T{init,     init + 1, init + 2,  init + 3,  init + 4,  init + 5,  init + 6,  init + 7,
+             init + 8, init + 9, init + 10, init + 11, init + 12, init + 13, init + 14, init + 15};
   }
 
   static_assert(true, "invalide vector type!");
 }
 
-template <typename T,
-          typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET T get_offset(size_t margin, size_t divisor = 1) {
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET
+T get_offset(size_t margin, size_t divisor = 1) {
   return T{};
   if (std::numeric_limits<T>::max() <= margin) {
     return T{};
@@ -181,23 +180,23 @@ HIPSYCL_KERNEL_TARGET T get_offset(size_t margin, size_t divisor = 1) {
   return static_cast<T>(std::numeric_limits<T>::max() / divisor - margin - 1);
 }
 
-template <typename T,
-          typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
-HIPSYCL_KERNEL_TARGET T get_offset(size_t margin, size_t divisor = 1) {
+template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
+HIPSYCL_KERNEL_TARGET
+T get_offset(size_t margin, size_t divisor = 1) {
   using eT = elementType<T>;
   return initialize_type<T>(get_offset<eT>(margin + 16, divisor));
 }
 
-template <typename T>
-HIPSYCL_KERNEL_TARGET elementType<T> local_value(size_t id, size_t offsetBase) {
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+elementType<T> local_value(size_t id, size_t offsetBase) {
   const size_t N = T{}.get_count();
 
   auto offset = get_offset<elementType<T>>(offsetBase);
   return static_cast<elementType<T>>(id + offset);
 }
 
-inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
-                                  size_t global_size) {
+inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size, size_t global_size) {
   BOOST_REQUIRE(global_size == 4 * local_size);
   BOOST_REQUIRE(local_size + 10 < 2 * local_size);
 
@@ -212,7 +211,7 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
   for (size_t i = 2 * local_size; i < 4 * local_size; ++i)
     buffer[i] = true;
 
-  buffer[10] = true;
+  buffer[10]                  = true;
   buffer[2 * local_size + 10] = false;
 
   BOOST_REQUIRE(buffer[0] == false);
@@ -225,14 +224,11 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
   BOOST_REQUIRE(buffer[10 + local_size * 3] == true);
 }
 
-template <typename T, int Line>
-void check_binary_reduce(std::vector<T> buffer, size_t local_size,
-                         size_t global_size, std::vector<bool> expected,
-                         std::string name, size_t break_size = 0,
-                         size_t offset = 0) {
-  std::vector<std::string> cases{
-      "everything except one false", "everything false",
-      "everything except one true", "everything true"};
+template<typename T, int Line>
+void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global_size, std::vector<bool> expected,
+                         std::string name, size_t break_size = 0, size_t offset = 0) {
+  std::vector<std::string> cases{"everything except one false", "everything false", "everything except one true",
+                                 "everything true"};
   BOOST_REQUIRE(global_size / local_size == expected.size());
   for (size_t i = 0; i < global_size / local_size; ++i) {
     for (size_t j = 0; j < local_size; ++j) {
@@ -240,13 +236,12 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size,
       if (break_size != 0 && j == break_size)
         break;
 
-      T computed = buffer[i * local_size + j + offset];
+      T computed      = buffer[i * local_size + j + offset];
       T expectedValue = initialize_type<T>(expected[i]);
 
-      BOOST_TEST(compare_type(expectedValue, computed),
-                 Line << ":" << type_to_string(computed) << " at position " << j
-                      << " instead of " << type_to_string(expectedValue)
-                      << " for case: " << cases[i] << " " << name);
+      BOOST_TEST(compare_type(expectedValue, computed), Line << ":" << type_to_string(computed) << " at position " << j
+                                                             << " instead of " << type_to_string(expectedValue)
+                                                             << " for case: " << cases[i] << " " << name);
 
       if (!compare_type(expectedValue, computed))
         break;
@@ -256,19 +251,24 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size,
 
 } // namespace detail
 
-template <int N, int M, typename T> class test_kernel;
+template<int N, int M, typename T>
+class test_kernel;
 
-template <int CallingLine, typename T, typename DataGenerator,
-          typename TestedFunction, typename ValidationFunction>
-void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
-                               TestedFunction f, ValidationFunction vf) {
-  std::vector<size_t> local_sizes = {25, 144, 256};
+template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction, typename ValidationFunction>
+void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg, TestedFunction f, ValidationFunction vf) {
+// currently only groupsizes between 128 and 256 are supportet for HIP
+#ifdef HIPSYCL_PLATFORM_ROCM
+  std::vector<size_t> local_sizes  = {256};
+  std::vector<size_t> global_sizes = {1024};
+#else
+  std::vector<size_t> local_sizes  = {25, 144, 256};
   std::vector<size_t> global_sizes = {100, 576, 1024};
+#endif
   for (int i = 0; i < local_sizes.size(); ++i) {
-    size_t local_size = local_sizes[i];
+    size_t local_size  = local_sizes[i];
     size_t global_size = global_sizes[i];
 
-    sycl::queue queue;
+    sycl::queue    queue;
     std::vector<T> host_buf(elements_per_thread * global_size, T{});
 
     dg(host_buf, local_size, global_size);
@@ -285,7 +285,7 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
         cgh.parallel_for<class test_kernel<1, CallingLine, T>>(
           sycl::nd_range<1>{global_size, local_size},
           [=](sycl::nd_item<1> item) {
-          auto g = item.get_group();
+          auto g  = item.get_group();
           auto sg = item.get_sub_group();
 
           T local_value = acc[item.get_global_linear_id()];
@@ -299,19 +299,22 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
   }
 }
 
-template <int CallingLine, typename T, typename DataGenerator,
-          typename TestedFunction, typename ValidationFunction>
-void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
-                               TestedFunction f, ValidationFunction vf) {
-  std::vector<size_t> local_sizes = {5, 12, 16};
+template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction, typename ValidationFunction>
+void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg, TestedFunction f, ValidationFunction vf) {
+// currently only groupsizes between 128 and 256 are supportet for HIP
+#ifdef HIPSYCL_PLATFORM_ROCM
+  std::vector<size_t> local_sizes  = {16};
+  std::vector<size_t> global_sizes = {32};
+#else
+  std::vector<size_t> local_sizes  = {5, 12, 16};
   std::vector<size_t> global_sizes = {10, 24, 32};
+#endif
   for (int i = 0; i < local_sizes.size(); ++i) {
-    size_t local_size = local_sizes[i];
+    size_t local_size  = local_sizes[i];
     size_t global_size = global_sizes[i];
 
-    sycl::queue queue;
-    std::vector<T> host_buf(elements_per_thread * global_size * global_size,
-                            T{});
+    sycl::queue    queue;
+    std::vector<T> host_buf(elements_per_thread * global_size * global_size, T{});
 
     dg(host_buf, local_size * local_size, global_size * global_size);
 
@@ -327,11 +330,9 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
         cgh.parallel_for<class test_kernel<2, CallingLine, T>>(
           sycl::nd_range<2>{sycl::range<2>(global_size, global_size), sycl::range<2>(local_size, local_size)},
           [=](sycl::nd_item<2> item) {
-          auto g = item.get_group();
-          auto sg = item.get_sub_group();
-          size_t custom_linear_id =
-              item.get_local_linear_id() +
-              local_size * local_size * item.get_group_linear_id();
+          auto   g                = item.get_group();
+          auto   sg               = item.get_sub_group();
+          size_t custom_linear_id = item.get_local_linear_id() + local_size * local_size * item.get_group_linear_id();
 
           T local_value = acc[custom_linear_id];
 
@@ -340,8 +341,7 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
       });
     }
 
-    vf(host_buf, original_host_buf, local_size * local_size,
-       global_size * global_size);
+    vf(host_buf, original_host_buf, local_size * local_size, global_size * global_size);
   }
 }
 

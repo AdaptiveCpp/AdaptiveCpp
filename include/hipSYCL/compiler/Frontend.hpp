@@ -56,6 +56,12 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#ifndef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
+#if LLVM_VERSION_MAJOR == 11
+#define HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
+#endif
+#endif
+
 namespace hipsycl {
 namespace compiler {
 namespace detail {
@@ -172,7 +178,7 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
       : Instance{instance},
-#if LLVM_VERSION_MAJOR >= 11
+#ifdef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
         // Construct unique name mangler if supported
       KernelNameMangler(clang::ItaniumMangleContext::create(
           instance.getASTContext(), instance.getASTContext().getDiagnostics(), true))

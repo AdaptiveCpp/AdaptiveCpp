@@ -62,6 +62,9 @@ std::string omp_hardware_context::get_vendor_name() const {
   return "the hipSYCL project";
 }
 
+std::string omp_hardware_context::get_device_arch() const {
+  return "<native-cpu>";
+}
 
 bool omp_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {

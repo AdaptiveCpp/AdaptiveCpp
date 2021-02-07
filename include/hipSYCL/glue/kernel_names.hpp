@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,51 +25,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <vector>
+#ifndef HIPSYCL_GLUE_KERNEL_NAMES_HPP
+#define HIPSYCL_GLUE_KERNEL_NAMES_HPP
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
-#include "cuda_module.hpp"
-
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+struct __hipsycl_unnamed_kernel {};
 
 namespace hipsycl {
-namespace rt {
+namespace glue {
 
-
-class cuda_backend : public backend
-{
-public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
-
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
-
-  const cuda_module_manager &get_module_manager() const { return _modules; }
-  cuda_module_manager &get_module_manager() { return _modules; }
-
-private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-  mutable std::vector<cuda_allocator> _allocators;
-  cuda_module_manager _modules;
+// This can be used to turn incomplete types of kernel names into complete
+// types for backends which e.g. use typeid() to access the mangled name.
+template <class Name> struct kernel_name { using type = kernel_name<Name>; };
+template <> struct kernel_name<__hipsycl_unnamed_kernel> {
+  using type = __hipsycl_unnamed_kernel;
 };
 
-}
-}
+template <class Name>
+using kernel_name_t = typename kernel_name<Name>::type;
 
+}
+} // namespace hipsycl
 
 #endif

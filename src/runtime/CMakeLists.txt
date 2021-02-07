@@ -28,7 +28,8 @@ if(WITH_CUDA_BACKEND)
     cuda/cuda_allocator.cpp
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
-    cuda/cuda_backend.cpp)
+    cuda/cuda_backend.cpp
+    cuda/cuda_module.cpp)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -65,7 +66,8 @@ target_include_directories(hipSYCL-rt
 if(WITH_CUDA_BACKEND)
   target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_CUDA_BACKEND=1)
   target_include_directories(hipSYCL-rt PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include)
-  target_link_libraries(hipSYCL-rt PRIVATE ${CUDA_LIBRARIES})
+  
+  target_link_libraries(hipSYCL-rt PRIVATE ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
 endif()
 
 if(WITH_ROCM_BACKEND) 

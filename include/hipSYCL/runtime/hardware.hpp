@@ -110,6 +110,7 @@ public:
 
   virtual std::string get_device_name() const = 0;
   virtual std::string get_vendor_name() const = 0;
+  virtual std::string get_device_arch() const = 0;
 
   virtual bool has(device_support_aspect aspect) const = 0;
   virtual std::size_t get_property(device_uint_property prop) const = 0;

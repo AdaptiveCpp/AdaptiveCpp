@@ -3,13 +3,16 @@
 # Read-only macros
 
 * `__HIPSYCL__` - defined if compiling with hipSYCL
-* `HIPSYCL_PLATFORM_CUDA` - defined if compiling for CUDA
-* `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined if compiling for ROCm
+* `HIPSYCL_PLATFORM_CUDA` - defined when CUDA language extensions are available
+* `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined when HIP language extensions are available
 * `HIPSYCL_PLATFORM_CPU` - defined if compiling purely for CPU
 * `SYCL_DEVICE_ONLY` - defined if generating code for GPU
 * `__HIPSYCL_CLANG__` - defined by `syclcc-clang` when compiling with the clang plugin
 * `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE` - defined if hipSYCL supports (and has enabled) the extension for automatically requiring placeholder accessors.
 * `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION` - defined if the hipSYCL custom `parallel_for_work_item` synchronization extension is supported.
+* `__HIPSYCL_ENABLE_HIP_TARGET__` - defined during host and device passes if HIP is targeted
+* `__HIPSYCL_ENABLE_CUDA_TARGET__` - defined during host and device passes if CUDA is targeted
+* `__HIPSYCL_ENABLE_OMPHOST_TARGET__` - defined if OpenMP is targeted
 
 ## Mainly for hipSYCL developers
 * `HIPSYCL_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.

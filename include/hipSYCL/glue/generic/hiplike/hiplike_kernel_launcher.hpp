@@ -33,26 +33,73 @@
 #include <cstdlib>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
+    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+ #define HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
+#endif
+
+
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
-#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
 
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/cuda/cuda_backend.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
-#include "clang.hpp"
-#include "hiplike_reducer.hpp"
+#include "hipSYCL/glue/kernel_names.hpp"
+#include "hipSYCL/glue/generic/module.hpp"
 
+
+#ifdef HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
+ #include "clang.hpp"
+ #include "hiplike_reducer.hpp"
+ #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
+ 
+#else
+
+#ifndef __host__
+ #define __host__
+#endif
+#ifndef __device__
+ #define __device__
+#endif
+#ifndef __sycl_kernel
+ #define __sycl_kernel
+#endif
+#ifndef __hipsycl_launch_integrated_kernel
+
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+                                           ...)                                \
+  assert(false && "Dummy integrated kernel launch was called");
+
+struct dim3 {
+  dim3() = default;
+  dim3(unsigned int x_, unsigned int y_, unsigned int z_)
+  : x{x_}, y{y_}, z{z_} {}
+
+  unsigned int x;
+  unsigned int y;
+  unsigned int z;
+};
+
+#endif
+
+#endif
 
 namespace hipsycl {
 namespace glue {
+
 
 namespace hiplike_dispatch {
 
@@ -117,19 +164,21 @@ template <typename KernelName, class Function, typename... Reductions>
 __sycl_kernel void
 primitive_parallel_for_with_local_reducers(Function f,
                                            Reductions... reductions) {
-
+#ifdef SYCL_DEVICE_ONLY
   device_invocation_with_local_reducers(
-      [&] __host__ __device__(auto &... local_reducers) {
+      [&] __host__ __device__(auto &...local_reducers) {
         int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
         f(gid, local_reducers...);
       },
       reductions...);
+#endif
 }
 
-template<typename KernelName, class Function>
-__sycl_kernel void single_task_kernel(Function f)
-{
+template <typename KernelName, class Function>
+__sycl_kernel void single_task_kernel(Function f) {
+#ifdef SYCL_DEVICE_ONLY
   device_invocation(f);
+#endif
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -138,6 +187,7 @@ __sycl_kernel void
 parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
                     sycl::id<dimensions> offset, bool with_offset,
                     Reductions... reductions) {
+#ifdef SYCL_DEVICE_ONLY
   // Note: We currently cannot have with_offset as template parameter
   // because this might cause clang to emit two kernels with the same
   // mangled name (variants with and without offset) if an explicit kernel
@@ -158,6 +208,7 @@ parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
         f(this_item, reducers...);
     }, reductions...);
   }
+#endif
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -165,19 +216,22 @@ template <typename KernelName, class Function, int dimensions,
 __sycl_kernel void parallel_for_ndrange_kernel(Function f,
                                                sycl::id<dimensions> offset,
                                                Reductions... reductions) {
-  device_invocation([&] __host__ __device__(auto... reducers) {
+#ifdef SYCL_DEVICE_ONLY
+  device_invocation(
+      [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    sycl::nd_item<dimensions> this_item{&offset};
+        sycl::nd_item<dimensions> this_item{&offset};
 #else
-    sycl::nd_item<dimensions> this_item{
-        &offset,
-        sycl::detail::get_group_id<dimensions>(),
-        sycl::detail::get_local_id<dimensions>(),
-        sycl::detail::get_local_size<dimensions>(),
-        sycl::detail::get_grid_size<dimensions>()};
+        sycl::nd_item<dimensions> this_item{
+            &offset, sycl::detail::get_group_id<dimensions>(),
+            sycl::detail::get_local_id<dimensions>(),
+            sycl::detail::get_local_size<dimensions>(),
+            sycl::detail::get_grid_size<dimensions>()};
 #endif
-    f(this_item, reducers...);
-  }, reductions...);
+        f(this_item, reducers...);
+      },
+      reductions...);
+#endif
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -189,44 +243,49 @@ parallel_for_workgroup(Function f,
                        // since it allows the compiler to infer 'dimensions'
                        sycl::range<dimensions> logical_group_size,
                        Reductions... reductions) {
-  device_invocation([&] __host__ __device__(auto... reducers) {
+#ifdef SYCL_DEVICE_ONLY
+  device_invocation(
+      [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    sycl::group<dimensions> this_group;
+        sycl::group<dimensions> this_group;
 #else
-    sycl::group<dimensions> this_group{
-        sycl::detail::get_group_id<dimensions>(),
-        sycl::detail::get_local_size<dimensions>(),
-        sycl::detail::get_grid_size<dimensions>()};
+        sycl::group<dimensions> this_group{
+            sycl::detail::get_group_id<dimensions>(),
+            sycl::detail::get_local_size<dimensions>(),
+            sycl::detail::get_grid_size<dimensions>()};
 #endif
-    f(this_group, reducers...);
-  }, reductions...);
+        f(this_group, reducers...);
+      },
+      reductions...);
+#endif
 }
 
 template <typename KernelName, class Function, int dimensions,
           typename... Reductions>
-__sycl_kernel void parallel_region(Function f,
-                                   sycl::range<dimensions> num_groups,
-                                   sycl::range<dimensions> group_size,
-                                   Reductions... reductions) {
-  device_invocation([&] __host__ __device__ (auto... reducers) {
+__sycl_kernel void
+parallel_region(Function f, sycl::range<dimensions> num_groups,
+                sycl::range<dimensions> group_size, Reductions... reductions) {
+#ifdef SYCL_DEVICE_ONLY
+  device_invocation(
+      [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    sycl::group<dimensions> this_group;
+        sycl::group<dimensions> this_group;
 #else
-    sycl::group<dimensions> this_group{
-      sycl::detail::get_group_id<dimensions>(), 
-      sycl::detail::get_local_size<dimensions>(),
-      sycl::detail::get_grid_size<dimensions>()
-    };
+        sycl::group<dimensions> this_group{
+            sycl::detail::get_group_id<dimensions>(),
+            sycl::detail::get_local_size<dimensions>(),
+            sycl::detail::get_grid_size<dimensions>()};
 #endif
-    sycl::physical_item<dimensions> phys_idx = sycl::detail::make_sp_item(
-      sycl::detail::get_local_id<dimensions>(),
-      sycl::detail::get_group_id<dimensions>(),
-      sycl::detail::get_local_size<dimensions>(),
-      sycl::detail::get_grid_size<dimensions>()
-    );
-    
-    f(this_group, phys_idx, reducers...);
-  }, reductions...);
+        sycl::physical_item<dimensions> phys_idx = sycl::detail::make_sp_item(
+            sycl::detail::get_local_id<dimensions>(),
+            sycl::detail::get_group_id<dimensions>(),
+            sycl::detail::get_local_size<dimensions>(),
+            sycl::detail::get_grid_size<dimensions>());
+
+        f(this_group, phys_idx, reducers...);
+      },
+      reductions...);
+#endif
 }
 
 /// Flips dimensions such that the range is consistent with the mapping
@@ -385,11 +444,14 @@ public:
 
   // Must be __host__ __device__ in order to be able to call
   // hiplike_dynamic_local_memory()
-  __host__ __device__
-  void* get_local_scratch_mem() const {
+  __host__ __device__ void *get_local_scratch_mem() const {
+#ifdef SYCL_DEVICE_ONLY
     return static_cast<void *>(
         static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
         _local_memory_offset);
+#else
+    return nullptr;
+#endif
   }
 
   __host__ __device__ 
@@ -404,6 +466,7 @@ public:
 #endif
   }
 
+#ifdef SYCL_DEVICE_ONLY
   __device__ hiplike::local_reducer<ReductionDescriptor>
   construct_reducer() const {
     int my_local_id = __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
@@ -423,7 +486,8 @@ public:
         static_cast<value_type *>(get_local_scratch_mem()), group_output_ptr,
         global_input_ptr};
   }
-
+#endif
+  
   __device__ void *get_reduction_input_buffer() const {
     return _scratch_memory_in;
   }
@@ -474,6 +538,16 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
+#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, grid, block,      \
+                                shared_mem, stream, ...)                       \
+  if constexpr (is_launch_from_module()) {                                     \
+    invoke_from_module<KernelNameT, KernelBodyT>(grid, block, shared_mem,      \
+                                                 __VA_ARGS__);                 \
+  } else {                                                                     \
+    __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
+                                       __VA_ARGS__)                            \
+  }
+
   hiplike_kernel_launcher()
       : _queue{nullptr}, _invoker{[]() {}} {}
 
@@ -531,10 +605,11 @@ public:
       // Simple cases first: Kernel types that don't support
       // reductions
       if constexpr (type == rt::kernel_type::single_task) {
-       
-        __hipsycl_launch_kernel(
-            hiplike_dispatch::single_task_kernel<KernelName>, 1, 1,
-            dynamic_local_memory, _queue->get_stream(), k);
+
+        __hipsycl_invoke_kernel(
+            hiplike_dispatch::single_task_kernel<KernelName>, KernelName,
+            Kernel, dim3(1, 1, 1), dim3(1, 1, 1), dynamic_local_memory,
+            _queue->get_stream(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
        
@@ -587,8 +662,9 @@ public:
 
           if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-            __hipsycl_launch_kernel(
-                hiplike_dispatch::parallel_for_kernel<KernelName>,
+            __hipsycl_invoke_kernel(
+                hiplike_dispatch::parallel_for_kernel<KernelName>, KernelName,
+                Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -600,8 +676,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
+            __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
+                KernelName, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -614,8 +691,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
+            __hipsycl_invoke_kernel(
                 hiplike_dispatch::parallel_for_workgroup<KernelName>,
+                KernelName, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -627,8 +705,9 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_launch_kernel(
-                hiplike_dispatch::parallel_region<KernelName>,
+            __hipsycl_invoke_kernel(
+                hiplike_dispatch::parallel_region<KernelName>, KernelName,
+                Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -659,19 +738,22 @@ public:
 
               int num_elements = reduction_stages[stage].global_size.size();
 
-              __hipsycl_launch_kernel(
+              auto pure_reduction_kernel = [=](int gid,
+                                               auto &...local_reducers) {
+                if (gid < num_elements)
+                  (local_reducers.combine_global_input(gid), ...);
+              };
+
+              __hipsycl_invoke_kernel(
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
-                      class _unnamed_kernel>,
+                      __hipsycl_unnamed_kernel>,
+                  __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{num_groups}),
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{local_size}),
                   reduction_stages[stage].allocated_local_memory,
-                  _queue->get_stream(),
-                  [=](int gid, auto &... local_reducers) {
-                    if(gid < num_elements)
-                      (local_reducers.combine_global_input(gid), ...);
-                  },
+                  _queue->get_stream(), pure_reduction_kernel,
                   reduction_descriptors...);
             }
           }
@@ -697,8 +779,123 @@ public:
   virtual rt::kernel_type get_kernel_type() const final override {
     return _type;
   }
-  
+
 private:
+  static constexpr bool is_launch_from_module() {
+#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+    return Backend_id == rt::backend_id::cuda;
+#else
+    return false;
+#endif
+  }
+
+  template <class KernelName, class KernelBodyT, typename... Args>
+  void invoke_from_module(dim3 grid_size, dim3 block_size,
+                          unsigned dynamic_shared_mem, Args... args) {
+    
+    if constexpr (Backend_id == rt::backend_id::cuda) {
+#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#if !defined(__clang_major__) || __clang_major__ < 11
+  #error Multipass compilation requires clang >= 11
+#endif
+      if (this_module::get_num_objects<rt::backend_id::cuda>() == 0) {
+        rt::register_error(
+            __hipsycl_here(),
+            rt::error_info{
+                "hiplike_kernel_launcher: Cannot invoke CUDA kernel: No code "
+                "objects present in this module."});
+        return;
+      }
+
+      rt::hardware_context *ctx =
+          rt::application::get_backend(rt::backend_id::cuda)
+              .get_hardware_manager()
+              ->get_device(_queue->get_device().get_id());
+
+      std::string target_arch = ctx->get_device_arch();
+      std::string selected_arch;
+      this_module::for_each_target<rt::backend_id::cuda>(
+          [&](const std::string &available_code_arch) {
+            if (available_code_arch == target_arch) {
+              selected_arch = target_arch;
+            }
+          });
+
+      if (selected_arch.size() == 0) {
+        // TODO: Improve selection when we don't have an exact match
+        this_module::for_each_target<rt::backend_id::cuda>(
+            [&](const std::string &available_code_arch) {
+              selected_arch = available_code_arch;
+            });
+        
+        HIPSYCL_DEBUG_WARNING
+            << "hiplike_kernel_launcher: No exact target architecture match "
+               "found in this compilation unit; selecting kernel for "
+            << selected_arch << std::endl;
+      }
+
+      const std::string *code =
+          this_module::get_code_object<rt::backend_id::cuda>(selected_arch);
+      assert(code && "Invalid code object");
+
+      rt::cuda_backend *b = rt::cast<rt::cuda_backend>(
+          &(rt::application::get_backend(rt::backend_id::cuda)));
+
+      HIPSYCL_DEBUG_INFO << "Obtaining module with id "
+                         << this_module::get_module_id<rt::backend_id::cuda>()
+                         << std::endl;
+
+      const rt::cuda_module &code_module =
+          b->get_module_manager().obtain_module(
+              this_module::get_module_id<rt::backend_id::cuda>(), selected_arch,
+              *code);
+
+      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
+      std::string mangled_kernel_body_type = __builtin_unique_stable_name(KernelBodyT);
+      // This will hold the actual kernel name in the device image
+      std::string kernel_name;
+      // First check if there is a kernel in the module that matches
+      // the expected explicitly named kernel name
+      if (!code_module.guess_kernel_name(
+              "__hipsycl_kernel", kernel_name_tag, kernel_name)) {
+
+        // We are dealing with an unnamed kernel, so check if we can find
+        // a matching unnamed kernel
+        if (!code_module.guess_kernel_name(
+                "__hipsycl_kernel", mangled_kernel_body_type, kernel_name)) {
+
+          rt::register_error(
+              __hipsycl_here(),
+              rt::error_info{"hiplike_kernel_launcher: No matching CUDA kernel "
+                             "found in module for kernel with name tag " +
+                             kernel_name_tag + " and type " +
+                             mangled_kernel_body_type});
+          return;
+        }
+      }
+      HIPSYCL_DEBUG_INFO << "Selected kernel from module for execution: " << kernel_name
+                         << std::endl;
+
+      std::array<void *, sizeof...(Args)> kernel_args{
+        static_cast<void *>(&args)...
+      };
+
+      rt::result err = _queue->submit_kernel_from_module(
+          b->get_module_manager(), code_module, kernel_name,
+          rt::range<3>{grid_size.x, grid_size.y, grid_size.z},
+          rt::range<3>{block_size.x, block_size.y, block_size.z},
+          dynamic_shared_mem, kernel_args.data());
+
+      if (!err.is_success())
+        rt::register_error(err);
+#else
+      assert(false && "No module available to invoke kernels from");
+#endif
+    } else {
+      assert(false && "Backend does not support kernel launch from module");
+    }
+  }
+
   Queue_type *_queue;
   rt::kernel_type _type;
   std::function<void ()> _invoker;

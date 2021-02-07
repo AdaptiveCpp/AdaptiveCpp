@@ -54,6 +54,9 @@ if(WITH_CUDA_BACKEND)
   if(NOT CUDA_FOUND)
     message(SEND_ERROR "CUDA was not found")
   endif()
+
+  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs REQUIRED)
+  message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 endif()
 if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
@@ -162,7 +165,7 @@ if(NOT ROCM_CXX_FLAGS)
   set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib ")
 endif()
 if(NOT CUDA_LINK_LINE) 
-  set(CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+  set(CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart -lcuda" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 endif()
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
@@ -201,7 +204,9 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
   \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
   \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
+  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\",
+  \"default-is-explicit-multipass\" : \"false\",
+  \"default-save-temps\" : \"false\"
 }
 ")
 

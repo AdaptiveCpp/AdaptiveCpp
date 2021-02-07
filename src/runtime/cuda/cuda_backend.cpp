@@ -42,6 +42,8 @@ cuda_backend::cuda_backend()
   for (int i = 0; i < static_cast<int>(_hw_manager.get_num_devices()); ++i) {
     _allocators.push_back(cuda_allocator{backend_desc, i});
   }
+
+  _modules = cuda_module_manager{_hw_manager.get_num_devices()};
 }
 
 api_platform cuda_backend::get_api_platform() const {

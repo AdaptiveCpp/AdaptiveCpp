@@ -70,7 +70,7 @@ static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shar
 #endif
 
 
-#define __hipsycl_launch_kernel(f, grid, block, shared_mem, stream, ...) \
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, ...) \
   __hipsycl_push_kernel_call(grid, block, shared_mem, stream); \
   f(__VA_ARGS__);
   

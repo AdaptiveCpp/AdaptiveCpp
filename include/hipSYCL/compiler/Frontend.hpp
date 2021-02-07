@@ -56,6 +56,12 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#ifndef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
+#if LLVM_VERSION_MAJOR == 11
+#define HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
+#endif
+#endif
+
 namespace hipsycl {
 namespace compiler {
 namespace detail {
@@ -171,9 +177,15 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
   
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
-      : Instance{instance}
-      , KernelNameMangler(clang::ItaniumMangleContext::create(
-        instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+      : Instance{instance},
+#ifdef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
+        // Construct unique name mangler if supported
+      KernelNameMangler(clang::ItaniumMangleContext::create(
+          instance.getASTContext(), instance.getASTContext().getDiagnostics(), true))
+#else
+      KernelNameMangler(clang::ItaniumMangleContext::create(
+          instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+#endif
   {
 #ifdef _WIN32
     // necessary, to rely on device mangling. API introduced in 
@@ -248,8 +260,18 @@ public:
     // Determine unique kernel name to be used for symbol name in device IR
     clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
 
-    // Check whether a unique kernel name is required. If no name is provided and the
-    // functor is not a lambda, we allow it and simply do nothing.
+    // Check whether a unique kernel name is required.
+    //
+    // There are two different ways of handling unnamed kernels:
+    // 1) If no name is provided and the functor is not a lambda, we allow it
+    // and simply do nothing. This requires at least LLVM 10 to work
+    // reliably, and is enabled up to LLVM 11.
+    // 2) Starting with LLVM 11, our kernel name mangler is a unique mangler
+    // and can reliably mangle lambdas into a unique name that can be queried
+    // from client code using __builtin_unique_stable_name(). If we have this
+    // available (i.e. LLVM>=11), we always rename kernels so that the explicit
+    // multipass implementation can query kernel names using
+    // __builtin_unique_stable_name().
     bool NameRequired = true;
 
     const auto KernelNameArgument = Info->TemplateArguments->get(0);
@@ -257,7 +279,7 @@ public:
       if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
         const auto RecordDecl = RecordType->getDecl();
         auto KernelName = RecordDecl->getNameAsString();
-        if (KernelName == "_unnamed_kernel") {
+        if (KernelName == "__hipsycl_unnamed_kernel") {
           // If no name is provided, rely on clang name mangling
 
           // Earlier clang versions suffer from potentially inconsistent
@@ -282,9 +304,26 @@ public:
       }
     }
 
-    if (NameRequired)
+    bool ForceCustomNameMangling = LLVM_VERSION_MAJOR >= 11;
+    
+    if (NameRequired || ForceCustomNameMangling)
     {
-      std::string KernelName = detail::buildKernelName(KernelNameArgument, KernelNameMangler.get());
+      std::string KernelName;
+
+      // If we are dealing with a named kernel, construct the name
+      // based on the kernel name argument
+      if(NameRequired) {
+        KernelName = detail::buildKernelName(KernelNameArgument,
+                                             KernelNameMangler.get());
+      } else {
+        // Otherwise (for unnamed kernels or non-lambda kernels)
+        // construct name based on kernel functor type.
+        const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
+        if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()) {
+          KernelName = detail::buildKernelName(KernelFunctorArgument,
+                                               KernelNameMangler.get());
+        }
+      }
 
       // Abort with error diagnostic if no kernel name could be built
       if(KernelName.empty())

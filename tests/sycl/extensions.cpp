@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
 #ifdef HIPSYCL_PLATFORM_CUDA
   constexpr sycl::backend target_be = sycl::backend::cuda;
-#elif defined(HIPSYCL_PLATFORM_ROCM)
+#elif defined(HIPSYCL_PLATFORM_HIP)
   constexpr sycl::backend target_be = sycl::backend::hip;
 #else
   constexpr sycl::backend target_be = sycl::backend::omp;
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
       cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
                       cudaMemcpyDeviceToHost, stream);
 
-#elif defined(HIPSYCL_PLATFORM_ROCM)
+#elif defined(HIPSYCL_PLATFORM_HIP)
       
       auto stream = h.get_native_queue<target_be>();
       // dev is not really used, just test that this function call works for now
@@ -338,8 +338,9 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   auto group_size2d = sycl::range{9,9};
   auto group_size3d = sycl::range{5,5,5};
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
-  #define HIPLIKE_MODEL
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+#define HIPLIKE_MODEL
 #endif
 
   q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{

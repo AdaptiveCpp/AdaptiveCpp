@@ -32,12 +32,12 @@
 
 #include "../backend.hpp"
 #include "../detail/data_layout.hpp"
+#include "../functional.hpp"
 #include "../group.hpp"
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
 #include <xsimd/xsimd.hpp>
-#include "../functional.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -228,13 +228,12 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
   return result;
 }
 
-
 template<typename Group, typename T, std::enable_if_t<!std::is_same_v<T, xsimd::simd_type<T>>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T leader_reduce(Group g, T *first, T *last, plus<T> binary_op) {
   T result{};
 
-  using v_type = xsimd::simd_type<T>;
+  using v_type         = xsimd::simd_type<T>;
   constexpr size_t inc = v_type::size;
 
   if (first >= last) {
@@ -352,7 +351,7 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
-  auto ret = leader_inclusive_scan(g, first, last,result, init, binary_op);
+  auto ret = leader_inclusive_scan(g, first, last, result, init, binary_op);
   return group_broadcast(g, ret);
 }
 

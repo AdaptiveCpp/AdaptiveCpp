@@ -33,38 +33,29 @@
 #include "hipSYCL/runtime/hardware.hpp"
 #include <algorithm>
 
-#ifdef HIPSYCL_RT_ENABLE_HIP_BACKEND
-#include "hipSYCL/runtime/hip/hip_backend.hpp"
-#endif
-
-#ifdef HIPSYCL_RT_ENABLE_CUDA_BACKEND
-#include "hipSYCL/runtime/cuda/cuda_backend.hpp"
-#endif
-
-#ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
-#include "hipSYCL/runtime/omp/omp_backend.hpp"
-#endif
-
 namespace hipsycl {
 namespace rt {
 
 backend_manager::backend_manager()
 : _hw_model(std::make_unique<hw_model>(this))
 {
-#ifdef HIPSYCL_RT_ENABLE_HIP_BACKEND
-  HIPSYCL_DEBUG_INFO << "backend_manager: Registering HIP backend..." << std::endl;
-  _backends.push_back(std::make_unique<hip_backend>());
-#endif
+
+  _loader.query_backends();
+
+  for (std::size_t backend_index = 0;
+       backend_index < _loader.get_num_backends(); ++backend_index) {
+
+    HIPSYCL_DEBUG_INFO << "Registering backend: '"
+                       << _loader.get_backend_name(backend_index) << "'..."
+                       << std::endl;
+    backend *b = _loader.create(backend_index);
+    if (b) {
+      _backends.emplace_back(std::unique_ptr<backend>(b));
+    } else {
+      HIPSYCL_DEBUG_ERROR << "backend_manager: Backend creation failed" << std::endl;
+    }
+  }
   
-#ifdef HIPSYCL_RT_ENABLE_CUDA_BACKEND
-  HIPSYCL_DEBUG_INFO << "backend_manager: Registering CUDA backend..." << std::endl;
-  _backends.push_back(std::make_unique<cuda_backend>());
-#endif
-  
-#ifdef HIPSYCL_RT_ENABLE_OMP_BACKEND
-  HIPSYCL_DEBUG_INFO << "backend_manager: Registering OpenMP backend..." << std::endl;
-  _backends.push_back(std::make_unique<omp_backend>());
-#endif
 
   this->for_each_backend([](backend *b) {
     HIPSYCL_DEBUG_INFO << "Discovered devices from backend '" << b->get_name()

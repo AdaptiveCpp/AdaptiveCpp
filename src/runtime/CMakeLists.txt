@@ -1,11 +1,13 @@
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-set(HIPSYCL_SOURCES
+
+add_library(hipSYCL-rt SHARED
   application.cpp
   runtime.cpp
   error.cpp
   backend.cpp
+  backend_loader.cpp
   hints.cpp
   device_id.cpp
   operations.cpp
@@ -21,38 +23,6 @@ set(HIPSYCL_SOURCES
   hw_model/memcpy.cpp
   serialization/serialization.cpp)
 
-if(WITH_CUDA_BACKEND)
-  set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
-    cuda/cuda_event.cpp
-    cuda/cuda_queue.cpp
-    cuda/cuda_allocator.cpp
-    cuda/cuda_device_manager.cpp
-    cuda/cuda_hardware_manager.cpp
-    cuda/cuda_backend.cpp
-    cuda/cuda_module.cpp)
-endif()
-
-if(WITH_ROCM_BACKEND)
-  set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
-    hip/hip_event.cpp
-    hip/hip_queue.cpp
-    hip/hip_allocator.cpp
-    hip/hip_device_manager.cpp
-    hip/hip_hardware_manager.cpp
-    hip/hip_backend.cpp)
-endif()
-
-if(WITH_CPU_BACKEND)
-  set(HIPSYCL_SOURCES ${HIPSYCL_SOURCES}
-    omp/omp_allocator.cpp
-    omp/omp_backend.cpp
-    omp/omp_event.cpp
-    omp/omp_hardware_manager.cpp
-    omp/omp_queue.cpp)
-endif()
-
-add_library(hipSYCL-rt SHARED ${HIPSYCL_SOURCES})
-
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
 target_include_directories(hipSYCL-rt
@@ -61,45 +31,95 @@ target_include_directories(hipSYCL-rt
     $<INSTALL_INTERFACE:include>
   PRIVATE
     ${HIPSYCL_SOURCE_DIR}
+    ${PROJECT_BINARY_DIR}/include
 )
-
-if(WITH_CUDA_BACKEND)
-  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_CUDA_BACKEND=1)
-  target_include_directories(hipSYCL-rt PRIVATE ${CUDA_TOOLKIT_ROOT_DIR}/include)
-  
-  target_link_libraries(hipSYCL-rt PRIVATE ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
-endif()
-
-if(WITH_ROCM_BACKEND) 
-  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_HIP_BACKEND=1 HIPSYCL_RT_HIP_TARGET_ROCM=1)
-  if(NOT HIP_FOUND)
-    target_include_directories(hipSYCL-rt PRIVATE ${ROCM_PATH}/include)
-    target_link_libraries(hipSYCL-rt PRIVATE ${ROCM_LIBS})
-  else()
-    # Supress warnings because wrongly set CXX arguments
-    target_compile_options(hipSYCL-rt PRIVATE -Wno-unused-command-line-argument)
-    target_link_libraries(hipSYCL-rt PRIVATE hip::host)
-  endif()
-endif()
-
-if(WITH_CPU_BACKEND)
-  find_package(OpenMP REQUIRED)
-  if(APPLE)
-    if(CMAKE_VERSION VERSION_LESS "3.16")
-      message(FATAL_ERROR "CMake 3.16.0+ is required for macOS OpenMP support!")
-    endif()
-    target_include_directories(hipSYCL-rt PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
-  endif()
-
-  target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
-
-  target_compile_definitions(hipSYCL-rt PRIVATE HIPSYCL_RT_ENABLE_OMP_BACKEND=1)
-endif()
 
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib/static)
+
+
+if(WITH_CUDA_BACKEND)
+  add_library(rt-backend-cuda SHARED
+    cuda/cuda_event.cpp
+    cuda/cuda_queue.cpp
+    cuda/cuda_allocator.cpp
+    cuda/cuda_device_manager.cpp
+    cuda/cuda_hardware_manager.cpp
+    cuda/cuda_backend.cpp
+    cuda/cuda_module.cpp)
+
+  target_include_directories(rt-backend-cuda PRIVATE
+    ${HIPSYCL_SOURCE_DIR}/include
+    ${CUDA_TOOLKIT_ROOT_DIR}/include)
+  
+  target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
+
+  install(TARGETS rt-backend-cuda
+        EXPORT install_exports
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/static)
+endif()
+
+if(WITH_ROCM_BACKEND)
+  add_library(rt-backend-hip SHARED
+    hip/hip_event.cpp
+    hip/hip_queue.cpp
+    hip/hip_allocator.cpp
+    hip/hip_device_manager.cpp
+    hip/hip_hardware_manager.cpp
+    hip/hip_backend.cpp)
+
+  target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_TARGET_ROCM=1)
+  target_include_directories(rt-backend-hip PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  if(NOT HIP_FOUND)
+    target_include_directories(rt-backend-hip PRIVATE ${ROCM_PATH}/include)
+    target_link_libraries(rt-backend-hip PRIVATE ${ROCM_LIBS})
+  else()
+    # Supress warnings because wrongly set CXX arguments
+    target_compile_options(rt-backend-hip PRIVATE -Wno-unused-command-line-argument)
+    target_link_libraries(rt-backend-hip PRIVATE hipSYCL-rt  hip::host)
+  endif()
+
+  install(TARGETS rt-backend-hip
+        EXPORT install_exports
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/static)
+endif()
+
+if(WITH_CPU_BACKEND)
+  add_library(rt-backend-omp SHARED
+    omp/omp_allocator.cpp
+    omp/omp_backend.cpp
+    omp/omp_event.cpp
+    omp/omp_hardware_manager.cpp
+    omp/omp_queue.cpp)
+
+    find_package(OpenMP REQUIRED)
+
+    target_include_directories(rt-backend-omp PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+    if(APPLE)
+      if(CMAKE_VERSION VERSION_LESS "3.16")
+        message(FATAL_ERROR "CMake 3.16.0+ is required for macOS OpenMP support!")
+      endif()
+      target_include_directories(rt-backend-omp PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
+    endif()
+
+    target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
+
+    install(TARGETS rt-backend-omp
+        EXPORT install_exports
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/static)
+endif()
+
+
+if(WITH_CPU_BACKEND)
+  
+endif()
+
+
 
 
 

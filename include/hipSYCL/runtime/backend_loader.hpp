@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,30 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_BACKEND_LOADER_HPP
+#define HIPSYCL_BACKEND_LOADER_HPP
 
-#ifndef HIPSYCL_VERSION_HPP
-#define HIPSYCL_VERSION_HPP
 
 #include <string>
+#include <vector>
+#include <utility>
 
-#include "hipSYCL/common/config.hpp"
+namespace hipsycl::rt {
+class backend;
+}
+
+
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C"
+
+
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create();
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char* hipsycl_backend_plugin_get_name();
+
 
 namespace hipsycl {
-namespace sycl {
-namespace detail {
+namespace rt {
 
-static std::string version_string()
-{
-  std::string hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
-      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
-      + "." + std::to_string(HIPSYCL_VERSION_PATCH)
-      + "-" + std::string(HIPSYCL_VERSION_TYPE);
+class backend_loader {
+public:
+  ~backend_loader();
 
-  return "hipSYCL " + hipsycl_version;
-}
+  void query_backends();
+  
+  std::size_t get_num_backends() const;
+  std::string get_backend_name(std::size_t index) const;
+  bool has_backend(const std::string &name) const;
 
-}
+  backend *create(std::size_t index);
+  backend *create(const std::string &name);
+
+private:
+  using handle_t = void*;
+  std::vector<std::pair<std::string, handle_t>> _handles;
+};
+
 }
 }
 
 #endif
+

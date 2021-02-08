@@ -72,17 +72,23 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
 // any_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_any_of(sub_group g, bool pred) { return __any(pred); }
+inline bool group_any_of(sub_group g, bool pred) {
+  return __any(pred);
+}
 
 // all_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_all_of(sub_group g, bool pred) { return __all(pred); }
+inline bool group_all_of(sub_group g, bool pred) {
+  return __all(pred);
+}
 
 // none_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_none_of(sub_group g, bool pred) { return !__any(pred); }
+inline bool group_none_of(sub_group g, bool pred) {
+  return !__any(pred);
+}
 
 // reduce
 template<typename T, typename BinaryOperation>
@@ -134,15 +140,15 @@ T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
-  auto local_x = x;
-  auto lid     = g.get_local_linear_id();
+  auto         local_x = x;
+  const size_t lid     = g.get_local_linear_id();
 
   uint64_t activemask;
   asm("s_mov_b64 %0, exec" : "=r"(activemask));
 
   if (~activemask == 0) {
-    auto row_id  = lid % 16;
-    auto lane_id = lid % warpSize;
+    const size_t row_id  = lid % 16;
+    const size_t lane_id = lid % warpSize;
     // adaption of rocprim dpp_scan
     T tmp;
     // row_sr:1
@@ -199,7 +205,7 @@ T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
 template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
-  auto lid     = g.get_local_linear_id();
+  const size_t lid     = g.get_local_linear_id();
   auto local_x = x;
 
   local_x = detail::shuffle_up_impl(local_x, 1);

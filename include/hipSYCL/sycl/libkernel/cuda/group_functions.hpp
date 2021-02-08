@@ -72,25 +72,31 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
 // any_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_any_of(sub_group g, bool pred) { return __any_sync(detail::AllMask, pred); }
+inline bool group_any_of(sub_group g, bool pred) {
+  return __any_sync(detail::AllMask, pred);
+}
 
 // all_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_all_of(sub_group g, bool pred) { return __all_sync(detail::AllMask, pred); }
+inline bool group_all_of(sub_group g, bool pred) {
+  return __all_sync(detail::AllMask, pred);
+}
 
 // none_of
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_none_of(sub_group g, bool pred) { return !__any_sync(detail::AllMask, pred); }
+inline bool group_none_of(sub_group g, bool pred) {
+  return !__any_sync(detail::AllMask, pred);
+}
 
 // reduce
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
-  auto         lid        = g.get_local_linear_id();
-  size_t       lrange     = g.get_local_linear_range();
-  unsigned int activemask = __activemask();
+  const size_t       lid        = g.get_local_linear_id();
+  const size_t       lrange     = g.get_local_linear_range();
+  const unsigned int activemask = __activemask();
 
   auto local_x = x;
 
@@ -106,9 +112,9 @@ T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
 template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
-  auto         lid        = g.get_local_linear_id();
-  size_t       lrange     = g.get_local_linear_range();
-  unsigned int activemask = __activemask();
+  const size_t       lid        = g.get_local_linear_id();
+  const size_t       lrange     = g.get_local_linear_range();
+  const unsigned int activemask = __activemask();
 
   auto local_x = x;
 
@@ -126,7 +132,7 @@ T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
   if (g.leader())
     next_id = 0;
 
-  auto return_value = detail::shuffle_impl(local_x, lid - 1);
+  auto return_value = detail::shuffle_impl(local_x, next_id);
 
   if (g.leader())
     return init;
@@ -138,9 +144,9 @@ T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
-  auto         lid        = g.get_local_linear_id();
-  size_t       lrange     = g.get_local_linear_range();
-  unsigned int activemask = __activemask();
+  const size_t       lid        = g.get_local_linear_id();
+  const size_t       lrange     = g.get_local_linear_range();
+  const unsigned int activemask = __activemask();
 
   auto local_x = x;
 

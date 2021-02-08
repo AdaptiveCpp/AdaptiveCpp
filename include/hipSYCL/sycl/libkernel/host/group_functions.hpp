@@ -46,7 +46,7 @@ namespace detail {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
-  auto lid = g.get_local_linear_id();
+  const size_t lid = g.get_local_linear_id();
 
   scratch[lid] = x;
   group_barrier(g);
@@ -104,14 +104,14 @@ bool leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
 template<typename Group, typename Ptr>
 HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, Ptr first, Ptr last) {
-  auto result = leader_any_of(g, first, last);
+  const bool result = leader_any_of(g, first, last);
   return group_broadcast(g, result);
 }
 
 template<typename Group, typename Ptr, typename Predicate>
 HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, Ptr first, Ptr last, Predicate pred) {
-  auto result = leader_any_of(g, first, last, pred);
+  const bool result = leader_any_of(g, first, last, pred);
   return group_broadcast(g, result);
 }
 
@@ -151,14 +151,14 @@ bool leader_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
 template<typename Group, typename Ptr>
 HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, Ptr first, Ptr last) {
-  auto result = leader_all_of(g, first, last);
+  const bool result = leader_all_of(g, first, last);
   return group_broadcast(g, result);
 }
 
 template<typename Group, typename Ptr, typename Predicate>
 HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, Ptr first, Ptr last, Predicate pred) {
-  auto result = leader_all_of(g, first, last, pred);
+  const bool result = leader_all_of(g, first, last, pred);
   return group_broadcast(g, result);
 }
 
@@ -258,7 +258,7 @@ T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T reduce(Group g, V *first, V *last, T init, BinaryOperation binary_op) {
-  auto result = leader_reduce(g, first, last, init, binary_op);
+  const auto result = leader_reduce(g, first, last, init, binary_op);
 
   return group_broadcast(g, result);
 }
@@ -287,8 +287,8 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T *exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
-  auto ret = leader_exclusive_scan(g, first, last, result, init, binary_op);
-  return group_broadcast(g, result);
+  const auto ret = leader_exclusive_scan(g, first, last, result, init, binary_op);
+  return group_broadcast(g, ret);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
@@ -339,16 +339,16 @@ T *inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
-  T *  scratch = static_cast<T *>(g.get_local_memory_ptr());
-  auto lid     = g.get_local_linear_id();
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+  const size_t lid     = g.get_local_linear_id();
 
   if (lid == local_linear_id) {
     scratch[0] = x;
   }
 
   group_barrier(g);
-
   T tmp = scratch[0];
+  group_barrier(g);
 
   return tmp;
 }
@@ -356,13 +356,15 @@ T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id =
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::id_type local_id) {
-  auto target_lid = detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
+  const size_t target_lid = detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
   return group_broadcast(g, x, target_lid);
 }
 
 template<typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_linear_id = 0) { return x; }
+T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_linear_id = 0) {
+  return x;
+}
 
 // barrier
 template<typename Group>
@@ -408,7 +410,9 @@ inline bool group_any_of(Group g, bool pred) {
 
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_any_of(sub_group g, bool pred) { return pred; }
+inline bool group_any_of(sub_group g, bool pred) {
+  return pred;
+}
 
 // all_of
 template<typename Group>
@@ -433,7 +437,9 @@ inline bool group_all_of(Group g, bool pred) {
 
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_all_of(sub_group g, bool pred) { return pred; }
+inline bool group_all_of(sub_group g, bool pred) {
+  return pred;
+}
 
 // none_of
 template<typename Group>
@@ -458,7 +464,9 @@ inline bool group_none_of(Group g, bool pred) {
 
 template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_none_of(sub_group g, bool pred) { return pred; }
+inline bool group_none_of(sub_group g, bool pred) {
+  return pred;
+}
 
 // reduce
 template<typename Group, typename T, typename BinaryOperation>
@@ -473,15 +481,16 @@ T group_reduce(Group g, T x, BinaryOperation binary_op) {
 
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_reduce(sub_group g, T x, BinaryOperation binary_op) { return x; }
+T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
+  return x;
+}
 
 // exclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  auto lid = g.get_local_linear_id();
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+  const size_t lid     = g.get_local_linear_id();
 
   if (lid + 1 < 1024)
     scratch[lid + 1] = x;
@@ -502,15 +511,16 @@ T group_exclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
 
 template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) { return binary_op(x, init); }
+T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
+  return binary_op(x, init);
+}
 
 // inclusive_scan
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  auto lid = g.get_local_linear_id();
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+  const size_t lid     = g.get_local_linear_id();
 
   scratch[lid] = x;
   group_barrier(g);
@@ -529,7 +539,9 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
 
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) { return x; }
+T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
+  return x;
+}
 
 } // namespace sycl
 } // namespace hipsycl

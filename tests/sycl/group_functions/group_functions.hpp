@@ -135,7 +135,9 @@ bool compare_type(T x1, T x2) {
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
-T initialize_type(T init) { return init; }
+T initialize_type(T init) {
+  return init;
+}
 
 template<typename T, typename std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET

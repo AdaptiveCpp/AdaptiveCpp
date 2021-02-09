@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -91,7 +91,7 @@ HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, T *first, T *last) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = false;
 
@@ -106,7 +106,7 @@ HIPSYCL_KERNEL_TARGET
 bool any_of(Group g, T *first, T *last, Predicate pred) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = false;
 
@@ -134,7 +134,7 @@ HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, T *first, T *last) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = true;
 
@@ -149,7 +149,7 @@ HIPSYCL_KERNEL_TARGET
 bool all_of(Group g, T *first, T *last, Predicate pred) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = true;
 
@@ -177,7 +177,7 @@ HIPSYCL_KERNEL_TARGET
 bool none_of(Group g, T *first, T *last) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = false;
 
@@ -192,7 +192,7 @@ HIPSYCL_KERNEL_TARGET
 bool none_of(Group g, T *first, T *last, Predicate pred) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
-  T *  start_ptr = first + lid;
+  T *        start_ptr = first + lid;
 
   bool local = false;
 
@@ -218,8 +218,9 @@ bool leader_none_of(Group g, T *first, T *last, Predicate pred) {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
-  T *scratch = reinterpret_cast<T *>(&scratch_storage);
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
 
   const size_t lrange       = g.get_local_range().size();
   const size_t num_elements = last - first;
@@ -295,14 +296,16 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
 // inclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *inclusive_scan(Group g, V *first, V *last, T *result, T init,
+                  BinaryOperation binary_op) {
   auto         lid          = g.get_local_linear_id();
   auto         wid          = lid / warpSize;
   size_t       lrange       = g.get_local_range().size();
   const size_t num_elements = last - first;
   const size_t iterations   = (num_elements + lrange - 1) / lrange;
 
-  const size_t warp_size = (wid == lrange / warpSize && lrange % warpSize != 0) ? lrange % warpSize : warpSize;
+  const size_t warp_size =
+      (wid == lrange / warpSize && lrange % warpSize != 0) ? lrange % warpSize : warpSize;
 
   size_t offset     = lid;
   T      carry_over = init;
@@ -354,20 +357,23 @@ T *inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init,
+                         BinaryOperation binary_op) {
   return inclusive_scan(g, first, last, result, init, binary_op);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_op) {
+T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
+                         BinaryOperation binary_op) {
   return inclusive_scan(g, first, last, result, binary_op);
 }
 
 // exclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *exclusive_scan(Group g, V *first, V *last, T *result, T init,
+                  BinaryOperation binary_op) {
   auto lid = g.get_local_linear_id();
   if (lid == 0 && last - first > 0)
     result[0] = init;
@@ -382,25 +388,28 @@ T *exclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
+                         BinaryOperation binary_op) {
   return exclusive_scan(g, first, last, result, init, binary_op);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *eleader_xclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_op) {
+T *eleader_xclusive_scan(Group g, V *first, V *last, T *result,
+                         BinaryOperation binary_op) {
   return exclusive_scan(g, first, last, result, binary_op);
 }
 
 } // namespace detail
 
 // broadcast
-template<typename Group, typename T, typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
+template<typename Group, typename T,
+         typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
   __shared__ std::aligned_storage_t<sizeof(T), alignof(T)> scratch_storage;
-  T *                                                      scratch = reinterpret_cast<T *>(&scratch_storage);
-  const size_t                                             lid     = g.get_local_linear_id();
+  T *          scratch = reinterpret_cast<T *>(&scratch_storage);
+  const size_t lid     = g.get_local_linear_id();
 
   if (lid == local_linear_id)
     scratch[0] = x;
@@ -412,7 +421,8 @@ T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id =
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::id_type local_id) {
-  const auto target_lid = detail::linear_id<g.dimensions>::get(local_id, detail::get_local_size<g.dimensions>());
+  const auto target_lid = detail::linear_id<g.dimensions>::get(
+      local_id, detail::get_local_size<g.dimensions>());
   return group_broadcast(g, x, target_lid);
 }
 
@@ -442,8 +452,9 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
-  T *scratch = reinterpret_cast<T *>(&scratch_storage);
+  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
 
   return detail::group_reduce(g, x, binary_op, scratch);
 }
@@ -453,7 +464,8 @@ template<typename Group, typename T, typename V, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
+  __shared__   std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+               scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
   const size_t wid      = lid / warpSize;
@@ -468,7 +480,7 @@ T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
 
   if (lid < warpSize) {
     const size_t scratch_index = (lid < 1024 / warpSize) ? lid : 0;
-    const T      tmp           = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
+    const T      tmp = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
 
     if (lid < (lrange + warpSize - 1) / warpSize)
       scratch[lid] = tmp;
@@ -491,7 +503,8 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)> scratch_storage;
+  __shared__   std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+               scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
   size_t       wid      = lid / warpSize;

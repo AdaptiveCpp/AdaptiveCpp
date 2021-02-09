@@ -44,7 +44,8 @@ namespace sycl {
 // broadcast
 template<typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_linear_id = 0) {
+T group_broadcast(sub_group g, T x,
+                  typename sub_group::linear_id_type local_linear_id = 0) {
   return detail::shuffle_impl(x, local_linear_id);
 }
 

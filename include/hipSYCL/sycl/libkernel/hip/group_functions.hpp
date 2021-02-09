@@ -44,7 +44,8 @@ namespace sycl {
 // broadcast
 template<typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_linear_id = 0) {
+T group_broadcast(sub_group g, T x,
+                  typename sub_group::linear_id_type local_linear_id = 0) {
   return detail::shuffle_impl(x, static_cast<int>(local_linear_id));
 }
 
@@ -206,7 +207,7 @@ template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
   const size_t lid     = g.get_local_linear_id();
-  auto local_x = x;
+  auto         local_x = x;
 
   local_x = detail::shuffle_up_impl(local_x, 1);
   if (lid == 0)

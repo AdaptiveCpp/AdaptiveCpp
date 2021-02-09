@@ -266,7 +266,8 @@ T reduce(Group g, V *first, V *last, T init, BinaryOperation binary_op) {
 // exclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
+                         BinaryOperation binary_op) {
 
   if (g.leader()) {
     *(result++) = init;
@@ -280,13 +281,15 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOp
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_exclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_op) {
+T *leader_exclusive_scan(Group g, V *first, V *last, T *result,
+                         BinaryOperation binary_op) {
   return leader_exclusive_scan(g, first, last, result, T{}, binary_op);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *exclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *exclusive_scan(Group g, V *first, V *last, T *result, T init,
+                  BinaryOperation binary_op) {
   const auto ret = leader_exclusive_scan(g, first, last, result, init, binary_op);
   return group_broadcast(g, ret);
 }
@@ -300,7 +303,8 @@ T *exclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_
 // inclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init,
+                         BinaryOperation binary_op) {
   if (first == last)
     return result;
 
@@ -316,13 +320,15 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOp
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *leader_inclusive_scan(Group g, V *first, V *last, T *result, BinaryOperation binary_op) {
+T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
+                         BinaryOperation binary_op) {
   return leader_inclusive_scan(g, first, last, result, T{}, binary_op);
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T *inclusive_scan(Group g, V *first, V *last, T *result, T init, BinaryOperation binary_op) {
+T *inclusive_scan(Group g, V *first, V *last, T *result, T init,
+                  BinaryOperation binary_op) {
   auto ret = leader_inclusive_scan(g, first, last, result, init, binary_op);
   return group_broadcast(g, ret);
 }
@@ -356,13 +362,15 @@ T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id =
 template<typename Group, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(Group g, T x, typename Group::id_type local_id) {
-  const size_t target_lid = detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
+  const size_t target_lid =
+      detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
   return group_broadcast(g, x, target_lid);
 }
 
 template<typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x, typename sub_group::linear_id_type local_linear_id = 0) {
+T group_broadcast(sub_group g, T x,
+                  typename sub_group::linear_id_type local_linear_id = 0) {
   return x;
 }
 

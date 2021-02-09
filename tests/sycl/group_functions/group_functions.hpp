@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -43,9 +43,11 @@
 using namespace cl;
 
 #ifdef TESTS_GROUPFUNCTION_FULL
-using test_types = boost::mpl::list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
-                                    sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>, sycl::vec<int, 8>,
-                                    sycl::vec<short, 16>, sycl::vec<long, 3>, sycl::vec<unsigned int, 3>>;
+using test_types =
+    boost::mpl::list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,
+                     sycl::vec<int, 2>, sycl::vec<int, 3>, sycl::vec<int, 4>,
+                     sycl::vec<int, 8>, sycl::vec<short, 16>, sycl::vec<long, 3>,
+                     sycl::vec<unsigned int, 3>>;
 #else
 using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
 #endif
@@ -158,8 +160,9 @@ T initialize_type(elementType<T> init) {
   } else if constexpr (N == 8) {
     return T{init, init + 1, init + 2, init + 3, init + 4, init + 5, init + 6, init + 7};
   } else if constexpr (N == 16) {
-    return T{init,     init + 1, init + 2,  init + 3,  init + 4,  init + 5,  init + 6,  init + 7,
-             init + 8, init + 9, init + 10, init + 11, init + 12, init + 13, init + 14, init + 15};
+    return T{init,      init + 1,  init + 2,  init + 3, init + 4,  init + 5,
+             init + 6,  init + 7,  init + 8,  init + 9, init + 10, init + 11,
+             init + 12, init + 13, init + 14, init + 15};
   }
 
   static_assert(true, "invalide vector type!");
@@ -198,7 +201,8 @@ elementType<T> local_value(size_t id, size_t offsetBase) {
   return static_cast<elementType<T>>(id + offset);
 }
 
-inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size, size_t global_size) {
+inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
+                                  size_t global_size) {
   BOOST_REQUIRE(global_size == 4 * local_size);
   BOOST_REQUIRE(local_size + 10 < 2 * local_size);
 
@@ -227,10 +231,11 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size, 
 }
 
 template<typename T, int Line>
-void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global_size, std::vector<bool> expected,
-                         std::string name, size_t break_size = 0, size_t offset = 0) {
-  std::vector<std::string> cases{"everything except one false", "everything false", "everything except one true",
-                                 "everything true"};
+void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global_size,
+                         std::vector<bool> expected, std::string name,
+                         size_t break_size = 0, size_t offset = 0) {
+  std::vector<std::string> cases{"everything except one false", "everything false",
+                                 "everything except one true", "everything true"};
   BOOST_REQUIRE(global_size / local_size == expected.size());
   for (size_t i = 0; i < global_size / local_size; ++i) {
     for (size_t j = 0; j < local_size; ++j) {
@@ -241,9 +246,10 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
       T computed      = buffer[i * local_size + j + offset];
       T expectedValue = initialize_type<T>(expected[i]);
 
-      BOOST_TEST(compare_type(expectedValue, computed), Line << ":" << type_to_string(computed) << " at position " << j
-                                                             << " instead of " << type_to_string(expectedValue)
-                                                             << " for case: " << cases[i] << " " << name);
+      BOOST_TEST(compare_type(expectedValue, computed),
+                 Line << ":" << type_to_string(computed) << " at position " << j
+                      << " instead of " << type_to_string(expectedValue)
+                      << " for case: " << cases[i] << " " << name);
 
       if (!compare_type(expectedValue, computed))
         break;
@@ -256,8 +262,10 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
 template<int N, int M, typename T>
 class test_kernel;
 
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction, typename ValidationFunction>
-void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg, TestedFunction f, ValidationFunction vf) {
+template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
+         typename ValidationFunction>
+void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
+                               TestedFunction f, ValidationFunction vf) {
 // currently only groupsizes between 128 and 256 are supportet for HIP
 #ifdef HIPSYCL_PLATFORM_ROCM
   std::vector<size_t> local_sizes  = {256};
@@ -301,8 +309,10 @@ void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg, Tes
   }
 }
 
-template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction, typename ValidationFunction>
-void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg, TestedFunction f, ValidationFunction vf) {
+template<int CallingLine, typename T, typename DataGenerator, typename TestedFunction,
+         typename ValidationFunction>
+void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
+                               TestedFunction f, ValidationFunction vf) {
 // currently only groupsizes between 128 and 256 are supportet for HIP
 #ifdef HIPSYCL_PLATFORM_ROCM
   std::vector<size_t> local_sizes  = {16};
@@ -334,7 +344,8 @@ void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg, Tes
           [=](sycl::nd_item<2> item) {
           auto   g                = item.get_group();
           auto   sg               = item.get_sub_group();
-          size_t custom_linear_id = item.get_local_linear_id() + local_size * local_size * item.get_group_linear_id();
+          size_t custom_linear_id = item.get_local_linear_id() +
+                                    local_size * local_size * item.get_group_linear_id();
 
           T local_value = acc[custom_linear_id];
 

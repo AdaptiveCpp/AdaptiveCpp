@@ -29,11 +29,13 @@
 #define HIPSYCL_INORDER_QUEUE_HPP
 
 #include <memory>
+#include <string>
 
 #include "dag_node.hpp"
 #include "hints.hpp"
 #include "operations.hpp"
 #include "error.hpp"
+#include "module_invoker.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -54,6 +56,14 @@ public:
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
   virtual result submit_external_wait_for(dag_node_ptr node) = 0;
+
+  virtual device_id get_device() const = 0;
+  /// Return native type if supported, nullptr otherwise
+  virtual void* get_native_type() const = 0;
+
+  /// Get a module invoker to launch kernels from module images,
+  /// if the backend supports this. Returns nullptr if unsupported.
+  virtual module_invoker* get_module_invoker() = 0;
 
   virtual ~inorder_queue(){}
 };

@@ -58,7 +58,10 @@ public:
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
-  device_id get_device() const { return _dev; }
+  virtual device_id get_device() const override;
+  virtual void* get_native_type() const override;
+
+  virtual module_invoker* get_module_invoker() override;
 private:
   void activate_device() const;
   

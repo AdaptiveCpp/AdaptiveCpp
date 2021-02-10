@@ -44,7 +44,7 @@
 #endif
 
 using namespace hipsycl;
-
+/*
 template <rt::backend_id Backend> struct backend_enabled {
   static constexpr bool value = false;
 };
@@ -137,3 +137,4 @@ BOOST_AUTO_TEST_CASE(
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+*/

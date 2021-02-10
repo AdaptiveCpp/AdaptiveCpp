@@ -29,5 +29,7 @@
 
 
 #define BOOST_TEST_MODULE hipSYCL runtime tests
+#ifndef _WIN32
 #define BOOST_TEST_DYN_LINK
+#endif // _WIN32
 #include <boost/test/unit_test.hpp>

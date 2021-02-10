@@ -29,6 +29,8 @@
 
 #include <boost/mpl/joint_view.hpp>
 
+#include <cmath>
+
 BOOST_FIXTURE_TEST_SUITE(math_tests, reset_device_fixture)
 
 // list of types classified as "genfloat" in the SYCL standard
@@ -318,14 +320,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == atan2(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == copysign(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == fdim(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == fmin(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == fmax(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == fmod(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == hypot(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == pow(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::atan2<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::copysign<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fdim<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmin<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmax<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmod<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::hypot<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::pow<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
     }
   }
 }
@@ -585,10 +587,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo::type) {
     auto normalize_ref_result = ref_normalize(acc[0]);
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == dot_ref_result, tolerance);
-      BOOST_TEST(comp(acc[i++], c) == length_ref_result, tolerance);
-      BOOST_TEST(comp(acc[i++], c) == distance_ref_result, tolerance);
-      BOOST_TEST(comp(acc[i++], c) == comp(normalize_ref_result, c), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(dot_ref_result), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)), tolerance);
     }
   }
 }
@@ -637,9 +639,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats::type) {
     auto normalize_ref_result = ref_normalize(acc[0]);
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == length_ref_result, tolerance);
-      BOOST_TEST(comp(acc[i++], c) == distance_ref_result, tolerance);
-      BOOST_TEST(comp(acc[i++], c) == comp(normalize_ref_result, c), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(length_ref_result), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(distance_ref_result), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == static_cast<double>(comp(normalize_ref_result, c)), tolerance);
     }
   }
 }

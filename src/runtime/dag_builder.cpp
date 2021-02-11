@@ -57,11 +57,17 @@ void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
                            ->get_data_region()
                            ->get_users();
 
-    if (!data_users.has_user(node)) {
-      data_users.add_user(
-          node, mem_req->get_access_mode(), mem_req->get_access_target(),
-          mem_req->get_access_offset3d(), mem_req->get_access_range3d());
-    }
+    // We need to add the user unconditionally, whether the user
+    // is already registered or not. This is to cover the case
+    // where we have multiple requirements (potentially with different access
+    // modes or ranges) on the same operation.
+    // This cannot introduce duplicate dependency edges in the DAG because
+    // dag_node::add_requirement() only inserts requirements to nodes
+    // that are not listed yet as requirement. 
+    data_users.add_user(
+        node, mem_req->get_access_mode(), mem_req->get_access_target(),
+        mem_req->get_access_offset3d(), mem_req->get_access_range3d());
+  
   } else
     assert(false && "dag: Image requirements are not yet implemented");
 }

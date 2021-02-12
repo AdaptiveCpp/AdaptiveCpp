@@ -99,7 +99,6 @@ void data_user_tracker::add_user(
   id<3> offset, 
   range<3> range)
 {
-  assert(!has_user(user));
   std::lock_guard<std::mutex> lock{_lock};
 
   _users.push_back(

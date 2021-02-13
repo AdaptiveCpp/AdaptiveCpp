@@ -141,7 +141,7 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
   if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
       paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
   }
-  paths.emplace_back(std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL");
+  const auto installPrefixedPath = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
 #else
   if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
   {
@@ -151,9 +151,11 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
       paths.emplace_back(std::filesystem::path{pathB.data()}.parent_path() / "hipSYCL");
     }
   }
-  paths.emplace_back(std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL");
-
+  const auto installPrefixedPath = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
 #endif
+
+  if(!std::filesystem::equivalent(installPrefixedPath, paths.back()))
+    paths.emplace_back(std::move(installPrefixedPath));
   return paths;
 }
 
@@ -177,6 +179,7 @@ void backend_loader::query_backends() {
                         << backend_lib_path << std::endl;
       continue;
     }
+
     HIPSYCL_DEBUG_INFO << "backend_loader: Searching path for backend libs: '"
                       << backend_lib_path << "'" << std::endl;
 
@@ -189,10 +192,14 @@ void backend_loader::query_backends() {
           std::string backend_name;
           void *handle;
           if (load_plugin(p.string(), handle, backend_name)) {
-            HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
-                              << " for backend '" << backend_name << "'"
-                              << std::endl;
-            _handles.emplace_back(std::make_pair(backend_name, handle));
+            if(!has_backend(backend_name)){
+              HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
+                                << " for backend '" << backend_name << "'"
+                                << std::endl;
+              _handles.emplace_back(std::make_pair(backend_name, handle));
+            } else {
+              close_plugin(handle);
+            }
           }
         }
       }

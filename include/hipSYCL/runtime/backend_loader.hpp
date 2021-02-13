@@ -37,9 +37,11 @@ namespace hipsycl::rt {
 class backend;
 }
 
-
+#ifndef _WIN32
 #define HIPSYCL_PLUGIN_API_EXPORT extern "C"
-
+#else
+#define HIPSYCL_PLUGIN_API_EXPORT __declspec(dllexport) extern "C"
+#endif
 
 HIPSYCL_PLUGIN_API_EXPORT
 hipsycl::rt::backend *hipsycl_backend_plugin_create();

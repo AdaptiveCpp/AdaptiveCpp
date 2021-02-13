@@ -105,6 +105,18 @@ if(WITH_CPU_BACKEND)
       endif()
       target_include_directories(rt-backend-omp PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
     endif()
+  
+  if(WIN32)
+    # FindOpenMP does a bad job here, finding any library.. so add some more hints..
+    find_library(hipSYCL_OpenMP_libomp_LIBRARY
+      NAMES libomp libgomp libiomp5 HINTS
+      ${CMAKE_${LANG}_IMPLICIT_LINK_DIRECTORIES}
+      ${LLVM_PREFIX_DIR}/lib
+    )
+    target_link_libraries(hipSYCL-rt PRIVATE ${hipSYCL_OpenMP_libomp_LIBRARY} OpenMP::OpenMP_CXX)
+  else()
+    target_link_libraries(hipSYCL-rt PRIVATE OpenMP::OpenMP_CXX)
+  endif()
 
     target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
 

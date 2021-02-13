@@ -40,6 +40,9 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 if(HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
   add_definitions(-DHIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
 endif()
+if(WIN32)
+add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_USE_MATH_DEFINES)
+endif()
 
 add_subdirectory(platform_api)
 

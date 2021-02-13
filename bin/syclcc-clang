@@ -312,12 +312,17 @@ class syclcc_config:
     }
 
   def _get_cuda_substitution_vars(self):
-    return {
+    vars = {
       'HIPSYCL_CUDA_PATH' : self.cuda_path,
-      'HIPSYCL_CUDA_LIB_PATH' : os.path.join(self.cuda_path, "lib64"),
       'HIPSYCL_PATH' : self.hipsycl_installation_path,
       'HIPSYCL_LIB_PATH' : os.path.join(self.hipsycl_installation_path, "lib")
     }
+    if sys.platform.startswith("win32"):
+      vars['HIPSYCL_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib", "x64")
+    else:
+      vars['HIPSYCL_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib64")
+
+    return vars
 
   def _get_omp_substitution_vars(self):
     return {
@@ -588,6 +593,8 @@ class cuda_multipass_invocation:
     self._config = config
     self._hipsycl_lib_path = os.path.join(
       config.hipsycl_installation_path, "lib/")
+    self._hipsycl_bin_path = os.path.join(
+      config.hipsycl_installation_path, "bin/")
     self.set_temp_dir("/tmp")
 
   def set_temp_dir(self, temp_dir):
@@ -610,13 +617,16 @@ class cuda_multipass_invocation:
         "-x", "cuda",
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so"),
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
         "-S",
         "-o",self._explicit_pass_output_file(target)
       ]
+    if sys.platform.startswith('win32'):
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_bin_path, "hipSYCL_clang.dll")]
+    else:
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")]
 
     return flags
 
@@ -683,6 +693,7 @@ class cuda_invocation:
     self._cuda_path = config.cuda_path
     self._clang = config.clang_path
     self._hipsycl_lib_path = os.path.join(config.hipsycl_installation_path, "lib/")
+    self._hipsycl_bin_path = os.path.join(config.hipsycl_installation_path, "bin/")
     self._linker_args = config.cuda_link_line
     self._cxx_flags = config.cuda_cxx_flags
 
@@ -695,9 +706,13 @@ class cuda_invocation:
         "-x", "cuda",
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
-        "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
+        "-D__HIPSYCL_CLANG__"
       ]
+    if sys.platform.startswith('win32'):
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_bin_path, "hipSYCL_clang.dll")]
+    else:
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")]
+
     flags += self._cxx_flags
     for t in self._cuda_targets:
       flags += ["--cuda-gpu-arch=" + t]
@@ -722,6 +737,7 @@ class hip_invocation:
     self._cxx_flags = config.rocm_cxx_flags
     self._clang_include_path = config.clang_include_path
     self._hipsycl_lib_path = os.path.join(config.hipsycl_installation_path, "lib/")
+    self._hipsycl_bin_path = os.path.join(config.hipsycl_installation_path, "bin/")
 
   def get_compiler_preference(self):
     return (self._clang, 100)
@@ -731,9 +747,13 @@ class hip_invocation:
     flags += [
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
-        "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")
+        "-D__HIPSYCL_CLANG__"
       ]
+    if sys.platform.startswith('win32'):
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_bin_path, "hipSYCL_clang.dll")]
+    else:
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")]
+    
     for t in self._hip_targets:
       flags += ["--cuda-gpu-arch=" + t]
       
@@ -866,11 +886,12 @@ class compiler:
   @property
   def common_linker_flags(self):
     linker_args = [
-      "-Wl,-rpath="+self._hipsycl_lib_path,
       "-L"+self._hipsycl_lib_path,
       "-lhipSYCL-rt"
     ]
-
+    
+    if not sys.platform.startswith("win32"):
+      linker_args.append("-Wl,-rpath="+self._hipsycl_lib_path)
     return linker_args
 
   def _run_device_passes(self, temp_dir, multipass_backend):

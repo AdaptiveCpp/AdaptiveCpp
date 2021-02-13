@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
+cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
@@ -59,7 +60,7 @@ if(WITH_CUDA_BACKEND)
     message(SEND_ERROR "CUDA was not found")
   endif()
 
-  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs REQUIRED)
+  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
   message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 endif()
 if(WITH_ROCM_BACKEND)
@@ -99,9 +100,19 @@ if(BUILD_CLANG_PLUGIN)
   message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
   #find_package(Clang REQUIRED)
 
-  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
+  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
   if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
-    message(SEND_ERROR "Could not find clang executable")
+    find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
+    if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
+      message(SEND_ERROR "Could not find clang executable")
+    endif()
+  endif()
+  if(WIN32)
+    # plugins link agains clang.exe and not clang++.exe, thus using clang++ would result
+    # in symbol clashes and therefore the plugin not loading.
+    # on Windows it seems, to be fine, as long as clang is able to deduce the language
+    # from the file extension, as the msvcrt is linked explicitly anyways.
+    string(REPLACE "clang++.exe" "clang.exe" CLANG_EXECUTABLE_PATH ${CLANG_EXECUTABLE_PATH})
   endif()
   message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
 
@@ -159,35 +170,68 @@ endif()
 
 set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
-if(NOT ROCM_LINK_LINE)
-  set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}")
+
+set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
+set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart")
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  set(DEFAULT_WIN32_OMP_LINK_LINE "-l${Boost_CONTEXT_LIBRARY_DEBUG} -l${Boost_FIBER_LIBRARY_DEBUG} ${DEFAULT_OMP_FLAG}")
+  set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-l${Boost_CONTEXT_LIBRARY_DEBUG} -l${Boost_FIBER_LIBRARY_DEBUG} -llibomp")
+else()
+  set(DEFAULT_WIN32_OMP_LINK_LINE "-l${Boost_CONTEXT_LIBRARY_RELEASE} -l${Boost_FIBER_LIBRARY_RELEASE} ${DEFAULT_OMP_FLAG}")
+  set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-l${Boost_CONTEXT_LIBRARY_RELEASE} -l${Boost_FIBER_LIBRARY_RELEASE} -llibomp")
 endif()
+set(DEFAULT_OMP_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_ROOT}/lib ${DEFAULT_OMP_FLAG}")
+set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -lomp -Wl,-rpath=${BOOST_ROOT}/lib")
+
+# If no link lines given, set to default.
+if(NOT ROCM_LINK_LINE)
+  set(ROCM_LINK_LINE "-Wl,-rpath=$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=$HIPSYCL_ROCM_PATH/hip/lib ${ROCM_LIBS}" CACHE STRING "Arguments passed to compiler to link ROCm libraries to SYCL applications")
+endif()
+
+if(WIN32)
+  if(NOT CUDA_LINK_LINE)
+    set(CUDA_LINK_LINE ${DEFAULT_WIN32_CUDA_LINK_LINE} CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+  endif()
+  if(NOT OMP_LINK_LINE)
+    set(OMP_LINK_LINE ${DEFAULT_WIN32_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
+  endif()
+  if(NOT SEQUENTIAL_LINK_LINE) 
+    set(SEQUENTIAL_LINK_LINE ${DEFAULT_WIN32_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
+  endif()
+else()
+  if(NOT CUDA_LINK_LINE)
+    set(CUDA_LINK_LINE ${DEFAULT_CUDA_LINK_LINE} CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+  endif()
+  if(NOT OMP_LINK_LINE)
+    set(OMP_LINK_LINE ${DEFAULT_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
+  endif()
+  if(NOT SEQUENTIAL_LINK_LINE) 
+    set(SEQUENTIAL_LINK_LINE ${DEFAULT_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
+  endif()
+endif()
+
+# If no compile flags given, set to default.
 if(NOT ROCM_CXX_FLAGS)
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib ")
+  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib " CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
-if(NOT CUDA_LINK_LINE) 
-  set(CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
-endif()
+
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__")
+  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
-if(NOT OMP_LINK_LINE)
-	set(OMP_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_ROOT}/lib ${DEFAULT_OMP_FLAG}")
-endif()
+
 if(NOT OMP_CXX_FLAGS) 
-  set(OMP_CXX_FLAGS "-I${BOOST_ROOT}/include ${DEFAULT_OMP_FLAG}")
+  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG}" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
-if(NOT SEQUENTIAL_LINK_LINE) 
-  set(SEQUENTIAL_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -lomp  -Wl,-rpath=${BOOST_ROOT}/lib")
-endif()
+
 if(NOT SEQUENTIAL_CXX_FLAGS) 
-  set(SEQUENTIAL_CXX_FLAGS "-I${BOOST_ROOT}/include")
+  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR}" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
 add_subdirectory(src)
 
@@ -216,13 +260,8 @@ set(SYCLCC_CONFIG_FILE "{
 
 file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
-if(WIN32)
-  set(HIPSYCL_INSTALL_CMAKE_DIR
-    "cmake" CACHE PATH "Install path for CMake config files")
-else()
-  set(HIPSYCL_INSTALL_CMAKE_DIR
-    "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
-endif()
+set(HIPSYCL_INSTALL_CMAKE_DIR
+  "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
 
 configure_file(
   ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
@@ -230,11 +269,16 @@ configure_file(
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp" PATTERN include/hipSYCL/compiler EXCLUDE)
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
+if(NOT WIN32)
 install(PROGRAMS bin/syclcc DESTINATION bin)
+else()
+install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
+endif()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
+
 install(PROGRAMS cmake/syclcc-launcher DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 

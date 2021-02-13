@@ -37,7 +37,7 @@ target_include_directories(hipSYCL-rt
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib/static)
+        ARCHIVE DESTINATION lib)
 
 
 if(WITH_CUDA_BACKEND)
@@ -59,7 +59,7 @@ if(WITH_CUDA_BACKEND)
   install(TARGETS rt-backend-cuda
         EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/static)
+        ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -85,7 +85,7 @@ if(WITH_ROCM_BACKEND)
   install(TARGETS rt-backend-hip
         EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/static)
+        ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
 if(WITH_CPU_BACKEND)
@@ -111,15 +111,6 @@ if(WITH_CPU_BACKEND)
     install(TARGETS rt-backend-omp
         EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/static)
+        ARCHIVE DESTINATION lib/hipSYCL)
 endif()
-
-
-if(WITH_CPU_BACKEND)
-  
-endif()
-
-
-
-
 

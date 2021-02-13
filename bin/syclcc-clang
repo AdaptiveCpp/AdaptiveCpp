@@ -593,6 +593,8 @@ class cuda_multipass_invocation:
     self._config = config
     self._hipsycl_lib_path = os.path.join(
       config.hipsycl_installation_path, "lib/")
+    self._hipsycl_bin_path = os.path.join(
+      config.hipsycl_installation_path, "bin/")
     self.set_temp_dir("/tmp")
 
   def set_temp_dir(self, temp_dir):
@@ -615,13 +617,16 @@ class cuda_multipass_invocation:
         "-x", "cuda",
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so"),
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
         "-S",
         "-o",self._explicit_pass_output_file(target)
       ]
+    if sys.platform.startswith('win32'):
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_bin_path, "hipSYCL_clang.dll")]
+    else:
+      flags += ["-fplugin=" + os.path.join(self._hipsycl_lib_path, "libhipSYCL_clang.so")]
 
     return flags
 

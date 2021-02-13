@@ -57,7 +57,7 @@ if(WITH_CUDA_BACKEND)
     message(SEND_ERROR "CUDA was not found")
   endif()
 
-  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs REQUIRED)
+  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
   message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 endif()
 if(WITH_ROCM_BACKEND)

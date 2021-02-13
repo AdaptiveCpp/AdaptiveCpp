@@ -34,9 +34,25 @@ target_include_directories(hipSYCL-rt
     ${PROJECT_BINARY_DIR}/include
 )
 
+# to get the search path next to the rt lib, we need to know the output name, so set it explicitly.
+set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "hipSYCL-rt")
 if(WIN32)
-set_target_properties(hipSYCL-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  set_target_properties(hipSYCL-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(hipSYCL-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll")
+else()
+  target_link_libraries(hipSYCL-rt PRIVATE dl)
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(hipSYCL-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so")
 endif()
+
+configure_file(
+  ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
+  ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)
 
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
@@ -63,7 +79,7 @@ if(WITH_CUDA_BACKEND)
 
   install(TARGETS rt-backend-cuda
         EXPORT install_exports
-        RUNTIME DESTINATION lib/hipSYCL
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -90,7 +106,7 @@ if(WITH_ROCM_BACKEND)
 
   install(TARGETS rt-backend-hip
         EXPORT install_exports
-        RUNTIME DESTINATION lib/hipSYCL
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -127,7 +143,7 @@ if(WITH_CPU_BACKEND)
 
     install(TARGETS rt-backend-omp
         EXPORT install_exports
-        RUNTIME DESTINATION lib/hipSYCL
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()

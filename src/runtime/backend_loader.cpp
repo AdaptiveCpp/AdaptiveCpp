@@ -133,40 +133,70 @@ hipsycl::rt::backend *create_backend(void *plugin_handle) {
   return nullptr;
 }
 
+std::vector<std::filesystem::path> get_plugin_search_paths()
+{
+  std::vector<std::filesystem::path> paths;
+#ifndef _WIN32
+  Dl_info info;
+  if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
+      paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
+  }
+  paths.emplace_back(std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL");
+#else
+  if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
+  {
+    std::vector<char> pathB(MAX_PATH);
+    if(GetModuleFileNameA(handle, pathB.data(), pathB.size()))
+    {
+      paths.emplace_back(std::filesystem::path{pathB.data()}.parent_path() / "hipSYCL");
+    }
+  }
+  paths.emplace_back(std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL");
+
+#endif
+  return paths;
+}
+
 }
 
 namespace hipsycl {
 namespace rt {
 
 void backend_loader::query_backends() {
-  std::string install_prefix = HIPSYCL_INSTALL_PREFIX;
-
-  std::filesystem::path backend_lib_path =
-      std::filesystem::path{install_prefix} / "lib/hipSYCL";
+  std::vector<std::filesystem::path> backend_lib_paths = get_plugin_search_paths();
 
 #ifndef _WIN32
   std::string shared_lib_extension = ".so";
 #else
   std::string shared_lib_extension = ".dll";
 #endif
-  
-  for (const std::filesystem::directory_entry &entry :
-       std::filesystem::directory_iterator(backend_lib_path)) {
 
-    if (entry.is_regular_file()) {
-      auto p = entry.path();
-      if (p.extension().string() == shared_lib_extension) {
-        std::string backend_name;
-        void *handle;
-        if (load_plugin(p.string(), handle, backend_name)) {
-          HIPSYCL_DEBUG_INFO << "Successfully opened plugin: " << p
-                             << " for backend '" << backend_name << "'"
-                             << std::endl;
-          _handles.emplace_back(std::make_pair(backend_name, handle));
+  for(const std::filesystem::path& backend_lib_path : backend_lib_paths) {
+    if(!std::filesystem::is_directory(backend_lib_path)) {
+      HIPSYCL_DEBUG_INFO << "backend_loader: Backend lib search path candidate does not exists: "
+                        << backend_lib_path << std::endl;
+      continue;
+    }
+    HIPSYCL_DEBUG_INFO << "backend_loader: Searching path for backend libs: '"
+                      << backend_lib_path << "'" << std::endl;
+
+    for (const std::filesystem::directory_entry &entry :
+        std::filesystem::directory_iterator(backend_lib_path)) {
+
+      if (entry.is_regular_file()) {
+        auto p = entry.path();
+        if (p.extension().string() == shared_lib_extension) {
+          std::string backend_name;
+          void *handle;
+          if (load_plugin(p.string(), handle, backend_name)) {
+            HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
+                              << " for backend '" << backend_name << "'"
+                              << std::endl;
+            _handles.emplace_back(std::make_pair(backend_name, handle));
+          }
         }
       }
     }
-    
   }
 }
 

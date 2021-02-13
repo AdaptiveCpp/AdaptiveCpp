@@ -37,35 +37,25 @@
 namespace {
 
 void close_plugin(void *handle) {
-  int err = dlclose(handle);
-
-  if (err != 0) {
+  if (int err = dlclose(handle)) {
     HIPSYCL_DEBUG_ERROR << "backend_loader: dlclose() failed" << std::endl;
   }
 }
 
 bool load_plugin(const std::string &filename, void *&handle_out,
                  std::string &backend_name_out) {
-  void *handle = dlopen(filename.c_str(), RTLD_NOW);
+  
+  if(void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
 
-  if (!handle) {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
-                        << filename << std::endl;
-    char *err = dlerror();
-    if (err) {
-      HIPSYCL_DEBUG_ERROR << err << std::endl;
-    }
-
-    return false;
-  } else {
     void *symbol = dlsym(handle, "hipsycl_backend_plugin_get_name");
 
-    char *err = dlerror();
-    if (err) {
+    if (char *err = dlerror()) {
       HIPSYCL_DEBUG_ERROR << "backend_loader: Could not retrieve backend name"
                           << err << std::endl;
-    }
-    else {
+
+      close_plugin(handle);
+      return false;
+    } else {
       auto get_name =
           reinterpret_cast<decltype(&hipsycl_backend_plugin_get_name)>(symbol);
 
@@ -74,11 +64,17 @@ bool load_plugin(const std::string &filename, void *&handle_out,
 
       return true;
     }
-  }
+  } else {
+    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+                        << filename << std::endl;
+    if (char *err = dlerror()) {
+      HIPSYCL_DEBUG_ERROR << err << std::endl;
+    }
 
-  // In case of failure, close handle to avoid resource leak
-  close_plugin(handle);
-  return false;
+    return false;
+  } 
+
+  
 }
 
 hipsycl::rt::backend *create_backend(void *plugin_handle) {
@@ -156,16 +152,14 @@ bool backend_loader::has_backend(const std::string &name) const {
   return false;
 }
 
-backend *backend_loader::create(std::size_t index) {
+backend *backend_loader::create(std::size_t index) const {
   assert(index < _handles.size());
   
   return create_backend(_handles[index].second);
 }
 
-backend *backend_loader::create(const std::string &name) {
-  if (!has_backend(name))
-    return nullptr;
-
+backend *backend_loader::create(const std::string &name) const {
+  
   for (std::size_t i = 0; i < _handles.size(); ++i) {
     if (_handles[i].first == name)
       return create(i);

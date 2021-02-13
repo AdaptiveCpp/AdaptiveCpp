@@ -61,8 +61,8 @@ public:
   std::string get_backend_name(std::size_t index) const;
   bool has_backend(const std::string &name) const;
 
-  backend *create(std::size_t index);
-  backend *create(const std::string &name);
+  backend *create(std::size_t index) const;
+  backend *create(const std::string &name) const;
 
 private:
   using handle_t = void*;

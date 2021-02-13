@@ -57,7 +57,7 @@ if(WITH_CUDA_BACKEND)
   target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
 
   install(TARGETS rt-backend-cuda
-        EXPORT install_exports
+        #EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/static)
 endif()
@@ -83,7 +83,7 @@ if(WITH_ROCM_BACKEND)
   endif()
 
   install(TARGETS rt-backend-hip
-        EXPORT install_exports
+        #EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/static)
 endif()
@@ -109,7 +109,7 @@ if(WITH_CPU_BACKEND)
     target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
 
     install(TARGETS rt-backend-omp
-        EXPORT install_exports
+        #EXPORT install_exports
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/static)
 endif()

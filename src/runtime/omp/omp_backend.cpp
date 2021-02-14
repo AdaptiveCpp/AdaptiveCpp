@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/backend_loader.hpp"
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -32,6 +33,21 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include <memory>
+
+
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create() {
+  return new hipsycl::rt::omp_backend();
+}
+
+static const char *backend_name = "omp";
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char *hipsycl_backend_plugin_get_name() {
+  return backend_name;
+}
+
+
 
 namespace hipsycl {
 namespace rt {

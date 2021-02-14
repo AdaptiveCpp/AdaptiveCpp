@@ -1,6 +1,10 @@
 cmake_minimum_required (VERSION 3.5)
-set(hipSYCL_VERSION 0.9.0)
-project(hipSYCL VERSION ${hipSYCL_VERSION})
+
+set(HIPSYCL_VERSION_MAJOR 0)
+set(HIPSYCL_VERSION_MINOR 9)
+set(HIPSYCL_VERSION_PATCH 0)
+
+project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
 
 set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
@@ -165,7 +169,7 @@ if(NOT ROCM_CXX_FLAGS)
   set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib ")
 endif()
 if(NOT CUDA_LINK_LINE) 
-  set(CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart -lcuda" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+  set(CUDA_LINK_LINE "-Wl,-rpath=$HIPSYCL_CUDA_LIB_PATH -L$HIPSYCL_CUDA_LIB_PATH -lcudart" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
 endif()
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
@@ -220,9 +224,14 @@ else()
     "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
 endif()
 
+configure_file(
+  ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
+  ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)
+
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
 install(PROGRAMS bin/syclcc DESTINATION bin)
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
@@ -246,6 +255,7 @@ write_basic_package_version_file(
 set(HIPSYCL_INSTALL_COMPILER_DIR bin)
 set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
+
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in
     ${PROJECT_BINARY_DIR}/hipsycl-config.cmake

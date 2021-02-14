@@ -609,7 +609,7 @@ public:
         __hipsycl_invoke_kernel(
             hiplike_dispatch::single_task_kernel<KernelName>, KernelName,
             Kernel, dim3(1, 1, 1), dim3(1, 1, 1), dynamic_local_memory,
-            _queue->get_stream(), k);
+            _queue->get_native_type(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
        
@@ -668,7 +668,7 @@ public:
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
-                required_dynamic_local_mem, _queue->get_stream(), k,
+                required_dynamic_local_mem, _queue->get_native_type(), k,
                 global_range, offset, is_with_offset, reduction_descriptors...);
 
           } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
@@ -682,7 +682,7 @@ public:
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
-                required_dynamic_local_mem, _queue->get_stream(), k, offset,
+                required_dynamic_local_mem, _queue->get_native_type(), k, offset,
                 reduction_descriptors...);
 
           } else if constexpr (type ==
@@ -697,7 +697,7 @@ public:
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
-                required_dynamic_local_mem, _queue->get_stream(), k,
+                required_dynamic_local_mem, _queue->get_native_type(), k,
                 effective_local_range, reduction_descriptors...);
 
           } else if constexpr (type == rt::kernel_type::scoped_parallel_for) {
@@ -711,7 +711,7 @@ public:
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
-                required_dynamic_local_mem, _queue->get_stream(), k, grid_range,
+                required_dynamic_local_mem, _queue->get_native_type(), k, grid_range,
                 effective_local_range, reduction_descriptors...);
 
           } else {
@@ -753,7 +753,7 @@ public:
                   hiplike_dispatch::make_kernel_launch_range<1>(
                       sycl::range<1>{local_size}),
                   reduction_stages[stage].allocated_local_memory,
-                  _queue->get_stream(), pure_reduction_kernel,
+                  _queue->get_native_type(), pure_reduction_kernel,
                   reduction_descriptors...);
             }
           }
@@ -781,6 +781,7 @@ public:
   }
 
 private:
+  
   static constexpr bool is_launch_from_module() {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
     return Backend_id == rt::backend_id::cuda;
@@ -798,7 +799,7 @@ private:
 #if !defined(__clang_major__) || __clang_major__ < 11
   #error Multipass compilation requires clang >= 11
 #endif
-      if (this_module::get_num_objects<rt::backend_id::cuda>() == 0) {
+      if (this_module::get_num_objects<Backend_id>() == 0) {
         rt::register_error(
             __hipsycl_here(),
             rt::error_info{
@@ -808,13 +809,13 @@ private:
       }
 
       rt::hardware_context *ctx =
-          rt::application::get_backend(rt::backend_id::cuda)
+          rt::application::get_backend(Backend_id)
               .get_hardware_manager()
               ->get_device(_queue->get_device().get_id());
 
       std::string target_arch = ctx->get_device_arch();
       std::string selected_arch;
-      this_module::for_each_target<rt::backend_id::cuda>(
+      this_module::for_each_target<Backend_id>(
           [&](const std::string &available_code_arch) {
             if (available_code_arch == target_arch) {
               selected_arch = target_arch;
@@ -823,7 +824,7 @@ private:
 
       if (selected_arch.size() == 0) {
         // TODO: Improve selection when we don't have an exact match
-        this_module::for_each_target<rt::backend_id::cuda>(
+        this_module::for_each_target<Backend_id>(
             [&](const std::string &available_code_arch) {
               selected_arch = available_code_arch;
             });
@@ -834,57 +835,30 @@ private:
             << selected_arch << std::endl;
       }
 
-      const std::string *code =
-          this_module::get_code_object<rt::backend_id::cuda>(selected_arch);
-      assert(code && "Invalid code object");
-
-      rt::cuda_backend *b = rt::cast<rt::cuda_backend>(
-          &(rt::application::get_backend(rt::backend_id::cuda)));
-
-      HIPSYCL_DEBUG_INFO << "Obtaining module with id "
-                         << this_module::get_module_id<rt::backend_id::cuda>()
-                         << std::endl;
-
-      const rt::cuda_module &code_module =
-          b->get_module_manager().obtain_module(
-              this_module::get_module_id<rt::backend_id::cuda>(), selected_arch,
-              *code);
-
-      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
-      std::string mangled_kernel_body_type = __builtin_unique_stable_name(KernelBodyT);
-      // This will hold the actual kernel name in the device image
-      std::string kernel_name;
-      // First check if there is a kernel in the module that matches
-      // the expected explicitly named kernel name
-      if (!code_module.guess_kernel_name(
-              "__hipsycl_kernel", kernel_name_tag, kernel_name)) {
-
-        // We are dealing with an unnamed kernel, so check if we can find
-        // a matching unnamed kernel
-        if (!code_module.guess_kernel_name(
-                "__hipsycl_kernel", mangled_kernel_body_type, kernel_name)) {
-
-          rt::register_error(
-              __hipsycl_here(),
-              rt::error_info{"hiplike_kernel_launcher: No matching CUDA kernel "
-                             "found in module for kernel with name tag " +
-                             kernel_name_tag + " and type " +
-                             mangled_kernel_body_type});
-          return;
-        }
-      }
-      HIPSYCL_DEBUG_INFO << "Selected kernel from module for execution: " << kernel_name
-                         << std::endl;
+      const std::string *kernel_image =
+          this_module::get_code_object<Backend_id>(selected_arch);
+      assert(kernel_image && "Invalid kernel image object");
 
       std::array<void *, sizeof...(Args)> kernel_args{
         static_cast<void *>(&args)...
       };
 
-      rt::result err = _queue->submit_kernel_from_module(
-          b->get_module_manager(), code_module, kernel_name,
-          rt::range<3>{grid_size.x, grid_size.y, grid_size.z},
-          rt::range<3>{block_size.x, block_size.y, block_size.z},
-          dynamic_shared_mem, kernel_args.data());
+      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
+      std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
+
+      rt::module_invoker *invoker = _queue->get_module_invoker();
+
+      assert(invoker &&
+             "Runtime backend does not support invoking kernels from modules");
+
+      auto num_groups = rt::range<3>{grid_size.x, grid_size.y, grid_size.z};
+      auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
+
+      rt::result err = invoker->submit_kernel(
+          this_module::get_module_id<Backend_id>(), selected_arch,
+          kernel_image, num_groups, group_size, dynamic_shared_mem,
+          kernel_args.data(), kernel_args.size(), kernel_name_tag,
+          kernel_body_name);
 
       if (!err.is_success())
         rt::register_error(err);

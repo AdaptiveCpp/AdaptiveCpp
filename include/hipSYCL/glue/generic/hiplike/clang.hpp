@@ -61,18 +61,28 @@ static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shar
 {
   __cudaPushCallConfiguration(grid, block, shared, stream);
 }
+
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+                                           ...)                                \
+  __hipsycl_push_kernel_call(grid, block, shared_mem,                          \
+                             static_cast<CUstream_st *>(stream));              \
+  f(__VA_ARGS__);
+
 #else
+
 static inline void __hipsycl_push_kernel_call(dim3 grid, dim3 block, size_t shared, hipStream_t stream)
 {
   hipError_t err = hipConfigureCall(grid, block, shared, stream);
   assert(err == hipSuccess);
 }
-#endif
 
-
-#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, ...) \
-  __hipsycl_push_kernel_call(grid, block, shared_mem, stream); \
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+                                           ...)                                \
+  __hipsycl_push_kernel_call(grid, block, shared_mem,                          \
+                             static_cast<hipStream_t>(stream));                \
   f(__VA_ARGS__);
+
+#endif
   
 
 #else

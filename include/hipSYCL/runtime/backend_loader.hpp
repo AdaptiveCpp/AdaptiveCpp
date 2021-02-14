@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,50 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_INORDER_QUEUE_HPP
-#define HIPSYCL_INORDER_QUEUE_HPP
+#ifndef HIPSYCL_BACKEND_LOADER_HPP
+#define HIPSYCL_BACKEND_LOADER_HPP
 
-#include <memory>
+
 #include <string>
+#include <vector>
+#include <utility>
 
-#include "dag_node.hpp"
-#include "hints.hpp"
-#include "operations.hpp"
-#include "error.hpp"
-#include "module_invoker.hpp"
+namespace hipsycl::rt {
+class backend;
+}
+
+
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C"
+
+
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create();
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char* hipsycl_backend_plugin_get_name();
+
 
 namespace hipsycl {
 namespace rt {
 
-class inorder_queue
-{
+class backend_loader {
 public:
+  ~backend_loader();
 
-  /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
-
-  virtual result submit_memcpy(const memcpy_operation&) = 0;
-  virtual result submit_kernel(const kernel_operation&) = 0;
-  virtual result submit_prefetch(const prefetch_operation &) = 0;
-  virtual result submit_memset(const memset_operation&) = 0;
+  void query_backends();
   
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
-  virtual result submit_external_wait_for(dag_node_ptr node) = 0;
+  std::size_t get_num_backends() const;
+  std::string get_backend_name(std::size_t index) const;
+  bool has_backend(const std::string &name) const;
 
-  virtual device_id get_device() const = 0;
-  /// Return native type if supported, nullptr otherwise
-  virtual void* get_native_type() const = 0;
+  backend *create(std::size_t index) const;
+  backend *create(const std::string &name) const;
 
-  /// Get a module invoker to launch kernels from module images,
-  /// if the backend supports this. Returns nullptr if unsupported.
-  virtual module_invoker* get_module_invoker() = 0;
-
-  virtual ~inorder_queue(){}
+private:
+  using handle_t = void*;
+  std::vector<std::pair<std::string, handle_t>> _handles;
 };
 
 }
 }
 
 #endif
+

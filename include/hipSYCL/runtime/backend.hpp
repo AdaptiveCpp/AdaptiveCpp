@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "device_id.hpp"
+#include "backend_loader.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -84,7 +85,9 @@ public:
       f(b.get());
     }
   }
+
 private:
+  backend_loader _loader;
   backend_list_type _backends;
 
   std::unique_ptr<hw_model> _hw_model;

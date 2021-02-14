@@ -80,8 +80,7 @@ add_sycl_to_target(TARGET sycl_tests)
 add_executable(rt_tests 
   runtime/runtime_test_suite.cpp 
   runtime/dag_builder.cpp
-  runtime/data.cpp
-  runtime/device_manager.cpp)
+  runtime/data.cpp)
 
 target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads)

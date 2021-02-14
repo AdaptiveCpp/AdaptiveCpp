@@ -25,11 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/cuda/cuda_queue.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/cuda/cuda_queue.hpp"
+#include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
-#include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 
 #include <cuda_runtime_api.h>
@@ -69,7 +71,7 @@ void cuda_queue::activate_device() const {
   cuda_device_manager::get().activate_device(_dev.get_id());
 }
 
-cuda_queue::cuda_queue(device_id dev) : _dev{dev} {
+cuda_queue::cuda_queue(device_id dev) : _dev{dev}, _module_invoker{this} {
   this->activate_device();
 
   auto err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
@@ -347,6 +349,68 @@ result cuda_queue::submit_kernel_from_module(cuda_module_manager &manager,
   }
   
   return make_success();
+}
+
+device_id cuda_queue::get_device() const {
+  return _dev;
+}
+
+void *cuda_queue::get_native_type() const {
+  return static_cast<void*>(get_stream());
+}
+
+module_invoker *cuda_queue::get_module_invoker() {
+  return &_module_invoker;
+}
+
+cuda_module_invoker::cuda_module_invoker(cuda_queue *q) : _queue{q} {}
+
+result cuda_module_invoker::submit_kernel(
+    module_id_t id, const std::string &module_variant,
+    const std::string *module_image, const rt::range<3> &num_groups,
+    const rt::range<3>& group_size, unsigned local_mem_size, void **args,
+    std::size_t num_args, const std::string &kernel_name_tag,
+    const std::string &kernel_body_name) {
+
+  assert(_queue);
+  assert(module_image);
+
+  cuda_backend *be =
+      cast<cuda_backend>(&(application::get_backend(rt::backend_id::cuda)));
+
+  HIPSYCL_DEBUG_INFO << "cuda_module_invoker: Obtaining module with id " << id
+                     << " in variant '" << module_variant << "'" << std::endl;
+  
+  const cuda_module &code_module =
+      be->get_module_manager().obtain_module(id, module_variant, *module_image);
+
+  // This will hold the actual kernel name in the device image
+  std::string kernel_name;
+  // First check if there is a kernel in the module that matches
+  // the expected explicitly named kernel name
+  if (!code_module.guess_kernel_name("__hipsycl_kernel", kernel_name_tag,
+                                     kernel_name)) {
+
+    // We are dealing with an unnamed kernel, so check if we can find
+    // a matching unnamed kernel
+    if (!code_module.guess_kernel_name("__hipsycl_kernel", kernel_body_name,
+                                       kernel_name)) {
+
+      return rt::make_error(
+          __hipsycl_here(),
+          rt::error_info{"cuda_module_invoker: No matching CUDA kernel "
+                         "found in module for kernel with name tag " +
+                         kernel_name_tag + " and type " +
+                         kernel_body_name});
+    }
+  }
+  HIPSYCL_DEBUG_INFO
+      << "cuda_module_invoker: Selected kernel from module for execution: "
+      << kernel_name << std::endl;
+
+  return _queue->submit_kernel_from_module(
+      be->get_module_manager(), code_module, kernel_name, num_groups,
+      group_size, local_mem_size, args);
 }
 }
 }

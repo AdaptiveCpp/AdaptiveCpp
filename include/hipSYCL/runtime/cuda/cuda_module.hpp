@@ -33,6 +33,7 @@
 
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/module_invoker.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
 
 struct CUmod_st;
@@ -40,7 +41,7 @@ struct CUmod_st;
 namespace hipsycl {
 namespace rt {
 
-using cuda_module_id_t = unsigned long long;
+using cuda_module_id_t = module_id_t;
 class cuda_queue;
 
 class cuda_module {

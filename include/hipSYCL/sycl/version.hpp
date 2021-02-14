@@ -31,10 +31,7 @@
 
 #include <string>
 
-#define HIPSYCL_VERSION_MAJOR 0
-#define HIPSYCL_VERSION_MINOR 9
-#define HIPSYCL_VERSION_PATCH 0
-#define HIPSYCL_VERSION_TYPE "git"
+#include "hipSYCL/common/config.hpp"
 
 namespace hipsycl {
 namespace sycl {

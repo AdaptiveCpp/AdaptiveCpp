@@ -25,8 +25,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/backend_loader.hpp"
+
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/cuda/cuda_queue.hpp"
+
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create() {
+  return new hipsycl::rt::cuda_backend();
+}
+
+static const char *backend_name = "cuda";
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char *hipsycl_backend_plugin_get_name() {
+  return backend_name;
+}
 
 namespace hipsycl {
 namespace rt {
@@ -42,6 +56,8 @@ cuda_backend::cuda_backend()
   for (int i = 0; i < static_cast<int>(_hw_manager.get_num_devices()); ++i) {
     _allocators.push_back(cuda_allocator{backend_desc, i});
   }
+
+  _modules = cuda_module_manager{_hw_manager.get_num_devices()};
 }
 
 api_platform cuda_backend::get_api_platform() const {

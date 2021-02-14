@@ -211,6 +211,30 @@ template <int Dim> range<Dim> extract_from_range3(range<3> r) {
   return range<Dim>{};
 }
 
+/* borrowed from LLVM
+ * Returns the next power of two (in 64-bits) that is strictly greater than \param a.
+ * Returns zero on overflow.
+ */
+inline std::uint64_t next_power_of_2(std::uint64_t a) {
+  a |= (a >> 1);
+  a |= (a >> 2);
+  a |= (a >> 4);
+  a |= (a >> 8);
+  a |= (a >> 16);
+  a |= (a >> 32);
+  return a + 1;
+}
+
+/*
+ * Returns the power of two which is greater than or equal to the given value.
+ * Essentially, it is a ceil operation across the domain of powers of two.
+ */
+inline std::uint64_t power_of_2_ceil(std::uint64_t a) {
+  if (a == 0)
+    return 0;
+  return next_power_of_2(a - 1);
+}
+
 }
 }
 

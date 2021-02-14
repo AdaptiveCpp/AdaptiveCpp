@@ -272,8 +272,19 @@ result omp_queue::submit_external_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-worker_thread& omp_queue::get_worker(){
-  return _worker;
+worker_thread &omp_queue::get_worker() { return _worker; }
+
+device_id omp_queue::get_device() const {
+  return device_id{
+      backend_descriptor{hardware_platform::cpu, api_platform::omp}, 0};
+}
+
+void *omp_queue::get_native_type() const {
+  return nullptr;
+}
+
+module_invoker *omp_queue::get_module_invoker() {
+  return nullptr;
 }
 
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_ENUMERATOR_HPP
-#define HIPSYCL_DAG_ENUMERATOR_HPP
+#ifndef HIPSYCL_BACKEND_LOADER_HPP
+#define HIPSYCL_BACKEND_LOADER_HPP
 
+
+#include <string>
 #include <vector>
-#include "dag.hpp"
+#include <utility>
+
+namespace hipsycl::rt {
+class backend;
+}
+
+
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C"
+
+
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create();
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char* hipsycl_backend_plugin_get_name();
+
 
 namespace hipsycl {
 namespace rt {
 
-/// The dag_enumerator enumerates all nodes and
-/// data regions from the DAG by assigning them an id.
-/// This allows us to efficiently store additional data
-/// relating to objects inside the DAG by refering to them
-/// via their id (and using the id as an index in a vector)
-/// instead of using a more complex associative data structure.
-class dag_enumerator
-{
+class backend_loader {
 public:
-  dag_enumerator(dag *d);
+  ~backend_loader();
 
-  std::size_t get_node_index_space_size() const;
-  std::size_t get_data_region_index_space_size() const;
+  void query_backends();
+  
+  std::size_t get_num_backends() const;
+  std::string get_backend_name(std::size_t index) const;
+  bool has_backend(const std::string &name) const;
+
+  backend *create(std::size_t index) const;
+  backend *create(const std::string &name) const;
 
 private:
-  void enumerate_nodes(dag* d);
-  void enumerate_data_regions(dag *d);
-
-  std::size_t _num_nodes;
-  std::size_t _num_data_regions;
+  using handle_t = void*;
+  std::vector<std::pair<std::string, handle_t>> _handles;
 };
 
 }
 }
 
 #endif
+

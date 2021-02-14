@@ -167,36 +167,45 @@ public:
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclContext} {
-
-    _handler = _ctx._impl->handler;
-    
-    device dev = deviceSelector.select_device();
-
-    if (!is_device_in_context(dev, syclContext))
-      throw invalid_object_error{"queue: Device is not in context"};
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
-
-    this->init();
+      : queue(syclContext, deviceSelector.select_device(), propList) {
   }
 
   explicit queue(const context &syclContext,
                  const device_selector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclContext},
-        _handler{asyncHandler} {
+      : queue(syclContext, deviceSelector.select_device(), asyncHandler, propList) {
+  }
 
-    device dev = deviceSelector.select_device();
+  explicit queue(const context &syclContext,
+                 const device &syclDevice,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _ctx{syclContext} {
 
-    if (!is_device_in_context(dev, syclContext))
+    _handler = _ctx._impl->handler;
+
+    if (!is_device_in_context(syclDevice, syclContext))
       throw invalid_object_error{"queue: Device is not in context"};
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        dev._device_id));
-    
+        syclDevice._device_id));
+
+    this->init();
+  }
+
+  explicit queue(const context &syclContext,
+                 const device &syclDevice,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : detail::property_carrying_object{propList}, _ctx{syclContext},
+        _handler{asyncHandler} {
+
+    if (!is_device_in_context(syclDevice, syclContext))
+      throw invalid_object_error{"queue: Device is not in context"};
+
+    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+        syclDevice._device_id));
+
     this->init();
   }
 
@@ -339,14 +348,14 @@ public:
 
   // ---- Queue shortcuts ------
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType>
+  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
   event single_task(const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.single_task<KernelName>(KernelFunc);
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType>
+  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
   event single_task(event dependency, const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.depends_on(dependency);
@@ -354,7 +363,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, typename KernelType>
+  template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>
   event single_task(const std::vector<event> &dependencies,
                     const KernelType &KernelFunc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -363,7 +372,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel, 
+  template <typename KernelName = __hipsycl_unnamed_kernel, 
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, 
                      const ReductionsAndKernel &... redu_kernel) {
@@ -372,7 +381,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -382,7 +391,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
                      const std::vector<event> &dependencies,
@@ -393,7 +402,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const ReductionsAndKernel& ... redu_kernel) {
@@ -403,7 +412,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      event dependency,
@@ -415,7 +424,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, id<Dims> WorkItemOffset,
                      const std::vector<event> &dependencies,
@@ -427,7 +436,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -436,7 +445,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -446,7 +455,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(nd_range<Dims> ExecutionRange,
                      const std::vector<event> &dependencies,
@@ -457,7 +466,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,
@@ -467,7 +476,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize, event dependency,
@@ -478,7 +487,7 @@ public:
     });
   }
 
-  template <typename KernelName = class _unnamed_kernel,
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   event parallel(range<dimensions> numWorkGroups,
                 range<dimensions> workGroupSize,

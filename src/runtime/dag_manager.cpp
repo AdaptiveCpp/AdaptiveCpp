@@ -31,7 +31,6 @@
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
-#include "hipSYCL/runtime/dag_interpreter.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -106,24 +105,18 @@ void dag_manager::flush_async()
       scheduler_type stype =
           application::get_settings().get<setting::scheduler_type>();
       
-      if(stype == scheduler_type::predictive){
-
+      // Only one scheduler is currently supported
+      assert(stype == scheduler_type::direct);
+      
+      // This is okay because get_command_groups() returns
+      // the nodes in the order they were submitted. This
+      // makes it safe to submit them in this order to the direct scheduler.
+      for(auto node : new_dag.get_command_groups()){
         HIPSYCL_DEBUG_INFO
-            << "dag_manager [async]: Submitting DAG to predictive scheduler!"
+            << "dag_manager [async]: Submitting node to direct scheduler!"
             << std::endl;
-        _predictive_scheduler.submit(&new_dag);
-
-      } else if (stype == scheduler_type::direct) {
-
-        // This is okay because get_command_groups() returns
-        // the nodes in the order they were submitted. This
-        // makes it safe to submit them in this order to the direct scheduler.
-        for(auto node : new_dag.get_command_groups()){
-          HIPSYCL_DEBUG_INFO
-              << "dag_manager [async]: Submitting node to direct scheduler!"
-              << std::endl;
-          _direct_scheduler.submit(node);
-        }
+        _direct_scheduler.submit(node);
+      
       }
     } else {
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
@@ -143,11 +136,6 @@ void dag_manager::flush_sync()
 void dag_manager::wait()
 {
   this->_submitted_ops.wait_for_all();
-}
-
-void dag_manager::register_submitted_ops(const dag_interpreter &interpreter)
-{
-  this->_submitted_ops.update_with_submission(interpreter);
 }
 
 void dag_manager::register_submitted_ops(dag_node_ptr node) {

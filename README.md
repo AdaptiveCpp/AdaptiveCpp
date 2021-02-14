@@ -7,6 +7,8 @@ hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on
 * NVIDIA GPUs via CUDA
 * AMD GPUs via HIP/ROCm
 
+hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. See here for details on the hipSYCL [compilation model](doc/compilation.md).
+
 The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
 ![SYCL implementations](/doc/img/sycl-targets.png)
 
@@ -31,6 +33,8 @@ hipSYCL is a research project. As such, if you use hipSYCL in your research, we 
 
 *Aksel Alpay and Vincent Heuveline. 2020. SYCL beyond OpenCL: The architecture, current state and future direction of hipSYCL. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 8, 1. DOI:https://doi.org/10.1145/3388333.3388658*
 
+(This is a talk and available [online](https://www.youtube.com/watch?v=kYrY80J4ZAs). Note that some of the content in this talk is outdated by now)
+
 ### Acknowledgements
 
 We gratefully acknowledge [contributions](https://github.com/illuhad/hipSYCL/graphs/contributors) from the community.
@@ -53,7 +57,8 @@ As a consequence, if you compare it to other llvm-based compilers please make su
 
 ## Current state
 hipSYCL is not yet a fully conformant SYCL implementation, although many SYCL programs already work with hipSYCL.
-* A (likely incomplete) list of current [limitations](doc/limitations.md)
+* SYCL 2020 [feature support matrix](https://github.com/hipSYCL/featuresupport)
+* A (likely incomplete) list of [limitations](doc/limitations.md) for older SYCL 1.2.1 features
 * A (also incomplete) timeline showing development [history](doc/history.md)
 
 ## Hardware and operating system support

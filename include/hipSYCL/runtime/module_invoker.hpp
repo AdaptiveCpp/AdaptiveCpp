@@ -1,14 +1,14 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -26,10 +26,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_MODULE_INVOKER_HPP
+#define HIPSYCL_MODULE_INVOKER_HPP
 
+#include "error.hpp"
+#include "util.hpp"
 
-#define BOOST_TEST_MODULE hipSYCL runtime tests
-#ifndef _WIN32
-#define BOOST_TEST_DYN_LINK
-#endif // _WIN32
-#include <boost/test/unit_test.hpp>
+namespace hipsycl {
+namespace rt {
+
+using module_id_t = unsigned long long;
+
+class module_invoker {
+public:
+  virtual result
+  submit_kernel(module_id_t id, const std::string &module_variant,
+                const std::string *module_image, const rt::range<3> &num_groups,
+                const rt::range<3>& group_size, unsigned local_mem_size,
+                void **args, std::size_t num_args,
+                const std::string &kernel_name_tag,
+                const std::string &kernel_body_name) = 0;
+
+  virtual ~module_invoker() {}
+};
+
+}
+} // namespace hipsycl
+
+#endif

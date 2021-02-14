@@ -134,6 +134,10 @@ std::string hip_hardware_context::get_vendor_name() const {
 #endif
 }
 
+std::string hip_hardware_context::get_device_arch() const {
+  return _properties.gcnArchName;
+}
+
 bool hip_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {
   case device_support_aspect::emulated_local_memory:

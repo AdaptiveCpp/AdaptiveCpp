@@ -61,10 +61,11 @@ public:
   const async_error_list& errors() const { return _errors; }
 
 private:
-
-  dag_manager _dag_manager;
-  backend_manager _backends;
+  
+  // !! Attention: order is important, as backends have to be still present, when the dag_manager is destructed!
   async_error_list _errors;
+  backend_manager _backends;
+  dag_manager _dag_manager;
 };
 
 }

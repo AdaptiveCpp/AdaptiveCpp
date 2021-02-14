@@ -181,6 +181,14 @@ template<> struct logical_vector_op_result<uint64_t>
 template<> struct logical_vector_op_result<int64_t>
 { using type = int64_t; };
 
+#ifdef _WIN32
+template<> struct logical_vector_op_result<unsigned long>
+{ using type = int32_t; };
+
+template<> struct logical_vector_op_result<long>
+{ using type = int32_t; };
+#endif
+
 template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
 void for_each_vector_element(Vector_type& v, Function&& f);

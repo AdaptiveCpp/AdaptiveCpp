@@ -33,7 +33,6 @@
 #include <vector>
 
 #include "dag_node.hpp"
-#include "dag_interpreter.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -42,7 +41,6 @@ namespace rt {
 class dag_submitted_ops
 {
 public:
-  void update_with_submission(const dag_interpreter &dag);
   void update_with_submission(dag_node_ptr single_node);
   
   void wait_for_all();

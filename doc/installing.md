@@ -23,18 +23,19 @@ We also provide scripts for packaging hipSYCL and its dependencies. For more inf
 ### Software dependencies
 In order to successfully build and install hipSYCL, the following major requirements must be met:
 
-* **LLVM and clang >= 8** must be installed, including development files.
+* **LLVM and clang >= 8** must be installed, including development files. Certain features require more specific clang versions:
+  * Unnamed kernel lambdas from SYCL 2020 require clang >= 10
+  * Explicit multipass compilation (targeting multiple device backends simultaneously) requires a clang distribution that supports `__builtin_unique_stable_name()`. This is the case for offical clang 11 and DPC++/Intel's clang fork. This feature is currently being reworked in upstream clang and it is unclear if it will already be available again in clang 12.
 * *For the CUDA backend*: 
   * **CUDA >= 9.2** must be installed.
   * hipSYCL requires clang for CUDA compilation. clang usually produces CUDA programs with very competitive performance compared to nvcc. For more information on compiling CUDA with clang, see [here](http://llvm.org/docs/CompileCudaWithLLVM.html).
   * Read more about [compatible clang and CUDA versions for the CUDA backend](install-cuda.md).
 * *For the ROCm backend*: 
-  * A recent **ROCm** must be installed. 
+  * A recent **ROCm**, in particular HIP, must be installed.
   * hipSYCL requires clang for ROCm compilation. While AMD's clang forks can in principle be used, regular clang is usually easier to set up. Read more about [compatible clang versions for the ROCm backend](install-rocm.md).
 * *For the CPU backend*: Any C++ compiler with **OpenMP** support should do.
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
 * `cmake`
-* hipSYCL also depends on HIP, but already comes bundled with a version of the HIP headers for the CUDA backend. The ROCm backend will use the HIP installation that is installed as part of ROCm.
 * the Boost C++ libraries (in particular `boost.fiber`, `boost.context` and for the unit tests `boost.test`)
 
 If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
@@ -55,3 +56,5 @@ $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <hipSYCL source directory>
 $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
+
+For experimental building on Windows see the corresponding [wiki](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).

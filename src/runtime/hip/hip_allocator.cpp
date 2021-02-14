@@ -163,13 +163,11 @@ result hip_allocator::mem_advise(const void *addr, std::size_t num_bytes,
       error_info{"hip_allocator: hipMemAdvise() failed", error_code{"HIP", err}}
     );
   }
-
-  return make_success();
 #else
   HIPSYCL_DEBUG_WARNING << "hip_allocator: Ignoring mem_advise() hint"
                         << std::endl;
-  return make_success();
 #endif
+  return make_success();
 }
 
 }

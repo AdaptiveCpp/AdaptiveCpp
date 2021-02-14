@@ -33,6 +33,7 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/glue/kernel_names.hpp"
 
 #if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 #include "hip/hip_kernel_launcher.hpp"
@@ -60,11 +61,13 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       std::size_t dynamic_local_memory, Kernel k,
                       Reductions... reductions) {
 
+  using name = kernel_name_t<KernelNameTag>;
+  
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
-    launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
+    launcher->bind<name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
@@ -73,7 +76,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
-    launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
+    launcher->bind<name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
@@ -84,7 +87,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
    !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
-    launcher->bind<KernelNameTag, Type>(offset, global_range, local_range,
+    launcher->bind<name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }

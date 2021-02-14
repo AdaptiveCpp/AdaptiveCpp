@@ -7,6 +7,8 @@ find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
 find_package(hipSYCL REQUIRED)
 
+find_package(Threads REQUIRED)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -37,6 +39,9 @@ cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 if(HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
   add_definitions(-DHIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
+endif()
+if(WIN32)
+add_definitions(-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_USE_MATH_DEFINES)
 endif()
 
 add_subdirectory(platform_api)
@@ -78,5 +83,5 @@ add_executable(rt_tests
   runtime/data.cpp)
 
 target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES})
+target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)

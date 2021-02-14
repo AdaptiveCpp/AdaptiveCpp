@@ -123,6 +123,11 @@ std::string cuda_hardware_context::get_vendor_name() const {
   return "NVIDIA";
 }
 
+std::string cuda_hardware_context::get_device_arch() const {
+  return "sm_" + std::to_string(_properties->major) +
+         std::to_string(_properties->minor);
+}
+
 bool cuda_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {
   case device_support_aspect::emulated_local_memory:

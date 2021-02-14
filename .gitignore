@@ -45,3 +45,6 @@ build/
 
 # Singulrity
 *.sif
+
+# clangd cache
+.cache

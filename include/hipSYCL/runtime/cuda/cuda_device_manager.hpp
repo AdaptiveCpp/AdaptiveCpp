@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,23 +31,25 @@
 namespace hipsycl {
 namespace rt {
 
-/// Manages setting the active device *in the hipSYCL worker thread*
-/// It assumes:
-/// * There are no external calls to hipSetDevice() from the user in the calling thread
-/// * It is only called by one thread, i.e. no thread-safety required
+/// CUDA keeps track of the currently active device on a per-thread basis.
+/// The cuda_device_manager acts as a wrapper for this functionality.
+/// It is implemented as a per-thread singleton and assumes that
+/// no external calls to cudaSetDevice() are made by the user.
 class cuda_device_manager
 {
 public:
-  cuda_device_manager();
   void activate_device(int device_id);
   int get_active_device() const;
 
   static cuda_device_manager &get() {
-    static cuda_device_manager instance;
+    static thread_local cuda_device_manager instance;
     return instance;
   }
+
 private:
   int _device;
+
+  cuda_device_manager();
 };
 
 }

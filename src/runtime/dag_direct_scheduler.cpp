@@ -89,13 +89,15 @@ result ensure_allocation_exists(buffer_memory_requirement *bmem_req,
                               device_id target_dev) {
   assert(bmem_req);
   if (!bmem_req->get_data_region()->has_allocation(target_dev)) {
-    std::size_t num_bytes =
+    const std::size_t num_bytes =
         bmem_req->get_data_region()->get_num_elements().size() *
         bmem_req->get_data_region()->get_element_size();
-    
+    const std::size_t min_align = // max requested alignment the size of a sycl::vec<double, 16>
+        std::min(bmem_req->get_data_region()->get_element_size(), sizeof(double) * 16);
+
     void *ptr = application::get_backend(target_dev.get_backend())
                     .get_allocator(target_dev)
-                    ->allocate(0, num_bytes);
+                    ->allocate(min_align, num_bytes);
 
     if(!ptr)
       return register_error(

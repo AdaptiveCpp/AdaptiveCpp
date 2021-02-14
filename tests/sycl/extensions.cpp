@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2020 Aksel Alpay and contributors
+ * Copyright (c) 2018-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,9 +176,13 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     cgh.parallel<class Kernel>(s::range<1>{input_size / Group_size}, s::range<1>{Group_size}, 
     [=](s::group<1> grp, s::physical_item<1> phys_idx){
       s::local_memory<int [Group_size]> scratch{grp};
+      s::private_memory<int> load{grp};
       
       grp.distribute_for([&](s::sub_group sg, s::logical_item<1> idx){
-          scratch[idx.get_local_id(0)] = data_accessor[idx.get_global_id(0)];
+          load(idx) = data_accessor[idx.get_global_id(0)];
+      });
+      grp.distribute_for([&](s::sub_group sg, s::logical_item<1> idx){
+          scratch[idx.get_local_id(0)] = load(idx);
       });
 
       for(int i = Group_size / 2; i > 0; i /= 2){
@@ -211,7 +215,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
 #ifdef HIPSYCL_PLATFORM_CUDA
   constexpr sycl::backend target_be = sycl::backend::cuda;
-#elif defined(HIPSYCL_PLATFORM_ROCM)
+#elif defined(HIPSYCL_PLATFORM_HIP)
   constexpr sycl::backend target_be = sycl::backend::hip;
 #else
   constexpr sycl::backend target_be = sycl::backend::omp;
@@ -243,7 +247,7 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
       cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
                       cudaMemcpyDeviceToHost, stream);
 
-#elif defined(HIPSYCL_PLATFORM_ROCM)
+#elif defined(HIPSYCL_PLATFORM_HIP)
       
       auto stream = h.get_native_queue<target_be>();
       // dev is not really used, just test that this function call works for now
@@ -334,8 +338,9 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   auto group_size2d = sycl::range{9,9};
   auto group_size3d = sycl::range{5,5,5};
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
-  #define HIPLIKE_MODEL
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+#define HIPLIKE_MODEL
 #endif
 
   q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
@@ -422,6 +427,83 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
 
   sycl::free(shared_mem, q);
 }
+#endif
+#ifdef HIPSYCL_EXT_BUFFER_USM_INTEROP
+BOOST_AUTO_TEST_CASE(buffer_introspection) {
+  using namespace cl;
+
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+  sycl::range size{1024};
+
+  int* usm_ptr = nullptr;
+  {
+    sycl::buffer<int> buff{size};
+
+    q.submit([&](sycl::handler& cgh){
+      auto acc = buff.get_access<sycl::access::mode::discard_write>(cgh);
+      // Force allocation of buffer on target device
+      cgh.single_task([=](){});
+    });
+
+    q.wait();
+
+    BOOST_TEST(buff.has_allocation(q.get_device()));
+    usm_ptr = buff.get_pointer(q.get_device());
+    BOOST_TEST(usm_ptr != nullptr);
+
+    // Query information
+    sycl::buffer_allocation<int> alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.ptr == usm_ptr);
+    BOOST_CHECK(alloc.dev == q.get_device());
+    BOOST_TEST(alloc.is_owned == true);
+
+    // This doesn't change anything as the allocation is already
+    // owned because the buffer constructor was not provided a pointer.
+    // Execute both variants to make sure both interfaces work.
+    buff.own_allocation(usm_ptr);
+    buff.own_allocation(q.get_device());
+    alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.is_owned == true);
+
+    // Disown allocation so that we can use it outside the
+    // buffer scope
+    buff.disown_allocation(usm_ptr);
+
+    alloc = buff.get_allocation(usm_ptr);
+    BOOST_TEST(alloc.is_owned == false);
+
+    std::vector<int*> allocations;
+    buff.for_each_allocation([&](const sycl::buffer_allocation<int>& a){
+      allocations.push_back(a.ptr);
+    });
+    
+    BOOST_TEST(allocations.size() >= 1);
+    bool found = false;
+    for(std::size_t i = 0; i < allocations.size(); ++i) {
+      if(allocations[i] == usm_ptr)
+        found = true;
+    }
+    BOOST_TEST(found);
+  }
+
+  // Use extracted USM pointer directly
+  std::vector<int> host_mem(size[0]);
+
+  q.parallel_for(size, [usm_ptr](sycl::id<1> idx){
+    usm_ptr[idx[0]] = idx[0];
+  });
+  q.memcpy(host_mem.data(), usm_ptr, sizeof(int)*size[0]);
+  q.wait();
+
+  for(std::size_t i = 0; i < host_mem.size(); ++i) {
+    BOOST_CHECK(host_mem[i] == i);
+  }
+
+  sycl::free(usm_ptr, q);
+
+
+}
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

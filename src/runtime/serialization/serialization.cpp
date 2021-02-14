@@ -142,15 +142,13 @@ void memory_location::dump(std::ostream &ostr) const {
 // dag
 void dag::dump(std::ostream &ostr) const {
   for_each_node([&](dag_node_ptr node_ptr) {
-    ostr << "Node#" << node_ptr->get_node_id() << "(" << node_ptr << ")"
-         << std::endl;
+    ostr << "Node " << node_ptr << std::endl;
     node_ptr->get_operation()->dump(ostr, 1);
     ostr << HIPSYCL_DUMP_INDENTATION << "Has requirement on: ";
     auto requirement_list = node_ptr->get_requirements();
     if (!requirement_list.empty()) {
       for (auto req : requirement_list) {
-        ostr << req->get_node_id() << "(" << req << ")"
-             << " ";
+        ostr << req << " ";
       }
     } else {
       std::cout << "None";

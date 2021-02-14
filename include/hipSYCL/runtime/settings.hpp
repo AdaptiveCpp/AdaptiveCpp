@@ -38,15 +38,13 @@
 namespace hipsycl {
 namespace rt {
 
-enum class scheduler_type { direct, predictive };
+enum class scheduler_type { direct };
 
 inline std::istream &operator>>(std::istream &istr, scheduler_type &out) {
   std::string str;
   istr >> str;
   if (str == "direct")
     out = scheduler_type::direct;
-  else if (str == "predictive")
-    out = scheduler_type::predictive;
   else
     istr.setstate(std::ios_base::failbit);
   return istr;

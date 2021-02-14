@@ -259,8 +259,8 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
                            "support prefetching memory."
                         << std::endl;
 
-  return make_success();
 #endif
+  return make_success();
 }
 
 result hip_queue::submit_memset(const memset_operation &op) {
@@ -310,6 +310,16 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
   }
   
   return make_success();
+}
+
+device_id hip_queue::get_device() const { return _dev; }
+
+void *hip_queue::get_native_type() const {
+  return static_cast<void*>(get_stream());
+}
+
+module_invoker *hip_queue::get_module_invoker() {
+  return nullptr;
 }
 
 }

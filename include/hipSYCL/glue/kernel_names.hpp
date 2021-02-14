@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,50 +25,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_INORDER_QUEUE_HPP
-#define HIPSYCL_INORDER_QUEUE_HPP
+#ifndef HIPSYCL_GLUE_KERNEL_NAMES_HPP
+#define HIPSYCL_GLUE_KERNEL_NAMES_HPP
 
-#include <memory>
-#include <string>
-
-#include "dag_node.hpp"
-#include "hints.hpp"
-#include "operations.hpp"
-#include "error.hpp"
-#include "module_invoker.hpp"
+struct __hipsycl_unnamed_kernel {};
 
 namespace hipsycl {
-namespace rt {
+namespace glue {
 
-class inorder_queue
-{
-public:
-
-  /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
-
-  virtual result submit_memcpy(const memcpy_operation&) = 0;
-  virtual result submit_kernel(const kernel_operation&) = 0;
-  virtual result submit_prefetch(const prefetch_operation &) = 0;
-  virtual result submit_memset(const memset_operation&) = 0;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
-  virtual result submit_external_wait_for(dag_node_ptr node) = 0;
-
-  virtual device_id get_device() const = 0;
-  /// Return native type if supported, nullptr otherwise
-  virtual void* get_native_type() const = 0;
-
-  /// Get a module invoker to launch kernels from module images,
-  /// if the backend supports this. Returns nullptr if unsupported.
-  virtual module_invoker* get_module_invoker() = 0;
-
-  virtual ~inorder_queue(){}
+// This can be used to turn incomplete types of kernel names into complete
+// types for backends which e.g. use typeid() to access the mangled name.
+template <class Name> struct kernel_name { using type = kernel_name<Name>; };
+template <> struct kernel_name<__hipsycl_unnamed_kernel> {
+  using type = __hipsycl_unnamed_kernel;
 };
 
+template <class Name>
+using kernel_name_t = typename kernel_name<Name>::type;
+
 }
-}
+} // namespace hipsycl
 
 #endif

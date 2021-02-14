@@ -26,7 +26,9 @@
  */
 
 #define BOOST_TEST_MODULE device compilation tests
+#ifndef _WIN32
 #define BOOST_TEST_DYN_LINK
+#endif // _WIN32
 #include <boost/test/unit_test.hpp>
 
 #include <initializer_list>

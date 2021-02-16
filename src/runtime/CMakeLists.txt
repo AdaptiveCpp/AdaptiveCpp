@@ -41,18 +41,14 @@ if(WIN32)
 
   # ensure actual output and expected are equivalent
   set_target_properties(hipSYCL-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll")
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
 else()
   target_link_libraries(hipSYCL-rt PRIVATE dl)
 
   # ensure actual output and expected are equivalent
   set_target_properties(hipSYCL-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so")
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so" PARENT_SCOPE)
 endif()
-
-configure_file(
-  ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
-  ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)
 
 install(TARGETS hipSYCL-rt
         EXPORT install_exports

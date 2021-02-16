@@ -263,6 +263,11 @@ file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 set(HIPSYCL_INSTALL_CMAKE_DIR
   "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
 
+# must stay after add_subdirectory(src) as HIPSYCL_RT_LIBRARY_OUTPUT_NAME is declared there
+configure_file(
+  ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
+  ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)
+
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")

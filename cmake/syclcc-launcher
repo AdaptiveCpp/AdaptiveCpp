@@ -66,8 +66,7 @@ if __name__ == '__main__':
   # When invoked with a command line for expected compiler (e.g. clang++), replace with a syclcc invocation.
   # Otherwise, e.g. for invocations of `ar` for linking static libraries, just continue with the command as-is.
   if os.path.samefile(cxx_compiler_exe, command_in):
-    command_line = syclcc_exe
-    command_line += ([*syclcc_specific_args, *command_in_args])
+    command_line = [*syclcc_exe, *syclcc_specific_args, *command_in_args]
   else:
     command_line = [command_in, *command_in_args]
 

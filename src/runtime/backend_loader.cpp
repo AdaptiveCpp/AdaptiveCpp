@@ -68,7 +68,8 @@ void* load_library(const std::string &filename)
   if(HMODULE handle = LoadLibraryA(filename.c_str())) {
     return static_cast<void*>(handle);
   } else {
-    // too lazy to use FormatMessage bs right now, so look up the error at https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+    // too lazy to use FormatMessage bs right now, so look up the error at
+    // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
     HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
                         << filename << " with: " << GetLastError() << std::endl;
   }
@@ -91,7 +92,8 @@ void* get_symbol_from_library(void* handle, const std::string& symbolName)
   if(FARPROC symbol = GetProcAddress(static_cast<HMODULE>(handle), symbolName.c_str())) {
     return reinterpret_cast<void*>(symbol);
   } else {
-    // too lazy to use FormatMessage bs right now, so look up the error at https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+    // too lazy to use FormatMessage bs right now, so look up the error at
+    // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
     HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
                         << symbolName << " with: " << GetLastError() << std::endl;
   }
@@ -139,23 +141,23 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
 #ifndef _WIN32
   Dl_info info;
   if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
-      paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
+    paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
   }
-  const auto installPrefixedPath = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
+  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
 #else
   if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
   {
-    std::vector<char> pathB(MAX_PATH);
-    if(GetModuleFileNameA(handle, pathB.data(), pathB.size()))
+    std::vector<char> path_buffer(MAX_PATH);
+    if(GetModuleFileNameA(handle, path_buffer.data(), path_buffer.size()))
     {
-      paths.emplace_back(std::filesystem::path{pathB.data()}.parent_path() / "hipSYCL");
+      paths.emplace_back(std::filesystem::path{path_buffer.data()}.parent_path() / "hipSYCL");
     }
   }
-  const auto installPrefixedPath = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
+  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
 #endif
 
-  if(!std::filesystem::equivalent(installPrefixedPath, paths.back()))
-    paths.emplace_back(std::move(installPrefixedPath));
+  if(!std::filesystem::equivalent(install_prefixed_path, paths.back()))
+    paths.emplace_back(std::move(install_prefixed_path));
   return paths;
 }
 

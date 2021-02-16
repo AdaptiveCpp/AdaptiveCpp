@@ -110,7 +110,7 @@ if(BUILD_CLANG_PLUGIN)
   if(WIN32)
     # plugins link agains clang.exe and not clang++.exe, thus using clang++ would result
     # in symbol clashes and therefore the plugin not loading.
-    # on Windows it seems, to be fine, as long as clang is able to deduce the language
+    # on Windows it seems to be fine, as long as clang is able to deduce the language
     # from the file extension, as the msvcrt is linked explicitly anyways.
     string(REPLACE "clang++.exe" "clang.exe" CLANG_EXECUTABLE_PATH ${CLANG_EXECUTABLE_PATH})
   endif()
@@ -265,7 +265,7 @@ set(HIPSYCL_INSTALL_CMAKE_DIR
 
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp" PATTERN include/hipSYCL/compiler EXCLUDE)
+install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
 if(NOT WIN32)

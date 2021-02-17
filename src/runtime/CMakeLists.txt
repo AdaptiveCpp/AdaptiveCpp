@@ -34,8 +34,25 @@ target_include_directories(hipSYCL-rt
     ${PROJECT_BINARY_DIR}/include
 )
 
+# to get the search path next to the rt lib, we need to know the output name, so set it explicitly.
+set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "hipSYCL-rt")
+if(WIN32)
+  set_target_properties(hipSYCL-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(hipSYCL-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
+else()
+  target_link_libraries(hipSYCL-rt PRIVATE dl)
+
+  # ensure actual output and expected are equivalent
+  set_target_properties(hipSYCL-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
+  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.so" PARENT_SCOPE)
+endif()
+
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
+        RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
@@ -57,6 +74,7 @@ if(WITH_CUDA_BACKEND)
   target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
 
   install(TARGETS rt-backend-cuda
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -82,6 +100,7 @@ if(WITH_ROCM_BACKEND)
   endif()
 
   install(TARGETS rt-backend-hip
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -103,10 +122,21 @@ if(WITH_CPU_BACKEND)
       endif()
       target_include_directories(rt-backend-omp PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
     endif()
+  
+  if(WIN32)
+    # FindOpenMP does a bad job here, finding any library.. so add some more hints..
+    find_library(hipSYCL_OpenMP_libomp_LIBRARY
+      NAMES libomp libgomp libiomp5 HINTS
+      ${CMAKE_${LANG}_IMPLICIT_LINK_DIRECTORIES}
+      ${LLVM_PREFIX_DIR}/lib
+    )
+    target_link_libraries(rt-backend-omp PRIVATE ${hipSYCL_OpenMP_libomp_LIBRARY})
+  endif()
 
-    target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
+  target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
 
     install(TARGETS rt-backend-omp
+        RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()

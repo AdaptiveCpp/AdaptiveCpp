@@ -45,6 +45,9 @@ if __name__ == '__main__':
     if arg.startswith(CXX_COMPILER_ARG):
       cxx_compiler_exe = arg[len(CXX_COMPILER_ARG):]
     elif arg.startswith(SYCLCC_ARG):
+      # Split by non-path char, as on Windows it is required to run python path/to/syclcc,
+      # instead of just syclcc. As we need "python" and "syclcc" two different array elements
+      # in the config, a '*' is used to seperate those two elements.
       syclcc_exe = arg[len(SYCLCC_ARG):].split("*")
     elif arg == '--':
       command_offset += 1

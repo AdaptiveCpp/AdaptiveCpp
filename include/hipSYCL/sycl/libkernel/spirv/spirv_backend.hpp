@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,42 +26,33 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_BACKEND_HPP
-#define HIPSYCL_LIBKERNEL_BACKEND_HPP
+#ifndef HIPSYCL_LIBKERNEL_SPIRV_BACKEND_HPP
+#define HIPSYCL_LIBKERNEL_SPIRV_BACKEND_HPP
 
-#include "cuda/cuda_backend.hpp"
-#include "hip/hip_backend.hpp"
-#include "spirv/spirv_backend.hpp"
-#include "host/host_backend.hpp"
+#if defined(__HIPSYCL_SPIRV__)
+ #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV 1
 
-// define (legacy?) platform identification macros
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
- #define HIPSYCL_PLATFORM_ROCM
- #define HIPSYCL_PLATFORM_HIP
-#endif
-
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
- #define HIPSYCL_PLATFORM_CUDA
-#endif
-
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
- #define HIPSYCL_PLATFORM_SPIRV
-#endif
-
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
+ #ifdef __HIPSYCL_ENABLE_SPRIV_TARGET__
+  // TODO: Include SPIR-V builtins
+ #endif
 #else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0
+ #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV 0
 #endif
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
- #define HIPSYCL_PLATFORM_CPU
-#endif
+#if defined(__HIPSYCL_SPIRV__)
+ #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV 1
 
-#ifdef HIPSYCL_LIBKERNEL_DEVICE_PASS
- #define SYCL_DEVICE_ONLY
+ #ifndef HIPSYCL_LIBKERNEL_DEVICE_PASS
+  #define HIPSYCL_LIBKERNEL_DEVICE_PASS
+ #endif
+
+ #define HIPSYCL_UNIVERSAL_TARGET
+ #define HIPSYCL_KERNEL_TARGET
+ #define HIPSYCL_HOST_TARGET
+
+ #define HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#else
+ #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPRIV 0
 #endif
 
 #endif

@@ -27,10 +27,23 @@
 
 #include <level_zero/ze_api.h>
 
+
 #include "hipSYCL/runtime/ze/ze_backend.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
+#include "hipSYCL/runtime/backend_loader.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
+HIPSYCL_PLUGIN_API_EXPORT
+hipsycl::rt::backend *hipsycl_backend_plugin_create() {
+  return new hipsycl::rt::ze_backend();
+}
+
+static const char *backend_name = "ze";
+
+HIPSYCL_PLUGIN_API_EXPORT
+const char *hipsycl_backend_plugin_get_name() {
+  return backend_name;
+}
 
 namespace hipsycl {
 namespace rt {

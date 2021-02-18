@@ -842,6 +842,9 @@ private:
       std::array<void *, sizeof...(Args)> kernel_args{
         static_cast<void *>(&args)...
       };
+      std::array<std::size_t, sizeof...(Args)> arg_sizes{
+        sizeof(Args)...
+      };
 
       std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
       std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
@@ -855,9 +858,9 @@ private:
       auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
 
       rt::result err = invoker->submit_kernel(
-          this_module::get_module_id<Backend_id>(), selected_arch,
-          kernel_image, num_groups, group_size, dynamic_shared_mem,
-          kernel_args.data(), kernel_args.size(), kernel_name_tag,
+          this_module::get_module_id<Backend_id>(), selected_arch, kernel_image,
+          num_groups, group_size, dynamic_shared_mem, kernel_args.data(),
+          arg_sizes.data(), kernel_args.size(), kernel_name_tag,
           kernel_body_name);
 
       if (!err.is_success())

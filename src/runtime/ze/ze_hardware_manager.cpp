@@ -222,6 +222,10 @@ std::string ze_hardware_context::get_vendor_name() const {
   return std::string{"pci:"}+std::to_string(_props.vendorId);
 }
 
+std::string ze_hardware_context::get_device_arch() const {
+  return "spirv";
+}
+
 bool ze_hardware_context::has(device_support_aspect aspect) const {
   switch (aspect) {
   case device_support_aspect::emulated_local_memory:
@@ -418,6 +422,31 @@ uint32_t ze_hardware_context::get_ze_global_memory_ordinal() const {
   }
 
   return result;
+}
+
+result ze_hardware_context::obtain_module(module_id_t id,
+                                          const std::string &variant,
+                                          const std::string *module_image,
+                                          ze_module* &out) {
+  for(ze_module& mod : _modules) {
+    if(mod.get_id() == id && mod.get_variant() == variant) {
+      out = &mod;
+    }
+  }
+
+  _modules.emplace_back(ze_module{_ctx, _device, id, variant, module_image});
+  if(!_modules.back().get_build_status().is_success()){
+    _modules.pop_back();
+
+    return make_error(
+        __hipsycl_here(),
+        error_info{"ze_hardware_context: Module construction failed."});
+    
+  } else {
+    out = &(_modules.back());
+  }
+
+  return make_success();
 }
 
 ze_hardware_manager::ze_hardware_manager() {

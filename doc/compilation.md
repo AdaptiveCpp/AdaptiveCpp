@@ -15,6 +15,7 @@ Not all backends support all modes:
 | OpenMP | N/A | N/A | Does not require multipass compilation |
 | CUDA   | Yes | Yes |  |
 | HIP   | Yes | No |  |
+| SPIR-V  | No | Yes | |
 
 **Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` as described in the [installation documentation](installing.md).
 

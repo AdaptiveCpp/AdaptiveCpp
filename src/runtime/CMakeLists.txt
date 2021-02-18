@@ -92,7 +92,8 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_hardware_manager.cpp
     ze/ze_allocator.cpp
     ze/ze_event.cpp
-    ze/ze_queue.cpp)
+    ze/ze_queue.cpp
+    ze/ze_module.cpp)
   
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)

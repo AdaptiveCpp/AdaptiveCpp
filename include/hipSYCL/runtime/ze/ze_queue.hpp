@@ -32,11 +32,15 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
+#include "ze_module.hpp"
+
 
 namespace hipsycl {
 namespace rt {
 
 class ze_hardware_manager;
+class ze_queue;
+
 
 class ze_queue : public inorder_queue
 {
@@ -58,13 +62,26 @@ public:
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
+  virtual device_id get_device() const override;
+  /// Return native type if supported, nullptr otherwise
+  virtual void* get_native_type() const override;
+
+  /// Get a module invoker to launch kernels from module images,
+  /// if the backend supports this. Returns nullptr if unsupported.
+  virtual module_invoker* get_module_invoker() override;
+
   ze_command_list_handle_t get_ze_command_list() const {
     return _command_list;
+  }
+  
+  ze_hardware_manager* get_hardware_manager() const {
+    return _hw_manager;
   }
 private:
   ze_command_list_handle_t _command_list;
   ze_hardware_manager* _hw_manager;
   std::size_t _device_index;
+  ze_module_invoker _module_invoker;
 };
 
 }

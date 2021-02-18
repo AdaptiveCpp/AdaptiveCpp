@@ -27,6 +27,7 @@
 
 #include <cassert>
 
+#include "hipSYCL/runtime/ze/ze_module.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
 #include "hipSYCL/runtime/ze/ze_event.hpp"
@@ -35,8 +36,9 @@
 namespace hipsycl {
 namespace rt {
 
-ze_queue::ze_queue(ze_hardware_manager* hw_manager, std::size_t device_index)
-  : _hw_manager{hw_manager}, _device_index{device_index} {
+ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
+    : _hw_manager{hw_manager}, _device_index{device_index}, _module_invoker{
+                                                                this} {
   assert(hw_manager);
 
   ze_hardware_context *hw_context =
@@ -133,6 +135,17 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
+device_id ze_queue::get_device() const {
+  return _hw_manager->get_device_id(_device_index);
+}
+
+void* ze_queue::get_native_type() const {
+  return static_cast<void*>(_command_list);
+}
+
+module_invoker* ze_queue::get_module_invoker() {
+  return &_module_invoker;
+}
 
 }
 }

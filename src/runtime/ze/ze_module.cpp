@@ -93,6 +93,18 @@ result ze_module_invoker::submit_kernel(
   group_count.groupCountX = static_cast<uint32_t>(num_groups[0]);
   group_count.groupCountY = static_cast<uint32_t>(num_groups[1]);
   group_count.groupCountZ = static_cast<uint32_t>(num_groups[2]);
+
+  for(std::size_t i = 0; i < num_args; ++i ){
+    err = zeKernelSetArgumentValue(
+        kernel, i, static_cast<uint32_t>(arg_sizes[i]), args[i]);
+    if(err != ZE_RESULT_SUCCESS) {
+      return make_error(
+          __hipsycl_here(),
+          error_info{"ze_module_invoker: Could not set kernel argument",
+                     error_code{"ze", static_cast<int>(err)}});
+    }
+  }
+
   // TODO Maybe utilize event signal on completion?
   err = zeCommandListAppendLaunchKernel(_queue->get_ze_command_list(), kernel,
                                         &group_count, nullptr, 0, nullptr);

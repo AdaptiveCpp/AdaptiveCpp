@@ -28,7 +28,14 @@
 #ifndef HIPSYCL_COLLECTIVE_EXECUTION_ENGINE_HPP
 #define HIPSYCL_COLLECTIVE_EXECUTION_ENGINE_HPP
 
-#ifndef HIPSYCL_NO_FIBERS
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+
+/**
+ * Due to an issue with Boost.Intrusive (used by Boost.Fiber), on Windows,
+ * which is triggered in device pass of Clang CUDA, we may only use this in host pass.
+ * This should not be a problem, as this implementation is anyways just required during host pass.
+ */
+#if !defined(HIPSYCL_NO_FIBERS) && !defined(SYCL_DEVICE_ONLY)
 #define HIPSYCL_HAS_FIBERS
 #endif
 

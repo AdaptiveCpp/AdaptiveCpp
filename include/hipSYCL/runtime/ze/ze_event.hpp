@@ -48,6 +48,7 @@ public:
   virtual bool is_complete() const override;
   virtual void wait() override;
 
+  ze_event_handle_t get_event_handle() const;
 private:
   ze_event_handle_t _evt;
   std::shared_ptr<ze_event_pool_handle_t> _pool;

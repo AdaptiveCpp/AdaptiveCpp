@@ -70,7 +70,9 @@ void ze_node_event::wait() {
   }
 }
 
-
+ze_event_handle_t ze_node_event::get_event_handle() const {
+  return _evt;
+}
 
 }
 }

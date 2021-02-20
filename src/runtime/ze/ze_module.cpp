@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/ze/ze_module.hpp"
+#include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -105,15 +106,23 @@ result ze_module_invoker::submit_kernel(
     }
   }
 
-  // TODO Maybe utilize event signal on completion?
-  err = zeCommandListAppendLaunchKernel(_queue->get_ze_command_list(), kernel,
-                                        &group_count, nullptr, 0, nullptr);
+  std::vector<ze_event_handle_t> wait_events =
+      _queue->get_enqueued_event_handles();
+  std::shared_ptr<dag_node_event> completion_evt = _queue->create_event();
+
+  err = zeCommandListAppendLaunchKernel(
+      _queue->get_ze_command_list(), kernel, &group_count,
+      static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
+      static_cast<uint32_t>(wait_events.size()), wait_events.data());
+  
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
         __hipsycl_here(),
         error_info{"ze_module_invoker: Kernel launch failed",
                    error_code{"ze", static_cast<int>(err)}});
   }
+
+  _queue->register_submitted_op(completion_evt);
 
   return make_success();
 }

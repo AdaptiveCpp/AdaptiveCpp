@@ -6,6 +6,7 @@ hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on
 * Any CPU via OpenMP
 * NVIDIA GPUs via CUDA
 * AMD GPUs via HIP/ROCm
+* Intel GPUs via oneAPI Level Zero and SPIR-V (*highly* experimental and WIP!)
 
 hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. See here for details on the hipSYCL [compilation model](doc/compilation.md).
 

@@ -88,7 +88,7 @@ hip_queue::~hip_queue() {
 }
 
 /// Inserts an event into the stream
-std::unique_ptr<dag_node_event> hip_queue::insert_event() {
+std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   this->activate_device();
 
   hipEvent_t evt;
@@ -111,7 +111,7 @@ std::unique_ptr<dag_node_event> hip_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_unique<hip_node_event>(_dev, evt);
+  return std::make_shared<hip_node_event>(_dev, evt);
 }
 
 result hip_queue::submit_memcpy(const memcpy_operation & op) {

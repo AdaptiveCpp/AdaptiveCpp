@@ -71,7 +71,7 @@ public:
   virtual ~cuda_queue();
 
   /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() override;
+  virtual std::shared_ptr<dag_node_event> insert_event() override;
 
   virtual result submit_memcpy(const memcpy_operation&) override;
   virtual result submit_kernel(const kernel_operation&) override;

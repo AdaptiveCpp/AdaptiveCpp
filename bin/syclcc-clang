@@ -695,9 +695,10 @@ class spirv_multipass_invocation:
 
   def get_flags(self, target):
     flags = self._config.cuda_cxx_flags
+    
     flags += [
         "-fsycl",
-        "-fsycl-is-device",
+        "-fsycl-device-only",
         "-D__HIPSYCL_ENABLE_SPIRV_TARGET__",
         "-D__HIPSYCL_SPIRV__",
         "-o",self._explicit_pass_output_file(target)

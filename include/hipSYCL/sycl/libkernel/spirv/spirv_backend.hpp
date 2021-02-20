@@ -32,8 +32,15 @@
 #if defined(__HIPSYCL_SPIRV__)
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV 1
 
- #ifdef __HIPSYCL_ENABLE_SPRIV_TARGET__
-  // TODO: Include SPIR-V builtins
+ #ifdef __HIPSYCL_ENABLE_SPIRV_TARGET__
+  // Needed for SPIR-V headers
+  #ifndef SYCL_EXTERNAL
+   #define SYCL_EXTERNAL
+  #endif
+
+  #include "spirv_ops.hpp"
+  #include "spirv_vars.hpp"
+  #include "spirv_types.hpp"
  #endif
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV 0

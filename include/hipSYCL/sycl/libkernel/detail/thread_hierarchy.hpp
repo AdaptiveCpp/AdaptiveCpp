@@ -39,8 +39,9 @@ namespace sycl {
 namespace detail {
 
 #if !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP &&                                \
-    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
- #error "This file requires a CUDA or HIP compiler"
+    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                               \
+    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
+#error "This file requires a device compiler"
 #endif
 
 #ifndef SYCL_DEVICE_ONLY
@@ -100,6 +101,25 @@ namespace detail {
 #define __hipsycl_ngroups_x gridDim.x
 #define __hipsycl_ngroups_y gridDim.y
 #define __hipsycl_ngroups_z gridDim.z
+
+#elif HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
+
+#define __hipsycl_lid_x __spirv_BuiltInLocalInvocationId.x
+#define __hipsycl_lid_y __spirv_BuiltInLocalInvocationId.y
+#define __hipsycl_lid_z __spirv_BuiltInLocalInvocationId.z
+
+#define __hipsycl_gid_x __spirv_BuiltInWorkgroupId.x
+#define __hipsycl_gid_y __spirv_BuiltInWorkgroupId.y
+#define __hipsycl_gid_z __spirv_BuiltInWorkgroupId.z
+
+#define __hipsycl_lsize_x __spirv_BuiltInWorkgroupSize.x
+#define __hipsycl_lsize_y __spirv_BuiltInWorkgroupSize.y
+#define __hipsycl_lsize_z __spirv_BuiltInWorkgroupSize.z
+
+#define __hipsycl_ngroups_x __spirv_BuiltInNumWorkgroups.x
+#define __hipsycl_ngroups_y __spirv_BuiltInNumWorkgroups.y
+#define __hipsycl_ngroups_z __spirv_BuiltInNumWorkgroups.z
+
 #endif
 #endif // SYCL_DEVICE_ONLY
 

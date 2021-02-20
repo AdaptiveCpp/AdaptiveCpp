@@ -248,6 +248,14 @@ inline void parallel_for_ndrange_kernel(
     host::static_range_decomposition<Dim> group_decomposition{
           num_groups, omp_get_num_threads()};
 
+    /*if(omp_get_thread_num() == 0) {
+      for(int i = 0; i < omp_get_num_threads(); ++i){
+        std::cout << "Range decomposition for thread " << i << std::endl;;
+        group_decomposition.for_each_local_element(i, [](sycl::id<1> idx){
+          std::cout << idx[0] << std::endl;
+        });
+      }
+    }*/
     host::collective_execution_engine<Dim> engine{num_groups, local_size,
                                                   offset, group_decomposition,
                                                   omp_get_thread_num()};
@@ -266,7 +274,8 @@ inline void parallel_for_ndrange_kernel(
                                     num_groups,
                                     &barrier_impl,
                                     &group_shared_memory_ptr};
-
+      //if(omp_get_thread_num() == 1)
+      //  std::cout << group_id[0] << ", " << local_id[0] << std::endl;
       f(this_item, reducers...);
     });
 

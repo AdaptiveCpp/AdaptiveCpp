@@ -34,15 +34,15 @@
 #include "../range.hpp"
 #include "data_layout.hpp"
 
-namespace hipsycl {
-namespace sycl {
-namespace detail {
-
 #if !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP &&                                \
     !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                               \
     !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
 #error "This file requires a device compiler"
 #endif
+
+namespace hipsycl {
+namespace sycl {
+namespace detail {
 
 #ifndef SYCL_DEVICE_ONLY
 // Define dummy values in case we are not in a device

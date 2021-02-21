@@ -41,8 +41,14 @@ struct mem_fence_impl
   HIPSYCL_KERNEL_TARGET
   static void mem_fence()
   {
-#ifdef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
     __threadfence();
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+    __spirv_MemoryBarrier(__spv::Scope::Device,
+                          __spv::MemorySemanticsMask::SequentiallyConsistent |
+                          __spv::MemorySemanticsMask::CrossWorkgroupMemory |
+                          __spv::MemorySemanticsMask::WorkgroupMemory);
 #else
     // TODO What about CPU?
 #endif
@@ -56,8 +62,15 @@ struct mem_fence_impl<access::fence_space::local_space, M>
   HIPSYCL_KERNEL_TARGET
   static void mem_fence()
   {
-#ifdef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
     __threadfence_block();
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+    __spirv_MemoryBarrier(
+        __spv::Scope::Workgroup,
+        static_cast<uint32_t>(
+            __spv::MemorySemanticsMask::SequentiallyConsistent |
+            __spv::MemorySemanticsMask::WorkgroupMemory));
 #endif
   }
 };

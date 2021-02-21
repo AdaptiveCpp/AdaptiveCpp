@@ -61,7 +61,10 @@
 #include "libkernel/stream.hpp"
 #include "libkernel/sub_group.hpp"
 #include "libkernel/memory.hpp"
-#include "libkernel/group_functions.hpp"
+#if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+ // Not yet supported for SPIR-V
+ #include "libkernel/group_functions.hpp"
+#endif
 #include "libkernel/functional.hpp"
 #include "libkernel/reduction.hpp"
 

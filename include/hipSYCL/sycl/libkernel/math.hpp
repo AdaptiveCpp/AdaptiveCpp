@@ -247,7 +247,8 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(trunc)
 namespace native {
 
 // TODO: Define these properly, including for host
-#ifdef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
 
 #define HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(name, fallback_func, fast_sp_func) \
   template<class float_type> \

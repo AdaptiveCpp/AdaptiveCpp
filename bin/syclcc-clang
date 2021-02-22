@@ -37,6 +37,7 @@ import subprocess
 import string
 import tempfile
 import uuid
+import binascii
 
 class OptionNotSet(Exception):
   def __init__(self, msg):
@@ -699,6 +700,8 @@ class spirv_multipass_invocation:
     flags += [
         "-fsycl",
         "-fsycl-device-only",
+        "-fsycl-unnamed-lambda",
+        "-fno-sycl-use-bitcode",
         "-D__HIPSYCL_ENABLE_SPIRV_TARGET__",
         "-D__HIPSYCL_SPIRV__",
         "-o",self._explicit_pass_output_file(target)
@@ -727,17 +730,22 @@ class spirv_multipass_invocation:
 
     with open(spirv_file, "rb") as f:
       data = f.read()
-      spirv_data = data.hex('\\x')
-
+      # Requires python 3.8 which is not yet widespread
+      # enough
+      #spirv_data = binascii.hexlify(data, '\\x')
+      hex_representation = binascii.hexlify(data).decode('utf-8')
+      spirv_data = "".join(["\\x" + hex_representation[i:i+2] 
+        for i in range(0,len(hex_representation),2)])
+      
     result = """ 
 #ifndef HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
 #define HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
 
-static std::array __hipsycl_spirv_bundle {
-  std::string __hipsycl_spirv_embedded_object {
+static std::array __hipsycl_spirv_bundle {{
+  std::string __hipsycl_spirv_embedded_object {{
     R\"__hipsycl_embed({0})__hipsycl_embed\"
-  }
-};
+  }}
+}};
 
 static const unsigned long long __hipsycl_spirv_bundle_id={1}ull;
 
@@ -746,12 +754,12 @@ static const unsigned long long __hipsycl_spirv_bundle_id={1}ull;
     return result
 
   def create_kernel_bundle(self, targets):
-    compiled_objects = [
-      self._explicit_pass_output_file(target) for target in targets
-    ]
+
+    if len(targets) != 1 or targets[0] != "spirv":
+      raise RuntimeError("SPIR-V multipass invocation: Invalid target")
 
     header_content = self._generate_integration_header_content(
-      targets, code_files)
+      self._explicit_pass_output_file(targets[0]))
     
     with open(self._integration_header, 'w') as f:
       f.write(header_content)
@@ -1062,5 +1070,6 @@ if __name__ == '__main__':
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
+    raise
     print("syclcc fatal error: "+str(e))
     sys.exit(-1)

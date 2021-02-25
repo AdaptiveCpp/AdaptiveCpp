@@ -44,31 +44,49 @@ ze_context_manager::ze_context_manager(ze_driver_handle_t driver)
   desc.stype = ZE_STRUCTURE_TYPE_CONTEXT_DESC;
   desc.pNext = nullptr;
   desc.flags = 0;
-  ze_result_t err = zeContextCreate(driver, &desc, &_handle);
+  HIPSYCL_DEBUG_INFO << "ze_context_manager: Spawning context..." << std::endl;
+
+  ze_context_handle_t handle;
+  ze_result_t err = zeContextCreate(driver, &desc, &handle);
 
   if(err != ZE_RESULT_SUCCESS) {
     register_error(__hipsycl_here(),
                    error_info{"ze_context_manager: Could not create context",
                               error_code{"ze", static_cast<int>(err)}});
   }
+
+  auto deleter = [](ze_context_handle_t *ptr) {
+    if (ptr) {
+      HIPSYCL_DEBUG_INFO << "ze_context_manager: Destroying context..."
+                         << std::endl;
+      ze_result_t err = zeContextDestroy(*ptr);
+      assert(false);
+      if (err != ZE_RESULT_SUCCESS) {
+        register_error(
+            __hipsycl_here(),
+            error_info{"ze_context_manager: Could not destroy context",
+                       error_code{"ze", static_cast<int>(err)}});
+      }
+
+      delete ptr;
+    }
+  };
+
+  _handle = std::shared_ptr<ze_context_handle_t>{
+      new ze_context_handle_t{handle}, deleter};
 }
 
+ze_context_manager::~ze_context_manager() {}
+
 ze_context_handle_t ze_context_manager::get() const {
-  return _handle;
+  if(!_handle)
+    return nullptr;
+  
+  return *(_handle.get());
 }
 
 ze_driver_handle_t ze_context_manager::get_driver() const {
   return _driver;
-}
-
-ze_context_manager::~ze_context_manager() {
-  ze_result_t err = zeContextDestroy(_handle);
-
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                   error_info{"ze_context_manager: Could not destroy context",
-                              error_code{"ze", static_cast<int>(err)}});
-  }
 }
 
 ze_event_pool_manager::ze_event_pool_manager(
@@ -475,7 +493,7 @@ ze_hardware_manager::ze_hardware_manager() {
     for(int i = 0; i < num_drivers; ++i) {
       
       _drivers.push_back(drivers[i]);
-      _contexts.push_back(ze_context_manager{_drivers[i]});
+      _contexts.push_back(ze_context_manager{drivers[i]});
 
       uint32_t num_devices = 0;
       err = zeDeviceGet(drivers[i], &num_devices, nullptr);

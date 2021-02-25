@@ -51,7 +51,7 @@ public:
 
   ~ze_context_manager();
 private:
-  ze_context_handle_t _handle;
+  std::shared_ptr<ze_context_handle_t> _handle;
   ze_driver_handle_t _driver;
 };
 

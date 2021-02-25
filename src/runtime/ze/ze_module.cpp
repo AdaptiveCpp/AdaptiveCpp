@@ -137,7 +137,7 @@ ze_module::ze_module(ze_context_handle_t ctx, ze_device_handle_t dev, module_id_
   desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
   desc.pNext = nullptr;
   
-  if(variant == "spriv") {
+  if(variant == "spirv") {
     desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
   } else {
     _build_status = register_error(

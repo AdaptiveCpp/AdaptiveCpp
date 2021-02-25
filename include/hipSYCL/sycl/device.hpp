@@ -93,10 +93,10 @@ public:
 
   bool is_gpu() const
   {
-    return _device_id.get_full_backend_descriptor().hw_platform ==
-               rt::hardware_platform::cuda ||
-           _device_id.get_full_backend_descriptor().hw_platform ==
-               rt::hardware_platform::rocm;
+    return rt::application::get_backend(_device_id.get_backend())
+        .get_hardware_manager()
+        ->get_device(_device_id.get_id())
+        ->is_gpu();
   }
 
   bool is_accelerator() const { return !is_cpu(); }
@@ -114,6 +114,11 @@ public:
     
 #if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::hip)
+      return true;
+#endif
+
+#if defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+    if(_device_id.get_backend() == rt::backend_id::level_zero)
       return true;
 #endif
     

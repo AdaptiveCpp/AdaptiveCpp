@@ -106,7 +106,8 @@ public:
 using host_selector = cpu_selector;
 
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
-    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
+    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
 using default_selector = gpu_selector;
 #else
 using default_selector = host_selector;

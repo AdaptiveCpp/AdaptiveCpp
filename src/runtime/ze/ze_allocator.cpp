@@ -34,13 +34,14 @@
 namespace hipsycl {
 namespace rt {
 
-ze_allocator::ze_allocator(const ze_hardware_context &device,
+ze_allocator::ze_allocator(const ze_hardware_context *device,
                            const ze_hardware_manager *hw_manager)
-    : _ctx{device.get_ze_context()}, _dev{device.get_ze_device()},
-      _global_mem_ordinal{device.get_ze_global_memory_ordinal()},
+    : _ctx{device->get_ze_context()}, _dev{device->get_ze_device()},
+      _global_mem_ordinal{device->get_ze_global_memory_ordinal()},
       _hw_manager{hw_manager} {}
 
 void* ze_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+  
   void* out = nullptr;
 
   ze_device_mem_alloc_desc_t desc;

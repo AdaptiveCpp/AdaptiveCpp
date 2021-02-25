@@ -39,7 +39,7 @@ namespace rt {
 class ze_allocator : public backend_allocator 
 {
 public:
-  ze_allocator(const ze_hardware_context& dev, const ze_hardware_manager* hw_manager);
+  ze_allocator(const ze_hardware_context* dev, const ze_hardware_manager* hw_manager);
 
   virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
 

@@ -36,6 +36,7 @@
 #include "../backend.hpp"
 #include "../multi_queue_executor.hpp"
 
+#include "ze_allocator.hpp"
 #include "ze_hardware_manager.hpp"
 
 namespace hipsycl {
@@ -60,8 +61,8 @@ public:
 
 private:
   std::unique_ptr<ze_hardware_manager> _hardware_manager;
-  //mutable multi_queue_executor _executor;
-  //mutable std::vector<cuda_allocator> _allocators;
+  std::unique_ptr<multi_queue_executor> _executor;
+  mutable std::vector<ze_allocator> _allocators;
 };
 
 

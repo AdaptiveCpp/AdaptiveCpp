@@ -29,7 +29,9 @@
 
 
 #include "hipSYCL/runtime/ze/ze_backend.hpp"
+#include "hipSYCL/runtime/ze/ze_allocator.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
+#include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/runtime/backend_loader.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
@@ -59,6 +61,17 @@ ze_backend::ze_backend() {
   }
 
   _hardware_manager = std::make_unique<ze_hardware_manager>();
+  for(std::size_t i = 0; i < _hardware_manager->get_num_devices(); ++i) {
+    _allocators.push_back(ze_allocator{
+        static_cast<ze_hardware_context *>(_hardware_manager->get_device(i)),
+        _hardware_manager.get()});
+  }
+
+  _executor = std::make_unique<multi_queue_executor>(
+      *this, [this](device_id dev) {
+        return std::make_unique<ze_queue>(this->_hardware_manager.get(),
+                                          dev.get_id());
+      });
 }
 
 api_platform ze_backend::get_api_platform() const {
@@ -78,11 +91,13 @@ backend_hardware_manager* ze_backend::get_hardware_manager() const {
 }
 
 backend_executor* ze_backend::get_executor(device_id dev) const {
-  return nullptr;
+  return _executor.get();
 }
 
 backend_allocator *ze_backend::get_allocator(device_id dev) const {
-  return nullptr;
+  assert(dev.get_id() < _allocators.size());
+
+  return &(_allocators[dev.get_id()]);
 }
 
 std::string ze_backend::get_name() const {

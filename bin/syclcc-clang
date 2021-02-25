@@ -751,7 +751,7 @@ class spirv_multipass_invocation:
 #define HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
 
 static std::array __hipsycl_spirv_bundle {{
-  std::string __hipsycl_spirv_embedded_object {{
+  std::string {{
     R\"__hipsycl_embed({0})__hipsycl_embed\"
   }}
 }};

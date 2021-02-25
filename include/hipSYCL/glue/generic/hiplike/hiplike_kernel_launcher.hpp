@@ -884,5 +884,6 @@ private:
 }
 
 #undef __hipsycl_invoke_kernel
+#undef __sycl_kernel
 
 #endif

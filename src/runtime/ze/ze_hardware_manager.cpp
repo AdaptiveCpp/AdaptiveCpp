@@ -81,18 +81,21 @@ ze_event_pool_manager::ze_event_pool_manager(
 
 void ze_event_pool_manager::spawn_pool(){
 
+  HIPSYCL_DEBUG_INFO << "ze_event_pool_manager: Spawning event pool..."
+                     << std::endl;
+
   ze_event_pool_desc_t desc;
   desc.stype = ZE_STRUCTURE_TYPE_EVENT_POOL_DESC;
   desc.pNext = nullptr;
-  desc.flags = 0;
+  desc.flags = ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
   desc.count = _pool_size;
 
   ze_event_pool_handle_t pool;
 
   // Nullptr means that event pool is visible to all devices
-  ze_device_handle_t* devs = nullptr;
-  uint32_t num_devices = 0;
-  
+  ze_device_handle_t* devs = _devices.empty() ? nullptr : _devices.data();
+  uint32_t num_devices = _devices.size();
+
   ze_result_t err = zeEventPoolCreate(_ctx, &desc, num_devices, devs, &pool);
 
   if(err != ZE_RESULT_SUCCESS) {

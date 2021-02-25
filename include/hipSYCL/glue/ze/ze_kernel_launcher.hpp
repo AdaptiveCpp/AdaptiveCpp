@@ -43,6 +43,8 @@
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
+#include "hipSYCL/sycl/interop_handle.hpp"
+#include "hipSYCL/glue/generic/module.hpp"
 
 #ifdef SYCL_DEVICE_ONLY
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
@@ -59,17 +61,23 @@ namespace ze_dispatch {
 
 class auto_name {};
 
+#ifdef SYCL_DEVICE_ONLY
+#define __sycl_kernel __attribute__((sycl_kernel))
+#else
+#define __sycl_kernel
+#endif
+
 template <typename KernelName = auto_name, typename KernelType>
-__attribute__((sycl_kernel)) void
+__sycl_kernel void
 kernel_single_task(const KernelType &kernelFunc) {
   kernelFunc();
 }
 
 template <typename KernelName, typename KernelType, int Dim>
-__attribute__((sycl_kernel)) void
+__sycl_kernel void
 kernel_parallel_for(const KernelType &KernelFunc, sycl::range<Dim> num_items) {
 #ifdef SYCL_DEVICE_ONLY
-  sycl::id<Dim> gid = sycl::detail::get_global_id();
+  sycl::id<Dim> gid = sycl::detail::get_global_id<Dim>();
   auto item = sycl::detail::make_item(gid, num_items);
 
   bool is_within_range = true;
@@ -89,7 +97,7 @@ class ze_kernel_launcher : public rt::backend_kernel_launcher
 public:
 #ifdef SYCL_DEVICE_ONLY
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
-                                group_size local_mem, ...)                     \
+                                group_size, local_mem, ...)                    \
   f(__VA_ARGS__);
 #else
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
@@ -139,9 +147,10 @@ public:
       }
 
       if constexpr(type == rt::kernel_type::single_task){
+        rt::range<3> single_item{1,1,1};
         __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<KernelName>,
-                                KernelName, Kernel, rt::range<3>{1, 1, 1},
-                                rt::range<3>{1, 1, 1}, 0, k);
+                                KernelName, Kernel, single_item, single_item, 0,
+                                k);
 
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
@@ -219,11 +228,14 @@ private:
     }
 
     const std::string *kernel_image =
-        this_module::get_code_object<Backend_id>("spirv");
+        this_module::get_code_object<rt::backend_id::level_zero>("spirv");
     assert(kernel_image && "Invalid kernel image object");
 
     std::array<void *, sizeof...(Args)> kernel_args{
       static_cast<void *>(&args)...
+    };
+    std::array<std::size_t, sizeof...(Args)> arg_sizes{
+      sizeof(Args)...
     };
 
     std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
@@ -235,9 +247,9 @@ private:
             "Runtime backend does not support invoking kernels from modules");
 
     rt::result err = invoker->submit_kernel(
-        this_module::get_module_id<Backend_id>(), "spirv",
+        this_module::get_module_id<rt::backend_id::level_zero>(), "spirv",
         kernel_image, num_groups, group_size, dynamic_local_mem,
-        kernel_args.data(), kernel_args.size(), kernel_name_tag,
+        kernel_args.data(), arg_sizes.data(), kernel_args.size(), kernel_name_tag,
         kernel_body_name);
 
     if (!err.is_success())
@@ -257,5 +269,6 @@ private:
 }
 
 #undef __hipsycl_invoke_kernel
+#undef __sycl_kernel
 
 #endif

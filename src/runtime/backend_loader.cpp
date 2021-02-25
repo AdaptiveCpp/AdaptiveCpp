@@ -32,30 +32,80 @@
 
 #include <cassert>
 #include <filesystem>
+#ifndef _WIN32
 #include <dlfcn.h>
+#else
+#include <windows.h> 
+#endif
 
 namespace {
 
 void close_plugin(void *handle) {
+#ifndef _WIN32
   if (int err = dlclose(handle)) {
     HIPSYCL_DEBUG_ERROR << "backend_loader: dlclose() failed" << std::endl;
   }
+#else
+  if (!FreeLibrary(static_cast<HMODULE>(handle))) {
+    HIPSYCL_DEBUG_ERROR << "backend_loader: FreeLibrary() failed" << std::endl;
+  }
+#endif
+}
+
+void* load_library(const std::string &filename)
+{
+#ifndef _WIN32
+  if(void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
+    return handle;
+  } else {
+    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+                        << filename << std::endl;
+    if (char *err = dlerror()) {
+      HIPSYCL_DEBUG_ERROR << err << std::endl;
+    }
+  }
+#else
+  if(HMODULE handle = LoadLibraryA(filename.c_str())) {
+    return static_cast<void*>(handle);
+  } else {
+    // too lazy to use FormatMessage bs right now, so look up the error at
+    // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+                        << filename << " with: " << GetLastError() << std::endl;
+  }
+#endif
+  return nullptr;
+}
+
+void* get_symbol_from_library(void* handle, const std::string& symbolName)
+{
+#ifndef _WIN32
+  void *symbol = dlsym(handle, symbolName.c_str());
+  if(char *err = dlerror()) {
+    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+                        << symbolName << std::endl;
+    HIPSYCL_DEBUG_ERROR << err << std::endl;
+  } else {
+    return symbol;
+  }
+#else
+  if(FARPROC symbol = GetProcAddress(static_cast<HMODULE>(handle), symbolName.c_str())) {
+    return reinterpret_cast<void*>(symbol);
+  } else {
+    // too lazy to use FormatMessage bs right now, so look up the error at
+    // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
+    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+                        << symbolName << " with: " << GetLastError() << std::endl;
+  }
+#endif
+  return nullptr;
 }
 
 bool load_plugin(const std::string &filename, void *&handle_out,
                  std::string &backend_name_out) {
-  
-  if(void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
-
-    void *symbol = dlsym(handle, "hipsycl_backend_plugin_get_name");
-
-    if (char *err = dlerror()) {
-      HIPSYCL_DEBUG_ERROR << "backend_loader: Could not retrieve backend name"
-                          << err << std::endl;
-
-      close_plugin(handle);
-      return false;
-    } else {
+  if(void *handle = load_library(filename)) {
+    if(void* symbol = get_symbol_from_library(handle, "hipsycl_backend_plugin_get_name"))
+    {
       auto get_name =
           reinterpret_cast<decltype(&hipsycl_backend_plugin_get_name)>(symbol);
 
@@ -63,37 +113,52 @@ bool load_plugin(const std::string &filename, void *&handle_out,
       backend_name_out = get_name();
 
       return true;
+    } else {
+      close_plugin(handle);
+      return false;
     }
   } else {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
-                        << filename << std::endl;
-    if (char *err = dlerror()) {
-      HIPSYCL_DEBUG_ERROR << err << std::endl;
-    }
-
     return false;
   } 
-
-  
 }
 
 hipsycl::rt::backend *create_backend(void *plugin_handle) {
   assert(plugin_handle);
 
-  void *symbol = dlsym(plugin_handle, "hipsycl_backend_plugin_create");
-  char *err = dlerror();
-  if (err) {
-    HIPSYCL_DEBUG_ERROR
-        << "backend_loader: Could not find symbol for backend creation" << err
-        << std::endl;
-    
-    return nullptr;
-  }
-  
-  auto create_backend_func =
-      reinterpret_cast<decltype(&hipsycl_backend_plugin_create)>(symbol);
+  if(void *symbol = get_symbol_from_library(plugin_handle, "hipsycl_backend_plugin_create"))
+  {
+    auto create_backend_func =
+        reinterpret_cast<decltype(&hipsycl_backend_plugin_create)>(symbol);
 
-  return create_backend_func();
+    return create_backend_func();
+  }
+  return nullptr;
+}
+
+std::vector<std::filesystem::path> get_plugin_search_paths()
+{
+  std::vector<std::filesystem::path> paths;
+#ifndef _WIN32
+  Dl_info info;
+  if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
+    paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
+  }
+  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
+#else
+  if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
+  {
+    std::vector<char> path_buffer(MAX_PATH);
+    if(GetModuleFileNameA(handle, path_buffer.data(), path_buffer.size()))
+    {
+      paths.emplace_back(std::filesystem::path{path_buffer.data()}.parent_path() / "hipSYCL");
+    }
+  }
+  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
+#endif
+
+  if(!std::filesystem::equivalent(install_prefixed_path, paths.back()))
+    paths.emplace_back(std::move(install_prefixed_path));
+  return paths;
 }
 
 }
@@ -102,30 +167,45 @@ namespace hipsycl {
 namespace rt {
 
 void backend_loader::query_backends() {
-  std::string install_prefix = HIPSYCL_INSTALL_PREFIX;
+  std::vector<std::filesystem::path> backend_lib_paths = get_plugin_search_paths();
 
-  std::filesystem::path backend_lib_path =
-      std::filesystem::path{install_prefix} / "lib/hipSYCL";
-
+#ifndef _WIN32
   std::string shared_lib_extension = ".so";
-  
-  for (const std::filesystem::directory_entry &entry :
-       std::filesystem::directory_iterator(backend_lib_path)) {
+#else
+  std::string shared_lib_extension = ".dll";
+#endif
 
-    if (entry.is_regular_file()) {
-      auto p = entry.path();
-      if (p.extension().string() == shared_lib_extension) {
-        std::string backend_name;
-        void *handle;
-        if (load_plugin(p.string(), handle, backend_name)) {
-          HIPSYCL_DEBUG_INFO << "Successfully opened plugin: " << p
-                             << " for backend '" << backend_name << "'"
-                             << std::endl;
-          _handles.emplace_back(std::make_pair(backend_name, handle));
+  for(const std::filesystem::path& backend_lib_path : backend_lib_paths) {
+    if(!std::filesystem::is_directory(backend_lib_path)) {
+      HIPSYCL_DEBUG_INFO << "backend_loader: Backend lib search path candidate does not exists: "
+                        << backend_lib_path << std::endl;
+      continue;
+    }
+
+    HIPSYCL_DEBUG_INFO << "backend_loader: Searching path for backend libs: '"
+                      << backend_lib_path << "'" << std::endl;
+
+    for (const std::filesystem::directory_entry &entry :
+        std::filesystem::directory_iterator(backend_lib_path)) {
+
+      if (entry.is_regular_file()) {
+        auto p = entry.path();
+        if (p.extension().string() == shared_lib_extension) {
+          std::string backend_name;
+          void *handle;
+          if (load_plugin(p.string(), handle, backend_name)) {
+            if(!has_backend(backend_name)){
+              HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
+                                << " for backend '" << backend_name << "'"
+                                << std::endl;
+              _handles.emplace_back(std::make_pair(backend_name, handle));
+            } else {
+              close_plugin(handle);
+            }
+          }
         }
       }
     }
-    
   }
 }
 

@@ -883,4 +883,6 @@ private:
 }
 }
 
+#undef __hipsycl_invoke_kernel
+
 #endif

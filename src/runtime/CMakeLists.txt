@@ -97,6 +97,11 @@ if(WITH_LEVEL_ZERO_BACKEND)
   
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
+
+
+  install(TARGETS rt-backend-ze
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
 if(WITH_CPU_BACKEND)

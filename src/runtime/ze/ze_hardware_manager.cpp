@@ -89,13 +89,10 @@ void ze_event_pool_manager::spawn_pool(){
 
   ze_event_pool_handle_t pool;
 
+  // Nullptr means that event pool is visible to all devices
   ze_device_handle_t* devs = nullptr;
   uint32_t num_devices = 0;
-  if(_devices.size() > 0) {
-    devs = _devices.data();
-    num_devices = static_cast<uint32_t>(_devices.size());
-  }
-
+  
   ze_result_t err = zeEventPoolCreate(_ctx, &desc, num_devices, devs, &pool);
 
   if(err != ZE_RESULT_SUCCESS) {

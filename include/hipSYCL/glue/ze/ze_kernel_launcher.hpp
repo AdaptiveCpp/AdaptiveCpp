@@ -34,7 +34,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/omp/omp_queue.hpp"
+#include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
@@ -43,6 +43,10 @@
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
+
+#ifdef SYCL_DEVICE_ONLY
+#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
+#endif
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -61,21 +65,45 @@ kernel_single_task(const KernelType &kernelFunc) {
   kernelFunc();
 }
 
-template <typename KernelName, typename KernelType, int Dims>
+template <typename KernelName, typename KernelType, int Dim>
 __attribute__((sycl_kernel)) void
-kernel_parallel_for(const KernelType &KernelFunc) {
-  KernelFunc(sycl::id<Dims>{});
+kernel_parallel_for(const KernelType &KernelFunc, sycl::range<Dim> num_items) {
+#ifdef SYCL_DEVICE_ONLY
+  sycl::id<Dim> gid = sycl::detail::get_global_id();
+  auto item = sycl::detail::make_item(gid, num_items);
+
+  bool is_within_range = true;
+
+  for(int i = 0; i < Dim; ++i)
+    if(gid[i] >= num_items[i])
+      is_within_range = false;
+
+  if(is_within_range)
+    KernelFunc(item);
+#endif
 }
 }
 
 class ze_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
-  
-  ze_kernel_launcher() {}
+#ifdef SYCL_DEVICE_ONLY
+#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+                                group_size local_mem, ...)                     \
+  f(__VA_ARGS__);
+#else
+#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+                                group_size, local_mem, ...)                    \
+  invoke_from_module<KernelName, KernelBodyT>(num_groups, group_size,          \
+                                              local_mem, __VA_ARGS__);
+#endif
+
+  ze_kernel_launcher() : _queue{nullptr}{}
   virtual ~ze_kernel_launcher(){}
 
-  virtual void set_params(void*) override {}
+  virtual void set_params(void* q) override {
+    _queue = static_cast<rt::ze_queue*>(q);
+  }
 
   template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
@@ -87,26 +115,41 @@ public:
     
     this->_invoker = [=]() {
 
-      bool is_with_offset = false;
-      for (std::size_t i = 0; i < Dim; ++i)
-        if (offset[i] != 0)
-          is_with_offset = true;
-
-      auto get_grid_range = [&]() {
-        for (int i = 0; i < Dim; ++i){
-          if (global_range[i] % local_range[i] != 0) {
-            rt::register_error(__hipsycl_here(),
-                               rt::error_info{"ze_dispatch: global range is "
-                                              "not divisible by local range"});
-          }
+      sycl::range<Dim> effective_local_range = local_range;
+      if constexpr (type == rt::kernel_type::basic_parallel_for) {
+        // If local range is non 0, we use it as a hint to override
+        // the default selection
+        if(local_range.size() == 0) {
+          if constexpr (Dim == 1)
+            effective_local_range = sycl::range<1>{128};
+          else if constexpr (Dim == 2)
+            effective_local_range = sycl::range<2>{16, 16};
+          else if constexpr (Dim == 3)
+            effective_local_range = sycl::range<3>{4, 8, 8};
         }
+        HIPSYCL_DEBUG_INFO << "ze_kernel_launcher: Submitting high-level "
+                              "parallel for with selected total group size of "
+                          << effective_local_range.size() << std::endl;
+      }
 
-        return global_range / local_range;
-      };
+      sycl::range<Dim> num_groups;
+      for(int i = 0; i < Dim; ++i) {
+        num_groups[i] = (global_range[i] + effective_local_range[i] - 1) /
+                        effective_local_range[i];
+      }
 
       if constexpr(type == rt::kernel_type::single_task){
-      
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<KernelName>,
+                                KernelName, Kernel, rt::range<3>{1, 1, 1},
+                                rt::range<3>{1, 1, 1}, 0, k);
+
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
+
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
+                                KernelName, Kernel,
+                                make_kernel_launch_range(num_groups),
+                                make_kernel_launch_range(effective_local_range),
+                                dynamic_local_memory, k, global_range);
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
@@ -146,6 +189,16 @@ public:
   }
 
 private:
+  template<int Dim>
+  rt::range<3> make_kernel_launch_range(sycl::range<Dim> r) const {
+    if constexpr(Dim == 1) {
+      return rt::range<3>{r[0], 1, 1};
+    } else if constexpr(Dim == 2) {
+      return rt::range<3>{r[1], r[0], 1};
+    } else {
+      return rt::range<3>{r[2], r[1], r[0]};
+    }
+  }
 
   template <class KernelName, class KernelBodyT, typename... Args>
   void invoke_from_module(rt::range<3> num_groups, rt::range<3> group_size,
@@ -197,9 +250,12 @@ private:
 
   std::function<void ()> _invoker;
   rt::kernel_type _type;
+  rt::ze_queue* _queue;
 };
 
 }
 }
+
+#undef __hipsycl_invoke_kernel
 
 #endif

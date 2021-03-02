@@ -65,6 +65,9 @@ public:
 
   ~ze_module();
   
+  ze_module(const ze_module&) = delete;
+  ze_module& operator=(const ze_module&) = delete;
+
   ze_module_handle_t get_handle() const;
   module_id_t get_id() const;
   ze_device_handle_t get_device() const;

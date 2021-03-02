@@ -130,7 +130,7 @@ private:
   ze_device_properties_t _props;
   ze_device_compute_properties_t _compute_props;
   std::vector<ze_device_memory_properties_t> _memory_props;
-  std::vector<ze_module> _modules;
+  std::vector<std::shared_ptr<ze_module>> _modules;
 };
 
 class ze_hardware_manager : public backend_hardware_manager

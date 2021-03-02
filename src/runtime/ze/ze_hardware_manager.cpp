@@ -446,14 +446,15 @@ result ze_hardware_context::obtain_module(module_id_t id,
                                           const std::string &variant,
                                           const std::string *module_image,
                                           ze_module* &out) {
-  for(ze_module& mod : _modules) {
-    if(mod.get_id() == id && mod.get_variant() == variant) {
-      out = &mod;
+  for(auto mod : _modules) {
+    if(mod->get_id() == id && mod->get_variant() == variant) {
+      out = mod.get();
     }
   }
 
-  _modules.emplace_back(ze_module{_ctx, _device, id, variant, module_image});
-  if(!_modules.back().get_build_status().is_success()){
+  _modules.emplace_back(
+      std::make_shared<ze_module>(_ctx, _device, id, variant, module_image));
+  if(!_modules.back()->get_build_status().is_success()){
     _modules.pop_back();
 
     return make_error(
@@ -461,7 +462,7 @@ result ze_hardware_context::obtain_module(module_id_t id,
         error_info{"ze_hardware_context: Module construction failed."});
     
   } else {
-    out = &(_modules.back());
+    out = _modules.back().get();
   }
 
   return make_success();

@@ -57,7 +57,7 @@ result ze_module_invoker::submit_kernel(
   result res = hw_ctx->obtain_module(id, module_variant, module_image, mod);
   if(!res.is_success())
     return res;
-   
+
   if(!mod) {
     return make_error(
         __hipsycl_here(),
@@ -72,7 +72,7 @@ result ze_module_invoker::submit_kernel(
             "ze_module_invoker: Module construction failed"});
   }
 
-  
+
   ze_kernel_handle_t kernel;
   res = mod->obtain_kernel(kernel_name_tag, kernel_body_name, kernel);
 
@@ -144,7 +144,7 @@ ze_module::ze_module(ze_context_handle_t ctx, ze_device_handle_t dev, module_id_
         __hipsycl_here(), error_info{"ze_module: Invalid module format"});
     return;
   }
-
+  
   desc.inputSize = module_image->size();
   desc.pInputModule = reinterpret_cast<const uint8_t *>(module_image->c_str());
   // TODO: We may want to expose some of the build flags, e.g. to
@@ -153,6 +153,7 @@ ze_module::ze_module(ze_context_handle_t ctx, ze_device_handle_t dev, module_id_
   desc.pConstants = nullptr;
 
   ze_result_t err = zeModuleCreate(ctx, dev, &desc, &_handle, nullptr);
+
   if(err != ZE_RESULT_SUCCESS) {
     _build_status = register_error(__hipsycl_here(),
                    error_info{"ze_module: Couldn't create module handle",

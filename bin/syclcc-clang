@@ -743,16 +743,21 @@ class spirv_multipass_invocation:
       # enough
       #spirv_data = binascii.hexlify(data, '\\x')
       hex_representation = binascii.hexlify(data).decode('utf-8')
-      spirv_data = "".join(["\\x" + hex_representation[i:i+2] 
+      spirv_data = ",".join(["0x" + hex_representation[i:i+2] 
         for i in range(0,len(hex_representation),2)])
       
     result = """ 
 #ifndef HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
 #define HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
 
+static const unsigned char __hipsycl_spirv_raw_data [] = {{
+  {0}
+}};
 static std::array __hipsycl_spirv_bundle {{
   std::string {{
-    R\"__hipsycl_embed({0})__hipsycl_embed\"
+    reinterpret_cast<const char*>(__hipsycl_spirv_raw_data),
+    reinterpret_cast<const char*>(__hipsycl_spirv_raw_data)
+      + sizeof(__hipsycl_spirv_raw_data)
   }}
 }};
 

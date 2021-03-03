@@ -43,6 +43,7 @@
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
+#include "hipSYCL/sycl/libkernel/detail/device_array.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
 
@@ -67,29 +68,98 @@ class auto_name {};
 #define __sycl_kernel
 #endif
 
+// clang's SYCL frontend disassembles kernel lambdas and passes
+// the actual lambda captures as kernel arguments. This is not
+// required for hipSYCL because we do not use any opaque
+// memory objects such as cl_mem and instead rely on buffers/accessors
+// on top of USM pointers.
+// The problem with the clang SYCL approach is that it requires either
+// compiler support in the host pass to know the captures, or requires 
+// using the clang SYCL generated integration header which does not work
+// with the hipSYCL syclcc driver.
+// To prevent clang from disassembling the kernel, we type-erase kernel 
+// lambdas by putting their memory into array<uint, size>, and reinterpret
+// this memory as lambda once we are inside the kernel. 
+// Arrays are passed by clang into kernels by passing their individual
+// elements as arguments. Because we know sizeof(KernelLambda), we can
+// easily know how to pass arrays on the host side.
+template<class KernelType>
+class packed_kernel {
+public:
+  using component_type = uint32_t;
+
+  packed_kernel() = default;
+  packed_kernel(const KernelType& k) {
+    init(reinterpret_cast<const unsigned char*>(&k));
+  }
+
+  template<typename... Args>
+  void operator()(Args&&... args) const {
+    const KernelType* k = reinterpret_cast<const KernelType*>(&(_data[0]));
+    (*k)(args...);
+  }
+
+  constexpr std::size_t get_num_components() const {
+    return num_components;
+  }
+
+  constexpr std::size_t get_component_size() const {
+    return sizeof(component_type);
+  }
+
+  component_type* get_components() {
+    return &(_data[0]);
+  }
+
+  const component_type* get_components() const {
+    return &(_data[0]);
+  }
+private:
+
+  void init(const unsigned char* kernel_bytes) {
+
+    for(int i = 0; i < static_cast<int>(num_components); ++i) {
+      union component {
+        component_type c;
+        unsigned char bytes[sizeof(component_type)];
+      };
+
+      component current_component;
+
+      for(int byte = 0; byte < sizeof(component_type); ++byte) {
+        std::size_t pos = i * sizeof(component_type) + byte;
+        if(pos < kernel_size){
+          current_component.bytes[byte] =
+            kernel_bytes[pos];
+        } else {
+          current_component.bytes[byte] = 0;
+        }
+      }
+
+      _data[i] = current_component.c;
+
+    }
+  }
+
+  static constexpr std::size_t kernel_size = sizeof(KernelType);
+  static constexpr std::size_t num_components =
+    (kernel_size + sizeof(component_type)-1) / sizeof(component_type);
+
+  sycl::detail::device_array<component_type, num_components> _data;
+};
+
 template <typename KernelName = auto_name, typename KernelType>
 __sycl_kernel void
-kernel_single_task(const KernelType &kernelFunc) {
-  kernelFunc();
+kernel_single_task(const packed_kernel<KernelType> &kernel) {
+  kernel();
 }
 
-template <typename KernelName, typename KernelType, int Dim>
+template <typename KernelName, typename KernelType>
 __sycl_kernel void
-kernel_parallel_for(const KernelType &KernelFunc, sycl::range<Dim> num_items) {
-#ifdef SYCL_DEVICE_ONLY
-  sycl::id<Dim> gid = sycl::detail::get_global_id<Dim>();
-  auto item = sycl::detail::make_item(gid, num_items);
-
-  bool is_within_range = true;
-
-  for(int i = 0; i < Dim; ++i)
-    if(gid[i] >= num_items[i])
-      is_within_range = false;
-
-  if(is_within_range)
-    KernelFunc(item);
-#endif
+kernel_parallel_for(const packed_kernel<KernelType>& kernel) {
+  kernel();
 }
+
 }
 
 class ze_kernel_launcher : public rt::backend_kernel_launcher
@@ -150,15 +220,34 @@ public:
         rt::range<3> single_item{1,1,1};
         __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<KernelName>,
                                 KernelName, Kernel, single_item, single_item, 0,
-                                k);
+                                ze_dispatch::packed_kernel{k});
 
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
+
+        auto kernel_wrapper = [global_range, k](){
+#ifdef SYCL_DEVICE_ONLY
+          sycl::id<Dim> gid = sycl::detail::get_global_id<Dim>();
+          auto item = sycl::detail::make_item(gid, global_range);
+
+          bool is_within_range = true;
+
+          for(int i = 0; i < Dim; ++i)
+            if(gid[i] >= global_range[i])
+              is_within_range = false;
+
+          if(is_within_range)
+            k(item);
+#else
+          (void)k;
+          (void)global_range;
+#endif
+        };
 
         __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
                                 KernelName, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
-                                dynamic_local_memory, k, global_range);
+                                dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
@@ -209,9 +298,11 @@ private:
     }
   }
 
-  template <class KernelName, class KernelBodyT, typename... Args>
+  template <class KernelName, class KernelBodyT,
+            class WrappedLambdaT>
   void invoke_from_module(rt::range<3> num_groups, rt::range<3> group_size,
-                          unsigned dynamic_local_mem, Args... args) {
+                          unsigned dynamic_local_mem,
+                          ze_dispatch::packed_kernel<WrappedLambdaT> kernel) {
     
     
 #ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
@@ -231,12 +322,13 @@ private:
         this_module::get_code_object<rt::backend_id::level_zero>("spirv");
     assert(kernel_image && "Invalid kernel image object");
 
-    std::array<void *, sizeof...(Args)> kernel_args{
-      static_cast<void *>(&args)...
-    };
-    std::array<std::size_t, sizeof...(Args)> arg_sizes{
-      sizeof(Args)...
-    };
+    std::array<void *, kernel.get_num_components()> kernel_args;
+    std::array<std::size_t, kernel.get_num_components()> arg_sizes;
+
+    for(std::size_t i = 0; i < kernel.get_num_components(); ++i) {
+      arg_sizes[i] = kernel.get_component_size();
+      kernel_args[i] = static_cast<void*>(kernel.get_components() + i);
+    }
 
     std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
     std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);

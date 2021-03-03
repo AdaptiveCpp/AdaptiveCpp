@@ -96,6 +96,10 @@ result ze_module_invoker::submit_kernel(
   group_count.groupCountZ = static_cast<uint32_t>(num_groups[2]);
 
   for(std::size_t i = 0; i < num_args; ++i ){
+    HIPSYCL_DEBUG_INFO << "ze_module_invoker: Setting kernel argument " << i
+                       << " of size " << arg_sizes[i] << " at " << args[i]
+                       << std::endl;
+
     err = zeKernelSetArgumentValue(
         kernel, i, static_cast<uint32_t>(arg_sizes[i]), args[i]);
     if(err != ZE_RESULT_SUCCESS) {
@@ -110,6 +114,7 @@ result ze_module_invoker::submit_kernel(
       _queue->get_enqueued_event_handles();
   std::shared_ptr<dag_node_event> completion_evt = _queue->create_event();
 
+  HIPSYCL_DEBUG_INFO << "ze_module_invoker: Submitting kernel!" << std::endl;
   err = zeCommandListAppendLaunchKernel(
       _queue->get_ze_command_list(), kernel, &group_count,
       static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
@@ -196,6 +201,9 @@ result ze_module::obtain_kernel(const std::string &name,
                                 ze_kernel_handle_t &out) const {
   for(auto& kernel : _kernels) {
     if (kernel.first == name) {
+      HIPSYCL_DEBUG_INFO << "ze_module: Found cached kernel: " << name
+                         << std::endl;
+
       out = kernel.second;
       return make_success();
     }
@@ -217,6 +225,8 @@ result ze_module::obtain_kernel(const std::string &name,
   }
   _kernels.emplace_back(std::make_pair(name, kernel));
   out = kernel;
+  HIPSYCL_DEBUG_INFO << "ze_module: Constructed new kernel for cache: " << name
+                     << std::endl;
 
   return make_success();
 }

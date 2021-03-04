@@ -92,8 +92,8 @@ std::shared_ptr<dag_node_event> ze_queue::create_event() {
   desc.stype = ZE_STRUCTURE_TYPE_EVENT_DESC;
   desc.pNext = nullptr;
   // desc.index (index within the pool) is set by allocate_event()
-  desc.signal = 0;
-  desc.wait = 0;
+  desc.signal = ZE_EVENT_SCOPE_FLAG_HOST;
+  desc.wait = ZE_EVENT_SCOPE_FLAG_HOST;
 
   ze_event_pool_manager *pool_mgr =
       _hw_manager->get_event_pool_manager(_device_index);

@@ -8,7 +8,12 @@ hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on
 * AMD GPUs via HIP/ROCm
 * Intel GPUs via oneAPI Level Zero and SPIR-V (*highly* experimental and WIP!)
 
-hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. See here for details on the hipSYCL [compilation model](doc/compilation.md).
+hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. More information about the [compilation flow can be found here](doc/compilation.md).
+
+The runtime architecture of hipSYCL consists of the main library `hipSYCL-rt`, as well as modular plugin libraries for the individual backends:
+![Runtime architecture](/doc/img/runtime.png)
+
+This design allows hipSYCL to **effectively aggregate multiple toolchains, that are otherwise incompatible, making them accessible with a single SYCL interface.**
 
 The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
 ![SYCL implementations](/doc/img/sycl-targets.png)

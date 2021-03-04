@@ -89,7 +89,11 @@ public:
   using component_type = uint32_t;
 
   packed_kernel() = default;
-  packed_kernel(const KernelType& k) {
+
+  // Copying in the kernel by value guarantees that deferred pointers
+  // from accessors have been initialized before the kernel gets
+  // type-erased and deconstructed. Don't change.
+  packed_kernel(KernelType k) {
     init(reinterpret_cast<const unsigned char*>(&k));
   }
 
@@ -218,6 +222,7 @@ public:
 
       if constexpr(type == rt::kernel_type::single_task){
         rt::range<3> single_item{1,1,1};
+
         __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<KernelName>,
                                 KernelName, Kernel, single_item, single_item, 0,
                                 ze_dispatch::packed_kernel{k});

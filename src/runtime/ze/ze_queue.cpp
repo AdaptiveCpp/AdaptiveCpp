@@ -276,6 +276,7 @@ ze_queue::get_enqueued_event_handles() const {
 void ze_queue::register_submitted_op(std::shared_ptr<dag_node_event> evt) {
   _last_submitted_op_event = evt;
   _enqueued_synchronization_ops.clear();
+  _enqueued_synchronization_ops.push_back(evt);
 }
 
 

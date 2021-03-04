@@ -60,7 +60,7 @@ namespace glue {
 namespace ze_dispatch {
 
 
-class auto_name {};
+
 
 #ifdef SYCL_DEVICE_ONLY
 #define __sycl_kernel __attribute__((sycl_kernel))
@@ -152,7 +152,7 @@ private:
   sycl::detail::device_array<component_type, num_components> _data;
 };
 
-template <typename KernelName = auto_name, typename KernelType>
+template <typename KernelName, typename KernelType>
 __sycl_kernel void
 kernel_single_task(const packed_kernel<KernelType> &kernel) {
   kernel();
@@ -220,6 +220,11 @@ public:
                         effective_local_range[i];
       }
 
+      bool is_with_offset = false;
+      for(int i = 0; i < Dim; ++i)
+        if(offset[i] != 0)
+          is_with_offset = true;
+
       if constexpr(type == rt::kernel_type::single_task){
         rt::range<3> single_item{1,1,1};
 
@@ -229,10 +234,9 @@ public:
 
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-        auto kernel_wrapper = [global_range, k](){
+        auto kernel_wrapper = [global_range, k, offset, is_with_offset](){
 #ifdef SYCL_DEVICE_ONLY
           sycl::id<Dim> gid = sycl::detail::get_global_id<Dim>();
-          auto item = sycl::detail::make_item(gid, global_range);
 
           bool is_within_range = true;
 
@@ -240,11 +244,21 @@ public:
             if(gid[i] >= global_range[i])
               is_within_range = false;
 
-          if(is_within_range)
-            k(item);
+          if(is_within_range) {
+            if(is_with_offset) {
+              auto item = sycl::detail::make_item(gid + offset, 
+                            global_range, offset);
+              k(item);
+            } else {
+              auto item = sycl::detail::make_item(gid, global_range);
+              k(item);
+            }
+          }
 #else
           (void)k;
           (void)global_range;
+          (void)offset;
+          (void)is_with_offset;
 #endif
         };
 
@@ -256,9 +270,66 @@ public:
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
+        auto kernel_wrapper = [k, offset](){
+#ifdef SYCL_DEVICE_ONLY
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+          sycl::nd_item<Dim> this_item{&offset};
+#else
+          sycl::nd_item<Dim> this_item{
+            &offset, sycl::detail::get_group_id<Dim>(),
+            sycl::detail::get_local_id<Dim>(),
+            sycl::detail::get_local_size<Dim>(),
+            sycl::detail::get_grid_size<Dim>()
+          };
+#endif
+          k(this_item);
+#else
+          (void)k;
+          (void)offset;
+#endif
+        };
+
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
+                                KernelName, Kernel,
+                                make_kernel_launch_range(num_groups),
+                                make_kernel_launch_range(effective_local_range),
+                                dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});
+
       } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
+        rt::register_error(__hipsycl_here(), rt::error_info{
+          "ze_kernel_launcher: hierarchical parallel for is not yet supported"});
 
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+
+        auto kernel_wrapper = [k](){
+#ifdef SYCL_DEVICE_ONLY
+
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+          sycl::group<Dim> this_group;
+#else
+          sycl::group<Dim> this_group{
+            sycl::detail::get_group_id<Dim>(),
+            sycl::detail::get_local_size<Dim>(),
+            sycl::detail::get_grid_size<Dim>()};
+#endif
+          sycl::physical_item<Dim> phys_idx = sycl::detail::make_sp_item(
+            sycl::detail::get_local_id<Dim>(),
+            sycl::detail::get_group_id<Dim>(),
+            sycl::detail::get_local_size<Dim>(),
+            sycl::detail::get_grid_size<Dim>());
+
+          k(this_group, phys_idx);
+#else
+          (void)k;
+#endif
+        };
+
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
+                                KernelName, Kernel,
+                                make_kernel_launch_range(num_groups),
+                                make_kernel_launch_range(effective_local_range),
+                                dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});
+
 
       } else if constexpr (type == rt::kernel_type::custom) {
         sycl::interop_handle handle{

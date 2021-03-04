@@ -342,7 +342,7 @@ struct nd_item
   
 #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   HIPSYCL_KERNEL_TARGET
-  nd_item(id<dimensions>* offset)
+  nd_item(const id<dimensions>* offset)
     : _offset{offset}
   {}
 #else

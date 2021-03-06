@@ -27,7 +27,7 @@ jobs:
       run: |
         md -Force $env:GITHUB_WORKSPACE/install
         cd $env:GITHUB_WORKSPACE/install
-        Invoke-WebRequest -O llvm.7z https://ci-bot.joameyer.de/llvm.7z
+        Invoke-WebRequest -O llvm.7z http://repo.urz.uni-heidelberg.de/sycl/windows/llvm.7z
     - name: Extract LLVM
       shell: powershell
       run: |

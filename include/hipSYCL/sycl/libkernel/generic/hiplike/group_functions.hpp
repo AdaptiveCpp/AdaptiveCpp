@@ -228,6 +228,9 @@ T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
 
   T *start_ptr = first + lid;
 
+  if (num_elements <= 0)
+    return T{};
+
   if (num_elements == 1)
     return *first;
 

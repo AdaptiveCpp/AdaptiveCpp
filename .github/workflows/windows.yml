@@ -54,11 +54,10 @@ jobs:
     - name: install boost (from source)
       run: |
         $env:PATH="$env:GITHUB_WORKSPACE\install\bin;$env:PATH"
-        Invoke-WebRequest -O boost_1_75_0.7z https://dl.bintray.com/boostorg/release/1.75.0/source/boost_1_75_0.7z
-        7z.exe x boost_1_75_0.7z
+        md -Force boost_1_75_0
         cd boost_1_75_0
-        .\bootstrap.bat
-        .\b2 toolset=clang-win address-model=64 variant=release --build-type=complete stage --with-fiber --with-context --with-test
+        Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0.7z
+        7z.exe x boost_1_75_0.7z
         cd ..
     - name: build hipSYCL
       shell: cmd

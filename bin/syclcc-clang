@@ -763,13 +763,13 @@ class omp_invocation:
     if len(config.targets["omp"]) != 0:
       raise RuntimeError("OpenMP backend does not support specifiying target architecture")
 
-    self._cxx = config.pure_cpu_compiler
+    self._clang = config.clang_path
 
   def get_compiler_preference(self):
-    return (self._cxx, 1)
+    return (self._clang, 1)
 
   def get_cxx_flags(self):
-    flags = ["-fplugin="+os.path.join(hipsycl_library_path,"libhipSYCL_clang.so"),
+    flags = ["-fplugin=" + config.hipsycl_plugin_path,
              "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
       

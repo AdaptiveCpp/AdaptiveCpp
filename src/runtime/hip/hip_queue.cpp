@@ -237,7 +237,7 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
 
 result hip_queue::submit_prefetch(const prefetch_operation& op) {
 
-#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+#ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
   hipError_t err = hipSuccess;
   
   if (op.get_target().is_host()) {

@@ -139,7 +139,7 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   out.dev = rt::device_id{_backend_descriptor, attribs.device};
   out.is_from_host_backend = false;
   out.is_optimized_host = attribs.memoryType == hipMemoryTypeHost;
-#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+#ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
   out.is_usm = attribs.isManaged;
 #else
   // query for hipMemoryTypeUnified as dummy; this is not actually
@@ -154,7 +154,7 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
 
 result hip_allocator::mem_advise(const void *addr, std::size_t num_bytes,
                                 int advise) const {
-#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+#ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
   hipError_t err = hipMemAdvise(addr, num_bytes,
                                 static_cast<hipMemoryAdvise>(advise), _dev);
   if(err != hipSuccess) {

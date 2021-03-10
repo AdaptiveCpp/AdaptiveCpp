@@ -278,6 +278,9 @@ install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATIO
 
 if(NOT WIN32)
 install(PROGRAMS bin/syclcc DESTINATION bin)
+# Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
+# we already have SYCL/sycl.hpp
+install(FILES include/SYCL/sycl.hpp DESTINATION include/sycl/)
 else()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
 endif()

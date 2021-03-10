@@ -778,12 +778,12 @@ public:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend vec<T,N> operator+(vec& v) {
+  friend vec<T,N> operator+(const vec& v) {
     return v;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend vec<T,N> operator-(vec& v) {
+  friend vec<T,N> operator-(const vec& v) {
     vec<T,N> result;
     for(int i = 0; i < N; ++i) {
       result._data[i] = -(v._data[i]);

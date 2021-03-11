@@ -110,6 +110,20 @@ result ze_module_invoker::submit_kernel(
     }
   }
 
+  // This is necessary for USM pointers, which hipSYCL *always*
+  // relies on.
+  err = zeKernelSetIndirectAccess(kernel,
+                                  ZE_KERNEL_INDIRECT_ACCESS_FLAG_HOST |
+                                  ZE_KERNEL_INDIRECT_ACCESS_FLAG_DEVICE |
+                                  ZE_KERNEL_INDIRECT_ACCESS_FLAG_SHARED);
+
+  if(err != ZE_RESULT_SUCCESS) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"ze_module_invoker: Could not set indirect access flags",
+                     error_code{"ze", static_cast<int>(err)}});
+  }
+
   std::vector<ze_event_handle_t> wait_events =
       _queue->get_enqueued_event_handles();
   std::shared_ptr<dag_node_event> completion_evt = _queue->create_event();

@@ -149,7 +149,12 @@ private:
   static constexpr std::size_t num_components =
     (kernel_size + sizeof(component_type)-1) / sizeof(component_type);
 
-  sycl::detail::device_array<component_type, num_components> _data;
+  using array_type = sycl::detail::device_array<component_type, num_components>;
+
+  array_type _data;
+
+  static_assert(sizeof(array_type) == sizeof(component_type) * num_components,
+                "device_array size is invalid");
 };
 
 template <typename KernelName, typename KernelType>

@@ -3,6 +3,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -23,13 +24,8 @@ std::basic_ostream<char> &operator<<(std::basic_ostream<char> &ost, const llvm::
   return ost << strRef.begin();
 }
 
-bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
-  // cached, should not need to rerun..
-  if (splitterFuncs_)
-    return false;
-  splitterFuncs_ = llvm::SmallPtrSet<llvm::Function *, 2>{};
-
-  for (auto &I : F.getParent()->globals()) {
+bool hipsycl::compiler::SplitterAnnotationInfo::AnalyzeModule(llvm::Module &module) {
+  for (auto &I : module.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
@@ -39,7 +35,7 @@ bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Fu
         llvm::StringRef annotation =
             llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())->getAsCString();
         if (annotation.compare(SplitterAnnotation) == 0) {
-          splitterFuncs_->insert(FUNC);
+          splitterFuncs_.insert(FUNC);
           HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << FUNC->getName() << "\n";
         }
       }
@@ -48,18 +44,31 @@ bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Fu
   return false;
 }
 
-namespace {
+hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &module) { AnalyzeModule(module); }
 
-llvm::Loop *UpdateDTAndLI(llvm::LoopInfoWrapperPass &LIW, llvm::DominatorTreeWrapperPass &DTW,
-                          const llvm::BasicBlock *B, llvm::Function &F) {
-  DTW.releaseMemory();
-  DTW.getDomTree().recalculate(F);
-  LIW.releaseMemory();
-  LIW.getLoopInfo().analyze(DTW.getDomTree());
-  return LIW.getLoopInfo().getLoopFor(B);
+bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
+  if (splitterAnnotation_)
+    return false;
+  splitterAnnotation_ = SplitterAnnotationInfo{*F.getParent()};
+  return false;
 }
 
-bool InlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA) {
+hipsycl::compiler::SplitterAnnotationAnalysis::Result
+hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
+  return SplitterAnnotationInfo{M};
+}
+
+namespace {
+
+llvm::Loop *UpdateDTAndLI(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F) {
+  DT.reset();
+  DT.recalculate(F);
+  LI.releaseMemory();
+  LI.analyze(DT);
+  return LI.getLoopFor(B);
+}
+
+bool InlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (CI->getCalledFunction()->isIntrinsic() || SAA.IsSplitterFunc(CI->getCalledFunction()))
     return false;
 
@@ -85,7 +94,7 @@ bool InlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::Splitte
 }
 
 bool InlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm::Function *, 8> &splitterCallers,
-                             const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA) {
+                             const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool changed = false;
   bool lastChanged = false;
 
@@ -110,8 +119,8 @@ bool InlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
 //! \pre all contained functions are non recursive!
 // todo: have a recursive-ness termination
 bool InlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *, 8> &splitterCallers,
-                       const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA, llvm::LoopInfoWrapperPass &LIW,
-                       llvm::DominatorTreeWrapperPass &DTW) {
+                       const hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
+                       llvm::DominatorTree &DT) {
   bool changed = false;
   bool lastChanged = false;
 
@@ -127,7 +136,7 @@ bool InlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
     }
     if (lastChanged) {
       changed = true;
-      L = UpdateDTAndLI(LIW, DTW, B, F);
+      L = UpdateDTAndLI(LI, DT, B, F);
     }
   } while (lastChanged);
 
@@ -136,7 +145,7 @@ bool InlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
 
 //! \pre \a F is not recursive!
 // todo: have a recursive-ness termination
-bool FillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA,
+bool FillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   if (F.isDeclaration() && !F.isIntrinsic()) {
     HIPSYCL_DEBUG_WARNING << F.getName() << " is not defined!" << std::endl;
@@ -162,7 +171,7 @@ bool FillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::S
   return found;
 }
 
-bool FillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA,
+bool FillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   bool found = false;
   for (auto *BB : L.getBlocks()) {
@@ -177,7 +186,7 @@ bool FillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::Split
   return found;
 }
 
-void FindAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationAnalysisLegacy &SAA,
+void FindAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                           llvm::SmallVector<llvm::CallBase *, 8> &barriers) {
   for (auto *BB : L.getBlocks()) {
     for (auto &I : *BB) {
@@ -341,9 +350,9 @@ bool FillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &startL
 //  }
 //}
 
-} // namespace
-
-bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
+bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
+               const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
+               const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!(*L->block_begin())->getParent()->getName().startswith(".omp_outlined")) {
     // are we in kernel?
     return false;
@@ -354,11 +363,6 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
     HIPSYCL_DEBUG_INFO << "Not work-item loop!" << L << std::endl;
     return false;
   }
-  auto &LIW = getAnalysis<llvm::LoopInfoWrapperPass>();
-  auto &DTW = getAnalysis<llvm::DominatorTreeWrapperPass>();
-  auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
-  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>();
-  //  auto &MemDepP = getAnalysis<llvm::MemoryDependenceWrapperPass>();
 
   llvm::Function *F = L->getBlocks()[0]->getParent();
 
@@ -370,7 +374,7 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
     return false;
   }
 
-  bool changed = InlineCallsInLoop(L, splitterCallers, SAA, LIW, DTW);
+  bool changed = InlineCallsInLoop(L, splitterCallers, SAA, LI, DT);
 
   llvm::SmallVector<llvm::CallBase *, 8> barriers;
   FindAllSplitterCalls(*L, SAA, barriers);
@@ -381,8 +385,6 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
   }
 
   std::size_t bC = 0;
-  llvm::LoopInfo &LI = LIW.getLoopInfo();
-  llvm::DominatorTree &DT = DTW.getDomTree();
   F->print(llvm::outs());
   for (auto *barrier : barriers) {
     changed = true;
@@ -534,9 +536,9 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
     }
     HIPSYCL_DEBUG_INFO << "new loopx.. " << &newLoop << " with parent " << newLoop.getParentLoop() << std::endl;
     DT.print(llvm::errs());
-    L = UpdateDTAndLI(LIW, DTW, newLatch, *L->getHeader()->getParent());
+    L = UpdateDTAndLI(LI, DT, newLatch, *L->getHeader()->getParent());
     DT.print(llvm::errs());
-    LPM.addLoop(*L);
+    LoopAdder(*L);
 
     HIPSYCL_DEBUG_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << std::endl;
 
@@ -547,7 +549,7 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
       llvm::SimplifyInstructionsInBlock(block);
     }
 
-    llvm::simplifyLoop(L->getParentLoop(), &DTW.getDomTree(), &LIW.getLoopInfo(), &SE, &AC, nullptr, false);
+    llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
     F->viewCFG();
     //    DTW.getDomTree().viewGraph();
 
@@ -559,17 +561,51 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
   return changed;
 }
 
+} // namespace
+
+bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
+  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  auto &AA = getAnalysis<llvm::AAResultsWrapperPass>();
+
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
+  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+
+  llvm::LoopAccessInfo LAI(L, &SE, nullptr, &AA.getAAResults(), &DT, &LI);
+  return splitLoop(
+      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, SAA);
+}
+
 void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  AU.addRequired<llvm::AAResultsWrapperPass>();
+  AU.addPreserved<llvm::AAResultsWrapperPass>();
   AU.addRequired<llvm::DominatorTreeWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
-  //  AU.addRequired<llvm::MemoryDependenceWrapperPass>();
 
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
 
+llvm::PreservedAnalyses hipsycl::compiler::LoopSplitAtBarrierPass::run(llvm::Loop &L, llvm::LoopAnalysisManager &AM,
+                                                                       llvm::LoopStandardAnalysisResults &AR,
+                                                                       llvm::LPMUpdater &LPMU) {
+  auto &SAA = AM.getResult<SplitterAnnotationAnalysis>(L, AR);
+  const auto &LAI = AM.getResult<llvm::LoopAccessAnalysis>(L, AR);
+  if (!splitLoop(
+          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, SAA))
+    return llvm::PreservedAnalyses::all();
+
+  llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();
+  PA.preserve<SplitterAnnotationAnalysis>();
+  PA.preserve<llvm::LoopAnalysis>();
+  PA.preserve<llvm::DominatorTreeAnalysis>();
+  PA.preserve<llvm::AAManager>();
+  return PA;
+}
+
 char hipsycl::compiler::SplitterAnnotationAnalysisLegacy::ID = 0;
 char hipsycl::compiler::LoopSplitAtBarrierPassLegacy::ID = 0;
+llvm::AnalysisKey hipsycl::compiler::SplitterAnnotationAnalysis::Key;

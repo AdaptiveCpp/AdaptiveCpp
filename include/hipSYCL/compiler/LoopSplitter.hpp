@@ -35,6 +35,17 @@
 namespace hipsycl {
 namespace compiler {
 
+class SplitterAnnotationInfo {
+  static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
+  llvm::SmallPtrSet<llvm::Function *, 2> splitterFuncs_;
+
+  bool AnalyzeModule(llvm::Module &module);
+
+public:
+  explicit SplitterAnnotationInfo(llvm::Module &module);
+  inline bool IsSplitterFunc(llvm::Function *F) const { return splitterFuncs_.find(F) != splitterFuncs_.end(); }
+};
+
 /*!
  * \brief Searches the module for functions annotated with \b hipsycl_splitter.
  *
@@ -43,8 +54,7 @@ namespace compiler {
  *       As the annotations should not change from call to call, we cache the result in an Optional.
  */
 class SplitterAnnotationAnalysisLegacy : public llvm::FunctionPass {
-  llvm::Optional<llvm::SmallPtrSet<llvm::Function *, 2>> splitterFuncs_;
-  static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
+  llvm::Optional<SplitterAnnotationInfo> splitterAnnotation_;
 
 public:
   static char ID;
@@ -52,12 +62,25 @@ public:
   explicit SplitterAnnotationAnalysisLegacy() : llvm::FunctionPass(ID) {}
 
   // todo: evaluate whether we want to reevaluate...
-  // void releaseMemory() override { splitterFuncs_.reset(); }
+  // void releaseMemory() override { splitterAnnotation_.reset(); }
 
   bool runOnFunction(llvm::Function &F) override;
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override { AU.setPreservesAll(); }
 
-  bool IsSplitterFunc(llvm::Function *F) const { return splitterFuncs_->find(F) != splitterFuncs_->end(); }
+  const SplitterAnnotationInfo &getAnnotationInfo() const { return *splitterAnnotation_; }
+};
+
+/*!
+ * \brief Searches the module for functions annotated with \b hipsycl_splitter (new PM).
+ */
+class SplitterAnnotationAnalysis : public llvm::AnalysisInfoMixin<SplitterAnnotationAnalysis> {
+  friend llvm::AnalysisInfoMixin<SplitterAnnotationAnalysis>;
+  static llvm::AnalysisKey Key;
+
+public:
+  using Result = SplitterAnnotationInfo;
+
+  Result run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
 };
 
 class LoopSplitAtBarrierPassLegacy : public llvm::LoopPass {
@@ -72,6 +95,13 @@ public:
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
   bool runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) override;
+};
+
+class LoopSplitAtBarrierPass : public llvm::PassInfoMixin<LoopSplitAtBarrierPass> {
+public:
+  llvm::PreservedAnalyses run(llvm::Loop &L, llvm::LoopAnalysisManager &AM, llvm::LoopStandardAnalysisResults &AR,
+                              llvm::LPMUpdater &LPMU);
+  static bool isRequired() { return true; }
 };
 } // namespace compiler
 } // namespace hipsycl

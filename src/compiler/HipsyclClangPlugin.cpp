@@ -31,6 +31,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
 #include "llvm/Pass.h"
+#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 
 namespace hipsycl {
@@ -52,10 +53,9 @@ static llvm::RegisterStandardPasses
     RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
                                                registerFunctionPruningIRPass);
 
-static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy> splitterAnnotationReg("splitter-annot-ana",
-                                                                            "hipSYCL splitter annotation analysis pass",
-                                                                            true /* Only looks at CFG */,
-                                                                            true /* Analysis Pass */);
+static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
+    splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
+                          true /* Only looks at CFG */, true /* Analysis Pass */);
 
 static void registerLoopSplitAtBarrierPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopSplitAtBarrierPassLegacy{});
@@ -68,6 +68,19 @@ static llvm::RegisterStandardPasses
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
                                                 registerLoopSplitAtBarrierPass);
+
+extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
+            PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+              MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+            });
+            PB.registerLateLoopOptimizationsEPCallback(
+                [](llvm::LoopPassManager &LPM, llvm::PassBuilder::OptimizationLevel) {
+                  LPM.addPass(LoopSplitAtBarrierPass{});
+                });
+            // todo: add pruning pass as well
+          }};
+}
 
 } // namespace compiler
 } // namespace hipsycl

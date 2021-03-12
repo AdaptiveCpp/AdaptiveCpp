@@ -369,7 +369,7 @@ llvm::BasicBlock *MakeLatch(const llvm::Loop *L, llvm::BasicBlock *BodyBlock, ll
     auto *NewIndInstr = InductionInstr->clone();
     NewIndInstr->insertBefore(Latch->getFirstNonPHI());
     InductionInstr->replaceAllUsesWith(NewIndInstr);
-    InductionInstr->removeFromParent();
+    InductionInstr->eraseFromParent();
   } else {
     llvm::errs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Induction variable must be an instruction!\n";
   }

@@ -61,6 +61,7 @@ template <sycl::backend b> struct backend_interop {
 
 #include "cuda/cuda_interop.hpp"
 #include "hip/hip_interop.hpp"
+#include "ze/ze_interop.hpp"
 #include "omp/omp_interop.hpp"
 
 #endif

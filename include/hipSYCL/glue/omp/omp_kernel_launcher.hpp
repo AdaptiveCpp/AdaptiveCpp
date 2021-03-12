@@ -267,6 +267,7 @@ inline void parallel_for_ndrange_kernel(
         for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
 
           sycl::id<Dim> group_id{g_x, g_y};
+#pragma omp simd collapse(2)
           for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
             for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
               sycl::id<Dim> local_id{l_x, l_y};
@@ -285,6 +286,7 @@ inline void parallel_for_ndrange_kernel(
           for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
 
             sycl::id<Dim> group_id{g_x, g_y, g_z};
+#pragma omp simd collapse(3)
             for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
               for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
                 for (size_t l_z = 0; l_z < local_size[2]; ++l_z) {

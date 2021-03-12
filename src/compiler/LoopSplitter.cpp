@@ -350,6 +350,32 @@ bool FillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &startL
 //  }
 //}
 
+/*!
+ * In _too simple_ loops, we might not have a dedicated latch.. so make one!
+ * Only simple / canonical loops supported.
+ *
+ * @param L The loop without a dedicated latch.
+ * @param BodyBlock The loop body.
+ * @return The new latch block, if possible containing the loop induction instruction.
+ */
+llvm::BasicBlock *MakeLatch(const llvm::Loop *L, llvm::BasicBlock *BodyBlock, llvm::LoopInfo &LI,
+                            llvm::DominatorTree &DT) {
+  llvm::BasicBlock *Latch =
+      llvm::SplitBlock(BodyBlock, BodyBlock->getTerminator(), &DT, &LI, nullptr, BodyBlock->getName() + ".latch");
+
+  assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
+  llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
+  if (auto *InductionInstr = llvm::dyn_cast<llvm::Instruction>(InductionValue)) {
+    auto *NewIndInstr = InductionInstr->clone();
+    NewIndInstr->insertBefore(Latch->getFirstNonPHI());
+    InductionInstr->replaceAllUsesWith(NewIndInstr);
+    InductionInstr->removeFromParent();
+  } else {
+    llvm::errs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Induction variable must be an instruction!\n";
+  }
+  return Latch;
+}
+
 bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
                const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
                const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
@@ -410,19 +436,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *latch = L->getLoopLatch();
 
     if (latch == oldBlock) {
-      latch = llvm::SplitBlock(oldBlock, oldBlock->getTerminator(), &DT, &LI, nullptr, oldBlock->getName() + ".latch");
-      llvm::Value *inductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(latch);
-      if(llvm::Instruction* inductionInstr = llvm::dyn_cast<llvm::Instruction>(inductionValue))
-      {
-        auto newIndInstr = inductionInstr->clone();
-        newIndInstr->insertBefore(latch->getFirstNonPHI());
-        inductionInstr->replaceAllUsesWith(newIndInstr);
-        inductionInstr->removeFromParent();
-      }
-      else
-      {
-        llvm::errs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Induction variable must be an instruction!\n";
-      }
+      latch = MakeLatch(L, oldBlock, LI, DT);
     }
 
     if (IsInConditional(barrier, DT, latch)) {
@@ -444,6 +458,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         I->print(llvm::outs());
         llvm::outs() << "\n";
       }
+    } else {
+      HIPSYCL_DEBUG_WARNING << "what's wrong with you.. empty work item?!" << std::endl;
     }
 
     llvm::Loop &newLoop = *LI.AllocateLoop();

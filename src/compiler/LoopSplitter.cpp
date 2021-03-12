@@ -409,6 +409,22 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *exitBlock = L->getExitBlock();
     llvm::BasicBlock *latch = L->getLoopLatch();
 
+    if (latch == oldBlock) {
+      latch = llvm::SplitBlock(oldBlock, oldBlock->getTerminator(), &DT, &LI, nullptr, oldBlock->getName() + ".latch");
+      llvm::Value *inductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(latch);
+      if(llvm::Instruction* inductionInstr = llvm::dyn_cast<llvm::Instruction>(inductionValue))
+      {
+        auto newIndInstr = inductionInstr->clone();
+        newIndInstr->insertBefore(latch->getFirstNonPHI());
+        inductionInstr->replaceAllUsesWith(newIndInstr);
+        inductionInstr->removeFromParent();
+      }
+      else
+      {
+        llvm::errs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Induction variable must be an instruction!\n";
+      }
+    }
+
     if (IsInConditional(barrier, DT, latch)) {
       HIPSYCL_DEBUG_INFO << "is in conditional" << std::endl;
     }

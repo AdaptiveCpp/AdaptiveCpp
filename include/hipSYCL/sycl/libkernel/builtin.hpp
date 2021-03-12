@@ -54,7 +54,7 @@ namespace sycl {
   inline vec<int_type, N> name(const vec<int_type, N>& a) {\
     vec<int_type,N> result = a; \
     detail::transform_vector(result, \
-                      (int_type (*)(int_type))&func); \
+                      [](int_type x){return func(x);}); \
     return result; \
   }
 
@@ -66,7 +66,7 @@ namespace sycl {
   inline vec<int_type, N> name(const vec<int_type, N>& a, \
                                  const vec<int_type, N>& b) {\
     return detail::binary_vector_operation(a,b,\
-                          (int_type (*)(int_type,int_type))&func); \
+                          [](int_type x, int_type y){return func(x,y);}); \
   }
 
 #define HIPSYCL_DEFINE_BUILTIN(name, func) \

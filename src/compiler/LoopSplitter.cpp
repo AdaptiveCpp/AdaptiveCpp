@@ -20,22 +20,22 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
-std::basic_ostream<char> &operator<<(std::basic_ostream<char> &ost, const llvm::StringRef &strRef) {
-  return ost << strRef.begin();
+std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::StringRef &StrRef) {
+  return Ost << StrRef.begin();
 }
 
-bool hipsycl::compiler::SplitterAnnotationInfo::AnalyzeModule(llvm::Module &module) {
-  for (auto &I : module.globals()) {
+bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &Module) {
+  for (auto &I : Module.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
-      for (auto OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
+      for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
         auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
         auto *FUNC = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0));
         auto *AnnotationGL = llvm::dyn_cast<llvm::GlobalVariable>(CS->getOperand(1)->getOperand(0));
-        llvm::StringRef annotation =
+        llvm::StringRef Annotation =
             llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())->getAsCString();
-        if (annotation.compare(SplitterAnnotation) == 0) {
-          splitterFuncs_.insert(FUNC);
+        if (Annotation.compare(SplitterAnnotation) == 0) {
+          SplitterFuncs.insert(FUNC);
           HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << FUNC->getName() << "\n";
         }
       }
@@ -44,12 +44,12 @@ bool hipsycl::compiler::SplitterAnnotationInfo::AnalyzeModule(llvm::Module &modu
   return false;
 }
 
-hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &module) { AnalyzeModule(module); }
+hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) { analyzeModule(Module); }
 
 bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
-  if (splitterAnnotation_)
+  if (SplitterAnnotation)
     return false;
-  splitterAnnotation_ = SplitterAnnotationInfo{*F.getParent()};
+  SplitterAnnotation = SplitterAnnotationInfo{*F.getParent()};
   return false;
 }
 
@@ -60,7 +60,7 @@ hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::Module
 
 namespace {
 
-llvm::Loop *UpdateDTAndLI(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F) {
+llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F) {
   DT.reset();
   DT.recalculate(F);
   LI.releaseMemory();
@@ -68,12 +68,12 @@ llvm::Loop *UpdateDTAndLI(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llv
   return LI.getLoopFor(B);
 }
 
-bool InlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (CI->getCalledFunction()->isIntrinsic() || SAA.IsSplitterFunc(CI->getCalledFunction()))
+bool inlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  if (CI->getCalledFunction()->isIntrinsic() || SAA.isSplitterFunc(CI->getCalledFunction()))
     return false;
 
   // needed to be valid for success log
-  const auto calleeName = CI->getCalledFunction()->getName().str();
+  const auto CalleeName = CI->getCalledFunction()->getName().str();
 
   llvm::InlineFunctionInfo IFI;
 #if LLVM_VERSION_MAJOR <= 10
@@ -83,157 +83,157 @@ bool InlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::Splitte
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
   if (!ILR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.getFailureReason() << "'"
+    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << CalleeName << ">: '" << ILR.getFailureReason() << "'"
                           << std::endl;
 #endif
     return false;
   }
 
-  HIPSYCL_DEBUG_INFO << "LoopSplitter inlined function <" << calleeName << ">" << std::endl;
+  HIPSYCL_DEBUG_INFO << "LoopSplitter inlined function <" << CalleeName << ">" << std::endl;
   return true;
 }
 
-bool InlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm::Function *, 8> &splitterCallers,
+bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
                              const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  bool changed = false;
-  bool lastChanged = false;
+  bool Changed = false;
+  bool LastChanged = false;
 
   do {
-    lastChanged = false;
+    LastChanged = false;
     for (auto &I : BB) {
-      if (auto *callI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (callI->getCalledFunction() && splitterCallers.find(callI->getCalledFunction()) != splitterCallers.end()) {
-          lastChanged = InlineSplitterCallTree(callI, SAA);
-          if (lastChanged)
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end()) {
+          LastChanged = inlineSplitterCallTree(CallI, SAA);
+          if (LastChanged)
             break;
         }
       }
     }
-    if (lastChanged)
-      changed = true;
-  } while (lastChanged);
+    if (LastChanged)
+      Changed = true;
+  } while (LastChanged);
 
-  return changed;
+  return Changed;
 }
 
 //! \pre all contained functions are non recursive!
 // todo: have a recursive-ness termination
-bool InlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *, 8> &splitterCallers,
+bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
                        const hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
                        llvm::DominatorTree &DT) {
-  bool changed = false;
-  bool lastChanged = false;
+  bool Changed = false;
+  bool LastChanged = false;
 
   llvm::BasicBlock *B = L->getBlocks()[0];
   llvm::Function &F = *B->getParent();
 
   do {
-    lastChanged = false;
+    LastChanged = false;
     for (auto *BB : L->getBlocks()) {
-      lastChanged = InlineCallsInBasicBlock(*BB, splitterCallers, SAA);
-      if (lastChanged)
+      LastChanged = inlineCallsInBasicBlock(*BB, SplitterCallers, SAA);
+      if (LastChanged)
         break;
     }
-    if (lastChanged) {
-      changed = true;
-      L = UpdateDTAndLI(LI, DT, B, F);
+    if (LastChanged) {
+      Changed = true;
+      L = updateDtAndLi(LI, DT, B, F);
     }
-  } while (lastChanged);
+  } while (LastChanged);
 
-  return changed;
+  return Changed;
 }
 
 //! \pre \a F is not recursive!
 // todo: have a recursive-ness termination
-bool FillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   if (F.isDeclaration() && !F.isIntrinsic()) {
     HIPSYCL_DEBUG_WARNING << F.getName() << " is not defined!" << std::endl;
   }
-  if (SAA.IsSplitterFunc(&F)) {
+  if (SAA.isSplitterFunc(&F)) {
     FuncsWSplitter.insert(&F);
     return true;
   } else if (FuncsWSplitter.find(&F) != FuncsWSplitter.end())
     return true;
 
-  bool found = false;
+  bool Found = false;
   for (auto &BB : F) {
     for (auto &I : BB) {
-      if (auto *callI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (callI->getCalledFunction() &&
-            FillTransitiveSplitterCallers(*callI->getCalledFunction(), SAA, FuncsWSplitter)) {
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction() &&
+            fillTransitiveSplitterCallers(*CallI->getCalledFunction(), SAA, FuncsWSplitter)) {
           FuncsWSplitter.insert(&F);
-          found = true;
+          Found = true;
         }
       }
     }
   }
-  return found;
+  return Found;
 }
 
-bool FillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
-  bool found = false;
+  bool Found = false;
   for (auto *BB : L.getBlocks()) {
     for (auto &I : *BB) {
-      if (auto *callI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (callI->getCalledFunction() &&
-            FillTransitiveSplitterCallers(*callI->getCalledFunction(), SAA, FuncsWSplitter))
-          found = true;
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction() &&
+            fillTransitiveSplitterCallers(*CallI->getCalledFunction(), SAA, FuncsWSplitter))
+          Found = true;
       }
     }
   }
-  return found;
+  return Found;
 }
 
-void FindAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
-                          llvm::SmallVector<llvm::CallBase *, 8> &barriers) {
+void findAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+                          llvm::SmallVector<llvm::CallBase *, 8> &Barriers) {
   for (auto *BB : L.getBlocks()) {
     for (auto &I : *BB) {
-      if (auto *callI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (callI->getCalledFunction() && SAA.IsSplitterFunc(callI->getCalledFunction())) {
-          barriers.push_back(callI);
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction() && SAA.isSplitterFunc(CallI->getCalledFunction())) {
+          Barriers.push_back(CallI);
         }
       }
     }
   }
 }
-bool IsInConditional(llvm::CallBase *barrierI, llvm::DominatorTree &dt, llvm::BasicBlock *latch) {
-  return !dt.properlyDominates(barrierI->getParent(), latch);
+bool isInConditional(llvm::CallBase *BarrierI, llvm::DominatorTree &DT, llvm::BasicBlock *Latch) {
+  return !DT.properlyDominates(BarrierI->getParent(), Latch);
 }
 
-bool FillDescendantsExcl(const llvm::BasicBlock *root, const llvm::BasicBlock *excl, llvm::DominatorTree &DT,
-                         llvm::SmallVectorImpl<llvm::BasicBlock *> &searchBlocks) {
-  auto *rootNode = DT.getNode(root);
-  if (!rootNode)
+bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *Excl, llvm::DominatorTree &DT,
+                         llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks) {
+  auto *RootNode = DT.getNode(Root);
+  if (!RootNode)
     return false;
 
   llvm::SmallVector<const llvm::DomTreeNodeBase<llvm::BasicBlock> *, 8> WL;
-  WL.append(rootNode->begin(), rootNode->end());
+  WL.append(RootNode->begin(), RootNode->end());
 
   while (!WL.empty()) {
     const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
-    if (N->getBlock() != excl) {
-      searchBlocks.push_back(N->getBlock());
+    if (N->getBlock() != Excl) {
+      SearchBlocks.push_back(N->getBlock());
       WL.append(N->begin(), N->end());
     }
   }
-  return !searchBlocks.empty();
+  return !SearchBlocks.empty();
 }
 
-void InsertOperands(llvm::SmallPtrSet<llvm::Value *, 8> &WL, const llvm::SmallPtrSet<llvm::Value *, 8> &DL,
-                    const llvm::SmallVectorImpl<llvm::BasicBlock *> &searchBlocks,
-                    llvm::SmallPtrSetImpl<llvm::Instruction *> &result, const llvm::Instruction *I) {
-  auto argsRange = I->operands();
-  if (auto *cI = llvm::dyn_cast<llvm::CallBase>(I)) {
-    argsRange = cI->args();
+void insertOperands(llvm::SmallPtrSet<llvm::Value *, 8> &WL, const llvm::SmallPtrSet<llvm::Value *, 8> &DL,
+                    const llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks,
+                    llvm::SmallPtrSetImpl<llvm::Instruction *> &Result, const llvm::Instruction *I) {
+  auto ArgsRange = I->operands();
+  if (auto *CI = llvm::dyn_cast<llvm::CallBase>(I)) {
+    ArgsRange = CI->args();
   }
 
   //  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "adding operands: ";
   //  I->print(llvm::outs());
   //  llvm::outs() << "\n";
 
-  for (auto &OP : argsRange) {
+  for (auto &OP : ArgsRange) {
     if (/*OP->getType()->isPointerTy() && */ llvm::isa<llvm::Instruction>(OP) && DL.find(OP) == DL.end()) {
       if (!WL.insert(OP).second)
         continue;
@@ -242,22 +242,22 @@ void InsertOperands(llvm::SmallPtrSet<llvm::Value *, 8> &WL, const llvm::SmallPt
       //      OP->printAsOperand(llvm::outs());
       //      llvm::outs() << "\n";
       if (auto *Inst = llvm::cast<llvm::Instruction>(static_cast<llvm::Value *>(OP))) {
-        if (std::find(searchBlocks.begin(), searchBlocks.end(), Inst->getParent()) != searchBlocks.end() &&
+        if (std::find(SearchBlocks.begin(), SearchBlocks.end(), Inst->getParent()) != SearchBlocks.end() &&
             !llvm::isa<llvm::BranchInst>(OP) && !llvm::isa<llvm::StoreInst>(I)) {
           //          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "........ to result";
-          if (result.insert(Inst).second) {
+          if (Result.insert(Inst).second) {
             //            llvm::outs() << " !!!!! NEW";
           }
           //          llvm::outs() << "\n";
         }
-        InsertOperands(WL, DL, searchBlocks, result, Inst);
+        insertOperands(WL, DL, SearchBlocks, Result, Inst);
       }
     }
   }
 }
 
-bool BuildTransitiveDependencyHullFromWL(const llvm::SmallVectorImpl<llvm::BasicBlock *> &searchBlocks,
-                                         llvm::SmallPtrSetImpl<llvm::Instruction *> &result,
+bool buildTransitiveDependencyHullFromWl(const llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks,
+                                         llvm::SmallPtrSetImpl<llvm::Instruction *> &Result,
                                          llvm::SmallPtrSet<llvm::Value *, 8> &WL,
                                          llvm::SmallPtrSet<llvm::Value *, 8> &DL) {
   while (!WL.empty()) {
@@ -271,62 +271,62 @@ bool BuildTransitiveDependencyHullFromWL(const llvm::SmallVectorImpl<llvm::Basic
       //      llvm::outs() << "\n";
 
       if (auto *I = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
-        bool toWL = true;
-        if (std::find(searchBlocks.begin(), searchBlocks.end(), I->getParent()) != searchBlocks.end() &&
+        bool ToWl = true;
+        if (std::find(SearchBlocks.begin(), SearchBlocks.end(), I->getParent()) != SearchBlocks.end() &&
             !llvm::isa<llvm::BranchInst>(I) && !llvm::isa<llvm::StoreInst>(I)) {
           //          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "........ to result";
-          toWL = result.insert(I).second;
+          ToWl = Result.insert(I).second;
           //          if (toWL)
           //            llvm::outs() << " !!!!! NEW";
           //          llvm::outs() << "\n";
         }
 
         if (DL.find(I) == DL.end()) {
-          if (toWL && !I->user_empty()) {
+          if (ToWl && !I->user_empty()) {
             //            llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "--------- to worklist"
             //                         << "\n";
 
             if (!WL.insert(I).second)
               continue;
           }
-          InsertOperands(WL, DL, searchBlocks, result, I);
+          insertOperands(WL, DL, SearchBlocks, Result, I);
         }
       }
     }
   }
-  return !result.empty();
+  return !Result.empty();
 }
 
-bool FillDependingInsts(const llvm::SmallVectorImpl<llvm::BasicBlock *> &baseBlocks,
-                        const llvm::SmallVectorImpl<llvm::BasicBlock *> &searchBlocks,
-                        llvm::SmallPtrSetImpl<llvm::Instruction *> &result) {
+bool fillDependingInsts(const llvm::SmallVectorImpl<llvm::BasicBlock *> &BaseBlocks,
+                        const llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks,
+                        llvm::SmallPtrSetImpl<llvm::Instruction *> &Result) {
   llvm::SmallPtrSet<llvm::Value *, 8> WL;
   llvm::SmallPtrSet<llvm::Value *, 8> DL;
-  for (auto *BB : baseBlocks) {
+  for (auto *BB : BaseBlocks) {
     for (auto &V : *BB) {
       WL.insert(&V);
-      InsertOperands(WL, DL, searchBlocks, result, &V);
+      insertOperands(WL, DL, SearchBlocks, Result, &V);
     }
   }
 
-  return BuildTransitiveDependencyHullFromWL(searchBlocks, result, WL, DL);
+  return buildTransitiveDependencyHullFromWl(SearchBlocks, Result, WL, DL);
 }
 
-bool FillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &startList,
-                        const llvm::SmallVectorImpl<llvm::BasicBlock *> &searchBlocks,
-                        llvm::SmallPtrSetImpl<llvm::Instruction *> &result) {
+bool fillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &StartList,
+                        const llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks,
+                        llvm::SmallPtrSetImpl<llvm::Instruction *> &Result) {
   llvm::SmallPtrSet<llvm::Value *, 8> WL;
   llvm::SmallPtrSet<llvm::Value *, 8> DL;
-  for (auto *I : startList) {
+  for (auto *I : StartList) {
     llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO;
     I->print(llvm::outs());
     llvm::outs() << "\n";
     if (I->hasValueHandle())
       WL.insert(I);
-    InsertOperands(WL, DL, searchBlocks, result, I);
+    insertOperands(WL, DL, SearchBlocks, Result, I);
   }
 
-  return BuildTransitiveDependencyHullFromWL(searchBlocks, result, WL, DL);
+  return buildTransitiveDependencyHullFromWl(SearchBlocks, Result, WL, DL);
 }
 
 // void FilterOverwrittenMemAccesses(llvm::SmallVectorImpl<llvm::Instruction*> &insts, llvm::MemoryDependenceResults&
@@ -358,7 +358,7 @@ bool FillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &startL
  * @param BodyBlock The loop body.
  * @return The new latch block, if possible containing the loop induction instruction.
  */
-llvm::BasicBlock *MakeLatch(const llvm::Loop *L, llvm::BasicBlock *BodyBlock, llvm::LoopInfo &LI,
+llvm::BasicBlock *makeLatch(const llvm::Loop *L, llvm::BasicBlock *BodyBlock, llvm::LoopInfo &LI,
                             llvm::DominatorTree &DT) {
   llvm::BasicBlock *Latch =
       llvm::SplitBlock(BodyBlock, BodyBlock->getTerminator(), &DT, &LI, nullptr, BodyBlock->getName() + ".latch");
@@ -394,67 +394,67 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
   llvm::AssumptionCache AC(*F);
 
-  llvm::SmallPtrSet<llvm::Function *, 8> splitterCallers;
-  if (!FillTransitiveSplitterCallers(*L, SAA, splitterCallers)) {
+  llvm::SmallPtrSet<llvm::Function *, 8> SplitterCallers;
+  if (!fillTransitiveSplitterCallers(*L, SAA, SplitterCallers)) {
     HIPSYCL_DEBUG_INFO << "Transitively no splitter found." << L << std::endl;
     return false;
   }
 
-  bool changed = InlineCallsInLoop(L, splitterCallers, SAA, LI, DT);
+  bool Changed = inlineCallsInLoop(L, SplitterCallers, SAA, LI, DT);
 
-  llvm::SmallVector<llvm::CallBase *, 8> barriers;
-  FindAllSplitterCalls(*L, SAA, barriers);
+  llvm::SmallVector<llvm::CallBase *, 8> Barriers;
+  findAllSplitterCalls(*L, SAA, Barriers);
 
-  if (barriers.empty()) {
+  if (Barriers.empty()) {
     HIPSYCL_DEBUG_INFO << "No splitter found." << std::endl;
-    return changed;
+    return Changed;
   }
 
-  std::size_t bC = 0;
+  std::size_t BC = 0;
   F->print(llvm::outs());
-  for (auto *barrier : barriers) {
-    changed = true;
-    ++bC;
+  for (auto *Barrier : Barriers) {
+    Changed = true;
+    ++BC;
 
-    HIPSYCL_DEBUG_INFO << "Found splitter at " << barrier->getCalledFunction()->getName() << std::endl;
+    HIPSYCL_DEBUG_INFO << "Found splitter at " << Barrier->getCalledFunction()->getName() << std::endl;
 
     HIPSYCL_DEBUG_INFO << "Found header: " << L->getHeader() << std::endl;
     HIPSYCL_DEBUG_INFO << "Found pre-header: " << L->getLoopPreheader() << std::endl;
     HIPSYCL_DEBUG_INFO << "Found exit block: " << L->getExitBlock() << std::endl;
     HIPSYCL_DEBUG_INFO << "Found latch block: " << L->getLoopLatch() << std::endl;
 
-    auto *oldBlock = barrier->getParent();
-    if (LI.getLoopFor(oldBlock) != L) {
+    auto *OldBlock = Barrier->getParent();
+    if (LI.getLoopFor(OldBlock) != L) {
       HIPSYCL_DEBUG_ERROR << "Barrier must be directly in item loop for now." << std::endl;
       continue;
     }
 
-    llvm::Loop *parentLoop = L->getParentLoop();
-    llvm::BasicBlock *header = L->getHeader();
-    llvm::BasicBlock *preHeader = L->getLoopPreheader();
-    llvm::BasicBlock *exitBlock = L->getExitBlock();
-    llvm::BasicBlock *latch = L->getLoopLatch();
+    llvm::Loop *ParentLoop = L->getParentLoop();
+    llvm::BasicBlock *Header = L->getHeader();
+    llvm::BasicBlock *PreHeader = L->getLoopPreheader();
+    llvm::BasicBlock *ExitBlock = L->getExitBlock();
+    llvm::BasicBlock *Latch = L->getLoopLatch();
 
-    if (latch == oldBlock) {
-      latch = MakeLatch(L, oldBlock, LI, DT);
+    if (Latch == OldBlock) {
+      Latch = makeLatch(L, OldBlock, LI, DT);
     }
 
-    if (IsInConditional(barrier, DT, latch)) {
+    if (isInConditional(Barrier, DT, Latch)) {
       HIPSYCL_DEBUG_INFO << "is in conditional" << std::endl;
     }
 
-    llvm::SmallPtrSet<llvm::Instruction *, 8> dependingInsts;
-    llvm::SmallVector<llvm::BasicBlock *, 2> baseBlocks = {header};
-    llvm::SmallVector<llvm::BasicBlock *, 8> searchBlocks;
+    llvm::SmallPtrSet<llvm::Instruction *, 8> DependingInsts;
+    llvm::SmallVector<llvm::BasicBlock *, 2> BaseBlocks = {Header};
+    llvm::SmallVector<llvm::BasicBlock *, 8> SearchBlocks;
     //    DT.getDescendants(header, searchBlocks);
-    FillDescendantsExcl(header, latch, DT, searchBlocks);
+    fillDescendantsExcl(Header, Latch, DT, SearchBlocks);
     //    for (auto *BB : searchBlocks) {
     //      BB->print(llvm::errs());
     //    }
-    if (FillDependingInsts(baseBlocks, searchBlocks, dependingInsts)) {
+    if (fillDependingInsts(BaseBlocks, SearchBlocks, DependingInsts)) {
       HIPSYCL_DEBUG_INFO << "has dependencies from header" << std::endl;
 
-      for (auto *I : dependingInsts) {
+      for (auto *I : DependingInsts) {
         I->print(llvm::outs());
         llvm::outs() << "\n";
       }
@@ -462,113 +462,113 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       HIPSYCL_DEBUG_WARNING << "what's wrong with you.. empty work item?!" << std::endl;
     }
 
-    llvm::Loop &newLoop = *LI.AllocateLoop();
-    parentLoop->addChildLoop(&newLoop);
+    llvm::Loop &NewLoop = *LI.AllocateLoop();
+    ParentLoop->addChildLoop(&NewLoop);
 
-    llvm::ValueToValueMapTy vMap;
-    vMap[preHeader] = header;
+    llvm::ValueToValueMapTy VMap;
+    VMap[PreHeader] = Header;
 
-    const std::string blockNameSuffix = "split" + std::to_string(bC);
-    llvm::ClonedCodeInfo clonedCodeInfo;
-    auto *newHeader = llvm::CloneBasicBlock(header, vMap, blockNameSuffix, F, &clonedCodeInfo, nullptr);
-    vMap[header] = newHeader;
-    newLoop.addBlockEntry(newHeader);
-    newLoop.moveToHeader(newHeader);
+    const std::string BlockNameSuffix = "split" + std::to_string(BC);
+    llvm::ClonedCodeInfo ClonedCodeInfo;
+    auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, BlockNameSuffix, F, &ClonedCodeInfo, nullptr);
+    VMap[Header] = NewHeader;
+    NewLoop.addBlockEntry(NewHeader);
+    NewLoop.moveToHeader(NewHeader);
 
-    auto *newLatch = llvm::CloneBasicBlock(latch, vMap, blockNameSuffix, F, &clonedCodeInfo, nullptr);
-    vMap[latch] = newLatch;
-    newLoop.addBlockEntry(newLatch);
+    auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, BlockNameSuffix, F, &ClonedCodeInfo, nullptr);
+    VMap[Latch] = NewLatch;
+    NewLoop.addBlockEntry(NewLatch);
 
-    auto *newBlock = llvm::SplitBlock(oldBlock, barrier, &DT, &LI, nullptr, oldBlock->getName() + blockNameSuffix);
-    L->removeBlockFromLoop(newBlock);
-    newLoop.addBlockEntry(newBlock);
-    barrier->eraseFromParent();
-    dependingInsts.erase(barrier);
+    auto *NewBlock = llvm::SplitBlock(OldBlock, Barrier, &DT, &LI, nullptr, OldBlock->getName() + BlockNameSuffix);
+    L->removeBlockFromLoop(NewBlock);
+    NewLoop.addBlockEntry(NewBlock);
+    Barrier->eraseFromParent();
+    DependingInsts.erase(Barrier);
 
     // connect new loop
-    newHeader->getTerminator()->setSuccessor(0, newBlock);
-    newHeader->getTerminator()->setSuccessor(1, exitBlock);
-    DT.addNewBlock(newHeader, header);
-    DT.changeImmediateDominator(newBlock, newHeader);
-    DT.changeImmediateDominator(exitBlock, newHeader);
+    NewHeader->getTerminator()->setSuccessor(0, NewBlock);
+    NewHeader->getTerminator()->setSuccessor(1, ExitBlock);
+    DT.addNewBlock(NewHeader, Header);
+    DT.changeImmediateDominator(NewBlock, NewHeader);
+    DT.changeImmediateDominator(ExitBlock, NewHeader);
 
-    llvm::SmallVector<llvm::BasicBlock *, 2> preds{llvm::pred_begin(latch), llvm::pred_end(latch)};
-    llvm::BasicBlock *ncd = nullptr;
-    for (auto *pred : preds) {
-      std::size_t succIdx = 0;
-      for (auto *succ : llvm::successors(pred)) {
-        if (succ == latch)
+    llvm::SmallVector<llvm::BasicBlock *, 2> Preds{llvm::pred_begin(Latch), llvm::pred_end(Latch)};
+    llvm::BasicBlock *Ncd = nullptr;
+    for (auto *Pred : Preds) {
+      std::size_t SuccIdx = 0;
+      for (auto *Succ : llvm::successors(Pred)) {
+        if (Succ == Latch)
           break;
-        ++succIdx;
+        ++SuccIdx;
       }
-      ncd = ncd ? DT.findNearestCommonDominator(ncd, pred) : pred;
+      Ncd = Ncd ? DT.findNearestCommonDominator(Ncd, Pred) : Pred;
 
-      pred->getTerminator()->setSuccessor(succIdx, newLatch);
+      Pred->getTerminator()->setSuccessor(SuccIdx, NewLatch);
     }
-    DT.addNewBlock(newLatch, ncd);
+    DT.addNewBlock(NewLatch, Ncd);
 
-    newLatch->getTerminator()->setSuccessor(0, newHeader);
+    NewLatch->getTerminator()->setSuccessor(0, NewHeader);
     //    DT.changeImmediateDominator(newHeader, newLatch);
 
     // fix old loop
-    header->getTerminator()->setSuccessor(1, newHeader);
-    oldBlock->getTerminator()->setSuccessor(0, latch);
-    DT.changeImmediateDominator(latch, oldBlock);
+    Header->getTerminator()->setSuccessor(1, NewHeader);
+    OldBlock->getTerminator()->setSuccessor(0, Latch);
+    DT.changeImmediateDominator(Latch, OldBlock);
     //    DT.changeImmediateDominator(header, newHeader);
 
-    for (auto *subLoop : L->getSubLoops()) {
-      auto *newParent = LI.getLoopFor(subLoop->getLoopPreheader());
-      if (newParent != L) {
-        HIPSYCL_DEBUG_INFO << "new parent for subloop: " << newParent << std::endl;
-        L->removeChildLoop(subLoop);
-        newParent->addChildLoop(subLoop);
+    for (auto *SubLoop : L->getSubLoops()) {
+      auto *NewParent = LI.getLoopFor(SubLoop->getLoopPreheader());
+      if (NewParent != L) {
+        HIPSYCL_DEBUG_INFO << "new parent for subloop: " << NewParent << std::endl;
+        L->removeChildLoop(SubLoop);
+        NewParent->addChildLoop(SubLoop);
       }
     }
 
-    llvm::SmallVector<llvm::BasicBlock *, 8> bbToRemap;
-    DT.getDescendants(newHeader, bbToRemap);
-    HIPSYCL_DEBUG_INFO << "BLOCKS TO REMAP " << bbToRemap.size();
-    llvm::SmallVector<llvm::BasicBlock *, 8> sBs;
-    FillDescendantsExcl(header, newHeader, DT, sBs);
-    sBs.erase(std::find(sBs.begin(), sBs.end(), latch));
+    llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap;
+    DT.getDescendants(NewHeader, BbToRemap);
+    HIPSYCL_DEBUG_INFO << "BLOCKS TO REMAP " << BbToRemap.size();
+    llvm::SmallVector<llvm::BasicBlock *, 8> SBs;
+    fillDescendantsExcl(Header, NewHeader, DT, SBs);
+    SBs.erase(std::find(SBs.begin(), SBs.end(), Latch));
 
-    llvm::SmallPtrSet<llvm::Instruction *, 8> instsToCopy;
-    llvm::SmallPtrSet<llvm::Instruction *, 8> instsInNew;
-    for (auto *I : dependingInsts) {
-      if (std::find(bbToRemap.begin(), bbToRemap.end(), I->getParent()) != bbToRemap.end())
-        instsInNew.insert(I);
+    llvm::SmallPtrSet<llvm::Instruction *, 8> InstsToCopy;
+    llvm::SmallPtrSet<llvm::Instruction *, 8> InstsInNew;
+    for (auto *I : DependingInsts) {
+      if (std::find(BbToRemap.begin(), BbToRemap.end(), I->getParent()) != BbToRemap.end())
+        InstsInNew.insert(I);
     }
-    FillDependingInsts(instsInNew, sBs, instsToCopy);
+    fillDependingInsts(InstsInNew, SBs, InstsToCopy);
     llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "insts to copy: "
                  << "\n";
-    llvm::SmallVector<llvm::Instruction *, 8> instsToCopySorted{instsToCopy.begin(), instsToCopy.end()};
-    std::sort(instsToCopySorted.begin(), instsToCopySorted.end(),
+    llvm::SmallVector<llvm::Instruction *, 8> InstsToCopySorted{InstsToCopy.begin(), InstsToCopy.end()};
+    std::sort(InstsToCopySorted.begin(), InstsToCopySorted.end(),
               [&](auto LHS, auto RHS) { return DT.dominates(LHS, RHS); });
     //    MemDepP.releaseMemory();
     //    MemDepP.getMemDep();
-    llvm::Instruction *insPt = &*newBlock->getFirstInsertionPt();
-    for (auto *I : instsToCopySorted) {
+    llvm::Instruction *InsPt = &*NewBlock->getFirstInsertionPt();
+    for (auto *I : InstsToCopySorted) {
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO;
       I->print(llvm::outs());
       llvm::outs() << "\n";
-      auto *clonedI = I->clone();
-      vMap[I] = clonedI;
+      auto *ClonedI = I->clone();
+      VMap[I] = ClonedI;
       //      if(insPt)
       //        clonedI->insertAfter(insPt);
       //      else
-      clonedI->insertBefore(insPt);
+      ClonedI->insertBefore(InsPt);
       //      insPt = clonedI;
     }
 
-    llvm::remapInstructionsInBlocks(bbToRemap, vMap);
+    llvm::remapInstructionsInBlocks(BbToRemap, VMap);
 
-    for (auto *block : L->getParentLoop()->blocks()) {
-      if (!block->getParent())
-        block->print(llvm::errs());
+    for (auto *Block : L->getParentLoop()->blocks()) {
+      if (!Block->getParent())
+        Block->print(llvm::errs());
     }
-    HIPSYCL_DEBUG_INFO << "new loopx.. " << &newLoop << " with parent " << newLoop.getParentLoop() << std::endl;
+    HIPSYCL_DEBUG_INFO << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << std::endl;
     DT.print(llvm::errs());
-    L = UpdateDTAndLI(LI, DT, newLatch, *L->getHeader()->getParent());
+    L = updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
     DT.print(llvm::errs());
     LoopAdder(*L);
 
@@ -577,8 +577,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     //    HIPSYCL_DEBUG_INFO << "new exit block: " << LIW.getLoopInfo().getLoopFor(newBlock)->getExitBlock() <<
     //    std::endl; HIPSYCL_DEBUG_INFO << "old exit block: " << L->getExitBlock() << std::endl;
 
-    for (auto *block : L->getParentLoop()->blocks()) {
-      llvm::SimplifyInstructionsInBlock(block);
+    for (auto *Block : L->getParentLoop()->blocks()) {
+      llvm::SimplifyInstructionsInBlock(Block);
     }
 
     llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
@@ -590,7 +590,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     }
   }
   F->print(llvm::outs());
-  return changed;
+  return Changed;
 }
 
 } // namespace

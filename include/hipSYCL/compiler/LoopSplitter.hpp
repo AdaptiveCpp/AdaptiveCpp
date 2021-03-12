@@ -37,13 +37,13 @@ namespace compiler {
 
 class SplitterAnnotationInfo {
   static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
-  llvm::SmallPtrSet<llvm::Function *, 2> splitterFuncs_;
+  llvm::SmallPtrSet<llvm::Function *, 2> SplitterFuncs;
 
-  bool AnalyzeModule(llvm::Module &module);
+  bool analyzeModule(llvm::Module &Module);
 
 public:
-  explicit SplitterAnnotationInfo(llvm::Module &module);
-  inline bool IsSplitterFunc(llvm::Function *F) const { return splitterFuncs_.find(F) != splitterFuncs_.end(); }
+  explicit SplitterAnnotationInfo(llvm::Module &Module);
+  inline bool isSplitterFunc(llvm::Function *F) const { return SplitterFuncs.find(F) != SplitterFuncs.end(); }
 };
 
 /*!
@@ -54,7 +54,7 @@ public:
  *       As the annotations should not change from call to call, we cache the result in an Optional.
  */
 class SplitterAnnotationAnalysisLegacy : public llvm::FunctionPass {
-  llvm::Optional<SplitterAnnotationInfo> splitterAnnotation_;
+  llvm::Optional<SplitterAnnotationInfo> SplitterAnnotation;
 
 public:
   static char ID;
@@ -67,7 +67,7 @@ public:
   bool runOnFunction(llvm::Function &F) override;
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override { AU.setPreservesAll(); }
 
-  const SplitterAnnotationInfo &getAnnotationInfo() const { return *splitterAnnotation_; }
+  const SplitterAnnotationInfo &getAnnotationInfo() const { return *SplitterAnnotation; }
 };
 
 /*!

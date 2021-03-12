@@ -29,6 +29,8 @@
 #include "../sycl_test_suite.hpp"
 #include "group_functions.hpp"
 
+#ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
+
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(group_barrier) {
@@ -299,3 +301,5 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
 }
 #endif
 BOOST_AUTO_TEST_SUITE_END()
+
+#endif

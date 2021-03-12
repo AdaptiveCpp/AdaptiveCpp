@@ -41,6 +41,10 @@
 
 using namespace cl;
 
+#ifndef __HIPSYCL_ENABLE_SPIRV_TARGET__
+#define HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
+#endif
+
 #ifdef TESTS_GROUPFUNCTION_FULL
 using test_types =
     boost::mpl::list<char, int, unsigned int, long long, float, double, sycl::vec<int, 1>,

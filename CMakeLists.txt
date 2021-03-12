@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
-cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
+if(NOT CMAKE_VERSION VERSION_LESS 3.12)
+  cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
+endif()
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
@@ -216,7 +218,8 @@ if(NOT ROCM_CXX_FLAGS)
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --hip-device-lib-path=$HIPSYCL_ROCM_PATH/lib " CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
+
+  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
 if(NOT CUDA_CXX_FLAGS)	
@@ -275,6 +278,9 @@ install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATIO
 
 if(NOT WIN32)
 install(PROGRAMS bin/syclcc DESTINATION bin)
+# Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
+# we already have SYCL/sycl.hpp
+install(FILES include/SYCL/sycl.hpp DESTINATION include/sycl/)
 else()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
 endif()

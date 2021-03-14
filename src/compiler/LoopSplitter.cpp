@@ -209,8 +209,8 @@ bool isInConditional(const llvm::CallBase *BarrierI, const llvm::DominatorTree &
   return !DT.properlyDominates(BarrierI->getParent(), Latch);
 }
 
-bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *Excl, const llvm::DominatorTree &DT,
-                         llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks) {
+bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::BasicBlock *> Excl,
+                         const llvm::DominatorTree &DT, llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks) {
   const auto *RootNode = DT.getNode(Root);
   if (!RootNode)
     return false;
@@ -220,10 +220,10 @@ bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *E
 
   while (!WL.empty()) {
     const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
-    if (N->getBlock() != Excl) {
+    if (std::find(Excl.begin(), Excl.end(), N->getBlock()) == Excl.end()) {
       WL.append(N->begin(), N->end());
+      SearchBlocks.push_back(N->getBlock());
     }
-    SearchBlocks.push_back(N->getBlock());
   }
   return !SearchBlocks.empty();
 }
@@ -492,9 +492,8 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
 }
 
 void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L, const llvm::DominatorTree &DT,
-                          llvm::BasicBlock *PreHeader, const llvm::BasicBlock *Header,
-                          const llvm::BasicBlock *BarrierBlock, const llvm::BasicBlock *Latch,
-                          llvm::ValueToValueMapTy &VMap) {
+                          llvm::BasicBlock *PreHeader, const llvm::BasicBlock *Header, llvm::BasicBlock *BarrierBlock,
+                          const llvm::BasicBlock *ExitBlock, llvm::BasicBlock *Latch, llvm::ValueToValueMapTy &VMap) {
   llvm::SmallVector<llvm::BasicBlock *, 8> ArrfBaseBlocks;
   llvm::SmallVector<llvm::BasicBlock *, 8> ArrfSearchBlocks;
   llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependingInsts;
@@ -503,10 +502,11 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L, const llvm::Do
   arrayifyAllocas(&F->getEntryBlock(), L->getCanonicalInductionVariable(), DT, ValueAllocaMap);
   ValueAllocaMap.clear();
 
-  //      fillDominatingBlocks(Header, BarrierBlock, DT, ArrfBaseBlocks);
-  fillDescendantsExcl(Header, BarrierBlock, DT, ArrfBaseBlocks);
-  //      fillDominatingBlocks(BarrierBlock, Latch, DT, ArrfSearchBlocks);
-  fillDescendantsExcl(BarrierBlock, Latch, DT, ArrfSearchBlocks);
+  fillDescendantsExcl(Header, {BarrierBlock, ExitBlock}, DT, ArrfBaseBlocks);
+  ArrfBaseBlocks.push_back(BarrierBlock);
+  fillDescendantsExcl(BarrierBlock, {Latch}, DT, ArrfSearchBlocks);
+  ArrfSearchBlocks.push_back(Latch);
+
   findDependenciesBetweenBlocks(ArrfBaseBlocks, ArrfSearchBlocks, ArrfDependingInsts, ArrfDependedUponValues);
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depended upon values\n";
   for (auto *V : ArrfDependedUponValues) {
@@ -531,22 +531,11 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L, const llvm::Do
  * @param BodyBlock The loop body.
  * @return The new latch block, if possible containing the loop induction instruction.
  */
-llvm::BasicBlock *makeLatch(const llvm::Loop *L, llvm::BasicBlock *BodyBlock, llvm::LoopInfo &LI,
-                            llvm::DominatorTree &DT) {
-  llvm::BasicBlock *Latch =
-      llvm::SplitBlock(BodyBlock, BodyBlock->getTerminator(), &DT, &LI, nullptr, BodyBlock->getName() + ".latch");
-
+llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI, llvm::DominatorTree &DT) {
   assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
   llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
-  if (auto *InductionInstr = llvm::dyn_cast<llvm::Instruction>(InductionValue)) {
-    auto *NewIndInstr = InductionInstr->clone();
-    NewIndInstr->insertBefore(Latch->getFirstNonPHI());
-    InductionInstr->replaceAllUsesWith(NewIndInstr);
-    InductionInstr->eraseFromParent();
-  } else {
-    llvm::errs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Induction variable must be an instruction!\n";
-  }
-  return Latch;
+  auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
+  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
 bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
@@ -607,10 +596,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *PreHeader = L->getLoopPreheader();
     llvm::BasicBlock *ExitBlock = L->getExitBlock();
     llvm::BasicBlock *Latch = L->getLoopLatch();
-
-    if (Latch == BarrierBlock) {
-      Latch = makeLatch(L, BarrierBlock, LI, DT);
-    }
+    Latch = simplifyLatch(L, Latch, LI, DT);
 
     if (isInConditional(Barrier, DT, Latch)) {
       HIPSYCL_DEBUG_INFO << "is in conditional" << std::endl;
@@ -620,7 +606,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     auto *NewBlock =
         llvm::SplitBlock(BarrierBlock, Barrier, &DT, &LI, nullptr, BarrierBlock->getName() + BlockNameSuffix);
     llvm::ValueToValueMapTy VMap;
-    arrayifyDependencies(F, L, DT, PreHeader, Header, BarrierBlock, Latch, VMap);
+    arrayifyDependencies(F, L, DT, PreHeader, Header, BarrierBlock, ExitBlock, Latch, VMap);
 
     llvm::Loop &NewLoop = *LI.AllocateLoop();
     ParentLoop->addChildLoop(&NewLoop);

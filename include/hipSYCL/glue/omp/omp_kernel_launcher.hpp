@@ -258,7 +258,7 @@ inline void parallel_for_ndrange_kernel(
           sycl::id<Dim> local_id{l_x};
           sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
                                        local_size, num_groups, &barrier_impl};
-          f(this_item);
+          f(this_item, reductions...);
         }
       }
     } else if constexpr (Dim == 2) {
@@ -274,7 +274,7 @@ inline void parallel_for_ndrange_kernel(
               sycl::nd_item<Dim> this_item{&offset,    group_id,
                                            local_id,   local_size,
                                            num_groups, &barrier_impl};
-              f(this_item);
+              f(this_item, reductions...);
             }
           }
         }
@@ -294,7 +294,7 @@ inline void parallel_for_ndrange_kernel(
                   sycl::nd_item<Dim> this_item{&offset,    group_id,
                                                local_id,   local_size,
                                                num_groups, &barrier_impl};
-                  f(this_item);
+                  f(this_item, reductions...);
                 }
               }
             }
@@ -306,11 +306,6 @@ inline void parallel_for_ndrange_kernel(
     sycl::detail::host_local_memory::release();
   }
 
-  // rt::register_error(__hipsycl_here(),
-  //                    rt::error_info{
-  //                        "nd_range parallel for on CPU requires fibers, but "
-  //                        "fiber support is disabled",
-  //                    rt::error_type::feature_not_supported});
 #else
   static_assert(Dim > 0 && Dim <= 3,
                 "Only dimensions 1 - 3 are supported.");

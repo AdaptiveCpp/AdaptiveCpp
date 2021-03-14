@@ -20,11 +20,18 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
+namespace hipsycl {
+namespace compiler {
+static constexpr size_t NumArrayElements = 1024;
+static constexpr const char MetadataKind[] = "hipSYCL";
+} // namespace compiler
+} // namespace hipsycl
+
 std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::StringRef &StrRef) {
   return Ost << StrRef.begin();
 }
 
-bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &Module) {
+bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module &Module) {
   for (auto &I : Module.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
@@ -44,7 +51,7 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &Modu
   return false;
 }
 
-hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) { analyzeModule(Module); }
+hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(const llvm::Module &Module) { analyzeModule(Module); }
 
 bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
   if (SplitterAnnotation)
@@ -54,7 +61,7 @@ bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Fu
 }
 
 hipsycl::compiler::SplitterAnnotationAnalysis::Result
-hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
+hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::ModuleAnalysisManager &) {
   return SplitterAnnotationInfo{M};
 }
 
@@ -198,13 +205,13 @@ void findAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::Splitter
     }
   }
 }
-bool isInConditional(llvm::CallBase *BarrierI, llvm::DominatorTree &DT, llvm::BasicBlock *Latch) {
+bool isInConditional(const llvm::CallBase *BarrierI, const llvm::DominatorTree &DT, const llvm::BasicBlock *Latch) {
   return !DT.properlyDominates(BarrierI->getParent(), Latch);
 }
 
-bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *Excl, llvm::DominatorTree &DT,
+bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *Excl, const llvm::DominatorTree &DT,
                          llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks) {
-  auto *RootNode = DT.getNode(Root);
+  const auto *RootNode = DT.getNode(Root);
   if (!RootNode)
     return false;
 
@@ -214,6 +221,26 @@ bool fillDescendantsExcl(const llvm::BasicBlock *Root, const llvm::BasicBlock *E
   while (!WL.empty()) {
     const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
     if (N->getBlock() != Excl) {
+      WL.append(N->begin(), N->end());
+    }
+    SearchBlocks.push_back(N->getBlock());
+  }
+  return !SearchBlocks.empty();
+}
+
+bool fillDominatingBlocks(const llvm::BasicBlock *Root, const llvm::BasicBlock *Dominated,
+                          const llvm::DominatorTree &DT, llvm::SmallVectorImpl<llvm::BasicBlock *> &SearchBlocks) {
+  const auto *RootNode = DT.getNode(Root);
+  const auto *DominatedNode = DT.getNode(Dominated);
+  if (!RootNode || !DominatedNode)
+    return false;
+
+  llvm::SmallVector<const llvm::DomTreeNodeBase<llvm::BasicBlock> *, 8> WL;
+  WL.append(RootNode->begin(), RootNode->end());
+
+  while (!WL.empty()) {
+    const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
+    if (DT.dominates(N, DominatedNode)) {
       SearchBlocks.push_back(N->getBlock());
       WL.append(N->begin(), N->end());
     }
@@ -237,7 +264,7 @@ void insertOperands(llvm::SmallPtrSet<llvm::Value *, 8> &WL, const llvm::SmallPt
     if (/*OP->getType()->isPointerTy() && */ llvm::isa<llvm::Instruction>(OP) && DL.find(OP) == DL.end()) {
       if (!WL.insert(OP).second)
         continue;
-      OP->print(llvm::outs());
+      //      OP->print(llvm::outs());
       //      llvm::outs() << " as op: ";
       //      OP->printAsOperand(llvm::outs());
       //      llvm::outs() << "\n";
@@ -318,9 +345,9 @@ bool fillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &StartL
   llvm::SmallPtrSet<llvm::Value *, 8> WL;
   llvm::SmallPtrSet<llvm::Value *, 8> DL;
   for (auto *I : StartList) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO;
-    I->print(llvm::outs());
-    llvm::outs() << "\n";
+    //    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO;
+    //    I->print(llvm::outs());
+    //    llvm::outs() << "\n";
     if (I->hasValueHandle())
       WL.insert(I);
     insertOperands(WL, DL, SearchBlocks, Result, I);
@@ -329,26 +356,172 @@ bool fillDependingInsts(const llvm::SmallPtrSetImpl<llvm::Instruction *> &StartL
   return buildTransitiveDependencyHullFromWl(SearchBlocks, Result, WL, DL);
 }
 
-// void FilterOverwrittenMemAccesses(llvm::SmallVectorImpl<llvm::Instruction*> &insts, llvm::MemoryDependenceResults&
-// memDep)
-//{
-//  for(auto it = insts.rbegin(); it != insts.rend(); ++it)
-//  {
-//    if(auto *li = llvm::dyn_cast<llvm::LoadInst>(*it))
-//    {
-//      llvm::errs() << HIPSYCL_DEBUG_LEVEL_INFO;
-//      li->print(llvm::errs());
-//      llvm::errs() << '\n';
-//      memDep.getDependencyFrom()
-//    }
-//    else if(auto *si = llvm::dyn_cast<llvm::StoreInst>(*it))
-//    {
-//      llvm::errs() << HIPSYCL_DEBUG_LEVEL_INFO;
-//      li->print(llvm::errs());
-//      llvm::errs() << '\n';
-//    }
-//  }
-//}
+void findDependenciesBetweenBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> BaseBlocks,
+                                   llvm::SmallVector<llvm::BasicBlock *, 8> DependingBlocks,
+                                   llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts,
+                                   llvm::SmallPtrSet<llvm::Instruction *, 8> &DependedUponValues) {
+  llvm::SmallPtrSet<llvm::Instruction *, 8> WL;
+  for (auto *B : BaseBlocks)
+    for (auto &I : *B)
+      WL.insert(&I);
+  for (auto *V : WL) {
+    for (auto *U : V->users()) {
+      if (auto *I = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (std::find(DependingBlocks.begin(), DependingBlocks.end(), I->getParent()) != DependingBlocks.end()) {
+          DependingInsts.insert(I);
+          DependedUponValues.insert(V);
+        }
+      }
+    }
+  }
+}
+
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm::DominatorTree &DT,
+                     llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap) {
+  auto *MDAlloca =
+      llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  for (auto &I : *EntryBlock) {
+    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MetadataKind))
+        continue; // already arrayificated
+      if (Alloca->getName().startswith(".omp.") || Alloca->getName().startswith("barrier") ||
+          Alloca->getName().startswith("group_id"))
+        continue; // todo: replace with dependency analysis alla fillDependingInsts
+      WL.push_back(Alloca);
+    }
+  }
+
+  for (auto *I : WL) {
+    llvm::IRBuilder AllocaBuidler{I};
+    llvm::Type *T = I->getAllocatedType();
+    if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
+      auto ArrSize = ArrSizeC->getLimitedValue();
+      if (ArrSize > 1) {
+        T = llvm::ArrayType::get(T, ArrSize);
+        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Caution, alloca was array\n";
+      }
+    }
+
+    auto *Alloca = AllocaBuidler.CreateAlloca(T, AllocaBuidler.getInt32(hipsycl::compiler::NumArrayElements),
+                                              I->getName() + "_alloca");
+    Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
+    ValueAllocaMap[I] = Alloca;
+
+    llvm::Instruction *GepIp = nullptr;
+    for (auto *U : I->users()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (!GepIp)
+          GepIp = UI;
+        else if (DT.dominates(UI, GepIp)) {
+          GepIp = UI;
+        }
+      }
+    }
+    if (GepIp) {
+      llvm::IRBuilder LoadBuilder{GepIp};
+      auto *GEPV = LoadBuilder.CreateGEP(Alloca, Idx, I->getName() + "_gep");
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(GEPV);
+      GEP->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
+
+      I->replaceAllUsesWith(GEP);
+      I->eraseFromParent();
+    }
+  }
+}
+
+void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
+                                const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependedUponValues,
+                                llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap) {
+  auto *MDAlloca =
+      llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+  for (auto *I : DependedUponValues) {
+    if (auto *MD = I->getMetadata(hipsycl::compiler::MetadataKind))
+      continue; // currently just have one MD, so no further value checks
+
+    auto *T = I->getType();
+    llvm::IRBuilder AllocaBuilder{IPAllocas};
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+                                              I->getName() + "_alloca");
+    Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
+    ValueAllocaMap[I] = Alloca;
+
+    llvm::IRBuilder WriteBuilder{&*(++I->getIterator())};
+    auto *GEP = WriteBuilder.CreateGEP(Alloca, Idx, I->getName() + "_gep");
+    WriteBuilder.CreateLifetimeStart(GEP);
+    WriteBuilder.CreateStore(I, GEP);
+  }
+}
+
+llvm::AllocaInst *findAlloca(llvm::Instruction *I) {
+  for (auto &OP : I->operands()) {
+    if (auto *OPI = llvm::dyn_cast<llvm::AllocaInst>(OP.get()))
+      return OPI;
+  }
+
+  return nullptr;
+}
+
+void replaceOperandsWithArrayLoad(llvm::Value *Idx,
+                                  const llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap,
+                                  llvm::ValueToValueMapTy &VMap,
+                                  const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts) {
+  for (auto *I : DependingInsts) {
+    for (auto &OP : I->operands()) {
+      auto *OPV = OP.get();
+      if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV)) {
+        if (auto *MD = OPI->getMetadata(hipsycl::compiler::MetadataKind)) {
+          llvm::Instruction *ClonedI = OPI->clone();
+          ClonedI->insertBefore(I);
+          I->replaceUsesOfWith(OPI, ClonedI); // todo: optimize location and re-usage..
+          // VMap[OPI] = ClonedI;
+          continue;
+        }
+      }
+      if (auto AllocaIt = ValueAllocaMap.find(OPV); AllocaIt != ValueAllocaMap.end()) {
+        auto *Alloca = AllocaIt->getSecond();
+        auto LoadBuilder = llvm::IRBuilder(I);
+        auto *GEP = LoadBuilder.CreateGEP(Alloca, Idx, OPV->getName() + "_lgep");
+        auto *Load = LoadBuilder.CreateLoad(GEP, OPV->getName() + "_load");
+        // LoadBuilder.CreateLifetimeEnd(GEP); // todo: at some point we really should care about alloca lifetime
+
+        I->setOperand(OP.getOperandNo(), Load);
+      }
+    }
+  }
+}
+
+void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L, const llvm::DominatorTree &DT,
+                          llvm::BasicBlock *PreHeader, const llvm::BasicBlock *Header,
+                          const llvm::BasicBlock *BarrierBlock, const llvm::BasicBlock *Latch,
+                          llvm::ValueToValueMapTy &VMap) {
+  llvm::SmallVector<llvm::BasicBlock *, 8> ArrfBaseBlocks;
+  llvm::SmallVector<llvm::BasicBlock *, 8> ArrfSearchBlocks;
+  llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependingInsts;
+  llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependedUponValues;
+  llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
+  arrayifyAllocas(&F->getEntryBlock(), L->getCanonicalInductionVariable(), DT, ValueAllocaMap);
+  ValueAllocaMap.clear();
+
+  //      fillDominatingBlocks(Header, BarrierBlock, DT, ArrfBaseBlocks);
+  fillDescendantsExcl(Header, BarrierBlock, DT, ArrfBaseBlocks);
+  //      fillDominatingBlocks(BarrierBlock, Latch, DT, ArrfSearchBlocks);
+  fillDescendantsExcl(BarrierBlock, Latch, DT, ArrfSearchBlocks);
+  findDependenciesBetweenBlocks(ArrfBaseBlocks, ArrfSearchBlocks, ArrfDependingInsts, ArrfDependedUponValues);
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depended upon values\n";
+  for (auto *V : ArrfDependedUponValues) {
+    V->print(llvm::outs());
+    llvm::outs() << "\n";
+  }
+  arrayifyDependedUponValues(PreHeader->getParent()->getEntryBlock().getFirstNonPHI(),
+                             L->getCanonicalInductionVariable(), ArrfDependedUponValues, ValueAllocaMap);
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depending insts\n";
+  for (auto *I : ArrfDependingInsts) {
+    I->print(llvm::outs());
+    llvm::outs() << "\n";
+  }
+  replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, VMap, ArrfDependingInsts);
+}
 
 /*!
  * In _too simple_ loops, we might not have a dedicated latch.. so make one!
@@ -423,8 +596,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     HIPSYCL_DEBUG_INFO << "Found exit block: " << L->getExitBlock() << std::endl;
     HIPSYCL_DEBUG_INFO << "Found latch block: " << L->getLoopLatch() << std::endl;
 
-    auto *OldBlock = Barrier->getParent();
-    if (LI.getLoopFor(OldBlock) != L) {
+    auto *BarrierBlock = Barrier->getParent();
+    if (LI.getLoopFor(BarrierBlock) != L) {
       HIPSYCL_DEBUG_ERROR << "Barrier must be directly in item loop for now." << std::endl;
       continue;
     }
@@ -435,40 +608,25 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *ExitBlock = L->getExitBlock();
     llvm::BasicBlock *Latch = L->getLoopLatch();
 
-    if (Latch == OldBlock) {
-      Latch = makeLatch(L, OldBlock, LI, DT);
+    if (Latch == BarrierBlock) {
+      Latch = makeLatch(L, BarrierBlock, LI, DT);
     }
 
     if (isInConditional(Barrier, DT, Latch)) {
       HIPSYCL_DEBUG_INFO << "is in conditional" << std::endl;
     }
 
-    llvm::SmallPtrSet<llvm::Instruction *, 8> DependingInsts;
-    llvm::SmallVector<llvm::BasicBlock *, 2> BaseBlocks = {Header};
-    llvm::SmallVector<llvm::BasicBlock *, 8> SearchBlocks;
-    //    DT.getDescendants(header, searchBlocks);
-    fillDescendantsExcl(Header, Latch, DT, SearchBlocks);
-    //    for (auto *BB : searchBlocks) {
-    //      BB->print(llvm::errs());
-    //    }
-    if (fillDependingInsts(BaseBlocks, SearchBlocks, DependingInsts)) {
-      HIPSYCL_DEBUG_INFO << "has dependencies from header" << std::endl;
-
-      for (auto *I : DependingInsts) {
-        I->print(llvm::outs());
-        llvm::outs() << "\n";
-      }
-    } else {
-      HIPSYCL_DEBUG_WARNING << "what's wrong with you.. empty work item?!" << std::endl;
-    }
+    const std::string BlockNameSuffix = "split" + std::to_string(BC);
+    auto *NewBlock =
+        llvm::SplitBlock(BarrierBlock, Barrier, &DT, &LI, nullptr, BarrierBlock->getName() + BlockNameSuffix);
+    llvm::ValueToValueMapTy VMap;
+    arrayifyDependencies(F, L, DT, PreHeader, Header, BarrierBlock, Latch, VMap);
 
     llvm::Loop &NewLoop = *LI.AllocateLoop();
     ParentLoop->addChildLoop(&NewLoop);
 
-    llvm::ValueToValueMapTy VMap;
     VMap[PreHeader] = Header;
 
-    const std::string BlockNameSuffix = "split" + std::to_string(BC);
     llvm::ClonedCodeInfo ClonedCodeInfo;
     auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, BlockNameSuffix, F, &ClonedCodeInfo, nullptr);
     VMap[Header] = NewHeader;
@@ -479,11 +637,9 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     VMap[Latch] = NewLatch;
     NewLoop.addBlockEntry(NewLatch);
 
-    auto *NewBlock = llvm::SplitBlock(OldBlock, Barrier, &DT, &LI, nullptr, OldBlock->getName() + BlockNameSuffix);
     L->removeBlockFromLoop(NewBlock);
     NewLoop.addBlockEntry(NewBlock);
     Barrier->eraseFromParent();
-    DependingInsts.erase(Barrier);
 
     // connect new loop
     NewHeader->getTerminator()->setSuccessor(0, NewBlock);
@@ -512,8 +668,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
     // fix old loop
     Header->getTerminator()->setSuccessor(1, NewHeader);
-    OldBlock->getTerminator()->setSuccessor(0, Latch);
-    DT.changeImmediateDominator(Latch, OldBlock);
+    BarrierBlock->getTerminator()->setSuccessor(0, Latch);
+    DT.changeImmediateDominator(Latch, BarrierBlock);
     //    DT.changeImmediateDominator(header, newHeader);
 
     for (auto *SubLoop : L->getSubLoops()) {
@@ -528,38 +684,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap;
     DT.getDescendants(NewHeader, BbToRemap);
     HIPSYCL_DEBUG_INFO << "BLOCKS TO REMAP " << BbToRemap.size();
-    llvm::SmallVector<llvm::BasicBlock *, 8> SBs;
-    fillDescendantsExcl(Header, NewHeader, DT, SBs);
-    SBs.erase(std::find(SBs.begin(), SBs.end(), Latch));
-
-    llvm::SmallPtrSet<llvm::Instruction *, 8> InstsToCopy;
-    llvm::SmallPtrSet<llvm::Instruction *, 8> InstsInNew;
-    for (auto *I : DependingInsts) {
-      if (std::find(BbToRemap.begin(), BbToRemap.end(), I->getParent()) != BbToRemap.end())
-        InstsInNew.insert(I);
-    }
-    fillDependingInsts(InstsInNew, SBs, InstsToCopy);
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "insts to copy: "
-                 << "\n";
-    llvm::SmallVector<llvm::Instruction *, 8> InstsToCopySorted{InstsToCopy.begin(), InstsToCopy.end()};
-    std::sort(InstsToCopySorted.begin(), InstsToCopySorted.end(),
-              [&](auto LHS, auto RHS) { return DT.dominates(LHS, RHS); });
-    //    MemDepP.releaseMemory();
-    //    MemDepP.getMemDep();
-    llvm::Instruction *InsPt = &*NewBlock->getFirstInsertionPt();
-    for (auto *I : InstsToCopySorted) {
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO;
-      I->print(llvm::outs());
-      llvm::outs() << "\n";
-      auto *ClonedI = I->clone();
-      VMap[I] = ClonedI;
-      //      if(insPt)
-      //        clonedI->insertAfter(insPt);
-      //      else
-      ClonedI->insertBefore(InsPt);
-      //      insPt = clonedI;
-    }
-
     llvm::remapInstructionsInBlocks(BbToRemap, VMap);
 
     for (auto *Block : L->getParentLoop()->blocks()) {

@@ -39,11 +39,11 @@ class SplitterAnnotationInfo {
   static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
   llvm::SmallPtrSet<llvm::Function *, 2> SplitterFuncs;
 
-  bool analyzeModule(llvm::Module &Module);
+  bool analyzeModule(const llvm::Module &Module);
 
 public:
-  explicit SplitterAnnotationInfo(llvm::Module &Module);
-  inline bool isSplitterFunc(llvm::Function *F) const { return SplitterFuncs.find(F) != SplitterFuncs.end(); }
+  explicit SplitterAnnotationInfo(const llvm::Module &Module);
+  inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.find(F) != SplitterFuncs.end(); }
 };
 
 /*!

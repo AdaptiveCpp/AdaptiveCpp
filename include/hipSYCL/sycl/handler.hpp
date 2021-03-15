@@ -74,7 +74,7 @@ public:
   {
   }
 
-  template <typename dataT, int dimensions, access::mode accessMode,
+  template <typename dataT, int dimensions, access_mode accessMode,
             access::target accessTarget, access::placeholder isPlaceholder>
   void
   require(accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>&
@@ -85,6 +85,12 @@ public:
     // Construct requirement descriptor
     std::shared_ptr<rt::buffer_data_region> data_region = acc._buff.get_shared_ptr();
     
+    if(!data_region) {
+      throw invalid_parameter_error{
+          "handler: require(): accessor is illegal paramater for require() "
+          "because it is not bound to a buffer."};
+    }
+
     auto offset = acc.get_offset();
     auto range = acc.get_range();
     size_t element_size = data_region->get_element_size();
@@ -94,8 +100,11 @@ public:
                       "not yet supported");
     }
 
+    // Translate no_init property and host_task modes
+    access_mode mode = acc.get_effective_access_mode();
+
     auto req = std::make_unique<rt::buffer_memory_requirement>(
-        data_region, rt::make_id(offset), rt::make_range(range), accessMode,
+        data_region, rt::make_id(offset), rt::make_range(range), mode,
         accessTarget);
 
     // Bind the accessor's deferred pointer to the requirement, such that

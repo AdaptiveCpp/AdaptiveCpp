@@ -71,14 +71,14 @@ using queue_submission_hooks_ptr =
 namespace property::command_group {
 
 template<int Dim>
-struct hipSYCL_prefer_group_size : public detail::property{
+struct hipSYCL_prefer_group_size : public detail::cg_property{
   hipSYCL_prefer_group_size(range<Dim> r)
   : size{r} {}
 
   range<Dim> size;
 };
 
-struct hipSYCL_retarget : public detail::property{
+struct hipSYCL_retarget : public detail::cg_property{
   hipSYCL_retarget(const device& d)
   : dev{d} {}
 
@@ -90,7 +90,7 @@ struct hipSYCL_retarget : public detail::property{
 
 namespace property::queue {
 
-class in_order : public detail::property
+class in_order : public detail::queue_property
 {};
 
 }

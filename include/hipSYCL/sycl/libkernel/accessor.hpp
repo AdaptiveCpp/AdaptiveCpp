@@ -148,6 +148,7 @@ public:
   
   using accessor_type = sycl::accessor<dataT, dimensions, accessmode,
                                        accessTarget, isPlaceholder>;
+  using reference = typename accessor_type::reference;
 
   using next_subscript_proxy =
       subscript_proxy<dataT, dimensions, accessmode, accessTarget,
@@ -161,7 +162,7 @@ public:
 
   template <int D = dimensions,
             int C = current_dimension,
-            std::enable_if_t<!can_invoke_access(C, D)> * = nullptr>
+            std::enable_if_t<!can_invoke_access(C, D), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   next_subscript_proxy operator[](size_t index) const {
     return create_next_proxy(index);
@@ -170,35 +171,15 @@ public:
 
   template <int D = dimensions,
             int C = current_dimension,
-            access_mode M = accessmode,
-            std::enable_if_t<can_invoke_access(C, D) && 
-                            (M == access_mode::read || 
-                             M == access_mode::atomic)> * = nullptr>
+            std::enable_if_t<can_invoke_access(C, D), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator[](size_t index) const {
+  reference operator[](size_t index) const {
     return invoke_value_access(index);
   }
 
-  template <int D = dimensions,
-            int C = current_dimension,
-            access_mode M = accessmode,
-            std::enable_if_t<can_invoke_access(C, D) && 
-                            (M != access_mode::read &&
-                             M != access_mode::atomic)> * = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  auto& operator[](size_t index) const {
-    return invoke_ref_access(index);
-  }
 private:
   HIPSYCL_UNIVERSAL_TARGET
-  auto invoke_value_access(size_t index) const {
-    // Set the last index
-    _access_id[dimensions - 1] = index;
-    return (*_original_accessor)[_access_id];
-  }
-  
-  HIPSYCL_UNIVERSAL_TARGET
-  auto& invoke_ref_access(size_t index) const {
+  reference invoke_value_access(size_t index) const {
     // Set the last index
     _access_id[dimensions - 1] = index;
     return (*_original_accessor)[_access_id];
@@ -546,81 +527,30 @@ public:
   {
     return _offset;
   }
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions == 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write) &&
-                                       (D == 0)>>
+  
+  template<int D = dimensions,
+            std::enable_if_t<(D == 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  operator dataT &() const
+  operator reference() const
   {
     return *(this->_ptr.get());
   }
 
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions > 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write) &&
-                                       (D > 0)>>
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  dataT &operator[](id<dimensions> index) const
+  reference operator[](id<dimensions> index) const
   {
     return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)];
   }
 
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions == 1) */
-
   template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write)
-                                    && (D == 1)>>
+            std::enable_if_t<(D == 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  dataT &operator[](size_t index) const
+  reference operator[](size_t index) const
   {
     return (this->_ptr.get())[index];
   }
-
-
-  /* Available only when: accessMode == access::mode::read && dimensions == 0 */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<M == access::mode::read && D == 0>>
-  HIPSYCL_UNIVERSAL_TARGET
-  operator dataT() const
-  {
-    return *(this->_ptr.get());
-  }
-
-  /* Available only when: accessMode == access::mode::read && dimensions > 0 */
-  template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
-  HIPSYCL_UNIVERSAL_TARGET
-  dataT operator[](id<dimensions> index) const
-  { return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
-
-  /* Available only when: accessMode == access::mode::read && dimensions == 1 */
-  template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
-  HIPSYCL_UNIVERSAL_TARGET
-  dataT operator[](size_t index) const
-  { return (this->_ptr.get())[index]; }
 
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/

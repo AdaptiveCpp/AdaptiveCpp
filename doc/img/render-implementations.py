@@ -8,7 +8,7 @@ layout = "left-right"
 #display_mode = "shared-nodes"
 display_mode = "no-hardware-nodes"
 #display_mode = "no-shared-nodes"
-outputformat = "svg"
+outputformat = "png"
 
 default_tailport="s"
 default_headport="n"

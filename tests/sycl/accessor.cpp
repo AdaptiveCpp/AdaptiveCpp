@@ -241,6 +241,12 @@ get_access_mode(cl::sycl::accessor<T, Dim, M, Tgt, P>) {
   return M;
 }
 
+template <class T, int Dim, cl::sycl::access_mode M>
+constexpr cl::sycl::access_mode
+get_access_mode(cl::sycl::host_accessor<T, Dim, M>) {
+  return M;
+}
+
 template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
           cl::sycl::access::placeholder P>
 constexpr cl::sycl::target
@@ -253,6 +259,12 @@ void validate_accessor_deduction(Acc acc, cl::sycl::access_mode expected_mode,
                                  cl::sycl::target expected_target) {
   BOOST_CHECK(get_access_mode(acc) == expected_mode);
   BOOST_CHECK(get_access_target(acc) == expected_target);
+}
+
+template <class Acc>
+void validate_host_accessor_deduction(Acc acc,
+                                      cl::sycl::access_mode expected_mode) {
+  BOOST_CHECK(get_access_mode(acc) == expected_mode);
 }
 
 BOOST_AUTO_TEST_CASE(accessor_simplifications) {
@@ -268,12 +280,12 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.submit([&](s::handler& cgh){
     s::accessor acc1{buff, cgh, s::read_only};
     BOOST_CHECK(!acc1.is_placeholder());
-    // Conversion accessor<int> -> accessor<const int>
-    s::accessor<const int> acc2 = s::accessor{buff, cgh, s::read_only};
-
+    // Conversion rw accessor<int> -> accessor<const int>, read-only
+    s::accessor<const int> acc2 = s::accessor{buff, cgh, s::read_write};
+    
     s::accessor acc3{buff, cgh, s::read_only};
-    // Conversion const int -> int for read-only accessors
-    acc3 = acc2;
+    // Conversion read-write to non-const read-only accessor
+    acc3 = s::accessor<int>{buff, cgh};
     BOOST_CHECK(!acc3.is_placeholder());
 
     // Deduction based on constness of argument
@@ -319,6 +331,23 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
 
     cgh.single_task([=](){});
   });
+  {
+    s::host_accessor hacc {buff};
+    validate_host_accessor_deduction(hacc, s::access_mode::read_write);
+
+    // Conversion to read-only
+    s::host_accessor<const int> const_hacc = hacc;
+    validate_host_accessor_deduction(const_hacc, s::access_mode::read);
+  }
+  {
+    s::host_accessor hacc {buff, s::read_only};
+    validate_host_accessor_deduction(hacc, s::access_mode::read);
+  }
+  {
+    s::host_accessor hacc {buff, s::write_only};
+    validate_host_accessor_deduction(hacc, s::access_mode::write);
+  }
+
 
   q.wait();
 }

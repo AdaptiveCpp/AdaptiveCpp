@@ -472,26 +472,14 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   accessor& operator=(const accessor& other) = default;
 
-  // Implicit conversion between accessor of type T and const T
-  // if access_mode is read
-  template <typename T = dataT,
-            std::enable_if_t<std::is_const_v<T> &&
-                             accessmode == access_mode::read> * = nullptr>
+  // Implicit conversion from read-write accessor to const and non-const
+  // read-only accessor
+  template <access::placeholder P, access_mode M = accessmode,
+            std::enable_if_t<M == access_mode::read> * = nullptr>
   HIPSYCL_UNIVERSAL_TARGET
-  accessor(const accessor<std::remove_const_t<T>, dimensions, accessmode,
-                          accessTarget> &other)
-      : detail::accessor_base<std::remove_const_t<T>>{other},
-        _buffer_range{other._buffer_range}, _range{other._range},
-        _offset{other._offset}, _is_no_init{other._is_no_init},
-        _is_placeholder{other._is_placeholder} {}
-
-  template <typename T = dataT,
-            std::enable_if_t<!std::is_const_v<T> &&
-                             accessmode == access_mode::read> * = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  accessor(const accessor<const T, dimensions, accessmode,
-                          accessTarget> &other)
-    : detail::accessor_base<std::remove_const_t<T>>{other},
+  accessor(const accessor<std::remove_const_t<dataT>, dimensions,
+                          access_mode::read_write, accessTarget, P> &other)
+      : detail::accessor_base<std::remove_const_t<dataT>>{other},
         _buffer_range{other._buffer_range}, _range{other._range},
         _offset{other._offset}, _is_no_init{other._is_no_init},
         _is_placeholder{other._is_placeholder} {}
@@ -855,130 +843,196 @@ accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
                 detail::deduce_access_target<TagT>(),
                 access::placeholder::false_t>;
 
-// host_accessor implementation
+//host_accessor implementation
 
-// template <typename dataT, int dimensions = 1,
-//           access_mode accessMode =
-//               (std::is_const_v<dataT> ? access_mode::read
-//                                       : access_mode::read_write)>
-// class host_accessor : public detail::accessor_base<std::remove_const_t<dataT>> {
-  
-//   static_assert(!std::is_const_v<dataT> || accessMode == access_mode::read,
-//     "const accessors are only allowed for read-only accessors");
+template <typename dataT, int dimensions = 1,
+          access_mode accessMode =
+              (std::is_const_v<dataT> ? access_mode::read
+                                      : access_mode::read_write)>
+class host_accessor {
+  using accessor_type =
+      accessor<dataT, dimensions, accessMode, target::host_buffer,
+               access::placeholder::false_t>;
 
-//   template<class AccessorType, class BufferType, int Dim>
-//   friend void detail::accessor::bind_to_buffer(
-//     AccessorType& acc, BufferType& buff, 
-//     sycl::id<Dim> accessOffset, sycl::range<Dim> accessRange);
+  template<typename DataT2, int Dim2, access_mode M2>
+  friend class host_accessor;
 
-// public:
-//   using value_type =
-//       typename detail::accessor::accessor_data_type<dataT, accessMode>::value;
-//   using reference = value_type &;
-//   using const_reference = const dataT &;
-//   // using iterator = __unspecified_iterator__<value_type>;
-//   // using const_iterator = __unspecified_iterator__<const value_type>;
-//   // using reverse_iterator = std::reverse_iterator<iterator>;
-//   // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-//   // using difference_type = typename
-//   // std::iterator_traits<iterator>::difference_type;
-//   using size_type = size_t;
+  template<class TagT>
+  void validate_host_accessor_tag(TagT tag) {
+    static_assert(std::is_same_v<TagT, detail::read_only_tag_t> ||
+                  std::is_same_v<TagT, detail::write_only_tag_t> ||
+                  std::is_same_v<TagT, detail::read_write_tag_t>,
+                  "Invalid tag for host_accessor");
+  }
+public:
+  using value_type = typename accessor_type::value_type;
+  using reference = typename accessor_type::reference;
+  using const_reference = typename accessor_type::const_reference;
 
-//   host_accessor() = default;
+  // using iterator = __unspecified_iterator__<value_type>;
+  // using const_iterator = __unspecified_iterator__<const value_type>;
+  // using reverse_iterator = std::reverse_iterator<iterator>;
+  // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  // using difference_type = typename
+  // std::iterator_traits<iterator>::difference_type;
+  using size_type = typename accessor_type::size_type;
 
-//   /* Available only when: (dimensions == 0) */
-//   template <typename AllocatorT>
-//   host_accessor(buffer<dataT, 1, AllocatorT> &bufferRef,
-//                 const property_list &propList = {});
+  host_accessor() = default;
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
-//                 const property_list &propList = {});
+  /* Available only when: (dimensions == 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<D == 0, bool> = true>
+  host_accessor(buffer<dataT, 1, AllocatorT> &bufferRef,
+                const property_list &propList = {})
+      : _impl{bufferRef, propList} {}
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT, typename TagT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, TagT tag,
-//                 const property_list &propList = {});
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                const property_list &propList = {})
+      : _impl{bufferRef, propList} {}
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
-//                 range<dimensions> accessRange,
-//                 const property_list &propList = {});
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, TagT tag,
+                const property_list &propList = {})
+      : _impl{bufferRef, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT, typename TagT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
-//                 range<dimensions> accessRange, TagT tag,
-//                 const property_list &propList = {});
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, propList} {}
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
-//                 range<dimensions> accessRange, id<dimensions> accessOffset,
-//                 const property_list &propList = {});
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, TagT tag,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
 
-//   /* Available only when: (dimensions > 0) */
-//   template <typename AllocatorT, typename TagT>
-//   host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
-//                 range<dimensions> accessRange, id<dimensions> accessOffset,
-//                 TagT tag, const property_list &propList = {});
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, id<dimensions> accessOffset,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, accessOffset, propList} {}
 
-//   /* -- common interface members -- */
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, id<dimensions> accessOffset,
+                TagT tag, const property_list &propList = {})
+      : _impl{bufferRef, accessRange, accessOffset, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
 
-//   void swap(host_accessor &other);
+  // Conversion read-write -> read-only accessor
+  template <access_mode M = accessMode,
+            std::enable_if_t<M == access_mode::read, bool> = true>
+  host_accessor(const host_accessor<std::remove_const_t<dataT>, dimensions,
+                                    access_mode::read_write> &other)
+      : _impl{other._impl} {}
 
-//   size_type byte_size() const noexcept;
+  /* -- common interface members -- */
 
-//   size_type size() const noexcept;
+  //void swap(host_accessor &other);
 
-//   size_type max_size() const noexcept;
+  //size_type byte_size() const noexcept;
 
-//   bool empty() const noexcept;
+  //size_type size() const noexcept;
 
-//   /* Available only when: (dimensions > 0) */
-//   range<dimensions> get_range() const;
+  //size_type max_size() const noexcept;
 
-//   /* Available only when: (dimensions > 0) */
-//   id<dimensions> get_offset() const;
+  //bool empty() const noexcept;
 
-//   /* Available only when: (dimensions == 0) */
-//   operator reference() const;
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  range<dimensions> get_range() const {
+    return _impl.get_range();
+  }
 
-//   /* Available only when: (dimensions > 0) */
-//   reference operator[](id<dimensions> index) const;
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  id<dimensions> get_offset() const {
+    return _impl.get_offset();
+  }
 
-//   /* Available only when: (dimensions > 1) */
-//   __unspecified__ &operator[](size_t index) const;
+  /* Available only when: (dimensions == 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D == 0), bool> = true>
+  operator reference() const {
+    return *_impl.get_pointer();
+  }
 
-//   /* Available only when: (dimensions == 1) */
-//   reference operator[](size_t index) const;
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  reference operator[](id<dimensions> index) const {
+    return _impl[index];
+  }
 
-//   std::add_pointer_t<value_type> get_pointer() const noexcept;
+  /* Available only when: (dimensions > 1) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 1), bool> = true>
+  auto operator[](size_t index) const {
+    return _impl[index];
+  }
 
-//   iterator begin() const noexcept;
+  /* Available only when: (dimensions == 1) */
+  template<int D = dimensions,
+            std::enable_if_t<(D == 1), bool> = true>
+  reference operator[](size_t index) const {
+    return _impl[index];
+  }
 
-//   iterator end() const noexcept;
+  std::add_pointer_t<value_type> get_pointer() const noexcept {
+    return _impl.get_pointer();
+  }
 
-//   const_iterator cbegin() const noexcept;
+  // iterator begin() const noexcept;
+  // iterator end() const noexcept;
+  // const_iterator cbegin() const noexcept;
+  // const_iterator cend() const noexcept;
+  // reverse_iterator rbegin() const noexcept;
+  // reverse_iterator rend() const noexcept;
+  // const_reverse_iterator crbegin() const noexcept;
+  // const_reverse_iterator crend() const noexcept;
 
-//   const_iterator cend() const noexcept;
+private:
+  accessor_type _impl;
+};
 
-//   reverse_iterator rbegin() const noexcept;
 
-//   reverse_iterator rend() const noexcept;
+// host_accessor deduction guides
 
-//   const_reverse_iterator crbegin() const noexcept;
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, TagT tag,
+          const property_list &prop_list = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
 
-//   const_reverse_iterator crend() const noexcept;
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+              TagT tag, const property_list &propList = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
 
-// private:
-//   range<dimensions> _buffer_range;
-//   range<dimensions> _range;
-//   id<dimensions> _offset;
-//   bool _is_no_init = false;
-// };
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         id<Dim> accessOffset, TagT tag, const property_list &propList = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
 
 /// Accessor specialization for local memory
 template <typename dataT,

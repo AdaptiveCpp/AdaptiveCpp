@@ -49,6 +49,9 @@ class buffer;
 template <typename T, int Dim, access_mode M, target Tgt, access::placeholder P>
 class accessor;
 
+template<typename T, int Dim, access_mode M>
+class host_accessor;
+
 namespace detail {
 
 class property {};
@@ -78,9 +81,14 @@ template<class T, int Dim, class AllocatorT>
 struct associated_property_base<buffer<T, Dim, AllocatorT>> {
   using type = buffer_property;
 };
-// TODO: host_accessor
+
 template<typename T, int Dim, access_mode M, target Tgt, access::placeholder P>
 struct associated_property_base<accessor<T, Dim, M, Tgt, P>> {
+  using type = accessor_property;
+};
+
+template<typename T, int Dim, access_mode M>
+struct associated_property_base<host_accessor<T, Dim, M>> {
   using type = accessor_property;
 };
 

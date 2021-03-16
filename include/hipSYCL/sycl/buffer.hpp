@@ -480,11 +480,9 @@ public:
     return accessor{*this, args...};
   }
 
-  // TODO
   template<typename... Args>
   auto get_host_access(Args... args) {
-    assert(false && "unimplemented");
-    return nullptr;
+    return host_accessor{*this, args...};
   }
 
   void set_final_data(std::shared_ptr<T> finalData)

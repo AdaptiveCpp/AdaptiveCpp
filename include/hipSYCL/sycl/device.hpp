@@ -257,6 +257,25 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)
       get_rt_device()->get_property(rt::device_uint_property::max_group_size));
 }
 
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_sub_groups)
+{
+  return static_cast<unsigned int>(
+      get_rt_device()->get_property(rt::device_uint_property::max_num_sub_groups));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, sub_group_independent_forward_progress)
+{
+  return static_cast<bool>(
+      get_rt_device()->get_property(rt::device_uint_property::sub_group_independent_forward_progress));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, sub_group_sizes)
+{
+  return std::vector<size_t>{
+      get_rt_device()->get_property(rt::device_uint_property::sub_group_size)
+  };
+}
+
 HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_char) {
   return static_cast<int>(get_rt_device()->get_property(
       rt::device_uint_property::preferred_vector_width_char));

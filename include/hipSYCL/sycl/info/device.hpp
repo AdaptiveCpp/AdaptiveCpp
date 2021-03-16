@@ -52,6 +52,9 @@ enum class device : int {
   max_work_item_dimensions,
   max_work_item_sizes,
   max_work_group_size,
+  max_num_sub_groups,
+  sub_group_independent_forward_progress,
+  sub_group_sizes,
   preferred_vector_width_char,
   preferred_vector_width_short,
   preferred_vector_width_int,
@@ -175,6 +178,10 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_compute_units, detail::u_in
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_dimensions, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_sizes, id<3>);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_group_size, size_t);
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_num_sub_groups, detail::u_int);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_independent_forward_progress, bool);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_sizes, vector_class<size_t>);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_char, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_double, detail::u_int);

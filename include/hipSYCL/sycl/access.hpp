@@ -32,20 +32,13 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace access {
-
-enum class mode {
-  read = 1024,
-  write,
-  read_write,
-  discard_write,
-  discard_read_write,
-  atomic
-};
 
 enum class target {
-  global_buffer = 2014,
-  constant_buffer,
+  device,
+  host_task,
+  global_buffer = device,
+  // Deprecated targets
+  constant_buffer = 2,
   local,
   image,
   host_buffer,
@@ -53,37 +46,37 @@ enum class target {
   image_array
 };
 
-enum class placeholder {
-  false_t,
-  true_t
+enum class access_mode {
+  read,
+  write,
+  read_write,
+  // Deprecated access modes
+  discard_write,
+  discard_read_write,
+  atomic
 };
 
-enum class fence_space : char {
-  local_space,
-  global_space,
-  global_and_local
-};
 
 // TODO these should be moved to a common/serialization.hpp?
-inline std::ostream &operator<<(std::ostream &out, const sycl::access::mode value)
+inline std::ostream &operator<<(std::ostream &out, const sycl::access_mode value)
 {
   switch (value) {
-  case sycl::access::mode::read:
+  case sycl::access_mode::read:
     out << "R";
     break;
-  case sycl::access::mode::write:
+  case sycl::access_mode::write:
     out << "W";
     break;
-  case sycl::access::mode::atomic:
+  case sycl::access_mode::atomic:
     out << "atomic";
     break;
-  case sycl::access::mode::read_write:
+  case sycl::access_mode::read_write:
     out << "RW";
     break;
-  case sycl::access::mode::discard_write:
+  case sycl::access_mode::discard_write:
     out << "Discard W";
     break;
-  case sycl::access::mode::discard_read_write:
+  case sycl::access_mode::discard_read_write:
     out << "Discard RW";
     break;
   default:
@@ -94,28 +87,31 @@ inline std::ostream &operator<<(std::ostream &out, const sycl::access::mode valu
 }
 
 inline std::ostream &operator<<(std::ostream &out,
-                                const sycl::access::target value) {
+                                const sycl::target value) {
   switch (value) {
-  case sycl::access::target::image:
+  case sycl::target::image:
     out << "image";
     break;
-  case sycl::access::target::constant_buffer:
+  case sycl::target::constant_buffer:
     out << "constant_buffer";
     break;
-  case sycl::access::target::global_buffer:
-    out << "global_buffer";
+  case sycl::target::device:
+    out << "device";
     break;
-  case sycl::access::target::host_buffer:
+  case sycl::target::host_buffer:
     out << "host_buffer";
     break;
-  case sycl::access::target::host_image:
+  case sycl::target::host_image:
     out << "host_image";
     break;
-  case sycl::access::target::image_array:
+  case sycl::target::image_array:
     out << "Image_array";
     break;
-  case sycl::access::target::local:
+  case sycl::target::local:
     out << "local";
+    break;
+  case sycl::target::host_task:
+    out << "host_task";
     break;
   default:
     throw "Target enum cannot be serialized";
@@ -123,6 +119,24 @@ inline std::ostream &operator<<(std::ostream &out,
   }
   return out;
 }
+
+namespace access {
+
+// SYCL 1.2.1 compatibility
+using sycl::target;
+using mode = sycl::access_mode;
+
+// Deprecated
+enum class placeholder {
+  false_t,
+  true_t
+};
+
+enum class fence_space : char {
+  local_space,
+  global_space,
+  global_and_local
+};
 
 inline std::ostream &operator<<(std::ostream &out,
                          const sycl::access::placeholder value)
@@ -161,7 +175,7 @@ inline std::ostream &operator<<(std::ostream &out,
   return out;
 }
 
-}
+} // access
 }
 }
 

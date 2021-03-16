@@ -46,8 +46,11 @@
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
+#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
+#include "hipSYCL/sycl/property.hpp"
 #include "range.hpp"
 #include "item.hpp"
 #include "multi_ptr.hpp"
@@ -58,9 +61,48 @@
 namespace hipsycl {
 namespace sycl {
 
+namespace detail {
+
+struct read_only_tag_t {};
+struct read_write_tag_t {};
+struct write_only_tag_t {};
+struct read_only_host_task_tag_t {};
+struct read_write_host_task_tag_t {};
+struct write_only_host_task_tag_t {};
+
+template <typename TagT> constexpr access_mode deduce_access_mode() {
+  if constexpr (std::is_same_v<TagT, read_only_tag_t> ||
+                std::is_same_v<TagT, read_only_host_task_tag_t>) {
+    return access_mode::read;
+  } else if constexpr (std::is_same_v<TagT, read_write_tag_t> ||
+                       std::is_same_v<TagT, read_write_host_task_tag_t>) {
+    return access_mode::read_write;
+  } else {
+    return access_mode::write;
+  }
+}
+
+template<typename TagT> constexpr target deduce_access_target() {
+  if constexpr (std::is_same_v<TagT, read_only_tag_t> ||
+                std::is_same_v<TagT, read_write_tag_t> ||
+                std::is_same_v<TagT, write_only_tag_t>) {
+    return target::device;
+  } else {
+    return target::host_task;
+  }
+}
+
+}
+
+inline constexpr detail::read_only_tag_t read_only;
+inline constexpr detail::read_write_tag_t read_write;
+inline constexpr detail::write_only_tag_t write_only;
+inline constexpr detail::read_only_host_task_tag_t read_only_host_task;
+inline constexpr detail::read_write_host_task_tag_t read_write_host_task;
+inline constexpr detail::write_only_host_task_tag_t write_only_host_task;
 
 template <typename T, int dimensions = 1,
-          typename AllocatorT = sycl::buffer_allocator<T>>
+          typename AllocatorT = buffer_allocator<std::remove_const_t<T>>>
 class buffer;
 
 class handler;
@@ -82,21 +124,18 @@ detail::local_memory::address allocate_local_mem(sycl::handler&,
 
 namespace detail::accessor {
 
-template<class T, access::mode m>
-struct accessor_pointer_type
-{
-  using value = T*;
+template<class T, access_mode M>
+struct accessor_data_type {
+  using value = T;
 };
 
 template<class T>
-struct accessor_pointer_type<T, access::mode::read>
-{
-  using value = const T*;
+struct accessor_data_type<T, access_mode::read> {
+  using value = const T;
 };
 
-
-template <typename dataT, int dimensions, access::mode accessmode,
-          access::target accessTarget, access::placeholder isPlaceholder,
+template <typename dataT, int dimensions, access_mode accessmode,
+          target accessTarget, access::placeholder isPlaceholder,
           int current_dimension = 1>
 class subscript_proxy
 {
@@ -109,6 +148,7 @@ public:
   
   using accessor_type = sycl::accessor<dataT, dimensions, accessmode,
                                        accessTarget, isPlaceholder>;
+  using reference = typename accessor_type::reference;
 
   using next_subscript_proxy =
       subscript_proxy<dataT, dimensions, accessmode, accessTarget,
@@ -122,7 +162,7 @@ public:
 
   template <int D = dimensions,
             int C = current_dimension,
-            std::enable_if_t<!can_invoke_access(C, D)> * = nullptr>
+            std::enable_if_t<!can_invoke_access(C, D), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   next_subscript_proxy operator[](size_t index) const {
     return create_next_proxy(index);
@@ -131,35 +171,15 @@ public:
 
   template <int D = dimensions,
             int C = current_dimension,
-            access::mode M = accessmode,
-            std::enable_if_t<can_invoke_access(C, D) && 
-                            (M == access::mode::read || 
-                             M == access::mode::atomic)> * = nullptr>
+            std::enable_if_t<can_invoke_access(C, D), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  auto operator[](size_t index) const {
+  reference operator[](size_t index) const {
     return invoke_value_access(index);
   }
 
-  template <int D = dimensions,
-            int C = current_dimension,
-            access::mode M = accessmode,
-            std::enable_if_t<can_invoke_access(C, D) && 
-                            (M != access::mode::read &&
-                             M != access::mode::atomic)> * = nullptr>
-  HIPSYCL_UNIVERSAL_TARGET
-  auto& operator[](size_t index) const {
-    return invoke_ref_access(index);
-  }
 private:
   HIPSYCL_UNIVERSAL_TARGET
-  auto invoke_value_access(size_t index) const {
-    // Set the last index
-    _access_id[dimensions - 1] = index;
-    return (*_original_accessor)[_access_id];
-  }
-  
-  HIPSYCL_UNIVERSAL_TARGET
-  auto& invoke_ref_access(size_t index) const {
+  reference invoke_value_access(size_t index) const {
     // Set the last index
     _access_id[dimensions - 1] = index;
     return (*_original_accessor)[_access_id];
@@ -235,159 +255,219 @@ protected:
 
 } // detail
 
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget = access::target::global_buffer,
-         access::placeholder isPlaceholder = access::placeholder::false_t>
-class accessor : public detail::accessor_base<dataT>
-{
+namespace property {
+
+struct no_init : public detail::property {};
+
+} // property
+
+inline constexpr property::no_init no_init;
+
+template <typename dataT, int dimensions = 1,
+          access_mode accessmode =
+              (std::is_const_v<dataT> ? access_mode::read
+                                      : access_mode::read_write),
+          target accessTarget = target::device,
+          access::placeholder isPlaceholder = access::placeholder::false_t>
+class accessor : public detail::accessor_base<std::remove_const_t<dataT>> {
+
+  static_assert(!std::is_const_v<dataT> || accessmode == access_mode::read,
+    "const accessors are only allowed for read-only accessors");
+
   template<class AccessorType, class BufferType, int Dim>
   friend void detail::accessor::bind_to_buffer(
     AccessorType& acc, BufferType& buff, 
     sycl::id<Dim> accessOffset, sycl::range<Dim> accessRange);
+
+  // Need to be friends with other accessors for implicit
+  // conversion rules
+  template <class Data2, int Dim2, access_mode M2, target Tgt2,
+            access::placeholder P2>
+  friend class accessor;
+
+  friend class sycl::handler;
+
 public:
-  using value_type = dataT;
-  using reference = dataT &;
+  using value_type =
+      typename detail::accessor::accessor_data_type<dataT, accessmode>::value;
+  using reference = value_type &;
   using const_reference = const dataT &;
+  // TODO accessor_ptr
+  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
+  // TODO difference_type
+  using size_type = size_t;
 
-  using pointer_type =
-    typename detail::accessor::accessor_pointer_type<dataT, accessmode>::value;
+  using pointer_type = value_type*;
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-accessTarget == access::target::host_buffer) ||
-(isPlaceholder ==
-access::placeholder::true_t && (accessTarget == access::target::global_buffer
-|| accessTarget == access::target::constant_buffer)) && dimensions == 0 */
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<((P == access::placeholder::false_t &&
-                              T == access::target::host_buffer) ||
-                             (P == access::placeholder::true_t  &&
-                             (T == access::target::global_buffer ||
-                              T == access::target::constant_buffer))) &&
-                              D == 0 >* = nullptr>
-  accessor(buffer<dataT, 1> &bufferRef)
-  {
-    throw unimplemented{"0-dimensional accessors are not yet implemented"};
+  accessor() = default;
+
+  // 0D accessors
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<D == 0> * = nullptr>
+  accessor(buffer<dataT, 1, AllocatorT> &bufferRef,
+           const property_list &prop_list = {}) {
+
+    _is_placeholder = true;
+    
+    init_properties(prop_list);
+    
     detail::accessor::bind_to_buffer(*this, bufferRef);
 
-    if(T == access::target::host_buffer) {
+    if(accessTarget == access::target::host_buffer) {
       init_host_buffer();
     }
   }
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-(accessTarget == access::target::global_buffer || accessTarget ==
-access::target::constant_buffer)) && dimensions == 0 */
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer )) &&
-                             D == 0 >* = nullptr>
-  accessor(buffer<dataT, 1> &bufferRef, handler &commandGroupHandlerRef)
-  {
-    throw unimplemented{"0-dimensional accessors are not yet implemented"};
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<D == 0> * = nullptr>
+  accessor(buffer<dataT, 1, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef,
+           const property_list &prop_list = {}) {
+    init_properties(prop_list);
+    
     detail::accessor::bind_to_buffer(*this, bufferRef);
   }
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-accessTarget == access::target::host_buffer) ||
-(isPlaceholder ==
-access::placeholder::true_t && (accessTarget == access::target::global_buffer
-|| accessTarget == access::target::constant_buffer)) && dimensions > 0 */
+  // Non 0-dimensional accessors
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           const property_list &prop_list = {}) {
+    
+    _is_placeholder = true;
 
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<((P == access::placeholder::false_t &&
-                              T == access::target::host_buffer) ||
-                             (P == access::placeholder::true_t &&
-                             (T == access::target::global_buffer ||
-                              T == access::target::constant_buffer))) &&
-                             (D > 0)>* = nullptr>
-  accessor(buffer<dataT, dimensions> &bufferRef)
-  {
+    init_properties(prop_list);
     detail::accessor::bind_to_buffer(*this, bufferRef);
 
-    if(T == access::target::host_buffer) {
+    if(accessTarget == access::target::host_buffer) {
       init_host_buffer();
     }
   }
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-(accessTarget == access::target::global_buffer || accessTarget ==
-access::target::constant_buffer)) && dimensions > 0 */
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer)) &&
-                            (D > 0)>* = nullptr>
-  accessor(buffer<dataT, dimensions> &bufferRef,
-           handler &commandGroupHandlerRef)
-  {
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, TagT tag,
+           const property_list &prop_list = {}) 
+  : accessor{bufferRef, prop_list} {}
+
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef,
+           const property_list &prop_list = {}) {
+
+    init_properties(prop_list);
     detail::accessor::bind_to_buffer(*this, bufferRef);
     detail::accessor::bind_to_handler(*this, commandGroupHandlerRef);
   }
 
-  /// Creates an accessor for a partial range of the buffer, described by an offset
-  /// and range.
-  ///
-  ///
-  /// Available only when: (isPlaceholder == access::placeholder::false_t &&
-  /// accessTarget == access::target::host_buffer) || (isPlaceholder ==
-  /// access::placeholder::true_t && (accessTarget == access::target::global_buffer
-  /// || accessTarget == access::target::constant_buffer)) && dimensions > 0 */
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                             T == access::target::host_buffer) ||
-                            ((P == access::placeholder::true_t &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer)) &&
-                            (D > 0)) >* = nullptr>
-  accessor(buffer<dataT, dimensions> &bufferRef,
-           range<dimensions> accessRange,
-           id<dimensions> accessOffset = {})
-  {
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef, TagT tag,
+           const property_list &prop_list = {})
+      : accessor{bufferRef, commandGroupHandlerRef, prop_list} {}
+
+  /* Ranged accessors */
+
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           range<dimensions> accessRange, const property_list &propList = {})
+  : accessor{bufferRef, accessRange, id<dimensions>{}, propList} {}
+
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           range<dimensions> accessRange, TagT tag,
+           const property_list &propList = {})
+  : accessor{bufferRef, accessRange, id<dimensions>{}, tag, propList} {}
+
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           range<dimensions> accessRange, id<dimensions> accessOffset,
+           const property_list &propList = {}) {
+    
+    _is_placeholder = true;
+
+    init_properties(propList);
     detail::accessor::bind_to_buffer(*this, bufferRef, accessOffset,
                                      accessRange);
 
-    if(T == access::target::host_buffer) {
+    if (accessTarget == access::target::host_buffer) {
       init_host_buffer();
     }
   }
 
-  /* Available only when: (isPlaceholder == access::placeholder::false_t &&
-(accessTarget == access::target::global_buffer || accessTarget ==
-access::target::constant_buffer)) && dimensions > 0 */
-  template<access::placeholder P = isPlaceholder,
-           access::target T = accessTarget,
-           int D = dimensions,
-           std::enable_if_t<(P == access::placeholder::false_t &&
-                            (T == access::target::global_buffer ||
-                             T == access::target::constant_buffer)) &&
-                            (D > 0)>* = nullptr>
-  accessor(buffer<dataT, dimensions> &bufferRef,
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           range<dimensions> accessRange, id<dimensions> accessOffset, TagT tag,
+           const property_list &propList = {})
+      : accessor{bufferRef, accessRange, accessOffset, propList} {}
+
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
            handler &commandGroupHandlerRef, range<dimensions> accessRange,
-           id<dimensions> accessOffset = {})
-  {
-    detail::accessor::bind_to_buffer(*this, bufferRef, accessOffset, accessRange);
+           const property_list &propList = {})
+      : accessor{bufferRef, commandGroupHandlerRef, accessRange,
+                 id<dimensions>{}, propList} {}
+
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef, range<dimensions> accessRange,
+           TagT tag, const property_list &propList = {})
+      : accessor{bufferRef, commandGroupHandlerRef, accessRange, propList} {}
+
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef, range<dimensions> accessRange,
+           id<dimensions> accessOffset, const property_list &propList = {}) {
+
+    init_properties(propList);
+    detail::accessor::bind_to_buffer(*this, bufferRef, accessOffset,
+                                     accessRange);
     detail::accessor::bind_to_handler(*this, commandGroupHandlerRef);
+
+    if (accessTarget == access::target::host_buffer) {
+      init_host_buffer();
+    }
   }
 
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0)> * = nullptr>
+  accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+           handler &commandGroupHandlerRef, range<dimensions> accessRange,
+           id<dimensions> accessOffset, TagT tag,
+           const property_list &propList = {})
+      : accessor{bufferRef, commandGroupHandlerRef, accessRange, accessOffset,
+                 propList} {}
+
+  HIPSYCL_UNIVERSAL_TARGET
   accessor(const accessor& other) = default;
+
+  HIPSYCL_UNIVERSAL_TARGET
   accessor& operator=(const accessor& other) = default;
 
+  // Implicit conversion from read-write accessor to const and non-const
+  // read-only accessor
+  template <access::placeholder P, access_mode M = accessmode,
+            std::enable_if_t<M == access_mode::read> * = nullptr>
+  HIPSYCL_UNIVERSAL_TARGET
+  accessor(const accessor<std::remove_const_t<dataT>, dimensions,
+                          access_mode::read_write, accessTarget, P> &other)
+      : detail::accessor_base<std::remove_const_t<dataT>>{other},
+        _buffer_range{other._buffer_range}, _range{other._range},
+        _offset{other._offset}, _is_no_init{other._is_no_init},
+        _is_placeholder{other._is_placeholder} {}
 
   /* -- common interface members -- */
-  HIPSYCL_UNIVERSAL_TARGET
-  friend bool operator==(const accessor &lhs, const accessor &rhs) {
+  HIPSYCL_UNIVERSAL_TARGET friend bool operator==(const accessor &lhs,
+                                                  const accessor &rhs) {
     bool buffer_same = true;
 
 #ifndef SYCL_DEVICE_ONLY
@@ -405,9 +485,9 @@ access::target::constant_buffer)) && dimensions > 0 */
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  constexpr bool is_placeholder() const
+  bool is_placeholder() const
   {
-    return isPlaceholder == access::placeholder::true_t;
+    return _is_placeholder;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -447,81 +527,30 @@ access::target::constant_buffer)) && dimensions > 0 */
   {
     return _offset;
   }
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions == 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write) &&
-                                       (D == 0)>>
+  
+  template<int D = dimensions,
+            std::enable_if_t<(D == 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  operator dataT &() const
+  operator reference() const
   {
     return *(this->_ptr.get());
   }
 
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions > 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write) &&
-                                       (D > 0)>>
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  dataT &operator[](id<dimensions> index) const
+  reference operator[](id<dimensions> index) const
   {
     return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)];
   }
 
-  /* Available only when: (accessMode == access::mode::write || accessMode ==
-access::mode::read_write || accessMode == access::mode::discard_write ||
-accessMode == access::mode::discard_read_write) && dimensions == 1) */
-
   template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(M == access::mode::write ||
-                                        M == access::mode::read_write ||
-                                        M == access::mode::discard_write ||
-                                        M == access::mode::discard_read_write)
-                                    && (D == 1)>>
+            std::enable_if_t<(D == 1), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  dataT &operator[](size_t index) const
+  reference operator[](size_t index) const
   {
     return (this->_ptr.get())[index];
   }
-
-
-  /* Available only when: accessMode == access::mode::read && dimensions == 0 */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           typename = std::enable_if_t<M == access::mode::read && D == 0>>
-  HIPSYCL_UNIVERSAL_TARGET
-  operator dataT() const
-  {
-    return *(this->_ptr.get());
-  }
-
-  /* Available only when: accessMode == access::mode::read && dimensions > 0 */
-  template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(D > 0) && (M == access::mode::read)>>
-  HIPSYCL_UNIVERSAL_TARGET
-  dataT operator[](id<dimensions> index) const
-  { return (this->_ptr.get())[detail::linear_id<dimensions>::get(index, _buffer_range)]; }
-
-  /* Available only when: accessMode == access::mode::read && dimensions == 1 */
-  template<int D = dimensions,
-           access::mode M = accessmode,
-           typename = std::enable_if_t<(D == 1) && (M == access::mode::read)>>
-  HIPSYCL_UNIVERSAL_TARGET
-  dataT operator[](size_t index) const
-  { return (this->_ptr.get())[index]; }
 
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
@@ -600,6 +629,24 @@ accessMode == access::mode::discard_read_write) && dimensions == 1) */
   }
 private:
 
+  access_mode get_effective_access_mode() const {
+    access_mode mode = accessmode;
+
+    if(mode == access_mode::atomic){
+      mode = access_mode::read_write;
+    }
+
+    if(_is_no_init) {
+      if(mode == access_mode::write) {
+        mode = access_mode::discard_write;
+      } else if(mode == access_mode::read_write) {
+        mode = access_mode::discard_read_write;
+      }
+    }
+
+    return mode;
+  }
+
   void init_host_buffer() {
     // TODO: Maybe unify code with handler::update_host()?
     HIPSYCL_DEBUG_INFO << "accessor [host]: Initializing host access" << std::endl;
@@ -617,8 +664,8 @@ private:
 
       auto explicit_requirement =
           rt::make_operation<rt::buffer_memory_requirement>(
-              data, rt::make_id(_offset), rt::make_range(_range), accessmode,
-              accessTarget);
+              data, rt::make_id(_offset), rt::make_range(_range),
+              get_effective_access_mode(), accessTarget);
 
       this->bind_to(
           rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get()));
@@ -659,14 +706,263 @@ private:
     }
     // TODO Need to lock execution of DAG
   }
-  
-  HIPSYCL_UNIVERSAL_TARGET
-  accessor(){}
+
+  void init_properties() {
+    if(accessmode == access_mode::discard_write ||
+       accessmode == access_mode::discard_read_write) {
+      _is_no_init = true;
+    }
+  }
+
+  void init_properties(const property_list& prop_list) {
+    init_properties();
+    if(prop_list.has_property<property::no_init>()) {
+      _is_no_init = true;
+    }
+  }
 
   range<dimensions> _buffer_range;
   range<dimensions> _range;
   id<dimensions> _offset;
+  bool _is_no_init = false;
+  bool _is_placeholder = false;
 };
+
+// Accessor deduction guides
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, TagT tag,
+          const property_list &prop_list = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::true_t>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         TagT tag, const property_list &prop_list = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::false_t>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         TagT tag, const property_list &propList = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::true_t>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         id<Dim> accessOffset, TagT tag, const property_list &propList = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::true_t>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         range<Dim> accessRange, TagT tag, const property_list &propList = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::false_t>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         range<Dim> accessRange, id<Dim> accessOffset, TagT tag,
+         const property_list &propList = {})
+    -> accessor<T, Dim, detail::deduce_access_mode<TagT>(),
+                detail::deduce_access_target<TagT>(),
+                access::placeholder::false_t>;
+
+//host_accessor implementation
+
+template <typename dataT, int dimensions = 1,
+          access_mode accessMode =
+              (std::is_const_v<dataT> ? access_mode::read
+                                      : access_mode::read_write)>
+class host_accessor {
+  using accessor_type =
+      accessor<dataT, dimensions, accessMode, target::host_buffer,
+               access::placeholder::false_t>;
+
+  template<typename DataT2, int Dim2, access_mode M2>
+  friend class host_accessor;
+
+  template<class TagT>
+  void validate_host_accessor_tag(TagT tag) {
+    static_assert(std::is_same_v<TagT, detail::read_only_tag_t> ||
+                  std::is_same_v<TagT, detail::write_only_tag_t> ||
+                  std::is_same_v<TagT, detail::read_write_tag_t>,
+                  "Invalid tag for host_accessor");
+  }
+public:
+  using value_type = typename accessor_type::value_type;
+  using reference = typename accessor_type::reference;
+  using const_reference = typename accessor_type::const_reference;
+
+  // using iterator = __unspecified_iterator__<value_type>;
+  // using const_iterator = __unspecified_iterator__<const value_type>;
+  // using reverse_iterator = std::reverse_iterator<iterator>;
+  // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  // using difference_type = typename
+  // std::iterator_traits<iterator>::difference_type;
+  using size_type = typename accessor_type::size_type;
+
+  host_accessor() = default;
+
+  /* Available only when: (dimensions == 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<D == 0, bool> = true>
+  host_accessor(buffer<dataT, 1, AllocatorT> &bufferRef,
+                const property_list &propList = {})
+      : _impl{bufferRef, propList} {}
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                const property_list &propList = {})
+      : _impl{bufferRef, propList} {}
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, TagT tag,
+                const property_list &propList = {})
+      : _impl{bufferRef, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, propList} {}
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, TagT tag,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, id<dimensions> accessOffset,
+                const property_list &propList = {})
+      : _impl{bufferRef, accessRange, accessOffset, propList} {}
+
+  /* Available only when: (dimensions > 0) */
+  template <typename AllocatorT, typename TagT, int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  host_accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef,
+                range<dimensions> accessRange, id<dimensions> accessOffset,
+                TagT tag, const property_list &propList = {})
+      : _impl{bufferRef, accessRange, accessOffset, tag, propList} {
+    validate_host_accessor_tag(tag);
+  }
+
+  // Conversion read-write -> read-only accessor
+  template <access_mode M = accessMode,
+            std::enable_if_t<M == access_mode::read, bool> = true>
+  host_accessor(const host_accessor<std::remove_const_t<dataT>, dimensions,
+                                    access_mode::read_write> &other)
+      : _impl{other._impl} {}
+
+  /* -- common interface members -- */
+
+  //void swap(host_accessor &other);
+
+  //size_type byte_size() const noexcept;
+
+  //size_type size() const noexcept;
+
+  //size_type max_size() const noexcept;
+
+  //bool empty() const noexcept;
+
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  range<dimensions> get_range() const {
+    return _impl.get_range();
+  }
+
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  id<dimensions> get_offset() const {
+    return _impl.get_offset();
+  }
+
+  /* Available only when: (dimensions == 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D == 0), bool> = true>
+  operator reference() const {
+    return *_impl.get_pointer();
+  }
+
+  /* Available only when: (dimensions > 0) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 0), bool> = true>
+  reference operator[](id<dimensions> index) const {
+    return _impl[index];
+  }
+
+  /* Available only when: (dimensions > 1) */
+  template<int D = dimensions,
+            std::enable_if_t<(D > 1), bool> = true>
+  auto operator[](size_t index) const {
+    return _impl[index];
+  }
+
+  /* Available only when: (dimensions == 1) */
+  template<int D = dimensions,
+            std::enable_if_t<(D == 1), bool> = true>
+  reference operator[](size_t index) const {
+    return _impl[index];
+  }
+
+  std::add_pointer_t<value_type> get_pointer() const noexcept {
+    return _impl.get_pointer();
+  }
+
+  // iterator begin() const noexcept;
+  // iterator end() const noexcept;
+  // const_iterator cbegin() const noexcept;
+  // const_iterator cend() const noexcept;
+  // reverse_iterator rbegin() const noexcept;
+  // reverse_iterator rend() const noexcept;
+  // const_reverse_iterator crbegin() const noexcept;
+  // const_reverse_iterator crend() const noexcept;
+
+private:
+  accessor_type _impl;
+};
+
+
+// host_accessor deduction guides
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, TagT tag,
+          const property_list &prop_list = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+              TagT tag, const property_list &propList = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
+
+template <typename T, int Dim, typename AllocatorT, typename TagT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         id<Dim> accessOffset, TagT tag, const property_list &propList = {})
+    -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
 
 /// Accessor specialization for local memory
 template <typename dataT,

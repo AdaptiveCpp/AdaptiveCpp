@@ -63,20 +63,20 @@ namespace sycl {
 
 namespace property::buffer {
 
-class use_host_ptr : public detail::property
+class use_host_ptr : public detail::buffer_property
 {
 public:
   use_host_ptr() = default;
 };
 
-class use_mutex : public detail::property
+class use_mutex : public detail::buffer_property
 {
 public:
   use_mutex(mutex_class& ref);
   mutex_class* get_mutex_ptr() const;
 };
 
-class context_bound : public detail::property
+class context_bound : public detail::buffer_property
 {
 public:
   context_bound(context bound_context)
@@ -91,14 +91,14 @@ private:
   context _ctx;
 };
 
-class use_optimized_host_memory : public detail::property
+class use_optimized_host_memory : public detail::buffer_property
 {};
 
 } // property::buffer
 
 namespace detail::buffer_policy {
 
-class destructor_waits : public property
+class destructor_waits : public buffer_property
 { 
 public: 
   destructor_waits(bool v): _v{v}{} 
@@ -107,7 +107,7 @@ private:
   bool _v;
 };
 
-class writes_back : public property
+class writes_back : public buffer_property
 { 
 public: 
   writes_back(bool v): _v{v}{} 
@@ -116,7 +116,7 @@ private:
   bool _v;
 };
 
-class use_external_storage : public property
+class use_external_storage : public buffer_property
 { 
 public: 
   use_external_storage(bool v): _v{v}{} 
@@ -230,8 +230,7 @@ template <class T> struct buffer_allocation {
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
-template <typename T, int dimensions,
-          typename AllocatorT>
+template <typename T, int dimensions, typename AllocatorT>
 class buffer : public detail::property_carrying_object
 {
 public:
@@ -279,7 +278,7 @@ public:
     : buffer(bufferRange, propList)
   { _alloc = allocator; }
 
-  buffer(T *hostData, const range<dimensions> &bufferRange,
+  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
     : detail::property_carrying_object{propList}
   {
@@ -300,17 +299,16 @@ public:
     }
   }
 
-  buffer(T *hostData, const range<dimensions> &bufferRange,
+  buffer(std::remove_const_t<T> *hostData, const range<dimensions> &bufferRange,
          AllocatorT allocator, const property_list &propList = {})
-    : buffer{hostData, bufferRange, propList}
-  {
+      : buffer{hostData, bufferRange, propList} {
     _alloc = allocator;
   }
 
+  template <class t = T, std::enable_if_t<!std::is_const_v<t>, bool> = true>
   buffer(const T *hostData, const range<dimensions> &bufferRange,
          const property_list &propList = {})
-    : detail::property_carrying_object{propList}
-  {
+      : detail::property_carrying_object{propList} {
     _impl = std::make_shared<detail::buffer_impl>();
 
     default_policies dpol;
@@ -417,6 +415,12 @@ public:
     assert(false && "subbuffer is unimplemented");
   }
 
+  // Allow conversion to buffer<const T> from buffer<T>
+  template <class t = T, std::enable_if_t<std::is_const_v<t>, bool> = true>
+  buffer(const buffer<std::remove_const_t<T>, dimensions, AllocatorT> &other)
+      : _alloc{other._alloc}, _range{other._range}, _impl{other._impl},
+        detail::property_carrying_object{other} {}
+
   range<dimensions> get_range() const
   {
     return _range;
@@ -437,28 +441,31 @@ public:
     return _alloc;
   }
 
-  template <access::mode mode, access::target target = access::target::global_buffer>
-  accessor<T, dimensions, mode, target> get_access(handler &commandGroupHandler)
-  {
+  template <access_mode mode = access_mode::read_write,
+            access::target target = access::target::device>
+  accessor<T, dimensions, mode, target>
+  get_access(handler &commandGroupHandler) {
     return accessor<T, dimensions, mode, target>{*this, commandGroupHandler};
   }
 
+  // Deprecated
   template <access::mode mode>
   accessor<T, dimensions, mode, access::target::host_buffer> get_access()
   {
     return accessor<T, dimensions, mode, access::target::host_buffer>{*this};
   }
 
-  template <access::mode mode, access::target target = access::target::global_buffer>
-  accessor<T, dimensions, mode, target> get_access(
-      handler &commandGroupHandler, range<dimensions> accessRange,
-      id<dimensions> accessOffset = {})
-  {
+  template <access_mode mode = access_mode::read_write,
+            access::target target = access::target::device>
+  accessor<T, dimensions, mode, target>
+  get_access(handler &commandGroupHandler, range<dimensions> accessRange,
+             id<dimensions> accessOffset = {}) {
     return accessor<T, dimensions, mode, target>{
       *this, commandGroupHandler, accessRange, accessOffset
     };
   }
 
+  // Deprecated
   template <access::mode mode>
   accessor<T, dimensions, mode, access::target::host_buffer> get_access(
       range<dimensions> accessRange, id<dimensions> accessOffset = {})
@@ -466,6 +473,16 @@ public:
     return accessor<T, dimensions, mode, access::target::host_buffer>{
       *this, accessRange, accessOffset
     };
+  }
+
+  template<typename... Args>
+  auto get_access(Args... args) {
+    return accessor{*this, args...};
+  }
+
+  template<typename... Args>
+  auto get_host_access(Args... args) {
+    return host_accessor{*this, args...};
   }
 
   void set_final_data(std::shared_ptr<T> finalData)

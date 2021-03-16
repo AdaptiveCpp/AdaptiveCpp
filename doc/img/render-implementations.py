@@ -3,11 +3,12 @@ from graphviz import Digraph
 import colorsys
 import math
 
-layout = "top-bottom"
-#layout = "left-right"
+#layout = "top-bottom"
+layout = "left-right"
 #display_mode = "shared-nodes"
-#display_mode = "no-hardware-nodes"
-display_mode = "no-shared-nodes"
+display_mode = "no-hardware-nodes"
+#display_mode = "no-shared-nodes"
+outputformat = "svg"
 
 default_tailport="s"
 default_headport="n"
@@ -155,7 +156,7 @@ def add_implementation(graph, id_name, color, secondary_color, backends, descrip
 
 
 if __name__ == '__main__':
-  graph = Digraph(node_attr={'shape': 'record', 'height': '.9'}, engine='dot', format='png')
+  graph = Digraph(node_attr={'shape': 'record', 'height': '.9'}, engine='dot', format=outputformat)
 
 
   ranksep=1.2
@@ -166,7 +167,10 @@ if __name__ == '__main__':
   if layout == "left-right":
     rankdir = "LR"
 
-  graph.attr('graph', mclimit='1000', ranksep=str(ranksep), dpi="250", rankdir=rankdir)
+  if outputformat != "svg":
+    graph.attr('graph', mclimit='1000', ranksep=str(ranksep), dpi="250", rankdir=rankdir)
+  else:
+    graph.attr('graph', mclimit='1000', ranksep=str(ranksep), rankdir=rankdir)
 
   root_color = make_html_color("d5e8d4")
   graph.node("root", "SYCL source code", shape='box', color=str(root_color),

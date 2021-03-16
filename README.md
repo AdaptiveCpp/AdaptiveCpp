@@ -21,7 +21,7 @@ For example, the hipSYCL CUDA and ROCm backends rely on the clang CUDA/HIP front
 Because a SYCL program compiled with hipSYCL looks just like any other CUDA or HIP program to vendor-provided software, vendor tools such as profilers or debuggers also work well with hipSYCL.
 
 The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
-<img src="doc/img/sycl-targets.png" width=60% height=60%>
+<img src="doc/img/sycl-targets.svg" width=70% height=70%>
 
 
 ## About the project

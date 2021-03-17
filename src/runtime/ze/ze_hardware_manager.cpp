@@ -270,6 +270,9 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::little_endian:
     return true;
     break;
+  case device_support_aspect::sub_group_independent_forward_progress:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -291,6 +294,16 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::max_group_size:
     return _compute_props.maxTotalGroupSize;
+    break;
+  case device_uint_property::max_num_sub_groups:
+    {
+      std::size_t min_subgroup_size = std::numeric_limits<std::size_t>::max();
+      for(int i = 0; i < _compute_props.numSubGroupSizes; ++i){
+        if(_compute_props.subGroupSizes[i] < min_subgroup_size)
+          min_subgroup_size = _compute_props.subGroupSizes[i];
+      }
+      return _compute_props.maxTotalGroupSize / min_subgroup_size;
+    }
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
@@ -404,6 +417,23 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
     return 0;
     break;
   }
+  assert(false && "Invalid device property");
+  std::terminate();
+}
+
+std::vector<std::size_t>
+ze_hardware_context::get_property(device_uint_list_property prop) const {
+  switch(prop) {
+  case device_uint_list_property::sub_group_sizes:
+    {
+      std::vector<std::size_t> result(_compute_props.numSubGroupSizes);
+      for(int i = 0; i < _compute_props.numSubGroupSizes; ++i)
+        result[i] = _compute_props.subGroupSizes[i];
+      return result;
+    }
+    break;
+  }
+
   assert(false && "Invalid device property");
   std::terminate();
 }

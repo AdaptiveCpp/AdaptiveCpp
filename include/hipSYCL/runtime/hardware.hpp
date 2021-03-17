@@ -43,7 +43,8 @@ enum class device_support_aspect {
   global_mem_cache,
   global_mem_cache_read_only,
   global_mem_cache_write_only,
-  emulated_local_memory
+  emulated_local_memory,
+  sub_group_independent_forward_progress
 };
 
 enum class device_uint_property {
@@ -53,8 +54,6 @@ enum class device_uint_property {
   max_global_size2,
   max_group_size,
   max_num_sub_groups,
-  sub_group_independent_forward_progress,
-  sub_group_size,
   preferred_vector_width_char,
   preferred_vector_width_double,
   preferred_vector_width_float,
@@ -99,6 +98,10 @@ enum class device_uint_property {
   partition_max_sub_devices
 };
 
+enum class device_uint_list_property {
+  sub_group_sizes
+};
+
 class hardware_context
 {
 public:
@@ -116,7 +119,12 @@ public:
   virtual std::string get_device_arch() const = 0;
 
   virtual bool has(device_support_aspect aspect) const = 0;
+  
   virtual std::size_t get_property(device_uint_property prop) const = 0;
+
+  virtual std::vector<std::size_t>
+  get_property(device_uint_list_property prop) const = 0;
+
   virtual std::string get_driver_version() const = 0;
   virtual std::string get_profile() const = 0;
   

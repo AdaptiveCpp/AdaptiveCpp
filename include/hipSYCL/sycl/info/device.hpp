@@ -181,7 +181,7 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_group_size, size_t);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_num_sub_groups, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_independent_forward_progress, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_sizes, vector_class<size_t>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_sizes, std::vector<size_t>);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_char, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_double, detail::u_int);
@@ -219,9 +219,9 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_samplers, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_parameter_size, size_t);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::mem_base_addr_align, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::half_fp_config, vector_class<fp_config>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::single_fp_config, vector_class<fp_config>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::double_fp_config, vector_class<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::half_fp_config, std::vector<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::single_fp_config, std::vector<fp_config>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::double_fp_config, std::vector<fp_config>);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_type, global_mem_cache_type);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_line_size, detail::u_int);
@@ -241,9 +241,9 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_endian_little, bool);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_available, bool);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_compiler_available, bool);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_linker_available, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::execution_capabilities, vector_class<execution_capability>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::execution_capabilities, std::vector<execution_capability>);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::queue_profiling, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::built_in_kernels, vector_class<string_class>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::built_in_kernels, std::vector<string_class>);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::platform, sycl::platform);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::name, string_class);
@@ -252,14 +252,14 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::driver_version, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profile, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::version, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::opencl_c_version, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, vector_class<string_class>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, std::vector<string_class>);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::printf_buffer_size, size_t);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_interop_user_sync, bool);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::parent_device, sycl::device);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_max_sub_devices, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_properties, vector_class<partition_property>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_affinity_domains, vector_class<partition_affinity_domain>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_properties, std::vector<partition_property>);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_affinity_domains, std::vector<partition_affinity_domain>);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_property, partition_property);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_affinity_domain, partition_affinity_domain);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::reference_count, detail::u_int);

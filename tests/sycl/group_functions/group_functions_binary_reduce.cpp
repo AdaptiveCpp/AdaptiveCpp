@@ -28,7 +28,7 @@
 
 #include "../sycl_test_suite.hpp"
 #include "group_functions.hpp"
-#include <bits/types/locale_t.h>
+
 #include <cstddef>
 
 using namespace cl;

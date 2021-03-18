@@ -789,7 +789,7 @@ private:
   {}
 
   template <class OtherT, int OtherDim>
-  void init_from(const buffer<OtherT, OtherDim> &other) {
+  void init_from(const buffer<OtherT, OtherDim, AllocatorT> &other) {
     detail::property_carrying_object::operator=(other);
     this->_alloc = other._alloc;
     this->_range = other._range;
@@ -839,11 +839,17 @@ private:
 
   void init(const range<dimensions>& range)
   {
-
-    this->init_data_backend(range);
-    // necessary to preallocate to make sure potential optimized memory
-    // can be allocated
-    preallocate_host_buffer();
+    if(range.size() > 0) {
+      this->init_data_backend(range);
+      // necessary to preallocate to make sure potential optimized memory
+      // can be allocated
+      preallocate_host_buffer();
+    } else {
+      sycl::range<dimensions> default_range;
+      for(int i = 0; i < dimensions; ++i)
+        default_range[i] = 1;
+      this->init_data_backend(default_range);
+    }
   }
 
   void init(const range<dimensions>& range, T* host_memory)

@@ -391,14 +391,20 @@ public:
     _alloc = allocator;
 
     std::size_t num_elements = std::distance(first, last);
-    std::vector<T> contiguous_buffer(num_elements);
-    std::copy(first, last, contiguous_buffer.begin());
 
     // Construct buffer
     this->init(range<1>{num_elements});
 
-    // Only use hostData for initialization
-    copy_host_content(contiguous_buffer.data());
+    // Work around vector<bool> specialization..
+    if constexpr(std::is_same_v<bool, std::remove_const_t<T>>){
+      std::vector<char> contiguous_buffer(num_elements);
+      std::copy(first, last, reinterpret_cast<T*>(&(contiguous_buffer[0])));
+      copy_host_content(reinterpret_cast<T*>(contiguous_buffer.data()));
+    } else {
+      std::vector<T> contiguous_buffer(num_elements);
+      std::copy(first, last, contiguous_buffer.begin());
+      copy_host_content(contiguous_buffer.data());
+    }
   }
 
   template <class InputIterator, int D = dimensions,
@@ -705,14 +711,20 @@ private:
   template <typename Destination = std::nullptr_t>
   void set_write_back_target(Destination finalData = nullptr)
   {
-    if (finalData != nullptr) {
+    if constexpr(std::is_pointer_v<Destination>){
+      if (finalData) {
+        enable_write_back(true);
+      }
+      else {
+        enable_write_back(false);
+      }
+
+      _impl->writeback_ptr = finalData;
+    } else {
+      // Assume it is an iterator to contiguous memory
       enable_write_back(true);
+      _impl->writeback_ptr = &(*finalData);
     }
-    else {
-      enable_write_back(false);
-    }
-    
-    _impl->writeback_ptr = finalData;
   }
 
   void enable_write_back(bool flag) {

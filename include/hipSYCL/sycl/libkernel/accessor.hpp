@@ -978,18 +978,22 @@ class accessor<
 {
   using address = detail::local_memory::address;
 public:
-  static_assert(isPlaceholder == access::placeholder::false_t,
-                "Local accessors cannot be placeholders.");
 
-  using value_type = dataT;
-  using reference = dataT &;
+  using value_type =
+      typename detail::accessor::accessor_data_type<dataT, accessmode>::value;
+  using reference = value_type &;
   using const_reference = const dataT &;
+  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
+  // TODO difference_type
+  using size_type = size_t;
 
+
+  accessor() = default;
 
   /* Available only when: dimensions == 0 */
   template<int D = dimensions,
            typename std::enable_if_t<D == 0>* = nullptr>
-  accessor(handler &commandGroupHandlerRef)
+  accessor(handler &commandGroupHandlerRef, const property_list& p = {})
     : _addr{detail::handler::allocate_local_mem<dataT>(
               commandGroupHandlerRef,1)}
   {}
@@ -998,7 +1002,7 @@ public:
   template<int D = dimensions,
            typename std::enable_if_t<(D > 0)>* = nullptr>
   accessor(range<dimensions> allocationSize,
-           handler &commandGroupHandlerRef)
+           handler &commandGroupHandlerRef, const property_list& p = {})
     : _addr{detail::handler::allocate_local_mem<dataT>(
               commandGroupHandlerRef,
               allocationSize.size())},
@@ -1030,36 +1034,28 @@ public:
     return _num_elements.size();
   }
 
-  /* Available only when: accessMode == access::mode::read_write && dimensions == 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           std::enable_if_t<M == access::mode::read_write &&
-                            D == 0>* = nullptr>
+  
+  template<int D = dimensions,
+           std::enable_if_t<D == 0, bool> = false>
   HIPSYCL_KERNEL_TARGET
-  operator dataT &() const
+  operator reference() const
   {
     return *detail::local_memory::get_ptr<dataT>(_addr);
   }
 
-  /* Available only when: accessMode == access::mode::read_write && dimensions > 0) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           std::enable_if_t<M == access::mode::read_write &&
-                            (D > 0)>* = nullptr>
+  template<int D = dimensions,
+           std::enable_if_t<(D > 0)>* = nullptr>
   HIPSYCL_KERNEL_TARGET
-  dataT &operator[](id<dimensions> index) const
+  reference operator[](id<dimensions> index) const
   {
     return *(detail::local_memory::get_ptr<dataT>(_addr) +
         detail::linear_id<dimensions>::get(index, _num_elements));
   }
 
-  /* Available only when: accessMode == access::mode::read_write && dimensions == 1) */
-  template<access::mode M = accessmode,
-           int D = dimensions,
-           std::enable_if_t<M == access::mode::read_write &&
-                            D == 1>* = nullptr>
+  template<int D = dimensions,
+           std::enable_if_t<D == 1>* = nullptr>
   HIPSYCL_KERNEL_TARGET
-  dataT &operator[](size_t index) const
+  reference operator[](size_t index) const
   {
     return *(detail::local_memory::get_ptr<dataT>(_addr) + index);
   }

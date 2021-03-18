@@ -163,7 +163,7 @@ template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T init,
+OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T init,
                        BinaryOperation binary_op) {
   return detail::exclusive_scan(g, first, last, result, init, binary_op);
 }
@@ -181,7 +181,7 @@ template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
+OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                        BinaryOperation binary_op, T init) {
   return detail::inclusive_scan(g, first, last, result, init, binary_op);
 }

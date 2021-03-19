@@ -47,10 +47,10 @@ public:
   /// Inserts an event into the stream
   virtual std::unique_ptr<dag_node_event> insert_event() = 0;
 
-  virtual result submit_memcpy(const memcpy_operation&) = 0;
-  virtual result submit_kernel(const kernel_operation&) = 0;
-  virtual result submit_prefetch(const prefetch_operation &) = 0;
-  virtual result submit_memset(const memset_operation&) = 0;
+  virtual result submit_memcpy(const memcpy_operation&, dag_node_ptr) = 0;
+  virtual result submit_kernel(const kernel_operation&, dag_node_ptr) = 0;
+  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) = 0;
+  virtual result submit_memset(const memset_operation&, dag_node_ptr) = 0;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend

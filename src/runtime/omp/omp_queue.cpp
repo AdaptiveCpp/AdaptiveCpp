@@ -91,7 +91,7 @@ std::unique_ptr<dag_node_event> omp_queue::insert_event() {
   return evt;
 }
 
-result omp_queue::submit_memcpy(const memcpy_operation &op) {
+result omp_queue::submit_memcpy(const memcpy_operation &op, dag_node_ptr) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
 
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
@@ -185,7 +185,7 @@ result omp_queue::submit_memcpy(const memcpy_operation &op) {
   return make_success();
 }
 
-result omp_queue::submit_kernel(const kernel_operation &op) {
+result omp_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
   rt::backend_kernel_launcher *launcher = 
@@ -198,15 +198,16 @@ result omp_queue::submit_kernel(const kernel_operation &op) {
         error_type::runtime_error});
   }
 
+  rt::dag_node* node_ptr = node.get();
   _worker([=]() {
     HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
-    launcher->invoke();
+    launcher->invoke(node_ptr);
   });
 
   return make_success();
 }
 
-result omp_queue::submit_prefetch(const prefetch_operation &) {
+result omp_queue::submit_prefetch(const prefetch_operation &, dag_node_ptr) {
   HIPSYCL_DEBUG_INFO
       << "omp_queue: Received prefetch submission request, ignoring"
       << std::endl;
@@ -216,7 +217,7 @@ result omp_queue::submit_prefetch(const prefetch_operation &) {
   return make_success();
 }
 
-result omp_queue::submit_memset(const memset_operation & op) {
+result omp_queue::submit_memset(const memset_operation & op, dag_node_ptr) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();

@@ -31,8 +31,10 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
 #include "backend.hpp"
@@ -57,7 +59,7 @@ public:
   virtual backend_id get_backend() const = 0;
   virtual kernel_type get_kernel_type() const = 0;
   virtual void set_params(void*) = 0;
-  virtual void invoke() = 0;
+  virtual void invoke(dag_node* node) = 0;
 };
 
 class kernel_launcher
@@ -70,8 +72,8 @@ public:
 
   kernel_launcher(const kernel_launcher &) = delete;
 
-  void invoke(backend_id id) const {
-    find_launcher(id)->invoke();
+  void invoke(backend_id id, rt::dag_node_ptr node) const {
+    find_launcher(id)->invoke(node.get());
   }
 
   backend_kernel_launcher* find_launcher(backend_id id) const {

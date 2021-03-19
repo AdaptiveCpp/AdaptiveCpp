@@ -28,10 +28,11 @@
 #ifndef HIPSYCL_OPERATIONS_HPP
 #define HIPSYCL_OPERATIONS_HPP
 
+#include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/common/debug.hpp"
 
-#include "hipSYCL/glue/deferred_pointer.hpp"
+#include "hipSYCL/glue/embedded_pointer.hpp"
 
 #include "data.hpp"
 #include "event.hpp"
@@ -66,10 +67,10 @@ class memset_operation;
 class operation_dispatcher
 {
 public:
-  virtual result dispatch_kernel(kernel_operation* op) = 0;
-  virtual result dispatch_memcpy(memcpy_operation* op) = 0;
-  virtual result dispatch_prefetch(prefetch_operation *op) = 0;
-  virtual result dispatch_memset(memset_operation* op) = 0;
+  virtual result dispatch_kernel(kernel_operation* op, dag_node_ptr node) = 0;
+  virtual result dispatch_memcpy(memcpy_operation* op, dag_node_ptr node) = 0;
+  virtual result dispatch_prefetch(prefetch_operation *op, dag_node_ptr node) = 0;
+  virtual result dispatch_memset(memset_operation* op, dag_node_ptr node) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -87,7 +88,7 @@ public:
     return false;
   }
 
-  virtual result dispatch(operation_dispatcher* dispatch) = 0;
+  virtual result dispatch(operation_dispatcher* dispatch, dag_node_ptr node) = 0;
 };
 
 
@@ -99,7 +100,7 @@ public:
   virtual bool is_requirement() const final override
   { return true; }
 
-  virtual result dispatch(operation_dispatcher *dispatch) final override {
+  virtual result dispatch(operation_dispatcher *dispatch, dag_node_ptr node) final override {
     assert(false && "Cannot dispatch implicit requirements");
     return make_success();
   }
@@ -134,7 +135,6 @@ public:
   { return !is_image_requirement(); }
 };
 
-
 class buffer_memory_requirement : public memory_requirement
 {
 public:
@@ -146,7 +146,7 @@ public:
                             sycl::access::target access_target)
       : _mem_region{mem_region}, _element_size{mem_region->get_element_size()},
         _mode{access_mode}, _target{access_target}, _dimensions{Dim},
-        _device_data_location{nullptr}
+        _device_data_location{nullptr}, _bound_embedded_ptr_id{0}
   {
     static_assert(Dim >= 1 && Dim <=3, 
       "dimension of buffer memory requirement must be between 1 and 3");
@@ -214,17 +214,66 @@ public:
     return page_ranges_intersect(other_page_range);
   }
 
-  bool has_device_data_location() const {
+  bool has_device_ptr() const {
     return _device_data_location != nullptr;
   }
 
+  // Whether the requirement has been bound to an embedded_pointer uid
+  bool is_bound() const {
+    for(std::size_t i = 0; i < glue::unique_id::num_components; ++i) {
+      if(_bound_embedded_ptr_id.id[i] != 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void initialize_device_data(void *location) {
-    assert(!has_device_data_location());
+    assert(!has_device_ptr());
     _device_data_location = location;
   }
 
-  template <class T> glue::deferred_pointer<T> make_deferred_pointer() const {
-    return glue::deferred_pointer<T>{const_cast<void**>(&_device_data_location)};
+  void* get_device_ptr() const {
+    return _device_data_location;
+  }
+
+  void bind(glue::unique_id uid) {
+    if(is_bound()) {
+      HIPSYCL_DEBUG_WARNING
+          << "buffer_memory_requirement: Rebinding requirement to different "
+              "embedded pointer/accessor, this should not happen."
+          << std::endl;
+    }
+    _bound_embedded_ptr_id = uid;
+  }
+
+  // Given a kernel blob, identifies embedded pointers that are bound
+  // to this requirement and initializes them.
+  template<class KernelBlob>
+  void initialize_bound_embedded_pointers(KernelBlob& blob) {
+    if(is_bound()) {
+      if(!has_device_ptr()) {
+        register_error(
+            __hipsycl_here(),
+            error_info{
+                "buffer_memory_requirement: Attempted to initialize kernel "
+                "blob without having a device pointer available"});
+      } else {
+
+        HIPSYCL_DEBUG_INFO << "buffer_memory_requirement: Attempting to "
+                              "initialize embedded pointers for requirement "
+                           << this << std::endl;
+
+        if (!glue::kernel_blob::initialize_embedded_pointer(
+                blob, _bound_embedded_ptr_id, get_device_ptr())) {
+          HIPSYCL_DEBUG_WARNING
+              << "buffer_memory_requirement: Could not find embedded pointer "
+                 "in kernel blob for this requirement; do you have unnecessary "
+                 "accessors that are unused in your kernel?"
+              << std::endl;
+        }
+      }
+    }
   }
   
   void dump(std::ostream & ostr, int indentation=0) const override;
@@ -249,6 +298,8 @@ private:
   }
 
   std::shared_ptr<buffer_data_region> _mem_region;
+
+
   id<3> _offset;
   range<3> _range;
   std::size_t _element_size;
@@ -257,6 +308,7 @@ private:
   int _dimensions;
 
   void* _device_data_location;
+  glue::unique_id _bound_embedded_ptr_id;
 };
 
 
@@ -277,8 +329,22 @@ public:
 
   void dump(std::ostream & ostr, int indentation=0) const override;
 
-  result dispatch(operation_dispatcher* dispatcher) override {
-    return dispatcher->dispatch_kernel(this);
+  result dispatch(operation_dispatcher* dispatcher, dag_node_ptr node) override {
+    return dispatcher->dispatch_kernel(this, node);
+  }
+
+  template<class Kernel>
+  void initialize_embedded_pointers(Kernel& kernel_body) {
+    for(auto* req : _requirements) {
+      if(req->is_buffer_requirement()){
+        buffer_memory_requirement *bmem_req =
+            static_cast<buffer_memory_requirement *>(req);
+
+        if(bmem_req->is_bound()) {
+          bmem_req->initialize_bound_embedded_pointers(kernel_body);
+        }
+      }
+    }
   }
 
 private:
@@ -348,8 +414,9 @@ public:
   const memory_location &dest() const;
 
   virtual bool is_data_transfer() const final override;
-  virtual result dispatch(operation_dispatcher* op) final override {
-    return op->dispatch_memcpy(this);
+  virtual result dispatch(operation_dispatcher *op,
+                          dag_node_ptr node) final override {
+    return op->dispatch_memcpy(this, node);
   }
   void dump(std::ostream &ostr, int indentation = 0) const override final;
 
@@ -378,8 +445,9 @@ public:
   prefetch_operation(const void *ptr, std::size_t num_bytes, device_id target)
       : _ptr{ptr}, _num_bytes{num_bytes}, _target{target} {}
 
-  result dispatch(operation_dispatcher* dispatcher) final override {
-    return dispatcher->dispatch_prefetch(this);
+  result dispatch(operation_dispatcher *dispatcher,
+                  dag_node_ptr node) final override {
+    return dispatcher->dispatch_prefetch(this, node);
   }
 
   const void *get_pointer() const { return _ptr; }
@@ -398,9 +466,10 @@ class memset_operation : public operation {
 public:
   memset_operation(void *ptr, unsigned char pattern, std::size_t num_bytes)
       : _ptr{ptr}, _pattern{pattern}, _num_bytes{num_bytes} {}
-  
-  result dispatch(operation_dispatcher* dispatcher) final override {
-    return dispatcher->dispatch_memset(this);
+
+  result dispatch(operation_dispatcher *dispatcher,
+                  dag_node_ptr node) final override {
+    return dispatcher->dispatch_memset(this, node);
   }
 
   void *get_pointer() const { return _ptr; }

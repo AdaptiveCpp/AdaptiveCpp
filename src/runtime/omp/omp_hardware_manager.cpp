@@ -26,8 +26,19 @@
  */
 
 
-#include <omp.h>
+#include <array>
+#include <cstring>
 #include <limits>
+#include <omp.h>
+#include <string>
+
+#if defined(__x86_64__) || defined(__i386__)
+#ifdef _WIN32
+  #include <intrin.h>
+#else
+  #include <cpuid.h>
+#endif
+#endif
 
 #include "hipSYCL/runtime/omp/omp_hardware_manager.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -36,6 +47,59 @@
 namespace hipsycl {
 namespace rt {
 
+static std::string get_cpu_name()
+{
+#if defined(__x86_64__) || defined(__i386__)
+  // adapted from https://stackoverflow.com/a/64422512/3452807
+  // 4 is essentially hardcoded due to the __cpuid function requirements.
+  // NOTE: Results are limited to whatever the sizeof(int) * 4 is...
+  std::array<int, 4> integerBuffer = {};
+  constexpr size_t sizeofIntegerBuffer = sizeof(int) * integerBuffer.size();
+
+  std::array<char, sizeofIntegerBuffer + 1> charBuffer = {};
+
+  constexpr std::array<unsigned int, 3> functionIds = {
+    0x8000'0002,
+    0x8000'0003,
+    0x8000'0004
+  };
+
+  std::string cpu;
+
+  // query how many ids we have
+  #ifdef _WIN32
+    __cpuid(integerBuffer.data(), 0x80000000);
+  #else
+  __cpuid(0x80000000, integerBuffer[0],integerBuffer[1], integerBuffer[2], integerBuffer[3]);
+  #endif
+  const unsigned int nExIds = integerBuffer[0];
+
+  for (unsigned int id : functionIds)
+  {
+    if(nExIds < id)
+      break;
+
+    // Get the data for the current ID.
+    #ifdef _WIN32
+    __cpuid(integerBuffer.data(), id);
+    #else
+    __cpuid(id, integerBuffer[0], integerBuffer[1], integerBuffer[2], integerBuffer[3]);
+    #endif
+    
+    // Copy the raw data from the integer buffer into the character buffer
+    std::memcpy(charBuffer.data(), integerBuffer.data(), sizeofIntegerBuffer);
+    cpu += std::string(charBuffer.data());
+  }
+
+  // might have a bunch of whitespaces
+  const std::string typeOfWhitespaces{" \t\n\r\f\v"};
+  cpu.erase(cpu.find_last_not_of(typeOfWhitespaces) + 1);
+  cpu.erase(0,cpu.find_first_not_of(typeOfWhitespaces));
+  return " (" + cpu + ")";
+#else
+  return "";
+#endif
+}
 
 bool omp_hardware_context::is_cpu() const {
   return true;
@@ -55,7 +119,7 @@ std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
 }
 
 std::string omp_hardware_context::get_device_name() const {
-  return "hipSYCL OpenMP host device";
+  return "hipSYCL OpenMP host device" + get_cpu_name();
 }
 
 std::string omp_hardware_context::get_vendor_name() const {

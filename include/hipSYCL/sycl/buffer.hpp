@@ -42,6 +42,8 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/device.hpp"
@@ -158,32 +160,31 @@ struct buffer_impl
             << "buffer_impl::~buffer_impl: Preparing submission of writeback..."
             << std::endl;
         
-        rt::dag_build_guard build{rt::application::dag()};
+        if (data->has_allocation(get_host_device()) &&
+            (data->get_memory(get_host_device()) != this->writeback_ptr)) {
+          // We are writing back to an external location, i.e. a location
+          // set with set_final_data()
+          // TODO Currently, we are requesting an host update and then
+          // submit an explicit copy to writeback_ptr.
+          // We could directly copy from device if
+          // there is a device that has up-to-date data.
+          submit_copy(detail::get_host_device(), writeback_ptr);
+        } else {
+          rt::dag_build_guard build{rt::application::dag()};
 
-        auto explicit_requirement =
-            rt::make_operation<rt::buffer_memory_requirement>(
-                data, rt::id<3>{}, data->get_num_elements(),
-                sycl::access::mode::read, sycl::access::target::host_buffer);
+          auto explicit_requirement =
+              rt::make_operation<rt::buffer_memory_requirement>(
+                  data, rt::id<3>{}, data->get_num_elements(),
+                  sycl::access::mode::read, sycl::access::target::host_buffer);
 
-        rt::execution_hints enforce_bind_to_host;
-        enforce_bind_to_host.add_hint(
-            rt::make_execution_hint<rt::hints::bind_to_device>(
-                detail::get_host_device()));
+          rt::execution_hints enforce_bind_to_host;
+          enforce_bind_to_host.add_hint(
+              rt::make_execution_hint<rt::hints::bind_to_device>(
+                  detail::get_host_device()));
 
-        build.builder()->add_explicit_mem_requirement(
-            std::move(explicit_requirement), rt::requirements_list{},
-            enforce_bind_to_host);
-
-        // TODO what about writeback to external location set with
-        // set_final_data()? -> need to submit an explicit copy
-        // TODO Accessing the data allocations directly here is racy
-        // since they might be modified during a DAG flush operation
-        // simultaneously
-        if(data->has_allocation(get_host_device())){
-          if(data->get_memory(get_host_device()) != this->writeback_ptr){
-            assert(false && "Writing back to external locations (not passed to "
-                            "buffer at construction) is unimplemented");
-          }
+          build.builder()->add_explicit_mem_requirement(
+              std::move(explicit_requirement), rt::requirements_list{},
+              enforce_bind_to_host);
         }
       }
     }
@@ -210,6 +211,41 @@ struct buffer_impl
       }
     }
   }
+private:
+  
+  rt::dag_node_ptr submit_copy(rt::device_id source_dev, void* dest) {
+
+    std::shared_ptr<rt::buffer_data_region> data_src = this->data;
+
+    rt::dag_build_guard build{rt::application::dag()};
+    rt::execution_hints hints;
+    hints.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(source_dev));
+    rt::requirements_list reqs;
+
+    auto req = std::make_unique<rt::buffer_memory_requirement>(
+        data_src, rt::id<3>{}, data_src->get_num_elements(), access_mode::read,
+        target::device);
+
+    reqs.add_requirement(std::move(req));
+
+    rt::memory_location source_location{source_dev, rt::id<3>{},
+                                        data_src};
+    
+    rt::memory_location dest_location{detail::get_host_device(), dest,
+                                      rt::id<3>{}, data_src->get_num_elements(),
+                                      data_src->get_element_size()};
+
+    auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
+        source_location, dest_location, data_src->get_num_elements());
+
+    rt::dag_node_ptr node = build.builder()->add_memcpy(
+        std::move(explicit_copy), reqs, hints);
+
+    return node;
+
+  }
+
 };
 
 }

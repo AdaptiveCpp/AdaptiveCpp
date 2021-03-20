@@ -19,6 +19,7 @@ add_library(hipSYCL-rt SHARED
   dag_direct_scheduler.cpp
   dag_manager.cpp
   dag_submitted_ops.cpp
+  settings.cpp
   generic/async_worker.cpp
   hw_model/memcpy.cpp
   serialization/serialization.cpp)

@@ -27,8 +27,10 @@
 
 
 #include "hipSYCL/runtime/backend_loader.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/config.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
 #include <cassert>
 #include <filesystem>
@@ -161,6 +163,23 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
   return paths;
 }
 
+bool is_plugin_active(const std::string& name)
+{
+  auto backends_active = hipsycl::rt::application::get_settings().get<hipsycl::rt::setting::active_backends>();
+  if(backends_active.empty())
+    return true;
+  if(name == "omp") // we always need a cpu backend
+    return true;
+
+  hipsycl::rt::backend_id id;
+  if(name == "cuda") {
+    id = hipsycl::rt::backend_id::cuda;
+  } else if(name == "hip") {
+    id = hipsycl::rt::backend_id::hip;
+  }
+  return std::find(backends_active.cbegin(), backends_active.cend(), id) != backends_active.cend();
+}
+
 }
 
 namespace hipsycl {
@@ -194,7 +213,7 @@ void backend_loader::query_backends() {
           std::string backend_name;
           void *handle;
           if (load_plugin(p.string(), handle, backend_name)) {
-            if(!has_backend(backend_name)){
+            if(!has_backend(backend_name) && is_plugin_active(backend_name)){
               HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
                                 << " for backend '" << backend_name << "'"
                                 << std::endl;

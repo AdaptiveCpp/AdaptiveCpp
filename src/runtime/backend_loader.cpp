@@ -58,10 +58,10 @@ void* load_library(const std::string &filename)
   if(void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
     return handle;
   } else {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not load backend plugin: "
                         << filename << std::endl;
     if (char *err = dlerror()) {
-      HIPSYCL_DEBUG_ERROR << err << std::endl;
+      HIPSYCL_DEBUG_WARNING << err << std::endl;
     }
   }
 #else
@@ -70,7 +70,7 @@ void* load_library(const std::string &filename)
   } else {
     // too lazy to use FormatMessage bs right now, so look up the error at
     // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not load backend plugin: "
                         << filename << " with: " << GetLastError() << std::endl;
   }
 #endif
@@ -82,9 +82,9 @@ void* get_symbol_from_library(void* handle, const std::string& symbolName)
 #ifndef _WIN32
   void *symbol = dlsym(handle, symbolName.c_str());
   if(char *err = dlerror()) {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not find symbol name: "
                         << symbolName << std::endl;
-    HIPSYCL_DEBUG_ERROR << err << std::endl;
+    HIPSYCL_DEBUG_WARNING << err << std::endl;
   } else {
     return symbol;
   }
@@ -94,7 +94,7 @@ void* get_symbol_from_library(void* handle, const std::string& symbolName)
   } else {
     // too lazy to use FormatMessage bs right now, so look up the error at
     // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not find symbol name: "
                         << symbolName << " with: " << GetLastError() << std::endl;
   }
 #endif

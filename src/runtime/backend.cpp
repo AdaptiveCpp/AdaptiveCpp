@@ -29,8 +29,10 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
+
 #include <algorithm>
 
 namespace hipsycl {
@@ -78,6 +80,15 @@ backend_manager::backend_manager()
       }
     }
   });
+
+  if(std::none_of(_backends.cbegin(), _backends.cend(), 
+                  [](const std::unique_ptr<backend>& b){
+                    return b->get_hardware_platform() == hardware_platform::cpu;
+                    }))
+  {
+    HIPSYCL_DEBUG_ERROR << "No CPU backend has been loaded. Things will break." << std::endl;
+    throw sycl::runtime_error{"No CPU backend has been loaded."};
+  }
 }
 
 backend_manager::~backend_manager()

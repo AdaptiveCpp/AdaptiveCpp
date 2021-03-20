@@ -116,7 +116,11 @@ public:
   }
 
   void depends_on(event e) {
-    _requirements.add_node_requirement(e._node);
+    // No need to consider default constructed events that are
+    // not bound to a node
+    if(e._node) {
+      _requirements.add_node_requirement(e._node);
+    }
   }
 
   void depends_on(const std::vector<event> &events) {

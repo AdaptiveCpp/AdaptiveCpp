@@ -71,12 +71,14 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
     std::vector<dag_node_ptr>{},
     std::move(req));
   
-  _reqs.push_back(node);
+  add_node_requirement(node);
 }
 
 void requirements_list::add_node_requirement(dag_node_ptr node)
 {
-  _reqs.push_back(node);
+  // Don't store invalid requirements
+  if(node)
+    _reqs.push_back(node);
 }
 
 const std::vector<dag_node_ptr>& requirements_list::get() const

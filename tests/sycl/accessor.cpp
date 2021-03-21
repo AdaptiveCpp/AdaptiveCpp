@@ -171,11 +171,13 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
     auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
     auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
-    cgh.single_task<class accessor_api_atomic_device_accessors>([=](){
-      atomicAcc[0].exchange(0);
-      atomicAcc3D[0][1][0].exchange(0);
-      localAtomic[0].exchange(0);
-      localAtomic3D[0][1][0].exchange(0);
+    cgh.parallel_for<class accessor_api_atomic_device_accessors>(
+        cl::sycl::nd_range<1>{2, 2},
+        [=](cl::sycl::nd_item<1> item) {
+          atomicAcc[0].exchange(0);
+          atomicAcc3D[0][1][0].exchange(0);
+          localAtomic[0].exchange(0);
+          localAtomic3D[0][1][0].exchange(0);
     });
   });
 

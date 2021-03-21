@@ -537,7 +537,8 @@ public:
   }
 
   template<int D = dimensions,
-            std::enable_if_t<(D > 0), bool> = true>
+            access::mode M = accessmode,
+            std::enable_if_t<(D > 0) && (M != access::mode::atomic), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   reference operator[](id<dimensions> index) const
   {
@@ -545,7 +546,8 @@ public:
   }
 
   template<int D = dimensions,
-            std::enable_if_t<(D == 1), bool> = true>
+            access::mode M = accessmode,
+            std::enable_if_t<(D == 1) && (M != access::mode::atomic), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
   reference operator[](size_t index) const
   {

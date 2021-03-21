@@ -161,6 +161,17 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     cgh.single_task<class accessor_api_device_accessors>([](){});
   });
 
+  queue.submit([&](s::handler& cgh) {
+    run_test([&](auto buf, auto... args) {
+      return buf.template get_access<s::access::mode::atomic>(cgh, args...);
+    });
+    // mostly compilation test
+    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
+    cgh.single_task<class accessor_api_atomic_device_accessors>([atomicAcc](){
+      atomicAcc[0].exchange(0);
+    });
+  });
+
   // Test local accessors
   queue.submit([&](s::handler& cgh) {
     s::accessor<int, 1, s::access::mode::read_write, s::access::target::local> acc_a(32, cgh);

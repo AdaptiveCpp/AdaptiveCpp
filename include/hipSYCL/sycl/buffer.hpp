@@ -747,7 +747,7 @@ private:
   template <typename Destination = std::nullptr_t>
   void set_write_back_target(Destination finalData = nullptr)
   {
-    if constexpr(std::is_pointer_v<Destination>){
+    if constexpr(std::is_pointer_v<Destination> || std::is_null_pointer_v<Destination>){
       if (finalData) {
         enable_write_back(true);
       }

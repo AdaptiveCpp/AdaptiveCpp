@@ -119,5 +119,31 @@ BOOST_AUTO_TEST_CASE(buffer_external_writeback) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_external_writeback_nullptr) {
+  cl::sycl::queue q;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size);
+  {
+    cl::sycl::buffer<int> buff{size};
+
+    buff.set_final_data(nullptr);
+
+    q.submit([&](cl::sycl::handler &cgh) {
+      auto acc =
+          buff.get_access<cl::sycl::access::mode::discard_read_write>(cgh);
+
+      cgh.parallel_for<class buffer_external_writeback_test>(
+          cl::sycl::range{size}, [=](cl::sycl::id<1> idx) {
+            acc[idx.get(0)] = static_cast<int>(idx.get(0));
+          });
+    });
+  }
+
+  for(int i = 0; i < host_buff.size(); ++i) {
+    BOOST_CHECK(host_buff[i] == 0);
+  }
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

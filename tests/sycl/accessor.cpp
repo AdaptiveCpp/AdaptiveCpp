@@ -121,6 +121,7 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 
   s::buffer<int, 1> buf_a(32);
   s::buffer<int, 1> buf_b(32);
+  s::buffer<int, 3> buf_d(s::range<3>{4, 4, 4});
   auto buf_c = buf_a;
 
   const auto run_test = [&](auto get_access) {
@@ -159,6 +160,25 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
       return buf.template get_access<s::access::mode::read>(cgh, args...);
     });
     cgh.single_task<class accessor_api_device_accessors>([](){});
+  });
+
+  queue.submit([&](s::handler& cgh) {
+    run_test([&](auto buf, auto... args) {
+      return buf.template get_access<s::access::mode::atomic>(cgh, args...);
+    });
+    // mostly compilation test
+    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
+    auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
+    auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
+    auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+    cgh.parallel_for<class accessor_api_atomic_device_accessors>(
+        cl::sycl::nd_range<1>{2, 2},
+        [=](cl::sycl::nd_item<1> item) {
+          atomicAcc[0].exchange(0);
+          atomicAcc3D[0][1][0].exchange(0);
+          localAtomic[0].exchange(0);
+          localAtomic3D[0][1][0].exchange(0);
+    });
   });
 
   // Test local accessors

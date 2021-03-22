@@ -26,47 +26,48 @@
  */
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 
 namespace hipsycl {
-  namespace rt {
+namespace rt {
 
-    std::istream &operator>>(std::istream &istr, scheduler_type &out) {
-      std::string str;
-      istr >> str;
-      if (str == "direct")
-        out = scheduler_type::direct;
-      else
-        istr.setstate(std::ios_base::failbit);
-      return istr;
-    }
+std::istream &operator>>(std::istream &istr, scheduler_type &out) {
+  std::string str;
+  istr >> str;
+  if (str == "direct")
+    out = scheduler_type::direct;
+  else
+    istr.setstate(std::ios_base::failbit);
+  return istr;
+}
 
-    std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
-      std::string str;
-      istr >> str;
-      // have to copy, as otherweise might be interpreted as failing, although everything is fine.
-      std::istringstream istream{str};
+std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
+  std::string str;
+  istr >> str;
+  // have to copy, as otherweise might be interpreted as failing, although everything is fine.
+  std::istringstream istream{str};
 
-      size_t offset = 0;
-      std::string name;
-      while(std::getline(istream, name, ';')) {
-        if(name.empty())
-          continue;
-        std::transform(name.cbegin(), name.cend(), name.begin(), ::tolower);
+  size_t offset = 0;
+  std::string name;
+  while(std::getline(istream, name, ';')) {
+    if(name.empty())
+      continue;
+    std::transform(name.cbegin(), name.cend(), name.begin(), ::tolower);
 
-        if (name == "cuda" || name == "nvidia") {
-          out.push_back(rt::backend_id::cuda);
-        } else if (name == "rocm" || name == "amd" || name == "hip") {
-          out.push_back(rt::backend_id::hip);
-        } else if(name == "host" || "cpu" || "hipcpu" || "omp") {
-          // looking for this, even though we have to allow it always.
-          out.push_back(rt::backend_id::omp);
-        } else {
-          istr.setstate(std::ios_base::failbit);
-          HIPSYCL_DEBUG_WARNING << "'" << name << "' is not a known backend name." << std::endl;
-          break;
-        }
-      }
-      return istr;
+    if (name == "cuda") {
+      out.push_back(rt::backend_id::cuda);
+    } else if (name == "hip") {
+      out.push_back(rt::backend_id::hip);
+    } else if("omp") {
+      // looking for this, even though we have to allow it always.
+      out.push_back(rt::backend_id::omp);
+    } else {
+      istr.setstate(std::ios_base::failbit);
+      HIPSYCL_DEBUG_WARNING << "'" << name << "' is not a known backend name." << std::endl;
+      break;
     }
   }
+  return istr;
+}
+}
 }

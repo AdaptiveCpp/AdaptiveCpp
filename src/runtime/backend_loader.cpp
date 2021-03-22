@@ -165,7 +165,7 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
 
 bool is_plugin_active(const std::string& name)
 {
-  auto backends_active = hipsycl::rt::application::get_settings().get<hipsycl::rt::setting::active_backends>();
+  auto backends_active = hipsycl::rt::application::get_settings().get<hipsycl::rt::setting::visibility_mask>();
   if(backends_active.empty())
     return true;
   if(name == "omp") // we always need a cpu backend

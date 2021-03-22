@@ -86,8 +86,8 @@ backend_manager::backend_manager()
                     return b->get_hardware_platform() == hardware_platform::cpu;
                     }))
   {
-    HIPSYCL_DEBUG_ERROR << "No CPU backend has been loaded. Things will break." << std::endl;
-    throw sycl::runtime_error{"No CPU backend has been loaded."};
+    HIPSYCL_DEBUG_ERROR << "No CPU backend has been loaded. Terminating." << std::endl;
+    std::terminate();
   }
 }
 

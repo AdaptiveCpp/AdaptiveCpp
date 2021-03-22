@@ -30,6 +30,8 @@
 #define HIPSYCL_EMBEDDED_POINTER_HPP
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 
 #include <cstring>
 #include <iterator>
@@ -46,13 +48,16 @@ namespace glue {
 struct unique_id {
   static constexpr std::size_t num_components = 2;
 
+  HIPSYCL_UNIVERSAL_TARGET
   unique_id(uint64_t init_value) {
     for(std::size_t i=0; i < num_components; ++i){
       id[i] = init_value;
     }
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   unique_id() {
+#ifndef SYCL_DEVICE_ONLY
     uint64_t ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::high_resolution_clock::now().time_since_epoch())
@@ -72,8 +77,10 @@ struct unique_id {
       id_bytes[2 * i    ] = ns_bytes[i];
       id_bytes[2 * i + 1] = rnd_bytes[i];
     }
+#endif
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator==(const unique_id& a, const unique_id& b) {
     for(std::size_t i = 0; i < num_components; ++i) {
       if(a.id[i] != b.id[i])
@@ -82,6 +89,7 @@ struct unique_id {
     return true;
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator!=(const unique_id& a, const unique_id& b) {
     return !(a == b);
   }
@@ -100,7 +108,7 @@ inline std::ostream &operator<<(std::ostream &ostr, const unique_id &id) {
 template<class T>
 class embedded_pointer {
 public:
-  
+  HIPSYCL_UNIVERSAL_TARGET
   T* get() const {
     static_assert(sizeof(T*) == sizeof(uint64_t));
     static_assert(sizeof(T*) == sizeof(unique_id) / 2);
@@ -108,6 +116,7 @@ public:
     return reinterpret_cast<T*>(_uid.id[0]);
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   const unique_id& get_uid() const {
     return _uid;
   }
@@ -118,11 +127,13 @@ public:
     _uid.id[0] = reinterpret_cast<uint64_t>(ptr);
     _uid.id[1] = 0;
   }
-
+  
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator==(const embedded_pointer &a, const embedded_pointer &b) {
     return a._uid == b._uid;
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator!=(const embedded_pointer &a, const embedded_pointer &b) {
     return !(a == b);
   }

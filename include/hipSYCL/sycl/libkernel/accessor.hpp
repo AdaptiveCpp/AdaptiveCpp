@@ -245,6 +245,10 @@ protected:
   std::shared_ptr<rt::buffer_data_region> get_data_region() const {
 #ifndef SYCL_DEVICE_ONLY
     return _buff.get_shared_ptr();
+#else
+    // Should never be called on device, but suppress warning
+    // about function without return value.
+    return nullptr;
 #endif
   }
 

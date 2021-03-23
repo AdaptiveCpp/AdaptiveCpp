@@ -74,7 +74,7 @@ Supported hardware:
 * NVIDIA CUDA GPUs. Note that clang, which hipSYCL relies on, may not always support the very latest CUDA version which may sometimes impact support for *very* new hardware. See the [clang documentation](https://www.llvm.org/docs/CompileCudaWithLLVM.html) for more details.
 * AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
 
-Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows is currently not supported.
+Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using hipSYCL on Windows](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).
 
 ## Installing and using hipSYCL
 * [Building & Installing](doc/installing.md)
@@ -98,6 +98,7 @@ When targeting a GPU, you will need to provide a target GPU architecture. The ex
 * A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
 * [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
+* [Environment variables supported by hipSYCL](doc/env_variables.md)
 
 
 

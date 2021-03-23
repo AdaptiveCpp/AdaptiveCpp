@@ -20,3 +20,4 @@
 
 # Configuration macros
 * `HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING` - define during compilation of the hipSYCL clang plugin to force enabling unique name mangling which is a requirement for explicit mulitpass compilation. This requires a clang that supports `__builting_unique_stable_name()`, and is automatically enabled on clang 11.
+* `HIPSYCL_DEBUG_LEVEL` - sets the output verbosity. `0`: none, `1`: error, `2`: warning, `3`: info, `4`: verbose, default is warning for Release and info for Debug builds.

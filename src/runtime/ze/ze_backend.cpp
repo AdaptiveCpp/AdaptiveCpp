@@ -54,10 +54,9 @@ ze_backend::ze_backend() {
   ze_result_t err = zeInit(0);
 
   if (err != ZE_RESULT_SUCCESS) {
-    print_error(__hipsycl_here(),
-                error_info{"ze_backend: Call to zeInit() failed",
+    print_warning(__hipsycl_here(),
+                  error_info{"ze_backend: Call to zeInit() failed",
                             error_code{"ze", static_cast<int>(err)}});
-    return;
   }
 
   _hardware_manager = std::make_unique<ze_hardware_manager>();

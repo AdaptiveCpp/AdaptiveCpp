@@ -38,7 +38,8 @@
 namespace hipsycl {
 namespace sycl {
 
-#ifdef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
 class sub_group
 {
 public:
@@ -128,7 +129,81 @@ private:
     return warpSize - 1;
   }
 };
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+class sub_group
+{
+public:
+  using id_type = sycl::id<1>;
+  using range_type = sycl::range<1>;
+  using linear_id_type = uint32_t;
+  using linear_range_type = uint32_t;
 
+  static constexpr int dimensions = 1;
+  static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_local_id() const {
+    return id_type{get_local_linear_id()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_local_linear_id() const {
+    return __spirv_BuiltInSubgroupLocalInvocationId;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_local_range() const {
+    return range_type{get_local_linear_range()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_local_linear_range() const {
+    return __spirv_BuiltInSubgroupSize;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_max_local_range() const {
+    return range_type{__spirv_BuiltInSubgroupMaxSize};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_group_id() const {
+    return id_type{get_group_linear_id()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_group_linear_id() const {
+    return __spirv_BuiltInSubgroupId;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_group_linear_range() const {
+    return __spirv_BuiltInNumSubgroups;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_group_range() const {
+    return __spirv_BuiltInNumSubgroups;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_max_group_range() const {
+    // TODO
+    return __spirv_BuiltInNumSubgroups;
+  }
+
+  template<class F>
+  HIPSYCL_KERNEL_TARGET
+  void single_item(F f){
+    if(get_local_linear_id() == 0) f();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return true;
+  }
+};
 #else
 // On host, sub groups are always of size 1
 class sub_group

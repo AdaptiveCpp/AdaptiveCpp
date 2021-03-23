@@ -5,6 +5,7 @@
 * `__HIPSYCL__` - defined if compiling with hipSYCL
 * `HIPSYCL_PLATFORM_CUDA` - defined when CUDA language extensions are available
 * `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined when HIP language extensions are available
+* `HIPSYCL_PLATFORM_SPIRV` - defined if SPIR-V intrinsics are available 
 * `HIPSYCL_PLATFORM_CPU` - defined if compiling for the host
 * `SYCL_DEVICE_ONLY` - defined if generating code for GPU
 * `__HIPSYCL_CLANG__` - defined by `syclcc-clang` when compiling with the clang plugin

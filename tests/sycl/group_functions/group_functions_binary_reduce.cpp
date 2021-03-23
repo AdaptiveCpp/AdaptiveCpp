@@ -26,10 +26,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cstddef>
+
 #include "../sycl_test_suite.hpp"
 #include "group_functions.hpp"
 
-#include <cstddef>
+#ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 
 using namespace cl;
 
@@ -494,3 +496,5 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
 }
 #endif
 BOOST_AUTO_TEST_SUITE_END()
+
+#endif

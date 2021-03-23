@@ -217,6 +217,8 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
   constexpr sycl::backend target_be = sycl::backend::cuda;
 #elif defined(HIPSYCL_PLATFORM_HIP)
   constexpr sycl::backend target_be = sycl::backend::hip;
+#elif defined(HIPSYCL_PLATFORM_SPIRV)
+  constexpr sycl::backend target_be = sycl::backend::level_zero;
 #else
   constexpr sycl::backend target_be = sycl::backend::omp;
 #endif
@@ -315,8 +317,10 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 }
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
-__host__ __device__
+#if defined(HIPSYCL_PLATFORM_CUDA) || \
+    defined(HIPSYCL_PLATFORM_HIP) || \
+    defined(HIPSYCL_PLATFORM_SPIRV)
+HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
 #ifdef SYCL_DEVICE_ONLY
   return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;

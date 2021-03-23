@@ -41,6 +41,7 @@
 
 #ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
+#include "detail/device_barrier.hpp"
 #endif
 
 namespace hipsycl {
@@ -280,11 +281,11 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
-  void barrier(access::fence_space accessSpace =
+  void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
 #ifdef SYCL_DEVICE_ONLY
-    __syncthreads();
+    detail::local_device_barrier(space);
 #else
     (*_group_barrier)();
 #endif
@@ -341,7 +342,7 @@ struct nd_item
   
 #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   HIPSYCL_KERNEL_TARGET
-  nd_item(id<dimensions>* offset)
+  nd_item(const id<dimensions>* offset)
     : _offset{offset}
   {}
 #else

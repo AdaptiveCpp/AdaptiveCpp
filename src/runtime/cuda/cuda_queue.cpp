@@ -94,7 +94,7 @@ cuda_queue::~cuda_queue() {
 }
 
 /// Inserts an event into the stream
-std::unique_ptr<dag_node_event> cuda_queue::insert_event() {
+std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   this->activate_device();
 
   cudaEvent_t evt;
@@ -117,7 +117,7 @@ std::unique_ptr<dag_node_event> cuda_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_unique<cuda_node_event>(_dev, evt);
+  return std::make_shared<cuda_node_event>(_dev, evt);
 }
 
 result cuda_queue::submit_memcpy(const memcpy_operation & op) {
@@ -368,9 +368,9 @@ cuda_module_invoker::cuda_module_invoker(cuda_queue *q) : _queue{q} {}
 result cuda_module_invoker::submit_kernel(
     module_id_t id, const std::string &module_variant,
     const std::string *module_image, const rt::range<3> &num_groups,
-    const rt::range<3>& group_size, unsigned local_mem_size, void **args,
-    std::size_t num_args, const std::string &kernel_name_tag,
-    const std::string &kernel_body_name) {
+    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    const std::string &kernel_name_tag, const std::string &kernel_body_name) {
 
   assert(_queue);
   assert(module_image);

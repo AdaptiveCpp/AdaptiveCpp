@@ -45,7 +45,7 @@ class inorder_queue
 public:
 
   /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() = 0;
+  virtual std::shared_ptr<dag_node_event> insert_event() = 0;
 
   virtual result submit_memcpy(const memcpy_operation&) = 0;
   virtual result submit_kernel(const kernel_operation&) = 0;

@@ -78,10 +78,10 @@ omp_queue::~omp_queue() {
   _worker.halt();
 }
 
-std::unique_ptr<dag_node_event> omp_queue::insert_event() {
+std::shared_ptr<dag_node_event> omp_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "omp_queue: Inserting event into queue..." << std::endl;
   
-  auto evt = std::make_unique<omp_node_event>();
+  auto evt = std::make_shared<omp_node_event>();
   auto signal_channel = evt->get_signal_channel();
 
   _worker([signal_channel]{

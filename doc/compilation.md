@@ -1,7 +1,10 @@
 # hipSYCL compilation model
 
 
-hipSYCL relies on the fact that both HIP/CUDA and SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains CUDA and HIP toolchains to also support SYCL code. hipSYCL does that by using clang's CUDA and HIP toolchains with a custom clang plugin.
+hipSYCL relies on the fact that many existing programming models as well as and SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains, such as CUDA and HIP toolchains, to also support SYCL code. hipSYCL does that by using clang's CUDA and HIP toolchains with a custom clang plugin. Additionally, hipSYCL can utilize the clang SYCL frontend to generate SPIR-V code. 
+hipSYCL contains mechanisms to embed and aggregate  compilation results from multiple toolchains into a single binary, allowing it to effectively combine multiple toolchains into one. This is illustrated here:
+
+![syclcc design](/doc/img/syclcc.png)
 
 hipSYCL distinguishes two modes of compilation:
 * *integrated multipass*, where host and device compilation passes are handled by clang's CUDA and HIP drivers. This mode allows for the most interoperability with backends because backend-specific language extensions are also available in the host pass. For example, kernels can be launched using the `<<<>>>` syntax. However, limitations in clang's compilation drivers also affect hipSYCL in this mode. In particular, CUDA and HIP cannot be targeted simultaneously because host code cannot support language extensions from *both* at the same time.
@@ -15,6 +18,7 @@ Not all backends support all modes:
 | OpenMP | N/A | N/A | Does not require multipass compilation |
 | CUDA   | Yes | Yes |  |
 | HIP   | Yes | No |  |
+| SPIR-V  | No | Yes | |
 
 **Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` as described in the [installation documentation](installing.md).
 

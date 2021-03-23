@@ -105,6 +105,24 @@ if(WITH_ROCM_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_LEVEL_ZERO_BACKEND)
+  add_library(rt-backend-ze SHARED
+    ze/ze_backend.cpp
+    ze/ze_hardware_manager.cpp
+    ze/ze_allocator.cpp
+    ze/ze_event.cpp
+    ze/ze_queue.cpp
+    ze/ze_module.cpp)
+  
+  target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
+
+
+  install(TARGETS rt-backend-ze
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
 if(WITH_CPU_BACKEND)
   add_library(rt-backend-omp SHARED
     omp/omp_allocator.cpp

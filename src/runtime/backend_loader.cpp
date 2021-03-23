@@ -176,6 +176,8 @@ bool is_plugin_active(const std::string& name)
     id = hipsycl::rt::backend_id::cuda;
   } else if(name == "hip") {
     id = hipsycl::rt::backend_id::hip;
+  } else if(name == "spriv") {
+    id = hipsycl::rt::backend_id::level_zero;
   }
   return std::find(backends_active.cbegin(), backends_active.cend(), id) != backends_active.cend();
 }

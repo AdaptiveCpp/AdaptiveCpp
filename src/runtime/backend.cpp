@@ -29,7 +29,6 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 
@@ -58,12 +57,6 @@ backend_manager::backend_manager()
     }
   }
   
-
-#ifdef HIPSYCL_RT_ENABLE_LEVEL_ZERO_BACKEND
-  HIPSYCL_DEBUG_INFO << "backend_manager: Registering Level Zero backend..." << std::endl;
-  _backends.push_back(std::make_unique<ze_backend>());
-#endif
-
   this->for_each_backend([](backend *b) {
     HIPSYCL_DEBUG_INFO << "Discovered devices from backend '" << b->get_name()
                        << "': " << std::endl;

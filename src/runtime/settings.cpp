@@ -58,6 +58,8 @@ std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
       out.push_back(rt::backend_id::cuda);
     } else if (name == "hip") {
       out.push_back(rt::backend_id::hip);
+    } else if (name == "spirv") {
+      out.push_back(rt::backend_id::level_zero);
     } else if("omp") {
       // looking for this, even though we have to allow it always.
       out.push_back(rt::backend_id::omp);

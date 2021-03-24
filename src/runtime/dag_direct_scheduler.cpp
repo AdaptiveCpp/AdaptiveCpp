@@ -188,11 +188,7 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
       reqs.end());
   std::sort(reqs.begin(), reqs.end());
   reqs.erase(std::unique(reqs.begin(), reqs.end()), reqs.end());
-  // TODO we can even eliminate more requirements, e.g.
-  // node -> A -> B
-  // node -> B
-  // the dependency on B can be eliminated because it is already covered by A.
-  // TODO: This might be better implemented in the dag_builder
+
   node->assign_to_executor(executor);
   
   executor->submit_directly(node, op, reqs);

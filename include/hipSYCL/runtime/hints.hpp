@@ -48,10 +48,7 @@ enum class execution_hint_type
 {
   // mark a DAG node as bound to a particular device for execution
   bind_to_device,
-  use_pseudo_queue_id,
-  // Mark a DAG node as explicitly requiring another node
-  // (TODO: not yet implemented)
-  explicit_require,
+  prefer_execution_lane,
 };
 
 class execution_hint
@@ -91,18 +88,21 @@ private:
   device_id _dev;
 };
 
-class explicit_require : public execution_hint
+class prefer_execution_lane : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
-    execution_hint_type::explicit_require;
+  static constexpr execution_hint_type type =
+      execution_hint_type::prefer_execution_lane;
 
-  explicit_require(dag_node_ptr node);
+  prefer_execution_lane(std::size_t lane_id)
+      : execution_hint{execution_hint_type::prefer_execution_lane},
+        _lane_id{lane_id} {}
 
-  dag_node_ptr get_requirement() const;
-
+  std::size_t get_lane_id() const {
+    return _lane_id;
+  }
 private:
-  dag_node_ptr _dag_node;
+  std::size_t _lane_id;
 };
 
 } // hints

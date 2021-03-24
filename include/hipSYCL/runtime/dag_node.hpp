@@ -55,6 +55,7 @@ public:
 
   bool is_submitted() const;
   bool is_complete() const;
+  bool is_known_complete() const;
   bool is_cancelled() const;
   bool is_virtual() const;
   

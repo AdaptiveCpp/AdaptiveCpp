@@ -75,14 +75,21 @@ struct hipSYCL_prefer_group_size : public detail::cg_property{
   hipSYCL_prefer_group_size(range<Dim> r)
   : size{r} {}
 
-  range<Dim> size;
+  const range<Dim> size;
 };
 
 struct hipSYCL_retarget : public detail::cg_property{
   hipSYCL_retarget(const device& d)
   : dev{d} {}
 
-  sycl::device dev;
+  const sycl::device dev;
+};
+
+struct hipSYCL_prefer_execution_lane : public detail::cg_property{
+  hipSYCL_prefer_execution_lane(std::size_t lane_id)
+  : lane{lane_id} {}
+
+  const std::size_t lane;
 };
 
 }
@@ -258,8 +265,6 @@ public:
     
     if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
 
-      rt::execution_hints custom_hints;
-
       rt::device_id dev = detail::extract_rt_device(
           prop_list.get_property<property::command_group::hipSYCL_retarget>()
               .dev);
@@ -273,10 +278,20 @@ public:
             << std::endl;
       }
 
-      custom_hints.add_hint(
+      hints.overwrite_with(
           rt::make_execution_hint<rt::hints::bind_to_device>(dev));
-      
-      hints.overwrite_with(custom_hints);
+    }
+    if (prop_list.has_property<
+            property::command_group::hipSYCL_prefer_execution_lane>()) {
+
+      std::size_t lane_id =
+          prop_list
+              .get_property<
+                  property::command_group::hipSYCL_prefer_execution_lane>()
+              .lane;
+
+      hints.overwrite_with(
+          rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
     }
 
     handler cgh{get_context(), _handler, hints};

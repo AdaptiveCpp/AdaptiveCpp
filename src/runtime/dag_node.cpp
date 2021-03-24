@@ -29,6 +29,7 @@
 #include <cassert>
 
 #include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 
@@ -67,6 +68,10 @@ bool dag_node::is_complete() const {
   if (get_event()->is_complete()) {
     _is_complete = true;
   }
+  return _is_complete;
+}
+
+bool dag_node::is_known_complete() const {
   return _is_complete;
 }
 
@@ -128,6 +133,31 @@ const execution_hints &dag_node::get_execution_hints() const { return _hints; }
 
 execution_hints &dag_node::get_execution_hints() { return _hints; }
 
+namespace {
+
+// Looks recursively in the requirement graph of current for x.
+// Descends no more than current_level levels and does not
+// descend into requirements that are known to be complete.
+bool recursive_find(const dag_node_ptr &current, int current_level,
+                    const dag_node_ptr &x) {
+  if(!current)
+    return false;
+  if(current == x)
+    return true;
+  if(current_level <= 0)
+    return false;
+
+  for(const auto& req : current->get_requirements()) {
+    if(!req->is_known_complete()) {
+      if(recursive_find(req, current_level - 1, x))
+        return true;
+    }
+  }
+  return false;
+}
+
+}
+
 // Add requirement if not already present
 void dag_node::add_requirement(dag_node_ptr requirement)
 {
@@ -135,6 +165,32 @@ void dag_node::add_requirement(dag_node_ptr requirement)
     if (req == requirement)
       return;
   }
+
+  auto is_reachable_from = [&, this](dag_node_ptr from, dag_node_ptr to,
+                                     int max_levels) -> bool {
+    return recursive_find(from, max_levels, to);
+  };
+
+  for(auto existing_req : _requirements) {
+    if(is_reachable_from(existing_req, requirement, 5)) {
+      // The requirement is already reachable from an existing requirement,
+      // inserting is unnecessary since the existing requirement
+      // already provides sufficient synchronization.
+      return;
+    }
+  }
+
+  // Remove requirements that are weaker than the new nequirement
+  for(std::size_t i = 0; i < _requirements.size(); ++i) {
+    if(is_reachable_from(requirement, _requirements[i], 5)) {
+      _requirements[i] = nullptr;
+    }
+  }
+  _requirements.erase(
+      std::remove_if(_requirements.begin(), _requirements.end(),
+                     [](dag_node_ptr req) { return req == nullptr; }),
+      _requirements.end());
+
   _requirements.push_back(requirement);
 }
 

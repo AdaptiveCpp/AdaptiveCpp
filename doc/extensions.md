@@ -89,6 +89,30 @@ Compared to using multiple queues bound to different devices, using a single que
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
 
+#### HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
+
+##### API reference
+
+```cpp
+namespace sycl::property::command_group {
+
+struct hipSYCL_prefer_execution_lane {
+  hipSYCL_prefer_execution_lane(std::size_t lane_id);
+};
+
+}
+```
+
+##### Description
+
+Provides a hint to the runtime on which *execution lane* to execute the operation. Execution lanes refer to a generalization of resources that can execute kernels and data transfers, such as a CUDA or HIP stream.
+
+Many backends in hipSYCL such as CUDA or HIP maintain a pool of inorder queues as execution lanes. By default, the scheduler will already automatically attempt to distribute work across all those queues.
+If this distribution turns out to be not optimal, the `hipSYCL_prefer_execution_lane` property can be used to influence the distribution, for example in order to achieve better overlap of data transfers and kernels, or to make sure that certain kernels execute concurrently if supported by backend and hardware.
+
+Execution lanes for a device are enumerated starting from 0. If a non-existent execution lane is provided, it is mapped back to the permitted range using a modulo operation. Therefore, the execution lane id provided by the property can be seen as additional information on *potential* and desired parallelism that the runtime can exploit.
+
+
 ## HIPSYCL_EXT_PREFETCH_HOST
 
 Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.

@@ -156,7 +156,9 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
   const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "bin" / "hipSYCL";
 #endif
 
-  if(!std::filesystem::equivalent(install_prefixed_path, paths.back()))
+  if(!std::filesystem::is_directory(paths.back())
+      || (std::filesystem::is_directory(install_prefixed_path)
+          && !std::filesystem::equivalent(install_prefixed_path, paths.back())))
     paths.emplace_back(std::move(install_prefixed_path));
   return paths;
 }

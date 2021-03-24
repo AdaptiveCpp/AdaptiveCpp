@@ -114,7 +114,7 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   return std::make_shared<hip_node_event>(_dev, evt);
 }
 
-result hip_queue::submit_memcpy(const memcpy_operation & op) {
+result hip_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -220,7 +220,7 @@ result hip_queue::submit_memcpy(const memcpy_operation & op) {
   return make_success();
 }
 
-result hip_queue::submit_kernel(const kernel_operation &op) {
+result hip_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l =
@@ -230,12 +230,12 @@ result hip_queue::submit_kernel(const kernel_operation &op) {
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   
   l->set_params(this);
-  l->invoke();
+  l->invoke(node.get());
 
   return make_success();
 }
 
-result hip_queue::submit_prefetch(const prefetch_operation& op) {
+result hip_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
 
 #ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
   hipError_t err = hipSuccess;
@@ -263,7 +263,7 @@ result hip_queue::submit_prefetch(const prefetch_operation& op) {
   return make_success();
 }
 
-result hip_queue::submit_memset(const memset_operation &op) {
+result hip_queue::submit_memset(const memset_operation &op, dag_node_ptr) {
 
   hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
                                   op.get_num_bytes(), get_stream());

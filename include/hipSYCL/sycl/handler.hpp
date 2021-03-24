@@ -77,14 +77,15 @@ public:
   template <typename dataT, int dimensions, access_mode accessMode,
             access::target accessTarget, access::placeholder isPlaceholder>
   void
-  require(accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>&
+  require(accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>
               acc) {
     static_assert(accessTarget != access::target::local,
                   "Requiring local accessors is unsupported");
     
     // Construct requirement descriptor
-    std::shared_ptr<rt::buffer_data_region> data_region = acc._buff.get_shared_ptr();
-    
+    std::shared_ptr<rt::buffer_data_region> data_region =
+        acc.get_data_region();
+
     if(!data_region) {
       throw invalid_parameter_error{
           "handler: require(): accessor is illegal paramater for require() "

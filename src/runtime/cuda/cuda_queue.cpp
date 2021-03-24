@@ -120,7 +120,7 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   return std::make_shared<cuda_node_event>(_dev, evt);
 }
 
-result cuda_queue::submit_memcpy(const memcpy_operation & op) {
+result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -225,7 +225,7 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel(const kernel_operation &op) {
+result cuda_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l = 
@@ -233,12 +233,12 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
-  l->invoke();
+  l->invoke(node.get());
 
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(const prefetch_operation& op) {
+result cuda_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
 #ifndef _WIN32
   cudaError_t err = cudaSuccess;
   if (op.get_target().is_host()) {
@@ -261,7 +261,7 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(const memset_operation &op) {
+result cuda_queue::submit_memset(const memset_operation &op, dag_node_ptr) {
   
   cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
                                     op.get_num_bytes(), get_stream());

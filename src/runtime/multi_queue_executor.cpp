@@ -221,6 +221,10 @@ void multi_queue_executor::submit_directly(
     const std::vector<dag_node_ptr> &reqs) {
 
   HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node " << node.get();
+  HIPSYCL_DEBUG_INFO   << "  with non-virtual requirements:" << std::endl;
+  for(const auto& req : reqs) {
+    HIPSYCL_DEBUG_INFO << "    --> " << dump(req->get_operation()) << std::endl;
+  }
   assert(!op->is_requirement());
 
   if (node->is_submitted())

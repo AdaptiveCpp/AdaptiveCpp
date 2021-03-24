@@ -176,6 +176,10 @@ void dag_node::add_requirement(dag_node_ptr requirement)
       // The requirement is already reachable from an existing requirement,
       // inserting is unnecessary since the existing requirement
       // already provides sufficient synchronization.
+      HIPSYCL_DEBUG_INFO << "dag_node: Eliding new dependency "
+                         << requirement.get()
+                         << " because it is DAG-reachable from an existing dependency."
+                         << std::endl;
       return;
     }
   }
@@ -183,6 +187,11 @@ void dag_node::add_requirement(dag_node_ptr requirement)
   // Remove requirements that are weaker than the new nequirement
   for(std::size_t i = 0; i < _requirements.size(); ++i) {
     if(is_reachable_from(requirement, _requirements[i], 5)) {
+      HIPSYCL_DEBUG_INFO << "dag_node: Replacing existing dependency "
+                         << _requirements[i].get() << " with new dependency "
+                         << requirement.get()
+                         << " because the new dependency is stronger."
+                         << std::endl;
       _requirements[i] = nullptr;
     }
   }

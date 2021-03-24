@@ -108,7 +108,7 @@ public:
         data_region, rt::make_id(offset), rt::make_range(range), mode,
         accessTarget);
 
-    // Bind the accessor's deferred pointer to the requirement, such that
+    // Bind the accessor's embedded pointer to the requirement, such that
     // the scheduler is able to initialize the accessor's data pointer
     // once it has been captured
     acc.bind_to(req.get());

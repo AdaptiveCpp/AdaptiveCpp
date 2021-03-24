@@ -27,8 +27,10 @@
 
 
 #include "hipSYCL/runtime/backend_loader.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/config.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 
 #include <cassert>
 #include <filesystem>
@@ -58,10 +60,10 @@ void* load_library(const std::string &filename)
   if(void *handle = dlopen(filename.c_str(), RTLD_NOW)) {
     return handle;
   } else {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not load backend plugin: "
                         << filename << std::endl;
     if (char *err = dlerror()) {
-      HIPSYCL_DEBUG_ERROR << err << std::endl;
+      HIPSYCL_DEBUG_WARNING << err << std::endl;
     }
   }
 #else
@@ -70,7 +72,7 @@ void* load_library(const std::string &filename)
   } else {
     // too lazy to use FormatMessage bs right now, so look up the error at
     // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not load backend plugin: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not load backend plugin: "
                         << filename << " with: " << GetLastError() << std::endl;
   }
 #endif
@@ -82,9 +84,9 @@ void* get_symbol_from_library(void* handle, const std::string& symbolName)
 #ifndef _WIN32
   void *symbol = dlsym(handle, symbolName.c_str());
   if(char *err = dlerror()) {
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not find symbol name: "
                         << symbolName << std::endl;
-    HIPSYCL_DEBUG_ERROR << err << std::endl;
+    HIPSYCL_DEBUG_WARNING << err << std::endl;
   } else {
     return symbol;
   }
@@ -94,7 +96,7 @@ void* get_symbol_from_library(void* handle, const std::string& symbolName)
   } else {
     // too lazy to use FormatMessage bs right now, so look up the error at
     // https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes
-    HIPSYCL_DEBUG_ERROR << "backend_loader: Could not find symbol name: "
+    HIPSYCL_DEBUG_WARNING << "backend_loader: Could not find symbol name: "
                         << symbolName << " with: " << GetLastError() << std::endl;
   }
 #endif
@@ -163,6 +165,25 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
   return paths;
 }
 
+bool is_plugin_active(const std::string& name)
+{
+  auto backends_active = hipsycl::rt::application::get_settings().get<hipsycl::rt::setting::visibility_mask>();
+  if(backends_active.empty())
+    return true;
+  if(name == "omp") // we always need a cpu backend
+    return true;
+
+  hipsycl::rt::backend_id id;
+  if(name == "cuda") {
+    id = hipsycl::rt::backend_id::cuda;
+  } else if(name == "hip") {
+    id = hipsycl::rt::backend_id::hip;
+  } else if(name == "ze") {
+    id = hipsycl::rt::backend_id::level_zero;
+  }
+  return std::find(backends_active.cbegin(), backends_active.cend(), id) != backends_active.cend();
+}
+
 }
 
 namespace hipsycl {
@@ -196,7 +217,7 @@ void backend_loader::query_backends() {
           std::string backend_name;
           void *handle;
           if (load_plugin(p.string(), handle, backend_name)) {
-            if(!has_backend(backend_name)){
+            if(!has_backend(backend_name) && is_plugin_active(backend_name)){
               HIPSYCL_DEBUG_INFO << "backend_loader: Successfully opened plugin: " << p
                                 << " for backend '" << backend_name << "'"
                                 << std::endl;

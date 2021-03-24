@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_RT_SETTINGS_HPP
 #define HIPSYCL_RT_SETTINGS_HPP
 
+#include "hipSYCL/runtime/device_id.hpp"
 #include <ios>
 #include <optional>
 #include <string>
@@ -35,22 +36,16 @@
 #include <algorithm>
 #include <sstream>
 #include <iostream>
+#include <vector>
 namespace hipsycl {
 namespace rt {
 
 enum class scheduler_type { direct };
 
-inline std::istream &operator>>(std::istream &istr, scheduler_type &out) {
-  std::string str;
-  istr >> str;
-  if (str == "direct")
-    out = scheduler_type::direct;
-  else
-    istr.setstate(std::ios_base::failbit);
-  return istr;
-}
+std::istream &operator>>(std::istream &istr, scheduler_type &out);
+std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
 
-enum class setting { debug_level, scheduler_type };
+enum class setting { debug_level, scheduler_type, visibility_mask };
 
 template <setting S> struct setting_trait {};
 
@@ -62,6 +57,7 @@ template <setting S> struct setting_trait {};
 
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::debug_level, "debug_level", int)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::scheduler_type, "rt_scheduler", scheduler_type)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", std::vector<rt::backend_id>)
 
 class settings
 {
@@ -81,6 +77,8 @@ public:
       return _debug_level.value();
     } else if constexpr (S == setting::scheduler_type) {
       return _scheduler_type.value();
+    } else if constexpr (S == setting::visibility_mask) {
+      return _visibility_mask.value();
     }
     return typename setting_trait<S>::type{};
   }
@@ -99,6 +97,9 @@ public:
     _scheduler_type =
         get_environment_variable_or_default<setting::scheduler_type>(
             scheduler_type::direct);
+    _visibility_mask =
+        get_environment_variable_or_default<setting::visibility_mask>(
+            std::vector<rt::backend_id>{});
   }
 
 private:
@@ -138,6 +139,7 @@ private:
 
   std::optional<int> _debug_level;
   std::optional<scheduler_type> _scheduler_type;
+  std::optional<std::vector<rt::backend_id>> _visibility_mask;
 };
 
 }

@@ -181,7 +181,7 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   node->for_each_nonvirtual_requirement([&](dag_node_ptr req) {
     reqs.push_back(req);
   });
-    // Compress requirements by removing double entries and complete requirements
+  // Compress requirements by removing double entries and complete requirements
   reqs.erase(
       std::remove_if(reqs.begin(), reqs.end(),
                      [](dag_node_ptr elem) { return elem->is_complete(); }),

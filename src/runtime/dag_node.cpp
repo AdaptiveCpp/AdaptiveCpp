@@ -117,6 +117,16 @@ void dag_node::assign_to_execution_lane(std::size_t lane_id)
   this->_assigned_execution_lane = lane_id;
 }
 
+void dag_node::assign_execution_index(std::size_t index)
+{
+  this->_assigned_execution_index = index;
+}
+
+std::size_t dag_node::get_assigned_execution_index() const
+{
+  return this->_assigned_execution_index;
+}
+
 device_id dag_node::get_assigned_device() const { return _assigned_device; }
 
 backend_executor *dag_node::get_assigned_executor() const
@@ -171,8 +181,10 @@ void dag_node::add_requirement(dag_node_ptr requirement)
     return recursive_find(from, max_levels, to);
   };
 
+  const int search_depth = 20;
+
   for(auto existing_req : _requirements) {
-    if(is_reachable_from(existing_req, requirement, 5)) {
+    if(is_reachable_from(existing_req, requirement, search_depth)) {
       // The requirement is already reachable from an existing requirement,
       // inserting is unnecessary since the existing requirement
       // already provides sufficient synchronization.
@@ -182,7 +194,7 @@ void dag_node::add_requirement(dag_node_ptr requirement)
 
   // Remove requirements that are weaker than the new nequirement
   for(std::size_t i = 0; i < _requirements.size(); ++i) {
-    if(is_reachable_from(requirement, _requirements[i], 5)) {
+    if(is_reachable_from(requirement, _requirements[i], search_depth)) {
       _requirements[i] = nullptr;
     }
   }

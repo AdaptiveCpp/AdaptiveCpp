@@ -164,6 +164,7 @@ private:
   };
 
   std::vector<per_device_data> _device_data;
+  std::size_t _num_submitted_operations;
 };
 
 }

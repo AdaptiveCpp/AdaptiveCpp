@@ -136,10 +136,26 @@ std::size_t determine_target_lane(dag_node_ptr node,
   return current_best_lane;
 }
 
+std::size_t
+get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
+                                     multi_queue_executor *executor,
+                                     std::size_t lane) {
+  std::size_t index = 0;
+  for (const auto &node : nodes) {
+    if (node->is_submitted() && node->get_assigned_executor() == executor &&
+        node->get_assigned_execution_lane() == lane) {
+      if(node->get_assigned_execution_index() > index)
+        index = node->get_assigned_execution_index();
+    }
+  }
+  return index;
+}
+
 } // anonymous namespace
 
 multi_queue_executor::multi_queue_executor(
-    const backend &b, queue_factory_function queue_factory) {
+    const backend &b, queue_factory_function queue_factory)
+    : _num_submitted_operations{0} {
   std::size_t num_devices = b.get_hardware_manager()->get_num_devices();
 
 
@@ -221,8 +237,8 @@ void multi_queue_executor::submit_directly(
     const std::vector<dag_node_ptr> &reqs) {
 
   HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node " << node.get()
-	  << " with " << reqs.size() << " non-virtual requirements and "
-	  << node->get_requirements().size() << " total requirements." << std::endl;
+	  << " with " << reqs.size() << " non-virtual requirement(s) and "
+	  << node->get_requirements().size() << " direct requirement(s)." << std::endl;
 
   assert(!op->is_requirement());
 
@@ -246,12 +262,15 @@ void multi_queue_executor::submit_directly(
       .submission_statistics.insert(op_target_lane);
   
   node->assign_to_execution_lane(op_target_lane);
+  node->assign_execution_index(_num_submitted_operations);
+  ++_num_submitted_operations;
 
   inorder_queue *q = _device_data[node->get_assigned_device().get_id()]
                          .queues[op_target_lane]
                          .get();
 
   // Submit synchronization mechanisms
+
   result res;
   for (auto req : reqs) {
     // The scheduler should not hand us virtual requirements
@@ -275,14 +294,33 @@ void multi_queue_executor::submit_directly(
           // inorder queue and will therefore be executed before
           // the new node
         } else {
-          // TODO We can optimize by only synchronizing with the
-          // last event of all requirements on this particular queue
           assert(req->get_event());
+
+          std::size_t lane = req->get_assigned_execution_lane();
+
           HIPSYCL_DEBUG_INFO << " --> Synchronizes with other queue for node: "
                             << req
-                            << " lane = " << req->get_assigned_execution_lane()
+                            << " lane = " << lane
                             << std::endl;
-          res = q->submit_queue_wait_for(req->get_event());
+          // We only need to actually synchronize with the lane if this req
+          // is the operation that has been submitted *last* to the lane
+          // out of all requirements in reqs.
+          // (Follows from execution lanes being in-order queues)
+          //
+          // Find the maximum execution index out of all our requirements.
+          // Since the execution index is incremented after each submission,
+          // this allows us to identify the requirement that was submitted last.
+          std::size_t maximum_execution_index =
+              get_maximum_execution_index_for_lane(reqs, this, lane);
+          
+          if(req->get_assigned_execution_index() != maximum_execution_index) {
+            HIPSYCL_DEBUG_INFO
+                << "  --> (Skipping unnecessary synchronization; another "
+                   "requirement follows in the same inorder queue)"
+                << std::endl;
+          } else {
+            res = q->submit_queue_wait_for(req->get_event());
+          }
         }
       }
       if (!res.is_success()) {

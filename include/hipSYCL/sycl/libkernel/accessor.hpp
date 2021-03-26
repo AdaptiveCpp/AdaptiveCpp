@@ -34,7 +34,7 @@
 #include <cassert>
 
 #include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/glue/deferred_pointer.hpp"
+#include "hipSYCL/glue/embedded_pointer.hpp"
 #include "hipSYCL/glue/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
@@ -228,8 +228,6 @@ void bind_to_handler(AccessorType& acc, sycl::handler& cgh);
 
 namespace detail {
 
-using mobile_buffer_ptr = mobile_shared_ptr<rt::buffer_data_region>;
-
 /// The accessor base allows us to retrieve the associated buffer
 /// for the accessor.
 template<class T>
@@ -237,10 +235,6 @@ class accessor_base
 {
 protected:
   friend class sycl::handler;
-
-  accessor_base()
-  : _ptr{nullptr}
-  {}
 
   HIPSYCL_HOST_TARGET
   void set_data_region(std::shared_ptr<rt::buffer_data_region> buff) {
@@ -253,21 +247,31 @@ protected:
   void bind_to(rt::buffer_memory_requirement *req) {
 #ifndef SYCL_DEVICE_ONLY
     assert(req);
-    _ptr = req->make_deferred_pointer<T>();
+    req->bind(_ptr.get_uid());
 #endif
+  }
+
+  // Only valid until the embedded pointer has been initialized
+  HIPSYCL_HOST_TARGET
+  glue::unique_id get_uid() const {
+    return _ptr.get_uid();
   }
 
   HIPSYCL_HOST_TARGET
   std::shared_ptr<rt::buffer_data_region> get_data_region() const {
 #ifndef SYCL_DEVICE_ONLY
     return _buff.get_shared_ptr();
+#else
+    // Should never be called on device, but suppress warning
+    // about function without return value.
+    return nullptr;
 #endif
   }
 
-  mobile_buffer_ptr _buff;
-  glue::deferred_pointer<T> _ptr;
+  // Will hold the actual USM pointer after scheduling
+  glue::embedded_pointer<T> _ptr;
+  mobile_shared_ptr<rt::buffer_data_region> _buff;
 };
-
 
 } // detail
 
@@ -670,6 +674,7 @@ private:
     HIPSYCL_DEBUG_INFO << "accessor [host]: Initializing host access" << std::endl;
 
     assert(this->_buff.get_shared_ptr());
+
     auto data = this->_buff.get_shared_ptr();
 
     if(sizeof(dataT) != data->get_element_size())
@@ -705,10 +710,16 @@ private:
 
       assert(node);
       node->wait();
+
+      rt::buffer_memory_requirement *req =
+          static_cast<rt::buffer_memory_requirement *>(node->get_operation());
+      assert(req->has_device_ptr());
+      void* host_ptr = req->get_device_ptr();
+      assert(host_ptr);
+      
       // For host accessors, we need to manually trigger the initialization
-      // of the deferred pointer, since the host accessor will in generally
-      // not be copied again.
-      this->_ptr.trigger_initialization();
+      // of the embedded pointer
+      this->_ptr.explicit_init(host_ptr);
     } else {
       HIPSYCL_DEBUG_ERROR << "accessor [host]: Aborting synchronization, "
                              "runtime error list is non-empty"

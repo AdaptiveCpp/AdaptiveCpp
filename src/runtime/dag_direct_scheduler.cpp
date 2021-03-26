@@ -80,9 +80,9 @@ void initialize_memory_access(buffer_memory_requirement *bmem_req,
 
   void *device_pointer = bmem_req->get_data_region()->get_memory(target_dev);
   bmem_req->initialize_device_data(device_pointer);
-  HIPSYCL_DEBUG_INFO << "dag_direct_scheduler: Preparing deferred pointer of "
-                        "requirement node "
-                     << dump(bmem_req) << std::endl;
+  HIPSYCL_DEBUG_INFO << "dag_direct_scheduler: Setting device data pointer of "
+                        "requirement node " << dump(bmem_req) << " to " 
+                     << device_pointer << std::endl;
 }
 
 result ensure_allocation_exists(buffer_memory_requirement *bmem_req,

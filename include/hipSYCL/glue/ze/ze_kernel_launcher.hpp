@@ -34,6 +34,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
@@ -89,10 +90,6 @@ public:
   using component_type = uint32_t;
 
   packed_kernel() = default;
-
-  // Copying in the kernel by value guarantees that deferred pointers
-  // from accessors have been initialized before the kernel gets
-  // type-erased and deconstructed. Don't change.
   packed_kernel(KernelType k) {
     init(reinterpret_cast<const unsigned char*>(&k));
   }
@@ -196,11 +193,14 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel kernel_body, Reductions... reductions) {
 
     this->_type = type;
     
-    this->_invoker = [=]() {
+    this->_invoker = [=](rt::dag_node* node) {
+      Kernel k = kernel_body;
+      static_cast<rt::kernel_operation *>(node->get_operation())
+          ->initialize_embedded_pointers(k);
 
       sycl::range<Dim> effective_local_range = local_range;
       if constexpr (type == rt::kernel_type::basic_parallel_for) {
@@ -343,10 +343,7 @@ public:
                           0},
             static_cast<void*>(nullptr)};
 
-        // Need to perform additional copy to guarantee deferred_pointers/
-        // accessors are initialized
-        auto initialized_kernel_invoker = k;
-        initialized_kernel_invoker(handle);
+        k(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -359,8 +356,8 @@ public:
     return rt::backend_id::level_zero;
   }
 
-  virtual void invoke() final override {
-    _invoker();
+  virtual void invoke(rt::dag_node* node) final override {
+    _invoker(node);
   }
 
   virtual rt::kernel_type get_kernel_type() const final override {
@@ -433,7 +430,7 @@ private:
   
   }
 
-  std::function<void ()> _invoker;
+  std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
   rt::ze_queue* _queue;
 };

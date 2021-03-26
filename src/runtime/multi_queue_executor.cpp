@@ -51,20 +51,25 @@ public:
 
   virtual ~queue_operation_dispatcher(){}
 
-  virtual result dispatch_kernel(kernel_operation* op) final override {
-    return _queue->submit_kernel(*op);
+  virtual result dispatch_kernel(kernel_operation *op,
+                                 dag_node_ptr node) final override {
+
+    return _queue->submit_kernel(*op, node);
   }
 
-  virtual result dispatch_memcpy(memcpy_operation* op) final override {
-    return _queue->submit_memcpy(*op);
+  virtual result dispatch_memcpy(memcpy_operation *op,
+                                 dag_node_ptr node) final override {
+    return _queue->submit_memcpy(*op, node);
   }
 
-  virtual result dispatch_prefetch(prefetch_operation* op) final override {
-    return _queue->submit_prefetch(*op);
+  virtual result dispatch_prefetch(prefetch_operation *op,
+                                   dag_node_ptr node) final override {
+    return _queue->submit_prefetch(*op, node);
   }
 
-  virtual result dispatch_memset(memset_operation *op) final override {
-    return _queue->submit_memset(*op);
+  virtual result dispatch_memset(memset_operation *op,
+                                 dag_node_ptr node) final override {
+    return _queue->submit_memset(*op, node);
   }
 
 private:
@@ -336,7 +341,7 @@ void multi_queue_executor::submit_directly(
       << dump(op) << std::endl;
   
   queue_operation_dispatcher dispatcher{q};
-  res = op->dispatch(&dispatcher);
+  res = op->dispatch(&dispatcher, node);
   if (!res.is_success()) {
     register_error(res);
     node->cancel();

@@ -35,6 +35,8 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
@@ -352,13 +354,13 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel kernel_body, Reductions... reductions) {
 
     this->_type = type;
 
 #ifndef HIPSYCL_HAS_FIBERS
     if (type == rt::kernel_type::ndrange_parallel_for) {
-      this->_invoker = []() {};
+      this->_invoker = [](rt::dag_node* node) {};
       
       throw sycl::feature_not_supported{
         "Support for nd_range kernels on CPU is disabled without fibers because they cannot be\n"
@@ -375,7 +377,10 @@ public:
     }
 #endif
     
-    this->_invoker = [=]() {
+    this->_invoker = [=](rt::dag_node* node) {
+      Kernel k = kernel_body;
+      static_cast<rt::kernel_operation *>(node->get_operation())
+          ->initialize_embedded_pointers(k);
 
       bool is_with_offset = false;
       for (std::size_t i = 0; i < Dim; ++i)
@@ -427,10 +432,7 @@ public:
                           0},
             static_cast<void*>(nullptr)};
 
-        // Need to perform additional copy to guarantee deferred_pointers/
-        // accessors are initialized
-        auto initialized_kernel_invoker = k;
-        initialized_kernel_invoker(handle);
+        k(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -443,8 +445,8 @@ public:
     return rt::backend_id::omp;
   }
 
-  virtual void invoke() final override {
-    _invoker();
+  virtual void invoke(rt::dag_node* node) final override {
+    _invoker(node);
   }
 
   virtual rt::kernel_type get_kernel_type() const final override {
@@ -453,7 +455,7 @@ public:
 
 private:
 
-  std::function<void ()> _invoker;
+  std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
 };
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,48 +25,51 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OMP_QUEUE_HPP
-#define HIPSYCL_OMP_QUEUE_HPP
-
-#include "../generic/async_worker.hpp"
-#include "../executor.hpp"
-#include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class omp_queue : public inorder_queue
-{
-public:
-  omp_queue(backend_id id);
-  virtual ~omp_queue();
-
-  /// Inserts an event into the stream
-  virtual std::shared_ptr<dag_node_event> insert_event() override;
-
-  virtual result submit_memcpy(const memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(const kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(const memset_operation&, dag_node_ptr) override;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
-  virtual result submit_external_wait_for(dag_node_ptr node) override;
-
-  virtual device_id get_device() const override;
-  virtual void *get_native_type() const override;
-
-  virtual module_invoker *get_module_invoker() override;
-  
-  worker_thread& get_worker();
-private:
-  backend_id _backend_id;
-  worker_thread _worker;
-};
-
-}
+std::istream &operator>>(std::istream &istr, scheduler_type &out) {
+  std::string str;
+  istr >> str;
+  if (str == "direct")
+    out = scheduler_type::direct;
+  else
+    istr.setstate(std::ios_base::failbit);
+  return istr;
 }
 
-#endif
+std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
+  std::string str;
+  istr >> str;
+  // have to copy, as otherweise might be interpreted as failing, although everything is fine.
+  std::istringstream istream{str};
+
+  size_t offset = 0;
+  std::string name;
+  while(std::getline(istream, name, ';')) {
+    if(name.empty())
+      continue;
+    std::transform(name.cbegin(), name.cend(), name.begin(), ::tolower);
+
+    if (name == "cuda") {
+      out.push_back(rt::backend_id::cuda);
+    } else if (name == "hip") {
+      out.push_back(rt::backend_id::hip);
+    } else if (name == "ze") {
+      out.push_back(rt::backend_id::level_zero);
+    } else if("omp") {
+      // looking for this, even though we have to allow it always.
+      out.push_back(rt::backend_id::omp);
+    } else {
+      istr.setstate(std::ios_base::failbit);
+      HIPSYCL_DEBUG_WARNING << "'" << name << "' is not a known backend name." << std::endl;
+      break;
+    }
+  }
+  return istr;
+}
+}
+}

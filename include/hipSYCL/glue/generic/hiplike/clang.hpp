@@ -48,11 +48,7 @@ extern "C" unsigned __cudaPushCallConfiguration(dim3 gridDim, dim3 blockDim,
                                                 size_t sharedMem,
                                                 void *stream);
 
-extern "C" unsigned __cudaPopCallConfiguration();
-
 #else // compiling for __HIP__
-
-hipError_t hipConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem, hipStream_t stream);
 
 extern "C" hipError_t __hipPushCallConfiguration(dim3 gridDim, dim3 blockDim,
                                                  size_t sharedMem,

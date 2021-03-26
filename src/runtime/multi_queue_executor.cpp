@@ -25,8 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
@@ -187,11 +188,16 @@ multi_queue_executor::multi_queue_executor(
 
     _device_data[dev].kernel_lanes.begin = memcpy_concurrency;
     _device_data[dev].kernel_lanes.num_lanes = kernel_concurrency;
+
+    const std::size_t max_statistics_size = application::get_settings()
+            .get<setting::mqe_lane_statistics_max_size>();
+    const double statistics_decay_time_sec = application::get_settings()
+                      .get<setting::mqe_lane_statistics_decay_time_sec>();
+
     _device_data[dev].submission_statistics = moving_statistics{
-        100, // Store information about last 100 operations
+        max_statistics_size,
         _device_data[dev].queues.size(),
-        10 * static_cast<std::size_t>(1e9) // Forget after 10 seconds
-    };
+        static_cast<std::size_t>(1e9 * statistics_decay_time_sec)};
   }
 
   HIPSYCL_DEBUG_INFO << "multi_queue_executor: Spawned for backend "

@@ -28,6 +28,8 @@
 #include <limits>
 #include <cassert>
 
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -181,7 +183,8 @@ void dag_node::add_requirement(dag_node_ptr requirement)
     return recursive_find(from, max_levels, to);
   };
 
-  const int search_depth = 20;
+  const int search_depth =
+      application::get_settings().get<setting::dag_req_optimization_depth>();
 
   for(auto existing_req : _requirements) {
     if(is_reachable_from(existing_req, requirement, search_depth)) {

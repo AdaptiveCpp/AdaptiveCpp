@@ -80,7 +80,7 @@ public:
 
   template<class WeightFunc>
   std::vector<double> build_weighted_bins(WeightFunc w) const {
-    std::vector<double> bins_out = std::vector<double>(_num_bins);
+    std::vector<double> bins_out(_num_bins);
     for(const auto& s : _last_submissions) {
       bins_out[s.bin] += w(s.timestamp);
     }
@@ -172,4 +172,3 @@ private:
 
 
 #endif
-

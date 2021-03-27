@@ -61,16 +61,8 @@ void execution_hints::add_hint(execution_hint_ptr hint)
 
 void execution_hints::overwrite_with(const execution_hints& other)
 {
-  for(const auto& hint : other._hints)
-  {
-    execution_hint_type type = hint->get_hint_type();
-    auto it = std::find_if(_hints.begin(),_hints.end(),
-      [type](execution_hint_ptr h){
-      return type == h->get_hint_type();
-    });
-
-    if(it != _hints.end())
-      *it = hint;
+  for(const auto& hint : other._hints){
+    this->overwrite_with(hint);
   }
 }
 

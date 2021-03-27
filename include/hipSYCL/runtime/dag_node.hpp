@@ -55,6 +55,7 @@ public:
 
   bool is_submitted() const;
   bool is_complete() const;
+  bool is_known_complete() const;
   bool is_cancelled() const;
   bool is_virtual() const;
   
@@ -65,10 +66,14 @@ public:
   void assign_to_executor(backend_executor* ctx);
   void assign_to_device(device_id dev);
   void assign_to_execution_lane(std::size_t lane_id);
+  // can be used by the backend executor to store
+  // ordering information between nodes
+  void assign_execution_index(std::size_t index);
 
   device_id get_assigned_device() const;
   backend_executor *get_assigned_executor() const;
   std::size_t get_assigned_execution_lane() const;
+  std::size_t get_assigned_execution_index() const;
 
   const execution_hints& get_execution_hints() const;
   execution_hints& get_execution_hints();
@@ -95,6 +100,7 @@ private:
   device_id _assigned_device;
   backend_executor *_assigned_executor;
   std::size_t _assigned_execution_lane;
+  std::size_t _assigned_execution_index;
 
   std::shared_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;

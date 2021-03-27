@@ -52,14 +52,6 @@ bind_to_device::bind_to_device(device_id d)
 device_id bind_to_device::get_device_id() const
 { return _dev; }
 
-explicit_require::explicit_require(dag_node_ptr node)
-    : execution_hint{execution_hint_type::explicit_require}, _dag_node{node} {}
-
-dag_node_ptr explicit_require::get_requirement() const
-{
-  return _dag_node;
-}
-
 } // hints
 
 void execution_hints::add_hint(execution_hint_ptr hint)

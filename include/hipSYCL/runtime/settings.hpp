@@ -45,7 +45,14 @@ enum class scheduler_type { direct };
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
 
-enum class setting { debug_level, scheduler_type, visibility_mask };
+enum class setting {
+  debug_level,
+  scheduler_type,
+  visibility_mask,
+  dag_req_optimization_depth,
+  mqe_lane_statistics_max_size,
+  mqe_lane_statistics_decay_time_sec
+};
 
 template <setting S> struct setting_trait {};
 
@@ -58,33 +65,32 @@ template <setting S> struct setting_trait {};
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::debug_level, "debug_level", int)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::scheduler_type, "rt_scheduler", scheduler_type)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", std::vector<rt::backend_id>)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::dag_req_optimization_depth,
+                              "rt_dag_req_optimization_depth", std::size_t);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_max_size,
+                              "rt_mqe_lane_statistics_max_size", std::size_t);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_decay_time_sec,
+                              "rt_mqe_lane_statistics_decay_time_sec", double);
 
 class settings
 {
 public:
-  template <setting S>
-  [[deprecated]]
-  typename setting_trait<S>::type
-  get_or_default(typename setting_trait<S>::type default_value) const{
-    if (has_setting<S>()) {
-      return get<S>();
-    }
-    return default_value;
-  }
 
   template <setting S> typename setting_trait<S>::type get() const {
     if constexpr(S == setting::debug_level){
-      return _debug_level.value();
+      return _debug_level;
     } else if constexpr (S == setting::scheduler_type) {
-      return _scheduler_type.value();
+      return _scheduler_type;
     } else if constexpr (S == setting::visibility_mask) {
-      return _visibility_mask.value();
+      return _visibility_mask;
+    } else if constexpr (S == setting::dag_req_optimization_depth) {
+      return _dag_requirement_optimization_depth;
+    } else if constexpr (S == setting::mqe_lane_statistics_max_size) {
+      return _mqe_lane_statistics_max_size;
+    } else if constexpr (S == setting::mqe_lane_statistics_decay_time_sec) {
+      return _mqe_lane_statistics_decay_time_sec;
     }
     return typename setting_trait<S>::type{};
-  }
-
-  template <setting S> bool has_setting() const {
-    return get_optional<S>().has_value();
   }
 
   settings() {
@@ -100,6 +106,12 @@ public:
     _visibility_mask =
         get_environment_variable_or_default<setting::visibility_mask>(
             std::vector<rt::backend_id>{});
+    _dag_requirement_optimization_depth = get_environment_variable_or_default<
+        setting::dag_req_optimization_depth>(10);
+    _mqe_lane_statistics_max_size = get_environment_variable_or_default<
+        setting::mqe_lane_statistics_max_size>(100);
+    _mqe_lane_statistics_decay_time_sec = get_environment_variable_or_default<
+        setting::mqe_lane_statistics_decay_time_sec>(10.0);
   }
 
 private:
@@ -128,18 +140,13 @@ private:
     std::transform(id.begin(), id.end(), id.begin(), ::toupper);
     return "HIPSYCL_"+id;
   }
-  
-  template <setting S>
-  const std::optional<typename setting_trait<S>::type>& get_optional(setting p) const {
-    if constexpr(S == setting::debug_level){
-      return _debug_level;
-    }
-    return typename setting_trait<S>::type{};
-  }
 
-  std::optional<int> _debug_level;
-  std::optional<scheduler_type> _scheduler_type;
-  std::optional<std::vector<rt::backend_id>> _visibility_mask;
+  int _debug_level;
+  scheduler_type _scheduler_type;
+  std::vector<rt::backend_id> _visibility_mask;
+  std::size_t _dag_requirement_optimization_depth;
+  std::size_t _mqe_lane_statistics_max_size;
+  double _mqe_lane_statistics_decay_time_sec;
 };
 
 }

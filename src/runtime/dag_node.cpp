@@ -178,8 +178,8 @@ void dag_node::add_requirement(dag_node_ptr requirement)
       return;
   }
 
-  auto is_reachable_from = [&, this](dag_node_ptr from, dag_node_ptr to,
-                                     int max_levels) -> bool {
+  auto is_reachable_from = [](dag_node_ptr from, dag_node_ptr to,
+                              int max_levels) -> bool {
     return recursive_find(from, max_levels, to);
   };
 

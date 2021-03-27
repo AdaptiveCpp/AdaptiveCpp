@@ -90,7 +90,7 @@ public:
   std::vector<double>
   build_decaying_bins() const {
     std::size_t now = this->now();
-    return build_weighted_bins([&,this](std::size_t timestamp) -> double {
+    return build_weighted_bins([now,this](std::size_t timestamp) -> double {
       double age = static_cast<double>(now - timestamp);
       assert(age > 0.);
       return std::max(0.0, 1.0 - age / static_cast<double>(_time_to_forget));

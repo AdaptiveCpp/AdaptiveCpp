@@ -96,6 +96,21 @@ private:
 class use_optimized_host_memory : public detail::buffer_property
 {};
 
+template<int Dim>
+class hipSYCL_page_size : public detail::buffer_property
+{
+public:
+  hipSYCL_page_size(const sycl::range<Dim>& page_size)
+  : _page_size{page_size} {}
+
+  sycl::range<Dim> get_page_size() const
+  {
+    return _page_size;
+  }
+private:
+  sycl::range<Dim> _page_size;
+};
+
 } // property::buffer
 
 namespace detail::buffer_policy {
@@ -835,9 +850,13 @@ private:
   void init_data_backend(const range<dimensions>& range)
   {
     this->_range = range;
-    // TODO properly set page size and expose configurable page size
-    // to user
+
     rt::range<3> page_size = rt::embed_in_range3(range);
+    if (this->has_property<property::buffer::hipSYCL_page_size<dimensions>>()) {
+      page_size = rt::embed_in_range3(
+          this->get_property<property::buffer::hipSYCL_page_size<dimensions>>()
+              .get_page_size());
+    }
 
     _impl->data = std::make_shared<rt::buffer_data_region>(
         rt::embed_in_range3(range), sizeof(T), page_size);

@@ -244,8 +244,7 @@ bool dag_builder::is_conflicting_access(
       user.mode == sycl::access::mode::read)
     return false;
 
-  // TODO Check if the page ranges do not intersect
-  // need to determine page range
+  // Checks if the page ranges do not intersect
   return mem_req->intersects_with(user);
 }
 

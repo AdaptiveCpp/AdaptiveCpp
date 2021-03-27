@@ -89,6 +89,25 @@ Compared to using multiple queues bound to different devices, using a single que
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
 
+## HIPSYCL_EXT_BUFFER_PAGE_SIZE
+
+A property that can be attached to the buffer to set the buffer page size. See the hipSYCL buffer model [specification](runtime-spec.md) for more details.
+
+### API reference
+
+```c++
+namespace sycl::property::buffer {
+
+template<int Dim>
+class hipSYCL_page_size
+{
+public:
+  hipSYCL_page_size(const sycl::range<Dim>& page_size);
+};
+
+}
+```
+
 ## HIPSYCL_EXT_PREFETCH_HOST
 
 Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.

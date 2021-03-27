@@ -241,8 +241,13 @@ public:
   template<class F>
   void for_each_user(F f){
     std::lock_guard<std::mutex> lock{_lock};
-    for(auto& user : _users) {
-      f(user);
+    // Iterate in reverse order over the users since
+    // this will iterate over the newest users first.
+    // This is a more advantageous pattern e.g. during
+    // DAG construction as it allows finding the relevant users
+    // quicker.
+    for(int i = _users.size() - 1; i >= 0; --i) {
+      f(_users[i]);
     }
   }
 

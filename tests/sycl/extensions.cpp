@@ -28,6 +28,9 @@
 
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/property.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/queue.hpp"
+
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
@@ -410,6 +413,26 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   sycl::free(gsize, q);
 }
 #endif
+
+#ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
+
+BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
+
+  cl::sycl::queue q;
+
+  // Only compile testing for now
+  for(std::size_t i = 0; i < 100; ++i) {
+    q.submit(
+        {cl::sycl::property::command_group::hipSYCL_prefer_execution_lane{i}},
+        [&](cl::sycl::handler &cgh) {
+          cgh.single_task<class prefer_execution_lane_test>([=]() {});
+        });
+  }
+  q.wait();
+}
+
+#endif
+
 #ifdef HIPSYCL_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
   using namespace cl;

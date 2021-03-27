@@ -26,7 +26,7 @@ See [here](enqueue-custom-operation.md) for more details.
 
 hipSYCL supports interoperability between `sycl::buffer` and USM pointers. See [here](buffer-usm-interop.md) for details.
 
-### HIPSYCL_EXT_CG_PROPERTY_*: Command group properties
+### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:
 
@@ -37,7 +37,7 @@ event queue::submit(const property_list& prop_list, T cgf)
 
 A list of supported command group properties follows:
 
-#### HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
+#### `HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE`
 
 ##### API reference
 
@@ -60,7 +60,7 @@ In the current implementation, this property only affects the selected local siz
 
 *Note:* The property only affects kernel launches of the same dimension. If you want to set the group size for 2D kernels, you need to attach a `hipSYCL_prefer_group_size<2>` property.
 
-#### HIPSYCL_EXT_CG_PROPERTY_RETARGET
+#### `HIPSYCL_EXT_CG_PROPERTY_RETARGET`
 
 ##### API reference
 
@@ -90,7 +90,7 @@ Compared to using multiple queues bound to different devices, using a single que
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
 
 
-#### HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
+#### `HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE`
 
 ##### API reference
 
@@ -114,7 +114,7 @@ If this distribution turns out to be not optimal, the `hipSYCL_prefer_execution_
 
 Execution lanes for a device are enumerated starting from 0. If a non-existent execution lane is provided, it is mapped back to the permitted range using a modulo operation. Therefore, the execution lane id provided by the property can be seen as additional information on *potential* and desired parallelism that the runtime can exploit.
 
-### HIPSYCL_EXT_BUFFER_PAGE_SIZE
+### `HIPSYCL_EXT_BUFFER_PAGE_SIZE`
 
 A property that can be attached to the buffer to set the buffer page size. See the hipSYCL buffer model [specification](runtime-spec.md) for more details.
 
@@ -135,7 +135,7 @@ public:
 ````
 
 
-### HIPSYCL_EXT_PREFETCH_HOST
+### `HIPSYCL_EXT_PREFETCH_HOST`
 
 Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.
 This is a more convenient alternative to constructing a host queue and executing regular `prefetch()` there.
@@ -156,7 +156,7 @@ event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
                           const std::vector<event> &dependencies);
 ```
 
-### HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
+### `HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE`
 
 Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In hipSYCL, the synchronous variant is expected to be more efficient.
 

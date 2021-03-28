@@ -51,6 +51,7 @@
 #include <exception>
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 namespace hipsycl {
 namespace sycl {
@@ -66,7 +67,6 @@ using queue_submission_hooks_ptr =
   shared_ptr_class<queue_submission_hooks>;
 
 }
-
 
 namespace property::command_group {
 
@@ -241,7 +241,7 @@ public:
 
   void wait() {
     rt::application::dag().flush_sync();
-    rt::application::dag().wait();
+    rt::application::dag().wait(_node_group_id);
   }
 
   void wait_and_throw() {
@@ -293,6 +293,8 @@ public:
       hints.overwrite_with(
           rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
     }
+    // Should always have node_group hint from default hints
+    assert(hints.has_hint<rt::hints::node_group>());
 
     handler cgh{get_context(), _handler, hints};
     
@@ -734,6 +736,15 @@ private:
 
 
   void init() {
+    static std::atomic<std::size_t> node_group_id;
+    _node_group_id = ++node_group_id;
+    
+    HIPSYCL_DEBUG_INFO << "queue: Constructed queue with node group id "
+                       << _node_group_id << std::endl;
+
+    _default_hints.add_hint(
+        rt::make_execution_hint<rt::hints::node_group>(_node_group_id));
+
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
 
@@ -756,6 +767,7 @@ private:
 
   std::weak_ptr<rt::dag_node> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
+  std::size_t _node_group_id;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -771,6 +783,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, device)
 HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 {
   return 1;
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(queue, hipSYCL_node_group)
+{
+  return _node_group_id;
 }
 
 namespace detail{

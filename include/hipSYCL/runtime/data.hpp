@@ -400,10 +400,6 @@ public:
     for(std::size_t i = 0; i < 3; ++i){
       assert(page_size[i] > 0);
       _num_pages[i] = (num_elements[i] + page_size[i] - 1) / page_size[i];
-    }
-    
-    
-    for(int i = 0; i < 3; ++i){
       assert(_num_pages[i] > 0);
     }
 

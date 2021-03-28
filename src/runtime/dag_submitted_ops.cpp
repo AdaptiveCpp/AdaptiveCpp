@@ -81,9 +81,10 @@ void dag_submitted_ops::wait_for_group(std::size_t node_group) {
   // 1.) In dag_node::wait(), when the event turns complete the first time,
   // recursively mark all requirements as complete as well.
   // 2.) Reverse the iteration order here - this will cause us to handle the
-  // newest nodes first, which in general will depend on backend nodes.
-  // Since nodes cache their state when they complete, the wait() on most of
-  // the older nodes will become trivial and not require backend interaction.
+  // newest nodes first, which usually will depend on older nodes.
+  // Since nodes cache their state when they complete and because of 1), 
+  // the wait() on most of the older nodes will become trivial and not 
+  // require any backend interaction at all.
   for(dag_node_ptr node : current_ops) {
     assert(node->is_submitted());
     if (hints::node_group *g =

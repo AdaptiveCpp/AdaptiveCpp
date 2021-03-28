@@ -26,8 +26,11 @@
  */
 
 
+#include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/handler.hpp"
 #include "hipSYCL/sycl/queue.hpp"
+
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
@@ -528,6 +531,64 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
   sycl::free(usm_ptr, q);
 
 
+}
+
+#endif
+#ifdef HIPSYCL_EXT_BUFFER_PAGE_SIZE
+
+BOOST_AUTO_TEST_CASE(buffer_page_size) {
+  using namespace cl;
+
+  sycl::queue q;
+
+  // Deliberately choose page_size so that size is not a mulitple of it
+  // to test the more complicated case.
+  const std::size_t size = 1000;
+  const std::size_t page_size = 512;
+  sycl::buffer<int, 2> buff{sycl::range{size, size},
+                            sycl::property::buffer::hipSYCL_page_size<2>{
+                                sycl::range{page_size, page_size}}};
+
+  // We have 4 pages
+  for(std::size_t offset_x = 0; offset_x < size; offset_x += page_size) {
+    for(std::size_t offset_y = 0; offset_y < size; offset_y += page_size) {
+      auto event = q.submit([&](sycl::handler &cgh) {
+
+        sycl::range range{std::min(page_size, size - offset_x),
+                          std::min(page_size, size - offset_y)};
+        sycl::id offset{offset_x, offset_y};
+
+        for(int i = 0; i < 2; ++i){
+          assert(offset[i]+range[i] <= size);
+        }
+
+        sycl::accessor<int, 2> acc{buff, cgh, range, offset};
+
+        cgh.parallel_for(sycl::range{range}, [=](sycl::id<2> idx){
+          // TODO this needs to be changed once we have SYCL 2020
+          // semantics for operator[] of ranged accesors
+          acc[idx + offset] =
+              static_cast<int>(idx[0] + offset[0] + idx[1] + offset[1]);
+        });
+      });
+
+      // All kernels should be independent, in that case we should
+      // have a wait list of exactly one element: The one accessor
+      // we have requested.
+      // TODO This does not really guarantee that the kernels run in-
+      // dependently as access conflicts are typically added to the requirements
+      // of the accessor, not the kernel.
+      BOOST_CHECK(event.get_wait_list().size() == 1);
+    }
+  }
+
+  sycl::host_accessor<int, 2> hacc{buff};
+
+  for(int i = 0; i < size; ++i) {
+    for(int j = 0; j < size; ++j) {
+      BOOST_REQUIRE(hacc[i][j] == i+j);
+    }
+  }
 }
 
 #endif

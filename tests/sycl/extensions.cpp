@@ -481,7 +481,8 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(usm_ptr != nullptr);
 
     // Query information
-    sycl::buffer_allocation<int> alloc = buff.get_allocation(usm_ptr);
+    sycl::buffer_allocation::descriptor<int> alloc =
+        buff.get_allocation(usm_ptr);
     BOOST_TEST(alloc.ptr == usm_ptr);
     BOOST_CHECK(alloc.dev == q.get_device());
     BOOST_TEST(alloc.is_owned == true);
@@ -502,10 +503,11 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(alloc.is_owned == false);
 
     std::vector<int*> allocations;
-    buff.for_each_allocation([&](const sycl::buffer_allocation<int>& a){
-      allocations.push_back(a.ptr);
-    });
-    
+    buff.for_each_allocation(
+        [&](const sycl::buffer_allocation::descriptor<int> &a) {
+          allocations.push_back(a.ptr);
+        });
+
     BOOST_TEST(allocations.size() >= 1);
     bool found = false;
     for(std::size_t i = 0; i < allocations.size(); ++i) {

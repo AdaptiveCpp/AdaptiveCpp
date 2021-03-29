@@ -14,9 +14,10 @@ USM pointers that a buffer currently manages can be queried, and some aspects ca
 ```c++
 namespace sycl {
 
+namespace buffer_allocation {
 /// Describes a buffer memory allocation represented by a USM pointer 
 /// and additional meta-nformation.
-template <class T> struct buffer_allocation {
+template <class T> struct descriptor {
   /// the USM pointer
   T *ptr;
   /// the device for which this allocation is used.
@@ -28,6 +29,8 @@ template <class T> struct buffer_allocation {
   bool is_owned;
 };
 
+}
+
 template <typename T, int dimensions,
           typename AllocatorT>
 class buffer {
@@ -36,7 +39,7 @@ public:
   /// Iterate over all allocations used by this buffer, and invoke
   /// a handler object for each allocation.
   /// \param h Handler that will be invoked for each allocation.
-  ///  Signature of \c h: void(const buffer_allocation<T>&)
+  ///  Signature of \c h: void(const buffer_allocation::descriptor<T>&)
   template <class Handler>
   void for_each_allocation(Handler &&h) const;
 
@@ -51,12 +54,12 @@ public:
   /// \return the buffer allocation object associated with the provided
   /// device. If the buffer does not contain an allocation for the specified
   /// device, throws \c invalid_parameter_error.
-  buffer_allocation<T> get_allocation(const device &dev) const;
+  buffer_allocation::descriptor<T> get_allocation(const device &dev) const;
 
   /// \return the buffer allocation object associated with the provided pointer.
   /// If the buffer does not contain an allocation described by ptr,
   /// throws \c invalid_parameter_error.
-  buffer_allocation<T> get_allocation(const T *ptr) const;
+  buffer_allocation::descriptor<T> get_allocation(const T *ptr) const;
 
   /// Instruct buffer to free the allocation on the specified device at buffer
   /// destruction.
@@ -90,7 +93,63 @@ public:
 
 ## Constructing buffer objects on top of USM pointers
 
-TBD
+hipSYCL can also construct buffers on top of existing USM pointers.
+
+### API reference
+
+```c++
+
+namespace sycl {
+namespace buffer_allocation {
+
+/// A type based on buffer_allocation::descriptor<T> that stores additionally
+/// information about the data state (outdated/current) of the data referenced
+/// by the descriptor
+template<class T>
+using tracked_descriptor = __unspecified__;
+
+enum class management_mode {
+  owning,
+  non_owning
+};
+
+static constexpr bool take_ownership = management_mode::owning;
+static constexpr bool no_ownership = management_mode::non_owning;
+
+/// Construct descriptor for a data region with initially outdated content.
+/// When first accessed, the runtime will emit data transfers to update
+/// date content.
+tracked_descriptor<T> outdated_view(T *ptr, device dev,
+                                 management_mode m = no_ownership);
+
+/// Construct descriptor for a data region with initially recent content.
+/// When first accessed, the runtime will not emit data transfers to
+/// update data content. Instead, the allocation may be used as a
+/// potential data source to update other outdated allocations from.
+tracked_descriptor<T> view(T *ptr, device dev, management_mode m = no_ownership);
+
+}
+}
+
+template <typename T, int dimensions,
+          typename AllocatorT>
+class buffer {
+public:
+  /// Construct buffer on top of existing USM pointers with given range.
+  /// Will not write back at destruction unless set_final_data() is used.
+  buffer(
+    const range<dimensions>& r,
+    const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
+    const property_list& prop_list = {});
+  
+  buffer(
+    const range<dimensions>& r,
+    const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
+    AllocatorT allocator,
+    const property_list& prop_list = {});
+};
+
+```
 
 ## Example code
 

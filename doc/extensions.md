@@ -26,6 +26,10 @@ See [here](enqueue-custom-operation.md) for more details.
 
 hipSYCL supports interoperability between `sycl::buffer` and USM pointers. See [here](buffer-usm-interop.md) for details.
 
+### `HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES`
+
+An extension that allows to eplicitly set view/non-view semantics for buffers as well as enable some behaviors that cannot be expressed in regular SYCL such as buffers that do not block in the destructor. See [here](explicit-buffer-policies.md) for details.
+
 ### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:

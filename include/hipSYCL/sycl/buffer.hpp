@@ -32,6 +32,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <type_traits>
@@ -62,6 +63,38 @@
 
 namespace hipsycl {
 namespace sycl {
+
+
+namespace detail::buffer_policy {
+
+class destructor_waits : public buffer_property
+{ 
+public: 
+  destructor_waits(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+class writes_back : public buffer_property
+{ 
+public: 
+  writes_back(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+class use_external_storage : public buffer_property
+{ 
+public: 
+  use_external_storage(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+}
 
 namespace property::buffer {
 
@@ -111,39 +144,28 @@ private:
   sycl::range<Dim> _page_size;
 };
 
+class hipSYCL_write_back_node_group : public detail::buffer_property
+{
+public:
+  hipSYCL_write_back_node_group(std::size_t group)
+  : _node_group{group} {}
+
+  std::size_t get_node_group() const {
+    return _node_group;
+  }
+private:
+  std::size_t _node_group;
+};
+
+using hipSYCL_buffer_uses_external_storage =
+    detail::buffer_policy::use_external_storage;
+using hipSYCL_buffer_writes_back =
+    detail::buffer_policy::writes_back;
+using hipSYCL_buffer_destructor_blocks =
+    detail::buffer_policy::destructor_waits;
+
 } // property::buffer
 
-namespace detail::buffer_policy {
-
-class destructor_waits : public buffer_property
-{ 
-public: 
-  destructor_waits(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-class writes_back : public buffer_property
-{ 
-public: 
-  writes_back(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-class use_external_storage : public buffer_property
-{ 
-public: 
-  use_external_storage(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-
-}
 
 namespace detail {
 
@@ -157,6 +179,8 @@ struct buffer_impl
   // Only used if a shared_ptr is passed to the buffer constructor
   std::shared_ptr<void> shared_host_data;
   
+  std::size_t write_back_node_group;
+
   std::shared_ptr<rt::buffer_data_region> data;
 
   bool writes_back;
@@ -192,14 +216,12 @@ struct buffer_impl
                   data, rt::id<3>{}, data->get_num_elements(),
                   sycl::access::mode::read, sycl::access::target::host_buffer);
 
-          rt::execution_hints enforce_bind_to_host;
-          enforce_bind_to_host.add_hint(
-              rt::make_execution_hint<rt::hints::bind_to_device>(
-                  detail::get_host_device()));
+          rt::execution_hints hints;
+          add_writeback_hints(detail::get_host_device(), hints);
 
           build.builder()->add_explicit_mem_requirement(
               std::move(explicit_requirement), rt::requirements_list{},
-              enforce_bind_to_host);
+              hints);
         }
       }
     }
@@ -227,6 +249,19 @@ struct buffer_impl
     }
   }
 private:
+
+  bool has_writeback_node_group() const {
+    return write_back_node_group != std::numeric_limits<std::size_t>::max();
+  }
+
+  void add_writeback_hints(rt::device_id dev, rt::execution_hints& hints) {
+    hints.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+    if (has_writeback_node_group()) {
+      hints.add_hint(rt::make_execution_hint<rt::hints::node_group>(
+          write_back_node_group));
+    }
+  }
   
   rt::dag_node_ptr submit_copy(rt::device_id source_dev, void* dest) {
 
@@ -234,8 +269,8 @@ private:
 
     rt::dag_build_guard build{rt::application::dag()};
     rt::execution_hints hints;
-    hints.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(source_dev));
+    add_writeback_hints(source_dev, hints);
+
     rt::requirements_list reqs;
 
     auto req = std::make_unique<rt::buffer_memory_requirement>(
@@ -265,8 +300,11 @@ private:
 
 }
 
+
+namespace buffer_allocation {
+
 // This class is part of the USM-buffer interop API
-template <class T> struct buffer_allocation {
+template <class T> struct descriptor {
   // the USM allocation used for this device
   T *ptr;
   // the device for which this allocation is used.
@@ -278,6 +316,48 @@ template <class T> struct buffer_allocation {
   // when the buffer is released.
   bool is_owned;
 };
+
+template<class T>
+struct tracked_descriptor {
+  descriptor<T> desc;
+  bool is_recent;
+};
+
+enum class management_mode {
+  owning,
+  non_owning
+};
+
+inline constexpr management_mode take_ownership = management_mode::owning;
+inline constexpr management_mode no_ownership = management_mode::non_owning;
+
+/// Construct an allocation descriptor for outdated data
+/// that needs to be updated by the runtime when accessed
+template <class T>
+tracked_descriptor<T> empty_view(T *ptr, device dev,
+                                    management_mode m = no_ownership) {
+  tracked_descriptor<T> d;
+  bool is_owned = (m == take_ownership) ? true : false;
+
+  d.desc = descriptor<T>{ptr, dev, is_owned};
+  d.is_recent = false;
+  return d;
+}
+
+/// Construct an allocation descriptor for an allocation
+/// already holding live data that is up-to-date and does
+/// not need updating before use.
+template <class T>
+tracked_descriptor<T> view(T *ptr, device dev,
+                           management_mode m = no_ownership) {
+  tracked_descriptor<T> d;
+  bool is_owned = (m == take_ownership) ? true : false;
+
+  d.desc = descriptor<T>{ptr, dev, is_owned};
+  d.is_recent = true;
+  return d;
+}
+}
 
 // Default template arguments for the buffer class
 // are defined when forward-declaring the buffer in accessor.hpp
@@ -299,6 +379,51 @@ public:
   using allocator_type = AllocatorT;
 
   static constexpr int buffer_dim = dimensions;
+
+  /// buffer USM interop constructor
+  buffer(const std::vector<buffer_allocation::tracked_descriptor<T>>
+             &input_allocations,
+         const range<dimensions> &r,
+         const property_list &propList = {})
+      : detail::property_carrying_object{propList}
+  {
+    _impl = std::make_shared<detail::buffer_impl>();
+
+    default_policies dpol;
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = true;
+    dpol.writes_back = false;
+
+    init_policies_from_properties_or_default(dpol);
+
+    if(_impl->writes_back) {
+      HIPSYCL_DEBUG_WARNING
+          << "buffer: Explicit writeback policy was requested, but buffers "
+             "using USM interoperability cannot enable writeback at "
+             "construction. Disabling writeback."
+          << std::endl;
+      _impl->writes_back = false;
+    }
+    if(!_impl->use_external_storage) {
+      HIPSYCL_DEBUG_WARNING
+          << "buffer: No external storage policy was explicitly requested, but "
+             "this does not make sense for USM interoperability buffers. "
+             "Enabling using external storage."
+          << std::endl;
+      _impl->writes_back = false;
+    }
+
+    this->init(r, input_allocations);
+  }
+
+  buffer(const std::vector<buffer_allocation::tracked_descriptor<T>>
+             &input_allocations,
+         const range<dimensions> &r,
+         AllocatorT allocator, const property_list &propList = {})
+      : buffer(r, input_allocations, propList)
+  {
+    _alloc = allocator;
+  }
 
   buffer(const range<dimensions> &bufferRange,
          const property_list &propList = {})
@@ -594,12 +719,13 @@ public:
 
   /// Iterate over each allocation.
   /// \param h Handler that will be invoked for each allocation.
-  ///  Signature: void(const buffer_allocation<T>&)
+  ///  Signature: void(const buffer_allocation::descriptor<T>&)
   template <class Handler>
   void for_each_allocation(Handler &&h) const{
     _impl->data->for_each_allocation_while(
         [&h](const rt::data_allocation<void *> &alloc) {
-          buffer_allocation<T> a = rt_data_allocation_to_buffer_alloc(alloc);
+          buffer_allocation::descriptor<T> a =
+              rt_data_allocation_to_buffer_alloc(alloc);
           h(a);
 
           return true;
@@ -698,7 +824,7 @@ public:
   /// \return the buffer allocation object associated with the provided
   /// device. If the buffer does not contain an allocation for the specified
   /// device, throws \c invalid_parameter_error.
-  buffer_allocation<T> get_allocation(const device &dev) const {
+  buffer_allocation::descriptor<T> get_allocation(const device &dev) const {
     rt::device_id rt_dev = detail::extract_rt_device(dev);
 
     if (!_impl->data->has_allocation(rt_dev))
@@ -712,9 +838,9 @@ public:
   /// \return the buffer allocation object associated with the provided pointer.
   /// If the buffer does not contain an allocation described by ptr,
   /// throws \c invalid_parameter_error.
-  buffer_allocation<T> get_allocation(const T *ptr) const {
+  buffer_allocation::descriptor<T> get_allocation(const T *ptr) const {
 
-    buffer_allocation<T> result = null_allocation();
+    buffer_allocation::descriptor<T> result = null_allocation();
     bool found = _impl->data->find_and_handle_allocation(
         static_cast<void *>(const_cast<T*>(ptr)), 
         [&](const auto &rt_allocation) {
@@ -738,10 +864,10 @@ private:
     bool use_external_storage; 
   };
 
-  static buffer_allocation<T> rt_data_allocation_to_buffer_alloc(
-      const rt::data_allocation<void*> &alloc) {
+  static buffer_allocation::descriptor<T>
+  rt_data_allocation_to_buffer_alloc(const rt::data_allocation<void *> &alloc) {
 
-    buffer_allocation<T> buffer_alloc;
+    buffer_allocation::descriptor<T> buffer_alloc;
     buffer_alloc.dev = sycl::device{alloc.dev};
     buffer_alloc.is_owned = alloc.is_owned;
     buffer_alloc.ptr = static_cast<T *>(alloc.memory);
@@ -749,8 +875,8 @@ private:
     return buffer_alloc;
   }
 
-  static buffer_allocation<T> null_allocation() {
-    buffer_allocation<T> result;
+  static buffer_allocation::descriptor<T> null_allocation() {
+    buffer_allocation::descriptor<T> result;
     result.ptr = nullptr;
     result.is_owned = false;
     result.dev = detail::get_host_device();
@@ -824,6 +950,15 @@ private:
 
     _impl->use_external_storage = get_policy_from_property_or_default<
         detail::buffer_policy::use_external_storage>(dpol.use_external_storage);
+
+    if(this->has_property<property::buffer::hipSYCL_write_back_node_group>()){
+      _impl->write_back_node_group =
+          this->get_property<property::buffer::hipSYCL_write_back_node_group>()
+              .get_node_group();
+    } else {
+      this->_impl->write_back_node_group =
+          std::numeric_limits<std::size_t>::max();
+    }
   }
 
   template<class Policy>
@@ -929,6 +1064,34 @@ private:
     _impl->writeback_ptr = host_memory;
   }
 
+  void init(const range<dimensions> &range,
+            const std::vector<buffer_allocation::tracked_descriptor<T>>
+                &input_allocations) {
+    this->init_data_backend(range);
+
+    if(input_allocations.size() == 0) {
+      throw invalid_parameter_error{"buffer: USM constructor was used, but no "
+                                    "USM allocations to work with were used."};
+    }
+
+    // TODO: We should check here for duplicate USM pointers or duplicate devices
+    for (const buffer_allocation::tracked_descriptor<T> &desc :
+         input_allocations) {
+      if(!desc.desc.ptr) {
+        throw invalid_parameter_error{"buffer: Invalid USM input pointer"};
+      }
+
+      if (desc.is_recent) {
+        _impl->data->add_nonempty_allocation(
+            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
+            desc.desc.is_owned);
+      } else {
+        _impl->data->add_empty_allocation(
+            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
+            desc.desc.is_owned);
+      }
+    }
+  }
 
   AllocatorT _alloc;
   range<dimensions> _range;
@@ -951,7 +1114,21 @@ buffer(const T *, const range<dimensions> &, AllocatorT, const property_list & =
 
 template <class T, int dimensions>
 buffer(const T *, const range<dimensions> &, const property_list & = {}) 
--> buffer<T, dimensions>;
+-> buffer<T, dimensions, buffer_allocator<std::remove_const_t<T>>>;
+
+template <class T, int dimensions>
+buffer(const range<dimensions> &r,
+       const std::vector<buffer_allocation::tracked_descriptor<T>>
+           &input_allocations,
+       const property_list &propList = {})
+    -> buffer<T, dimensions, buffer_allocator<std::remove_const_t<T>>>;
+
+template <class T, int dimensions, class AllocatorT>
+buffer(const range<dimensions> &r,
+       const std::vector<buffer_allocation::tracked_descriptor<T>>
+           &input_allocations,
+       AllocatorT allocator, const property_list &propList = {})
+    -> buffer<T, dimensions, AllocatorT>;
 
 namespace detail::accessor {
 

@@ -481,7 +481,8 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(usm_ptr != nullptr);
 
     // Query information
-    sycl::buffer_allocation<int> alloc = buff.get_allocation(usm_ptr);
+    sycl::buffer_allocation::descriptor<int> alloc =
+        buff.get_allocation(usm_ptr);
     BOOST_TEST(alloc.ptr == usm_ptr);
     BOOST_CHECK(alloc.dev == q.get_device());
     BOOST_TEST(alloc.is_owned == true);
@@ -502,10 +503,11 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(alloc.is_owned == false);
 
     std::vector<int*> allocations;
-    buff.for_each_allocation([&](const sycl::buffer_allocation<int>& a){
-      allocations.push_back(a.ptr);
-    });
-    
+    buff.for_each_allocation(
+        [&](const sycl::buffer_allocation::descriptor<int> &a) {
+          allocations.push_back(a.ptr);
+        });
+
     BOOST_TEST(allocations.size() >= 1);
     bool found = false;
     for(std::size_t i = 0; i < allocations.size(); ++i) {
@@ -531,6 +533,66 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
   sycl::free(usm_ptr, q);
 
 
+}
+
+BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
+  using namespace cl;
+
+  sycl::queue q;
+  sycl::range size{1024};
+
+  int* alloc1 = sycl::malloc_shared<int>(size.size(), q);
+  int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
+
+  {
+    sycl::buffer<int> b1{
+        {sycl::buffer_allocation::empty_view(alloc1, q.get_device())}, size};
+
+    BOOST_CHECK(b1.has_allocation(q.get_device()));
+    BOOST_CHECK(b1.get_pointer(q.get_device()) == alloc1);
+    b1.for_each_allocation([&](const auto& alloc){
+      if(alloc.ptr == alloc1){
+        BOOST_CHECK(!alloc.is_owned);
+      }
+    });
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b1, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx] = idx.get(0);
+      });
+    });
+  }
+  q.wait();
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc1[i] == i);
+  }
+  {
+    sycl::buffer<int> b2{
+        {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
+    
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b2, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        alloc2[idx.get(0)] = acc[idx];
+      });
+    });
+
+    // Check that data state tracking works and migrating back to host
+    sycl::host_accessor<int> hacc{b2};
+    for(int i = 0; i < size.get(0); ++i){
+      BOOST_CHECK(hacc[i] == i);
+    }  
+  }
+  
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc2[i] == i);
+  }
+
+  sycl::free(alloc1, q);
+  sycl::free(alloc2, q);
 }
 
 #endif
@@ -591,6 +653,93 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
   }
 }
 
+#endif
+#ifdef HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
+BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    
+    auto b1 = sycl::make_async_buffer(input_vec.data(), size);
+    // Because of buffer semantics we should be able to modify the input
+    // pointer again
+    input_vec[20] = 0;
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] += 1;
+      });
+    });
+
+    sycl::host_accessor hacc{b1};
+    for(int i = 0; i < size.size(); ++i) {
+      BOOST_CHECK(hacc[i] == i+1);
+    }
+
+    // Submit another operation before buffer goes out of
+    // scope to make sure operations work even if the buffer leaves
+    // scope.
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] -= 1;
+      });
+    });
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_sync_writeback_view(input_vec.data(), size);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_async_writeback_view(input_vec.data(), size, q);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+
+    q.wait();
+
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+
+
+}
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

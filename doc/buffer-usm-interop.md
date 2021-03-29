@@ -138,13 +138,13 @@ public:
   /// Construct buffer on top of existing USM pointers with given range.
   /// Will not write back at destruction unless set_final_data() is used.
   buffer(
-    const range<dimensions>& r,
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
+    const range<dimensions>& r,
     const property_list& prop_list = {});
   
   buffer(
-    const range<dimensions>& r,
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
+    const range<dimensions>& r,
     AllocatorT allocator,
     const property_list& prop_list = {});
 };

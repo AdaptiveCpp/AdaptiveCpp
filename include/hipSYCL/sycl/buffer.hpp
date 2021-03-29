@@ -64,6 +64,38 @@
 namespace hipsycl {
 namespace sycl {
 
+
+namespace detail::buffer_policy {
+
+class destructor_waits : public buffer_property
+{ 
+public: 
+  destructor_waits(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+class writes_back : public buffer_property
+{ 
+public: 
+  writes_back(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+class use_external_storage : public buffer_property
+{ 
+public: 
+  use_external_storage(bool v): _v{v}{} 
+  bool value() const {return _v;}
+private:
+  bool _v;
+};
+
+}
+
 namespace property::buffer {
 
 class use_host_ptr : public detail::buffer_property
@@ -125,39 +157,15 @@ private:
   std::size_t _node_group;
 };
 
+using hipSYCL_buffer_uses_external_storage =
+    detail::buffer_policy::use_external_storage;
+using hipSYCL_buffer_writes_back =
+    detail::buffer_policy::writes_back;
+using hipSYCL_buffer_destructor_blocks =
+    detail::buffer_policy::destructor_waits;
+
 } // property::buffer
 
-namespace detail::buffer_policy {
-
-class destructor_waits : public buffer_property
-{ 
-public: 
-  destructor_waits(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-class writes_back : public buffer_property
-{ 
-public: 
-  writes_back(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-class use_external_storage : public buffer_property
-{ 
-public: 
-  use_external_storage(bool v): _v{v}{} 
-  bool value() const {return _v;}
-private:
-  bool _v;
-};
-
-
-}
 
 namespace detail {
 
@@ -208,14 +216,12 @@ struct buffer_impl
                   data, rt::id<3>{}, data->get_num_elements(),
                   sycl::access::mode::read, sycl::access::target::host_buffer);
 
-          rt::execution_hints enforce_bind_to_host;
-          enforce_bind_to_host.add_hint(
-              rt::make_execution_hint<rt::hints::bind_to_device>(
-                  detail::get_host_device()));
+          rt::execution_hints hints;
+          add_writeback_hints(detail::get_host_device(), hints);
 
           build.builder()->add_explicit_mem_requirement(
               std::move(explicit_requirement), rt::requirements_list{},
-              enforce_bind_to_host);
+              hints);
         }
       }
     }
@@ -243,6 +249,19 @@ struct buffer_impl
     }
   }
 private:
+
+  bool has_writeback_node_group() const {
+    return write_back_node_group != std::numeric_limits<std::size_t>::max();
+  }
+
+  void add_writeback_hints(rt::device_id dev, rt::execution_hints& hints) {
+    hints.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+    if (has_writeback_node_group()) {
+      hints.add_hint(rt::make_execution_hint<rt::hints::node_group>(
+          write_back_node_group));
+    }
+  }
   
   rt::dag_node_ptr submit_copy(rt::device_id source_dev, void* dest) {
 
@@ -250,8 +269,7 @@ private:
 
     rt::dag_build_guard build{rt::application::dag()};
     rt::execution_hints hints;
-    hints.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(source_dev));
+    add_writeback_hints(source_dev, hints);
 
     rt::requirements_list reqs;
 
@@ -363,9 +381,9 @@ public:
   static constexpr int buffer_dim = dimensions;
 
   /// buffer USM interop constructor
-  buffer(const range<dimensions> &r,
-         const std::vector<buffer_allocation::tracked_descriptor<T>>
+  buffer(const std::vector<buffer_allocation::tracked_descriptor<T>>
              &input_allocations,
+         const range<dimensions> &r,
          const property_list &propList = {})
       : detail::property_carrying_object{propList}
   {
@@ -398,9 +416,9 @@ public:
     this->init(r, input_allocations);
   }
 
-  buffer(const range<dimensions> &r,
-         const std::vector<buffer_allocation::tracked_descriptor<T>>
+  buffer(const std::vector<buffer_allocation::tracked_descriptor<T>>
              &input_allocations,
+         const range<dimensions> &r,
          AllocatorT allocator, const property_list &propList = {})
       : buffer(r, input_allocations, propList)
   {
@@ -1061,13 +1079,15 @@ private:
       if(!desc.desc.ptr) {
         throw invalid_parameter_error{"buffer: Invalid USM input pointer"};
       }
-      
-      if(desc.is_recent) {
-        _impl->data->add_nonempty_allocation(desc.desc.dev, desc.desc.ptr,
-                                             desc.desc.is_owned);
+
+      if (desc.is_recent) {
+        _impl->data->add_nonempty_allocation(
+            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
+            desc.desc.is_owned);
       } else {
-        _impl->data->add_empty_allocation(desc.desc.dev, desc.desc.ptr,
-                                          desc.desc.is_owned);
+        _impl->data->add_empty_allocation(
+            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
+            desc.desc.is_owned);
       }
     }
   }

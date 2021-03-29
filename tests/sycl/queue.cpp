@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,65 +25,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_MANAGER_HPP
-#define HIPSYCL_DAG_MANAGER_HPP
+#include <numeric>
+#include <type_traits>
 
-#include "dag.hpp"
-#include "dag_builder.hpp"
-#include "dag_direct_scheduler.hpp"
-#include "dag_submitted_ops.hpp"
-#include "generic/async_worker.hpp"
+#include "sycl_test_suite.hpp"
+using namespace cl;
 
+BOOST_FIXTURE_TEST_SUITE(queue_tests, reset_device_fixture)
 
-namespace hipsycl {
-namespace rt {
+BOOST_AUTO_TEST_CASE(queue_wait) {
+  sycl::queue q1;
+  sycl::queue q2;
 
-class dag_interpreter;
+  auto evt1 = q1.single_task([=](){});
+  auto evt2 = q2.single_task([=](){});
 
-class dag_manager
-{
-  friend class dag_build_guard;
-public:
-  dag_manager();
-  ~dag_manager();
+  BOOST_CHECK(q1.get_info<sycl::info::queue::hipSYCL_node_group>() !=
+              q2.get_info<sycl::info::queue::hipSYCL_node_group>());
 
-  // Submits operations asynchronously
-  void flush_async();
-  // Submits operations asynchronously and
-  // wait until they have been submitted
-  void flush_sync();
-  // Wait for completion of all submitted operations
-  void wait();
-  void wait(std::size_t node_group_id);
-  
-  void register_submitted_ops(dag_node_ptr);
-private:
-  void trigger_flush_opportunity();
-
-  dag_builder* builder() const;
-
-  std::unique_ptr<dag_builder> _builder;
-  worker_thread _worker;
-  
-  dag_direct_scheduler _direct_scheduler;
-  dag_submitted_ops _submitted_ops;
-};
-
-class dag_build_guard
-{
-public:
-  dag_build_guard(dag_manager& mgr)
-  : _mgr{&mgr} {}
-
-  ~dag_build_guard();
-
-  dag_builder* builder() const
-  { return _mgr->builder(); }
-private:
-  dag_manager* _mgr;
-};
-
-}
+  q1.wait();
+  BOOST_CHECK(evt1.get_info<sycl::info::event::command_execution_status>() ==
+              sycl::info::event_command_status::complete);
+  q2.wait();
+  BOOST_CHECK(evt2.get_info<sycl::info::event::command_execution_status>() ==
+              sycl::info::event_command_status::complete);
 }
 
-#endif
+BOOST_AUTO_TEST_SUITE_END()

@@ -50,7 +50,7 @@ template <class T, int Dim>
 buffer<T, Dim, buffer_allocator<std::remove_const_t<T>>>
 make_sync_buffer(const T* ptr, sycl::range<Dim> r) {
   return buffer<T, Dim, buffer_allocator<std::remove_const_t<T>>>{
-      r, ptr,
+      ptr, r,
       property_list{detail::buffer_policy::use_external_storage{false},
                     detail::buffer_policy::writes_back{false},
                     detail::buffer_policy::destructor_waits{true}}};
@@ -70,7 +70,7 @@ template <class T, int Dim>
 buffer<T, Dim, buffer_allocator<std::remove_const_t<T>>>
 make_async_buffer(const T* ptr, sycl::range<Dim> r) {
   return buffer<T, Dim, buffer_allocator<std::remove_const_t<T>>>{
-      r, ptr,
+      ptr, r,
       property_list{detail::buffer_policy::use_external_storage{false},
                     detail::buffer_policy::writes_back{false},
                     detail::buffer_policy::destructor_waits{false}}};

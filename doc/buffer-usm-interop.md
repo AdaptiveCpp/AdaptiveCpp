@@ -137,6 +137,9 @@ class buffer {
 public:
   /// Construct buffer on top of existing USM pointers with given range.
   /// Will not write back at destruction unless set_final_data() is used.
+  /// Modifying the USM pointers externally during the duration of the buffer lifetime
+  /// should be avoided unless the user has expert knowledge of hipSYCL's data
+  /// state tracking mechanisms.
   buffer(
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
     const range<dimensions>& r,
@@ -153,4 +156,67 @@ public:
 
 ## Example code
 
-TBD
+```c++
+
+sycl::queue q;
+sycl::range size{1024};
+
+int* alloc1 = sycl::malloc_shared<int>(size.size(), q);
+int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
+
+{
+  // Construct buffer on top of alloc1. Use empty_view() because alloc1
+  // does not old live data.
+  // Note: To give ownership over the pointer to the pointer, pass
+  // the optional argument take_ownership to empty_view()
+  sycl::buffer<int> b1{
+      {sycl::buffer_allocation::empty_view(alloc1, q.get_device())}, size};
+
+  // The buffer now uses the given allocation for all operations on
+  // q.get_device()
+  assert(b1.has_allocation(q.get_device()));
+  assert(b1.get_pointer(q.get_device()) == alloc1);
+
+  // Iterate over all allocations of the buffer. We did not grant
+  // ownership of the pointer to the buffer. This is checked here.
+  b1.for_each_allocation([&](const auto& alloc){
+    if(alloc.ptr == alloc1){
+      assert(!alloc.is_owned);
+    }
+  });
+
+  // We can use the buffer just as usual
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor<int> acc{b1, cgh};
+
+    cgh.parallel_for(size, [=](sycl::id<1> idx){
+      acc[idx] = idx.get(0);
+    });
+  });
+}
+
+{
+  // Construct another buffer - this time we use view instead of empty_view
+  // because the pointer now holds up-to-date data
+  sycl::buffer<int> b2{
+      {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
+  
+  // Can again use the buffer just as usual
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor<int> acc{b2, cgh};
+
+    cgh.parallel_for(size, [=](sycl::id<1> idx){
+      alloc2[idx.get(0)] = acc[idx];
+    });
+  });
+
+  sycl::host_accessor<int> hacc{b2};
+  for(int i = 0; i < size.get(0); ++i){
+    assert(hacc[i] == i);
+  }  
+}
+
+sycl::free(alloc1, q);
+sycl::free(alloc2, q);
+
+```

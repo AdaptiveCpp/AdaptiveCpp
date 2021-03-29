@@ -654,5 +654,92 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
 }
 
 #endif
+#ifdef HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
+BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    
+    auto b1 = sycl::make_async_buffer(input_vec.data(), size);
+    // Because of buffer semantics we should be able to modify the input
+    // pointer again
+    input_vec[20] = 0;
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] += 1;
+      });
+    });
+
+    sycl::host_accessor hacc{b1};
+    for(int i = 0; i < size.size(); ++i) {
+      BOOST_CHECK(hacc[i] == i+1);
+    }
+
+    // Submit another operation before buffer goes out of
+    // scope to make sure operations work even if the buffer leaves
+    // scope.
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] -= 1;
+      });
+    });
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_sync_writeback_view(input_vec.data(), size);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_async_writeback_view(input_vec.data(), size, q);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+
+    q.wait();
+
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+
+
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

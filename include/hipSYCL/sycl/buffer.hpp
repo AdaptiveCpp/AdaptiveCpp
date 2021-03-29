@@ -334,7 +334,7 @@ inline constexpr management_mode no_ownership = management_mode::non_owning;
 /// Construct an allocation descriptor for outdated data
 /// that needs to be updated by the runtime when accessed
 template <class T>
-tracked_descriptor<T> outdated_view(T *ptr, device dev,
+tracked_descriptor<T> empty_view(T *ptr, device dev,
                                     management_mode m = no_ownership) {
   tracked_descriptor<T> d;
   bool is_owned = (m == take_ownership) ? true : false;
@@ -719,7 +719,7 @@ public:
 
   /// Iterate over each allocation.
   /// \param h Handler that will be invoked for each allocation.
-  ///  Signature: void(const buffer_allocation<T>&)
+  ///  Signature: void(const buffer_allocation::descriptor<T>&)
   template <class Handler>
   void for_each_allocation(Handler &&h) const{
     _impl->data->for_each_allocation_while(
@@ -956,7 +956,8 @@ private:
           this->get_property<property::buffer::hipSYCL_write_back_node_group>()
               .get_node_group();
     } else {
-      this->write_back_node_group = std::numeric_limits<std::size_t>::max();
+      this->_impl->write_back_node_group =
+          std::numeric_limits<std::size_t>::max();
     }
   }
 

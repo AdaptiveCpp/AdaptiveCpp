@@ -535,6 +535,66 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
 
 }
 
+BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
+  using namespace cl;
+
+  sycl::queue q;
+  sycl::range size{1024};
+
+  int* alloc1 = sycl::malloc_shared<int>(size.size(), q);
+  int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
+
+  {
+    sycl::buffer<int> b1{
+        {sycl::buffer_allocation::empty_view(alloc1, q.get_device())}, size};
+
+    BOOST_CHECK(b1.has_allocation(q.get_device()));
+    BOOST_CHECK(b1.get_pointer(q.get_device()) == alloc1);
+    b1.for_each_allocation([&](const auto& alloc){
+      if(alloc.ptr == alloc1){
+        BOOST_CHECK(!alloc.is_owned);
+      }
+    });
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b1, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx] = idx.get(0);
+      });
+    });
+  }
+  q.wait();
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc1[i] == i);
+  }
+  {
+    sycl::buffer<int> b2{
+        {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
+    
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b2, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        alloc2[idx.get(0)] = acc[idx];
+      });
+    });
+
+    // Check that data state tracking works and migrating back to host
+    sycl::host_accessor<int> hacc{b2};
+    for(int i = 0; i < size.get(0); ++i){
+      BOOST_CHECK(hacc[i] == i);
+    }  
+  }
+  
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc2[i] == i);
+  }
+
+  sycl::free(alloc1, q);
+  sycl::free(alloc2, q);
+}
+
 #endif
 #ifdef HIPSYCL_EXT_BUFFER_PAGE_SIZE
 

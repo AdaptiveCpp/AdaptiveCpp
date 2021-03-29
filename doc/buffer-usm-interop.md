@@ -119,7 +119,7 @@ static constexpr bool no_ownership = management_mode::non_owning;
 /// Construct descriptor for a data region with initially outdated content.
 /// When first accessed, the runtime will emit data transfers to update
 /// date content.
-tracked_descriptor<T> outdated_view(T *ptr, device dev,
+tracked_descriptor<T> empty_view(T *ptr, device dev,
                                  management_mode m = no_ownership);
 
 /// Construct descriptor for a data region with initially recent content.

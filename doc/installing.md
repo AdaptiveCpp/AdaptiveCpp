@@ -32,7 +32,7 @@ In order to successfully build and install hipSYCL, the following major requirem
   * Read more about [compatible clang and CUDA versions for the CUDA backend](install-cuda.md).
 * *For the ROCm backend*: 
   * A recent **ROCm**, in particular HIP, must be installed.
-  * hipSYCL requires clang for ROCm compilation. While AMD's clang forks can in principle be used, regular clang is usually easier to set up. Read more about [compatible clang versions for the ROCm backend](install-rocm.md).
+  * hipSYCL requires clang for ROCm compilation. While AMD's clang forks can in principle be used, regular clang is usually easier to set up. Read more about [compatible clang versions for the ROCm backend](install-rocm.md). **Note: Using AMD's clang 12 distribution that is part of ROCm 4.0 is not recommended because of significant performance regressions. Users should either use clang 11 with ROCm 4.0 or upgrade to ROCm 4.1.**
 * *For the Level Zero backend*:
   * The Level Zero loader and a Level Zero driver such as the Intel [compute runtime](https://github.com/intel/compute-runtime)
   * A clang with Intel's patches to generate SPIR-V; once all the required patches are upstreamed this will work with a regular clang, until then hipSYCL needs to be built against DPC++/Intel's LLVM [fork](https://github.com/intel/llvm). (Yes, this will also work for the CUDA and HIP backends)

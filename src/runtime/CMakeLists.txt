@@ -42,7 +42,11 @@ if(WIN32)
 
   # ensure actual output and expected are equivalent
   set_target_properties(hipSYCL-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
-  set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
+  if(MinGW)
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
+  else()
+    set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
+  endif()
 else()
   target_link_libraries(hipSYCL-rt PRIVATE dl)
 
@@ -142,7 +146,8 @@ if(WITH_CPU_BACKEND)
       target_include_directories(rt-backend-omp PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
     endif()
   
-  if(WIN32)
+  list(LENGTH OpenMP_CXX_LIBRARIES OpenMP_CXX_LIBRARIES_LENGTH)
+  if(WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
     # FindOpenMP does a bad job here, finding any library.. so add some more hints..
     find_library(hipSYCL_OpenMP_libomp_LIBRARY
       NAMES libomp libgomp libiomp5 HINTS

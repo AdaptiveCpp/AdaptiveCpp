@@ -592,12 +592,24 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
   llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
   auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
-  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
+  auto *NewLatch = llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
+
+  auto *NewLatchTerm = NewLatch->getTerminator();
+  llvm::IRBuilder MDBuilder{NewLatch->getContext()};
+  auto *MDVectorize = llvm::MDNode::get(NewLatch->getContext(),
+                                        {llvm::MDString::get(NewLatch->getContext(), "llvm.loop.vectorize.enable"),
+                                         llvm::ConstantAsMetadata::get(MDBuilder.getTrue())});
+  if (NewLatchTerm->hasMetadata("llvm.loop")) {
+    MDVectorize =
+        llvm::MDNode::getDistinct(NewLatch->getContext(), {NewLatchTerm->getMetadata("llvm.loop"), MDVectorize});
+  }
+  NewLatchTerm->setMetadata("llvm.loop", MDVectorize);
+  return NewLatch;
 }
 llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                             llvm::DominatorTree &DT) {
-  assert(&*(++L->getHeader()->begin()) == L->getHeader()->getFirstNonPHI() && "just a single phi compatible for now");
   if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(L->getHeader()->begin())) {
+    assert(&*(++L->getHeader()->begin()) == L->getHeader()->getFirstNonPHI() && "just a single phi compatible for now");
     auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch));
     return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
   } else {
@@ -997,16 +1009,17 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
   }
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
-  for (auto *SL : L->getSubLoops()) {
+  for (auto *SL : LI.getLoopsInPreorder()) {
     if (SL->getHeader())
       LoopHeaders.insert(SL->getHeader());
     if (SL->getLoopPreheader())
       LoopHeaders.insert(SL->getLoopPreheader());
   }
 
-  for (auto *Block : L->getParentLoop()->blocks()) {
-    llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
-  }
+  for (auto *Loop : LI.getTopLevelLoops())
+    for (auto *Block : Loop->blocks()) {
+      llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
+    }
   L = updateDtAndLi(LI, DT, L->getHeader(), *L->getHeader()->getParent());
 
   F->viewCFG();

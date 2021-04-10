@@ -2,6 +2,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopPass.h"
@@ -75,8 +76,8 @@ llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llv
   return LI.getLoopFor(B);
 }
 
-bool inlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (CI->getCalledFunction()->isIntrinsic() || SAA.isSplitterFunc(CI->getCalledFunction()))
+bool inlineSplitterCallTree(llvm::CallBase *CI) {
+  if (CI->getCalledFunction()->isIntrinsic())
     return false;
 
   // needed to be valid for success log
@@ -86,17 +87,18 @@ bool inlineSplitterCallTree(llvm::CallBase *CI, const hipsycl::compiler::Splitte
 #if LLVM_VERSION_MAJOR <= 10
   llvm::InlineResult ILR = llvm::InlineFunction(CI, IFI, nullptr);
   if (!static_cast<bool>(ILR)) {
-    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.message << "'" << std::endl;
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.message
+                 << "'\n";
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
   if (!ILR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << CalleeName << ">: '" << ILR.getFailureReason() << "'"
-                          << std::endl;
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Failed to inline function <" << CalleeName << ">: '"
+                 << ILR.getFailureReason() << "'\n";
 #endif
     return false;
   }
 
-  HIPSYCL_DEBUG_INFO << "LoopSplitter inlined function <" << CalleeName << ">" << std::endl;
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "LoopSplitter inlined function <" << CalleeName << ">\n";
   return true;
 }
 
@@ -109,8 +111,9 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
     LastChanged = false;
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end()) {
-          LastChanged = inlineSplitterCallTree(CallI, SAA);
+        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end() &&
+            !SAA.isSplitterFunc(CallI->getCalledFunction())) {
+          LastChanged = inlineSplitterCallTree(CallI);
           if (LastChanged)
             break;
         }
@@ -138,6 +141,53 @@ bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
     LastChanged = false;
     for (auto *BB : L->getBlocks()) {
       LastChanged = inlineCallsInBasicBlock(*BB, SplitterCallers, SAA);
+      if (LastChanged)
+        break;
+    }
+    if (LastChanged) {
+      Changed = true;
+      L = updateDtAndLi(LI, DT, B, F);
+    }
+  } while (LastChanged);
+
+  return Changed;
+}
+
+bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
+  bool Changed = false;
+  bool LastChanged = false;
+
+  do {
+    LastChanged = false;
+    for (auto &I : BB) {
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction()) {
+          LastChanged = inlineSplitterCallTree(CallI);
+          if (LastChanged)
+            break;
+        }
+      }
+    }
+    if (LastChanged)
+      Changed = true;
+  } while (LastChanged);
+
+  return Changed;
+}
+
+//! \pre all contained functions are non recursive!
+// todo: have a recursive-ness termination
+bool inlineCallsInLoop(llvm::Loop *&L, llvm::LoopInfo &LI, llvm::DominatorTree &DT) {
+  bool Changed = false;
+  bool LastChanged = false;
+
+  llvm::BasicBlock *B = L->getBlocks()[0];
+  llvm::Function &F = *B->getParent();
+
+  do {
+    LastChanged = false;
+    for (auto *BB : L->getBlocks()) {
+      LastChanged = inlineCallsInBasicBlock(*BB);
       if (LastChanged)
         break;
     }
@@ -432,9 +482,11 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
 }
 
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm::DominatorTree &DT,
-                     llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap) {
+                     llvm::MDNode *MDAccessGroup
+                     /*llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap*/) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   for (auto &I : *EntryBlock) {
     if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
@@ -448,7 +500,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
   }
 
   for (auto *I : WL) {
-    llvm::IRBuilder AllocaBuidler{I};
+    llvm::IRBuilder AllocaBuilder{I};
     llvm::Type *T = I->getAllocatedType();
     if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
       auto ArrSize = ArrSizeC->getLimitedValue();
@@ -458,19 +510,16 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
       }
     }
 
-    auto *Alloca = AllocaBuidler.CreateAlloca(T, AllocaBuidler.getInt32(hipsycl::compiler::NumArrayElements),
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
                                               I->getName() + "_alloca");
     Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
-    ValueAllocaMap[I] = Alloca;
+    //    ValueAllocaMap[I] = Alloca;
 
     llvm::Instruction *GepIp = nullptr;
     for (auto *U : I->users()) {
       if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
-        if (!GepIp)
+        if (!GepIp || DT.dominates(UI, GepIp))
           GepIp = UI;
-        else if (DT.dominates(UI, GepIp)) {
-          GepIp = UI;
-        }
       }
     }
     if (GepIp) {
@@ -481,12 +530,24 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
 
       I->replaceAllUsesWith(GEP);
       I->eraseFromParent();
+
+      for (auto *U : GEP->users()) {
+        if (auto *LoadI = llvm::dyn_cast<llvm::LoadInst>(U)) {
+          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "llvm.access.group adding to ";
+          LoadI->print(llvm::outs());
+          llvm::outs() << "\n";
+          assert(!LoadI->hasMetadata(llvm::LLVMContext::MD_access_group) &&
+                 "don't know how to handle already present md");
+          LoadI->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+        }
+      }
     }
   }
 }
 
 void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
                                 const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependedUponValues,
+                                llvm::MDNode *MDAccessGroup,
                                 llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap) {
   auto *MDAlloca =
       llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
@@ -503,8 +564,10 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
 
     llvm::IRBuilder WriteBuilder{&*(++I->getIterator())};
     auto *GEP = WriteBuilder.CreateGEP(Alloca, Idx, I->getName() + "_gep");
-    WriteBuilder.CreateLifetimeStart(GEP);
-    WriteBuilder.CreateStore(I, GEP);
+    auto *LTStart = WriteBuilder.CreateLifetimeStart(GEP); // todo: calculate size of object.
+    LTStart->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+    auto *Store = WriteBuilder.CreateStore(I, GEP);
+    Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
   }
 }
 
@@ -519,7 +582,8 @@ llvm::AllocaInst *findAlloca(llvm::Instruction *I) {
 
 void replaceOperandsWithArrayLoad(llvm::Value *Idx,
                                   const llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap,
-                                  const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts) {
+                                  const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts,
+                                  llvm::MDNode *MDAccessGroup) {
   for (auto *I : DependingInsts) {
     for (auto &OP : I->operands()) {
       auto *OPV = OP.get();
@@ -536,6 +600,7 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
         auto LoadBuilder = llvm::IRBuilder(I);
         auto *GEP = LoadBuilder.CreateGEP(Alloca, Idx, OPV->getName() + "_lgep");
         auto *Load = LoadBuilder.CreateLoad(GEP, OPV->getName() + "_load");
+        Load->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
         // LoadBuilder.CreateLifetimeEnd(GEP); // todo: at some point we really should care about alloca lifetime
 
         I->setOperand(OP.getOperandNo(), Load);
@@ -546,7 +611,7 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
 
 void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
                           llvm::SmallVectorImpl<llvm::BasicBlock *> &ArrfBaseBlocks,
-                          llvm::SmallVectorImpl<llvm::BasicBlock *> &ArrfSearchBlocks) {
+                          llvm::SmallVectorImpl<llvm::BasicBlock *> &ArrfSearchBlocks, llvm::MDNode *MDAccessGroup) {
   llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependingInsts;
   llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependedUponValues;
   llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
@@ -568,13 +633,80 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
     llvm::outs() << "\n";
   }
   arrayifyDependedUponValues(F->getEntryBlock().getFirstNonPHI(), L->getCanonicalInductionVariable(),
-                             ArrfDependedUponValues, ValueAllocaMap);
+                             ArrfDependedUponValues, MDAccessGroup, ValueAllocaMap);
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depending insts\n";
   for (auto *I : ArrfDependingInsts) {
     I->print(llvm::outs());
     llvm::outs() << "\n";
   }
-  replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, ArrfDependingInsts);
+  replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, ArrfDependingInsts, MDAccessGroup);
+}
+
+bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging. Todo: remove again
+  llvm::MDNode *DesiredLoopIdMetadata = TheLoop->getLoopID();
+
+  if (!DesiredLoopIdMetadata)
+    return false;
+
+  llvm::MDNode *ParallelAccesses = llvm::findOptionMDForLoop(TheLoop, "llvm.loop.parallel_accesses");
+  llvm::SmallPtrSet<llvm::MDNode *, 4> ParallelAccessGroups; // For scalable 'contains' check.
+  if (ParallelAccesses) {
+    for (const llvm::MDOperand &MD : llvm::drop_begin(ParallelAccesses->operands(), 1)) {
+      llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(MD.get());
+      assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+      ParallelAccessGroups.insert(AccGroup);
+    }
+  }
+
+  // The loop branch contains the parallel loop metadata. In order to ensure
+  // that any parallel-loop-unaware optimization pass hasn't added loop-carried
+  // dependencies (thus converted the loop back to a sequential loop), check
+  // that all the memory instructions in the loop belong to an access group that
+  // is parallel to this loop.
+  for (llvm::BasicBlock *BB : TheLoop->blocks()) {
+    for (llvm::Instruction &I : *BB) {
+      if (!I.mayReadOrWriteMemory())
+        continue;
+
+      if (llvm::MDNode *AccessGroup = I.getMetadata(llvm::LLVMContext::MD_access_group)) {
+        auto ContainsAccessGroup = [&ParallelAccessGroups](llvm::MDNode *AG) -> bool {
+          if (AG->getNumOperands() == 0) {
+            assert(llvm::isValidAsAccessGroup(AG) && "Item must be an access group");
+            return ParallelAccessGroups.count(AG);
+          }
+
+          for (const llvm::MDOperand &AccessListItem : AG->operands()) {
+            llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(AccessListItem.get());
+            assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+            if (ParallelAccessGroups.count(AccGroup))
+              return true;
+          }
+          return false;
+        };
+
+        if (ContainsAccessGroup(AccessGroup))
+          continue;
+      }
+      auto ReturnFalse = [&I]() {
+        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
+        I.print(llvm::outs());
+        llvm::outs() << "\n";
+        return false;
+      };
+      // The memory instruction can refer to the loop identifier metadata
+      // directly or indirectly through another list metadata (in case of
+      // nested parallel loops). The loop identifier metadata refers to
+      // itself so we can check both cases with the same routine.
+      llvm::MDNode *LoopIdMD = I.getMetadata(llvm::LLVMContext::MD_mem_parallel_loop_access);
+
+      if (!LoopIdMD)
+        return ReturnFalse();
+
+      if (!llvm::is_contained(LoopIdMD->operands(), DesiredLoopIdMetadata))
+        return ReturnFalse();
+    }
+  }
+  return true;
 }
 
 /*!
@@ -594,18 +726,19 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
   auto *NewLatch = llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 
-  auto *NewLatchTerm = NewLatch->getTerminator();
-  llvm::IRBuilder MDBuilder{NewLatch->getContext()};
-  auto *MDVectorize = llvm::MDNode::get(NewLatch->getContext(),
-                                        {llvm::MDString::get(NewLatch->getContext(), "llvm.loop.vectorize.enable"),
-                                         llvm::ConstantAsMetadata::get(MDBuilder.getTrue())});
-  if (NewLatchTerm->hasMetadata("llvm.loop")) {
-    MDVectorize =
-        llvm::MDNode::getDistinct(NewLatch->getContext(), {NewLatchTerm->getMetadata("llvm.loop"), MDVectorize});
+  // work-item loops should really always be vectorizable, so emit metadata to suggest so
+  if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.enable")) {
+    llvm::IRBuilder MDBuilder{NewLatch->getContext()};
+    auto *MDVectorize = llvm::MDNode::get(NewLatch->getContext(),
+                                          {llvm::MDString::get(NewLatch->getContext(), "llvm.loop.vectorize.enable"),
+                                           llvm::ConstantAsMetadata::get(MDBuilder.getTrue())});
+    auto *LoopID =
+        llvm::makePostTransformationMetadata(NewLatch->getContext(), L->getLoopID(), {"hipSYCL."}, {MDVectorize});
+    L->setLoopID(LoopID);
   }
-  NewLatchTerm->setMetadata("llvm.loop", MDVectorize);
   return NewLatch;
 }
+
 llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                             llvm::DominatorTree &DT) {
   if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(L->getHeader()->begin())) {
@@ -754,12 +887,30 @@ void cloneConditions(llvm::Function *F,
   }
 }
 
+void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loop *const &L,
+                                              llvm::MDNode *MDAccessGroup) {
+  // findOptionMDForLoopID also checks if there's a loop id, so this is fine
+  if (auto *ParAccesses = llvm::findOptionMDForLoopID(L->getLoopID(), "llvm.loop.parallel_accesses")) {
+    llvm::SmallVector<llvm::Metadata *, 4> AccessGroups{ParAccesses->op_begin(),
+                                                        ParAccesses->op_end()}; // contains .parallel_accesses
+    AccessGroups.push_back(MDAccessGroup);
+    auto *NewParAccesses = llvm::MDNode::get(F->getContext(), AccessGroups);
+
+    const auto *const PIt = std::find(L->getLoopID()->op_begin(), L->getLoopID()->op_end(), ParAccesses);
+    auto PIdx = std::distance(L->getLoopID()->op_begin(), PIt);
+    L->getLoopID()->replaceOperandWith(PIdx, NewParAccesses);
+  } else {
+    auto *NewParAccesses = llvm::MDNode::get(
+        F->getContext(), {llvm::MDString::get(F->getContext(), "llvm.loop.parallel_accesses"), MDAccessGroup});
+    L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {"hipSYCL."}, {NewParAccesses}));
+  }
+}
 void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *FirstNewBlock,
                             const llvm::BasicBlock *PreHeader, llvm::BasicBlock *Header, llvm::BasicBlock *Latch,
                             llvm::BasicBlock *ExitBlock, llvm::Function *F, llvm::Loop *&L, llvm::Loop *ParentLoop,
                             llvm::LoopInfo &LI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
                             llvm::AssumptionCache &AC, const std::function<void(llvm::Loop &)> &LoopAdder,
-                            const std::string &Suffix) {
+                            const std::string &Suffix, llvm::MDNode *MDAccessGroup) {
   F->viewCFG();
 
   llvm::ValueToValueMapTy VMap;
@@ -779,10 +930,10 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                                                  BeforeSplitBlocks.end();
                                         }),
                          AfterSplitBlocks.end());
-  {
-    llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
-    arrayifyAllocas(&F->getEntryBlock(), L->getCanonicalInductionVariable(), DT, ValueAllocaMap);
-  }
+  //  {
+  //    llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
+  arrayifyAllocas(&F->getEntryBlock(), L->getCanonicalInductionVariable(), DT, MDAccessGroup);
+  //  }
 
   // remove latch again..
   AfterSplitBlocks.erase(
@@ -836,7 +987,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   NewHeader->getTerminator()->setSuccessor(0, FirstBlockInNew);
   DT.changeImmediateDominator(FirstBlockInNew, NewHeader);
 
-  arrayifyDependencies(F, L, BeforeSplitBlocks, AfterSplitBlocks);
+  arrayifyDependencies(F, L, BeforeSplitBlocks, AfterSplitBlocks, MDAccessGroup);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
@@ -866,6 +1017,14 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   }
 
   llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
+  createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << L->getHeader()->getName();
+  L->getLoopID()->print(llvm::outs(), F->getParent());
+  for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
+    MDOp->print(llvm::outs(), F->getParent());
+  }
+  llvm::outs() << "\n";
 
   if (llvm::verifyFunction(*F, &llvm::errs())) {
     llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "function verification failed\n";
@@ -934,6 +1093,9 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *Latch = L->getLoopLatch();
     Latch = simplifyLatch(L, Latch, LI, DT);
 
+    auto *MDAccessGroup = llvm::MDNode::getDistinct(F->getContext(), {});
+    createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
+
     bool InConditional = isInConditional(Barrier, DT, Latch);
     if (InConditional) {
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "is in conditional\n";
@@ -945,7 +1107,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "BHeader0: " << BarrierLoop->getHeader()->getName() << "\n";
       const std::string BlockNameSuffix = "lsplit" + std::to_string(BC);
       splitIntoWorkItemLoops(BarrierLoop->getLoopPreheader(), BarrierLoop->getHeader(), PreHeader, Header, Latch,
-                             ExitBlock, F, L, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix);
+                             ExitBlock, F, L, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
       F->viewCFG();
       auto *NewPreHeader = Header->getTerminator()->getSuccessor(1);
       auto *NewHeader = NewPreHeader->getTerminator()->getSuccessor(0); // fixme: probably broken
@@ -971,7 +1133,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
 
       splitIntoWorkItemLoops(NewBarrierLoopExitBlock, BarrierLoopExitBlock, NewPreHeader, NewHeader, NewLatch,
-                             NewExitBlock, F, NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix);
+                             NewExitBlock, F, NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix,
+                             MDAccessGroup);
       F->viewCFG();
       auto *BHeader = BarrierLoop->getHeader();
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "BHeader: " << BHeader->getName() << "\n";
@@ -1005,7 +1168,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     Barrier->eraseFromParent();
 
     splitIntoWorkItemLoops(BarrierBlock, NewBlock, PreHeader, Header, Latch, ExitBlock, F, L, ParentLoop, LI, DT, SE,
-                           AC, LoopAdder, BlockNameSuffix);
+                           AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
   }
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
@@ -1014,14 +1177,59 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       LoopHeaders.insert(SL->getHeader());
     if (SL->getLoopPreheader())
       LoopHeaders.insert(SL->getLoopPreheader());
+    if (auto *SLatch = SL->getLoopLatch()) {
+      if (SLatch->getTerminator()->hasMetadata(llvm::LLVMContext::MD_loop)) {
+        llvm::errs() << SLatch->getName() << " ";
+        SLatch->getTerminator()->getMetadata(llvm::LLVMContext::MD_loop)->print(llvm::errs());
+        llvm::errs() << "\n";
+      }
+    }
+    if (isAnnotatedParallel(SL))
+      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
+    else {
+      assert(SL->getLoopID());
+      llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
+      SL->getLoopID()->print(llvm::outs(), F->getParent());
+      for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
+        MDOp->print(llvm::outs(), F->getParent());
+      }
+      llvm::outs() << "\n";
+    }
   }
 
   for (auto *Loop : LI.getTopLevelLoops())
     for (auto *Block : Loop->blocks()) {
       llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
     }
+
+  while (L->getLoopDepth() > 1)
+    L = L->getParentLoop();
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << L->getHeader()->getName() << " for inlining:\n";
+  Changed |= inlineCallsInLoop(L, LI, DT);
+
   L = updateDtAndLi(LI, DT, L->getHeader(), *L->getHeader()->getParent());
 
+  for (auto *SL : L->getSubLoops()) {
+    llvm::SmallVector<llvm::Loop *, 2> LLL;
+    if (SL->getSubLoops().size() == 2)
+      LLL.append(SL->getSubLoops().begin(), SL->getSubLoops().end());
+    else
+      LLL.push_back(SL);
+    for (auto *SSL : LLL) {
+      if (isAnnotatedParallel(SSL))
+        llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
+      else {
+        assert(SSL->getLoopID());
+        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SSL->getHeader()->getName();
+        SSL->getLoopID()->print(llvm::outs(), F->getParent());
+        for (auto &MDOp : llvm::drop_begin(SSL->getLoopID()->operands(), 1)) {
+          MDOp->print(llvm::outs(), F->getParent());
+        }
+        llvm::outs() << "\n";
+      }
+    }
+  }
   F->viewCFG();
   F->print(llvm::outs());
   return Changed;

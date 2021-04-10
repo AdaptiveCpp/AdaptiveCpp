@@ -254,6 +254,7 @@ inline void parallel_for_ndrange_kernel(
 #pragma omp for
       for (size_t g_x = 0; g_x < n_groups; ++g_x) {
         sycl::id<Dim> group_id{g_x};
+#pragma omp simd
         for (size_t l_x = 0; l_x < n_local; ++l_x) {
           sycl::id<Dim> local_id{l_x};
           sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
@@ -343,7 +344,7 @@ inline void parallel_for_ndrange_kernel(
     });
 
     sycl::detail::host_local_memory::release();
-  
+
   }, reductions...);
 #endif
 }
@@ -399,11 +400,11 @@ inline void parallel_region(Function f,
               sycl::id<dimensions>{}, group_id, group_size, num_groups);
 
           f(this_group, phys_item, reducers...);
-            
+
         });
 
         sycl::detail::host_local_memory::release();
-        
+
       },
       reductions...);
 }

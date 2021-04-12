@@ -311,7 +311,7 @@ T group_broadcast(sub_group g, T x,
 
 // barrier
 template<typename Group>
-HIPSYCL_KERNEL_TARGET
+HIPSYCL_KERNEL_TARGET [[clang::annotate("hipsycl_splitter")]]
 inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
   if (fence_scope == memory_scope::work_item) {
     // doesn't need sync

@@ -1062,10 +1062,6 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
 
-  for (auto *Block : L->getParentLoop()->blocks()) {
-    llvm::SimplifyInstructionsInBlock(Block);
-  }
-
   llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
   for (auto *Block : L->blocks()) // need pre-headers -> after simplify
     moveArrayLoadForPhiToIncomingBlock(Block);
@@ -1353,6 +1349,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
   for (auto *Loop : LI.getTopLevelLoops())
     for (auto *Block : Loop->blocks()) {
+      llvm::SimplifyInstructionsInBlock(Block);
       llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
     }
 

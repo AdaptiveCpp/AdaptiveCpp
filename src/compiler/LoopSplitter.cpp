@@ -546,6 +546,35 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
   }
 }
 
+llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, llvm::MDNode *MDAccessGroup,
+                                llvm::MDTuple *MDAlloca = nullptr) {
+  if (!MDAlloca)
+    MDAlloca =
+        llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+
+  auto *T = ToArrayify->getType();
+  llvm::IRBuilder AllocaBuilder{IPAllocas};
+  auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+                                            ToArrayify->getName() + "_alloca");
+  Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
+
+  llvm::IRBuilder WriteBuilder{InsertionPoint};
+  auto *GEP = WriteBuilder.CreateGEP(Alloca, Idx, ToArrayify->getName() + "_gep");
+  auto *LTStart = WriteBuilder.CreateLifetimeStart(GEP); // todo: calculate size of object.
+  LTStart->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+  auto *Store = WriteBuilder.CreateStore(ToArrayify, GEP);
+  Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+  return Alloca;
+}
+
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
+                                      llvm::MDNode *MDAccessGroup, llvm::MDTuple *MDAlloca = nullptr) {
+  llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
+
+  return arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, MDAccessGroup, MDAlloca);
+}
+
 void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
                                 const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependedUponValues,
                                 llvm::MDNode *MDAccessGroup,
@@ -556,29 +585,8 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
     if (auto *MD = I->getMetadata(hipsycl::compiler::MetadataKind))
       continue; // currently just have one MD, so no further value checks
 
-    auto *T = I->getType();
-    llvm::IRBuilder AllocaBuilder{IPAllocas};
-    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
-                                              I->getName() + "_alloca");
-    Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
-    ValueAllocaMap[I] = Alloca;
-
-    llvm::IRBuilder WriteBuilder{&*(++I->getIterator())};
-    auto *GEP = WriteBuilder.CreateGEP(Alloca, Idx, I->getName() + "_gep");
-    auto *LTStart = WriteBuilder.CreateLifetimeStart(GEP); // todo: calculate size of object.
-    LTStart->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
-    auto *Store = WriteBuilder.CreateStore(I, GEP);
-    Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+    ValueAllocaMap[I] = arrayifyInstruction(IPAllocas, I, Idx, MDAccessGroup, MDAlloca);
   }
-}
-
-llvm::AllocaInst *findAlloca(llvm::Instruction *I) {
-  for (auto &OP : I->operands()) {
-    if (auto *OPI = llvm::dyn_cast<llvm::AllocaInst>(OP.get()))
-      return OPI;
-  }
-
-  return nullptr;
 }
 
 void replaceOperandsWithArrayLoad(llvm::Value *Idx,
@@ -651,6 +659,18 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
   replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, ArrfDependingInsts, MDAccessGroup);
 }
 
+llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
+  llvm::AllocaInst *Alloca = nullptr;
+  if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(GEPI->getPointerOperand());
+  } else {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(&LInst);
+  }
+  if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MetadataKind))
+    return Alloca;
+  return nullptr;
+}
+
 bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
   llvm::SmallVector<llvm::PHINode *, 2> Phis;
   for (auto &I : *BB) {
@@ -663,8 +683,10 @@ bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
     for (auto &OP : Phi->incoming_values()) {
       if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(&OP)) {
         GEP->moveBefore(Phi->getIncomingBlock(OP)->getTerminator());
-        Changed = true;
+        Changed = true; // todo: remind me, why do we need the GEP here alone again?
       } else if (auto *Load = llvm::dyn_cast<llvm::LoadInst>(&OP)) {
+        if (getLoopStateAllocaForLoad(*Load) == nullptr)
+          continue; // only do this for loads that load from a loop state alloca.
         Load->moveBefore(Phi->getIncomingBlock(OP)->getTerminator());
         auto *Ptr = Load->getPointerOperand();
         if (auto *GEPL = llvm::dyn_cast<llvm::GetElementPtrInst>(Ptr)) {
@@ -775,16 +797,139 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   return NewLatch;
 }
 
+llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
+  if (auto *BI = llvm::dyn_cast_or_null<llvm::BranchInst>(BB.getTerminator()))
+    if (BI->isConditional()) {
+      if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
+        return CmpI;
+      else if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
+        return SelectI;
+    }
+  return nullptr;
+}
+
+llvm::SmallPtrSet<llvm::PHINode *, 2> getInductionVariables(const llvm::Loop &L) {
+  // adapted from LLVM 11s Loop->getInductionVariable, just finding an induction var in more cases..
+  if (!L.isLoopSimplifyForm())
+    return {};
+
+  llvm::BasicBlock *Header = L.getHeader();
+  assert(Header && "Expected a valid loop header");
+  llvm::Instruction *CmpInst = getBrCmp(*Header);
+  if (!CmpInst) {
+    CmpInst = getBrCmp(*L.getLoopLatch());
+    if (!CmpInst)
+      return {};
+  }
+
+  // check we have at most 2 actual pseudo and %c = select i1 %c1, i1 %c2, i1 false
+  llvm::SmallPtrSet<llvm::Instruction *, 2> Cmps;
+  for (auto &OP : CmpInst->operands())
+    if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OP))
+      Cmps.insert(OPI);
+
+  llvm::SmallPtrSet<llvm::PHINode *, 2> IndVars;
+  for (llvm::PHINode &IndVar : Header->phis()) {
+    HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Header PHI: "; IndVar.print(llvm::outs());
+                               llvm::outs() << "\n";)
+
+    // case 1:
+    // IndVar = phi[{InitialValue, preheader}, {StepInst, latch}]
+    // cmp = IndVar < FinalValue
+    // StepInst = IndVar + step
+    if (std::find(Cmps.begin(), Cmps.end(), &IndVar) != Cmps.end())
+      IndVars.insert(&IndVar);
+    // case 2:
+    // IndVar = phi[{InitialValue, preheader}, {StepInst, latch}]
+    // StepInst = IndVar + step
+    // cmp = StepInst < FinalValue
+    else if (std::any_of(Cmps.begin(), Cmps.end(), [&IndVar](auto *Cmp) {
+               return std::find(Cmp->op_begin(), Cmp->op_end(), &IndVar) != Cmp->op_end();
+             }))
+      IndVars.insert(&IndVar);
+  }
+
+  return IndVars;
+}
+
+// only for inner loops required..
 llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                             llvm::DominatorTree &DT) {
-  if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(L->getHeader()->begin())) {
-    assert(&*(++L->getHeader()->begin()) == L->getHeader()->getFirstNonPHI() && "just a single phi compatible for now");
-    auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch));
-    return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-  } else {
-    llvm::errs() << "not a phi in loop header\n";
-    llvm::errs().flush();
-    std::terminate();
+  auto IndVars = getInductionVariables(*L);
+  assert(!IndVars.empty() && "Loop ind vars must be found");
+
+  llvm::SmallVector<llvm::PHINode *, 2> IndVarVec{IndVars.begin(), IndVars.end()};
+  std::sort(IndVarVec.begin(), IndVarVec.end(),
+            [&DT](llvm::PHINode *IndVar, llvm::PHINode *IndVar2) { return !DT.dominates(IndVar, IndVar2); });
+  auto *PhiI = IndVarVec[0];
+  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Loop ind var: "; PhiI->print(llvm::outs());
+                             llvm::outs() << "\n";)
+  auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch));
+  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
+
+  //  if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(L->getHeader()->begin())) {
+  //    assert(&*(++L->getHeader()->begin()) == L->getHeader()->getFirstNonPHI() && "just a single phi compatible for
+  //    now"); auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch)); return
+  //    llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
+  //  } else {
+  //    llvm::errs() << "not a phi in loop header\n";
+  //    llvm::errs().flush();
+  //    std::terminate();
+  //  }
+}
+
+// If InsertBefore = nullptr, ToStore must be an llvm::Instruction.
+// The insertion point will be immediately after ToStore then.
+void storeToAlloca(llvm::Value &ToStore, llvm::AllocaInst &DstAlloca, llvm::Value &Idx, llvm::MDNode *MDAccessGroup,
+                   llvm::Instruction *InsertBefore = nullptr) {
+  if (!InsertBefore) {
+    auto *ToStoreI = llvm::cast<llvm::Instruction>(&ToStore); // must be inst, as InsertBefore null
+    InsertBefore = &*(++ToStoreI->getIterator());
+  }
+  assert(InsertBefore && "must have insertion point");
+
+  llvm::IRBuilder WriteBuilder{InsertBefore};
+  auto *GEP = WriteBuilder.CreateGEP(&DstAlloca, &Idx, ToStore.getName() + "_gep");
+  auto *Store = WriteBuilder.CreateStore(&ToStore, GEP);
+  Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+}
+
+void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Value *Idx, llvm::MDNode *MDAccessGroup) {
+  const auto IndPhis = getInductionVariables(L);
+  assert(!IndPhis.empty() && "No Loop induction variable found.");
+
+  auto *Header = L.getHeader();
+  llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
+  llvm::SmallVector<llvm::Instruction *, 2> ToErase;
+  llvm::SmallPtrSet<llvm::Instruction *, 8> DependingInsts;
+  for (auto &PhiI : Header->phis()) {
+    if (!IndPhis.contains(&PhiI)) {
+      llvm::AllocaInst *AllocaI = nullptr;
+      if (auto *FromPreHeaderI = llvm::dyn_cast<llvm::LoadInst>(PhiI.getIncomingValueForBlock(L.getLoopPreheader()))) {
+        // don't care if const value
+        AllocaI = getLoopStateAllocaForLoad(*FromPreHeaderI);
+        ValueAllocaMap[&PhiI] = AllocaI;
+        for (auto *U : PhiI.users())
+          if (auto *UInst = llvm::dyn_cast<llvm::Instruction>(U))
+            DependingInsts.insert(UInst);
+        ToErase.push_back(&PhiI);
+      }
+      if (auto *FromLatchV = PhiI.getIncomingValueForBlock(L.getLoopLatch())) {
+        if (!AllocaI) {
+          auto *IP = llvm::dyn_cast<llvm::Instruction>(FromLatchV);
+          assert(IP && "must be Instruction, so we can find out an insertion point");
+          IP = &*(++IP->getIterator());
+          arrayifyValue(Header->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), FromLatchV, IP, Idx, MDAccessGroup);
+        } else {
+          // todo: might need an IP.. if value before first use or something..?
+          storeToAlloca(*FromLatchV, *AllocaI, *Idx, MDAccessGroup);
+        }
+      }
+    }
+  }
+  replaceOperandsWithArrayLoad(Idx, ValueAllocaMap, DependingInsts, MDAccessGroup);
+  for (auto *PhiI : ToErase) {
+    PhiI->eraseFromParent();
   }
 }
 
@@ -1082,7 +1227,8 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
 bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
                const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
-               const llvm::TargetTransformInfo &TTI, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+               const llvm::TargetTransformInfo &TTI, llvm::TargetLibraryInfo &TLI,
+               const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!(*L->block_begin())->getParent()->getName().startswith(".omp_outlined")) {
     // are we in kernel?
     return false;
@@ -1154,7 +1300,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     if (auto *InnerLoop = LI.getLoopFor(BarrierBlock); InnerLoop != L) {
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Barrier is in loop..\n";
       assert(InnerLoop->getLoopPreheader() && "must have preheader");
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "BHeader0: " << InnerLoop->getHeader()->getName() << "\n";
       const std::string BlockNameSuffix = "lsplit" + std::to_string(BC);
       splitIntoWorkItemLoops(InnerLoop->getLoopPreheader(), InnerLoop->getHeader(), PreHeader, Header, Latch, ExitBlock,
                              F, L, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
@@ -1167,7 +1312,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       auto *NewExitBlock = L->getExitBlock();
 
       simplifyLatchNonCanonical(InnerLoop, InnerLoop->getLoopLatch(), LI, DT);
-      llvm::Value *Alloca = nullptr; // todo: we need to store the index in a fresh alloca, I think.
+      llvm::AllocaInst *Alloca = nullptr;
       {
         auto *InnerHeader = InnerLoop->getHeader();
         assert(llvm::isa<llvm::PHINode>(InnerHeader->begin()) && "header must have phi!");
@@ -1180,17 +1325,17 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
             LInst = llvm::cast<llvm::LoadInst>(IInst);
             LInstClone = llvm::cast<llvm::LoadInst>(LInst->clone());
             LInstClone->insertBefore(LIP);
-            Alloca = LInstClone->getPointerOperand();
+            Alloca = getLoopStateAllocaForLoad(*LInstClone);
             if (auto *GepInst = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst->getPointerOperand())) {
               auto *GepInstClone = GepInst->clone();
               GepInstClone->insertBefore(LInstClone);
               GepInstClone->replaceUsesOfWith(LI.getLoopFor(Header)->getCanonicalInductionVariable(),
                                               L->getCanonicalInductionVariable());
               LInstClone->replaceUsesOfWith(GepInst, GepInstClone);
-              Alloca = GepInstClone->getOperand(0);
             }
 
-            assert(Alloca->getNumUses() == 3); // Original Load, Store + new Load
+            assert(Alloca && Alloca->getNumUses() == 3 &&
+                   "Alloca must exist and be used as expected"); // Original Load, Store + new Load
 
             llvm::ValueToValueMapTy VMap;
             VMap[Phi] = LInstClone;
@@ -1205,6 +1350,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         }
       }
       {
+        moveNonIndVarOutOfHeader(*InnerLoop, L->getCanonicalInductionVariable(), MDAccessGroup);
         replaceIndexWithNull(InnerLoop, LI.getLoopFor(Header)->getCanonicalInductionVariable());
         llvm::SmallVector<llvm::BasicBlock *, 2> BBs{{InnerLoop->getHeader(), InnerLoop->getLoopPreheader()}};
         replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());
@@ -1294,11 +1440,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         IInstCloned->replaceUsesOfWith(Phi, LInstClone);
         IInstCloned->print(llvm::outs());
         IInstCloned->insertAfter(IIP); // todo: we don't know for suure, this is hipsycl arrayified.
-        llvm::IRBuilder WriteBuilder{&*(++IInstCloned->getIterator())};
-        auto *GEP =
-            WriteBuilder.CreateGEP(Alloca, NewLoop->getCanonicalInductionVariable(), IInstCloned->getName() + "_gep");
-        auto *Store = WriteBuilder.CreateStore(IInstCloned, GEP);
-        Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+        storeToAlloca(*IInstCloned, *Alloca, *NewLoop->getCanonicalInductionVariable(), MDAccessGroup);
 
         llvm::IRBuilder LoadBuilder{IInst};
         auto *Load = LoadBuilder.CreateLoad(Alloca); // load at 0
@@ -1394,11 +1536,12 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
   const auto &TTI = getAnalysis<llvm::TargetTransformInfoWrapperPass>().getTTI(*L->getHeader()->getParent());
+  auto &TLI = getAnalysis<llvm::TargetLibraryInfoWrapperPass>().getTLI(*L->getHeader()->getParent());
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  llvm::LoopAccessInfo LAI(L, &SE, nullptr, &AA.getAAResults(), &DT, &LI);
+  llvm::LoopAccessInfo LAI(L, &SE, &TLI, &AA.getAAResults(), &DT, &LI);
   return splitLoop(
-      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, TTI, SAA);
+      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, TTI, TLI, SAA);
 }
 
 void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
@@ -1411,6 +1554,8 @@ void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::Ana
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
   AU.addRequired<llvm::TargetTransformInfoWrapperPass>();
   AU.addPreserved<llvm::TargetTransformInfoWrapperPass>();
+  AU.addRequired<llvm::TargetLibraryInfoWrapperPass>();
+  AU.addPreserved<llvm::TargetLibraryInfoWrapperPass>();
 
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
@@ -1422,8 +1567,9 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitAtBarrierPass::run(llvm::Loo
   auto &SAA = AM.getResult<SplitterAnnotationAnalysis>(L, AR);
   const auto &LAI = AM.getResult<llvm::LoopAccessAnalysis>(L, AR);
   const auto &TTI = AM.getResult<llvm::TargetIRAnalysis>(L, AR);
+  auto &TLI = AM.getResult<llvm::TargetLibraryAnalysis>(L, AR);
   if (!splitLoop(
-          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, TTI, SAA))
+          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, TTI, TLI, SAA))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();

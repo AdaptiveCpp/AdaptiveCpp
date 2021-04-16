@@ -60,7 +60,7 @@ public:
   int get_debug_level() const { return _debug_level; }
 
 private:
-  
+
   output_stream()
   : _debug_level {HIPSYCL_DEBUG_LEVEL}, _output_stream{std::cout} {
 #ifndef HIPSYCL_COMPILER_COMPONENT
@@ -113,5 +113,14 @@ private:
   HIPSYCL_DEBUG_STREAM(HIPSYCL_DEBUG_LEVEL_INFO, \
                       HIPSYCL_DEBUG_PREFIX_INFO)
 
+#define HIPSYCL_DEBUG_EXECUTE(level, content) \
+  if(level <= ::hipsycl::common::output_stream::get().get_debug_level()) \
+  {\
+    content\
+  }
 
+#define HIPSYCL_DEBUG_EXECUTE_VERBOSE(content) HIPSYCL_DEBUG_EXECUTE(HIPSYCL_DEBUG_LEVEL_VERBOSE, content)
+#define HIPSYCL_DEBUG_EXECUTE_INFO(content) HIPSYCL_DEBUG_EXECUTE(HIPSYCL_DEBUG_LEVEL_INFO, content)
+#define HIPSYCL_DEBUG_EXECUTE_WARNING(content) HIPSYCL_DEBUG_EXECUTE(HIPSYCL_DEBUG_LEVEL_WARNING, content)
+#define HIPSYCL_DEBUG_EXECUTE_ERROR(content) HIPSYCL_DEBUG_EXECUTE(HIPSYCL_DEBUG_LEVEL_ERROR, content)
 #endif

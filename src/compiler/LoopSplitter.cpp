@@ -98,7 +98,8 @@ bool inlineSplitterCallTree(llvm::CallBase *CI) {
     return false;
   }
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "LoopSplitter inlined function <" << CalleeName << ">\n";
+  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "LoopSplitter inlined function <"
+                                          << CalleeName << ">\n";)
   return true;
 }
 
@@ -285,7 +286,7 @@ bool fillBlocksInBranch(const llvm::DomTreeNodeBase<llvm::BasicBlock> *First, co
   while (!WL.empty()) {
     const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
     if (N->getBlock() != Merge) {
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << N->getBlock()->getName() << "\n";
+      HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << N->getBlock()->getName() << "\n";)
       Blocks.push_back(N->getBlock());
       WL.append(N->begin(), N->end());
     }
@@ -623,29 +624,30 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
   llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependedUponValues;
   llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "baseblocks:\n";
-  for (auto *BB : ArrfBaseBlocks) {
-    BB->print(llvm::outs());
-  }
+  HIPSYCL_DEBUG_EXECUTE_INFO(
+      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "baseblocks:\n"; for (auto *BB
+                                                                         : ArrfBaseBlocks) { BB->print(llvm::outs()); }
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "searchblocks:\n";
-  for (auto *BB : ArrfSearchBlocks) {
-    BB->print(llvm::outs());
-  }
+                                                                    llvm::outs()
+                                                                    << HIPSYCL_DEBUG_PREFIX_INFO << "searchblocks:\n";
+      for (auto *BB
+           : ArrfSearchBlocks) { BB->print(llvm::outs()); })
 
   findDependenciesBetweenBlocks(ArrfBaseBlocks, ArrfSearchBlocks, ArrfDependingInsts, ArrfDependedUponValues);
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depended upon values\n";
-  for (auto *V : ArrfDependedUponValues) {
-    V->print(llvm::outs());
-    llvm::outs() << "\n";
-  }
+  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depended upon values\n";
+                             for (auto *V
+                                  : ArrfDependedUponValues) {
+                               V->print(llvm::outs());
+                               llvm::outs() << "\n";
+                             })
   arrayifyDependedUponValues(F->getEntryBlock().getFirstNonPHI(), L->getCanonicalInductionVariable(),
                              ArrfDependedUponValues, MDAccessGroup, ValueAllocaMap);
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depending insts\n";
-  for (auto *I : ArrfDependingInsts) {
-    I->print(llvm::outs());
-    llvm::outs() << "\n";
-  }
+  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depending insts\n";
+                             for (auto *I
+                                  : ArrfDependingInsts) {
+                               I->print(llvm::outs());
+                               llvm::outs() << "\n";
+                             })
   replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, ArrfDependingInsts, MDAccessGroup);
 }
 
@@ -721,9 +723,8 @@ bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging. Todo
           continue;
       }
       auto ReturnFalse = [&I]() {
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
-        I.print(llvm::outs());
-        llvm::outs() << "\n";
+        HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
+                                      I.print(llvm::outs()); llvm::outs() << "\n";)
         return false;
       };
       // The memory instruction can refer to the loop identifier metadata
@@ -961,7 +962,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                             llvm::LoopInfo &LI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
                             llvm::AssumptionCache &AC, const std::function<void(llvm::Loop &)> &LoopAdder,
                             const std::string &Suffix, llvm::MDNode *MDAccessGroup) {
-  F->viewCFG();
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
 
   llvm::ValueToValueMapTy VMap;
 
@@ -1040,24 +1041,23 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   arrayifyDependencies(F, L, BeforeSplitBlocks, AfterSplitBlocks, MDAccessGroup);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
+
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet{AfterSplitBlocks.begin(), AfterSplitBlocks.end()};
-
   for (auto *BB : BBSet)
     llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << " " << BB->getName() << "\n";
   llvm::outs().flush();
 
   llvm::remapInstructionsInBlocks(BbToRemap, VMap);
-
-  for (auto *Block : L->getParentLoop()->blocks()) {
+  HIPSYCL_DEBUG_EXECUTE_INFO(for (auto *Block
+                                  : L->getParentLoop()->blocks()) {
     if (!Block->getParent())
       Block->print(llvm::errs());
-  }
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop()
-               << "\n";
-  DT.print(llvm::errs());
+  } llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+                 << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
   L = updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
-  DT.print(llvm::errs());
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
   LoopAdder(*L);
 
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
@@ -1068,12 +1068,12 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << L->getHeader()->getName();
-  L->getLoopID()->print(llvm::outs(), F->getParent());
-  for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
-    MDOp->print(llvm::outs(), F->getParent());
-  }
-  llvm::outs() << "\n";
+  HIPSYCL_DEBUG_EXECUTE_INFO(
+      llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << L->getHeader()->getName();
+      L->getLoopID()->print(llvm::outs(), F->getParent()); for (auto &MDOp
+                                                                : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
+        MDOp->print(llvm::outs(), F->getParent());
+      } llvm::outs() << "\n";)
 
   if (llvm::verifyFunction(*F, &llvm::errs())) {
     llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "function verification failed\n";
@@ -1114,9 +1114,9 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     return Changed;
   }
 
-  std::size_t BC = 0;
-  F->print(llvm::outs());
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->print(llvm::outs());)
 
+  std::size_t BC = 0;
   for (auto *BarrierIt = Barriers.begin(); BarrierIt != Barriers.end(); ++BarrierIt) {
     auto *Barrier = *BarrierIt;
     Changed = true;
@@ -1158,7 +1158,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       const std::string BlockNameSuffix = "lsplit" + std::to_string(BC);
       splitIntoWorkItemLoops(InnerLoop->getLoopPreheader(), InnerLoop->getHeader(), PreHeader, Header, Latch, ExitBlock,
                              F, L, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
-      F->viewCFG();
+      HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
       auto *NewPreHeader = L->getLoopPreheader();
       auto *NewHeader = L->getHeader();
       auto *NewLoop = LI.getLoopFor(NewHeader);
@@ -1220,9 +1220,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       DT.changeImmediateDominator(BarrierLoopExitBlock, NewBarrierLoopExitBlock);
 
       NewLatch = simplifyLatch(NewLoop, NewLatch, LI, DT);
-      llvm::errs() << "cfgbefore 2nd inversion split\n";
-      F->viewCFG();
-      DT.print(llvm::errs());
+      HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; F->viewCFG();
+                                    DT.print(llvm::errs());)
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
@@ -1231,7 +1230,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
                              NewExitBlock, F, NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix,
                              MDAccessGroup);
 
-      F->viewCFG();
+      HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
       auto *BHeader = InnerLoop->getHeader();
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "BHeader: " << BHeader->getName() << "\n";
 
@@ -1317,7 +1316,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       splitIntoWorkItemLoops(BarrierBlock, NewBlock, PreHeader, Header, Latch, ExitBlock, F, L, ParentLoop, LI, DT, SE,
                              AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
     }
-    F->viewCFG();
+    HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   }
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
@@ -1333,18 +1332,17 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         llvm::errs() << "\n";
       }
     }
-    if (isAnnotatedParallel(SL))
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
-    else {
-      if (SL->getLoopID()) {
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
-        SL->getLoopID()->print(llvm::outs(), F->getParent());
-        for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
-          MDOp->print(llvm::outs(), F->getParent());
-        }
-        llvm::outs() << "\n";
-      }
-    }
+    HIPSYCL_DEBUG_EXECUTE_WARNING(
+        if (isAnnotatedParallel(SL)) { llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n"; } else {
+          if (SL->getLoopID()) {
+            llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
+            SL->getLoopID()->print(llvm::outs(), F->getParent());
+            for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
+              MDOp->print(llvm::outs(), F->getParent());
+            }
+            llvm::outs() << "\n";
+          }
+        })
   }
 
   for (auto *Loop : LI.getTopLevelLoops())
@@ -1361,28 +1359,29 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
   L = updateDtAndLi(LI, DT, L->getHeader(), *L->getHeader()->getParent());
 
-  for (auto *SL : L->getSubLoops()) {
-    llvm::SmallVector<llvm::Loop *, 2> LLL;
-    if (SL->getSubLoops().size() == 2)
-      LLL.append(SL->getSubLoops().begin(), SL->getSubLoops().end());
-    else
-      LLL.push_back(SL);
-    for (auto *SSL : LLL) {
-      if (isAnnotatedParallel(SSL))
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
-      else {
-        assert(SSL->getLoopID());
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SSL->getHeader()->getName();
-        SSL->getLoopID()->print(llvm::outs(), F->getParent());
-        for (auto &MDOp : llvm::drop_begin(SSL->getLoopID()->operands(), 1)) {
-          MDOp->print(llvm::outs(), F->getParent());
+  if (HIPSYCL_DEBUG_LEVEL_INFO <= ::hipsycl::common::output_stream::get().get_debug_level()) {
+    for (auto *SL : L->getSubLoops()) {
+      llvm::SmallVector<llvm::Loop *, 2> LLL;
+      if (SL->getSubLoops().size() == 2)
+        LLL.append(SL->getSubLoops().begin(), SL->getSubLoops().end());
+      else
+        LLL.push_back(SL);
+      for (auto *SSL : LLL) {
+        if (isAnnotatedParallel(SSL))
+          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
+        else if (SSL->getLoopID()) {
+          assert(SSL->getLoopID());
+          llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SSL->getHeader()->getName();
+          SSL->getLoopID()->print(llvm::outs(), F->getParent());
+          for (auto &MDOp : llvm::drop_begin(SSL->getLoopID()->operands(), 1)) {
+            MDOp->print(llvm::outs(), F->getParent());
+          }
+          llvm::outs() << "\n";
         }
-        llvm::outs() << "\n";
       }
     }
   }
-  F->viewCFG();
-  F->print(llvm::outs());
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG(); F->print(llvm::outs());)
   return Changed;
 }
 

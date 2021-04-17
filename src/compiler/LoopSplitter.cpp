@@ -482,6 +482,20 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
   }
 }
 
+void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
+  if (auto *PresentMD = I->getMetadata(llvm::LLVMContext::MD_access_group)) {
+    llvm::SmallVector<llvm::Metadata *, 4> MDs;
+    if (PresentMD->getNumOperands() == 0)
+      MDs.push_back(PresentMD);
+    else
+      MDs.append(PresentMD->op_begin(), PresentMD->op_end());
+    MDs.push_back(MDAccessGroup);
+    auto *CombinedMDAccessGroup = llvm::MDNode::getDistinct(I->getContext(), MDs);
+    I->setMetadata(llvm::LLVMContext::MD_access_group, CombinedMDAccessGroup);
+  } else
+    I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+}
+
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm::DominatorTree &DT,
                      llvm::MDNode *MDAccessGroup
                      /*llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap*/) {
@@ -514,7 +528,6 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
     auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
                                               I->getName() + "_alloca");
     Alloca->setMetadata(hipsycl::compiler::MetadataKind, MDAlloca);
-    //    ValueAllocaMap[I] = Alloca;
 
     llvm::Instruction *GepIp = nullptr;
     for (auto *U : I->users()) {
@@ -537,9 +550,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
           llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "llvm.access.group adding to ";
           LoadI->print(llvm::outs());
           llvm::outs() << "\n";
-          assert(!LoadI->hasMetadata(llvm::LLVMContext::MD_access_group) &&
-                 "don't know how to handle already present md");
-          LoadI->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+          addAccessGroupMD(LoadI, MDAccessGroup);
         }
       }
     }

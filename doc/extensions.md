@@ -2,14 +2,6 @@
 
 hipSYCL implements several extensions that are not defined by the specification.
 
-In general (and unless otherwise noted), hipSYCL extensions must be activated before they can be used by defining `HIPSYCL_EXT_<EXTENSIONNAME>` fore including `sycl.hpp`, for example:
-
-```
-#define HIPSYCL_EXT_FP_ATOMICS
-#include <CL/sycl.hpp>
-```
-Alternatively, instead of activating individual extensions, all extensions can be activated by defining `HIPSYCL_EXT_ENABLE_ALL`.
-
 ## Supported extensions
 
 
@@ -176,7 +168,7 @@ void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
 ```
 
 ### `HIPSYCL_EXT_FP_ATOMICS`
-This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
+This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this. This extension must be enabled explicitly by `#define HIPSYCL_EXT_FP_ATOMICS` before including `sycl.hpp`
 
 ### `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE`
 This SYCL extension allows to `require()` placeholder accessors automatically. This extension does not need to be enabled explicitly and is always available.

@@ -1439,7 +1439,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         auto *IInstCloned = IInst->clone();
         IInstCloned->replaceUsesOfWith(Phi, LInstClone);
         IInstCloned->print(llvm::outs());
-        IInstCloned->insertAfter(IIP); // todo: we don't know for suure, this is hipsycl arrayified.
+        IInstCloned->insertBefore(IIP); // todo: we don't know for suure, this is hipsycl arrayified.
         storeToAlloca(*IInstCloned, *Alloca, *NewLoop->getCanonicalInductionVariable(), MDAccessGroup);
 
         llvm::IRBuilder LoadBuilder{IInst};

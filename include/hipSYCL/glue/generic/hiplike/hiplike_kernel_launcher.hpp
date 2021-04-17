@@ -581,7 +581,7 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel kernel, Reductions... reductions) {
+            Kernel k, Reductions... reductions) {
     
     this->_type = type;
 
@@ -602,11 +602,11 @@ public:
                          << effective_local_range.size() << std::endl;
     }
 
-    _invoker = [=](rt::dag_node* node) {
+    _invoker = [=](rt::dag_node* node) mutable {
       assert(_queue != nullptr);
-      Kernel k = kernel;
+      
       static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k);
+          ->initialize_embedded_pointers(k, reductions...);
 
       // Simple cases first: Kernel types that don't support
       // reductions

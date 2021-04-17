@@ -329,14 +329,15 @@ struct Condition {
 
 void findIfConditionInner(
     const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::BasicBlock *> Terminals,
-    const std::vector<llvm::Loop *> &Loops, const llvm::DominatorTree &DT,
-    llvm::SmallPtrSetImpl<const llvm::BasicBlock *> &LookedAtBBs, llvm::SmallVectorImpl<Condition *> &BranchStack,
+    const llvm::SmallVectorImpl<llvm::Loop *> &Loops, const llvm::DominatorTree &DT,
+    llvm::SmallDenseMap<const llvm::BasicBlock *, int, 8> &LookedAtBBs, llvm::SmallVectorImpl<Condition *> &BranchStack,
     llvm::SmallDenseMap<const llvm::BasicBlock *, std::unique_ptr<Condition>, 8> &BranchCondAndMerge) {
   llvm::BasicBlock *IfThen = nullptr, *IfElse = nullptr;
 
   const auto NumSuccessors = Root->getTerminator()->getNumSuccessors();
   if (NumSuccessors > 1) {
-    auto LoopIt = std::find_if(Loops.begin(), Loops.end(), [Root](auto *Loop) { return Loop->getHeader() == Root; });
+    const auto *LoopIt =
+        std::find_if(Loops.begin(), Loops.end(), [Root](auto *Loop) { return Loop->getHeader() == Root; });
     auto Pair = BranchCondAndMerge.try_emplace(Root, std::make_unique<Condition>(Root));
 
     if (LoopIt == Loops.end()) {
@@ -350,11 +351,11 @@ void findIfConditionInner(
   for (size_t S = 0; S < NumSuccessors; ++S) {
     auto *Successor = Root->getTerminator()->getSuccessor(S);
     if (std::find(Terminals.begin(), Terminals.end(), Successor) == Terminals.end()) {
-      if (LookedAtBBs.insert(Successor).second) {
-        findIfConditionInner(Successor, Terminals, Loops, DT, LookedAtBBs, BranchStack, BranchCondAndMerge);
-      } else if (Successor->hasNPredecessorsOrMore(2) &&
-                 std::none_of(Loops.begin(), Loops.end(),
-                              [Successor](auto *Loop) { return Loop->getHeader() == Successor; })) {
+      auto &Visitations = LookedAtBBs[Successor];
+      Visitations++;
+      if (Successor->hasNPredecessorsOrMore(Visitations + 1) &&
+          std::none_of(Loops.begin(), Loops.end(),
+                       [Successor](auto *Loop) { return Loop->getHeader() == Successor; })) {
         auto *Branch = BranchStack.pop_back_val();
         if (Branch->Cond != Successor) {
           Branch->Merge = Successor;
@@ -364,18 +365,25 @@ void findIfConditionInner(
           llvm::outs().flush();
         }
       }
+      if (Visitations == 1) {
+        findIfConditionInner(Successor, Terminals, Loops, DT, LookedAtBBs, BranchStack, BranchCondAndMerge);
+      }
     }
   }
 }
 
 llvm::SmallDenseMap<const llvm::BasicBlock *, std::unique_ptr<Condition>, 8>
 findIfCondition(const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::BasicBlock *> Terminals,
-                const std::vector<llvm::Loop *> &Loops, const llvm::DominatorTree &DT) {
-  llvm::SmallPtrSet<const llvm::BasicBlock *, 8> LookedAtBBs;
+                const llvm::SmallVectorImpl<llvm::Loop *> &Loops, const llvm::DominatorTree &DT) {
+  llvm::SmallDenseMap<const llvm::BasicBlock *, int, 8> LookedAtBBs;
   llvm::SmallVector<Condition *, 8> BranchStack;
   llvm::SmallDenseMap<const llvm::BasicBlock *, std::unique_ptr<Condition>, 8> BranchCondAndMerge;
 
-  LookedAtBBs.insert(Root);
+  for (auto *L : Loops) {
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "L Header " << L->getHeader()->getName() << "\n";
+  }
+
+  LookedAtBBs[Root] = 0;
   const auto NumSuccessors = Root->getTerminator()->getNumSuccessors();
   for (size_t S = 0; S < NumSuccessors; ++S) {
     auto *Successor = Root->getTerminator()->getSuccessor(S);
@@ -508,7 +516,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm:
       if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MetadataKind))
         continue; // already arrayificated
       if (Alloca->getName().startswith(".omp.") || Alloca->getName().startswith("barrier") ||
-          Alloca->getName().startswith("group_id"))
+          Alloca->getName().startswith("group_id") || Alloca->getName().startswith("group_shared_memory_ptr"))
         continue; // todo: replace with dependency analysis alla fillDependingInsts
       WL.push_back(Alloca);
     }
@@ -905,7 +913,7 @@ void storeToAlloca(llvm::Value &ToStore, llvm::AllocaInst &DstAlloca, llvm::Valu
   Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
 }
 
-void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Value *Idx, llvm::MDNode *MDAccessGroup) {
+void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx, llvm::MDNode *MDAccessGroup) {
   const auto IndPhis = getInductionVariables(L);
   assert(!IndPhis.empty() && "No Loop induction variable found.");
 
@@ -916,25 +924,24 @@ void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Value *Idx, llvm::MDNode *MDA
   for (auto &PhiI : Header->phis()) {
     if (!IndPhis.contains(&PhiI)) {
       llvm::AllocaInst *AllocaI = nullptr;
-      if (auto *FromPreHeaderI = llvm::dyn_cast<llvm::LoadInst>(PhiI.getIncomingValueForBlock(L.getLoopPreheader()))) {
+      if (auto *FromPreHeaderLI = llvm::dyn_cast<llvm::LoadInst>(PhiI.getIncomingValueForBlock(L.getLoopPreheader()))) {
         // don't care if const value
-        AllocaI = getLoopStateAllocaForLoad(*FromPreHeaderI);
-        ValueAllocaMap[&PhiI] = AllocaI;
+        AllocaI = getLoopStateAllocaForLoad(*FromPreHeaderLI);
+      } else { // constant values
+        auto *FromPreHeaderV = PhiI.getIncomingValueForBlock(L.getLoopPreheader());
+        auto *IP = llvm::dyn_cast<llvm::Instruction>(PrevL.getLoopLatch()->getFirstNonPHIOrDbgOrLifetime());
+        assert(IP && "must be Instruction, so we can find out an insertion point");
+        AllocaI = arrayifyValue(Header->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), FromPreHeaderV, IP,
+                                PrevL.getCanonicalInductionVariable(), MDAccessGroup);
+      }
+      if (auto *FromLatchV = PhiI.getIncomingValueForBlock(L.getLoopLatch())) {
+        // todo: might need an IP.. if value before first use or something..?
+        storeToAlloca(*FromLatchV, *AllocaI, *Idx, MDAccessGroup);
         for (auto *U : PhiI.users())
           if (auto *UInst = llvm::dyn_cast<llvm::Instruction>(U))
             DependingInsts.insert(UInst);
         ToErase.push_back(&PhiI);
-      }
-      if (auto *FromLatchV = PhiI.getIncomingValueForBlock(L.getLoopLatch())) {
-        if (!AllocaI) {
-          auto *IP = llvm::dyn_cast<llvm::Instruction>(FromLatchV);
-          assert(IP && "must be Instruction, so we can find out an insertion point");
-          IP = &*(++IP->getIterator());
-          arrayifyValue(Header->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), FromLatchV, IP, Idx, MDAccessGroup);
-        } else {
-          // todo: might need an IP.. if value before first use or something..?
-          storeToAlloca(*FromLatchV, *AllocaI, *Idx, MDAccessGroup);
-        }
+        ValueAllocaMap[&PhiI] = AllocaI;
       }
     }
   }
@@ -1010,8 +1017,14 @@ void cloneConditions(llvm::Function *F,
                      llvm::BasicBlock *NewHeader, llvm::BasicBlock *NewLatch, llvm::BasicBlock *OldLatch,
                      llvm::BasicBlock *&FirstBlockInNew, llvm::BasicBlock *&LastCondInNew, llvm::DominatorTree &DT,
                      llvm::ValueToValueMapTy &VMap) {
-  for (auto &CondPair : CondsAndMerges) {
-    auto *Cond = CondPair.second.get();
+  llvm::SmallVector<const llvm::BasicBlock *, 8> SortedCondBlocks;
+  std::transform(CondsAndMerges.begin(), CondsAndMerges.end(), std::back_inserter(SortedCondBlocks),
+                 [](auto &Pair) { return Pair.first; });
+  std::sort(SortedCondBlocks.begin(), SortedCondBlocks.end(),
+            [&DT](auto *FirstBB, auto *SecondBB) { return DT.dominates(FirstBB, SecondBB); });
+
+  for (auto *CondBB : SortedCondBlocks) {
+    auto *Cond = CondsAndMerges[CondBB].get();
     if (Cond->Cond == Cond->Merge)
       continue;
     auto *BlocksLeftIt = std::find_if(Cond->BlocksLeft.begin(), Cond->BlocksLeft.end(), [&BeforeSplitBlocks](auto *BB) {
@@ -1122,7 +1135,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   llvm::ValueToValueMapTy VMap;
 
-  auto CondsAndMerges = findIfCondition(Header, {ExitBlock, Header}, L->getSubLoops(), DT);
+  auto CondsAndMerges = findIfCondition(Header, {ExitBlock, Header}, L->getLoopsInPreorder(), DT);
   llvm::SmallVector<llvm::BasicBlock *, 8> BeforeSplitBlocks;
   findBaseBlocks(Header, Latch, {LastOldBlock, ExitBlock}, DT, BeforeSplitBlocks, CondsAndMerges);
   BeforeSplitBlocks.push_back(LastOldBlock);
@@ -1217,7 +1230,6 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   LoopAdder(*L);
 
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
-
   llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
   for (auto *Block : L->blocks()) // need pre-headers -> after simplify
     moveArrayLoadForPhiToIncomingBlock(Block);
@@ -1361,7 +1373,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         }
       }
       {
-        moveNonIndVarOutOfHeader(*InnerLoop, L->getCanonicalInductionVariable(), MDAccessGroup);
+        moveNonIndVarOutOfHeader(*InnerLoop, *LI.getLoopFor(Header), L->getCanonicalInductionVariable(), MDAccessGroup);
         replaceIndexWithNull(InnerLoop, LI.getLoopFor(Header)->getCanonicalInductionVariable());
         llvm::SmallVector<llvm::BasicBlock *, 2> BBs{{InnerLoop->getHeader(), InnerLoop->getLoopPreheader()}};
         replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());
@@ -1412,7 +1424,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
       llvm::errs() << "last cfg in loop inversion\n";
 
-      //      const std::string BlockNameSuffix = "split" + std::to_string(BC);
       auto *NewBlock = llvm::SplitBlock(BarrierBlock, Barrier, &DT, &LI, nullptr,
                                         BarrierBlock->getName() + "split" + std::to_string(BC));
       Barrier->eraseFromParent();

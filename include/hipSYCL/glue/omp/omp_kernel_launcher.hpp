@@ -234,19 +234,13 @@ inline void parallel_for_ndrange_kernel(
   {
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
+    void* group_shared_memory_ptr = nullptr;
 
     std::function<void()> barrier_impl = [] () noexcept {
       assert(false && "splitting seems to have failed");
       std::terminate();
     };
 
-//    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> group_id) {
-//      iterate_range_omp_for(local_size, [&](sycl::id<Dim> local_id) {
-//        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-//                                     local_size, num_groups, &barrier_impl};
-//        f(this_item);
-//      });
-//    });
 
     if constexpr (Dim == 1) {
       const size_t n_groups = num_groups[0];
@@ -258,7 +252,7 @@ inline void parallel_for_ndrange_kernel(
         for (size_t l_x = 0; l_x < n_local; ++l_x) {
           sycl::id<Dim> local_id{l_x};
           sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-                                       local_size, num_groups, &barrier_impl};
+                                       local_size, num_groups, &barrier_impl, &group_shared_memory_ptr};
           f(this_item, reductions...);
         }
       }
@@ -274,7 +268,7 @@ inline void parallel_for_ndrange_kernel(
               sycl::id<Dim> local_id{l_x, l_y};
               sycl::nd_item<Dim> this_item{&offset,    group_id,
                                            local_id,   local_size,
-                                           num_groups, &barrier_impl};
+                                           num_groups, &barrier_impl, &group_shared_memory_ptr};
               f(this_item, reductions...);
             }
           }
@@ -294,7 +288,7 @@ inline void parallel_for_ndrange_kernel(
                   sycl::id<Dim> local_id{l_x, l_y, l_z};
                   sycl::nd_item<Dim> this_item{&offset,    group_id,
                                                local_id,   local_size,
-                                               num_groups, &barrier_impl};
+                                               num_groups, &barrier_impl, &group_shared_memory_ptr};
                   f(this_item, reductions...);
                 }
               }

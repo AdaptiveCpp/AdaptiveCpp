@@ -504,20 +504,23 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
     I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
 }
 
-void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Value *Idx, const llvm::DominatorTree &DT,
-                     llvm::MDNode *MDAccessGroup
-                     /*llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap*/) {
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT,
+                     llvm::MDNode *MDAccessGroup) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+
+  auto &LoopBlocks = L.getBlocksSet();
 
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   for (auto &I : *EntryBlock) {
     if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
       if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MetadataKind))
         continue; // already arrayificated
-      if (Alloca->getName().startswith(".omp.") || Alloca->getName().startswith("barrier") ||
-          Alloca->getName().startswith("group_id") || Alloca->getName().startswith("group_shared_memory_ptr"))
-        continue; // todo: replace with dependency analysis alla fillDependingInsts
+      if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
+            auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);
+            return Inst && LoopBlocks.contains(Inst->getParent());
+          }))
+        continue;
       WL.push_back(Alloca);
     }
   }
@@ -1150,10 +1153,8 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                                                  BeforeSplitBlocks.end();
                                         }),
                          AfterSplitBlocks.end());
-  //  {
-  //    llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
-  arrayifyAllocas(&F->getEntryBlock(), L->getCanonicalInductionVariable(), DT, MDAccessGroup);
-  //  }
+
+  arrayifyAllocas(&F->getEntryBlock(), *L, L->getCanonicalInductionVariable(), DT, MDAccessGroup);
 
   // remove latch again..
   AfterSplitBlocks.erase(

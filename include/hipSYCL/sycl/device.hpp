@@ -234,7 +234,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, device_type) {
 
 /// \todo Return different id for amd and nvidia
 HIPSYCL_SPECIALIZE_GET_INFO(device, vendor_id)
-{ return 1; }
+{ 
+  return get_rt_device()->get_property(
+      rt::device_uint_property::vendor_id); 
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 {

@@ -295,6 +295,9 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::partition_max_sub_devices:
     return 0;
     break;
+  case device_uint_property::vendor_id:
+    return 4318;
+    break;
   }
   assert(false && "Invalid device property");
   std::terminate();

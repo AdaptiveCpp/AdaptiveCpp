@@ -95,7 +95,9 @@ enum class device_uint_property {
   local_mem_size,
 
   printf_buffer_size,
-  partition_max_sub_devices
+  partition_max_sub_devices,
+
+  vendor_id
 };
 
 enum class device_uint_list_property {

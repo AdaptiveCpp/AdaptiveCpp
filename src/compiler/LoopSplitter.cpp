@@ -1335,6 +1335,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       auto *NewLatch = L->getLoopLatch();
       auto *NewExitBlock = L->getExitBlock();
 
+      InnerLoop = LI.getLoopFor(BarrierBlock);
+
       simplifyLatchNonCanonical(InnerLoop, InnerLoop->getLoopLatch(), LI, DT);
       llvm::AllocaInst *Alloca = nullptr;
       {

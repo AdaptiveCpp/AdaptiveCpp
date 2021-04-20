@@ -247,10 +247,11 @@ public:
     _bound_embedded_ptr_id = uid;
   }
 
-  // Given a kernel blob, identifies embedded pointers that are bound
-  // to this requirement and initializes them.
+  /// Given a kernel blob, identifies embedded pointers that are bound
+  /// to this requirement and initializes them
+  /// \return Whether an embedded pointer was found and initialized
   template<class KernelBlob>
-  void initialize_bound_embedded_pointers(KernelBlob& blob) {
+  bool initialize_bound_embedded_pointers(KernelBlob& blob) {
     if(is_bound()) {
       if(!has_device_ptr()) {
         register_error(
@@ -264,16 +265,11 @@ public:
                               "initialize embedded pointers for requirement "
                            << this << std::endl;
 
-        if (!glue::kernel_blob::initialize_embedded_pointer(
-                blob, _bound_embedded_ptr_id, get_device_ptr())) {
-          HIPSYCL_DEBUG_WARNING
-              << "buffer_memory_requirement: Could not find embedded pointer "
-                 "in kernel blob for this requirement; do you have unnecessary "
-                 "accessors that are unused in your kernel?"
-              << std::endl;
-        }
+        return glue::kernel_blob::initialize_embedded_pointer(
+                blob, _bound_embedded_ptr_id, get_device_ptr());
       }
     }
+    return false;
   }
   
   void dump(std::ostream & ostr, int indentation=0) const override;
@@ -333,15 +329,28 @@ public:
     return dispatcher->dispatch_kernel(this, node);
   }
 
-  template<class Kernel>
-  void initialize_embedded_pointers(Kernel& kernel_body) {
+  /// Initialize embedded pointers of a kernel. A kernel might consist
+  /// of multiple blob components, such as the body as well as reduction
+  /// variables.
+  template <typename... KernelComponents>
+  void initialize_embedded_pointers(KernelComponents &...kernel_components) {
     for(auto* req : _requirements) {
       if(req->is_buffer_requirement()){
         buffer_memory_requirement *bmem_req =
             static_cast<buffer_memory_requirement *>(req);
 
         if(bmem_req->is_bound()) {
-          bmem_req->initialize_bound_embedded_pointers(kernel_body);
+          // Initialize all arguments
+          bool found =
+              (bmem_req->initialize_bound_embedded_pointers(kernel_components) ||
+               ...);
+          if(!found) {
+            HIPSYCL_DEBUG_WARNING
+              << "kernel_operation: Could not find embedded pointer "
+                 "in kernel blob for this requirement; do you have unnecessary "
+                 "accessors that are unused in your kernel?"
+              << std::endl;
+          }
         }
       }
     }

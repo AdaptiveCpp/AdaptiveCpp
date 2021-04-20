@@ -40,7 +40,7 @@ class backend;
 #ifndef _WIN32
 #define HIPSYCL_PLUGIN_API_EXPORT extern "C"
 #else
-#define HIPSYCL_PLUGIN_API_EXPORT __declspec(dllexport) extern "C"
+#define HIPSYCL_PLUGIN_API_EXPORT extern "C" __declspec(dllexport)
 #endif
 
 HIPSYCL_PLUGIN_API_EXPORT

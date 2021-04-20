@@ -44,7 +44,13 @@ enum class device_support_aspect {
   global_mem_cache_read_only,
   global_mem_cache_write_only,
   emulated_local_memory,
-  sub_group_independent_forward_progress
+  sub_group_independent_forward_progress,
+  usm_device_allocations,
+  usm_host_allocations,
+  usm_atomic_host_allocations,
+  usm_shared_allocations,
+  usm_atomic_shared_allocations,
+  usm_system_allocations
 };
 
 enum class device_uint_property {

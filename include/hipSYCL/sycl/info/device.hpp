@@ -31,8 +31,10 @@
 
 #include <cstddef>
 
+#include "hipSYCL/sycl/aspect.hpp"
 #include "param_traits.hpp"
 #include "../types.hpp"
+#include "../aspect.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -113,6 +115,7 @@ enum class device : int {
   profile,
   version,
   opencl_c_version,
+  aspects,
   extensions,
   printf_buffer_size,
   preferred_interop_user_sync,
@@ -252,6 +255,7 @@ HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::driver_version, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profile, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::version, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::opencl_c_version, string_class);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::aspects, std::vector<aspect>);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, std::vector<string_class>);
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::printf_buffer_size, size_t);

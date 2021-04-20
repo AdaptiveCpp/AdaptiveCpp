@@ -100,6 +100,24 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::sub_group_independent_forward_progress:
     return false;
     break;
+  case device_support_aspect::usm_device_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_host_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_atomic_host_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_shared_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_atomic_shared_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_system_allocations:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;

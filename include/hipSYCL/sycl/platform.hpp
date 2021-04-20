@@ -102,6 +102,16 @@ public:
                .hw_platform == rt::hardware_platform::cpu;
   }
 
+  /// Returns true if all devices in this platform have the
+  /// specified aspect
+  bool has(aspect asp) const {
+    auto devs = get_devices();
+    for(const device& d : devs) {
+      if(!d.has(asp))
+        return false;
+    }
+    return true;
+  }
 
   static std::vector<platform> get_platforms() {
     std::vector<platform> result;

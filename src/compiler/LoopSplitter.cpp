@@ -647,7 +647,7 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
   }
 }
 
-void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
+void arrayifyDependencies(llvm::Function *F, llvm::Value *Idx,
                           llvm::SmallVectorImpl<llvm::BasicBlock *> &ArrfBaseBlocks,
                           llvm::SmallVectorImpl<llvm::BasicBlock *> &ArrfSearchBlocks, llvm::MDNode *MDAccessGroup) {
   llvm::SmallPtrSet<llvm::Instruction *, 8> ArrfDependingInsts;
@@ -670,15 +670,15 @@ void arrayifyDependencies(llvm::Function *F, const llvm::Loop *L,
                                V->print(llvm::outs());
                                llvm::outs() << "\n";
                              })
-  arrayifyDependedUponValues(F->getEntryBlock().getFirstNonPHI(), L->getCanonicalInductionVariable(),
-                             ArrfDependedUponValues, MDAccessGroup, ValueAllocaMap);
+  arrayifyDependedUponValues(F->getEntryBlock().getFirstNonPHI(), Idx, ArrfDependedUponValues, MDAccessGroup,
+                             ValueAllocaMap);
   HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "depending insts\n";
                              for (auto *I
                                   : ArrfDependingInsts) {
                                I->print(llvm::outs());
                                llvm::outs() << "\n";
                              })
-  replaceOperandsWithArrayLoad(L->getCanonicalInductionVariable(), ValueAllocaMap, ArrfDependingInsts, MDAccessGroup);
+  replaceOperandsWithArrayLoad(Idx, ValueAllocaMap, ArrfDependingInsts, MDAccessGroup);
 }
 
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
@@ -888,16 +888,6 @@ llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBloc
                              llvm::outs() << "\n";)
   auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch));
   return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-
-  //  if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(L->getHeader()->begin())) {
-  //    assert(&*(++L->getHeader()->begin()) == L->getHeader()->getFirstNonPHI() && "just a single phi compatible for
-  //    now"); auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch)); return
-  //    llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-  //  } else {
-  //    llvm::errs() << "not a phi in loop header\n";
-  //    llvm::errs().flush();
-  //    std::terminate();
-  //  }
 }
 
 // If InsertBefore = nullptr, ToStore must be an llvm::Instruction.
@@ -1208,7 +1198,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   NewHeader->getTerminator()->setSuccessor(0, FirstBlockInNew);
   DT.changeImmediateDominator(FirstBlockInNew, NewHeader);
 
-  arrayifyDependencies(F, L, BeforeSplitBlocks, AfterSplitBlocks, MDAccessGroup);
+  arrayifyDependencies(F, L->getCanonicalInductionVariable(), BeforeSplitBlocks, AfterSplitBlocks, MDAccessGroup);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
 
@@ -1376,6 +1366,13 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         }
       }
       {
+        llvm::SmallVector<llvm::BasicBlock *, 4> BBsToRemap;
+        std::copy_if(InnerLoop->block_begin(), InnerLoop->block_end(), std::back_inserter(BBsToRemap),
+                     [&InnerLoop](auto BB) { return BB != InnerLoop->getHeader() && BB != InnerLoop->getLoopLatch(); });
+        llvm::SmallVector<llvm::BasicBlock *, 1> SearchBlocks;
+        SearchBlocks.push_back(InnerLoop->getLoopLatch());
+        arrayifyDependencies(F, llvm::Constant::getNullValue(L->getCanonicalInductionVariable()->getType()), BBsToRemap,
+                             SearchBlocks, MDAccessGroup);
         moveNonIndVarOutOfHeader(*InnerLoop, *LI.getLoopFor(Header), L->getCanonicalInductionVariable(), MDAccessGroup);
         replaceIndexWithNull(InnerLoop, LI.getLoopFor(Header)->getCanonicalInductionVariable());
         llvm::SmallVector<llvm::BasicBlock *, 2> BBs{{InnerLoop->getHeader(), InnerLoop->getLoopPreheader()}};
@@ -1406,7 +1403,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       auto *BHeader = InnerLoop->getHeader();
       llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "BHeader: " << BHeader->getName() << "\n";
 
-      auto *BLatch = simplifyLatchNonCanonical(InnerLoop, InnerLoop->getLoopLatch(), LI, DT);
+      auto *BLatch = InnerLoop->getLoopLatch();
       replacePredecessorsSuccessor(BLatch, NewLatch, DT);
 
       Header->getTerminator()->setSuccessor(1, InnerLoop->getLoopPreheader());
@@ -1460,7 +1457,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
         auto *Phi = llvm::cast<llvm::PHINode>(InnerLoop->getHeader()->begin());
         auto *IIValue = Phi->getIncomingValueForBlock(InnerLoop->getLoopLatch()); // todo: maybe need to copy more..
         assert(llvm::isa<llvm::Instruction>(IIValue) && "the induction value should really be an instruction!");
-        llvm::Instruction *IInst = llvm::cast<llvm::Instruction>(IIValue);
+        auto *IInst = llvm::cast<llvm::Instruction>(IIValue);
         auto *IInstCloned = IInst->clone();
         IInstCloned->replaceUsesOfWith(Phi, LInstClone);
         IInstCloned->print(llvm::outs());

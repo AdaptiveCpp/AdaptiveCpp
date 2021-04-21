@@ -20,6 +20,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
+#include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 namespace hipsycl {
 namespace compiler {
@@ -504,13 +505,28 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
     I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
 }
 
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  while (true) {
+    WL.clear();
+    for (auto &I : *EntryBlock) {
+      if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+        if (llvm::isAllocaPromotable(Alloca))
+          WL.push_back(Alloca);
+      }
+    }
+    if (WL.empty())
+      break;
+    PromoteMemToReg(WL, DT, &AC);
+  }
+}
+
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT,
                      llvm::MDNode *MDAccessGroup) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
 
   auto &LoopBlocks = L.getBlocksSet();
-
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   for (auto &I : *EntryBlock) {
     if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
@@ -1274,7 +1290,34 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     return Changed;
   }
 
+  // we heavily rely on having the loop induction variables as PHINodes and not as alloca store / loads.
+  // this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
+  // todo: can we query whether we're in the O0 case and only do this if so, aka not yet done...?
+  {
+    promoteAllocas(&F->getEntryBlock(), DT, AC);
+
+    // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
+    // a single loop header, so that it is muuch easier to work with.
+    llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
+    for (auto *SL : LI.getLoopsInPreorder()) {
+      if (SL->getHeader())
+        LoopHeaders.insert(SL->getHeader());
+      if (SL->getLoopPreheader())
+        LoopHeaders.insert(SL->getLoopPreheader());
+    }
+
+    for (auto *Loop : LI.getTopLevelLoops())
+      for (auto *Block : Loop->blocks()) {
+        llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
+      }
+    
+    // repair loop simplify form
+    L = updateDtAndLi(LI, DT, L->getLoopLatch(), *F);
+    llvm::simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, false);
+  }
+
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->print(llvm::outs());)
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
 
   std::size_t BC = 0;
   for (auto *BarrierIt = Barriers.begin(); BarrierIt != Barriers.end(); ++BarrierIt) {

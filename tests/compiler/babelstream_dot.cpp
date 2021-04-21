@@ -1,7 +1,7 @@
-// RUN: not %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
+// RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
+// RUN: %t | FileCheck %s
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS -O3
 // RUN: %t | FileCheck %s
-// fixme: O0 fails for now.
 // Only O3 generated some invalid accesses at some point, so only test this..
 
 #include <array>

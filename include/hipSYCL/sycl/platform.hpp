@@ -53,8 +53,9 @@ public:
   platform(rt::backend_id backend)
       : _platform{backend, 0} {}
 
-  explicit platform(const device_selector &deviceSelector) {
-    auto dev = deviceSelector.select_device();
+  template<class DeviceSelector>
+  explicit platform(const DeviceSelector &deviceSelector) {
+    auto dev = detail::select_device(deviceSelector);
     this->_platform = rt::platform_id{dev._device_id};
   }
 

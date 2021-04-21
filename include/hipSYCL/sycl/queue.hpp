@@ -111,7 +111,7 @@ class queue : public detail::property_carrying_object
 
 public:
   explicit queue(const property_list &propList = {})
-      : queue{default_selector{},
+      : queue{default_selector_v,
               [](exception_list e) { glue::default_async_handler(e); },
               propList} {
     assert(_default_hints.has_hint<rt::hints::bind_to_device>());
@@ -119,32 +119,38 @@ public:
 
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : queue{default_selector{}, asyncHandler, propList} {
+      : queue{default_selector_v, asyncHandler, propList} {
     assert(_default_hints.has_hint<rt::hints::bind_to_device>());
   }
 
-  explicit queue(const device_selector &deviceSelector,
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
+  explicit queue(const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _ctx{deviceSelector.select_device()} {
+      : detail::property_carrying_object{propList}, _ctx{detail::select_device(
+                                                        deviceSelector)} {
 
     _handler = _ctx._impl->handler;
     
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
+        detail::select_device(deviceSelector)._device_id));
 
     this->init();
   }
 
-  explicit queue(const device_selector &deviceSelector,
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
+  explicit queue(const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _ctx{deviceSelector.select_device(), asyncHandler}, _handler{
-                                                                asyncHandler} {
+      : detail::property_carrying_object{propList}, 
+        _ctx{detail::select_device(deviceSelector), asyncHandler},
+        _handler{asyncHandler} {
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
+        detail::select_device(deviceSelector)._device_id));
 
     this->init();
   }
@@ -171,18 +177,23 @@ public:
     this->init();
   }
 
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
   explicit queue(const context &syclContext,
-                 const device_selector &deviceSelector,
+                 const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : queue(syclContext, deviceSelector.select_device(), propList) {
-  }
+      : queue(syclContext, detail::select_device(deviceSelector), propList) {}
 
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
   explicit queue(const context &syclContext,
-                 const device_selector &deviceSelector,
+                 const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : queue(syclContext, deviceSelector.select_device(), asyncHandler, propList) {
-  }
+      : queue(syclContext, detail::select_device(deviceSelector), asyncHandler,
+              propList) {}
 
   explicit queue(const context &syclContext,
                  const device &syclDevice,

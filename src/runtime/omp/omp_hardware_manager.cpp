@@ -118,7 +118,11 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_group_size:
+#ifdef HIPSYCL_HAS_FIBERS
     return std::numeric_limits<std::size_t>::max();
+#else
+    return 1024;
+#endif
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;

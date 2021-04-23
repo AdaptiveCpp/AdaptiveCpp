@@ -26,6 +26,8 @@
  */
 
 
+#include "hipSYCL/sycl/libkernel/accessor.hpp"
+#include "hipSYCL/sycl/access.hpp"
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)
@@ -119,6 +121,7 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 
   s::buffer<int, 1> buf_a(32);
   s::buffer<int, 1> buf_b(32);
+  s::buffer<int, 3> buf_d(s::range<3>{4, 4, 4});
   auto buf_c = buf_a;
 
   const auto run_test = [&](auto get_access) {
@@ -157,6 +160,25 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
       return buf.template get_access<s::access::mode::read>(cgh, args...);
     });
     cgh.single_task<class accessor_api_device_accessors>([](){});
+  });
+
+  queue.submit([&](s::handler& cgh) {
+    run_test([&](auto buf, auto... args) {
+      return buf.template get_access<s::access::mode::atomic>(cgh, args...);
+    });
+    // mostly compilation test
+    auto atomicAcc = buf_a.template get_access<s::access::mode::atomic>(cgh);
+    auto atomicAcc3D = buf_d.template get_access<s::access::mode::atomic>(cgh);
+    auto localAtomic = s::accessor<int, 1, s::access::mode::atomic, s::access::target::local>{s::range<1>{2}, cgh};
+    auto localAtomic3D = s::accessor<int, 3, s::access::mode::atomic, s::access::target::local>{s::range<3>{2, 2, 2}, cgh};
+    cgh.parallel_for<class accessor_api_atomic_device_accessors>(
+        cl::sycl::nd_range<1>{2, 2},
+        [=](cl::sycl::nd_item<1> item) {
+          atomicAcc[0].exchange(0);
+          atomicAcc3D[0][1][0].exchange(0);
+          localAtomic[0].exchange(0);
+          localAtomic3D[0][1][0].exchange(0);
+    });
   });
 
   // Test local accessors
@@ -230,6 +252,124 @@ BOOST_AUTO_TEST_CASE(nested_subscript) {
         BOOST_CHECK(host_acc3d.get_pointer()[linear_id3d] == linear_id3d);
       }
     }
+}
+
+template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
+          cl::sycl::access::placeholder P>
+constexpr cl::sycl::access_mode
+get_access_mode(cl::sycl::accessor<T, Dim, M, Tgt, P>) {
+  return M;
+}
+
+template <class T, int Dim, cl::sycl::access_mode M>
+constexpr cl::sycl::access_mode
+get_access_mode(cl::sycl::host_accessor<T, Dim, M>) {
+  return M;
+}
+
+template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
+          cl::sycl::access::placeholder P>
+constexpr cl::sycl::target
+get_access_target(cl::sycl::accessor<T, Dim, M, Tgt, P>) {
+  return Tgt;
+}
+
+template <class Acc>
+void validate_accessor_deduction(Acc acc, cl::sycl::access_mode expected_mode,
+                                 cl::sycl::target expected_target) {
+  BOOST_CHECK(get_access_mode(acc) == expected_mode);
+  BOOST_CHECK(get_access_target(acc) == expected_target);
+}
+
+template <class Acc>
+void validate_host_accessor_deduction(Acc acc,
+                                      cl::sycl::access_mode expected_mode) {
+  BOOST_CHECK(get_access_mode(acc) == expected_mode);
+}
+
+BOOST_AUTO_TEST_CASE(accessor_simplifications) {
+  namespace s = cl::sycl;
+  s::queue q;
+
+  s::range size{1024};
+  s::buffer<int> buff{size};
+
+  s::accessor placeholder{buff, s::read_only};
+  BOOST_CHECK(placeholder.is_placeholder());
+
+  q.submit([&](s::handler& cgh){
+    s::accessor acc1{buff, cgh, s::read_only};
+    BOOST_CHECK(!acc1.is_placeholder());
+    // Conversion rw accessor<int> -> accessor<const int>, read-only
+    s::accessor<const int> acc2 = s::accessor{buff, cgh, s::read_write};
+    
+    s::accessor acc3{buff, cgh, s::read_only};
+    // Conversion read-write to non-const read-only accessor
+    acc3 = s::accessor<int>{buff, cgh};
+    BOOST_CHECK(!acc3.is_placeholder());
+
+    // Deduction based on constness of argument
+    // First employ implicit conversion to const int buff -
+    // it is curently unclear whether it should also work
+    // on non-const buffer, and if so, how.
+    s::buffer<const int> buff2 = buff;
+    s::accessor<const int> acc4{buff2, cgh};
+    BOOST_CHECK(get_access_mode(acc4) == s::access_mode::read);
+    s::accessor<int> acc5{buff, cgh};
+    BOOST_CHECK(get_access_mode(acc5) == s::access_mode::read_write);
+
+    // Deduction Tags
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_only},
+                                s::access_mode::read, s::target::device);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_only, s::no_init},
+                                s::access_mode::read, s::target::device);
+
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_write},
+                                s::access_mode::read_write, s::target::device);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_write, s::no_init},
+                                s::access_mode::read_write, s::target::device);
+
+    validate_accessor_deduction(s::accessor{buff, cgh, s::write_only},
+                                s::access_mode::write, s::target::device);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::write_only, s::no_init},
+                            s::access_mode::write, s::target::device);
+
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_only_host_task},
+                                s::access_mode::read, s::target::host_task);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_only_host_task, s::no_init},
+                                s::access_mode::read, s::target::host_task);
+
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_write_host_task},
+                                s::access_mode::read_write, s::target::host_task);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::read_write_host_task, s::no_init},
+                                s::access_mode::read_write, s::target::host_task);
+
+    validate_accessor_deduction(s::accessor{buff, cgh, s::write_only_host_task},
+                                s::access_mode::write, s::target::host_task);
+    validate_accessor_deduction(s::accessor{buff, cgh, s::write_only_host_task, s::no_init},
+                                s::access_mode::write, s::target::host_task);
+
+    cgh.single_task([=](){});
+  });
+  {
+    s::host_accessor hacc {buff};
+    validate_host_accessor_deduction(hacc, s::access_mode::read_write);
+
+    // Conversion to read-only
+    s::host_accessor<const int> const_hacc = hacc;
+    validate_host_accessor_deduction(const_hacc, s::access_mode::read);
+  }
+  {
+    s::host_accessor hacc {buff, s::read_only};
+    validate_host_accessor_deduction(hacc, s::access_mode::read);
+  }
+  {
+    s::host_accessor hacc {buff, s::write_only};
+    validate_host_accessor_deduction(hacc, s::access_mode::write);
+  }
+
+
+  q.wait();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

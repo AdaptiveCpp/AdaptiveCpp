@@ -43,12 +43,12 @@ namespace sycl {
   std::enable_if_t<std::is_floating_point<template_param>::value>* = nullptr
 
 #define HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  HIPSYCL_KERNEL_TARGET inline float name(float x) { return HIPSYCL_STD_FUNCTION(float_func)(x); } \
-  HIPSYCL_KERNEL_TARGET inline double name(double x) { return HIPSYCL_STD_FUNCTION(double_func)(x); }
+  HIPSYCL_KERNEL_TARGET inline float name(float x) { return ::HIPSYCL_STD_FUNCTION(float_func)(x); } \
+  HIPSYCL_KERNEL_TARGET inline double name(double x) { return ::HIPSYCL_STD_FUNCTION(double_func)(x); }
 
 #define HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
-  HIPSYCL_KERNEL_TARGET inline float name(float x, float y){ return HIPSYCL_STD_FUNCTION(float_func)(x,y); } \
-  HIPSYCL_KERNEL_TARGET inline double name(double x, double y){ return HIPSYCL_STD_FUNCTION(double_func)(x,y); }
+  HIPSYCL_KERNEL_TARGET inline float name(float x, float y){ return ::HIPSYCL_STD_FUNCTION(float_func)(x,y); } \
+  HIPSYCL_KERNEL_TARGET inline double name(double x, double y){ return ::HIPSYCL_STD_FUNCTION(double_func)(x,y); }
 
 #define HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
   HIPSYCL_KERNEL_TARGET inline float name(float x, float y, float z)\
@@ -65,7 +65,7 @@ namespace sycl {
   inline vec<float_type,N> name(const vec<float_type, N>& v) {\
     vec<float_type,N> result = v; \
     detail::transform_vector(result, \
-                      (float_type (*)(float_type))&func); \
+                      [](float_type x){return func(x);}); \
     return result; \
   }
 
@@ -76,7 +76,7 @@ namespace sycl {
   inline vec<float_type, N> name(const vec<float_type, N>& a, \
                                  const vec<float_type, N>& b) {\
     return detail::binary_vector_operation(a,b,\
-                          (float_type (*)(float_type,float_type))&func); \
+                          [](float_type x, float_type y){return func(x,y);}); \
   }
 
 #define HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(name, func) \
@@ -87,21 +87,35 @@ namespace sycl {
                                  const vec<float_type, N>& b, \
                                  const vec<float_type, N>& c) {\
     return detail::trinary_vector_operation(a,b,c,\
-               (float_type (*)(float_type,float_type,float_type))&func); \
+               [](float_type x, float_type y, float_type z){return func(x,y,z);}); \
   }
 
+#ifdef HIPSYCL_PLATFORM_SPIRV
 #define HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(func) \
-  HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(func, :: HIPSYCL_PP_CONCATENATE(func,f), ::func) \
+  HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(func, func, func) \
   HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(func, func)
 
 #define HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(func) \
-  HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(func, :: HIPSYCL_PP_CONCATENATE(func,f), ::func) \
+  HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(func, func, func) \
   HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(func, func)
 
 #define HIPSYCL_DEFINE_GENFLOAT_TRINARY_STD_FUNCTION(func) \
-  HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(func, :: HIPSYCL_PP_CONCATENATE(func,f), ::func) \
+  HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(func, func, func) \
   HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(func, func)
 
+#else
+#define HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(func) \
+  HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(func, HIPSYCL_PP_CONCATENATE(func,f), func) \
+  HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(func, func)
+
+#define HIPSYCL_DEFINE_GENFLOAT_BINARY_STD_FUNCTION(func) \
+  HIPSYCL_DEFINE_BINARY_FLOATING_POINT_OVERLOAD(func, HIPSYCL_PP_CONCATENATE(func,f), func) \
+  HIPSYCL_DEFINE_FLOATN_BINARY_MATH_FUNCTION(func, func)
+
+#define HIPSYCL_DEFINE_GENFLOAT_TRINARY_STD_FUNCTION(func) \
+  HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(func, HIPSYCL_PP_CONCATENATE(func,f), func) \
+  HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(func, func)
+#endif
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acos)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acosh)
@@ -247,7 +261,8 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(trunc)
 namespace native {
 
 // TODO: Define these properly, including for host
-#ifdef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
 
 #define HIPSYCL_DEFINE_FAST_SINGLE_PRECISION_FUNCTION(name, fallback_func, fast_sp_func) \
   template<class float_type> \

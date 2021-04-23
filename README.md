@@ -6,16 +6,22 @@ hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on
 * Any CPU via OpenMP
 * NVIDIA GPUs via CUDA
 * AMD GPUs via HIP/ROCm
+* Intel GPUs via oneAPI Level Zero and SPIR-V (*highly* experimental and WIP!)
 
-hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. See here for details on the hipSYCL [compilation model](doc/compilation.md).
+hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. More information about the [compilation flow can be found here](doc/compilation.md).
 
-The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
-![SYCL implementations](/doc/img/sycl-targets.png)
+The runtime architecture of hipSYCL consists of the main library `hipSYCL-rt`, as well as independent, modular plugin libraries for the individual backends:
+![Runtime architecture](/doc/img/runtime.png)
 
-The philosophy behind hipSYCL is to leverage existing toolchains as much as possible. This brings not only maintenance and stability advantages, but enables performance on par with those established toolchains by design, and allows for maximum interoperability with existing compute platforms.
-For example, the hipSYCL CUDA and ROCm backends rely on the clang CUDA/HIP frontends that have been augmented by hipSYCL to *additionally* also understand SYCL code. This means that the hipSYCL compiler can not only compile SYCL code, but also CUDA/HIP code *even if they are mixed in the same source file*, making all CUDA/HIP features - such as the latest device intrinsics - also available from SYCL code ([details](doc/hip-source-interop.md)). Additionally, vendor-optimized template libraries such as rocPRIM or CUB can also be used with hipSYCL. Consequently, hipSYCL allows for *highly optimized code paths in SYCL code for specific devices*.
+hipSYCL's compilation and runtime design allows hipSYCL to **effectively aggregate multiple toolchains that are otherwise incompatible, making them accessible with a single SYCL interface.**
+
+The philosophy behind hipSYCL is to leverage such existing toolchains as much as possible. This brings not only maintenance and stability advantages, but enables performance on par with those established toolchains by design, and also allows for maximum interoperability with existing compute platforms.
+For example, the hipSYCL CUDA and ROCm backends rely on the clang CUDA/HIP frontends that have been augmented by hipSYCL to *additionally* also understand SYCL code. This means that the hipSYCL compiler can not only compile SYCL code, but also CUDA/HIP code *even if they are mixed in the same source file*, making all CUDA/HIP features - such as the latest device intrinsics - also available from SYCL code ([details](doc/hip-source-interop.md)). Additionally, vendor-optimized template libraries such as rocPRIM or CUB can also be used with hipSYCL. Consequently, hipSYCL allows for **highly optimized code paths in SYCL code for specific devices**.
 
 Because a SYCL program compiled with hipSYCL looks just like any other CUDA or HIP program to vendor-provided software, vendor tools such as profilers or debuggers also work well with hipSYCL.
+
+The following image illustrates how hipSYCL fits into the wider SYCL implementation ecosystem:
+<img src="doc/img/sycl-targets.png" width=80% height=80%>
 
 ## About the project
 
@@ -68,7 +74,7 @@ Supported hardware:
 * NVIDIA CUDA GPUs. Note that clang, which hipSYCL relies on, may not always support the very latest CUDA version which may sometimes impact support for *very* new hardware. See the [clang documentation](https://www.llvm.org/docs/CompileCudaWithLLVM.html) for more details.
 * AMD GPUs that are [supported by ROCm](https://github.com/RadeonOpenCompute/ROCm#hardware-support)
 
-Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows is currently not supported.
+Operating system support currently strongly focuses on Linux. On Mac, only the CPU backend is expected to work. Windows support with CPU and CUDA backends is experimental, see [Using hipSYCL on Windows](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).
 
 ## Installing and using hipSYCL
 * [Building & Installing](doc/installing.md)
@@ -92,6 +98,7 @@ When targeting a GPU, you will need to provide a target GPU architecture. The ex
 * A simple SYCL example code for testing purposes can be found [here](doc/examples.md).
 * [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
+* [Environment variables supported by hipSYCL](doc/env_variables.md)
 
 
 

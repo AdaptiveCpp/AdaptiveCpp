@@ -42,6 +42,7 @@
 #elif defined(HIPSYCL_RT_HIP_TARGET_ROCM)
 #ifndef __HIP_PLATFORM_HCC__
 #define __HIP_PLATFORM_HCC__
+#define __HIP_ROCclr__ (1)
 #endif
 #include <hip/hip_runtime.h>
 #elif defined(HIPSYCL_RT_HIP_TARGET_HIPCPU)

@@ -52,8 +52,8 @@ enum class memory_order : int
     std::enable_if_t<std::is_integral<template_param>::value>* = nullptr
 #endif
 
-/// \todo Atomics are only partially implemented. In particular, there's no
-/// code path on host at the moment!
+/// \todo Atomics are only partially implemented.
+/// In particular, load / store are unimplemented on GPU.
 template <typename T, access::address_space addressSpace =
           access::address_space::global_space>
 class atomic {

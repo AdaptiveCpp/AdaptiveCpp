@@ -151,6 +151,9 @@ template<class T>
 struct logical_vector_op_result
 {};
 
+template<> struct logical_vector_op_result<char>
+{ using type = int8_t; };
+
 template<> struct logical_vector_op_result<int8_t>
 { using type = int8_t; };
 

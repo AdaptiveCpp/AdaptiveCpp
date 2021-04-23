@@ -31,6 +31,7 @@
 
 #include "cuda/cuda_backend.hpp"
 #include "hip/hip_backend.hpp"
+#include "spirv/spirv_backend.hpp"
 #include "host/host_backend.hpp"
 
 // define (legacy?) platform identification macros
@@ -43,7 +44,13 @@
  #define HIPSYCL_PLATFORM_CUDA
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP || HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
+ #define HIPSYCL_PLATFORM_SPIRV
+#endif
+
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
+    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
+    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0

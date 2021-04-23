@@ -19,6 +19,7 @@ add_library(hipSYCL-rt SHARED
   dag_direct_scheduler.cpp
   dag_manager.cpp
   dag_submitted_ops.cpp
+  settings.cpp
   generic/async_worker.cpp
   hw_model/memcpy.cpp
   serialization/serialization.cpp)
@@ -101,6 +102,24 @@ if(WITH_ROCM_BACKEND)
 
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
+if(WITH_LEVEL_ZERO_BACKEND)
+  add_library(rt-backend-ze SHARED
+    ze/ze_backend.cpp
+    ze/ze_hardware_manager.cpp
+    ze/ze_allocator.cpp
+    ze/ze_event.cpp
+    ze/ze_queue.cpp
+    ze/ze_module.cpp)
+  
+  target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
+
+
+  install(TARGETS rt-backend-ze
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()

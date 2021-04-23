@@ -164,6 +164,9 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::little_endian:
     return true;
     break;
+  case device_support_aspect::sub_group_independent_forward_progress:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -186,6 +189,9 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::max_group_size:
     return _properties.maxThreadsPerBlock;
+    break;
+  case device_uint_property::max_num_sub_groups:
+    return _properties.maxThreadsPerBlock / _properties.warpSize;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
@@ -297,6 +303,18 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::partition_max_sub_devices:
     return 0;
+    break;
+  }
+  assert(false && "Invalid device property");
+  std::terminate();
+}
+
+std::vector<std::size_t>
+hip_hardware_context::get_property(device_uint_list_property prop) const {
+  switch (prop) {
+  case device_uint_list_property::sub_group_sizes:
+    return std::vector<std::size_t>{
+        static_cast<std::size_t>(_properties.warpSize)};
     break;
   }
   assert(false && "Invalid device property");

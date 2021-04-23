@@ -5,5 +5,4 @@ From: base-archlinux-rolling.sif
 cp ./install-hipsycl.sh ${SINGULARITY_ROOTFS}/install-hipsycl.sh
 
 %post
-pacman -Sy --noconfirm boost
 sh /install-hipsycl.sh

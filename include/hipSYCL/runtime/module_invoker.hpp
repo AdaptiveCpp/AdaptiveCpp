@@ -43,7 +43,7 @@ public:
   submit_kernel(module_id_t id, const std::string &module_variant,
                 const std::string *module_image, const rt::range<3> &num_groups,
                 const rt::range<3>& group_size, unsigned local_mem_size,
-                void **args, std::size_t num_args,
+                void **args, std::size_t* arg_sizes, std::size_t num_args,
                 const std::string &kernel_name_tag,
                 const std::string &kernel_body_name) = 0;
 

@@ -43,6 +43,9 @@ In other words, while the SYCL interface calls into the runtime, the inverse is 
 
 The hipSYCL runtime follows a [specification](runtime-spec.md) that expands on the Khronos SYCL specification.
 
+The following image illustrates the runtime architecture:
+![Runtime architecture](/doc/img/runtime.png)
+
 ## Compiler
 
 Compilation of user code is driven by python script called `syclcc` which provides a uniform interface to the compilers for individual backends (e.g., the CUDA compiler). When compiling for CUDA or HIP, hipSYCL additionally provides and relies on a clang plugin that augments the clang CUDA/HIP frontend to also understand SYCL. The clang plugin's main responsibility is kernel outlining, i.e. it identifies kernels and makes sure that all functions needed by the kernel are also compiled for device by attaching the CUDA/HIP `__host__ __device__` attributes.

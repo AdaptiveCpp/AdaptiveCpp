@@ -94,7 +94,7 @@ cuda_queue::~cuda_queue() {
 }
 
 /// Inserts an event into the stream
-std::unique_ptr<dag_node_event> cuda_queue::insert_event() {
+std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   this->activate_device();
 
   cudaEvent_t evt;
@@ -117,10 +117,10 @@ std::unique_ptr<dag_node_event> cuda_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_unique<cuda_node_event>(_dev, evt);
+  return std::make_shared<cuda_node_event>(_dev, evt);
 }
 
-result cuda_queue::submit_memcpy(const memcpy_operation & op) {
+result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -225,7 +225,7 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel(const kernel_operation &op) {
+result cuda_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l = 
@@ -233,12 +233,12 @@ result cuda_queue::submit_kernel(const kernel_operation &op) {
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
-  l->invoke();
+  l->invoke(node.get());
 
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(const prefetch_operation& op) {
+result cuda_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
 #ifndef _WIN32
   cudaError_t err = cudaSuccess;
   if (op.get_target().is_host()) {
@@ -261,7 +261,7 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(const memset_operation &op) {
+result cuda_queue::submit_memset(const memset_operation &op, dag_node_ptr) {
   
   cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
                                     op.get_num_bytes(), get_stream());
@@ -368,9 +368,9 @@ cuda_module_invoker::cuda_module_invoker(cuda_queue *q) : _queue{q} {}
 result cuda_module_invoker::submit_kernel(
     module_id_t id, const std::string &module_variant,
     const std::string *module_image, const rt::range<3> &num_groups,
-    const rt::range<3>& group_size, unsigned local_mem_size, void **args,
-    std::size_t num_args, const std::string &kernel_name_tag,
-    const std::string &kernel_body_name) {
+    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    const std::string &kernel_name_tag, const std::string &kernel_body_name) {
 
   assert(_queue);
   assert(module_image);

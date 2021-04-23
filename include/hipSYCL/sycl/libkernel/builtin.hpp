@@ -32,17 +32,34 @@
 #include <type_traits>
 #include <cstdlib>
 
+// This is pretty much a hack - at this point the math/builtin headers
+// need a major refactoring
+#ifdef HIPSYCL_PLATFORM_SPIRV
+template<class T>
+T __spirv_ocl___hipsycl_min(T a, T b){ return a < b ? a : b;}
+template<class T>
+T __spirv_ocl___hipsycl_max(T a, T b){ return a > b ? a : b;}
+#else
+template<class T>
+T __hipsycl_min(T a, T b){ return a < b ? a : b;}
+template<class T>
+T __hipsycl_max(T a, T b){ return a > b ? a : b;}
+#endif
+
 namespace hipsycl {
 namespace sycl {
 
 
-
-#define HIPSYCL_STD_FUNCTION(function_name) function_name
-
-
-
 #define HIPSYCL_PP_CONCATENATE_IMPL(a,b) a ## b
 #define HIPSYCL_PP_CONCATENATE(a,b) HIPSYCL_PP_CONCATENATE_IMPL(a,b)
+
+
+#ifdef HIPSYCL_PLATFORM_SPIRV
+#define HIPSYCL_STD_FUNCTION(function_name) \
+  HIPSYCL_PP_CONCATENATE(__spirv_ocl_, function_name)
+#else
+#define HIPSYCL_STD_FUNCTION(function_name) function_name
+#endif
 
 #define HIPSYCL_ENABLE_IF_INTEGRAL(template_param) \
   std::enable_if_t<std::is_integral<template_param>::value>* = nullptr
@@ -54,7 +71,7 @@ namespace sycl {
   inline vec<int_type, N> name(const vec<int_type, N>& a) {\
     vec<int_type,N> result = a; \
     detail::transform_vector(result, \
-                      (int_type (*)(int_type))&func); \
+                      [](int_type x){return func(x);}); \
     return result; \
   }
 
@@ -66,29 +83,30 @@ namespace sycl {
   inline vec<int_type, N> name(const vec<int_type, N>& a, \
                                  const vec<int_type, N>& b) {\
     return detail::binary_vector_operation(a,b,\
-                          (int_type (*)(int_type,int_type))&func); \
+                          [](int_type x, int_type y){return func(x,y);}); \
   }
 
 #define HIPSYCL_DEFINE_BUILTIN(name, func) \
   template<class T, HIPSYCL_ENABLE_IF_INTEGRAL(T)> \
-  HIPSYCL_KERNEL_TARGET inline T name(T x) {return HIPSYCL_STD_FUNCTION(func)(x);}
+  HIPSYCL_KERNEL_TARGET inline T name(T x) {return ::HIPSYCL_STD_FUNCTION(func)(x);}
 
 #define HIPSYCL_DEFINE_BINARY_BUILTIN(name, func) \
   template<class T, HIPSYCL_ENABLE_IF_INTEGRAL(T)> \
-  HIPSYCL_KERNEL_TARGET inline T name(T x,T y) {return HIPSYCL_STD_FUNCTION(func)(x,y);}
+  HIPSYCL_KERNEL_TARGET inline T name(T x,T y) {return ::HIPSYCL_STD_FUNCTION(func)(x,y);}
 
 
-#define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(func) \
-  HIPSYCL_DEFINE_BUILTIN(func, func) \
-  HIPSYCL_DEFINE_GENINTEGERN_FUNCTION(func, std::func)
+#define HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(name, func) \
+  HIPSYCL_DEFINE_BUILTIN(name, func) \
+  HIPSYCL_DEFINE_GENINTEGERN_FUNCTION(name, ::HIPSYCL_STD_FUNCTION(func))
 
 
- #define HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(func) \
-  HIPSYCL_DEFINE_BINARY_BUILTIN(func, std::func) \
-  HIPSYCL_DEFINE_GENINTEGERN_BINARY_FUNCTION(func, func)
+ #define HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(name, func) \
+  HIPSYCL_DEFINE_BINARY_BUILTIN(name, func) \
+  HIPSYCL_DEFINE_GENINTEGERN_BINARY_FUNCTION(name, ::HIPSYCL_STD_FUNCTION(func))
 
-HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(min)
-HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(max)
+
+HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(min, __hipsycl_min)
+HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(max, __hipsycl_max)
 
 }
 }

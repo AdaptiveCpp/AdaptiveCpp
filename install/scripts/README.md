@@ -8,52 +8,28 @@ We provide
 
 Currently, we support
 * Ubuntu 18.04
+* Ubuntu 20.04
 * CentOS 7
 * Arch Linux
 
 ## Installing from repositories
-Installing using the repositories is beneficial because the hipSYCL installation can be kept up to date with regular system updates. We provide stable packages that are subjet to more rigorous testing (`hipSYCL`, `hipSYCL-base`. `hipSYCL-rocm`) and nightly packages that are built from the current development head (`hipSYCL-nightly`, `hipSYCL-base-nightly`. `hipSYCL-rocm-nightly`).
+Installing using the repositories is beneficial because the hipSYCL installation can be kept up to date with regular system updates. We provide stable packages subject to more rigorous testing and nightly packages built from the current development head.
 
-### Ubuntu 18.04
-Add the hipSYCL repo to the sources:  
-`echo "deb http://repo.urz.uni-heidelberg.de/sycl/deb/ ./bionic main" > /etc/apt/sources.list.d/hipsycl.list`  
-Import the pgp public key:  
-`wget -q -O - http://repo.urz.uni-heidelberg.de/sycl/hipsycl.asc | apt-key add -`  
-After updating the packages can be installed with apt  
-`apt update`  
-`apt install <hipSYCL package>`  
-Keep in mind that for ubuntu 18.04 due to technical limitations the package names are lower case (`hipsycl` instead of `hipSYCL`)
+We provide the following packages in both versions:
 
-### Centos
-The following command will set up everything:  
-`yum-config-manager --add-repo http://repo.urz.uni-heidelberg.de/sycl/rpm/centos7/hipsycl.repo`  
-  
-After an update the packages can be installed with yum  
-`yum update`  
-`yum install <hipSYCL package>`  
+Base packages: 
+* `hipSYCL-base<-nightly>`
+* `hipSYCL-base-rocm<-nightly>`
+HipSYCL packages:
+* `hipSYCL-omp<-nightly>`
+* `hipSYCL-omp-cuda<-nightly>`
+* `hipSYCL-omp-rocm<-nightly>`
+* `hipSYCL-omp-rocm-cuda<-nightly>`
+Two meta-packages in order to keep consistent with the previous packages:
+* `hipSYCL-full<-nightly>` -> `hipSYCL-omp-rocm-cuda<-nightly>`
+* `hipSYCL<-nightly>` -> `hipSYCL-omp-rocm-cuda<-nightly>`
 
-Note: hipSYCL depends on devtoolset-7 which is available in the scl repository:  
-`yum install centos-release-scl`  
-`yum update`  
-
-### Archlinux
-The following should be added to `/etc/pacman.conf`:
-```
-[hipsycl]   
-Server = http://repo.urz.uni-heidelberg.de/sycl/archlinux/x86_64
-```
-In case that pacman couldn't fetch the public key from a key server, you can download it from:
-http://repo.urz.uni-heidelberg.de/sycl/  
-And then add it manually.   
-(see: [Arch wiki](https://wiki.archlinux.org/index.php/Pacman/Package_signing#Adding_unofficial_keys))
-  
-After upgrade the packages can be installed with pacman  
-`pacman -Sy`  
-Pacman should fetch the public key from a key server, however it needs to be signed locally first:
-`pacman-key --lsign E967BA09716F870320089583E68CC4B9B2B75080`  
-Now update should finish without an error  
-`pacman -Sy`  
-`pacman -S <hipSYCL package>`
+We require some additional software repos to be enabled (for example, `release-scl` and `epel` for centos 7 ). To make adding these easier, we provide scripts in the `install/scripts/add-hipsyc-repo` for all supported distributions that handles adding these repositories, as well as adding the hipSYCL repo.
 
 ## Installing by script
 Note that the installation scripts may require the installation of some packages, depending on your distributions. We recommend first looking at the singularity definition files `*.def` for your distribution and installing everything that is installed there. Afterwards, run
@@ -63,21 +39,24 @@ Note that the installation scripts may require the installation of some packages
 * `sudo sh install-rocm.sh` - installs a compatible ROCm stack
 * `sudo sh install-hipsycl.sh` - installs hipSYCL.
 
-Unless you have a massive machine, you can expect this to run for half an eternity, so patience is a prerequisite for this installation approach. The easier way is certainly to use our provided binary packages.
+Unless you have a massive machine, you can expect this to run for half an eternity, so patience is a prerequisite for this installation approach. The easier way is to use our provided binary packages.
 The installation prefix can be changed using the environment variable `INSTALL_PREFIX` (default is `/opt/hipSYCL`). Note that the `install-hipsycl.sh` script builds hipSYCL with support for both CUDA and ROCm backends by default, which means you need to have both installed. If you wish to disable support for CUDA/ROCm, set the `HIPSYCL_WITH_CUDA` or `HIPSYCL_WITH_ROCM` environment variables to `OFF`.
 
 If you change the `INSTALL_PREFIX` to a directory that is writable by your user, `sudo` is not required.
 
 ## Building a singularity container
-We also provide singularity definition files in order to create singularity container images. Building an image is a two step process. First, create the base image which contains LLVM, ROCm and CUDA stacks, e.g.
+We also provide singularity definition files in order to create singularity container images. Building an image consits of building a writable base image and afterwards installaing the dependencies and hipsycl into the container
+
 ```
-sudo singularity build base-ubuntu-18.04.sif base-ubuntu-18.04.def
+singularity build --fakeroot --sandbox base-ubuntu-18.04.sif base-definitions/base-ubuntu-18.04.def
 ```
-for Ubuntu 18.04. Once this image is built, you can build the actual hipSYCL image:
+for Ubuntu 18.04. Once this image is built, you can start adding the dependencies
 ```
-sudo singularity build hipsycl-image.sif hipsycl-ubuntu-18.04.def
+singularity exec hipsycl-ubuntu-18.04.def install-llvm.sh
+singularity exec hipsycl-ubuntu-18.04.def install-rocm.sh
+singularity exec hipsycl-ubuntu-18.04.def install-cuda.sh
 ```
-The process is analogous for the other supported distributions.
+Note that there are two type of installation scripts available at the moment the regular ones loacted in the `install/scripts/` directory, and scripts that use spack to install the dependencies located in `install/scripts/spack-install/`. The spack install scripts are well tested, therfore we recommend using those for the installation. The regular install scripts might need some changes to work flawlessly.
 
 ## Creating packages
 In order to create binary packages for your distribution, you will first have to create container images as described above. Then run (e.g., for Ubuntu):

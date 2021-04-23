@@ -57,6 +57,13 @@ static const unsigned long long __hipsycl_cuda_bundle_id = 0;
 static std::array<__hipsycl_cuda_embedded_object, 0> __hipsycl_cuda_bundle;
 #endif
 
+#ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
+ #include __HIPSYCL_MULTIPASS_SPIRV_HEADER__
+#else
+static const unsigned long long __hipsycl_spirv_bundle_id = 0;
+static std::array<std::string, 0> __hipsycl_spirv_bundle;
+#endif
+
 namespace hipsycl {
 namespace glue {
 
@@ -70,6 +77,10 @@ static void for_each_object(Handler &&h) {
     for (const auto &obj : __hipsycl_cuda_bundle) {
       h(obj);
     }
+  } else if constexpr(Backend == rt::backend_id::level_zero) {
+    for (const auto &obj : __hipsycl_spirv_bundle) {
+      h(obj);
+    }
   }
 }
 
@@ -79,6 +90,8 @@ static void for_each_target(Handler &&h) {
     for (const auto &obj : __hipsycl_cuda_bundle) {
       h(obj.target);
     }
+  } else if constexpr(Backend == rt::backend_id::level_zero) {
+    h(std::string{"spirv"});
   }
 }
 
@@ -89,6 +102,10 @@ static const std::string *get_code_object(const std::string &target) {
       if (obj.target == target)
         return &(obj.data);
     }
+  } else if constexpr (Backend == rt::backend_id::level_zero) {
+    if(__hipsycl_spirv_bundle.size() > 0) {
+      return &(__hipsycl_spirv_bundle[0]);
+    }
   }
   return nullptr;
 }
@@ -97,7 +114,9 @@ template <rt::backend_id Backend>
 static constexpr std::size_t get_num_objects() {
   if constexpr (Backend == rt::backend_id::cuda) {
     return __hipsycl_cuda_bundle.size();
-  } else {
+  } else if constexpr(Backend == rt::backend_id::level_zero) {
+    return __hipsycl_spirv_bundle.size();
+  }else {
     return 0;
   }
 }
@@ -106,7 +125,9 @@ template <rt::backend_id Backend>
 static constexpr std::size_t get_module_id() {
   if constexpr (Backend == rt::backend_id::cuda) {
     return __hipsycl_cuda_bundle_id;
-  } else {
+  } else if constexpr(Backend == rt::backend_id::level_zero) {
+    return __hipsycl_spirv_bundle_id;
+  }else {
     return 0;
   }
 }

@@ -32,6 +32,8 @@
 #include <utility>
 #include <cstdlib>
 
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                              \
@@ -56,6 +58,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
@@ -549,7 +552,7 @@ public:
   }
 
   hiplike_kernel_launcher()
-      : _queue{nullptr}, _invoker{[]() {}} {}
+      : _queue{nullptr}, _invoker{[](rt::dag_node*) {}} {}
 
   virtual ~hiplike_kernel_launcher() {
     
@@ -578,7 +581,7 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel kernel, Reductions... reductions) {
     
     this->_type = type;
 
@@ -599,8 +602,11 @@ public:
                          << effective_local_range.size() << std::endl;
     }
 
-    _invoker = [=]() {
+    _invoker = [=](rt::dag_node* node) {
       assert(_queue != nullptr);
+      Kernel k = kernel;
+      static_cast<rt::kernel_operation *>(node->get_operation())
+          ->initialize_embedded_pointers(k);
 
       // Simple cases first: Kernel types that don't support
       // reductions
@@ -616,10 +622,7 @@ public:
         sycl::interop_handle handle{_queue->get_device(),
                                     static_cast<void *>(_queue)};
 
-        // Need to perform additional copy to guarantee
-        // deferred_pointers/ accessors are initialized
-        auto initialized_kernel_invoker = k;
-        initialized_kernel_invoker(handle);
+        k(handle);
 
       } else {
 
@@ -772,8 +775,8 @@ public:
     return Backend_id;
   }
 
-  virtual void invoke() final override {
-    _invoker();
+  virtual void invoke(rt::dag_node* node) final override {
+    _invoker(node);
   }
 
   virtual rt::kernel_type get_kernel_type() const final override {
@@ -842,6 +845,9 @@ private:
       std::array<void *, sizeof...(Args)> kernel_args{
         static_cast<void *>(&args)...
       };
+      std::array<std::size_t, sizeof...(Args)> arg_sizes{
+        sizeof(Args)...
+      };
 
       std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
       std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
@@ -855,9 +861,9 @@ private:
       auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
 
       rt::result err = invoker->submit_kernel(
-          this_module::get_module_id<Backend_id>(), selected_arch,
-          kernel_image, num_groups, group_size, dynamic_shared_mem,
-          kernel_args.data(), kernel_args.size(), kernel_name_tag,
+          this_module::get_module_id<Backend_id>(), selected_arch, kernel_image,
+          num_groups, group_size, dynamic_shared_mem, kernel_args.data(),
+          arg_sizes.data(), kernel_args.size(), kernel_name_tag,
           kernel_body_name);
 
       if (!err.is_success())
@@ -872,12 +878,15 @@ private:
 
   Queue_type *_queue;
   rt::kernel_type _type;
-  std::function<void ()> _invoker;
+  std::function<void (rt::dag_node*)> _invoker;
 
   std::vector<void*> _managed_reduction_scratch;
 };
 
 }
 }
+
+#undef __hipsycl_invoke_kernel
+#undef __sycl_kernel
 
 #endif

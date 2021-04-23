@@ -53,7 +53,7 @@ public:
   submit_kernel(module_id_t id, const std::string &module_variant,
                 const std::string *module_image, const rt::range<3> &num_groups,
                 const rt::range<3>& group_size, unsigned local_mem_size,
-                void **args, std::size_t num_args,
+                void **args, std::size_t* arg_sizes, std::size_t num_args,
                 const std::string &kernel_name_tag,
                 const std::string &kernel_body_name) override;
 
@@ -71,13 +71,13 @@ public:
   virtual ~cuda_queue();
 
   /// Inserts an event into the stream
-  virtual std::unique_ptr<dag_node_event> insert_event() override;
+  virtual std::shared_ptr<dag_node_event> insert_event() override;
 
-  virtual result submit_memcpy(const memcpy_operation&) override;
-  virtual result submit_kernel(const kernel_operation&) override;
-  virtual result submit_prefetch(const prefetch_operation &) override;
-  virtual result submit_memset(const memset_operation&) override;
-  
+  virtual result submit_memcpy(const memcpy_operation &, dag_node_ptr) override;
+  virtual result submit_kernel(const kernel_operation &, dag_node_ptr) override;
+  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) override;
+  virtual result submit_memset(const memset_operation &, dag_node_ptr) override;
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;

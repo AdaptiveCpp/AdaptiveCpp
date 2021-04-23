@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_RUNTIME_HPP
-#define HIPSYCL_HIP_RUNTIME_HPP
+#ifndef HIPSYCL_HIP_ALLOCATOR_HPP
+#define HIPSYCL_HIP_ALLOCATOR_HPP
 
 #include "../allocator.hpp"
 #include "hip_target.hpp"

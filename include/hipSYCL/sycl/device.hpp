@@ -93,10 +93,10 @@ public:
 
   bool is_gpu() const
   {
-    return _device_id.get_full_backend_descriptor().hw_platform ==
-               rt::hardware_platform::cuda ||
-           _device_id.get_full_backend_descriptor().hw_platform ==
-               rt::hardware_platform::rocm;
+    return rt::application::get_backend(_device_id.get_backend())
+        .get_hardware_manager()
+        ->get_device(_device_id.get_id())
+        ->is_gpu();
   }
 
   bool is_accelerator() const { return !is_cpu(); }
@@ -114,6 +114,11 @@ public:
     
 #if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
     if(_device_id.get_backend() == rt::backend_id::hip)
+      return true;
+#endif
+
+#if defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+    if(_device_id.get_backend() == rt::backend_id::level_zero)
       return true;
 #endif
     
@@ -255,6 +260,24 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)
 {
   return static_cast<size_t>(
       get_rt_device()->get_property(rt::device_uint_property::max_group_size));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_num_sub_groups)
+{
+  return static_cast<unsigned int>(
+      get_rt_device()->get_property(rt::device_uint_property::max_num_sub_groups));
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, sub_group_independent_forward_progress)
+{
+  return get_rt_device()->has(
+      rt::device_support_aspect::sub_group_independent_forward_progress);
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, sub_group_sizes)
+{
+  return get_rt_device()->get_property(
+      rt::device_uint_list_property::sub_group_sizes);
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_vector_width_char) {

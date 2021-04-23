@@ -43,6 +43,7 @@
 
 #ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
+#include "detail/device_barrier.hpp"
 #endif
 
 namespace hipsycl {
@@ -65,7 +66,7 @@ struct barrier
   static void run()
   {
 #ifdef SYCL_DEVICE_ONLY
-    __syncthreads();
+    detail::local_device_barrier(Fence_space);
 #endif
   }
 };
@@ -284,7 +285,7 @@ struct group
 #ifdef SYCL_DEVICE_ONLY
     sub_group sg;
     f(sg, make_sp_item(detail::get_local_id<Dimensions>()));
-    __syncthreads();
+    detail::local_device_barrier(access::fence_space::global_and_local);
 #else
     if constexpr (Dimensions == 1) {
 #ifdef _OPENMP
@@ -369,7 +370,7 @@ struct group
     
     for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i];
-    __syncthreads();
+    detail::local_device_barrier(access::fence_space::global_and_local);
 
 #else
 
@@ -393,7 +394,7 @@ struct group
     
     for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i] = src[i * srcStride];
-    __syncthreads();
+    detail::local_device_barrier(access::fence_space::global_and_local);
 
 #else
 #ifdef _OPENMP
@@ -416,7 +417,7 @@ struct group
     
     for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
       dest[i * destStride] = src[i];
-    __syncthreads();
+    detail::local_device_barrier(access::fence_space::global_and_local);
 
 #else
 #ifdef _OPENMP

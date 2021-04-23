@@ -34,6 +34,8 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
@@ -310,7 +312,8 @@ inline void parallel_for_ndrange_kernel(
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 
-    void* group_shared_memory_ptr = nullptr;
+    // 128 kiB as local memory for group algorithms
+    std::aligned_storage_t<128*1024, alignof(std::max_align_t)> group_shared_memory_ptr{};
 
     host::static_range_decomposition<Dim> group_decomposition{
         num_groups, omp_get_num_threads()};
@@ -418,34 +421,14 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel k, Reductions... reductions) {
+            Kernel kernel_body, Reductions... reductions) {
 
     this->_type = type;
 
-    // #ifndef HIPSYCL_HAS_FIBERS
-    //     if (type == rt::kernel_type::ndrange_parallel_for) {
-    //       this->_invoker = []() {};
-
-    //       throw sycl::feature_not_supported{
-    //         "Support for nd_range kernels on CPU is disabled without fibers
-    //         because they cannot be\n" "implemented efficiently in
-    //         pure-library SYCL implementations such as hipSYCL on CPU. We
-    //         recommend:\n" " * to verify that you really need the features of
-    //         nd_range parallel for.\n" "   If you do not need local memory,
-    //         use basic parallel for instead.\n" " * users targeting SYCL 1.2.1
-    //         may use hierarchical parallel for, which\n" "   can express the
-    //         same algorithms, but may have functionality caveats in hipSYCL\n"
-    //         "   and/or other SYCL implementations.\n"
-    //         " * if you use hipSYCL exclusively, you are encouraged to use
-    //         scoped parallelism:\n" "
-    //         https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md\n"
-    //         " * if you absolutely need nd_range parallel for, enable fiber
-    //         support in hipSYCL."
-    //       };
-    //     }
-    // #endif
-
-    this->_invoker = [=]() {
+    this->_invoker = [=](rt::dag_node* node) {
+      Kernel k = kernel_body;
+      static_cast<rt::kernel_operation *>(node->get_operation())
+          ->initialize_embedded_pointers(k);
 
       bool is_with_offset = false;
       for (std::size_t i = 0; i < Dim; ++i)
@@ -497,10 +480,7 @@ public:
                           0},
             static_cast<void*>(nullptr)};
 
-        // Need to perform additional copy to guarantee deferred_pointers/
-        // accessors are initialized
-        auto initialized_kernel_invoker = k;
-        initialized_kernel_invoker(handle);
+        k(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -513,8 +493,8 @@ public:
     return rt::backend_id::omp;
   }
 
-  virtual void invoke() final override {
-    _invoker();
+  virtual void invoke(rt::dag_node* node) final override {
+    _invoker(node);
   }
 
   virtual rt::kernel_type get_kernel_type() const final override {
@@ -523,7 +503,7 @@ public:
 
 private:
 
-  std::function<void ()> _invoker;
+  std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
 };
 

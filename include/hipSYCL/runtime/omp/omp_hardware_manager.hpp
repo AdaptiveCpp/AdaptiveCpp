@@ -51,6 +51,9 @@ public:
 
   virtual bool has(device_support_aspect aspect) const override;
   virtual std::size_t get_property(device_uint_property prop) const override;
+  virtual std::vector<std::size_t>
+  get_property(device_uint_list_property prop) const override;
+
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;
   

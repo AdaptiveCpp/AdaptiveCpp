@@ -47,6 +47,10 @@
 #include "omp/omp_kernel_launcher.hpp"
 #endif
 
+#if defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+#include "ze/ze_kernel_launcher.hpp"
+#endif
+
 namespace hipsycl {
 namespace glue {
 
@@ -61,13 +65,14 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       std::size_t dynamic_local_memory, Kernel k,
                       Reductions... reductions) {
 
-  using name = kernel_name_t<KernelNameTag>;
+  using complete_name = complete_kernel_name_t<KernelNameTag, Kernel>;
+  using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
   
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
-    launcher->bind<name, Type>(offset, global_range, local_range,
+    launcher->bind<complete_name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
@@ -76,7 +81,18 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
-    launcher->bind<name, Type>(offset, global_range, local_range,
+    launcher->bind<complete_name, Type>(offset, global_range, local_range,
+                                        dynamic_local_memory, k, reductions...);
+    launchers.emplace_back(std::move(launcher));
+  }
+#endif
+
+#ifdef __HIPSYCL_ENABLE_SPIRV_TARGET__
+  {
+    using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
+
+    auto launcher = std::make_unique<ze_kernel_launcher>();
+    launcher->bind<effective_name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }
@@ -87,7 +103,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
    !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
-    launcher->bind<name, Type>(offset, global_range, local_range,
+    launcher->bind<complete_name, Type>(offset, global_range, local_range,
                                         dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));
   }

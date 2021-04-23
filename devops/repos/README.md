@@ -1,19 +1,48 @@
-# hipSYCL repo creation scripts
+# hipSYCL packaging system
 
-These scripts create the repositories for the supported distributions
+Currently the packaging is based around three groups of bash scripts bound together by the `update-repos.sh`, and the `common/init.sh scripts`. We aimed for having most of these scripts available for use separately from the packaging system, and to serve as inspeeration.
 
-## Operation
-The new packages should be placed in the `stage/new_pkg_<distribution>` folder of the repository, after that the `create_pkgs.sh` script will move them to the repositories and sign them. If you want to have the repositories elsewhere, you can use the HIPSYCL_PKG_REPO_BASE_DIR environmental variable. The `create_repos.sh` script uses singularity containers to create the repositories for the distributions. The containers are only there to have the necessary build tools available regardless of the host operating system.  Therefore they only need to be built once, with the `create_singularity_containers.sh` script.
+The three logical groups are installation, package creation, repository creation, and testing. installation and package creation scripts are loacted in the `install/scripts` directory, repo creation and testing scripts are located in the `devops/repos directory`. 
 
-The workflow for manually adding packages:
-*  `sh create_singularity_containers.sh`  
-*  move packages to  `stage/new_pkg_<distribution>`   
-*  execute `sh create_repos.sh`
+We provide a high level overview of the different functions here please refer to the actuall scripts for more detail
 
-with the `create_base_pkgs.sh` and the `create_hipsycl_pkgs.sh` the packages can be automatically built from the source, using the already available install scripts, and singularity containers. See the corresponding README file for more details.
+## update_repo.sh
 
-If the `HIPSYCL_GPG_KEY` variable is set, then the archlinux packages will be singed. 
-## Signing
+This script serves as a wrapper around the different other scripts that are responsible for building packaging and testing. It is usefullness lies in creating a access point for all the functions that are scattered among the different directories. 
 
-The signing is carried out by the default private key of the user executing the `create_all.sh` script. 
+## record_env_vars.sh
+
+Creates the `~/envs.out` file, based on the current environment. 
+
+## create_pkgs.sh
+
+Executes the packaging script for a distro. and moves the finished packages to the staging folder. It has two modes, `hipsycl` and `base` the former only builds the hipSYCL packages later only builds the base packages
+
+## create_repos.sh
+
+Executes the repo creation for a distribuiton. 
+
+## test-packages.sh
+
+Handels testing of the built and deployed packges for a certain backend configuration.
+
+## test-installation.sh
+
+Run tests on a singularity container containing hipSYCLs
+
+## Examples
+
+```
+bash update_repo.sh centos-7 build_base build              # Build base container
+bash update_repo.sh centos-7 build_base spack-install/rocm # Install rocm into base container
+bash update_repo.sh centos-7 build_base spack-install/llvm # Install llvm
+bash update_repo.sh centos-7 package base                  # create base packages for rocm and llvm&boost
+bash update_repo.sh centos-7 package hipsycl               # create hipsycl packages
+bash update_repo.sh centos-7 deploy                        # deploy packages
+bash update_repo.sh centos-7 test 00                       # run build, add_repo install_dep run_test for the test
+bash update_repo.sh centos-7 test 00 build                 # build testing container
+bash update_repo.sh centos-7 test 00 add_repo               # Add hipSYCL repo to testing container
+```
+
+
  

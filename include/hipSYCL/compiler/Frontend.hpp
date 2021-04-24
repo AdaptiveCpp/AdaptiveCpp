@@ -79,16 +79,11 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
       TraverseDecl(D);
     }
 
-    explicit CompleteCallSet(clang::Stmt* S)
-    {
-      TraverseStmt(S);
-    }
-
-    bool VisitFunctionDecl(clang::FunctionDecl* FD)
-    {
-      visitedDecls.insert(FD);
-      return true;
-    }
+  bool VisitFunctionDecl(clang::FunctionDecl* FD)
+  {
+    visitedDecls.insert(FD);
+    return true;
+  }
 
     bool VisitCallExpr(clang::CallExpr* CE)
     {
@@ -213,25 +208,10 @@ public:
   // We also need to have look at all statements to identify Lambda declarations
   bool VisitStmt(clang::Stmt *S) {
 
-    if(clang::isa<clang::OMPParallelDirective>(S))
-    { // todo: maybe check, that we really are in hipsycl kernel?
-      detail::CompleteCallSet CCS(S);
-      for(auto &F : CCS.getReachableDecls())
-      {
-        if (!clang::isNoexceptExceptionSpec(F->getExceptionSpecType()))
-        {
-          HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: "
-                             << F->getQualifiedNameAsString() << std::endl;
-          F->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
-        }
-      }
-    }
-
-    if(clang::isa<clang::LambdaExpr>(S))
-    {
-      clang::LambdaExpr* lambda = clang::cast<clang::LambdaExpr>(S);
-      clang::FunctionDecl* callOp = lambda->getCallOperator();
-      if(callOp)
+    if (clang::isa<clang::LambdaExpr>(S)) {
+      clang::LambdaExpr *lambda = clang::cast<clang::LambdaExpr>(S);
+      clang::FunctionDecl *callOp = lambda->getCallOperator();
+      if (callOp)
         this->VisitFunctionDecl(callOp);
     }
 
@@ -478,10 +458,21 @@ private:
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
 
       markAsKernel(f);
+    }
 
+    if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
+      if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
+        detail::CompleteCallSet CCS(f);
+        for (auto &D : CCS.getReachableDecls()) {
+          if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
+            HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: " << D->getQualifiedNameAsString()
+                               << std::endl;
+            D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
+          }
+        }
+      }
     }
   }
-
 
   bool isPrivateMemory(const clang::VarDecl* V) const
   {

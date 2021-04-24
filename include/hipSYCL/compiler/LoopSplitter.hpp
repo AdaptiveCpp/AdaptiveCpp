@@ -37,13 +37,16 @@ namespace compiler {
 
 class SplitterAnnotationInfo {
   static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
+  static constexpr const char *KernelAnnotation = "hipsycl_nd_kernel";
   llvm::SmallPtrSet<llvm::Function *, 2> SplitterFuncs;
+  llvm::SmallPtrSet<llvm::Function *, 8> NDKernels;
 
   bool analyzeModule(const llvm::Module &Module);
 
 public:
   explicit SplitterAnnotationInfo(const llvm::Module &Module);
-  inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.find(F) != SplitterFuncs.end(); }
+  inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.contains(F); }
+  inline bool isKernelFunc(const llvm::Function *F) const { return NDKernels.contains(F); }
 };
 
 /*!

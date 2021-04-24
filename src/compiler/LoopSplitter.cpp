@@ -39,13 +39,16 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
         auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
-        auto *FUNC = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0));
+        auto *F = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0));
         auto *AnnotationGL = llvm::dyn_cast<llvm::GlobalVariable>(CS->getOperand(1)->getOperand(0));
         llvm::StringRef Annotation =
             llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())->getAsCString();
         if (Annotation.compare(SplitterAnnotation) == 0) {
-          SplitterFuncs.insert(FUNC);
-          HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << FUNC->getName() << "\n";
+          SplitterFuncs.insert(F);
+          HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << F->getName() << "\n";
+        } else if (Annotation.compare(KernelAnnotation) == 0) {
+          NDKernels.insert(F);
+          HIPSYCL_DEBUG_INFO << "Found kernel annotated function " << F->getName() << "\n";
         }
       }
     }
@@ -1368,7 +1371,7 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
                const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
                const llvm::TargetTransformInfo &TTI, llvm::TargetLibraryInfo &TLI,
                const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (!(*L->block_begin())->getParent()->getName().startswith(".omp_outlined")) {
+  if (!SAA.isKernelFunc(L->getHeader()->getParent())) {
     // are we in kernel?
     return false;
   }
@@ -1378,7 +1381,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     HIPSYCL_DEBUG_INFO << "Not work-item loop!" << L << std::endl;
     return false;
   }
-
   llvm::Function *F = L->getBlocks()[0]->getParent();
 
   llvm::AssumptionCache AC(*F);

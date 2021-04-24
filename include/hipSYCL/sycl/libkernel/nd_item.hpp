@@ -348,7 +348,7 @@ struct nd_item
   {}
 #else
   HIPSYCL_KERNEL_TARGET
-  nd_item(id<dimensions>* offset, 
+  nd_item(const id<dimensions>* offset,
           id<dimensions> group_id, id<dimensions> local_id, 
           range<dimensions> local_range, range<dimensions> num_groups,
           detail::host_barrier_type* host_group_barrier = nullptr,

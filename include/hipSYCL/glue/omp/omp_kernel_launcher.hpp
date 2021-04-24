@@ -181,6 +181,76 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
   }
 }
 
+#ifndef HIPSYCL_HAS_FIBERS
+template <int Dim, class Function, class ...Reducers>
+[[clang::annotate("hipsycl_nd_kernel")]]
+inline void iterate_nd_range_omp(Function f, const sycl::range<Dim> num_groups,
+                                 const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
+                                 size_t num_local_mem_bytes, void* group_shared_memory_ptr,
+                                 Reducers& ... reducers) noexcept {
+  std::function<void()> barrier_impl = [] () noexcept {
+    assert(false && "splitting seems to have failed");
+    std::terminate();
+  };
+
+  if constexpr (Dim == 1) {
+    const size_t n_groups = num_groups[0];
+    const size_t n_local = local_size[0];
+#pragma omp for
+    for (size_t g_x = 0; g_x < n_groups; ++g_x) {
+      sycl::id<Dim> group_id{g_x};
+#pragma omp simd
+      for (size_t l_x = 0; l_x < n_local; ++l_x) {
+        sycl::id<Dim> local_id{l_x};
+        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+                                     local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
+        f(this_item, reducers...);
+      }
+    }
+  } else if constexpr (Dim == 2) {
+#pragma omp for collapse(2)
+    for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
+      for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
+
+        sycl::id<Dim> group_id{g_x, g_y};
+#pragma omp simd collapse(2)
+        for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
+          for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
+            sycl::id<Dim> local_id{l_x, l_y};
+            sycl::nd_item<Dim> this_item{&offset,    group_id,
+                                         local_id,   local_size,
+                                         num_groups, &barrier_impl, group_shared_memory_ptr};
+            f(this_item, reducers...);
+          }
+        }
+      }
+    }
+  } else if constexpr (Dim == 3) {
+#pragma omp for collapse(3)
+    for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
+      for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
+        for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
+
+          sycl::id<Dim> group_id{g_x, g_y, g_z};
+#pragma omp simd collapse(3)
+          for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
+            for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
+              for (size_t l_z = 0; l_z < local_size[2]; ++l_z) {
+                sycl::id<Dim> local_id{l_x, l_y, l_z};
+                sycl::nd_item<Dim> this_item{&offset,    group_id,
+                                             local_id,   local_size,
+                                             num_groups, &barrier_impl, group_shared_memory_ptr};
+                f(this_item, reducers...);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+#endif
+
 template<class Function>
 inline
 void single_task_kernel(Function f) noexcept
@@ -225,87 +295,10 @@ inline void parallel_for_kernel_offset(Function f,
 template <int Dim, class Function, typename... Reductions>
 inline void parallel_for_ndrange_kernel(
     Function f, const sycl::range<Dim> num_groups,
-    const sycl::range<Dim> local_size, sycl::id<Dim> offset,
+    const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
     size_t num_local_mem_bytes, Reductions... reductions) noexcept
 {
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1 - 3 are supported.");
-
-#ifndef HIPSYCL_HAS_FIBERS
-
-#pragma omp parallel
-  {
-    sycl::detail::host_local_memory::request_from_threadprivate_pool(
-        num_local_mem_bytes);
-    void* group_shared_memory_ptr = nullptr;
-
-    std::function<void()> barrier_impl = [] () noexcept {
-      assert(false && "splitting seems to have failed");
-      std::terminate();
-    };
-
-
-    if constexpr (Dim == 1) {
-      const size_t n_groups = num_groups[0];
-      const size_t n_local = local_size[0];
-#pragma omp for
-      for (size_t g_x = 0; g_x < n_groups; ++g_x) {
-        sycl::id<Dim> group_id{g_x};
-#pragma omp simd
-        for (size_t l_x = 0; l_x < n_local; ++l_x) {
-          sycl::id<Dim> local_id{l_x};
-          sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-                                       local_size, num_groups, &barrier_impl, &group_shared_memory_ptr};
-          f(this_item, reductions...);
-        }
-      }
-    } else if constexpr (Dim == 2) {
-#pragma omp for collapse(2)
-      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
-        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
-
-          sycl::id<Dim> group_id{g_x, g_y};
-#pragma omp simd collapse(2)
-          for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
-            for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
-              sycl::id<Dim> local_id{l_x, l_y};
-              sycl::nd_item<Dim> this_item{&offset,    group_id,
-                                           local_id,   local_size,
-                                           num_groups, &barrier_impl, &group_shared_memory_ptr};
-              f(this_item, reductions...);
-            }
-          }
-        }
-      }
-    } else if constexpr (Dim == 3) {
-#pragma omp for collapse(3)
-      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
-        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
-          for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
-
-            sycl::id<Dim> group_id{g_x, g_y, g_z};
-#pragma omp simd collapse(3)
-            for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
-              for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
-                for (size_t l_z = 0; l_z < local_size[2]; ++l_z) {
-                  sycl::id<Dim> local_id{l_x, l_y, l_z};
-                  sycl::nd_item<Dim> this_item{&offset,    group_id,
-                                               local_id,   local_size,
-                                               num_groups, &barrier_impl, &group_shared_memory_ptr};
-                  f(this_item, reductions...);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    sycl::detail::host_local_memory::release();
-  }
-
-#else
-  static_assert(Dim > 0 && Dim <= 3,
-                "Only dimensions 1 - 3 are supported.");
 
   reducible_parallel_invocation([&, f](auto& ... reducers){
 
@@ -314,6 +307,10 @@ inline void parallel_for_ndrange_kernel(
 
     // 128 kiB as local memory for group algorithms
     std::aligned_storage_t<128*1024, alignof(std::max_align_t)> group_shared_memory_ptr{};
+#ifndef HIPSYCL_HAS_FIBERS
+    iterate_nd_range_omp(f, num_groups, local_size, offset,
+                         num_local_mem_bytes, &group_shared_memory_ptr, reducers...);
+#else
 
     host::static_range_decomposition<Dim> group_decomposition{
         num_groups, omp_get_num_threads()};
@@ -339,11 +336,11 @@ inline void parallel_for_ndrange_kernel(
 
       f(this_item, reducers...);
     });
+#endif
 
     sycl::detail::host_local_memory::release();
 
   }, reductions...);
-#endif
 }
 
 template <int Dim, class Function, typename... Reductions>

@@ -138,6 +138,10 @@ void dag_manager::wait()
   this->_submitted_ops.wait_for_all();
 }
 
+void dag_manager::wait(std::size_t node_group_id) {
+  this->_submitted_ops.wait_for_group(node_group_id);
+}
+
 void dag_manager::register_submitted_ops(dag_node_ptr node) {
   this->_submitted_ops.update_with_submission(node);
 }

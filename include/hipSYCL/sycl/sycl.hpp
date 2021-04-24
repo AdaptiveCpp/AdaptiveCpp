@@ -36,8 +36,9 @@
 
 #define SYCL_IMPLEMENTATION_HIPSYCL
 
-#define CL_SYCL_LANGUAGE_VERSION 121
-#define __SYCL_SINGLE_SOURCE__
+#define CL_SYCL_LANGUAGE_VERSION 202003
+#define SYCL_LANGUAGE_VERSION 202003
+#define SYCL_FEATURE_SET_FULL
 
 #include "extensions.hpp"
 
@@ -82,6 +83,7 @@
 #include "backend.hpp"
 #include "backend_interop.hpp"
 #include "interop_handle.hpp"
+#include "buffer_explicit_behavior.hpp"
 
 #endif
 

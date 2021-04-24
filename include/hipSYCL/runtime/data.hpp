@@ -241,8 +241,13 @@ public:
   template<class F>
   void for_each_user(F f){
     std::lock_guard<std::mutex> lock{_lock};
-    for(auto& user : _users) {
-      f(user);
+    // Iterate in reverse order over the users since
+    // this will iterate over the newest users first.
+    // This is a more advantageous pattern e.g. during
+    // DAG construction as it allows finding the relevant users
+    // quicker.
+    for(int i = _users.size() - 1; i >= 0; --i) {
+      f(_users[i]);
     }
   }
 
@@ -394,14 +399,9 @@ public:
 
     for(std::size_t i = 0; i < 3; ++i){
       assert(page_size[i] > 0);
-      if(num_elements[i] != 1)
-        assert(num_elements[i] % page_size[i] == 0);
+      _num_pages[i] = (num_elements[i] + page_size[i] - 1) / page_size[i];
+      assert(_num_pages[i] > 0);
     }
-    
-    _num_pages = num_elements / page_size;
-    for(int i = 0; i < 3; ++i)
-      if(_num_pages[i] == 0)
-        _num_pages[i] = 1;
 
     HIPSYCL_DEBUG_INFO << "data_region: constructed with page table dimensions "
                        << _num_pages[0] << " " << _num_pages[1] << " "
@@ -544,6 +544,17 @@ public:
       for(int i = 0; i < 3; ++i) {
         r.first[i] *= _page_size[i];
         r.second[i] *= _page_size[i];
+
+        // Clamp result range to data range. This is necessary
+        // if the number of elements is not divisible by the page
+        // size, in which case we can end up out of bounds when mapping
+        // pages back to elements.
+        r.first[i] = std::min(r.first[i], _num_elements[i]);
+
+        std::size_t max_range = _num_elements[i] - r.first[i];
+        r.second[i] = std::min(r.second[i], max_range);
+
+        assert(r.first[i]+r.second[i] <= _num_elements[i]);
       }
     }
   }

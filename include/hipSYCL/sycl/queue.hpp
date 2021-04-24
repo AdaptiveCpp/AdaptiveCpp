@@ -51,6 +51,7 @@
 #include <exception>
 #include <memory>
 #include <mutex>
+#include <atomic>
 
 namespace hipsycl {
 namespace sycl {
@@ -67,7 +68,6 @@ using queue_submission_hooks_ptr =
 
 }
 
-
 namespace property::command_group {
 
 template<int Dim>
@@ -75,14 +75,21 @@ struct hipSYCL_prefer_group_size : public detail::cg_property{
   hipSYCL_prefer_group_size(range<Dim> r)
   : size{r} {}
 
-  range<Dim> size;
+  const range<Dim> size;
 };
 
 struct hipSYCL_retarget : public detail::cg_property{
   hipSYCL_retarget(const device& d)
   : dev{d} {}
 
-  sycl::device dev;
+  const sycl::device dev;
+};
+
+struct hipSYCL_prefer_execution_lane : public detail::cg_property{
+  hipSYCL_prefer_execution_lane(std::size_t lane_id)
+  : lane{lane_id} {}
+
+  const std::size_t lane;
 };
 
 }
@@ -104,7 +111,7 @@ class queue : public detail::property_carrying_object
 
 public:
   explicit queue(const property_list &propList = {})
-      : queue{default_selector{},
+      : queue{default_selector_v,
               [](exception_list e) { glue::default_async_handler(e); },
               propList} {
     assert(_default_hints.has_hint<rt::hints::bind_to_device>());
@@ -112,32 +119,38 @@ public:
 
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : queue{default_selector{}, asyncHandler, propList} {
+      : queue{default_selector_v, asyncHandler, propList} {
     assert(_default_hints.has_hint<rt::hints::bind_to_device>());
   }
 
-  explicit queue(const device_selector &deviceSelector,
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
+  explicit queue(const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _ctx{deviceSelector.select_device()} {
+      : detail::property_carrying_object{propList}, _ctx{detail::select_device(
+                                                        deviceSelector)} {
 
     _handler = _ctx._impl->handler;
     
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
+        detail::select_device(deviceSelector)._device_id));
 
     this->init();
   }
 
-  explicit queue(const device_selector &deviceSelector,
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
+  explicit queue(const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _ctx{deviceSelector.select_device(), asyncHandler}, _handler{
-                                                                asyncHandler} {
+      : detail::property_carrying_object{propList}, 
+        _ctx{detail::select_device(deviceSelector), asyncHandler},
+        _handler{asyncHandler} {
 
     _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        deviceSelector.select_device()._device_id));
+        detail::select_device(deviceSelector)._device_id));
 
     this->init();
   }
@@ -164,18 +177,23 @@ public:
     this->init();
   }
 
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
   explicit queue(const context &syclContext,
-                 const device_selector &deviceSelector,
+                 const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : queue(syclContext, deviceSelector.select_device(), propList) {
-  }
+      : queue(syclContext, detail::select_device(deviceSelector), propList) {}
 
+  template <
+      class DeviceSelector,
+      std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
   explicit queue(const context &syclContext,
-                 const device_selector &deviceSelector,
+                 const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : queue(syclContext, deviceSelector.select_device(), asyncHandler, propList) {
-  }
+      : queue(syclContext, detail::select_device(deviceSelector), asyncHandler,
+              propList) {}
 
   explicit queue(const context &syclContext,
                  const device &syclDevice,
@@ -234,7 +252,7 @@ public:
 
   void wait() {
     rt::application::dag().flush_sync();
-    rt::application::dag().wait();
+    rt::application::dag().wait(_node_group_id);
   }
 
   void wait_and_throw() {
@@ -258,8 +276,6 @@ public:
     
     if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
 
-      rt::execution_hints custom_hints;
-
       rt::device_id dev = detail::extract_rt_device(
           prop_list.get_property<property::command_group::hipSYCL_retarget>()
               .dev);
@@ -273,11 +289,23 @@ public:
             << std::endl;
       }
 
-      custom_hints.add_hint(
+      hints.overwrite_with(
           rt::make_execution_hint<rt::hints::bind_to_device>(dev));
-      
-      hints.overwrite_with(custom_hints);
     }
+    if (prop_list.has_property<
+            property::command_group::hipSYCL_prefer_execution_lane>()) {
+
+      std::size_t lane_id =
+          prop_list
+              .get_property<
+                  property::command_group::hipSYCL_prefer_execution_lane>()
+              .lane;
+
+      hints.overwrite_with(
+          rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
+    }
+    // Should always have node_group hint from default hints
+    assert(hints.has_hint<rt::hints::node_group>());
 
     handler cgh{get_context(), _handler, hints};
     
@@ -719,6 +747,15 @@ private:
 
 
   void init() {
+    static std::atomic<std::size_t> node_group_id;
+    _node_group_id = ++node_group_id;
+    
+    HIPSYCL_DEBUG_INFO << "queue: Constructed queue with node group id "
+                       << _node_group_id << std::endl;
+
+    _default_hints.add_hint(
+        rt::make_execution_hint<rt::hints::node_group>(_node_group_id));
+
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
 
@@ -741,6 +778,7 @@ private:
 
   std::weak_ptr<rt::dag_node> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
+  std::size_t _node_group_id;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)
@@ -756,6 +794,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(queue, device)
 HIPSYCL_SPECIALIZE_GET_INFO(queue, reference_count)
 {
   return 1;
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(queue, hipSYCL_node_group)
+{
+  return _node_group_id;
 }
 
 namespace detail{

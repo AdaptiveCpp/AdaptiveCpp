@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
 #define HIPSYCL_MULTI_QUEUE_EXECUTOR_HPP
 
+#include <cmath>
 #include <cassert>
 #include <functional>
 
@@ -39,6 +40,81 @@
 
 namespace hipsycl {
 namespace rt {
+
+
+class moving_statistics {
+public:
+  moving_statistics() = default;
+  moving_statistics(std::size_t max_entries, std::size_t num_bins,
+                    std::size_t time_to_forget)
+      : _max_entries{max_entries},
+        _num_bins{num_bins},
+        _time_to_forget{time_to_forget} {}
+
+  void insert(std::size_t bin) {
+    submission new_submission {};
+    
+    new_submission.bin = bin;
+    new_submission.timestamp = now();
+
+    _last_submissions.push_back(new_submission);
+    if(_last_submissions.size() > _max_entries) {
+
+      std::size_t num_deletions = _last_submissions.size() - _max_entries;
+
+      _last_submissions.erase(_last_submissions.begin(),
+                              _last_submissions.begin() + num_deletions);
+    }
+
+
+  }
+
+  std::size_t get_num_entries_in_bin(std::size_t bin) const {
+
+    std::size_t count = 0;
+    for(const auto& s : _last_submissions) {
+      if(s.bin == bin) ++count;
+    }
+    return count;
+  }
+
+  template<class WeightFunc>
+  std::vector<double> build_weighted_bins(WeightFunc w) const {
+    std::vector<double> bins_out(_num_bins);
+    for(const auto& s : _last_submissions) {
+      bins_out[s.bin] += w(s.timestamp);
+    }
+    return bins_out;
+  }
+
+  std::vector<double>
+  build_decaying_bins() const {
+    std::size_t now = this->now();
+    return build_weighted_bins([now,this](std::size_t timestamp) -> double {
+      double age = static_cast<double>(now - timestamp);
+      assert(age > 0.);
+      return std::max(0.0, 1.0 - age / static_cast<double>(_time_to_forget));
+    });
+  }
+
+private:
+  std::size_t now() const {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::high_resolution_clock::now().time_since_epoch())
+            .count();
+  }
+
+  struct submission {
+    std::size_t timestamp;
+    std::size_t bin;
+  };
+
+  std::size_t _max_entries;
+  std::size_t _num_bins;
+  std::size_t _time_to_forget;
+
+  std::vector<submission> _last_submissions;
+};
 
 /// An executor that submits tasks by serializing them onto 
 /// to multiple inorder queues (e.g. CUDA streams)
@@ -83,9 +159,12 @@ private:
     backend_execution_lane_range memcpy_lanes;
     backend_execution_lane_range kernel_lanes;
     std::vector<std::unique_ptr<inorder_queue>> queues;
+
+    moving_statistics submission_statistics;
   };
 
   std::vector<per_device_data> _device_data;
+  std::size_t _num_submitted_operations;
 };
 
 }
@@ -93,4 +172,3 @@ private:
 
 
 #endif
-

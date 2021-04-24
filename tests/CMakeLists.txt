@@ -71,7 +71,8 @@ add_executable(sycl_tests
   sycl/sub_group.cpp
   sycl/sycl_test_suite.cpp 
   sycl/usm.cpp
-  sycl/vec.cpp)
+  sycl/vec.cpp
+  sycl/queue.cpp)
 
 target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})

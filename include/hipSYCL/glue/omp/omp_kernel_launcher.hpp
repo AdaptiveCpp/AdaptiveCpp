@@ -418,14 +418,14 @@ public:
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
-            Kernel kernel_body, Reductions... reductions) {
+            Kernel k, Reductions... reductions) {
 
     this->_type = type;
 
-    this->_invoker = [=](rt::dag_node* node) {
-      Kernel k = kernel_body;
+    this->_invoker = [=] (rt::dag_node* node) mutable {
+
       static_cast<rt::kernel_operation *>(node->get_operation())
-          ->initialize_embedded_pointers(k);
+          ->initialize_embedded_pointers(k, reductions...);
 
       bool is_with_offset = false;
       for (std::size_t i = 0; i < Dim; ++i)

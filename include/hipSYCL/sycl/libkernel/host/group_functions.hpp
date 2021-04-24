@@ -511,8 +511,8 @@ T group_exclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
   }
 
   group_barrier(g);
-
   T tmp = scratch[lid];
+  group_barrier(g);
 
   return tmp;
 }
@@ -539,8 +539,8 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
   }
 
   group_barrier(g);
-
   T tmp = scratch[lid];
+  group_barrier(g);
 
   return tmp;
 }

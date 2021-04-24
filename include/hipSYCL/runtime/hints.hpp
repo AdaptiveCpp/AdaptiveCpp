@@ -48,10 +48,8 @@ enum class execution_hint_type
 {
   // mark a DAG node as bound to a particular device for execution
   bind_to_device,
-  use_pseudo_queue_id,
-  // Mark a DAG node as explicitly requiring another node
-  // (TODO: not yet implemented)
-  explicit_require,
+  prefer_execution_lane,
+  node_group
 };
 
 class execution_hint
@@ -91,18 +89,37 @@ private:
   device_id _dev;
 };
 
-class explicit_require : public execution_hint
+class prefer_execution_lane : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
-    execution_hint_type::explicit_require;
+  static constexpr execution_hint_type type =
+      execution_hint_type::prefer_execution_lane;
 
-  explicit_require(dag_node_ptr node);
+  prefer_execution_lane(std::size_t lane_id)
+      : execution_hint{execution_hint_type::prefer_execution_lane},
+        _lane_id{lane_id} {}
 
-  dag_node_ptr get_requirement() const;
-
+  std::size_t get_lane_id() const {
+    return _lane_id;
+  }
 private:
-  dag_node_ptr _dag_node;
+  std::size_t _lane_id;
+};
+
+class node_group : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::node_group;
+
+  node_group(std::size_t group_id)
+      : execution_hint{execution_hint_type::node_group}, _group_id{group_id} {}
+
+  std::size_t get_id() const {
+    return _group_id;
+  }
+private:
+  std::size_t _group_id;
 };
 
 } // hints
@@ -122,7 +139,10 @@ public:
   template<class Hint_type>
   Hint_type* get_hint() const
   {
-    return cast<Hint_type>(get_hint(Hint_type::type));
+    execution_hint* ptr = get_hint(Hint_type::type);
+    if(ptr)
+      return cast<Hint_type>(ptr);
+    return nullptr;
   }
 
   template <class Hint_type> bool has_hint() const {

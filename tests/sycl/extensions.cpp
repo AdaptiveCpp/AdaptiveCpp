@@ -26,6 +26,11 @@
  */
 
 
+#include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/property.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/queue.hpp"
+
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
@@ -408,6 +413,26 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   sycl::free(gsize, q);
 }
 #endif
+
+#ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
+
+BOOST_AUTO_TEST_CASE(cg_property_prefer_execution_lane) {
+
+  cl::sycl::queue q;
+
+  // Only compile testing for now
+  for(std::size_t i = 0; i < 100; ++i) {
+    q.submit(
+        {cl::sycl::property::command_group::hipSYCL_prefer_execution_lane{i}},
+        [&](cl::sycl::handler &cgh) {
+          cgh.single_task<class prefer_execution_lane_test>([=]() {});
+        });
+  }
+  q.wait();
+}
+
+#endif
+
 #ifdef HIPSYCL_EXT_PREFETCH_HOST
 BOOST_AUTO_TEST_CASE(prefetch_host) {
   using namespace cl;
@@ -456,7 +481,8 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(usm_ptr != nullptr);
 
     // Query information
-    sycl::buffer_allocation<int> alloc = buff.get_allocation(usm_ptr);
+    sycl::buffer_allocation::descriptor<int> alloc =
+        buff.get_allocation(usm_ptr);
     BOOST_TEST(alloc.ptr == usm_ptr);
     BOOST_CHECK(alloc.dev == q.get_device());
     BOOST_TEST(alloc.is_owned == true);
@@ -477,10 +503,11 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
     BOOST_TEST(alloc.is_owned == false);
 
     std::vector<int*> allocations;
-    buff.for_each_allocation([&](const sycl::buffer_allocation<int>& a){
-      allocations.push_back(a.ptr);
-    });
-    
+    buff.for_each_allocation(
+        [&](const sycl::buffer_allocation::descriptor<int> &a) {
+          allocations.push_back(a.ptr);
+        });
+
     BOOST_TEST(allocations.size() >= 1);
     bool found = false;
     for(std::size_t i = 0; i < allocations.size(); ++i) {
@@ -508,6 +535,211 @@ BOOST_AUTO_TEST_CASE(buffer_introspection) {
 
 }
 
+BOOST_AUTO_TEST_CASE(buffers_over_usm_pointers) {
+  using namespace cl;
+
+  sycl::queue q;
+  sycl::range size{1024};
+
+  int* alloc1 = sycl::malloc_shared<int>(size.size(), q);
+  int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
+
+  {
+    sycl::buffer<int> b1{
+        {sycl::buffer_allocation::empty_view(alloc1, q.get_device())}, size};
+
+    BOOST_CHECK(b1.has_allocation(q.get_device()));
+    BOOST_CHECK(b1.get_pointer(q.get_device()) == alloc1);
+    b1.for_each_allocation([&](const auto& alloc){
+      if(alloc.ptr == alloc1){
+        BOOST_CHECK(!alloc.is_owned);
+      }
+    });
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b1, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx] = idx.get(0);
+      });
+    });
+  }
+  q.wait();
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc1[i] == i);
+  }
+  {
+    sycl::buffer<int> b2{
+        {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
+    
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor<int> acc{b2, cgh};
+
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        alloc2[idx.get(0)] = acc[idx];
+      });
+    });
+
+    // Check that data state tracking works and migrating back to host
+    sycl::host_accessor<int> hacc{b2};
+    for(int i = 0; i < size.get(0); ++i){
+      BOOST_CHECK(hacc[i] == i);
+    }  
+  }
+  
+  for(int i = 0; i < size.get(0); ++i){
+    BOOST_CHECK(alloc2[i] == i);
+  }
+
+  sycl::free(alloc1, q);
+  sycl::free(alloc2, q);
+}
+
+#endif
+#ifdef HIPSYCL_EXT_BUFFER_PAGE_SIZE
+
+BOOST_AUTO_TEST_CASE(buffer_page_size) {
+  using namespace cl;
+
+  sycl::queue q;
+
+  // Deliberately choose page_size so that size is not a mulitple of it
+  // to test the more complicated case.
+  const std::size_t size = 1000;
+  const std::size_t page_size = 512;
+  sycl::buffer<int, 2> buff{sycl::range{size, size},
+                            sycl::property::buffer::hipSYCL_page_size<2>{
+                                sycl::range{page_size, page_size}}};
+
+  // We have 4 pages
+  for(std::size_t offset_x = 0; offset_x < size; offset_x += page_size) {
+    for(std::size_t offset_y = 0; offset_y < size; offset_y += page_size) {
+      auto event = q.submit([&](sycl::handler &cgh) {
+
+        sycl::range range{std::min(page_size, size - offset_x),
+                          std::min(page_size, size - offset_y)};
+        sycl::id offset{offset_x, offset_y};
+
+        for(int i = 0; i < 2; ++i){
+          assert(offset[i]+range[i] <= size);
+        }
+
+        sycl::accessor<int, 2> acc{buff, cgh, range, offset};
+
+        cgh.parallel_for(sycl::range{range}, [=](sycl::id<2> idx){
+          // TODO this needs to be changed once we have SYCL 2020
+          // semantics for operator[] of ranged accesors
+          acc[idx + offset] =
+              static_cast<int>(idx[0] + offset[0] + idx[1] + offset[1]);
+        });
+      });
+
+      // All kernels should be independent, in that case we should
+      // have a wait list of exactly one element: The one accessor
+      // we have requested.
+      // TODO This does not really guarantee that the kernels run in-
+      // dependently as access conflicts are typically added to the requirements
+      // of the accessor, not the kernel.
+      BOOST_CHECK(event.get_wait_list().size() == 1);
+    }
+  }
+
+  sycl::host_accessor<int, 2> hacc{buff};
+
+  for(int i = 0; i < size; ++i) {
+    for(int j = 0; j < size; ++j) {
+      BOOST_REQUIRE(hacc[i][j] == i+j);
+    }
+  }
+}
+
+#endif
+#ifdef HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
+BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    
+    auto b1 = sycl::make_async_buffer(input_vec.data(), size);
+    // Because of buffer semantics we should be able to modify the input
+    // pointer again
+    input_vec[20] = 0;
+
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] += 1;
+      });
+    });
+
+    sycl::host_accessor hacc{b1};
+    for(int i = 0; i < size.size(); ++i) {
+      BOOST_CHECK(hacc[i] == i+1);
+    }
+
+    // Submit another operation before buffer goes out of
+    // scope to make sure operations work even if the buffer leaves
+    // scope.
+    q.submit([&](sycl::handler& cgh){
+      sycl::accessor acc{b1, cgh};
+      cgh.parallel_for(size, [=](sycl::id<1> idx){
+        acc[idx.get(0)] -= 1;
+      });
+    });
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_sync_writeback_view(input_vec.data(), size);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+  {
+    std::vector<int> input_vec(size.size());
+    
+    for(int i = 0; i < input_vec.size(); ++i)
+      input_vec[i] = i;
+    {
+      auto b1 = sycl::make_async_writeback_view(input_vec.data(), size, q);
+
+      q.submit([&](sycl::handler& cgh){
+        sycl::accessor acc{b1, cgh};
+        cgh.parallel_for(size, [=](sycl::id<1> idx){
+          acc[idx.get(0)] += 1;
+        });
+      });
+    }
+
+    q.wait();
+
+    for(int i = 0; i < input_vec.size(); ++i) {
+      BOOST_CHECK(input_vec[i] == i+1);
+    }
+  }
+
+
+
+}
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -2,14 +2,6 @@
 
 hipSYCL implements several extensions that are not defined by the specification.
 
-In general (and unless otherwise noted), hipSYCL extensions must be activated before they can be used by defining `HIPSYCL_EXT_<EXTENSIONNAME>` fore including `sycl.hpp`, for example:
-
-```
-#define HIPSYCL_EXT_FP_ATOMICS
-#include <CL/sycl.hpp>
-```
-Alternatively, instead of activating individual extensions, all extensions can be activated by defining `HIPSYCL_EXT_ENABLE_ALL`.
-
 ## Supported extensions
 
 
@@ -26,7 +18,11 @@ See [here](enqueue-custom-operation.md) for more details.
 
 hipSYCL supports interoperability between `sycl::buffer` and USM pointers. See [here](buffer-usm-interop.md) for details.
 
-### HIPSYCL_EXT_CG_PROPERTY_*: Command group properties
+### `HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES`
+
+An extension that allows to eplicitly set view/non-view semantics for buffers as well as enable some behaviors that cannot be expressed in regular SYCL such as buffers that do not block in the destructor. See [here](explicit-buffer-policies.md) for details.
+
+### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:
 
@@ -37,7 +33,7 @@ event queue::submit(const property_list& prop_list, T cgf)
 
 A list of supported command group properties follows:
 
-#### HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
+#### `HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE`
 
 ##### API reference
 
@@ -60,7 +56,7 @@ In the current implementation, this property only affects the selected local siz
 
 *Note:* The property only affects kernel launches of the same dimension. If you want to set the group size for 2D kernels, you need to attach a `hipSYCL_prefer_group_size<2>` property.
 
-#### HIPSYCL_EXT_CG_PROPERTY_RETARGET
+#### `HIPSYCL_EXT_CG_PROPERTY_RETARGET`
 
 ##### API reference
 
@@ -89,12 +85,58 @@ Compared to using multiple queues bound to different devices, using a single que
 * A single `queue::wait()` call guarantees that all operations submitted to the queue, no matter to which device they were retargeted, have completed. With multiple queues on the other hand, multiple `wait()` calls are necessary which can add some overhead.
 * If the queue is an in-order queue, the in-order property is *preserved even if the operations are retargeted to run on different devices*. This can be a highly convenient way to formulate in-order USM algorithms that require processing steps on different devices.
 
-## HIPSYCL_EXT_PREFETCH_HOST
+
+#### `HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE`
+
+##### API reference
+
+```c++
+namespace sycl::property::command_group {
+
+struct hipSYCL_prefer_execution_lane {
+  hipSYCL_prefer_execution_lane(std::size_t lane_id);
+
+};
+
+}
+```
+
+##### Description
+
+Provides a hint to the runtime on which *execution lane* to execute the operation. Execution lanes refer to a generalization of resources that can execute kernels and data transfers, such as a CUDA or HIP stream.
+
+Many backends in hipSYCL such as CUDA or HIP maintain a pool of inorder queues as execution lanes. By default, the scheduler will already automatically attempt to distribute work across all those queues.
+If this distribution turns out to be not optimal, the `hipSYCL_prefer_execution_lane` property can be used to influence the distribution, for example in order to achieve better overlap of data transfers and kernels, or to make sure that certain kernels execute concurrently if supported by backend and hardware.
+
+Execution lanes for a device are enumerated starting from 0. If a non-existent execution lane is provided, it is mapped back to the permitted range using a modulo operation. Therefore, the execution lane id provided by the property can be seen as additional information on *potential* and desired parallelism that the runtime can exploit.
+
+### `HIPSYCL_EXT_BUFFER_PAGE_SIZE`
+
+A property that can be attached to the buffer to set the buffer page size. See the hipSYCL buffer model [specification](runtime-spec.md) for more details.
+
+#### API reference
+
+```c++
+namespace sycl::property::buffer {
+
+template<int Dim>
+class hipSYCL_page_size
+{
+public:
+  // Set page size of buffer in units of number of elements.
+  hipSYCL_page_size(const sycl::range<Dim>& page_size);
+};
+
+}
+````
+
+
+### `HIPSYCL_EXT_PREFETCH_HOST`
 
 Provides `handler::prefetch_host()` (and corresponding queue shortcuts) to prefetch data from shared USM allocations to the host.
 This is a more convenient alternative to constructing a host queue and executing regular `prefetch()` there.
 
-### API reference
+#### API reference
 
 ```c++
 /// Prefetches num_bytes from the USM pointer ptr to host memory
@@ -110,11 +152,11 @@ event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
                           const std::vector<event> &dependencies);
 ```
 
-## HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
+### `HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE`
 
 Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In hipSYCL, the synchronous variant is expected to be more efficient.
 
-### API reference
+#### API reference
 
 ```c++
 void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
@@ -126,7 +168,7 @@ void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
 ```
 
 ### `HIPSYCL_EXT_FP_ATOMICS`
-This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this.
+This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this. This extension must be enabled explicitly by `#define HIPSYCL_EXT_FP_ATOMICS` before including `sycl.hpp`
 
 ### `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE`
 This SYCL extension allows to `require()` placeholder accessors automatically. This extension does not need to be enabled explicitly and is always available.
@@ -186,7 +228,7 @@ This extension serves two purposes:
 1. Avoid having to call `require()` again and again if the same accessor is used in many subsequent kernels. This can lead to a significant reduction of boilerplate code.
 2. Simplify code when working with SYCL libraries that accept lambda functions or function objects. For example, for a `sort()` function in a SYCL library a custom comparator may be desired. Currently, there is no easy way to access some independent data in that comparator because accessors must be requested in the command group handler. This would not be possible in that case since the command group would be spawned internally by `sort`, and the user has no means of accessing it.
 
-## `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION`
+### `HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION`
 This extension allows for the user to specify what/if synchronization should happen at the end of a `parallel_for_work_item` call.
 This extension is always enabled and does not need to be enabled explicitly.
 

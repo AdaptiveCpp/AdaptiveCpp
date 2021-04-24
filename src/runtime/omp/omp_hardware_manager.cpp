@@ -100,6 +100,24 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::sub_group_independent_forward_progress:
     return false;
     break;
+  case device_support_aspect::usm_device_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_host_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_atomic_host_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_shared_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_atomic_shared_allocations:
+    return true;
+    break;
+  case device_support_aspect::usm_system_allocations:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;
@@ -240,6 +258,9 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::partition_max_sub_devices:
     return 0;
+    break;
+  case device_uint_property::vendor_id:
+    return std::numeric_limits<std::size_t>::max();
     break;
   }
   assert(false && "Invalid device property");

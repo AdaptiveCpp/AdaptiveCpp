@@ -26,6 +26,7 @@
  */
 
 #include <numeric>
+#include <algorithm>
 #include <type_traits>
 
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
@@ -323,6 +324,39 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(oversized_group_size, T, all_test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
   test_two_reductions<T>(128*128, 128);
+}
+
+BOOST_AUTO_TEST_CASE(accessor_reduction) {
+  sycl::queue q;
+  sycl::buffer<int> values_buff{1024};
+  { 
+    sycl::host_accessor a{values_buff};
+    std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
+  }
+  
+  sycl::buffer<int> sum_buff{1};
+  sycl::buffer<int> max_buff{1};
+  
+  q.submit([&](sycl::handler
+                   &cgh) {
+    auto values_acc = values_buff.get_access<sycl::access_mode::read>(
+        cgh);
+
+    sycl::accessor sum_acc {sum_buff, cgh};
+    sycl::accessor max_acc {max_buff, cgh};
+    
+    auto sumReduction = sycl::reduction(sum_acc, sycl::plus<int>());
+    auto maxReduction = sycl::reduction(max_acc, sycl::maximum<int>());
+    
+    cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+                     [=](sycl::id<1> idx, auto &sum, auto &max) {
+                       sum += values_acc[idx];
+                       max.combine(values_acc[idx]);
+                     });
+  });
+
+  BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
+  BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

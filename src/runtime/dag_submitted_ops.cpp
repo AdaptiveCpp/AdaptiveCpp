@@ -29,6 +29,7 @@
 
 #include "hipSYCL/runtime/dag_submitted_ops.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -54,11 +55,47 @@ void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {
 }
 
 void dag_submitted_ops::wait_for_all() {
-  std::lock_guard lock{_lock};
-
-  for(dag_node_ptr node : _ops) {
+  std::vector<dag_node_ptr> current_ops;
+  {
+    std::lock_guard lock{_lock};
+    current_ops = _ops;
+  }
+  
+  for(dag_node_ptr node : current_ops) {
     assert(node->is_submitted());
     node->wait();
+  }
+}
+
+void dag_submitted_ops::wait_for_group(std::size_t node_group) {
+  HIPSYCL_DEBUG_INFO << "dag_submitted_ops: Waiting for node group "
+                     << node_group << std::endl;
+  
+  std::vector<dag_node_ptr> current_ops;
+  {
+    std::lock_guard lock{_lock};  
+    current_ops = _ops;
+  }
+
+  // TODO We can optimize this process by
+  // 1.) In dag_node::wait(), when the event turns complete the first time,
+  // recursively mark all requirements as complete as well.
+  // 2.) Reverse the iteration order here - this will cause us to handle the
+  // newest nodes first, which usually will depend on older nodes.
+  // Since nodes cache their state when they complete and because of 1), 
+  // the wait() on most of the older nodes will become trivial and not 
+  // require any backend interaction at all.
+  for(dag_node_ptr node : current_ops) {
+    assert(node->is_submitted());
+    if (hints::node_group *g =
+            node->get_execution_hints().get_hint<hints::node_group>()) {
+      if (g->get_id() == node_group) {
+        HIPSYCL_DEBUG_INFO
+            << "dag_submitted_ops: Waiting for node group; current node: "
+            << node.get() << std::endl;
+        node->wait();
+      }
+    }
   }
 }
 

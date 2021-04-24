@@ -33,12 +33,8 @@
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include <mutex>
 
-// TODO: Implement the following optimizations:
-// a) Remove unnecessary requirements, i.e. when a requirement has a dependency
-// on a node that is also satisfied by another node:
-//  node -> req1 -> node 2
-//       -> node2
-// b) Reorder requirements such that larger accesses come first. This will cause
+// TODO: Implement the following optimization:
+// - Reorder requirements such that larger accesses come first. This will cause
 // later requirements to potentially be optimized away entirely.
 
 
@@ -131,7 +127,6 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
                 req_node->add_requirement(user_ptr);
             }
           });
-          
         }
       }
     }
@@ -244,8 +239,7 @@ bool dag_builder::is_conflicting_access(
       user.mode == sycl::access::mode::read)
     return false;
 
-  // TODO Check if the page ranges do not intersect
-  // need to determine page range
+  // Checks if the page ranges do not intersect
   return mem_req->intersects_with(user);
 }
 

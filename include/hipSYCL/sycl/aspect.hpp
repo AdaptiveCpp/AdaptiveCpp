@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,63 +25,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DAG_MANAGER_HPP
-#define HIPSYCL_DAG_MANAGER_HPP
+#ifndef HIPSYCL_SYCL_ASPECT_HPP
+#define HIPSYCL_SYCL_ASPECT_HPP
 
-#include "dag.hpp"
-#include "dag_builder.hpp"
-#include "dag_direct_scheduler.hpp"
-#include "dag_submitted_ops.hpp"
-#include "generic/async_worker.hpp"
-
+#include <type_traits>
 
 namespace hipsycl {
-namespace rt {
+namespace sycl {
 
-class dag_interpreter;
-
-class dag_manager
-{
-  friend class dag_build_guard;
-public:
-  dag_manager();
-  ~dag_manager();
-
-  // Submits operations asynchronously
-  void flush_async();
-  // Submits operations asynchronously and
-  // wait until they have been submitted
-  void flush_sync();
-  // Wait for completion of all submitted operations
-  void wait();
-  void wait(std::size_t node_group_id);
-  
-  void register_submitted_ops(dag_node_ptr);
-private:
-  void trigger_flush_opportunity();
-
-  dag_builder* builder() const;
-
-  std::unique_ptr<dag_builder> _builder;
-  worker_thread _worker;
-  
-  dag_direct_scheduler _direct_scheduler;
-  dag_submitted_ops _submitted_ops;
+enum class aspect {
+  cpu,
+  gpu,
+  accelerator,
+  custom,
+  emulated,
+  host_debuggable,
+  fp16,
+  fp64,
+  atomic64,
+  image,
+  online_compiler,
+  online_linker,
+  queue_profiling,
+  usm_device_allocations,
+  usm_host_allocations,
+  usm_atomic_host_allocations,
+  usm_shared_allocations,
+  usm_atomic_shared_allocations,
+  usm_system_allocations
 };
 
-class dag_build_guard
-{
-public:
-  dag_build_guard(dag_manager& mgr)
-  : _mgr{&mgr} {}
+template <aspect Aspect> struct any_device_has : public std::true_type {};
+template <aspect Aspect> struct all_devices_have : public std::false_type {};
 
-  ~dag_build_guard();
+// We always have a CPU device that is host debuggable
+template <>
+struct any_device_has<aspect::host_debuggable> : public std::true_type {};
 
-  dag_builder* builder() const
-  { return _mgr->builder(); }
-private:
-  dag_manager* _mgr;
-};
+// Images are unsupported
+template <>
+struct any_device_has<aspect::image> : public std::false_type {};
+
+// All backends in hipSYCL must support at least explicit USM by design
+template <>
+struct all_devices_have<aspect::usm_device_allocations>
+    : public std::true_type {};
+template <>
+struct all_devices_have<aspect::usm_atomic_host_allocations>
+    : public std::true_type {};
+
+template <aspect A>
+inline constexpr bool any_device_has_v = any_device_has<A>::value;
+
+template <aspect A>
+inline constexpr bool all_devices_have_v = all_devices_have<A>::value;
 
 }
 }

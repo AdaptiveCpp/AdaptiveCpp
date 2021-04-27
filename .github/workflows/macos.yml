@@ -27,7 +27,7 @@ jobs:
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake -DHIPSYCL_TARGETS=omp -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /Users/runner/work/hipSYCL/hipSYCL/tests
-        make -j 2
+        make -j 2 VERBOSE=ON
     - name: run CPU tests
       run: |
         cd /Users/runner/work/hipSYCL/hipSYCL/build/tests-cpu

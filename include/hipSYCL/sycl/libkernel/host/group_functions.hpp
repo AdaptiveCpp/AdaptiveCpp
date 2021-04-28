@@ -551,6 +551,110 @@ T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
   return x;
 }
 
+// shift_left
+template <typename Group, typename T>
+T shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+  typename Group::linear_id_type lid = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid + delta;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  if (target_lid > g.get_local_range().size())
+    target_lid = 0;
+
+  x = scratch[target_lid];
+  group_barrier(g);
+
+  return x;
+}
+
+template <typename T>
+T shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return x;
+}
+
+// shift_right
+template <typename Group, typename T>
+T shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+  typename Group::linear_id_type lid = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid - delta;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  x = scratch[target_lid];
+  group_barrier(g);
+
+  return x;
+}
+
+template <typename T>
+T shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return x;
+}
+
+// permute_group_by_xor
+template <typename Group, typename T>
+T permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+  typename Group::linear_id_type lid = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid ^ mask;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  x = scratch[target_lid];
+  group_barrier(g);
+
+  return x;
+}
+
+// permute_group_by_xor
+template <typename T>
+T permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
+  return x;
+}
+
+// select_from_group
+template <typename Group, typename T>
+T select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
+  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+  typename Group::linear_id_type lid = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = detail::linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  x = scratch[target_lid];
+  group_barrier(g);
+
+  return x;
+}
+
+template <typename T>
+T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
+  return x;
+}
+
 } // namespace sycl
 } // namespace hipsycl
 

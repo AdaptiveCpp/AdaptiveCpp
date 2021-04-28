@@ -293,6 +293,286 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
   }
 }
 #endif
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = detail::initialize_type<T>(i) + detail::get_offset<T>(global_size);
+  };
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_left(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i + 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (static_cast<int>((i + 1) / local_size) + 1 > 1)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: group, shift left");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_right(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i - 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (i % local_size == 0)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: group, shift right");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::permute_group_by_xor(g, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i ^ 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (static_cast<int>((i + 1) / local_size) + 1 > 1)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: group, permute xor");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::select_from_group(g, local_value, sycl::id<g.dimensions>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(static_cast<int>(i / local_size) * local_size) +
+                     detail::get_offset<T>(global_size, 1);
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: group, select");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+}
+
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
+  const size_t elements_per_thread = 1;
+  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
+                                 size_t global_size) {
+    for (size_t i = 0; i < v.size(); ++i)
+      v[i] = detail::initialize_type<T>(i) + detail::get_offset<T>(global_size);
+  };
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_left(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i + 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (i % warpSize + 1 == warpSize)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: sub_group, shift left");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::shift_group_right(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i - 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (i % warpSize == 0)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: sub_group, shift right");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::permute_group_by_xor(sg, local_value, 1);
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(i ^ 1) +
+                     detail::get_offset<T>(global_size, 1);
+
+        // output only defined if target is in group
+        if (static_cast<int>((i + 1) / local_size) + 1 > 1)
+          continue;
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: sub_group, permute xor");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+
+  {
+    const auto tested_function = [=](auto acc, size_t global_linear_id,
+                                     sycl::sub_group sg, auto g, T local_value) {
+      acc[global_linear_id] = sycl::select_from_group(sg, local_value, sycl::id<1>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < vIn.size(); ++i) {
+        T expected = detail::initialize_type<T>(static_cast<int>(i / warpSize) * warpSize) +
+                     detail::get_offset<T>(global_size, 1);
+
+        T computed = vIn[i];
+
+        BOOST_TEST(detail::compare_type(expected, computed),
+                   detail::type_to_string(computed)
+                       << " at position " << i << " instead of "
+                       << detail::type_to_string(expected) << " for case: sub_group, select");
+
+        if (!detail::compare_type(expected, computed))
+          break;
+      }
+    };
+
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  }
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif

@@ -149,7 +149,6 @@ if(WITH_CPU_BACKEND)
       endif()
       target_include_directories(rt-backend-omp PRIVATE ${OpenMP_CXX_INCLUDE_DIRS})
       string(JOIN " " hipSYCL_OpenMP_CXX_LIBRARIES ${OpenMP_CXX_LIBRARIES})
-      message(STATUS "hipsycl omp libraries ${hipSYCL_OpenMP_CXX_LIBRARIES}")
       set(hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES} PARENT_SCOPE)
     endif()
   

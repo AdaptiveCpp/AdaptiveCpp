@@ -57,13 +57,16 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
+static void registerLoopSplitAtBarrierPassO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopSplitAtBarrierPassLegacy{true});
+}
 static void registerLoopSplitAtBarrierPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  PM.add(new LoopSplitAtBarrierPassLegacy{});
+  PM.add(new LoopSplitAtBarrierPassLegacy{false});
 }
 
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                            registerLoopSplitAtBarrierPass);
+                                            registerLoopSplitAtBarrierPassO0);
 
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
@@ -75,8 +78,8 @@ extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginIn
               MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
             });
             PB.registerLateLoopOptimizationsEPCallback(
-                [](llvm::LoopPassManager &LPM, llvm::PassBuilder::OptimizationLevel) {
-                  LPM.addPass(LoopSplitAtBarrierPass{});
+                [](llvm::LoopPassManager &LPM, llvm::PassBuilder::OptimizationLevel Opt) {
+                  LPM.addPass(LoopSplitAtBarrierPass{Opt == llvm::PassBuilder::OptimizationLevel::O0});
                 });
             // todo: add pruning pass as well
           }};

@@ -63,9 +63,9 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module
 hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(const llvm::Module &Module) { analyzeModule(Module); }
 
 bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
-  if (SplitterAnnotation)
+  if (SplitterAnnotation_)
     return false;
-  SplitterAnnotation = SplitterAnnotationInfo{*F.getParent()};
+  SplitterAnnotation_ = SplitterAnnotationInfo{*F.getParent()};
   return false;
 }
 
@@ -1476,10 +1476,37 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   llvm::errs() << "last cfg in loop inversion\n";
 }
 
+// we heavily rely on having the loop induction variables as
+// PHINodes and not as alloca store / loads.
+// this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
+void simplifyO0(llvm::Function *F, llvm::Loop *&L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
+                llvm::ScalarEvolution &SE, llvm::AssumptionCache &AC, const llvm::TargetTransformInfo &TTI) {
+  promoteAllocas(&F->getEntryBlock(), DT, AC);
+
+  // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
+  // a single loop header, so that it is muuch easier to work with.
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
+  for (auto *SL : LI.getLoopsInPreorder()) {
+    if (SL->getHeader())
+      LoopHeaders.insert(SL->getHeader());
+    if (SL->getLoopPreheader())
+      LoopHeaders.insert(SL->getLoopPreheader());
+  }
+
+  for (auto *Loop : LI.getTopLevelLoops())
+    for (auto *Block : Loop->blocks()) {
+      llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
+    }
+
+  // repair loop simplify form
+  L = updateDtAndLi(LI, DT, L->getLoopLatch(), *F);
+  llvm::simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, false);
+}
+
 bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
                const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
                const llvm::TargetTransformInfo &TTI, llvm::TargetLibraryInfo &TLI,
-               const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+               const hipsycl::compiler::SplitterAnnotationInfo &SAA, bool IsO0) {
   if (!SAA.isKernelFunc(L->getHeader()->getParent())) {
     // are we in kernel?
     return false;
@@ -1510,31 +1537,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     return Changed;
   }
 
-  // we heavily rely on having the loop induction variables as PHINodes and not as alloca store / loads.
-  // this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
-  // todo: can we query whether we're in the O0 case and only do this if so, aka not yet done...?
-  {
-    promoteAllocas(&F->getEntryBlock(), DT, AC);
-
-    // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
-    // a single loop header, so that it is muuch easier to work with.
-    llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
-    for (auto *SL : LI.getLoopsInPreorder()) {
-      if (SL->getHeader())
-        LoopHeaders.insert(SL->getHeader());
-      if (SL->getLoopPreheader())
-        LoopHeaders.insert(SL->getLoopPreheader());
-    }
-
-    for (auto *Loop : LI.getTopLevelLoops())
-      for (auto *Block : Loop->blocks()) {
-        llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
-      }
-
-    // repair loop simplify form
-    L = updateDtAndLi(LI, DT, L->getLoopLatch(), *F);
-    llvm::simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, false);
-  }
+  if (IsO0)
+    simplifyO0(F, L, LI, DT, SE, AC, TTI);
 
   L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
                                                   llvm::MDNode::get(F->getContext(), {}));
@@ -1688,7 +1692,7 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
 
   llvm::LoopAccessInfo LAI(L, &SE, &TLI, &AA.getAAResults(), &DT, &LI);
   return splitLoop(
-      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, TTI, TLI, SAA);
+      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, TTI, TLI, SAA, IsO0_);
 }
 
 void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
@@ -1716,7 +1720,7 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitAtBarrierPass::run(llvm::Loo
   const auto &TTI = AM.getResult<llvm::TargetIRAnalysis>(L, AR);
   auto &TLI = AM.getResult<llvm::TargetLibraryAnalysis>(L, AR);
   if (!splitLoop(
-          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, TTI, TLI, SAA))
+          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, TTI, TLI, SAA, IsO0_))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();

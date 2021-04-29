@@ -57,7 +57,7 @@ public:
  *       As the annotations should not change from call to call, we cache the result in an Optional.
  */
 class SplitterAnnotationAnalysisLegacy : public llvm::FunctionPass {
-  llvm::Optional<SplitterAnnotationInfo> SplitterAnnotation;
+  llvm::Optional<SplitterAnnotationInfo> SplitterAnnotation_;
 
 public:
   static char ID;
@@ -70,7 +70,7 @@ public:
   bool runOnFunction(llvm::Function &F) override;
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override { AU.setPreservesAll(); }
 
-  const SplitterAnnotationInfo &getAnnotationInfo() const { return *SplitterAnnotation; }
+  const SplitterAnnotationInfo &getAnnotationInfo() const { return *SplitterAnnotation_; }
 };
 
 /*!
@@ -87,11 +87,12 @@ public:
 };
 
 class LoopSplitAtBarrierPassLegacy : public llvm::LoopPass {
+  bool IsO0_;
 
 public:
   static char ID;
 
-  explicit LoopSplitAtBarrierPassLegacy() : llvm::LoopPass(ID) {}
+  explicit LoopSplitAtBarrierPassLegacy(bool IsO0) : llvm::LoopPass(ID), IsO0_(IsO0) {}
 
   llvm::StringRef getPassName() const override { return "hipSYCL loop splitting pass"; }
 
@@ -101,7 +102,11 @@ public:
 };
 
 class LoopSplitAtBarrierPass : public llvm::PassInfoMixin<LoopSplitAtBarrierPass> {
+  bool IsO0_;
+
 public:
+  explicit LoopSplitAtBarrierPass(bool IsO0) : IsO0_(IsO0) {}
+  
   llvm::PreservedAnalyses run(llvm::Loop &L, llvm::LoopAnalysisManager &AM, llvm::LoopStandardAnalysisResults &AR,
                               llvm::LPMUpdater &LPMU);
   static bool isRequired() { return true; }

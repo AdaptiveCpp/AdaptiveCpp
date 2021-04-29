@@ -184,7 +184,7 @@ template<> struct logical_vector_op_result<uint64_t>
 template<> struct logical_vector_op_result<int64_t>
 { using type = int64_t; };
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 template<> struct logical_vector_op_result<unsigned long>
 { using type = int32_t; };
 

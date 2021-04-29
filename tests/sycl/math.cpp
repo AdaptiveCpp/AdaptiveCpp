@@ -320,14 +320,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
-      BOOST_TEST(comp(acc[i++], c) == std::atan2<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::copysign<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fdim<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fmin<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fmax<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::fmod<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::hypot<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
-      BOOST_TEST(comp(acc[i++], c) == std::pow<double>(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::atan2(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::copysign(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fdim(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmin(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmax(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fmod(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::hypot(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::pow(static_cast<double>(comp(acc[0], c)), static_cast<double>(comp(acc[1], c))), tolerance);
     }
   }
 }

@@ -32,6 +32,7 @@
 #include "hipSYCL/sycl/exception.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdlib>
 #include <array>
 
@@ -131,7 +132,7 @@ public:
 private:
 
   static void release_memory() {
-    if (_local_mem != nullptr && _local_mem != _static_local_mem.data() &&
+    if (_local_mem != nullptr && _local_mem != &(_static_local_mem[0]) &&
         _origin != host_local_memory_origin::hipcpu)
       delete[] _local_mem;
 
@@ -144,7 +145,7 @@ private:
     _origin = host_local_memory_origin::custom_threadprivate;
     
     if(num_bytes <= _max_static_local_mem_size)
-      _local_mem = _static_local_mem.data();
+      _local_mem = &(_static_local_mem[0]);
     else
     {
       if(num_bytes > 0)
@@ -157,7 +158,10 @@ private:
   // for more local memory we go to the heap.
   static constexpr size_t _max_static_local_mem_size = 1024*32;
   inline static char* _local_mem;
-  inline static std::array<char, _max_static_local_mem_size> _static_local_mem;
+  
+  alignas(alignof(std::max_align_t)) inline static char _static_local_mem
+      [_max_static_local_mem_size];
+  
   inline static host_local_memory_origin _origin;
 #pragma omp threadprivate(_local_mem)
 #pragma omp threadprivate(_static_local_mem)

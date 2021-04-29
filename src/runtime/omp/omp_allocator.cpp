@@ -39,7 +39,8 @@ omp_allocator::omp_allocator(const device_id &my_device)
 
 void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 #ifndef _WIN32
-  if (min_alignment <= 1)
+  // posix requires alignment to be a multiple of sizeof(void*)
+  if (min_alignment < sizeof(void*))
     return malloc(size_bytes);
 #else
   min_alignment = std::max(min_alignment, 1ULL);
@@ -47,7 +48,6 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 
   if(size_bytes % min_alignment != 0)
     return nullptr;
-  min_alignment = power_of_2_ceil(min_alignment);
 
   // ToDo: Mac OS CI has a problem with std::aligned_alloc
   // but it's unclear if it's a Mac, or libc++, or toolchain issue
@@ -56,6 +56,7 @@ void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
 #elif !defined(_WIN32)
   return std::aligned_alloc(min_alignment, size_bytes);
 #else
+  min_alignment = power_of_2_ceil(min_alignment);
   return _aligned_malloc(size_bytes, min_alignment);
 #endif
 }

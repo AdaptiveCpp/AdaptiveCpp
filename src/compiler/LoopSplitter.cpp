@@ -9,6 +9,7 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
@@ -490,6 +491,15 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
     for (auto *U : V->users()) {
       if (auto *I = llvm::dyn_cast<llvm::Instruction>(U)) {
         if (std::find(DependingBlocks.begin(), DependingBlocks.end(), I->getParent()) != DependingBlocks.end()) {
+          if (auto *BCI = llvm::dyn_cast<llvm::BitCastInst>(V)) {
+            if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(BCI->getOperand(0))) {
+              auto *BCICloned = BCI->clone();
+              BCICloned->insertBefore(I);
+              I->replaceUsesOfWith(BCI, BCICloned);
+              V = GEP;
+              I = BCICloned;
+            }
+          }
           DependingInsts.insert(I);
           DependedUponValues.insert(V);
         }
@@ -661,6 +671,41 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
   }
 }
 
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
+  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, From);
+  if (!DbgValues.empty()) {
+    auto *DbgValue = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
+                                       InsertBefore);
+  }
+}
+
+void insertDbgValueInIncoming(llvm::PHINode *Phi, llvm::Value *IncomingValue, llvm::BasicBlock *IncomingBlock) {
+  llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
+  llvm::findDbgValues(DbgValues, Phi);
+  if (!DbgValues.empty()) {
+    auto *DbgV = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*IncomingBlock->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(IncomingValue, DbgV->getVariable(), DbgV->getExpression(), DbgV->getDebugLoc(),
+                                       IncomingBlock->getTerminator());
+  }
+}
+
+void dropDebugLocation(llvm::BasicBlock *BB) {
+  for (auto &I : *BB) {
+    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
+    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
+#if LLVM_VERSION_MAJOR >= 12
+      I.dropLocation();
+#else
+      I.setDebugLoc({});
+#endif
+    }
+  }
+}
+
 void replaceOperandsWithArrayLoad(llvm::Value *Idx,
                                   const llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap,
                                   const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts,
@@ -686,6 +731,8 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
           IP = IncomingBB->getTerminator();
         }
         llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, MDAccessGroup, OPV->getName());
+
+        copyDgbValues(OPV, Load, IP);
 
         I->replaceUsesOfWith(OPV, Load);
       }
@@ -791,6 +838,7 @@ bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
   bool Changed = false;
   for (auto *Phi : Phis) {
     for (auto &OP : Phi->incoming_values()) {
+      // todo: check if instructions in header at all
       if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(&OP)) {
         GEP->moveBefore(Phi->getIncomingBlock(OP)->getTerminator());
         Changed = true; // todo: remind me, why do we need the GEP here alone again?
@@ -803,6 +851,8 @@ bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
           GEPL->moveBefore(Load);
         }
         Changed = true;
+      } else if (auto *Const = llvm::dyn_cast<llvm::Constant>(&OP)) {
+        insertDbgValueInIncoming(Phi, Const, Phi->getIncomingBlock(OP));
       }
     }
   }
@@ -1020,11 +1070,16 @@ void moveInnerIndVarToWorkItemLoop(llvm::PHINode *Phi, llvm::LoadInst *Incoming,
                                    llvm::Value *NewWIIdx, llvm::Instruction *WILoopIP, llvm::ValueToValueMapTy &VMap) {
   auto *LInstClone = llvm::cast<llvm::LoadInst>(Incoming->clone());
   LInstClone->insertBefore(WILoopIP);
+  copyDgbValues(Incoming, LInstClone, WILoopIP);
+  llvm::dropDebugUsers(*Incoming);
+
   if (auto *GepInst = llvm::dyn_cast<llvm::GetElementPtrInst>(Incoming->getPointerOperand())) {
     auto *GepInstClone = GepInst->clone();
     GepInstClone->insertBefore(LInstClone);
     GepInstClone->replaceUsesOfWith(OldWIIdx, NewWIIdx);
     LInstClone->replaceUsesOfWith(GepInst, GepInstClone);
+    copyDgbValues(GepInst, GepInstClone, WILoopIP);
+    llvm::dropDebugUsers(*GepInst);
   }
 
   VMap[Phi] = LInstClone;
@@ -1225,6 +1280,7 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
     L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {}, {NewParAccesses}));
   }
 }
+
 void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *FirstNewBlock,
                             const llvm::BasicBlock *PreHeader, llvm::BasicBlock *Header, llvm::BasicBlock *Latch,
                             llvm::BasicBlock *ExitBlock, llvm::Function *F, llvm::Loop *&L, llvm::Loop *ParentLoop,
@@ -1263,17 +1319,18 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   VMap[PreHeader] = Header;
 
-  llvm::ClonedCodeInfo ClonedCodeInfo;
-  auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, Suffix, F, &ClonedCodeInfo, nullptr);
+  auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, Suffix, F, nullptr, nullptr);
   VMap[Header] = NewHeader;
   NewLoop.addBlockEntry(NewHeader);
   NewLoop.moveToHeader(NewHeader);
   AfterSplitBlocks.push_back(NewHeader);
+  dropDebugLocation(NewHeader);
 
-  auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, Suffix, F, &ClonedCodeInfo, nullptr);
+  auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, Suffix, F, nullptr, nullptr);
   VMap[Latch] = NewLatch;
   NewLoop.addBlockEntry(NewLatch);
   AfterSplitBlocks.push_back(NewLatch);
+  dropDebugLocation(NewLatch);
 
   //  L->removeBlockFromLoop(FirstNewBlock);
   NewLoop.addBlockEntry(FirstNewBlock);
@@ -1449,6 +1506,29 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
 
   InnerLoop = LI.getLoopFor(InnerHeader);
 
+  auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
+  auto *NewInnerLoopExitBlock = llvm::SplitEdge(InnerLoop->getHeader(), InnerLoopExitBlock, &DT, &LI, nullptr);
+#if LLVM_VERSION_MAJOR < 12
+  // NewInnerLoopExitBlock should be between header and InnerLoopExitBlock
+  // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
+  std::swap(NewInnerLoopExitBlock, InnerLoopExitBlock);
+#endif
+
+  NewLatch = simplifyLatch(NewLoop, NewLatch, LI, DT);
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; DT.print(llvm::errs());)
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
+
+  // split away the inner loop's exit block into its own work item loop
+  splitIntoWorkItemLoops(NewInnerLoopExitBlock, InnerLoopExitBlock, NewPreHeader, NewHeader, NewLatch, NewExitBlock, F,
+                         NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
+
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
+
+  InnerLoop = LI.getLoopFor(InnerHeader);
+  L = LI.getLoopFor(NewHeader);
+
   // Split inner latch in a way that all its contents end up in the last work-item loop.
   // Then find inner loop induction variables and clone gep & load if necessary into workitem loop headers
   // then replace all uses of old induction variable with the load
@@ -1469,26 +1549,6 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
     llvm::SmallVector<llvm::BasicBlock *, 2> BBs{{InnerLoop->getHeader(), InnerLoop->getLoopPreheader()}};
     replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());
   }
-
-  auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
-  auto *NewInnerLoopExitBlock = llvm::SplitEdge(InnerLoop->getHeader(), InnerLoopExitBlock, &DT, &LI, nullptr);
-#if LLVM_VERSION_MAJOR < 12
-  // NewInnerLoopExitBlock should be between header and InnerLoopExitBlock
-  // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
-  std::swap(NewInnerLoopExitBlock, InnerLoopExitBlock);
-#endif
-
-  NewLatch = simplifyLatch(NewLoop, NewLatch, LI, DT);
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; DT.print(llvm::errs());)
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
-
-  // split away the inner loop's exit block into its own work item loop
-  splitIntoWorkItemLoops(NewInnerLoopExitBlock, InnerLoopExitBlock, NewPreHeader, NewHeader, NewLatch, NewExitBlock, F,
-                         NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, MDAccessGroup);
-
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
 
   // perform loop inversion: the inner loop (pre-)header are moved in front of the WI headers and the inner latch
   // becomes the new exit block of the WI loop.
@@ -1672,6 +1732,10 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
     HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   }
+
+  while (L->getLoopDepth() > 1)
+    L = L->getParentLoop();
+  L = L->getSubLoops().back();
   if (Changed)
     insertLifetimeEndForAllocas(F, L->getCanonicalInductionVariable(), L->getLoopLatch()->getFirstNonPHIOrDbg(),
                                 MDAccessGroup);
@@ -1723,7 +1787,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
   {
     for (auto *SL : L->getLoopsInPreorder()) {
       if (SL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
-        auto *MDAccessGroup = llvm::MDNode::getDistinct(F->getContext(), {});
         createParallelAccessesMdOrAddAccessGroup(F, SL, MDAccessGroup);
         for (auto *BB : SL->blocks()) {
           for (auto &I : *BB) {

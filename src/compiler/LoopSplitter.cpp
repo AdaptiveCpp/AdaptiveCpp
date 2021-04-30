@@ -572,7 +572,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
     }
     if (GepIp) {
       llvm::IRBuilder LoadBuilder{GepIp};
-      auto *GEPV = LoadBuilder.CreateGEP(Alloca, Idx, I->getName() + "_gep");
+      auto *GEPV = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, I->getName() + "_gep");
       auto *GEP = llvm::cast<llvm::GetElementPtrInst>(GEPV);
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
@@ -605,7 +605,7 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
   llvm::IRBuilder WriteBuilder{InsertionPoint};
-  auto *GEP = WriteBuilder.CreateGEP(Alloca, Idx, ToArrayify->getName() + "_gep");
+  auto *GEP = WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep");
   auto *LTStart = WriteBuilder.CreateLifetimeStart(GEP); // todo: calculate size of object.
   LTStart->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
   auto *Store = WriteBuilder.CreateStore(ToArrayify, GEP);
@@ -616,7 +616,7 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
                                llvm::MDNode *MDAccessGroup, const llvm::Twine &NamePrefix = "") {
   llvm::IRBuilder LoadBuilder{InsertBefore};
-  auto *GEP = LoadBuilder.CreateGEP(Alloca, Idx, NamePrefix + "_lgep");
+  auto *GEP = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep");
   auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
   Load->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
   // LoadBuilder.CreateLifetimeEnd(GEP); // todo: at some point we really should care about alloca lifetime
@@ -635,7 +635,7 @@ void storeToAlloca(llvm::Value &ToStore, llvm::AllocaInst &DstAlloca, llvm::Valu
   assert(InsertBefore && "must have insertion point");
 
   llvm::IRBuilder WriteBuilder{InsertBefore};
-  auto *GEP = WriteBuilder.CreateGEP(&DstAlloca, &Idx, ToStore.getName() + "_gep");
+  auto *GEP = WriteBuilder.CreateInBoundsGEP(&DstAlloca, {&Idx}, ToStore.getName() + "_gep");
   auto *Store = WriteBuilder.CreateStore(&ToStore, GEP);
   Store->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
 }
@@ -687,7 +687,49 @@ void replaceOperandsWithArrayLoad(llvm::Value *Idx,
         }
         llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, MDAccessGroup, OPV->getName());
 
-        I->setOperand(OP.getOperandNo(), Load);
+        I->replaceUsesOfWith(OPV, Load);
+      }
+    }
+  }
+}
+
+template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
+  for (auto *U : V->users())
+    if (UserType *UT = llvm::dyn_cast<UserType>(U))
+      if (L(UT))
+        return true;
+  return false;
+}
+
+template <class UserType, class Func> bool noneOfUsers(llvm::Value *V, Func &&L) {
+  return !anyOfUsers<UserType>(V, std::forward<Func>(L));
+}
+
+template <class UserType, class Func> bool allOfUsers(llvm::Value *V, Func &&L) {
+  return !anyOfUsers<UserType>(V, [L = std::forward<Func>(L)](UserType *UT) { return !L(UT); });
+}
+
+void insertLifetimeEndForAllocas(llvm::Function *F, llvm::Value *Idx, llvm::Instruction *IP,
+                                 llvm::MDNode *MDAccessGroup) {
+  auto &EntryBlock = F->getEntryBlock();
+  llvm::IRBuilder Builder{IP};
+  auto IsLifetimeEnd = [](auto *CI) {
+    return CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_end;
+  };
+
+  for (auto &I : EntryBlock) {
+    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+      if (Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified)) {
+        if (noneOfUsers<llvm::GetElementPtrInst>(Alloca, [Alloca, &IsLifetimeEnd](auto *GEP) {
+              return anyOfUsers<llvm::CallBase>(GEP, IsLifetimeEnd) ||
+                     anyOfUsers<llvm::BitCastInst>(GEP, [Alloca, &IsLifetimeEnd](auto *BCI) {
+                       return anyOfUsers<llvm::CallBase>(BCI, IsLifetimeEnd);
+                     });
+            })) {
+          auto *GEP = Builder.CreateInBoundsGEP(Alloca, {Idx}, Alloca->getName() + "_legep");
+          auto *LifetimeEnd = Builder.CreateLifetimeEnd(GEP);
+          LifetimeEnd->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+        }
       }
     }
   }
@@ -732,7 +774,7 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
     Alloca = llvm::dyn_cast<llvm::AllocaInst>(GEPI->getPointerOperand());
   } else {
-    Alloca = llvm::dyn_cast<llvm::AllocaInst>(&LInst);
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(LInst.getPointerOperand());
   }
   if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
     return Alloca;
@@ -991,8 +1033,7 @@ void moveInnerIndVarToWorkItemLoop(llvm::PHINode *Phi, llvm::LoadInst *Incoming,
 void replaceIndexWithNull(const llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks, llvm::Instruction *IP,
                           const llvm::PHINode *Index) {
   llvm::ValueToValueMapTy VMap;
-  llvm::IRBuilder CBuilder{IP};
-  VMap[Index] = CBuilder.getInt(llvm::APInt::getNullValue(Index->getType()->getIntegerBitWidth()));
+  VMap[Index] = llvm::Constant::getNullValue(Index->getType());
   llvm::remapInstructionsInBlocks(Blocks, VMap);
 }
 
@@ -1543,6 +1584,27 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
   L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
                                                   llvm::MDNode::get(F->getContext(), {}));
 
+  auto *MDAccessGroup = llvm::MDNode::getDistinct(F->getContext(), {});
+  createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
+  for (auto *BB : L->blocks()) {
+    for (auto &I : *BB) {
+      if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
+        addAccessGroupMD(&I, MDAccessGroup);
+      }
+    }
+  }
+
+  if (isAnnotatedParallel(L))
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
+  else if (L->getLoopID()) {
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << L->getHeader()->getName();
+    L->getLoopID()->print(llvm::outs(), F->getParent());
+    for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
+      MDOp->print(llvm::outs(), F->getParent());
+    }
+    llvm::outs() << "\n";
+  }
+
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->print(llvm::outs());)
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
 
@@ -1582,7 +1644,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     llvm::BasicBlock *Latch = L->getLoopLatch();
     Latch = simplifyLatch(L, Latch, LI, DT);
 
-    auto *MDAccessGroup = llvm::MDNode::getDistinct(F->getContext(), {});
     createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
 
     if (isInConditional(Barrier, DT, Latch)) {
@@ -1611,6 +1672,9 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
     HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   }
+  if (Changed)
+    insertLifetimeEndForAllocas(F, L->getCanonicalInductionVariable(), L->getLoopLatch()->getFirstNonPHIOrDbg(),
+                                MDAccessGroup);
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
   for (auto *SL : LI.getLoopsInPreorder()) {
@@ -1626,14 +1690,18 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
       }
     }
     HIPSYCL_DEBUG_EXECUTE_WARNING(
-        if (isAnnotatedParallel(SL)) { llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n"; } else {
-          if (SL->getLoopID()) {
-            llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
-            SL->getLoopID()->print(llvm::outs(), F->getParent());
-            for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
-              MDOp->print(llvm::outs(), F->getParent());
+        if (SL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+          if (isAnnotatedParallel(SL)) {
+            llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
+          } else {
+            if (SL->getLoopID()) {
+              llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
+              SL->getLoopID()->print(llvm::outs(), F->getParent());
+              for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
+                MDOp->print(llvm::outs(), F->getParent());
+              }
+              llvm::outs() << "\n";
             }
-            llvm::outs() << "\n";
           }
         })
   }
@@ -1652,21 +1720,32 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
   L = updateDtAndLi(LI, DT, L->getHeader(), *L->getHeader()->getParent());
 
+  {
+    for (auto *SL : L->getLoopsInPreorder()) {
+      if (SL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+        auto *MDAccessGroup = llvm::MDNode::getDistinct(F->getContext(), {});
+        createParallelAccessesMdOrAddAccessGroup(F, SL, MDAccessGroup);
+        for (auto *BB : SL->blocks()) {
+          for (auto &I : *BB) {
+            if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
+              addAccessGroupMD(&I, MDAccessGroup);
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (HIPSYCL_DEBUG_LEVEL_INFO <= ::hipsycl::common::output_stream::get().get_debug_level()) {
-    for (auto *SL : L->getSubLoops()) {
-      llvm::SmallVector<llvm::Loop *, 2> LLL;
-      if (SL->getSubLoops().size() == 2)
-        LLL.append(SL->getSubLoops().begin(), SL->getSubLoops().end());
-      else
-        LLL.push_back(SL);
-      for (auto *SSL : LLL) {
-        if (isAnnotatedParallel(SSL))
+    for (auto *SL : L->getLoopsInPreorder()) {
+      if (SL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+        if (isAnnotatedParallel(SL))
           llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel\n";
-        else if (SSL->getLoopID()) {
-          assert(SSL->getLoopID());
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SSL->getHeader()->getName();
-          SSL->getLoopID()->print(llvm::outs(), F->getParent());
-          for (auto &MDOp : llvm::drop_begin(SSL->getLoopID()->operands(), 1)) {
+        else if (SL->getLoopID()) {
+          assert(SL->getLoopID());
+          llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
+          SL->getLoopID()->print(llvm::outs(), F->getParent());
+          for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
             MDOp->print(llvm::outs(), F->getParent());
           }
           llvm::outs() << "\n";

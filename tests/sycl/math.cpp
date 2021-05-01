@@ -340,7 +340,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
 
   namespace s = cl::sycl;
 
-  constexpr int FUN_COUNT = 20;
+  constexpr int FUN_COUNT = 23;
 
   // build inputs
 
@@ -366,9 +366,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class common_functions, D, DT>>([=]() {
       int i = 2;
+      acc[i++] = s::abs(acc[0]);
       acc[i++] = s::clamp(acc[0], acc[1], acc[1] + static_cast<DT>(10));
       acc[i++] = s::clamp(acc[0], input_scalar, static_cast<DT>(input_scalar + 10));
       acc[i++] = s::degrees(acc[0]);
+      acc[i++] = s::fma(acc[0], acc[1], T{mix_input_1});
+      acc[i++] = s::mad(acc[0], acc[1], T{mix_input_1});
       acc[i++] = s::max(acc[0], acc[1]);
       acc[i++] = s::max(acc[0], input_scalar);
       acc[i++] = s::min(acc[0], acc[1]);
@@ -392,9 +395,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
+      BOOST_TEST(comp(acc[i++], c) == std::abs(comp(acc[0], c)), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), comp(acc[1], c), comp(acc[1], c) + 10), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_clamp(comp(acc[0], c), input_scalar, input_scalar + 10), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_degrees(comp(acc[0], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::fma(comp(acc[0], c), comp(acc[1], c), mix_input_1), tolerance); // mad
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)), tolerance);
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), input_scalar), tolerance);
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)), tolerance);
@@ -432,7 +438,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
   namespace s = cl::sycl;
 
-  constexpr int FUN_COUNT = 2;
+  constexpr int FUN_COUNT = 3;
 
   // build inputs
 
@@ -453,6 +459,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class builtin_int_basic, D, DT>>([=]() {
       int i = 2;
+      acc[i++] = s::abs(acc[0]);
       acc[i++] = s::min(acc[0], acc[1]);
       acc[i++] = s::max(acc[0], acc[1]);
     });
@@ -465,6 +472,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 2;
+      if constexpr(std::is_signed<DT>::value)
+        BOOST_TEST(comp(acc[i++], c) == std::abs(comp(acc[0], c)));
+      else
+        BOOST_TEST(comp(acc[i++], c) == comp(acc[0], c));
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
     }

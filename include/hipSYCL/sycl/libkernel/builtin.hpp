@@ -39,11 +39,42 @@ template<class T>
 T __spirv_ocl___hipsycl_min(T a, T b){ return a < b ? a : b;}
 template<class T>
 T __spirv_ocl___hipsycl_max(T a, T b){ return a > b ? a : b;}
+template<class T>
+T __spirv_ocl___hipsycl_mul24(T a, T b){ return a * b;}
+template<class T>
+T __spirv_ocl___hipsycl_abs(T a){ return a < 0 ? -a : a;}
 #else
 template<class T>
+inline HIPSYCL_KERNEL_TARGET
 T __hipsycl_min(T a, T b){ return a < b ? a : b;}
 template<class T>
+inline HIPSYCL_KERNEL_TARGET
 T __hipsycl_max(T a, T b){ return a > b ? a : b;}
+
+#if (defined(HIPSYCL_PLATFORM_HIP) || defined(HIPSYCL_PLATFORM_CUDA)) && defined(SYCL_DEVICE_ONLY)
+inline HIPSYCL_KERNEL_TARGET
+std::int32_t __hipsycl_mul24(std::int32_t a, std::int32_t b){return __mul24(a, b); }
+inline HIPSYCL_KERNEL_TARGET
+std::uint32_t __hipsycl_mul24(std::uint32_t a, std::uint32_t b){return __umul24(a, b); }
+#endif
+template<class T>
+T __hipsycl_mul24(T a, T b){ return a * b; }
+
+#if defined(HISPYCL_PLATFORM_CUDA) && defined(SYCL_DEVICE_ONLY)
+inline HIPSYCL_KERNEL_TARGET
+int __hipsycl_abs(int a){ return abs(a); }
+inline HIPSYCL_KERNEL_TARGET
+long int __hipsycl_abs(long int a){ return labs(a); }
+inline HIPSYCL_KERNEL_TARGET
+long long int __hipsycl_abs(long long int a){ return llabs(a); }
+#else
+template<class T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
+inline HIPSYCL_KERNEL_TARGET
+T __hipsycl_abs(T a){ return a < 0 ? -a : a;}
+#endif
+template<class T, std::enable_if_t<!std::is_signed<T>::value, int> = 0>
+inline HIPSYCL_KERNEL_TARGET
+T __hipsycl_abs(T a){ return a;}
 #endif
 
 namespace hipsycl {
@@ -107,6 +138,8 @@ namespace sycl {
 
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(min, __hipsycl_min)
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(max, __hipsycl_max)
+HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(mul24, __hipsycl_mul24)
+HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(abs, __hipsycl_abs)
 
 }
 }

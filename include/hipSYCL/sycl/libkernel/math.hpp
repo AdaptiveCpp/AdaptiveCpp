@@ -52,10 +52,10 @@ namespace sycl {
 
 #define HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(name, float_func, double_func) \
   HIPSYCL_KERNEL_TARGET inline float name(float x, float y, float z)\
-  { return HIPSYCL_STD_FUNCTION(float_func)(x,y,z); } \
+  { return ::HIPSYCL_STD_FUNCTION(float_func)(x,y,z); } \
   \
   HIPSYCL_KERNEL_TARGET inline double name(double x, double y, double z)\
-  { return HIPSYCL_STD_FUNCTION(double_func)(x,y,z); }
+  { return ::HIPSYCL_STD_FUNCTION(double_func)(x,y,z); }
 
 
 #define HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(name, func) \
@@ -116,6 +116,9 @@ namespace sycl {
   HIPSYCL_DEFINE_TRINARY_FLOATING_POINT_OVERLOAD(func, HIPSYCL_PP_CONCATENATE(func,f), func) \
   HIPSYCL_DEFINE_FLOATN_TRINARY_MATH_FUNCTION(func, func)
 #endif
+
+HIPSYCL_DEFINE_FLOATING_POINT_OVERLOAD(abs, fabsf, fabs)
+HIPSYCL_DEFINE_FLOATN_MATH_FUNCTION(abs, abs)
 
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acos)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(acosh)
@@ -206,7 +209,11 @@ HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log10)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(log1p)
 HIPSYCL_DEFINE_GENFLOAT_STD_FUNCTION(logb)
 
-// ToDo mad - unsupported in cuda/hip
+// alias for fma
+template <typename... Args>
+auto mad(Args&&... args) -> decltype(fma(std::forward<Args>(args)...)) {
+  return fma(std::forward<Args>(args)...);
+}
 
 // ToDo maxmag
 // ToDo minmag

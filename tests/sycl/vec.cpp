@@ -34,10 +34,12 @@ BOOST_FIXTURE_TEST_SUITE(vec_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(vec_api) {
   cl::sycl::queue queue;
-  cl::sycl::buffer<float, 1> results{68};
+  cl::sycl::buffer<float, 1> results{72};
+  cl::sycl::buffer<float, 1> input{4};
 
   queue.submit([&](cl::sycl::handler& cgh) {
     auto acc = results.get_access<cl::sycl::access::mode::discard_write>(cgh);
+    auto inAcc = input.get_access<cl::sycl::access::mode::read_write>(cgh);
     cgh.single_task<class vec_api>([=]() {
       size_t offset = 0;
       const auto store_results = [=, &offset](
@@ -95,6 +97,13 @@ BOOST_AUTO_TEST_CASE(vec_api) {
       cl::sycl::vec<float, 4> v12(3.f);
       v12.zy() = v8.hi();
       store_results({ v12.x(), v12.y(), v12.z(), v12.w() });
+
+      cl::sycl::vec<float, 4> v13(12.f);
+      v13.store(0, cl::sycl::make_ptr<float, cl::sycl::access::address_space::global_space>(&inAcc[0]));
+
+      cl::sycl::vec<float, 4> v13l;
+      v13l.load(0, cl::sycl::make_ptr<const float, cl::sycl::access::address_space::global_space>(&inAcc[0]));
+      store_results({ v13l.x(), v13l.y(), v13l.z(), v13l.w() });
     });
   });
 
@@ -118,6 +127,7 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
   verify_results({1.f, 3.f, 4.f, 4.f});                         // v11
   verify_results({3.f, 1.f, 2.f, 3.f});                         // v12
+  verify_results({12.f, 12.f, 12.f, 12.f});                     // v13
 }
 
 

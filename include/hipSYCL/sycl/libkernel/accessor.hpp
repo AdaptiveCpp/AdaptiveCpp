@@ -530,6 +530,22 @@ public:
   size_t get_count() const
   { return 1; }
 
+  /* void swap(accessor &other); */
+
+  size_t byte_size() const noexcept {
+    return size();
+  }
+
+  size_t size() const noexcept {
+    return get_count();
+  }
+
+  //size_type max_size() const noexcept;
+
+  bool empty() const noexcept {
+    return size() == 0;
+  }
+
   /* Available only when: dimensions > 0 */
   template<int D = dimensions,
            std::enable_if_t<(D > 0)>* = nullptr>
@@ -908,13 +924,19 @@ public:
 
   //void swap(host_accessor &other);
 
-  //size_type byte_size() const noexcept;
+  size_type byte_size() const noexcept {
+    return _impl.get_size();
+  }
 
-  //size_type size() const noexcept;
+  size_type size() const noexcept {
+    return _impl.get_count();
+  }
 
   //size_type max_size() const noexcept;
 
-  //bool empty() const noexcept;
+  bool empty() const noexcept {
+    return size() == 0;
+  }
 
   /* Available only when: (dimensions > 0) */
   template<int D = dimensions,

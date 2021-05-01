@@ -67,11 +67,26 @@ BOOST_AUTO_TEST_CASE(buffer_api) {
 
   s::buffer<int, 1> buf_a(32);
   s::buffer<int, 1> buf_b(32);
+  {
+    auto host_a = buf_a.get_host_access();
+    auto host_b = buf_a.get_host_access();
+    for(size_t i = 0; i < host_a.size(); ++i) {
+      host_a[i] = i;
+      host_b[i] = -1;
+    }
+  }
+
   auto buf_c = buf_a;
+  auto buf_f = buf_a.reinterpret<unsigned>(s::range<1>{32});
 
   BOOST_REQUIRE(buf_a == buf_a);
   BOOST_REQUIRE(buf_a != buf_b);
   BOOST_REQUIRE(buf_a == buf_c);
+  
+  auto host_f = buf_f.get_host_access();
+  auto host_a = buf_a.get_host_access();
+  for(size_t i = 0; i < host_a.size(); ++i)
+    BOOST_CHECK_EQUAL(host_a[i], static_cast<int>(host_f[i]));
 }
 
 BOOST_AUTO_TEST_CASE(buffer_update_host) {

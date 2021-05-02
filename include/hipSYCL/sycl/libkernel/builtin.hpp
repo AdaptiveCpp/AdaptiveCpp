@@ -39,11 +39,46 @@ template<class T>
 T __spirv_ocl___hipsycl_min(T a, T b){ return a < b ? a : b;}
 template<class T>
 T __spirv_ocl___hipsycl_max(T a, T b){ return a > b ? a : b;}
+template<class T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
+T __spirv_ocl___hipsycl_mul24(T a, T b){ return __spirv_ocl_s_mul24(a, b);}
+template<class T, std::enable_if_t<!std::is_signed<T>::value, int> = 0>
+T __spirv_ocl___hipsycl_mul24(T a, T b){ return __spirv_ocl_u_mul24(a, b);}
+template<class T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
+T __spirv_ocl___hipsycl_abs(T a){ return __spirv_ocl_s_abs(a);}
+template<class T, std::enable_if_t<!std::is_signed<T>::value, int> = 0>
+T __spirv_ocl___hipsycl_abs(T a){ return __spirv_ocl_u_abs(a);}
 #else
 template<class T>
+inline HIPSYCL_KERNEL_TARGET
 T __hipsycl_min(T a, T b){ return a < b ? a : b;}
 template<class T>
+inline HIPSYCL_KERNEL_TARGET
 T __hipsycl_max(T a, T b){ return a > b ? a : b;}
+
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+inline HIPSYCL_KERNEL_TARGET
+std::int32_t __hipsycl_mul24(std::int32_t a, std::int32_t b){return __mul24(a, b); }
+inline HIPSYCL_KERNEL_TARGET
+std::uint32_t __hipsycl_mul24(std::uint32_t a, std::uint32_t b){return __umul24(a, b); }
+#endif
+template<class T>
+T __hipsycl_mul24(T a, T b){ return a * b; }
+
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+inline HIPSYCL_KERNEL_TARGET
+int __hipsycl_abs(int a){ return abs(a); }
+inline HIPSYCL_KERNEL_TARGET
+long int __hipsycl_abs(long int a){ return labs(a); }
+inline HIPSYCL_KERNEL_TARGET
+long long int __hipsycl_abs(long long int a){ return llabs(a); }
+#else
+template<class T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
+inline HIPSYCL_KERNEL_TARGET
+T __hipsycl_abs(T a){ return a < 0 ? -a : a;}
+#endif
+template<class T, std::enable_if_t<!std::is_signed<T>::value, int> = 0>
+inline HIPSYCL_KERNEL_TARGET
+T __hipsycl_abs(T a){ return a;}
 #endif
 
 namespace hipsycl {
@@ -107,6 +142,8 @@ namespace sycl {
 
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(min, __hipsycl_min)
 HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(max, __hipsycl_max)
+HIPSYCL_DEFINE_GENINTEGER_BINARY_STD_FUNCTION(mul24, __hipsycl_mul24)
+HIPSYCL_DEFINE_GENINTEGER_STD_FUNCTION(abs, __hipsycl_abs)
 
 }
 }

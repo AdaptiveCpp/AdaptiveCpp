@@ -543,15 +543,21 @@ public:
  #include "detail/vec_simple_swizzles.hpp"
 #endif
 
-  // ToDo: load and store member functions
   // ToDo: These functions have changed signatures with SYCL 2020
+  // ToDo: could use native vector types for load / store
   template <access::address_space AddressSpace>
   HIPSYCL_UNIVERSAL_TARGET
-  void load(size_t offset, multi_ptr<T, AddressSpace> ptr);
+  void load(size_t offset, multi_ptr<const T, AddressSpace> ptr) {
+    for(int i = 0; i < N; ++i)
+      _data[i] = ptr.get()[offset + i];
+  }
 
   template <access::address_space AddressSpace>
   HIPSYCL_UNIVERSAL_TARGET
-  void store(size_t offset, multi_ptr<T, AddressSpace> ptr) const;
+  void store(size_t offset, multi_ptr<T, AddressSpace> ptr) const {
+    for(int i = 0; i < N; ++i)
+      ptr.get()[offset + i] = _data[i];
+  }
 
 #define HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(op, t)                            \
   HIPSYCL_UNIVERSAL_TARGET                                                     \

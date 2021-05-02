@@ -974,8 +974,8 @@ private:
   : detail::property_carrying_object {property_list {}}
   {}
 
-  template <class OtherT, int OtherDim>
-  void init_from(const buffer<OtherT, OtherDim, AllocatorT> &other) {
+  template <class OtherT, int OtherDim, class OtherAllocatorT>
+  void init_from(const buffer<OtherT, OtherDim, OtherAllocatorT> &other) {
     detail::property_carrying_object::operator=(other);
     this->_alloc = other._alloc;
     this->_range = other._range;

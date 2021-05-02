@@ -105,19 +105,31 @@ public:
   // Assignment and access operators
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(const multi_ptr& other)
-  { _ptr = other._ptr; }
+  {
+    _ptr = other._ptr; 
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(multi_ptr&& other)
-  { _ptr = other._ptr; }
+  {
+    _ptr = other._ptr;
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(ElementType* ptr)
-  { _ptr = ptr; }
+  {
+    _ptr = ptr;
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   multi_ptr &operator=(std::nullptr_t)
-  { _ptr = nullptr; }
+  {
+    _ptr = nullptr;
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   ElementType& operator*() const

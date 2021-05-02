@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/static_property_list.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
@@ -74,6 +75,24 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
       typename sycl::detail::static_property_wrapper_traits<
           WrappedKernel>::static_property_list_type;
 
+  if constexpr (static_property_list_t::template has_property<
+                    sycl::reqd_work_group_size>()) {
+    if (static_property_list_t::template get_property<
+            sycl::reqd_work_group_size>()
+            .get_range() != local_range) {
+
+      if(Type == rt::kernel_type::ndrange_parallel_for || 
+        Type == rt::kernel_type::hierarchical_parallel_for ||
+        Type == rt::kernel_type::scoped_parallel_for) {
+        throw sycl::invalid_parameter_error{
+            "Requested work group size violates required work group size"};
+      }
+    }
+  }
+
+  // TODO: For named kernels, we need to include the property list in the kernel
+  // name to ensure two kernel invocations that only differ in properties are
+  // distinguishable
   using complete_name = complete_kernel_name_t<KernelNameTag, Kernel>;
   using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
   

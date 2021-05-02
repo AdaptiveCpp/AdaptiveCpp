@@ -30,6 +30,7 @@
 
 #include <type_traits>
 #include "hipSYCL/glue/kernel_names.hpp"
+#include "libkernel/range.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -57,6 +58,9 @@ inline constexpr bool is_static_property_v =
 template<typename... Props>
 struct static_property_list {
 
+  static constexpr bool has_properties() {
+    return sizeof...(Props) > 0;
+  }
 
   template<static_property_type Type>
   static constexpr auto get_property() {
@@ -113,6 +117,7 @@ private:
     else
       return maybe_get<Type, Rest...>();
   }
+
 };
 
 template<class StaticPropertyList, class WrappedType>
@@ -144,11 +149,34 @@ struct static_property_wrapper_traits<static_property_wrapper<Args...>> {
 };
 }
 
-template<std::size_t Size = 1024>
+template <std::size_t Size0 = 1024, std::size_t Size1 = 0,
+          std::size_t Size2 = 0>
 struct reqd_work_group_size : public detail::static_property {
   static constexpr detail::static_property_type property_type =
       detail::static_property_type::reqd_work_group_size;
-  static constexpr std::size_t get() {return Size;}
+
+  template<int Dim>
+  static constexpr std::size_t get() {
+    if constexpr(Dim == 0)
+      return Size0;
+    else if constexpr(Dim == 1)
+      return Size1;
+    else
+      return Size2;
+  }
+
+
+  static auto get_range() {
+    // TODO This is a bit hacky - it might be cleaner
+    // to have the sizes as variadic template pack
+    if constexpr(get<2>() != 0) {
+      return range<3>{get<0>(), get<1>(), get<2>()};
+    } else if constexpr(get<1>() != 0) {
+      return range<2>{get<0>(), get<1>()};
+    } else {
+      return range<1>{get<0>()};
+    }
+  }
 };
 
 template<std::size_t Size = 32>

@@ -741,5 +741,38 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
 
 }
 #endif
+#ifdef HIPSYCL_EXT_KERNEL_STATIC_PROPERTY_LIST
+BOOST_AUTO_TEST_CASE(kernel_static_property_list) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::nd_range<1> rng{1024,128};
 
+  bool exception_encountered = false;
+
+  try {
+    q.parallel_for(rng, sycl::attribute<sycl::reqd_work_group_size<128>>(
+                            [=](sycl::nd_item<1> idx) {
+
+                            }))
+        .wait();
+  } catch(...) {
+    exception_encountered = true;
+  }
+  BOOST_CHECK(!exception_encountered);
+
+  try {
+    // Invalid work group size: rng requests 128 but the attribute requires 64
+    // This should result in a synchronous exception.
+    q.parallel_for(rng, sycl::attribute<sycl::reqd_work_group_size<64>>(
+                            [=](sycl::nd_item<1> idx) {
+
+                            }))
+        .wait();
+  } catch(...) {
+    exception_encountered = true;
+  }
+  BOOST_CHECK(exception_encountered);
+}
+
+#endif
 BOOST_AUTO_TEST_SUITE_END()

@@ -84,6 +84,7 @@
 #include "backend_interop.hpp"
 #include "interop_handle.hpp"
 #include "buffer_explicit_behavior.hpp"
+#include "static_property_list.hpp"
 
 #endif
 

@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class common_functions, D, DT>>([=]() {
       int i = 2;
-      acc[i++] = s::abs(acc[0]);
+      acc[i++] = s::fabs(acc[0]);
       acc[i++] = s::clamp(acc[0], acc[1], acc[1] + static_cast<DT>(10));
       acc[i++] = s::clamp(acc[0], input_scalar, static_cast<DT>(input_scalar + 10));
       acc[i++] = s::degrees(acc[0]);

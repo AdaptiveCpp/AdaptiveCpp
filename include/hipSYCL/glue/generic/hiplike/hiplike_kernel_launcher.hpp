@@ -577,12 +577,12 @@ public:
     return _queue;
   }
 
-  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
-            typename... Reductions>
+  template <class KernelName, rt::kernel_type type, class StaticPropertyList,
+            int Dim, class Kernel, typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k, Reductions... reductions) {
-    
+
     this->_type = type;
 
     sycl::range<Dim> effective_local_range = local_range;
@@ -768,7 +768,6 @@ public:
             _managed_reduction_scratch, reductions...);
       }
     };
-    
   }
 
   virtual rt::backend_id get_backend() const final override {

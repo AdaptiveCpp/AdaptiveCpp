@@ -115,7 +115,33 @@ private:
   }
 };
 
+template<class StaticPropertyList, class WrappedType>
+struct static_property_wrapper {
+  using properties = StaticPropertyList;
+  using wrapped_type = WrappedType;
+  WrappedType data;
+};
 
+template<class WrappedType>
+struct static_property_wrapper_traits {
+  using wrapped_type = WrappedType;
+  using static_property_list_type = static_property_list<>;
+
+  static constexpr auto get_wrapped_data(const WrappedType& t){
+    return t;
+  }
+};
+
+template <typename... Args>
+struct static_property_wrapper_traits<static_property_wrapper<Args...>> {
+  using wrapped_type = typename static_property_wrapper<Args...>::wrapped_type;
+  using static_property_list_type =
+      typename static_property_wrapper<Args...>::properties;
+
+  static constexpr auto get_wrapped_data(const static_property_wrapper<Args...>& value){
+    return value.data;
+  }
+};
 }
 
 template<std::size_t Size = 1024>
@@ -132,18 +158,25 @@ struct reqd_sub_group_size : public detail::static_property {
   static constexpr std::size_t get() {return Size;}
 };
 
-template<class Name>
-struct kernel_name : public detail::static_property {
-  static constexpr detail::static_property_type property_type =
-      detail::static_property_type::kernel_name;
-
-  using name = Name;
-  static constexpr kernel_name<Name> get(){return kernel_name<Name>{};}
-};
+// TODO: We can unify the old kernel naming mechanism
+// with the static properties mechanism.
+// template<class Name>
+// struct kernel_name : public detail::static_property {
+//  static constexpr detail::static_property_type property_type =
+//      detail::static_property_type::kernel_name;
+//
+//  using name = Name;
+//  static constexpr kernel_name<Name> get(){return kernel_name<Name>{};}
+//};
 
 template<typename... Props>
 using kernel_property_list = detail::static_property_list<Props...>;
 
+template<typename... StaticProperties, class KernelBody>
+auto attribute(const KernelBody& b) {
+  return detail::static_property_wrapper<
+      detail::static_property_list<StaticProperties...>, KernelBody>{b};
+}
 
 }
 }

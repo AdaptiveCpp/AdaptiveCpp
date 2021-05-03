@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
                      detail::get_offset<T>(global_size, 1);
 
         // output only defined if target is in group
-        if (i % warpSize + 1 == warpSize)
+        if (detail::last_in_subgroup(i, local_size))
           continue;
 
         T computed = vIn[i];
@@ -468,7 +468,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
         BOOST_TEST(detail::compare_type(expected, computed),
                    detail::type_to_string(computed)
                        << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for case: sub_group, shift left");
+                       << detail::type_to_string(expected) << " for case: sub_group, shift left, local size: " << local_size);
 
         if (!detail::compare_type(expected, computed))
           break;
@@ -488,11 +488,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
       for (size_t i = 0; i < vIn.size(); ++i) {
+        size_t warp_size = detail::compute_subgroup_size(i, local_size);
         T expected = detail::initialize_type<T>(i - 1) +
                      detail::get_offset<T>(global_size, 1);
 
         // output only defined if target is in group
-        if (i % warpSize == 0)
+        if ((i % local_size) % warp_size == 0)
           continue;
 
         T computed = vIn[i];
@@ -500,7 +501,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
         BOOST_TEST(detail::compare_type(expected, computed),
                    detail::type_to_string(computed)
                        << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for case: sub_group, shift right");
+                       << detail::type_to_string(expected) << " for case: sub_group, shift right, local size: " << local_size);
 
         if (!detail::compare_type(expected, computed))
           break;
@@ -532,7 +533,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
         BOOST_TEST(detail::compare_type(expected, computed),
                    detail::type_to_string(computed)
                        << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for case: sub_group, permute xor");
+                       << detail::type_to_string(expected) << " for case: sub_group, permute xor, local size: " << local_size);
 
         if (!detail::compare_type(expected, computed))
           break;
@@ -552,7 +553,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
       for (size_t i = 0; i < vIn.size(); ++i) {
-        T expected = detail::initialize_type<T>(static_cast<int>(i / warpSize) * warpSize) +
+        T expected = detail::initialize_type<T>(static_cast<int>((i % local_size) / warpSize) * warpSize + (static_cast<int>(i / local_size) * local_size)) +
                      detail::get_offset<T>(global_size, 1);
 
         T computed = vIn[i];
@@ -560,7 +561,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
         BOOST_TEST(detail::compare_type(expected, computed),
                    detail::type_to_string(computed)
                        << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for case: sub_group, select");
+                       << detail::type_to_string(expected) << " for case: sub_group, select, local size: " << local_size);
 
         if (!detail::compare_type(expected, computed))
           break;

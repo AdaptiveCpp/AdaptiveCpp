@@ -261,6 +261,17 @@ void check_binary_reduce(std::vector<T> buffer, size_t local_size, size_t global
   }
 }
 
+inline size_t compute_subgroup_size(int i, size_t local_size) {
+  size_t warp_start = static_cast<int>((i % local_size) / warpSize) * warpSize;
+  return (warpSize < (local_size - warp_start)) ? warpSize : (local_size - warp_start);
+}
+
+inline bool last_in_subgroup(int i, size_t local_size) {
+  size_t index_in_work_group = i % local_size;
+  size_t warp_size = compute_subgroup_size(i, local_size);
+  return ((index_in_work_group % warpSize) + 1  == warp_size);
+}
+
 } // namespace detail
 
 template<int N, int M, typename T>

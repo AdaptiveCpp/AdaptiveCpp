@@ -154,34 +154,40 @@ struct logical_vector_op_result
 template<> struct logical_vector_op_result<char>
 { using type = int8_t; };
 
-template<> struct logical_vector_op_result<int8_t>
+template<> struct logical_vector_op_result<signed char>
 { using type = int8_t; };
 
-template<> struct logical_vector_op_result<uint8_t>
+template<> struct logical_vector_op_result<unsigned char>
 { using type = int8_t; };
 
-template<> struct logical_vector_op_result<int16_t>
+template<> struct logical_vector_op_result<short>
 { using type = int16_t; };
 
-template<> struct logical_vector_op_result<uint16_t>
+template<> struct logical_vector_op_result<unsigned short>
 { using type = int16_t; };
 
 template<> struct logical_vector_op_result<float>
 { using type = int32_t; };
 
-template<> struct logical_vector_op_result<uint32_t>
+template<> struct logical_vector_op_result<unsigned>
 { using type = int32_t; };
 
-template<> struct logical_vector_op_result<int32_t>
+template<> struct logical_vector_op_result<int>
+{ using type = int32_t; };
+
+template<> struct logical_vector_op_result<long>
+{ using type = int32_t; };
+
+template<> struct logical_vector_op_result<unsigned long>
 { using type = int32_t; };
 
 template<> struct logical_vector_op_result<double>
 { using type = int64_t; };
 
-template<> struct logical_vector_op_result<uint64_t>
+template<> struct logical_vector_op_result<unsigned long long>
 { using type = int64_t; };
 
-template<> struct logical_vector_op_result<int64_t>
+template<> struct logical_vector_op_result<long long>
 { using type = int64_t; };
 
 #if defined(_WIN32) || defined(__APPLE__)

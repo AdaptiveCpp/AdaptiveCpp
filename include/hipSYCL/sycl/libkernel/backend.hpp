@@ -64,4 +64,12 @@
  #define SYCL_DEVICE_ONLY
 #endif
 
+#ifdef __clang__
+ #define HIPSYCL_FORCE_INLINE \
+ __attribute__((always_inline)) __attribute__((flatten)) inline
+#else
+ #define HIPSYCL_FORCE_INLINE inline
+#endif
+#define HIPSYCL_BUILTIN HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+
 #endif

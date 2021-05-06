@@ -45,18 +45,18 @@ namespace detail {
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN(name)                                     \
   template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x) noexcept {        \
-    return __spirv_ocl_##name(T);                                              \
+    return __spirv_ocl_##name(x);                                              \
   }
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN2(name)                                    \
   template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y) noexcept {   \
-    return __spirv_ocl_##name(T);                                              \
+    return __spirv_ocl_##name(x,y);                                              \
   }
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN3(name)                                    \
   template <class T>                                                           \
   HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y, T z) noexcept {                 \
-    return __spirv_ocl_##name(T);                                              \
+    return __spirv_ocl_##name(x,y,z);                                              \
   }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(acos)
@@ -224,7 +224,6 @@ HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN(exp10)
 HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN(log)
 HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN(log2)
 HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN(log10)
-HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN(exp)
 HIPSYCL_DEFINE_SPIRV_FALLBACK_NATIVE_BUILTIN2(powr)
 
 template<class T>

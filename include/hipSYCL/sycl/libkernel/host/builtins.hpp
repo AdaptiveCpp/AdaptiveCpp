@@ -221,6 +221,7 @@ HIPSYCL_BUILTIN T __hipsycl_lgamma_r(T x, IntPtr y) noexcept {
   auto r = __hipsycl_lgamma(x);
   auto g = std::tgamma(x);
   *y = (g >= 0) ? 1 : -1;
+  return r;
 }
 
 template<class T>

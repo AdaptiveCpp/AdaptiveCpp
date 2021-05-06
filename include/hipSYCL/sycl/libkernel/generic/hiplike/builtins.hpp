@@ -144,6 +144,7 @@ HIPSYCL_BUILTIN T __hipsycl_lgamma_r(T x, IntPtr y) noexcept {
   auto r = __hipsycl_lgamma(x);
   auto g = __hipsycl_tgamma(x);
   *y = (g >= 0) ? 1 : -1;
+  return r;
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_log, logf, log)

@@ -968,38 +968,6 @@ void for_each_vector_element(const Vector_type &v, Function &&f) {
   v._data.for_each(f);
 }
 
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET
-void transform_vector(vec<T, N> &v, Function &&f) {
-  for_each_vector_element(v, [&](int idx, T &val) {
-    val = f(val);
-  });
-}
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET vec<T, N> binary_vector_operation(const vec<T, N> &v1,
-                                                           const vec<T, N> &v2,
-                                                           Function &&f) {
-  vec<T, N> result;
-  for_each_vector_element(result, [&](int idx, T &target_val) {
-    target_val = f(v1[idx], v2[idx]);
-  });
-  return result;
-}
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET vec<T, N> trinary_vector_operation(const vec<T, N> &v1,
-                                                            const vec<T, N> &v2,
-                                                            const vec<T, N> &v3,
-                                                            Function &&f) {
-  vec<T, N> result;
-  for_each_vector_element(result, [&](int idx, T &target_val) {
-    target_val = f(v1[idx], v2[idx], v3[idx]);
-  });
-  return result;
-}
-
 }
 
 }

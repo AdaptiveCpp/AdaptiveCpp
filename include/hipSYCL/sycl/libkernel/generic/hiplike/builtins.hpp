@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_HOST_BUILTINS_HPP
-#define HIPSYCL_LIBKERNEL_HOST_BUILTINS_HPP
+#ifndef HIPSYCL_LIBKERNEL_HIPLIKE_BUILTINS_HPP
+#define HIPSYCL_LIBKERNEL_HIPLIKE_BUILTINS_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/vec.hpp"
@@ -35,7 +35,8 @@
 #include <cmath>
 #include <type_traits>
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
 
 namespace hipsycl {
 namespace sycl {
@@ -43,333 +44,206 @@ namespace detail {
 
 // ********************** math builtins *********************
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_acos(T x) noexcept {
-  return std::acos(x);
-}
+#define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(name, impl_name_sp, impl_name_dp)  \
+  HIPSYCL_BUILTIN float name(float x) { return ::impl_name_sp(x); }            \
+  HIPSYCL_BUILTIN double name(double x) { return ::impl_name_dp(x); }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_acosh(T x) noexcept {
-  return std::acosh(x);
-}
+#define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(name, impl_name_sp, impl_name_dp) \
+  HIPSYCL_BUILTIN float name(float x, float y) {                               \
+    return ::impl_name_sp(x, y);                                               \
+  }                                                                            \
+  HIPSYCL_BUILTIN double name(double x, double y) {                            \
+    return ::impl_name_dp(x, y);                                               \
+  }
+
+#define HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN3(name, impl_name_sp, impl_name_dp) \
+  HIPSYCL_BUILTIN float name(float x, float y, float z) {                      \
+    return ::impl_name_sp(x, y, z);                                            \
+  }                                                                            \
+  HIPSYCL_BUILTIN double name(double x, double y, double z) {                  \
+    return ::impl_name_dp(x, y, z);                                            \
+  }
+
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_acos, acosf, acos)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_acosh, acoshf, acosh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_acospi(T x) noexcept {
-  return std::acos(x) / M_PI;
+  return __hipsycl_acos(x) / M_PI;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_asin(T x) noexcept {
-  return std::asin(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_asinh(T x) noexcept {
-  return std::asinh(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_asin, asinf, asin)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_asinh, asinhf, asinh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_asinpi(T x) noexcept {
-  return std::asin(x) / M_PI;
+  return __hipsycl_asin(x) / M_PI;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atan(T x) noexcept {
-  return std::atan(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_atan, atanf, atan)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_atan2, atan2f, atan2)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_atanh, atanhf, atanh)
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atan2(T x, T y) noexcept {
-  return std::atan2(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_atanh(T x) noexcept {
-  return std::atanh(x);
-}
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_atanpi(T x) noexcept {
-  return std::atan(x) / M_PI;
+  return __hipsycl_atan(x) / M_PI;
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_atan2pi(T x, T y) noexcept {
-  return std::atan2(x, y) / M_PI;
+  return __hipsycl_atan2(x, y) / M_PI;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cbrt(T x) noexcept {
-  return std::cbrt(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_ceil(T x) noexcept {
-  return std::ceil(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_copysign(T x, T y) noexcept {
-  return std::copysign(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cos(T x) noexcept {
-  return std::cos(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_cosh(T x) noexcept {
-  return std::cosh(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cbrt, cbrtf, cbrt)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ceil, ceilf, ceil)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_copysign, copysignf, copysign)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cos, cosf, cos)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cosh, coshf, cosh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_cospi(T x) noexcept {
-  return std::cos(x * M_PI);
+  return __hipsycl_cos(x * M_PI);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_erfc(T x) noexcept {
-  return std::erfc(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_erf(T x) noexcept {
-  return std::erf(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_exp(T x) noexcept {
-  return std::exp(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_exp2(T x) noexcept {
-  return std::exp2(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erf, erff, erf)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erfc, erfcf, erfc)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_exp, expf, exp)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_exp2, exp2f, exp2)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_pow, powf, pow)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_exp10(T x) noexcept {
-  return std::pow(10, x);
+  return __hipsycl_pow(static_cast<T>(10), x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_expm1(T x) noexcept {
-  return std::expm1(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_expm1, expm1f, expm1)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_fabs, fabsf, fabs)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_fdim, fdimf, fdim)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_floor, floorf, floor)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN3(__hipsycl_fma, fmaf, fma)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_fmax, fmaxf, fmax)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_fmin, fminf, fmin)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_fmod, fmodf, fmod)
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fabs(T x) noexcept {
-  return std::fabs(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fdim(T x, T y) noexcept {
-  return std::fdim(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_floor(T x) noexcept {
-  return std::floor(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fma(T x, T y, T z) noexcept {
-  return std::fma(x, y, z);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmax(T x, T y) noexcept {
-  return std::fmax(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmin(T x, T y) noexcept {
-  return std::fmin(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_fmod(T x, T y) noexcept {
-  return std::fmod(x, y);
-}
-
+// Unsupported
 template<class T>
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
+// Unsupported
 template<class T, class IntPtr>
-HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
-  return std::frexp(x, y);
-}
+T __hipsycl_frexp(T x, IntPtr y) noexcept;
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_hypot(T x, T y) noexcept {
-  return std::hypot(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
-  return std::ilogb(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_lgamma(T x) noexcept {
-  return std::lgamma(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_hypot, hypotf, hypot)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ilogb, ilogbf, ilogb)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_lgamma, lgammaf, lgamma)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tgamma, tgammaf, tgamma)
 
 template<class T, class IntPtr>
 HIPSYCL_BUILTIN T __hipsycl_lgamma_r(T x, IntPtr y) noexcept {
   auto r = __hipsycl_lgamma(x);
-  auto g = std::tgamma(x);
+  auto g = __hipsycl_tgamma(x);
   *y = (g >= 0) ? 1 : -1;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log(T x) noexcept {
-  return std::log(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log2(T x) noexcept {
-  return std::log2(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log10(T x) noexcept {
-  return std::log10(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_log1p(T x) noexcept {
-  return std::log1p(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_logb(T x) noexcept {
-  return std::logb(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_log, logf, log)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_log2, log2f, log2)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_log10, log10f, log10)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_log1p, log1pf, log1p)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_logb, logbf, logb)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_mad(T x, T y, T z) noexcept {
-  return std::fma(x, y, z);
+  return __hipsycl_fma(x, y, z);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_maxmag(T x, T y) noexcept {
-  auto abs_x = std::abs(x);
-  auto abs_y = std::abs(y);
-  if(abs_x == abs_y) return std::fmax(x,y);
+  auto abs_x = (x < 0) ? -x : x;
+  auto abs_y = (y < 0) ? -y : y;
+  if(abs_x == abs_y) return __hipsycl_fmax(x,y);
   return (abs_x > abs_y) ? x : y;
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
-  auto abs_x = std::abs(x);
-  auto abs_y = std::abs(y);
-  if(abs_x == abs_y) return std::fmin(x,y);
+  auto abs_x = (x < 0) ? -x : x;
+  auto abs_y = (y < 0) ? -y : y;
+  if(abs_x == abs_y) return __hipsycl_fmin(x,y);
   return (abs_x < abs_y) ? x : y;
 }
 
+// Not yet supported
 template<class T, class FloatPtr>
-HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
-  return std::modf(x, y);
-}
+T __hipsycl_modf(T x, FloatPtr y) noexcept;
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_nextafter(T x, T y) noexcept {
-  return std::nextafter(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_pow(T x, T y) noexcept {
-  return std::pow(x, y);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_nextafter, nextafterf, nextafter)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_powr(T x, T y) noexcept {
-  return std::pow(x, y);
+  return __hipsycl_pow(x, y);
 }
 
 template<class T, class IntType>
 HIPSYCL_BUILTIN T __hipsycl_pown(T x, IntType y) noexcept {
-  return std::pow(x, static_cast<T>(y));
+  return __hipsycl_pow(x, static_cast<T>(y));
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_remainder(T x, T y) noexcept {
-  return std::remainder(x, y);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_rint(T x) noexcept {
-  return std::rint(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_remainder, remainderf, remainder)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_rint, rintf, rint)
 
 template<class T, class IntType>
 HIPSYCL_BUILTIN T __hipsycl_rootn(T x, IntType y) noexcept {
-  return std::pow(x, T{1}/T{y});
+  return __hipsycl_pow(x, T{1}/T{y});
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_round(T x) noexcept {
-  return std::round(x);
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_round, roundf, round)
+
+HIPSYCL_BUILTIN float __hipsycl_rsqrt(float x) noexcept {
+  return __frsqrt_rn(x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_rsqrt(T x) noexcept {
-  return T{1} / std::sqrt(x);
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sqrt, sqrtf, sqrt)
+
+HIPSYCL_BUILTIN double __hipsycl_rsqrt(double x) noexcept {
+  return 1. / __hipsycl_sqrt(x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sin(T x) noexcept {
-  return std::sin(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sin, sinf, sin)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
-  return std::sin(x * M_PI);
+  return __hipsycl_sin(x * M_PI);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_sqrt(T x) noexcept {
-  return std::sqrt(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tan(T x) noexcept {
-  return std::tan(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tanh(T x) noexcept {
-  return std::tanh(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_tgamma(T x) noexcept {
-  return std::tgamma(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_trunc(T x) noexcept {
-  return std::trunc(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tan, tanf, tan)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tanh, tanhf, tanh)
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_trunc, truncf, trunc)
 
 // ***************** native math builtins ******************
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_cos(T x) noexcept {
-  return __hipsycl_cos(x);
-}
+#define HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(name, sp_impl, dp_impl)     \
+  HIPSYCL_BUILTIN float name(float x) noexcept { return sp_impl(x); }          \
+  HIPSYCL_BUILTIN double name(double x) noexcept { return dp_impl(x); }
+
+#define HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN2(name, sp_impl, dp_impl)    \
+  HIPSYCL_BUILTIN float name(float x, float y) noexcept {                      \
+    return sp_impl(x, y);                                                      \
+  }                                                                            \
+  HIPSYCL_BUILTIN double name(double x, double y) noexcept {                   \
+    return dp_impl(x, y);                                                      \
+  }
+
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_cos, __cosf,
+                                           __hipsycl_cos)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_divide(T x, T y) noexcept {
   return x / y;
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_exp(T x) noexcept {
-  return __hipsycl_exp(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_exp, __expf,
+                                           __hipsycl_exp)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_exp2(T x) noexcept {
@@ -381,50 +255,32 @@ HIPSYCL_BUILTIN T __hipsycl_native_exp10(T x) noexcept {
   return __hipsycl_exp10(x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log(T x) noexcept {
-  return __hipsycl_log(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log2(T x) noexcept {
-  return __hipsycl_log2(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_log10(T x) noexcept {
-  return __hipsycl_log10(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_powr(T x, T y) noexcept {
-  return __hipsycl_powr(x, y);
-}
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_log, __logf,
+                                           __hipsycl_log)
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_log2, __log2f,
+                                           __hipsycl_log2)
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_log10, __log10f,
+                                           __hipsycl_log10)
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN2(__hipsycl_native_powr, __powf,
+                                           __hipsycl_powr)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_recip(T x) noexcept {
   return __hipsycl_native_divide(T{1}, x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_rsqrt(T x) noexcept {
-  return __hipsycl_rsqrt(x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_sin(T x) noexcept {
-  return __hipsycl_sin(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_rsqrt, __frsqrt_rn,
+                                           __hipsycl_rsqrt)
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_sin, __sinf,
+                                           __hipsycl_sin)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_sqrt(T x) noexcept {
   return __hipsycl_sqrt(x);
 }
 
-template<class T>
-HIPSYCL_BUILTIN T __hipsycl_native_tan(T x) noexcept {
-  return __hipsycl_tan(x);
-}
+HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_tan, __tanf,
+                                           __hipsycl_tan)
 
 // ***************** half precision math builtins ******************
 
@@ -503,17 +359,12 @@ HIPSYCL_BUILTIN T __hipsycl_half_tan(T x) noexcept {
 
 template<class T, std::enable_if_t<std::is_signed_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_abs(T x) noexcept {
-  return std::abs(x);
+  return (x < 0) ? -x : x;
 }
 
 template<class T, std::enable_if_t<!std::is_signed_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_abs(T x) noexcept {
   return x;
-}
-
-template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
-HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  return std::min(std::max(x, minval), maxval);
 }
 
 template<class T>
@@ -526,16 +377,21 @@ HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
   return (x < y) ? x : y;
 }
 
+template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
+  return __hipsycl_min(__hipsycl_max(x, minval), maxval);
+}
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
-  return x * y;
+  return __mul24(x, y);
 }
 
 // **************** common functions *****************
 
 template<class T, std::enable_if_t<!std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  return std::fmin(std::fmax(x, minval), maxval);
+  return __hipsycl_fmin(__hipsycl_fmax(x, minval), maxval);
 }
 
 template<class T>

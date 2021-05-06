@@ -36,6 +36,7 @@
 #include <cstdlib>
 
 #include "host/builtins.hpp"
+#include "generic/hiplike/builtins.hpp"
 
 namespace hipsycl::sycl::detail {
 
@@ -656,6 +657,9 @@ HIPSYCL_DEFINE_BUILTIN(rsqrt, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(sin, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
+
+// TODO sincos
+
 HIPSYCL_DEFINE_BUILTIN(sinpi, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(sqrt, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,

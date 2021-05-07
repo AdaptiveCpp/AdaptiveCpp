@@ -42,6 +42,7 @@ bash update_repo.sh centos-7 deploy                        # deploy packages
 bash update_repo.sh centos-7 test 00                       # run build, add_repo install_dep run_test for the test
 bash update_repo.sh centos-7 test 00 build                 # build testing container
 bash update_repo.sh centos-7 test 00 add_repo               # Add hipSYCL repo to testing container
+bash update_repo.sh centos-7 pub_cont                      # Publish containers 
 ```
 
 

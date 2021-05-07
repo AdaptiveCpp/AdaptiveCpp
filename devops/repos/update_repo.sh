@@ -26,6 +26,7 @@ HIPSYCL_PKG_SCRIPT_DIR=${HIPSYCL_PKG_SCRIPT_DIR:-../../install/scripts/}
 HIPSYCL_PKG_SCRIPT_DIR_ABS=$HIPSYCL_PKG_DEVOPS_DIR/$HIPSYCL_PKG_SCRIPT_DIR
 HIPSYCL_PKG_REPO_BASE_DIR=${HIPSYCL_PKG_REPO_BASE_DIR:-/data/repos/}
 HIPSYCL_PKG_REPO_BASE_DIR=$HIPSYCL_PKG_REPO_BASE_DIR/$HIPSYCL_PKG_REPO_BASE_DIR_SUFFIX
+HIPSYCL_PKG_PUBLIC_CONTAINER_DIR=${HIPSYCL_PKG_PUBLIC_CONTAINER_DIR:-/data/repos/singularity/}
 source $HIPSYCL_PKG_DEVOPS_DIR/common/init.sh
 
 HIPSYCL_TEST_DIR="/data/hipsyclbot/test-dir"
@@ -87,4 +88,9 @@ if [ "$action" = "test" ]; then
   else
     bash $HIPSYCL_PKG_DEVOPS_DIR/test-packages.sh $HIPSYCL_PKG_DEVOPS_DIR $distro $backend $option $4 $HIPSYCL_PKG_REPO_BASE_DIR_SUFFIX
   fi
+fi
+
+
+if [ "$action" = "pub_cont" ]; then
+   bash $HIPSYCL_PKG_DEVOPS_DIR/publish_test_container.sh $distro 
 fi

@@ -4,6 +4,7 @@ We provide
 * Scripts to install hipSYCL and required LLVM, ROCm and CUDA stacks
 * Repositories for all supported distributions
 * Singularity definition files which allow to create singularity container images with hipSYCL
+* Pre-built singularity containers
 * Scripts to create binary packages of the entire stack for several distributions.
 
 Currently, we support
@@ -57,6 +58,19 @@ singularity exec hipsycl-ubuntu-18.04.def install-rocm.sh
 singularity exec hipsycl-ubuntu-18.04.def install-cuda.sh
 ```
 Note that there are two type of installation scripts available at the moment the regular ones loacted in the `install/scripts/` directory, and scripts that use spack to install the dependencies located in `install/scripts/spack-install/`. The spack install scripts are well tested, therfore we recommend using those for the installation. The regular install scripts might need some changes to work flawlessly.
+
+## Pre-built singularity containers
+
+We proved pre-built singularity images for all supported distributions (centos-7, ubuntu-18.04, ubuntu-20.04, archlinux). The containers are available through the following link: http://repo.urz.uni-heidelberg.de/sycl/singularity/ 
+
+We test the provided images by building the hipSYCL unit tests for all supported backend, and in the case of Cuda and omp executing them.
+
+Please note that due to legal reasons, the images do not contain the Cuda installation. Please use the `install/scripts/install-Cuda.sh` script to install it afterwards. Note that this is only possible in case the container is writable; therefore we recommend installing Cuda by executing the following commands:
+
+```
+singularity shell build --sandbox --fakeroot <container_name>.sif <container_name>
+singularity exec --writable --fakeroot <container_name> bash install/scripts/install-cuda.sh
+```
 
 ## Creating packages
 In order to create binary packages for your distribution, you will first have to create container images as described above. Then run (e.g., for Ubuntu):

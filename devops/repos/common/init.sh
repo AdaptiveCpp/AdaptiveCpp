@@ -26,7 +26,7 @@ declare -A cleanup_dep=( ["archlinux-rolling"]='pacman -Rsn --noconfirm $(pacman
                        )
 
 
-declare -A image_base=( ["archlinux-rolling"]="docker://archlinux/base" \
+declare -A image_base=( ["archlinux-rolling"]="docker://archlinux:base" \
                          ["centos-7"]="docker://centos:centos7" \
                          ["centos-8"]="docker://centos:centos8" \
                          ["ubuntu-18.04"]="docker://ubuntu:18.04" \

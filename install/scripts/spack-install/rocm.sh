@@ -4,6 +4,7 @@ set -o xtrace
 HIPSYCL_PKG_LLVM_VERSION_MAJOR=${HIPSYCL_PKG_LLVM_VERSION_MAJOR:-11}
 HIPSYCL_PKG_LLVM_VERSION_MINOR=${HIPSYCL_PKG_LLVM_VERSION_MINOR:-0}
 HIPSYCL_PKG_LLVM_VERSION_PATCH=${HIPSYCL_PKG_LLVM_VERSION_PATCH:-0}
+HIPSYCL_HIP_VERSION=${HIPSYCL_HIP_VERSION:-4.0.0}
 
 llvm_version=$HIPSYCL_PKG_LLVM_VERSION_MAJOR.$HIPSYCL_PKG_LLVM_VERSION_MINOR.$HIPSYCL_PKG_LLVM_VERSION_PATCH
 if [ ! -d ./spack ]; then
@@ -26,7 +27,7 @@ spack compiler find /opt/hipSYCL/llvm/llvm/bin/
 # Somteimes some parallel instances exit due to waiting too long for a lock
 # In case that happens we run the sequential version to check if everything have been
 # installed properly
-parallel --lb -N0 spack install hip%clang@$llvm_version target=x86_64 ::: {1..16} || error="1"
+parallel --lb -N0 spack install hip@$HIPSYCL_HIP_VERSION%clang@$llvm_version target=x86_64 ::: {1..16} || error="1"
 if [ "$error" = "1" ]; then 
   spack install hip%clang@$llvm_version target=x86_64
 fi

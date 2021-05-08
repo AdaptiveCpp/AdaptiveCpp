@@ -79,7 +79,8 @@ public:
       : _device_id(detail::get_host_device()) {}
 
   // Implemented in device_selector.hpp
-  explicit device(const device_selector &deviceSelector);
+  template <class DeviceSelector>
+  explicit device(const DeviceSelector &deviceSelector);
 
   bool is_host() const 
   {

@@ -53,7 +53,7 @@ cmake \
 -DWITH_CUDA_BACKEND=$HIPSYCL_WITH_CUDA \
 -DWITH_ROCM_BACKEND=$HIPSYCL_WITH_ROCM \
 -DLLVM_DIR=/opt/hipSYCL/llvm/llvm/ \
--DROCM_PATH=/opt/hipSYCL/rocm \
+-DROCM_PATH=/opt/hipSYCL/rocm/hip/ \
 -DBOOST_ROOT=/opt/hipSYCL/boost/boost/ \
 -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda \
 -DCLANG_EXECUTABLE_PATH=/opt/hipSYCL/llvm/llvm/bin/clang++ \

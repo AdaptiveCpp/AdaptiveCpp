@@ -146,49 +146,33 @@ private:
   TargetStorage& _original_data;
 };
 
+template<std::size_t N>
+struct int_of_size {};
+
+template <>
+struct int_of_size<8> {
+  using type = int8_t;
+};
+template <>
+struct int_of_size<16> {
+  using type = int16_t;
+};
+template <>
+struct int_of_size<32> {
+  using type = int32_t;
+};
+template <>
+struct int_of_size<64> {
+  using type = int64_t;
+};
+
+template<std::size_t N>
+using int_of_size_t = typename int_of_size<N>::type;
 
 template<class T>
-struct logical_vector_op_result
-{};
-
-template<> struct logical_vector_op_result<char>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<signed char>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<unsigned char>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<short>
-{ using type = int16_t; };
-
-template<> struct logical_vector_op_result<unsigned short>
-{ using type = int16_t; };
-
-template<> struct logical_vector_op_result<float>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<unsigned>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<int>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<long>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<unsigned long>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<double>
-{ using type = int64_t; };
-
-template<> struct logical_vector_op_result<unsigned long long>
-{ using type = int64_t; };
-
-template<> struct logical_vector_op_result<long long>
-{ using type = int64_t; };
+struct logical_vector_op_result{
+  using type = int_of_size_t<sizeof(T) * 8>;
+};
 
 template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET

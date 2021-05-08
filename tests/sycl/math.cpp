@@ -36,14 +36,16 @@ BOOST_FIXTURE_TEST_SUITE(math_tests, reset_device_fixture)
 // list of types classified as "genfloat" in the SYCL standard
 using math_test_genfloats = boost::mpl::list<
   float,
-  cl::sycl::vec<float, 1>,
+  // vec<T,1> is not genfloat according to SYCL 2020. It's unclear
+  // if this is an oversight or intentional.
+  //cl::sycl::vec<float, 1>
   cl::sycl::vec<float, 2>,
   cl::sycl::vec<float, 3>,
   cl::sycl::vec<float, 4>,
   cl::sycl::vec<float, 8>,
   cl::sycl::vec<float, 16>,
   double,
-  cl::sycl::vec<double, 1>,
+  //cl::sycl::vec<double, 1>,
   cl::sycl::vec<double, 2>,
   cl::sycl::vec<double, 3>,
   cl::sycl::vec<double, 4>,

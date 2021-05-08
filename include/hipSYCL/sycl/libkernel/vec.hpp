@@ -146,51 +146,33 @@ private:
   TargetStorage& _original_data;
 };
 
+template<std::size_t N>
+struct int_of_size {};
+
+template <>
+struct int_of_size<8> {
+  using type = int8_t;
+};
+template <>
+struct int_of_size<16> {
+  using type = int16_t;
+};
+template <>
+struct int_of_size<32> {
+  using type = int32_t;
+};
+template <>
+struct int_of_size<64> {
+  using type = int64_t;
+};
+
+template<std::size_t N>
+using int_of_size_t = typename int_of_size<N>::type;
 
 template<class T>
-struct logical_vector_op_result
-{};
-
-template<> struct logical_vector_op_result<char>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<int8_t>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<uint8_t>
-{ using type = int8_t; };
-
-template<> struct logical_vector_op_result<int16_t>
-{ using type = int16_t; };
-
-template<> struct logical_vector_op_result<uint16_t>
-{ using type = int16_t; };
-
-template<> struct logical_vector_op_result<float>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<uint32_t>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<int32_t>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<double>
-{ using type = int64_t; };
-
-template<> struct logical_vector_op_result<uint64_t>
-{ using type = int64_t; };
-
-template<> struct logical_vector_op_result<int64_t>
-{ using type = int64_t; };
-
-#if defined(_WIN32) || defined(__APPLE__)
-template<> struct logical_vector_op_result<unsigned long>
-{ using type = int32_t; };
-
-template<> struct logical_vector_op_result<long>
-{ using type = int32_t; };
-#endif
+struct logical_vector_op_result{
+  using type = int_of_size_t<sizeof(T) * 8>;
+};
 
 template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
@@ -968,38 +950,6 @@ template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type &v, Function &&f) {
   v._data.for_each(f);
-}
-
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET
-void transform_vector(vec<T, N> &v, Function &&f) {
-  for_each_vector_element(v, [&](int idx, T &val) {
-    val = f(val);
-  });
-}
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET vec<T, N> binary_vector_operation(const vec<T, N> &v1,
-                                                           const vec<T, N> &v2,
-                                                           Function &&f) {
-  vec<T, N> result;
-  for_each_vector_element(result, [&](int idx, T &target_val) {
-    target_val = f(v1[idx], v2[idx]);
-  });
-  return result;
-}
-
-template <class T, int N, class Function>
-HIPSYCL_UNIVERSAL_TARGET vec<T, N> trinary_vector_operation(const vec<T, N> &v1,
-                                                            const vec<T, N> &v2,
-                                                            const vec<T, N> &v3,
-                                                            Function &&f) {
-  vec<T, N> result;
-  for_each_vector_element(result, [&](int idx, T &target_val) {
-    target_val = f(v1[idx], v2[idx], v3[idx]);
-  });
-  return result;
 }
 
 }

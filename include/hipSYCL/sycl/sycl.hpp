@@ -36,6 +36,13 @@
 
 #define SYCL_IMPLEMENTATION_HIPSYCL
 
+#ifdef CL_SYCL_LANGUAGE_VERSION
+ #undef CL_SYCL_LANGUAGE_VERSION
+#endif
+#ifdef SYCL_LANGUAGE_VERSION
+ #undef SYCL_LANGUAGE_VERSION
+#endif
+
 #define CL_SYCL_LANGUAGE_VERSION 202003
 #define SYCL_LANGUAGE_VERSION 202003
 #define SYCL_FEATURE_SET_FULL
@@ -54,10 +61,7 @@
 #include "libkernel/private_memory.hpp"
 #include "libkernel/local_memory.hpp"
 #include "libkernel/vec.hpp"
-#include "libkernel/builtin.hpp"
-#include "libkernel/math.hpp"
-#include "libkernel/common_functions.hpp"
-#include "libkernel/geometric_functions.hpp"
+#include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"
 #include "libkernel/stream.hpp"
 #include "libkernel/sub_group.hpp"

@@ -90,6 +90,8 @@ When targeting a GPU, you will need to provide a target GPU architecture. The ex
 * `gfx900`: AMD Vega 10 GPUs
 * `gfx906`: AMD Vega 20 GPUs
 
+The full documentation of syclcc and hints for the CMake integration can be found in [using hipSYCL](doc/using-hipsycl.md).
+
 ## Documentation
 * hipSYCL [design and architecture](doc/architecture.md)
 * hipSYCL runtime [specification](doc/runtime-spec.md)

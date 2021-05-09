@@ -3,10 +3,10 @@ It is recommended to use the CMake integration for larger projects.
 
 ## Compiling with syclcc
 `syclcc` is the compilation driver used by hipSYCL to build the final compiler invocations.
-After installing hipSYCL, it can be used as a standalone tool to manually build single files or integrated in other build systems than CMake.
-Exemplary, building the nbody example while targeting CPU and CUDA backends could be done using `syclcc bruteforce_nbody.cpp -O3 --hipsycl-targets="omp;cuda:sm_61"`.
+After installing hipSYCL, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.
+For example, compiling a SYCL source `example.cpp` to an executable, while targeting CPU and CUDA backends, is possible using `syclcc -o example example.cpp -O3 --hipsycl-targets="omp;cuda:sm_61"`.
 
-Following is the full excerpt from `syclcc --help`. Note the options can also be set via environment variables or corresponding CMake options.
+The full excerpt from `syclcc --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/hipsycl/install/path/etc/hipSYCL/syclcc.json`.
 ```
 syclcc [hipSYCL compilation driver], Copyright (C) 2018-2020 Aksel Alpay
 Usage: syclcc <options>
@@ -160,7 +160,7 @@ Note: Command line arguments take precedence over environment variables.
 ```
 
 ## Using the CMake integration
-Setting a project using the hipSYCL CMake integration is quite straight forward.
+Setting up a project using the hipSYCL CMake integration is quite straight forward.
 The main points are adding `find_package(hipSYCL REQUIRED)` and after defining the targets to build, adding `add_sycl_to_target(TARGET <target_name>)` to have the compilation handled by the hipSYCL toolchain.
 See the [example cmake project](../examples/CMakeLists.txt).
 

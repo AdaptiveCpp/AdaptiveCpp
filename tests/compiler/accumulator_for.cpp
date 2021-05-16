@@ -43,17 +43,22 @@ int main()
             scratch[lid] = tmp;
           }
 
-          if(lid == 0)
+          if(lid <= 1)
             acc[item.get_global_id()] = tmp;
         });
     });
   }
   for(size_t i = 0; i < global_size / local_size; ++i)
   {
+    // CHECK: 16384
     // CHECK: 32640
+    // CHECK: 49152
     // CHECK: 98176
+    // CHECK: 81920
     // CHECK: 163712
+    // CHECK: 114688
     // CHECK: 229248
+    std::cout << host_buf[i * local_size + 1] << "\n";
     std::cout << host_buf[i * local_size] << "\n";
   }
 }

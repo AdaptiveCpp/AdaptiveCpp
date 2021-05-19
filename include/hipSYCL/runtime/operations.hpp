@@ -228,6 +228,10 @@ public:
     return false;
   }
 
+  glue::unique_id get_bound_accessor_id() const {
+    return _bound_embedded_ptr_id;
+  }
+
   void initialize_device_data(void *location) {
     assert(!has_device_ptr());
     _device_data_location = location;

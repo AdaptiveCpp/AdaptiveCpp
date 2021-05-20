@@ -481,7 +481,6 @@ class accessor
       !is_raw_accessor && AccessorVariant != accessor_variant::ranged &&
       AccessorVariant != accessor_variant::unranged;
   static constexpr bool has_ranged_constructors =
-      !is_raw_accessor &&
       AccessorVariant != accessor_variant::unranged &&
       AccessorVariant != accessor_variant::unranged_placeholder;
   static constexpr bool has_size_queries = !is_raw_accessor || (dimensions == 0);
@@ -535,10 +534,20 @@ class accessor
       // Cannot turn raw accessor into a non-raw accessor
       // because of lack of information
       return false;
-    else if(is_ranged_variant(dest) && is_unranged_variant(src))
+    else if(is_std_accessor_variant(dest))
+      // Can always convert to regular accessors from non-raw accessors
+      return true;
+    //else if(is_std_accessor_variant(src) && !is_std_accessor_variant(dest))
+    // TODO: This case should be prevented unless dest is ranged?
+    else if(is_unranged_variant(dest) && is_ranged_variant(src))
+      // Allowing this would expose an accessor that has forgotten its
+      // correct access range, using the subscript operators would potentially
+      // access memory outside of the allowed range
       return false;
     else if(is_placeholder_variant(dest) && is_nonplaceholder_variant(src))
+      // should both directions be forbidden? reversed?
       return false;
+    
     return true;
   }
 public:
@@ -700,9 +709,7 @@ public:
   // and non-const read-only accessor
   template <access::placeholder P, access_mode M = accessmode,
             std::enable_if_t<M == access_mode::read &&
-                                 (P == AccessorVariant ||
-                                  (is_std_accessor_variant(AccessorVariant) &&
-                                   P != accessor_variant::raw)),
+                                 is_variant_convertible(P, AccessorVariant),
                              int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
   accessor(const accessor<std::remove_const_t<dataT>, dimensions,
@@ -725,7 +732,7 @@ public:
                                  OtherV != AccessorVariant,
                              int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
-  accessor(const accessor<dataT, dimensions, access_mode::read_write,
+  accessor(const accessor<dataT, dimensions, accessmode,
                           accessTarget, OtherV> &other)
       : detail::accessor_base<std::remove_const_t<dataT>>{other},
         detail::accessor::conditional_buffer_pointer_storage<

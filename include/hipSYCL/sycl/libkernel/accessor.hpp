@@ -44,6 +44,7 @@
 #include "hipSYCL/runtime/data.hpp"
 
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/sycl/extensions.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
@@ -107,8 +108,9 @@ constexpr accessor_variant deduce_accessor_variant(accessor_variant fallback) {
                 std::is_same_v<TagT, read_write_raw_tag_t> ||
                 std::is_same_v<TagT, write_only_raw_tag_t>) {
     return accessor_variant::raw;
+  } else {
+    return fallback;
   }
-  return fallback;
 }
 
 // Defined in buffer.hpp
@@ -326,6 +328,10 @@ public:
   conditional_storage() = default;
   conditional_storage(const T&) {}
 
+  conditional_storage(const conditional_storage&) = default;
+  // We are copying from a type that stores while we don't - can't do anything.
+  conditional_storage(const conditional_storage<TagT, true, T>&) {}
+
 protected:
   using value_type = T;
 
@@ -347,6 +353,11 @@ public:
   conditional_storage() = default;
   conditional_storage(const T& v) 
   : _val{v} {}
+
+  conditional_storage(const conditional_storage&) = default;
+  // We are copying from a type that doesn't store
+  conditional_storage(const conditional_storage<TagT, false, T>&)
+  : _val{} {}
 
 protected:
   using value_type = T;
@@ -491,6 +502,45 @@ class accessor
   detail::accessor::get_unique_id(const AccessorType &acc);
 
   friend class handler;
+
+  static constexpr bool is_std_accessor_variant(accessor_variant v) {
+    return v == accessor_variant::false_t || v == accessor_variant::true_t;
+  }
+
+  static constexpr bool is_ranged_variant(accessor_variant v){
+    return v == accessor_variant::ranged ||
+           v == accessor_variant::ranged_placeholder;
+  }
+
+  static constexpr bool is_unranged_variant(accessor_variant v){
+    return v == accessor_variant::unranged ||
+           v == accessor_variant::unranged_placeholder;
+  }
+
+  static constexpr bool is_placeholder_variant(accessor_variant v){
+    return v == accessor_variant::unranged_placeholder ||
+           v == accessor_variant::ranged_placeholder;
+  }
+
+  static constexpr bool is_nonplaceholder_variant(accessor_variant v){
+    return v == accessor_variant::unranged ||
+           v == accessor_variant::ranged;
+  }
+
+  static constexpr bool is_variant_convertible(accessor_variant src, accessor_variant dest) {
+    if(src == dest)
+      // can always convert between two accessors of same variant
+      return true;
+    else if(src == accessor_variant::raw)
+      // Cannot turn raw accessor into a non-raw accessor
+      // because of lack of information
+      return false;
+    else if(is_ranged_variant(dest) && is_unranged_variant(src))
+      return false;
+    else if(is_placeholder_variant(dest) && is_nonplaceholder_variant(src))
+      return false;
+    return true;
+  }
 public:
   static constexpr access_mode mode = accessmode;
   static constexpr target access_target = accessTarget;
@@ -540,7 +590,7 @@ public:
             bool AllowPlaceholders = has_placeholder_constructors,
             std::enable_if_t<(D > 0 && AllowPlaceholders), int> = 0>
   accessor(buffer<dataT, dimensions, AllocatorT> &bufferRef, TagT tag,
-           const property_list &prop_list = {}) 
+           const property_list &prop_list = {})
   : accessor{bufferRef, prop_list} {}
 
   template <typename AllocatorT, int D = dimensions,
@@ -646,10 +696,14 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   accessor& operator=(const accessor& other) = default;
 
-  // Implicit conversion from read-write accessor to const and non-const
-  // read-only accessor
+  // Implicit conversion from read-write accessor to const
+  // and non-const read-only accessor
   template <access::placeholder P, access_mode M = accessmode,
-            std::enable_if_t<M == access_mode::read> * = nullptr>
+            std::enable_if_t<M == access_mode::read &&
+                                 (P == AccessorVariant ||
+                                  (is_std_accessor_variant(AccessorVariant) &&
+                                   P != accessor_variant::raw)),
+                             int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
   accessor(const accessor<std::remove_const_t<dataT>, dimensions,
                           access_mode::read_write, accessTarget, P> &other)
@@ -657,18 +711,41 @@ public:
         detail::accessor::conditional_buffer_pointer_storage<
             has_buffer_pointer>{other},
         detail::accessor::conditional_access_range_storage<has_access_range,
+                                                           dimensions>{
+            detail::accessor::access_range<dimensions>{other.get_offset(),
+                                                       other.get_range()}},
+        detail::accessor::conditional_buffer_range_storage<has_buffer_range,
                                                            dimensions>{other},
+        detail::accessor::conditional_accessor_properties_storage<
+            has_accessor_properties>{other} {}
+
+  // Conversion between different accessor variants
+  template <accessor_variant OtherV,
+            std::enable_if_t<is_variant_convertible(OtherV, AccessorVariant) &&
+                                 OtherV != AccessorVariant,
+                             int> = 0>
+  HIPSYCL_UNIVERSAL_TARGET
+  accessor(const accessor<dataT, dimensions, access_mode::read_write,
+                          accessTarget, OtherV> &other)
+      : detail::accessor_base<std::remove_const_t<dataT>>{other},
+        detail::accessor::conditional_buffer_pointer_storage<
+            has_buffer_pointer>{other},
+        detail::accessor::conditional_access_range_storage<has_access_range,
+                                                           dimensions>{
+            detail::accessor::access_range<dimensions>{other.get_offset(),
+                                                       other.get_range()}},
         detail::accessor::conditional_buffer_range_storage<has_buffer_range,
                                                            dimensions>{other},
         detail::accessor::conditional_accessor_properties_storage<
             has_accessor_properties>{other} {}
 
   /* -- common interface members -- */
-  
+
   template <accessor_variant OtherV>
-  HIPSYCL_UNIVERSAL_TARGET friend bool operator==(
-      const accessor &lhs,
-      const accessor<dataT, dimensions, accessmode, accessTarget, OtherV> &rhs) {
+  HIPSYCL_UNIVERSAL_TARGET friend bool
+  operator==(const accessor &lhs,
+             const accessor<dataT, dimensions, accessmode, accessTarget, OtherV>
+                 &rhs) noexcept {
     if (detail::accessor::get_unique_id(lhs) !=
         detail::accessor::get_unique_id(rhs))
       return false;
@@ -685,14 +762,15 @@ public:
   }
 
   template <accessor_variant OtherV>
-  HIPSYCL_UNIVERSAL_TARGET friend bool operator!=(
-      const accessor &lhs,
-      const accessor<dataT, dimensions, accessmode, accessTarget, OtherV> &rhs) {
+  HIPSYCL_UNIVERSAL_TARGET friend bool
+  operator!=(const accessor &lhs,
+             const accessor<dataT, dimensions, accessmode, accessTarget, OtherV>
+                 &rhs) noexcept {
     return !(lhs == rhs);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool is_placeholder() const
+  bool is_placeholder() const noexcept
   {
     if constexpr (has_accessor_properties) {
       return this->detail::accessor::conditional_accessor_properties_storage<
@@ -710,21 +788,21 @@ public:
   template<bool IsAllowed = has_size_queries,
           std::enable_if_t<IsAllowed, int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_size() const
+  size_t get_size() const noexcept
   {
     return get_count() * sizeof(dataT);
   }
 
   template <int D = dimensions, bool IsAllowed = has_size_queries,
             std::enable_if_t<(D > 0 && IsAllowed), int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET size_t get_count() const {
+  HIPSYCL_UNIVERSAL_TARGET size_t get_count() const noexcept {
     return get_range().size();
   }
 
   template<int D = dimensions, bool IsAllowed = has_size_queries,
            std::enable_if_t<D == 0 && IsAllowed, int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_count() const
+  size_t get_count() const noexcept
   { return 1; }
 
   /* void swap(accessor &other); */
@@ -751,7 +829,7 @@ public:
   /* Available only when: dimensions > 0 */
   template <int D = dimensions, bool IsAllowed = has_size_queries,
             std::enable_if_t<(D > 0 && IsAllowed), int> = 0>
-  HIPSYCL_UNIVERSAL_TARGET range<dimensions> get_range() const {
+  HIPSYCL_UNIVERSAL_TARGET range<dimensions> get_range() const noexcept {
     if constexpr(has_access_range) {
       return this->detail::accessor::conditional_access_range_storage<
           has_access_range, dimensions>::ptr()->range;
@@ -767,7 +845,7 @@ public:
   template<int D = dimensions,
            std::enable_if_t<(D > 0), int> = 0>
   HIPSYCL_UNIVERSAL_TARGET
-  id<dimensions> get_offset() const
+  id<dimensions> get_offset() const noexcept
   {
     if constexpr(!has_access_range) {
       return sycl::id<dimensions>{};
@@ -780,7 +858,7 @@ public:
   template<int D = dimensions,
             std::enable_if_t<(D == 0), bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  operator reference() const
+  operator reference() const noexcept
   {
     return *(this->_ptr.get());
   }
@@ -790,7 +868,8 @@ public:
       bool IsAllowed = has_subscript_operators,
       std::enable_if_t<(D > 0) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET reference operator[](id<dimensions> index) const {
+  HIPSYCL_UNIVERSAL_TARGET reference
+  operator[](id<dimensions> index) const noexcept {
     return (this->_ptr.get())[get_linear_id(index)];
   }
 
@@ -799,7 +878,7 @@ public:
       bool IsAllowed = has_subscript_operators,
       std::enable_if_t<(D == 1) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET reference operator[](size_t index) const {
+  HIPSYCL_UNIVERSAL_TARGET reference operator[](size_t index) const noexcept {
     return (this->_ptr.get())[index];
   }
 
@@ -808,7 +887,7 @@ public:
            access::mode M = accessmode,
            typename = std::enable_if_t<M == access::mode::atomic && D == 0>>
   [[deprecated("Atomic accessors are deprecated as of SYCL 2020")]] HIPSYCL_UNIVERSAL_TARGET
-  operator atomic<dataT, access::address_space::global_space> () const
+  operator atomic<dataT, access::address_space::global_space> () const noexcept
   {
     return atomic<dataT, access::address_space::global_space>{
         global_ptr<dataT>(this->_ptr.get())};
@@ -822,7 +901,7 @@ public:
   [[deprecated("Atomic accessors are deprecated as of SYCL "
                "2020")]] HIPSYCL_UNIVERSAL_TARGET
       atomic<dataT, access::address_space::global_space>
-      operator[](id<dimensions> index) const {
+      operator[](id<dimensions> index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{global_ptr<dataT>(
         this->_ptr.get() + get_linear_id(index))};
   }
@@ -834,7 +913,7 @@ public:
   [[deprecated("Atomic accessors are deprecated as of SYCL "
                "2020")]] HIPSYCL_UNIVERSAL_TARGET
       atomic<dataT, access::address_space::global_space>
-      operator[](size_t index) const {
+      operator[](size_t index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{
         global_ptr<dataT>(this->_ptr.get() + index)};
   }
@@ -845,7 +924,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
       detail::accessor::subscript_proxy<dataT, dimensions, accessmode,
                                         accessTarget, AccessorVariant>
-      operator[](size_t index) const {
+      operator[](size_t index) const noexcept {
 
     sycl::id<dimensions> initial_index;
     initial_index[0] = index;
@@ -859,7 +938,7 @@ public:
   /* Available only when: accessTarget == access::target::host_buffer */
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T==access::target::host_buffer>>
-  dataT *get_pointer() const
+  dataT *get_pointer() const noexcept
   {
     return const_cast<dataT*>(this->_ptr.get());
   }
@@ -868,7 +947,7 @@ public:
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::global_buffer>>
   HIPSYCL_UNIVERSAL_TARGET
-  global_ptr<dataT> get_pointer() const
+  global_ptr<dataT> get_pointer() const noexcept
   {
     return global_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
@@ -877,23 +956,23 @@ public:
   template<access::target T = accessTarget,
            typename = std::enable_if_t<T == access::target::constant_buffer>>
   HIPSYCL_UNIVERSAL_TARGET
-  constant_ptr<dataT> get_pointer() const
+  constant_ptr<dataT> get_pointer() const noexcept
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
 private:
 
   HIPSYCL_UNIVERSAL_TARGET
-  static constexpr int get_dimensions() {
+  static constexpr int get_dimensions() noexcept{
     return dimensions;
   }
 
   // Only valid until the embedded pointer has been initialized
   HIPSYCL_HOST_TARGET
-  glue::unique_id get_uid() const {
+  glue::unique_id get_uid() const noexcept {
     return this->_ptr.get_uid();
   }
-  
+
   template <class BufferT>
   void init(BufferT &buff, id<dimensions> offset,
             range<dimensions> access_range, const property_list &prop_list) {
@@ -953,7 +1032,7 @@ private:
   
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t get_linear_id(id<dimensions> idx) const {
+  size_t get_linear_id(id<dimensions> idx) const noexcept {
     if constexpr (dimensions == 0) {
       return 0;
     } else if constexpr (dimensions == 1) {
@@ -964,7 +1043,7 @@ private:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_buffer_shape() const {
+  range<dimensions> get_buffer_shape() const noexcept {
     if constexpr(has_buffer_range) {
       return this->detail::accessor::conditional_buffer_range_storage<
           has_buffer_range, dimensions>::get();
@@ -974,7 +1053,7 @@ private:
   }
 
   HIPSYCL_HOST_TARGET
-  std::shared_ptr<rt::buffer_data_region> get_data_region() const {
+  std::shared_ptr<rt::buffer_data_region> get_data_region() const noexcept {
     if constexpr(has_buffer_pointer) {
       return this
           ->detail::accessor::conditional_buffer_pointer_storage<
@@ -1150,7 +1229,7 @@ accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
                 detail::deduce_access_target<TagT>(),
                 HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
                     TagT, accessor_variant::true_t,
-                    accessor_variant::unranged_placeholder)>;
+                    accessor_variant::ranged_placeholder)>;
 
 template <typename T, int Dim, typename AllocatorT, typename TagT>
 accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,

@@ -49,6 +49,7 @@
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/exception.hpp"
+#include "hipSYCL/sycl/extensions.hpp"
 #include "property.hpp"
 #include "types.hpp"
 #include "context.hpp"

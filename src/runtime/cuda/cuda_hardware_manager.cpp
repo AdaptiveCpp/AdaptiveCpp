@@ -32,6 +32,7 @@
 #include <cuda_runtime_api.h>
 #include <exception>
 #include <cstdlib>
+#include <limits>
 
 namespace hipsycl {
 namespace rt {

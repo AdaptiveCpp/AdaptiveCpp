@@ -61,11 +61,11 @@ Note that there are two type of installation scripts available at the moment the
 
 ## Pre-built singularity containers
 
-We proved pre-built singularity images for all supported distributions (centos-7, ubuntu-18.04, ubuntu-20.04, archlinux). The containers are available through the following link: http://repo.urz.uni-heidelberg.de/sycl/singularity/ 
+We provide pre-built singularity images for all supported distributions. The containers are available here: http://repo.urz.uni-heidelberg.de/sycl/singularity/ 
 
-We test the provided images by building the hipSYCL unit tests for all supported backend, and in the case of Cuda and omp executing them.
+The images are validated by building the hipSYCL unit tests for all supported backends, and running them for OpenMP and CUDA.
 
-Please note that due to legal reasons, the images do not contain the Cuda installation. Please use the `install/scripts/install-Cuda.sh` script to install it afterwards. Note that this is only possible in case the container is writable; therefore we recommend installing Cuda by executing the following commands:
+Please note that due to legal reasons, the images do not contain the CUDA installation. Please use the `install/scripts/install-cuda.sh` script to install it afterwards. Note that this is only possible in case the container is writable; therefore we recommend installing CUDA by executing the following commands:
 
 ```
 singularity shell build --sandbox --fakeroot <container_name>.sif <container_name>

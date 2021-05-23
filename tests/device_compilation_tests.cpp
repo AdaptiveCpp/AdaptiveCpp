@@ -25,6 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// Test workaround for https://bugs.llvm.org/show_bug.cgi?id=50383
+#include <atomic>
+#include <complex>
+
 #define BOOST_TEST_MODULE device compilation tests
 #if !defined(_WIN32) || defined(__MINGW32__)
 #define BOOST_TEST_DYN_LINK

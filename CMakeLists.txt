@@ -243,14 +243,14 @@ if(NOT ROCM_CXX_FLAGS)
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
 
-  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
+  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
+  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
 if(NOT OMP_CXX_FLAGS) 
@@ -297,6 +297,7 @@ configure_file(
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL/std DESTINATION include/hipSYCL/ )
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
 if(NOT WIN32)

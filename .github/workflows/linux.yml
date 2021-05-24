@@ -52,7 +52,7 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
-        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}}
+        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev
     - name: install boost (from source)
       if: matrix.os == 'ubuntu-18.04'
       run: |

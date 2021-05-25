@@ -1074,11 +1074,12 @@ private:
   void bind_to_buffer(BufferType &buff,
                       sycl::id<dimensions> accessOffset,
                       sycl::range<dimensions> accessRange) {
-
+#ifndef SYCL_DEVICE_ONLY
+    auto buffer_region = detail::extract_buffer_data_region(buff);
     this->detail::accessor::
         conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
-            detail::extract_buffer_data_region(buff));
-
+            detail::mobile_shared_ptr{buffer_region});
+#endif
     this->detail::accessor::conditional_access_range_storage<
         has_access_range,
         dimensions>::attempt_set(detail::accessor::access_range<dimensions>{

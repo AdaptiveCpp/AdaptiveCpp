@@ -817,5 +817,40 @@ BOOST_AUTO_TEST_CASE(accessor_variants) {
 
 #endif
 #endif
+#if defined(HIPSYCL_EXT_UPDATE_DEVICE) &&                                      \
+    defined(HIPSYCL_EXT_BUFFER_USM_INTEROP)
+BOOST_AUTO_TEST_CASE(update_device) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+  sycl::buffer<int> buff{size};
+  {
+    sycl::host_accessor hacc{buff};
+
+    for(std::size_t i = 0; i < size[0]; ++i){
+      hacc[i] = static_cast<int>(i);
+    }
+  }
+
+  std::vector<int> target_buff(size[0]);
+
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor acc{buff, cgh};
+    cgh.update(acc);
+  }).wait();
+
+  // We have to use a USM copy to get the data for testing
+  // because we cannot know whether it was the accessor
+  // or the udpate() that updated the data if we use
+  // handler::copy()
+  int* dev_ptr = buff.get_pointer(q.get_device());
+  BOOST_CHECK(dev_ptr != nullptr);
+
+  q.memcpy(target_buff.data(), dev_ptr, size[0] * sizeof(int)).wait();
+
+  for(std::size_t i = 0; i < size[0]; ++i)
+    BOOST_CHECK(target_buff[i] == static_cast<int>(i));
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

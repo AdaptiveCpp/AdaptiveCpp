@@ -28,6 +28,27 @@ hipSYCL supports various flavors of accessors that encode the purpose and featur
 If `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION` is enabled, the SYCL 2020 CTAD deduction guides automatically construct optimized accessor types.
 See [here](accessor-variants.md) for more details.
 
+### `HIPSYCL_EXT_UPDATE_DEVICE`
+
+An extension that adds `handler::update()` for device accessors in analogy to `update_host()`. While `update_host()` makes sure that the host allocation of the buffer is updated, `update()` updates the allocation on the device to which the operation is submitted. This can be used
+* To preallocate memory if the buffer is uninitialized;
+* To separate potential data transfers from kernel execution, e.g. for benchmarking;
+* To control buffer data state when using buffer-USM interoperability(`HIPSYCL_EXT_BUFFER_USM_INTEROP`);
+* To inform the runtime earlier of expected data usage in order to optimize data transfers or overlap of compute and data transfers
+
+#### API Reference
+
+```c++
+namespace sycl {
+class handler {
+public:
+  template <typename T, int dim, access::mode mode, access::target tgt,
+          accessor_variant variant>
+  void update(accessor<T, dim, mode, tgt, variant> acc);
+};
+}
+```
+
 ### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:

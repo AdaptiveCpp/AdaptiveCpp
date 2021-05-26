@@ -26,8 +26,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #if defined(__clang__) && (defined(__CUDACC__) || defined(__HIP__))
+
+#ifdef _WIN32
+#include <cmath>
+
+namespace std {
+  __device__
+  inline bool signbit(long double v) { return signbit(static_cast<double>(v)); }
+}
+#endif
+
 #pragma push_macro("__failed_assertion")
 #define __failed_assertion __cuda_failed_assertion
 #include_next <complex>

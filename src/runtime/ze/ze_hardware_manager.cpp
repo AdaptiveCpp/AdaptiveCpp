@@ -28,6 +28,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
+#include <limits>
 
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
 #include "hipSYCL/runtime/device_id.hpp"

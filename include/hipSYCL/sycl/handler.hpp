@@ -35,6 +35,7 @@
 #include "exception.hpp"
 #include "access.hpp"
 #include "context.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "libkernel/backend.hpp"
 #include "device.hpp"
@@ -469,40 +470,20 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void update_host(accessor<T, dim, mode, tgt, variant> acc) {
-    HIPSYCL_DEBUG_INFO << "handler: Spawning async host access task"
-                       << std::endl;
+    update_dev(detail::get_host_device(), acc);
+  }
 
-    if(!get_memory_region(acc))
-      throw sycl::invalid_parameter_error{
-          "update_host(): Accessor is not bound to buffer"};
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void update(accessor<T, dim, mode, tgt, variant> acc) {
+    
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: device update() is unsupported "
+                                    "for queues not bound to devices"};
 
-    std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
-
-    if(sizeof(T) != data->get_element_size())
-      assert(false && "Accessors with different element size than original "
-                      "buffer are not yet supported");
-
-    rt::dag_build_guard build{rt::application::dag()};
-
-    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-        data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt);
-
-    rt::execution_hints enforce_bind_to_host;
-    enforce_bind_to_host.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(
-            detail::get_host_device()));
-
-    // Merge new hint into default hints
-    rt::execution_hints hints = _execution_hints;
-    hints.overwrite_with(enforce_bind_to_host);
-    assert(hints.has_hint<rt::hints::bind_to_device>());
-    assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
-           detail::get_host_device());
-
-    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
-        std::move(explicit_requirement), _requirements, hints);
-
-    _command_group_nodes.push_back(node);
+    update_dev(
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id(),
+        acc);
   }
 
   /// \todo fill() on host accessors can be optimized to use
@@ -720,6 +701,46 @@ private:
     assert(_execution_hints.has_hint<rt::hints::bind_to_device>());
     return _execution_hints.get_hint<rt::hints::bind_to_device>()
         ->get_device_id();
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void update_dev(rt::device_id dev, accessor<T, dim, mode, tgt, variant> acc) {
+    HIPSYCL_DEBUG_INFO
+        << "handler: Spawning async generalized device update task"
+        << std::endl;
+
+    if(!get_memory_region(acc))
+      throw sycl::invalid_parameter_error{
+          "update_dev(): Accessor is not bound to buffer"};
+
+    std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
+
+    if(sizeof(T) != data->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
+
+    rt::dag_build_guard build{rt::application::dag()};
+
+    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+        data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt);
+
+    rt::execution_hints enforce_bind_to_dev;
+    enforce_bind_to_dev.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(
+            dev));
+
+    // Merge new hint into default hints
+    rt::execution_hints hints = _execution_hints;
+    hints.overwrite_with(enforce_bind_to_dev);
+    assert(hints.has_hint<rt::hints::bind_to_device>());
+    assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
+           dev);
+
+    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
+        std::move(explicit_requirement), _requirements, hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,

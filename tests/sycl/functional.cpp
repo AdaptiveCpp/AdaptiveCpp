@@ -33,6 +33,8 @@ BOOST_FIXTURE_TEST_SUITE(functional_tests, reset_device_fixture)
 
 using known_identity_types = boost::mpl::list<float, double, char, signed char, unsigned char,
     int, long, unsigned int, unsigned long, bool, const float, const bool>;
+using known_identity_vector_types = boost::mpl::list<float, double, char, signed char, unsigned char,
+    int, long, unsigned int, unsigned long, bool>;
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -96,6 +98,80 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(known_identities, T, known_identity_types::type) {
     BOOST_TEST((s::known_identity_v<s::logical_or<>, T>) == false);
     BOOST_TEST((s::known_identity_v<s::logical_and<T>, T>) == true);
     BOOST_TEST((s::known_identity_v<s::logical_and<>, T>) == true);
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(known_vector_identities, T, known_identity_vector_types::type) {
+  constexpr int num_elements = 4;
+  using V = s::vec<T, num_elements>;
+  static_assert(s::has_known_identity_v<s::minimum<V>, V>);
+  static_assert(s::has_known_identity_v<s::minimum<>, V>);
+  static_assert(s::has_known_identity_v<s::maximum<V>, V>);
+  static_assert(s::has_known_identity_v<s::maximum<>, V>);
+
+  for(size_t i = 0; i < num_elements; ++i) {
+    BOOST_TEST((s::known_identity_v<s::plus<V>, V>)[i] == T{0});
+    BOOST_TEST((s::known_identity_v<s::plus<>, V>)[i] == T{0});
+    BOOST_TEST((s::known_identity_v<s::multiplies<V>, V>)[i] == T{1});
+    BOOST_TEST((s::known_identity_v<s::multiplies<>, V>)[i] == T{1});
+  }
+
+  if constexpr (std::is_floating_point_v<T>) {
+    for(size_t i = 0; i < num_elements; ++i) {
+      BOOST_TEST((s::known_identity_v<s::minimum<V>, V>)[i] == std::numeric_limits<T>::infinity());
+      BOOST_TEST((s::known_identity_v<s::minimum<>, V>)[i] == std::numeric_limits<T>::infinity());
+      BOOST_TEST((s::known_identity_v<s::maximum<V>, V>)[i] == -std::numeric_limits<T>::infinity());
+      BOOST_TEST((s::known_identity_v<s::maximum<>, V>)[i] == -std::numeric_limits<T>::infinity());
+    }
+  } else {
+    for(size_t i = 0; i < num_elements; ++i) {
+      BOOST_TEST((s::known_identity_v<s::minimum<V>, V>)[i] == std::numeric_limits<T>::max());
+      BOOST_TEST((s::known_identity_v<s::minimum<>, V>)[i] == std::numeric_limits<T>::max());
+      BOOST_TEST((s::known_identity_v<s::maximum<V>, V>)[i] == std::numeric_limits<T>::lowest());
+      BOOST_TEST((s::known_identity_v<s::maximum<>, V>)[i] == std::numeric_limits<T>::lowest());
+    }
+  }
+
+  if constexpr (std::is_integral_v<T>) {
+    static_assert(s::has_known_identity_v<s::bit_or<V>, V>);
+    static_assert(s::has_known_identity_v<s::bit_or<>, V>);
+    static_assert(s::has_known_identity_v<s::bit_xor<V>, V>);
+    static_assert(s::has_known_identity_v<s::bit_xor<>, V>);
+
+    for(size_t i = 0; i < num_elements; ++i) {
+      BOOST_TEST((s::known_identity_v<s::bit_or<V>, V>)[i] == T{0});
+      BOOST_TEST((s::known_identity_v<s::bit_or<>, V>)[i] == T{0});
+      BOOST_TEST((s::known_identity_v<s::bit_xor<V>, V>)[i] == T{0});
+      BOOST_TEST((s::known_identity_v<s::bit_xor<>, V>)[i] == T{0});
+    }
+  }
+
+  if constexpr (std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) {
+    static_assert(s::has_known_identity_v<s::bit_and<V>, V>);
+    static_assert(s::has_known_identity_v<s::bit_and<>, V>);
+
+    for(size_t i = 0; i < num_elements; ++i) {
+      BOOST_TEST((s::known_identity_v<s::bit_and<V>, V>)[i] == static_cast<T>(~T{0}));
+      BOOST_TEST((s::known_identity_v<s::bit_and<>, V>)[i] == static_cast<T>(~T{0}));
+    }
+  }
+
+  if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>) {
+    static_assert(s::has_known_identity_v<s::bit_and<V>, V>);
+    static_assert(s::has_known_identity_v<s::bit_and<>, V>);
+    static_assert(s::has_known_identity_v<s::logical_or<V>, V>);
+    static_assert(s::has_known_identity_v<s::logical_or<>, V>);
+    static_assert(s::has_known_identity_v<s::logical_and<V>, V>);
+    static_assert(s::has_known_identity_v<s::logical_and<>, V>);
+
+    for(size_t i = 0; i < num_elements; ++i) {
+      BOOST_TEST((s::known_identity_v<s::bit_and<V>, V>)[i] == true);
+      BOOST_TEST((s::known_identity_v<s::bit_and<>, V>)[i] == true);
+      BOOST_TEST((s::known_identity_v<s::logical_or<V>, V>)[i] == false);
+      BOOST_TEST((s::known_identity_v<s::logical_or<>, V>)[i] == false);
+      BOOST_TEST((s::known_identity_v<s::logical_and<V>, V>)[i] == true);
+      BOOST_TEST((s::known_identity_v<s::logical_and<>, V>)[i] == true);
+    }
   }
 }
 

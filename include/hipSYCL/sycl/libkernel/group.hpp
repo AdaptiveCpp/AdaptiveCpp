@@ -110,7 +110,7 @@ struct group
   static constexpr memory_scope fence_scope = memory_scope::work_group;
 
   HIPSYCL_KERNEL_TARGET
-  id<Dimensions> get_id() const
+  id<Dimensions> get_group_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>();
@@ -119,8 +119,15 @@ struct group
 #endif
   }
 
+  [[deprecated("To get the work group id use get_group_id() in SYCL 2020")]]
   HIPSYCL_KERNEL_TARGET
-  size_t get_id(int dimension) const
+  id<Dimensions> get_id() const
+  {
+    return get_group_id();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_group_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_group_id<Dimensions>(dimension);
@@ -129,6 +136,14 @@ struct group
 #endif
   }
 
+  [[deprecated("To get the work group id use get_group_id(int) in SYCL 2020")]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_id(int dimension) const
+  {
+    return get_group_id(dimension);
+  }
+
+  [[deprecated("get_global_range() doesn't exist in SYCL 2020 anymore")]]
   HIPSYCL_KERNEL_TARGET
   range<Dimensions> get_global_range() const
   {
@@ -139,6 +154,7 @@ struct group
 #endif
   }
 
+  [[deprecated("get_global_range(int) doesn't exist in SYCL 2020 anymore")]]
   HIPSYCL_KERNEL_TARGET
   size_t get_global_range(int dimension) const
   {
@@ -171,6 +187,12 @@ struct group
 #endif
   }
 
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_linear_range() const
+  {
+    return get_local_range().size();
+  }
+
   // Note: This returns the number of groups
   // in each dimension - earler versions of the spec wrongly 
   // claim that it should return the range "of the current group", 
@@ -196,6 +218,12 @@ struct group
   }
 
   HIPSYCL_KERNEL_TARGET
+  size_t get_group_linear_range() const
+  {
+    return get_group_range().size();
+  }
+
+  HIPSYCL_KERNEL_TARGET
   size_t operator[](int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
@@ -216,11 +244,35 @@ struct group
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_linear() const
+  size_t get_group_linear_id() const
   {
     return detail::linear_id<Dimensions>::get(get_id(),
                                               get_group_range());
   }
+
+  [[deprecated("Use get_group_linear_id() instead.")]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_linear() const
+  {
+    return get_group_linear_id();
+  }
+
+#ifdef SYCL_DEVICE_ONLY
+  id_type get_local_id() const
+  {
+    return detail::get_local_id<Dimensions>();
+  }
+
+  size_t get_local_id(int dimension) const
+  {
+    return detail::get_local_id<Dimensions>(dimension);
+  }
+#endif
+
+  /*
+   * TODO: needs to be implemented
+  range<Dimensions> get_max_local_range() const;
+  */
 
   template<
     typename Finalizer,
@@ -459,6 +511,11 @@ struct group
   id_type get_local_id() const
   {
     return _local_id;
+  }
+
+  size_t get_local_id(int dimension) const
+  {
+    return _local_id[dimension];
   }
 
   linear_id_type get_local_linear_id() const

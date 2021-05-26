@@ -120,17 +120,30 @@ inline std::ostream &operator<<(std::ostream &out,
   return out;
 }
 
+// hipSYCL accessor variants:
+// ranged placeholder: Stores mem_region, buff_range, range, offset
+// ranged non-placeholder: Stores buff_range, range, offset
+// non-ranged placeholder: Stores mem_region, buff_range
+// non-ranged non-placeholder: Stores buff_range
+// raw: nothing
+enum class accessor_variant {
+  false_t, // compatibility with SYCL 1.2.1 placeholder enum
+  true_t,  // compatibility with SYCL 1.2.1 placeholder enum
+  ranged_placeholder,
+  ranged,
+  unranged_placeholder,
+  unranged,
+  raw
+};
+
 namespace access {
 
 // SYCL 1.2.1 compatibility
 using sycl::target;
 using mode = sycl::access_mode;
 
-// Deprecated
-enum class placeholder {
-  false_t,
-  true_t
-};
+// Deprecated (reused in hipSYCL to store accessor variants)
+using placeholder = sycl::accessor_variant;
 
 enum class fence_space : char {
   local_space,

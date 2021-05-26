@@ -154,7 +154,7 @@ struct kernel_blob {
     // looking at offsets that are properly aligned
     // if we are sure there are no cases where this
     // might go wrong
-    for(int i = 0; i + sizeof(unique_id) < sizeof(Blob);) {
+    for(int i = 0; i + sizeof(unique_id) <= sizeof(Blob);) {
     
       char* chunk_ptr = blob_ptr + i;
 

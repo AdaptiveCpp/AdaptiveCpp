@@ -135,19 +135,27 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   auto operation_node = std::make_shared<dag_node>(
       hints, requirements.get(), std::move(op));
   
-  if(operation_node->get_operation()->is_requirement()) {
+  bool is_req = operation_node->get_operation()->is_requirement();
+
+  // Do not change order between add_conflicts_as_requirements()
+  // and add_to_data_users() to prevent this node ending up as a
+  // requirement to itself or other cyclic requirements!
+  if(is_req)
+    // If we are an explicit requirement, consider conflicts not only
+    // with our requirements, but with the node itself
     add_conflicts_as_requirements(operation_node);
-    // if this is an explicit requirement, we need to add *this*
-    // operation to the users of the requirement it refers to.
-    requirement* req = cast<requirement>(operation_node->get_operation());
-    if(req->is_memory_requirement())
+  
+  for (auto node : operation_node->get_requirements())
+    add_conflicts_as_requirements(node);
+
+  // if this is an explicit requirement, we need to add *this*
+  // operation to the users of the requirement it refers to.
+  if (is_req) {
+    requirement *req = cast<requirement>(operation_node->get_operation());
+    if (req->is_memory_requirement())
       add_to_data_users(operation_node, cast<memory_requirement>(
                                             operation_node->get_operation()));
   }
-
-  for (auto node : operation_node->get_requirements())
-      add_conflicts_as_requirements(node);
-  
   add_to_data_users(operation_node, requirements);
 
   return operation_node;
@@ -223,9 +231,11 @@ dag dag_builder::finish_and_reset()
 
   final_dag.for_each_node([](dag_node_ptr node) {
     HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operation: "
-                       << dump(node->get_operation()) << std::endl;
+                       << dump(node->get_operation()) << " @node " << node.get()
+                       << std::endl;
     for (dag_node_ptr req : node->get_requirements()) {
-      HIPSYCL_DEBUG_INFO << "    --> requires: " << dump(req->get_operation()) << std::endl;
+      HIPSYCL_DEBUG_INFO << "    --> requires: " << dump(req->get_operation())
+                         << " @node " << req.get() << std::endl;
     }
   });
 

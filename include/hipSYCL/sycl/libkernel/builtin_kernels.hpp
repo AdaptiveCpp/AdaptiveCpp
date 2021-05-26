@@ -41,16 +41,17 @@ namespace sycl {
 
 namespace detail::kernels {
 
-template<class T, int Dim, access::mode Mode, access::target Tgt>
+template <class T, int Dim, access::mode Mode, access::target Tgt,
+          accessor_variant V>
 class fill_kernel {
 public:
-  fill_kernel(sycl::accessor<T, Dim, Mode, Tgt> dest, const T &src)
+  fill_kernel(sycl::accessor<T, Dim, Mode, Tgt, V> dest, const T &src)
       : _dest{dest}, _src{src} {}
 
   void operator()(sycl::id<Dim> tid) const { _dest[tid] = _src; }
 
 private:
-  sycl::accessor<T, Dim, Mode, Tgt> _dest;
+  sycl::accessor<T, Dim, Mode, Tgt, V> _dest;
   T _src;
 };
 

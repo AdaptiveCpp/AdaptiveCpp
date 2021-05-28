@@ -190,9 +190,9 @@ public:
     return __spirv_BuiltInNumSubgroups;
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
-    // TODO
     return __spirv_BuiltInNumSubgroups;
   }
 
@@ -268,6 +268,7 @@ public:
     return _group_size;
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
     return _group_size;

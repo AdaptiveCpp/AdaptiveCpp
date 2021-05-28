@@ -71,6 +71,11 @@ __device__
 T shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_down(data, offset); });
 }
+template<typename T>
+__device__
+T shuffle_xor_impl(T x, int lane_mask) {
+  return apply_on_data(x, [lane_mask](int data) { return __shfl_xor(data, lane_mask); });
+}
 
 // dpp sharing instruction abstraction based on rocPRIM
 // the dpp_ctrl can be found in the GCN3 ISA manual
@@ -148,6 +153,11 @@ template<typename T>
 __device__
 T shuffle_down_impl(T x, int offset) {
   return apply_on_data(x, [offset](int data) { return __shfl_down_sync(AllMask, data, offset); });
+}
+template<typename T>
+__device__
+T shuffle_xor_impl(T x, int lane_mask) {
+  return apply_on_data(x, [lane_mask](int data) { return __shfl_xor_sync(AllMask, data, lane_mask); });
 }
 
 #endif // HIPSYCL_PLATFORM_CUDA

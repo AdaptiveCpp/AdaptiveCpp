@@ -25,7 +25,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #ifdef SYCL_DEVICE_ONLY
 
 #ifndef HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
@@ -44,6 +43,8 @@ namespace hipsycl {
 namespace sycl {
 
 namespace detail {
+
+inline constexpr size_t max_group_size = 1024;
 
 // reduce implementation
 template<typename Group, typename T, typename BinaryOperation,
@@ -218,9 +219,10 @@ bool leader_none_of(Group g, T *first, T *last, Predicate pred) {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
-             scratch_storage;
-  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+  __shared__
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+          scratch_storage;
+  T *     scratch = reinterpret_cast<T *>(&scratch_storage);
 
   const size_t lrange       = g.get_local_range().size();
   const size_t num_elements = last - first;
@@ -455,9 +457,10 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op) {
-  __shared__ std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
-             scratch_storage;
-  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+  __shared__
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+          scratch_storage;
+  T *     scratch = reinterpret_cast<T *>(&scratch_storage);
 
   return detail::group_reduce(g, x, binary_op, scratch);
 }
@@ -467,7 +470,8 @@ template<typename Group, typename T, typename V, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
-  __shared__   std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+  __shared__
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
                scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
@@ -482,7 +486,7 @@ T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
   group_barrier(g);
 
   if (lid < warpSize) {
-    const size_t scratch_index = (lid < 1024 / warpSize) ? lid : 0;
+    const size_t scratch_index = (lid < detail::max_group_size / warpSize) ? lid : 0;
     const T      tmp = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
 
     if (lid < (lrange + warpSize - 1) / warpSize)
@@ -506,7 +510,8 @@ template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  __shared__   std::aligned_storage_t<sizeof(T) * 1024 / warpSize, alignof(T)>
+  __shared__
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
                scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
@@ -525,7 +530,7 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
     size_t  scratch_index = (lid < (lrange + warpSize - 1) / warpSize) ? lid : 0;
     const T tmp           = group_inclusive_scan(sg, scratch[scratch_index], binary_op);
 
-    if (lid < 1024 / warpSize) {
+    if (lid < detail::max_group_size / warpSize) {
       scratch[lid] = tmp;
     }
   }
@@ -534,6 +539,116 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
   if (wid == 0)
     return local_x;
   return binary_op(scratch[wid - 1], local_x);
+}
+
+// shift_left
+template<typename Group, typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename Group::linear_id_type lid        = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid + delta;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  if (target_lid > g.get_local_range().size())
+    target_lid = 0;
+
+  return scratch[target_lid];
+}
+
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return detail::shuffle_down_impl(x, delta);
+}
+
+// shift_right
+template<typename Group, typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename Group::linear_id_type lid        = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid - delta;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  return scratch[target_lid];
+}
+
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+  return detail::shuffle_up_impl(x, delta);
+}
+
+// permute_group_by_xor
+template<typename Group, typename T>
+HIPSYCL_KERNEL_TARGET
+T permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename Group::linear_id_type lid        = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid = lid ^ mask;
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  return scratch[target_lid];
+}
+
+// permute_group_by_xor
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
+  return detail::shuffle_xor_impl(x, mask);
+}
+
+// select_from_group
+template<typename Group, typename T>
+HIPSYCL_KERNEL_TARGET
+T select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
+  __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
+             scratch_storage;
+  T *        scratch = reinterpret_cast<T *>(&scratch_storage);
+
+  typename Group::linear_id_type lid = g.get_local_linear_id();
+  typename Group::linear_id_type target_lid =
+      detail::linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
+
+  scratch[lid] = x;
+  group_barrier(g);
+
+  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  if (target_lid > g.get_local_range().size() || target_lid < 0)
+    target_lid = 0;
+
+  return scratch[target_lid];
+}
+
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
+  typename sub_group::linear_id_type target_lid = remote_local_id.get(0);
+  return detail::shuffle_impl(x, target_lid);
 }
 
 } // namespace sycl

@@ -269,10 +269,17 @@ struct group
   }
 #endif
 
-  /*
-   * TODO: needs to be implemented
-  range<Dimensions> get_max_local_range() const;
-  */
+  range<Dimensions> get_max_local_range() const{
+    if constexpr (Dimensions == 1) {
+      return {1024};
+    } else if constexpr (Dimensions == 2) {
+      return {1024, 1024};
+    } else if constexpr (Dimensions == 3) {
+      return {1024, 1024, 1024};
+    } else {
+      static_assert(std::is_same_v<int, int>, "Only three dimensional ranges are supported!");
+    }
+  }
 
   template<
     typename Finalizer,

@@ -537,9 +537,8 @@ class accessor
     else if(is_std_accessor_variant(dest))
       // Can always convert to regular accessors from non-raw accessors
       return true;
-    //else if(is_std_accessor_variant(src) && !is_std_accessor_variant(dest))
-    // TODO: This case should be prevented unless dest is ranged?
-    else if(is_unranged_variant(dest) && is_ranged_variant(src))
+    else if (is_unranged_variant(dest) &&
+             (is_ranged_variant(src) || is_std_accessor_variant(src)))
       // Allowing this would expose an accessor that has forgotten its
       // correct access range, using the subscript operators would potentially
       // access memory outside of the allowed range
@@ -1194,6 +1193,32 @@ template <class T, int Dim = 1,
                                               : access_mode::read_write),
           target Tgt = target::device>
 using raw_accessor = accessor<T, Dim, M, Tgt, accessor_variant::raw>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using ranged_accessor = accessor<T, Dim, M, Tgt, accessor_variant::ranged>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using unranged_accessor = accessor<T, Dim, M, Tgt, accessor_variant::unranged>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using ranged_placeholder_accessor =
+    accessor<T, Dim, M, Tgt, accessor_variant::ranged_placeholder>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using unranged_placeholder_accessor =
+    accessor<T, Dim, M, Tgt, accessor_variant::unranged_placeholder>;
 
 // Accessor deduction guides
 #ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION

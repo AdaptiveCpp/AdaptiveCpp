@@ -103,7 +103,7 @@ However, note that using distinct accessor variants might potentially break cert
 
 hipSYCL accessor variants can be constructed in the following way:
 1. By explicitly setting the `accessor_variant` template parameter of the accessor to a value that differs from the standard `access::placeholder::false_t` and `access::placeholder::true_t`.
-2. For raw accessors, by using the `sycl::raw_accessor` type alias (see API reference below)
+2. By using the `sycl::raw_accessor`, `sycl::ranged_accessor`, `sycl::unranged_accessor`, `sycl::ranged_placeholder_accessor`, `sycl::unranged_placeholder_acccessor` type aliases (see API reference below)
 3. For raw accessors, by using the new `read_only_raw`, `read_write_raw` and `write_only_raw` deduction tags
 4. If `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION` is defined, SYCL 2020 CTAD rules and `buffer::get_access()` will automatically construct accessors of the most efficient types.
 
@@ -151,8 +151,8 @@ There are certain restrictions with respect to the functionality of individual a
 ### Conversion rules
 Two accessor objects of different accessor variant can be implicitly converted, unless one of the following conditions is met:
 * the source accessor is a raw accessor. In that case the destination accessor would expose more information than the source could provide.
-* the destination accessor is unranged for a ranged source accessor. In that case, the destination accessor might expose access to regions of the buffer that are not guaranteed to be in a consistent state on the target device, if they are outside of the original access range of the source accessor.
-* the destination accessor is not a placeholder accessor for a non-placeholder source accessor.
+* the destination accessor is unranged for a ranged source accessor, or a standard SYCL 2020 accessor. In that case, the destination accessor might expose access to regions of the buffer that are not guaranteed to be in a consistent state on the target device, if they are outside of the original access range of the source accessor.
+* the destination accessor is a placeholder accessor for a non-placeholder source accessor.
 
 Conversion from hipSYCL accessor variants to standard accessors (variant is `access::placeholder::false_t` or `access::placeholder::true_t`) is supported.
 The opposite direction is currently allowed for compatibility reasons, but might be disabled in the future as correctness for ranged accessors cannot be preserved.
@@ -163,6 +163,7 @@ Raw accessors additionally obey the following restrictions:
 * They cannot be constructed as placeholders
 * They do not expose range and size queries
 * They only expose `operator[]` for 0 and 1-dimensional accessors
+* The raw accessor `operator[]`, if available, does not take into account any access offset.
 
 ## API reference
 
@@ -338,39 +339,70 @@ public:
   
   // Only available for non-atomic accessors that either
   // * are not raw accessors
-  // * are raw accessors of dimensionality <= 1
+  // * are raw accessors of dimensionality <= 1. In this case,
+  //   the access offset will not be taken into account.
   reference operator[](id<dimensions> index) const noexcept;
   
   // Only available for non-atomic accessors of dimensionality 1 
   // that either
   // * are not raw accessors
-  // * are raw accessors of dimensionality <= 1
+  // * are raw accessors of dimensionality <= 1. In this case,
+  //   the access offset will not be taken into account.
   reference operator[](size_t index) const noexcept;
 
   // Only available for atomic accessors that either
   // * are not raw accessors
-  // * are raw accessors of dimensionality <= 1
+  // * are raw accessors of dimensionality <= 1. In this case,
+  //   the access offset will not be taken into account.
   atomic<dataT, access::address_space::global_space>
   operator[](id<dimensions> index) const noexcept;
 
   // Only available for atomic accessors that either
   // * are not raw accessors
-  // * are raw accessors of dimensionality <= 1
+  // * are raw accessors of dimensionality <= 1. In this case,
+  //   the access offset will not be taken into account.
   atomic<dataT, access::address_space::global_space>
   operator[](size_t index) const noexcept;
 
-  // Only available for accessors of dimensionality > 1 that either
-  // * are not raw accessors
-  // * are raw accessors of dimensionality <= 1
+  // Only available for accessors of dimensionality > 1 that
+  // are not raw accessors
   __unspecified__ operator[](size_t index) const noexcept;
 
 };
+
 
 template <class T, int Dim = 1,
           access_mode M = (std::is_const_v<T> ? access_mode::read
                                               : access_mode::read_write),
           target Tgt = target::device>
 using raw_accessor = accessor<T, Dim, M, Tgt, accessor_variant::raw>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using ranged_accessor = accessor<T, Dim, M, Tgt, accessor_variant::ranged>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using unranged_accessor = accessor<T, Dim, M, Tgt, accessor_variant::unranged>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using ranged_placeholder_accessor =
+    accessor<T, Dim, M, Tgt, accessor_variant::ranged_placeholder>;
+
+template <class T, int Dim = 1,
+          access_mode M = (std::is_const_v<T> ? access_mode::read
+                                              : access_mode::read_write),
+          target Tgt = target::device>
+using unranged_placeholder_accessor =
+    accessor<T, Dim, M, Tgt, accessor_variant::unranged_placeholder>;
+
 
 // Deduction guides when HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION is active
 

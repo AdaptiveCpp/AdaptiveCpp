@@ -55,7 +55,9 @@ public:
   // Wait for completion of all submitted operations
   void wait();
   void wait(std::size_t node_group_id);
-  
+
+  std::vector<dag_node_ptr> get_group(std::size_t node_group_id);
+
   void register_submitted_ops(dag_node_ptr);
 private:
   void trigger_flush_opportunity();

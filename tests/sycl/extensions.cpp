@@ -28,6 +28,7 @@
 
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/event.hpp"
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/handler.hpp"
@@ -851,6 +852,32 @@ BOOST_AUTO_TEST_CASE(update_device) {
   for(std::size_t i = 0; i < size[0]; ++i)
     BOOST_CHECK(target_buff[i] == static_cast<int>(i));
 }
+#endif
+#ifdef HIPSYCL_EXT_QUEUE_WAIT_LIST
+
+BOOST_AUTO_TEST_CASE(queue_wait_list) {
+  using namespace cl;
+  sycl::queue out_of_order_q;
+  sycl::queue in_order_q{
+      sycl::property_list{sycl::property::queue::in_order{}}};
+
+  auto test = [](sycl::queue& q){
+    std::vector<sycl::event> evts;
+    for(int i = 0; i < 10; ++i)
+      evts.push_back(q.single_task([=](){}));
+    auto wait_list = q.get_wait_list();
+    
+    q.single_task(wait_list, [=](){}).wait();
+    for(sycl::event e : evts) {
+      BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
+                  sycl::info::event_command_status::complete);
+    }
+  };
+
+  test(out_of_order_q);
+  test(in_order_q);
+}
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

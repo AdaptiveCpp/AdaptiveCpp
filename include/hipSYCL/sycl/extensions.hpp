@@ -51,5 +51,6 @@
 #endif
 
 #define HIPSYCL_EXT_UPDATE_DEVICE
+#define HIPSYCL_EXT_QUEUE_WAIT_LIST
 
 #endif

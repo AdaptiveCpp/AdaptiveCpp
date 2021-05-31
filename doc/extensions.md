@@ -49,6 +49,24 @@ public:
 }
 ```
 
+### `HIPSYCL_EXT_QUEUE_WAIT_LIST`
+
+Adds a `queue::get_wait_list()` method that returns a vector of `sycl::event` in analogy to `event::get_wait_list()`, such that waiting for all returned events guarantees that all operations submitted to the queue have completed. This can be used to express asynchronous barrier-like semantics when passing the returned vector into handler::depends_on().
+If the queue is an in-order queue, the returned vector will contain at most one event.
+
+Note that `queue::get_wait_list()` might not return an event for all submitted operations, e.g. completed operations or operations that are dependencies of others in the the dependency graphs may be optimized away in the returned set of events.
+
+#### API Reference
+
+```c++
+namespace sycl {
+class queue {
+public:
+  std::vector<event> get_wait_list() const;
+};
+}
+```
+
 ### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:

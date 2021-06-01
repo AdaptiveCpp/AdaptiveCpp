@@ -161,5 +161,9 @@ void dag_manager::trigger_flush_opportunity()
   }
 }
 
+std::vector<dag_node_ptr> dag_manager::get_group(std::size_t node_group_id) {
+  return _submitted_ops.get_group(node_group_id);
+}
+
 }
 }

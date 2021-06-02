@@ -1,3 +1,5 @@
+// The reduction in the original code has a WAR dependency between work groups -> flaky territory..
+// ALLOW_RETRIES: 4
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
 // RUN: %t | FileCheck %s
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS -O

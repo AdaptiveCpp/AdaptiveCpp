@@ -790,21 +790,23 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
       }
       if (auto AllocaIt = ValueAllocaMap.find(OPV); AllocaIt != ValueAllocaMap.end()) {
         auto *Alloca = llvm::cast<llvm::AllocaInst>(AllocaIt->getSecond());
-        auto *IP = InsertBefore;
         // here's probably not the place for this.. as we need this in the pre-header or so of the new loop and not in
         // the old work-item loop.. :(
         if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(I)) {
           auto *IncomingBB = PhiI->getIncomingBlock(OP);
-          IP = IncomingBB->getTerminator();
+          auto *IP = IncomingBB->getTerminator();
           llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, MDAccessGroup, OPV->getName());
           copyDgbValues(OPV, Load, IP);
           I->replaceUsesOfWith(OPV, Load);
         } else if (!AllocasInHeader.contains(Alloca)) {
-          llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, MDAccessGroup, OPV->getName());
+          llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, InsertBefore, MDAccessGroup, OPV->getName());
 
-          copyDgbValues(OPV, Load, IP);
+          copyDgbValues(OPV, Load, InsertBefore);
           VMap[AllocaIt->first] = Load;
           AllocasInHeader.insert(Alloca);
+          I->replaceUsesOfWith(OPV, Load);
+        } else {
+          I->replaceUsesOfWith(OPV, VMap[AllocaIt->first]);
         }
       }
     }
@@ -1099,7 +1101,8 @@ llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBloc
   return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
-void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx, llvm::MDNode *MDAccessGroup) {
+void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx, llvm::BasicBlock *LoadBlock,
+                              llvm::MDNode *MDAccessGroup) {
   const auto IndPhis = getInductionVariables(L);
   assert(!IndPhis.empty() && "No Loop induction variable found.");
 
@@ -1131,7 +1134,9 @@ void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx
       }
     }
   }
-  replaceOperandsWithArrayLoad(Idx, ValueAllocaMap, DependingInsts, MDAccessGroup);
+  llvm::ValueToValueMapTy VMap;
+  replaceOperandsWithArrayLoadInHeader(Idx, ValueAllocaMap, DependingInsts, LoadBlock->getFirstNonPHI(), VMap,
+                                       MDAccessGroup);
   for (auto *PhiI : ToErase) {
     PhiI->eraseFromParent();
   }
@@ -1619,9 +1624,11 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
 
   InnerLoop = LI.getLoopFor(InnerHeader);
   {
-    // move non ind vars out of header, as they'd be they'd be arrayified by the next split otherwise, leading to a mess.
+    // move non ind vars out of header, as they'd be they'd be arrayified by the next split otherwise, leading to a
+    // mess.
     llvm::Loop *PrevLoop = LI.getLoopFor(Header);
-    moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), MDAccessGroup);
+    moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), InnerLoop->getLoopPreheader(),
+                             MDAccessGroup);
   }
   auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
   InnerHeader = InnerLoop->getHeader();

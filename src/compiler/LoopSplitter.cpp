@@ -1479,10 +1479,10 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 }
 
 llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::Loop *PrevLoop,
-                                                const llvm::Loop *InnerLoop, llvm::BasicBlock *WorkItemHeader,
+                                                const llvm::Loop *InnerLoop, llvm::BasicBlock *LoadBlock,
                                                 llvm::PHINode *OldWIIdx, llvm::PHINode *NewWIIdx,
                                                 llvm::ValueToValueMapTy &VMap, llvm::MDTuple *MDAccessGroup) {
-  llvm::Instruction *NewHeaderIP = WorkItemHeader->getFirstNonPHIOrDbg();
+  llvm::Instruction *NewLoadIP = LoadBlock->getFirstNonPHIOrDbg();
   llvm::Value *VInc = Phi->getIncomingValueForBlock(InnerLoop->getLoopPreheader());
   if (auto *LInc = llvm::dyn_cast<llvm::LoadInst>(VInc)) {
     llvm::AllocaInst *OrgAlloca = getLoopStateAllocaForLoad(*LInc);
@@ -1491,18 +1491,19 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
     // the inner loop, another load inside the last work item loop is required. That value is then immediately stored to
     // the newly created alloca, which is used exclusively in for the induction variable.
     // todo: if the value from the alloca is really only used as the initial value of the loop, it would be possible to
-    //  re-use that alloca and safe stack storage
+    //  re-use that alloca and reduce stack storage usage
     auto *ToStore = loadFromAlloca(OrgAlloca, OldWIIdx, PrevLoop->getLoopLatch()->getFirstNonPHIOrDbgOrLifetime(),
                                    MDAccessGroup, LInc->getName());
-    llvm::AllocaInst *IncAlloca = arrayifyInstruction(WorkItemHeader->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), ToStore,
-                                    PrevLoop->getCanonicalInductionVariable(), MDAccessGroup);
+    llvm::AllocaInst *IncAlloca =
+        arrayifyInstruction(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), ToStore,
+                            PrevLoop->getCanonicalInductionVariable(), MDAccessGroup);
 
-    auto *NewLoad = loadFromAlloca(IncAlloca, NewWIIdx, NewHeaderIP, MDAccessGroup, LInc->getName());
-    copyDgbValues(LInc, NewLoad, NewHeaderIP);
+    auto *NewLoad = loadFromAlloca(IncAlloca, NewWIIdx, NewLoadIP, MDAccessGroup, LInc->getName());
+    copyDgbValues(LInc, NewLoad, NewLoadIP);
     VMap[LInc] = NewLoad;
     VMap[Phi] = NewLoad;
-    auto *Copied = loadFromAlloca(IncAlloca, OldWIIdx, InnerLoop->getLoopPreheader()->getFirstNonPHI(), MDAccessGroup,
-                                  LInc->getName());
+    auto *Copied = loadFromAlloca(IncAlloca, llvm::Constant::getNullValue(NewWIIdx->getType()),
+                                  InnerLoop->getLoopPreheader()->getFirstNonPHI(), MDAccessGroup, LInc->getName());
     llvm::dropDebugUsers(*Phi);
 
     Phi->replaceUsesOfWith(LInc, Copied);
@@ -1518,10 +1519,10 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
   } else { // constants
     auto *IP = PrevLoop->getLoopLatch()->getFirstNonPHIOrDbgOrLifetime();
 
-    llvm::AllocaInst *ValueAlloca = arrayifyValue(WorkItemHeader->getParent()->getEntryBlock().getFirstNonPHIOrDbg(),
-                                                  VInc, IP, PrevLoop->getCanonicalInductionVariable(), MDAccessGroup);
-    auto *Load = loadFromAlloca(ValueAlloca, NewWIIdx, NewHeaderIP, MDAccessGroup, Phi->getName());
-    copyDgbValues(Phi, Load, NewHeaderIP);
+    llvm::AllocaInst *ValueAlloca = arrayifyValue(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), VInc,
+                                                  IP, PrevLoop->getCanonicalInductionVariable(), MDAccessGroup);
+    auto *Load = loadFromAlloca(ValueAlloca, NewWIIdx, NewLoadIP, MDAccessGroup, Phi->getName());
+    copyDgbValues(Phi, Load, NewLoadIP);
     llvm::dropDebugUsers(*Phi);
     VMap[Phi] = Load;
 
@@ -1542,15 +1543,15 @@ llvm::LoadInst *replaceIncomingFromLatchWithLoad(llvm::PHINode *Phi, const llvm:
 }
 
 void arrayifyInnerLoopIndVars(const llvm::Loop *NewLoop, const llvm::Loop *PrevLoop, const llvm::Loop *InnerLoop,
-                              llvm::BasicBlock *WorkItemHeader, llvm::MDTuple *MDAccessGroup) {
+                              llvm::BasicBlock *LoadBlock, llvm::MDTuple *MDAccessGroup) {
   llvm::ValueToValueMapTy VMap;
   auto InnerIndVars = getInductionVariables(*InnerLoop);
   llvm::PHINode *OldWIIdx = PrevLoop->getCanonicalInductionVariable();
   llvm::PHINode *NewWIIdx = NewLoop->getCanonicalInductionVariable();
 
   for (auto *Phi : InnerIndVars) {
-    if (auto *AllocaI = arrayifyIncomingFromPreheader(Phi, PrevLoop, InnerLoop, WorkItemHeader, OldWIIdx, NewWIIdx,
-                                                      VMap, MDAccessGroup)) {
+    if (auto *AllocaI = arrayifyIncomingFromPreheader(Phi, PrevLoop, InnerLoop, LoadBlock, OldWIIdx, NewWIIdx, VMap,
+                                                      MDAccessGroup)) {
       replaceIncomingFromLatchWithLoad(Phi, InnerLoop, NewWIIdx, AllocaI, MDAccessGroup);
     } else {
       assert(false && "Incoming value not successfully arrayified.");
@@ -1653,7 +1654,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
                                   InnerLatch->getName() + BlockNameSuffix);
 
     llvm::Loop *PrevLoop = LI.getLoopFor(Header);
-    arrayifyInnerLoopIndVars(L, PrevLoop, InnerLoop, NewHeader, MDAccessGroup);
+    arrayifyInnerLoopIndVars(L, PrevLoop, InnerLoop, LoadBlock, MDAccessGroup);
 
     // move non induction variables out of header and then replace old loop's indices with 0
     // moveNon.. also generates arrayifications for constant values

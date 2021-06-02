@@ -37,7 +37,7 @@ set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS}" CACHE STRING "The platforms and archite
 # If found, takes precedence over deprecated HIPSYCL_PLATFORM and HIPSYCL_GPU_ARCH
 # IF not found, fallback to deprecated HIPSYCL_PLATFORM and HIPSYCL_GPU_ARCH logic
 if(NOT HIPSYCL_TARGETS)
-  set(HIPYSCL_TARGETS_ENV $ENV{HIPSYCL_TARGETS})
+  set(HIPSYCL_TARGETS_ENV $ENV{HIPSYCL_TARGETS})
   if(HIPSYCL_TARGETS_ENV)
     message("Found HIPYSCL_TARGETS from environment: ${HIPSYCL_TARGETS_ENV}")
     set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS_ENV}")

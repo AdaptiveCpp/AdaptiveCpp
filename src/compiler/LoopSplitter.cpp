@@ -1618,7 +1618,11 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   auto *NewExitBlock = L->getExitBlock();
 
   InnerLoop = LI.getLoopFor(InnerHeader);
-
+  {
+    // move non ind vars out of header, as they'd be they'd be arrayified by the next split otherwise, leading to a mess.
+    llvm::Loop *PrevLoop = LI.getLoopFor(Header);
+    moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), MDAccessGroup);
+  }
   auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
   InnerHeader = InnerLoop->getHeader();
   llvm::BasicBlock *NewInnerLoopExitBlock = splitEdge(InnerHeader, InnerLoopExitBlock, &LI, &DT);
@@ -1656,9 +1660,8 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
     llvm::Loop *PrevLoop = LI.getLoopFor(Header);
     arrayifyInnerLoopIndVars(L, PrevLoop, InnerLoop, LoadBlock, MDAccessGroup);
 
-    // move non induction variables out of header and then replace old loop's indices with 0
+    // then replace old loop's indices with 0
     // moveNon.. also generates arrayifications for constant values
-    moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), MDAccessGroup);
     replaceIndexWithNull(InnerLoop, PrevLoop->getCanonicalInductionVariable());
     llvm::SmallVector<llvm::BasicBlock *, 2> BBs{{InnerLoop->getHeader(), InnerLoop->getLoopPreheader()}};
     replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());

@@ -34,7 +34,7 @@ int main()
           const auto lid = item.get_local_id(0);
 
           scratch[lid] = acc[item.get_global_id()];
-          auto tmp = 1000;
+          auto tmp = 0;
           for(size_t i = local_size / 2; i > 0; i /= 2)
           {
             item.barrier();
@@ -43,17 +43,22 @@ int main()
             scratch[lid] = tmp;
           }
 
-          if(lid == 0)
+          if(lid <= 1)
             acc[item.get_global_id()] = tmp;
         });
     });
   }
   for(size_t i = 0; i < global_size / local_size; ++i)
   {
-    // CHECK: 152512
-    // CHECK: 185280
-    // CHECK: 218048
-    // CHECK: 250816
+    // CHECK: 12288
+    // CHECK: 24512
+    // CHECK: 28672
+    // CHECK: 57280
+    // CHECK: 45056
+    // CHECK: 90048
+    // CHECK: 61440
+    // CHECK: 122816
+    std::cout << host_buf[i * local_size + 1] << "\n";
     std::cout << host_buf[i * local_size] << "\n";
   }
 }

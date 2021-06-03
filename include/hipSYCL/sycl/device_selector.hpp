@@ -228,8 +228,9 @@ auto aspect_selector() {
   return aspect_selector(aspectList...);
 }
 
-inline device::device(const device_selector &deviceSelector) {
-  this->_device_id = deviceSelector.select_device()._device_id;
+template <class DeviceSelector>
+inline device::device(const DeviceSelector &deviceSelector) {
+  this->_device_id = detail::select_device(deviceSelector)._device_id;
 }
 
 

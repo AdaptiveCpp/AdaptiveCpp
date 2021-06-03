@@ -300,12 +300,20 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.submit([&](s::handler& cgh){
     s::accessor acc1{buff, cgh, s::read_only};
     BOOST_CHECK(!acc1.is_placeholder());
+    
+#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+    // Conversion rw accessor<int> -> accessor<const int>, read-only
+    s::accessor<const int> acc2 = s::accessor<int>{buff, cgh};
+    s::accessor acc3{buff, cgh, s::read_only};
+    // Conversion read-write to non-const read-only accessor
+    acc3 = s::accessor{buff, cgh, s::read_write};
+#else
     // Conversion rw accessor<int> -> accessor<const int>, read-only
     s::accessor<const int> acc2 = s::accessor{buff, cgh, s::read_write};
-    
     s::accessor acc3{buff, cgh, s::read_only};
     // Conversion read-write to non-const read-only accessor
     acc3 = s::accessor<int>{buff, cgh};
+#endif
     BOOST_CHECK(!acc3.is_placeholder());
 
     // Deduction based on constness of argument

@@ -358,10 +358,11 @@ public:
     {
       // Strictly speaking, setting these attributes is not even necessary!
       // It's only important that the kernel has the right attribute.
-      if (!F->hasAttr<clang::CUDAHostAttr>())
+      if (!F->hasAttr<clang::CUDAHostAttr>() && !F->hasAttr<clang::CUDADeviceAttr>())
+      {
         F->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
-      if (!F->hasAttr<clang::CUDADeviceAttr>())
         F->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));
+      }
     }
 
     for(auto F : MarkedKernels)
@@ -384,10 +385,11 @@ public:
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
                            << RD->getQualifiedNameAsString() << std::endl;
         markAsHostDevice(RD);
-        if (!RD->hasAttr<clang::CUDAHostAttr>())
+        if (!RD->hasAttr<clang::CUDAHostAttr>() && !RD->hasAttr<clang::CUDADeviceAttr>())
+        {
           RD->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
-        if (!RD->hasAttr<clang::CUDADeviceAttr>())
           RD->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));
+        }
       }
     }
   }

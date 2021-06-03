@@ -25,6 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// Test workaround for https://bugs.llvm.org/show_bug.cgi?id=50383
+#include <atomic>
+#include <complex>
+
 #define BOOST_TEST_MODULE device compilation tests
 #if !defined(_WIN32) || defined(__MINGW32__)
 #define BOOST_TEST_DYN_LINK
@@ -173,15 +177,16 @@ BOOST_AUTO_TEST_CASE(kernel_name_mangling) {
   });
 }
 
+template<class AccessorT>
 struct KernelFunctor {
-  using Accessor = cl::sycl::accessor<size_t, 1, cl::sycl::access::mode::discard_write>;
-  KernelFunctor(Accessor acc) : acc(acc) {};
+  
+  KernelFunctor(AccessorT acc) : acc(acc) {};
 
   void operator() (cl::sycl::item<1> item) const {
     acc[0] = 300 + item.get_linear_id();
   }
 
-  Accessor acc;
+  AccessorT acc;
 };
 
 // It's allowed to omit the name if the functor is globally visible
@@ -243,8 +248,7 @@ BOOST_AUTO_TEST_CASE(hierarchical_invoke_shared_memory) {
   // is moved into a separate function. We expect it to still
   // behave as before.
   {
-    auto operate_on_shmem = [](cl::sycl::group<1> group,
-      cl::sycl::accessor<size_t, 1, cl::sycl::access::mode::discard_write> acc) {
+    auto operate_on_shmem = [](cl::sycl::group<1> group, auto acc) {
       size_t shmem[2]; // Should be shared
       group.parallel_for_work_item([&](cl::sycl::h_item<1> h_item) {
         shmem[h_item.get_local().get_linear_id()] = h_item.get_global().get_linear_id();

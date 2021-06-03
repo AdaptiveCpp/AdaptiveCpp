@@ -30,6 +30,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include <exception>
 #include <cstdlib>
+#include <limits>
 
 namespace hipsycl {
 namespace rt {

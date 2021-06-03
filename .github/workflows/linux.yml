@@ -52,11 +52,11 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
-        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}}
+        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev
     - name: install boost (from source)
       if: matrix.os == 'ubuntu-18.04'
       run: |
-        wget -q https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip
+        wget -q https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.zip
         unzip boost_1_70_0.zip
         cd boost_1_70_0
         ./bootstrap.sh --prefix=/usr

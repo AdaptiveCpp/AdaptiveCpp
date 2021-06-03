@@ -193,10 +193,12 @@ namespace rt {
 void backend_loader::query_backends() {
   std::vector<std::filesystem::path> backend_lib_paths = get_plugin_search_paths();
 
-#ifndef _WIN32
-  std::string shared_lib_extension = ".so";
-#else
+#ifdef __APPLE__
+  std::string shared_lib_extension = ".dylib";
+#elif defined(_WIN32)
   std::string shared_lib_extension = ".dll";
+#else
+  std::string shared_lib_extension = ".so";
 #endif
 
   for(const std::filesystem::path& backend_lib_path : backend_lib_paths) {

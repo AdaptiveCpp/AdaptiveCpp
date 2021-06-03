@@ -331,6 +331,8 @@ public:
   }
 
 private:
+  template <class U, usm::alloc AllocKindU, size_t AlignmentU>
+  friend class usm_allocator;
   context _ctx;
   device _dev;
 };

@@ -79,7 +79,8 @@ public:
       : _device_id(detail::get_host_device()) {}
 
   // Implemented in device_selector.hpp
-  explicit device(const device_selector &deviceSelector);
+  template <class DeviceSelector>
+  explicit device(const DeviceSelector &deviceSelector);
 
   bool is_host() const 
   {
@@ -120,8 +121,7 @@ public:
     } else if(asp == aspect::atomic64) {
       return true;
     } else if(asp == aspect::image) {
-      return get_rt_device()->has(
-      rt::device_support_aspect::sub_group_independent_forward_progress);
+      return false;
     } else if(asp == aspect::online_compiler) {
       return false;
     } else if(asp == aspect::online_linker) {

@@ -154,6 +154,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+add_subdirectory(src)
+
 set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
 set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
   "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
@@ -166,6 +168,14 @@ endif()
 
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
+  
+  if(NOT ${Boost_FIBER_LIBRARY_DEBUG})
+    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+    set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")
+  else()
+    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
+    set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} -Wl,-rpath ${Boost_LIBRARY_DIR}")
+  endif()
 else()
   set(DEFAULT_OMP_FLAG "-fopenmp")
 endif()
@@ -183,6 +193,10 @@ else()
   set(DEFAULT_WIN32_OMP_LINK_LINE "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} ${DEFAULT_OMP_FLAG}")
   set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} -llibomp")
 endif()
+
+# need add_subdirectory(src) before this!
+set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
+set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
 set(DEFAULT_OMP_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_ROOT}/lib ${DEFAULT_OMP_FLAG}")
 set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -lomp -Wl,-rpath=${BOOST_ROOT}/lib")
 
@@ -200,6 +214,16 @@ if(WIN32)
   endif()
   if(NOT SEQUENTIAL_LINK_LINE) 
     set(SEQUENTIAL_LINK_LINE ${DEFAULT_WIN32_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
+  endif()
+elseif(APPLE)
+  if(NOT CUDA_LINK_LINE) # no CUDA support here.. but make CMake happy.
+    set(CUDA_LINK_LINE "" CACHE STRING "Arguments passed to compiler to link CUDA libraries to SYCL applications")
+  endif()
+  if(NOT OMP_LINK_LINE)
+    set(OMP_LINK_LINE ${DEFAULT_APPLE_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
+  endif()
+  if(NOT SEQUENTIAL_LINK_LINE) 
+    set(SEQUENTIAL_LINK_LINE ${DEFAULT_APPLE_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
   endif()
 else()
   if(NOT CUDA_LINK_LINE)
@@ -219,14 +243,14 @@ if(NOT ROCM_CXX_FLAGS)
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
 
-  set(ROCM_CXX_FLAGS "-isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
+  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
+  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
 if(NOT OMP_CXX_FLAGS) 
@@ -236,7 +260,6 @@ endif()
 if(NOT SEQUENTIAL_CXX_FLAGS) 
   set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR}" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
-add_subdirectory(src)
 
 set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
@@ -274,6 +297,7 @@ configure_file(
 install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
 install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL/std DESTINATION include/hipSYCL/ )
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
 if(NOT WIN32)

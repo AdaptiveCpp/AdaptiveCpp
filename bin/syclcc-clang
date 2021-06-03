@@ -982,7 +982,10 @@ class compiler:
       "-lhipSYCL-rt"
     ]
     
-    if not sys.platform.startswith("win32"):
+    if sys.platform == "darwin":
+      linker_args.append("-Wl,-rpath")
+      linker_args.append(self._hipsycl_lib_path)
+    elif not sys.platform.startswith("win32"):
       linker_args.append("-Wl,-rpath="+self._hipsycl_lib_path)
     return linker_args
 

@@ -374,6 +374,33 @@ public:
   friend bool operator!=(const queue& lhs, const queue& rhs)
   { return !(lhs == rhs); }
 
+  std::vector<event> get_wait_list() const {
+    if(is_in_order()) {
+      std::lock_guard<std::mutex> lock{*_lock};
+
+      if(auto prev = this->_previous_submission.lock()){
+        if(!prev->is_complete()) {
+          return std::vector<event>{event{prev, _handler}};
+        }
+      }
+      // If we don't have a previous event or it's complete,
+      // just return empty vector
+      return std::vector<event>{};
+      
+    } else {
+      // for non-in-order queues we need to ask the runtime for
+      // all nodes of this node group
+      auto nodes = rt::application::dag().get_group(_node_group_id);
+      std::vector<event> evts;
+      for(auto node : nodes){
+        if(!node->is_complete())
+          evts.push_back(event{node, _handler});
+      }
+
+      return evts;
+    }
+  }
+
   // ---- Queue shortcuts ------
 
   template <typename KernelName = __hipsycl_unnamed_kernel, typename KernelType>

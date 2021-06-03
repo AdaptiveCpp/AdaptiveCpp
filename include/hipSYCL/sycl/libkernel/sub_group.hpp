@@ -62,19 +62,21 @@ public:
     return local_tid() & get_warp_mask();
   }
 
+  // always returns the maximum sub_group size
   HIPSYCL_KERNEL_TARGET
   range_type get_local_range() const {
     return warpSize;
   }
 
+  // always returns the maximum sub_group size
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
     return warpSize;
   }
-  
+
   HIPSYCL_KERNEL_TARGET
   range_type get_max_local_range() const {
-    return get_local_range();
+    return warpSize;
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -99,6 +101,7 @@ public:
     return range_type{get_group_linear_range()};
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
     return get_group_range();
@@ -187,9 +190,9 @@ public:
     return __spirv_BuiltInNumSubgroups;
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
-    // TODO
     return __spirv_BuiltInNumSubgroups;
   }
 
@@ -265,6 +268,7 @@ public:
     return _group_size;
   }
 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
     return _group_size;

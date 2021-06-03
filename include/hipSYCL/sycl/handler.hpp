@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@
 #include "exception.hpp"
 #include "access.hpp"
 #include "context.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/util.hpp"
 #include "libkernel/backend.hpp"
 #include "device.hpp"
 #include "event.hpp"
@@ -58,17 +60,170 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/glue/embedded_pointer.hpp"
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
+namespace detail {
+
+template <int Dim> struct accessor_data {
+  std::shared_ptr<rt::buffer_data_region> mem;
+  
+  sycl::id<Dim> offset;
+  sycl::range<Dim> range;
+
+  bool is_no_init;
+};
+
+
+} // namespace detail
 
 class queue;
 
 class handler {
   friend class queue;
+
+  template <class AccessorType, int Dim>
+  friend void
+  detail::accessor::bind_to_handler(AccessorType &acc, sycl::handler &cgh,
+                                    std::shared_ptr<rt::buffer_data_region> mem,
+                                    sycl::id<Dim> offset, sycl::range<Dim> range,
+                                    bool is_no_init);
+
+  template <class AccessorType, int Dim>
+  void require(AccessorType& acc,
+               const detail::accessor_data<Dim>& data) {
+
+    glue::unique_id accessor_id = acc.get_uid();
+
+    if (!data.mem) {
+      throw invalid_parameter_error{
+          "handler: require(): accessor is illegal paramater for require() "
+          "because it is not bound to a buffer."};
+    }
+
+    size_t element_size = data.mem->get_element_size();
+
+    if (element_size != sizeof(typename AccessorType::value_type)) {
+      assert(false && "Reinterpreting data with elements of different size is "
+                      "not yet supported");
+    }
+
+    // Translate no_init property and host_task modes
+    access_mode mode =
+        detail::get_effective_access_mode(AccessorType::mode, data.is_no_init);
+
+    auto req = std::make_unique<rt::buffer_memory_requirement>(
+        data.mem, rt::make_id(data.offset), rt::make_range(data.range), mode,
+        AccessorType::access_target);
+
+    // Bind the accessor's embedded pointer to the requirement, such that
+    // the scheduler is able to initialize the accessor's data pointer
+    // once it has been captured
+    req->bind(accessor_id);
+
+    _requirements.add_requirement(std::move(req));
+  }
+
+  template <typename dataT, int dimensions, access_mode accessMode,
+            access::target accessTarget, access::placeholder isPlaceholder>
+  static constexpr std::size_t get_dimensions(
+      accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>
+          acc) {
+    return dimensions;
+  }
+
+  template<class AccessorType>
+  void raise_unregistered_accessor(const AccessorType&) {
+
+    HIPSYCL_DEBUG_ERROR << "Attempted to access accessor that was not "
+                           "registered with the handler"
+                        << std::endl;
+    throw sycl::invalid_parameter_error{
+        "Accessor was not registered with handler"};
+  }
+
+  template <class AccessorType>
+  rt::buffer_memory_requirement *
+  get_buffer_memory_requirement(const AccessorType &acc) {
+    rt::buffer_memory_requirement *req = nullptr;
+
+    for (rt::dag_node_ptr req : _requirements.get()) {
+
+      if (req->get_operation()->is_requirement()) {
+        if (rt::cast<rt::requirement>(req->get_operation())
+                ->is_memory_requirement()) {
+          rt::memory_requirement *mreq =
+              rt::cast<rt::memory_requirement>(req->get_operation());
+          if (mreq->is_buffer_requirement()) {
+            rt::buffer_memory_requirement *bmem_req =
+                rt::cast<rt::buffer_memory_requirement>(req->get_operation());
+            if (bmem_req->is_bound()) {
+              if (bmem_req->get_bound_accessor_id() == acc.get_uid())
+                return bmem_req;
+            }
+          }
+        }
+      }
+    }
+
+    return nullptr;
+  }
+
+  template<int Dim>
+  sycl::id<Dim> rt_id_to_sycl_id(rt::id<Dim> in){
+    sycl::id<Dim> out;
+    for(int i = 0; i < Dim; ++i) {
+      out[i] = in[i];
+    }
+    return out;
+  }
+
+  template<int Dim>
+  sycl::range<Dim> rt_range_to_sycl_range(rt::range<Dim> in){
+    sycl::range<Dim> out;
+    for(int i = 0; i < Dim; ++i) {
+      out[i] = in[i];
+    }
+    return out;
+  }
+
+  template<class AccessorType>
+  auto get_offset(const AccessorType& acc) {
+    rt::buffer_memory_requirement *mem_req = get_buffer_memory_requirement(acc);
+
+    if(!mem_req)
+      raise_unregistered_accessor(acc);
+
+    return rt_id_to_sycl_id(
+        rt::extract_from_id3<AccessorType::get_dimensions()>(
+            mem_req->get_access_offset3d()));
+  }
+
+  template <class AccessorType> auto get_range(const AccessorType &acc) {
+     rt::buffer_memory_requirement *mem_req = get_buffer_memory_requirement(acc);
+
+    if(!mem_req)
+      raise_unregistered_accessor(acc);
+
+    return rt_range_to_sycl_range(
+        rt::extract_from_range3<AccessorType::get_dimensions()>(
+            mem_req->get_access_range3d()));
+  }
+
+  template<class AccessorType>
+  auto get_memory_region(const AccessorType& acc) {
+    rt::buffer_memory_requirement *mem_req = get_buffer_memory_requirement(acc);
+
+    if(!mem_req)
+      raise_unregistered_accessor(acc);
+    
+    return mem_req->get_data_region();
+  }
+
 public:
   ~handler()
   {
@@ -81,7 +236,9 @@ public:
               acc) {
     static_assert(accessTarget != access::target::local,
                   "Requiring local accessors is unsupported");
-    
+
+    // TODO: Prevent require() on slimmed down accessor
+
     // Construct requirement descriptor
     std::shared_ptr<rt::buffer_data_region> data_region =
         acc.get_data_region();
@@ -94,26 +251,18 @@ public:
 
     auto offset = acc.get_offset();
     auto range = acc.get_range();
-    size_t element_size = data_region->get_element_size();
 
-    if(element_size != sizeof(dataT)) {
-      assert(false && "Reinterpreting data with elements of different size is "
-                      "not yet supported");
-    }
+    using AccessorT =
+        accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>;
 
-    // Translate no_init property and host_task modes
-    access_mode mode = acc.get_effective_access_mode();
+    detail::accessor_data<dimensions> data{
+      acc.get_data_region(),
+      offset,
+      range,
+      acc.is_no_init()
+    };
 
-    auto req = std::make_unique<rt::buffer_memory_requirement>(
-        data_region, rt::make_id(offset), rt::make_range(range), mode,
-        accessTarget);
-
-    // Bind the accessor's embedded pointer to the requirement, such that
-    // the scheduler is able to initialize the accessor's data pointer
-    // once it has been captured
-    acc.bind_to(req.get());
-
-    _requirements.add_requirement(std::move(req));
+    this->require(acc, data);
   }
 
   void depends_on(event e) {
@@ -245,50 +394,50 @@ public:
 
   //------ Explicit copy operations API
 
-
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, shared_ptr_class<T> dest)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(accessor<T, dim, mode, tgt, variant> src, shared_ptr_class<T> dest) {
     copy_ptr(src, dest);
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt> dest)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(shared_ptr_class<T> src, accessor<T, dim, mode, tgt, variant> dest) {
     copy_ptr(src, dest);
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(accessor<T, dim, mode, tgt> src, T * dest)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(accessor<T, dim, mode, tgt, variant> src, T *dest) {
     copy_ptr(src, dest);
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void copy(const T * src, accessor<T, dim, mode, tgt> dest)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void copy(const T *src, accessor<T, dim, mode, tgt, variant> dest) {
     copy_ptr(src, dest);
   }
 
   template <typename T, int dim, access::mode srcMode, access::mode dstMode,
-            access::target srcTgt, access::target destTgt>
-  void copy(accessor<T, dim, srcMode, srcTgt> src,
-            accessor<T, dim, dstMode, destTgt> dest)
+            access::target srcTgt, access::target destTgt,
+            accessor_variant VariantSrc, accessor_variant VariantDest>
+  void copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
+            accessor<T, dim, dstMode, destTgt, VariantDest> dest)
   {
     validate_copy_src_accessor(src);
     validate_copy_dest_accessor(dest);
 
     for(int i = 0; i < dim; ++i)
     {
-      if(src.get_range().get(i) > dest.get_range().get(i))
+      if(get_range(src).get(i) > get_range(dest).get(i))
       {
         throw invalid_parameter_error{"handler: copy(): "
           "Accessor sizes are incompatible."};
       }
     }
 
-    std::shared_ptr<rt::buffer_data_region> data_src  = src._buff.get_shared_ptr();
-    std::shared_ptr<rt::buffer_data_region> data_dest = dest._buff.get_shared_ptr();
+    std::shared_ptr<rt::buffer_data_region> data_src  = get_memory_region(src);
+    std::shared_ptr<rt::buffer_data_region> data_dest = get_memory_region(dest);
 
     if (sizeof(T) != data_src->get_element_size() ||
         sizeof(T) != data_dest->get_element_size())
@@ -304,13 +453,13 @@ public:
     rt::device_id src_dev = get_explicit_accessor_target(src);
     rt::device_id dest_dev = get_explicit_accessor_target(dest);
     
-    rt::memory_location source_location{src_dev, rt::embed_in_id3(src.get_offset()),
+    rt::memory_location source_location{src_dev, rt::embed_in_id3(get_offset(src)),
                                         data_src};
-    rt::memory_location dest_location{dest_dev, rt::embed_in_id3(dest.get_offset()),
+    rt::memory_location dest_location{dest_dev, rt::embed_in_id3(get_offset(dest)),
                                       data_dest};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, rt::embed_in_range3(src.get_range()));
+        source_location, dest_location, rt::embed_in_range3(get_range(src)));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);
@@ -318,51 +467,31 @@ public:
     _command_group_nodes.push_back(node);
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void update_host(accessor<T, dim, mode, tgt> acc)
-  {
-    HIPSYCL_DEBUG_INFO << "handler: Spawning async host access task"
-                       << std::endl;
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void update_host(accessor<T, dim, mode, tgt, variant> acc) {
+    update_dev(detail::get_host_device(), acc);
+  }
 
-    if(!acc._buff.get())
-      throw sycl::invalid_parameter_error{
-          "update_host(): Accessor is not bound to buffer"};
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void update(accessor<T, dim, mode, tgt, variant> acc) {
+    
+    if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
+      throw invalid_parameter_error{"handler: device update() is unsupported "
+                                    "for queues not bound to devices"};
 
-    std::shared_ptr<rt::buffer_data_region> data = acc._buff.get_shared_ptr();
-
-    if(sizeof(T) != data->get_element_size())
-      assert(false && "Accessors with different element size than original "
-                      "buffer are not yet supported");
-
-    rt::dag_build_guard build{rt::application::dag()};
-
-    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-        data, rt::make_id(acc.get_offset()), rt::make_range(acc.get_range()), mode, tgt);
-
-    rt::execution_hints enforce_bind_to_host;
-    enforce_bind_to_host.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(
-            detail::get_host_device()));
-
-    // Merge new hint into default hints
-    rt::execution_hints hints = _execution_hints;
-    hints.overwrite_with(enforce_bind_to_host);
-    assert(hints.has_hint<rt::hints::bind_to_device>());
-    assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
-           detail::get_host_device());
-
-    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
-        std::move(explicit_requirement), _requirements, hints);
-
-    _command_group_nodes.push_back(node);
+    update_dev(
+        _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id(),
+        acc);
   }
 
   /// \todo fill() on host accessors can be optimized to use
   /// memset() if the accessor describes a large area of
   /// contiguous memory
-  template<typename T, int dim, access::mode mode, access::target tgt>
-  void fill(accessor<T, dim, mode, tgt> dest, const T& src)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
     static_assert(mode != access::mode::read,
                   "Filling read-only accessors is not allowed.");
     static_assert(tgt != access::target::host_image,
@@ -370,7 +499,7 @@ public:
 
 
     this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
-        dest.get_offset(), dest.get_range(),
+        get_offset(dest), get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
   }
@@ -563,14 +692,55 @@ public:
   }
 
 private:
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  rt::device_id
-  get_explicit_accessor_target(const accessor<T, dim, mode, tgt> &acc) {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  rt::device_id get_explicit_accessor_target(
+      const accessor<T, dim, mode, tgt, variant> &acc) {
     if (tgt == access::target::host_buffer)
       return detail::get_host_device();
     assert(_execution_hints.has_hint<rt::hints::bind_to_device>());
     return _execution_hints.get_hint<rt::hints::bind_to_device>()
         ->get_device_id();
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void update_dev(rt::device_id dev, accessor<T, dim, mode, tgt, variant> acc) {
+    HIPSYCL_DEBUG_INFO
+        << "handler: Spawning async generalized device update task"
+        << std::endl;
+
+    if(!get_memory_region(acc))
+      throw sycl::invalid_parameter_error{
+          "update_dev(): Accessor is not bound to buffer"};
+
+    std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
+
+    if(sizeof(T) != data->get_element_size())
+      assert(false && "Accessors with different element size than original "
+                      "buffer are not yet supported");
+
+    rt::dag_build_guard build{rt::application::dag()};
+
+    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+        data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt);
+
+    rt::execution_hints enforce_bind_to_dev;
+    enforce_bind_to_dev.add_hint(
+        rt::make_execution_hint<rt::hints::bind_to_device>(
+            dev));
+
+    // Merge new hint into default hints
+    rt::execution_hints hints = _execution_hints;
+    hints.overwrite_with(enforce_bind_to_dev);
+    assert(hints.has_hint<rt::hints::bind_to_device>());
+    assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
+           dev);
+
+    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
+        std::move(explicit_requirement), _requirements, hints);
+
+    _command_group_nodes.push_back(node);
   }
 
   template <class KernelName, rt::kernel_type KernelType, class KernelFuncType,
@@ -607,14 +777,12 @@ private:
   void* extract_ptr(const T* ptr)
   { return extract_ptr(const_cast<T*>(ptr)); }
 
-
   template <typename T, int dim, access::mode mode, access::target tgt,
-            typename destPtr>
-  void copy_ptr(accessor<T, dim, mode, tgt> src, destPtr dest)
-  {
+            accessor_variant variant, typename destPtr>
+  void copy_ptr(accessor<T, dim, mode, tgt, variant> src, destPtr dest) {
     validate_copy_src_accessor(src);
 
-    std::shared_ptr<rt::buffer_data_region> data_src = src._buff.get_shared_ptr();
+    std::shared_ptr<rt::buffer_data_region> data_src = get_memory_region(src);
 
     if (sizeof(T) != data_src->get_element_size())
       assert(false && "Accessors with different element size than original "
@@ -628,15 +796,15 @@ private:
 
     rt::device_id dev = get_explicit_accessor_target(src);
 
-    rt::memory_location source_location{dev, rt::embed_in_id3(src.get_offset()),
+    rt::memory_location source_location{dev, rt::embed_in_id3(get_offset(src)),
                                         data_src};
     // Assume the allocation behind dest is large enough to hold src.get_range.size() contiguous elements
     rt::memory_location dest_location{detail::get_host_device(), extract_ptr(dest),
-                                      rt::id<3>{}, rt::embed_in_range3(src.get_range()),
+                                      rt::id<3>{}, rt::embed_in_range3(get_range(src)),
                                       data_src->get_element_size()};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, rt::embed_in_range3(src.get_range()));
+        source_location, dest_location, rt::embed_in_range3(get_range(src)));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);
@@ -645,12 +813,11 @@ private:
   }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
-            typename srcPtr>
-  void copy_ptr(srcPtr src, accessor<T, dim, mode, tgt> dest)
-  {
+            accessor_variant variant, typename srcPtr>
+  void copy_ptr(srcPtr src, accessor<T, dim, mode, tgt, variant> dest) {
     validate_copy_dest_accessor(dest);
 
-    std::shared_ptr<rt::buffer_data_region> data_dest = dest._buff.get_shared_ptr();
+    std::shared_ptr<rt::buffer_data_region> data_dest = get_memory_region(dest);
 
     if (sizeof(T) != data_dest->get_element_size())
       assert(false && "Accessors with different element size than original "
@@ -666,13 +833,13 @@ private:
 
     // Assume src contains src.get_range.size() contiguous elements
     rt::memory_location source_location{detail::get_host_device(), extract_ptr(src),
-                                      rt::id<3>{}, rt::embed_in_range3(dest.get_range()),
+                                      rt::id<3>{}, rt::embed_in_range3(get_range(dest)),
                                       data_dest->get_element_size()};
-    rt::memory_location dest_location{dev, rt::embed_in_id3(dest.get_offset()),
+    rt::memory_location dest_location{dev, rt::embed_in_id3(get_offset(dest)),
                                       data_dest};
 
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
-        source_location, dest_location, rt::embed_in_range3(dest.get_range()));
+        source_location, dest_location, rt::embed_in_range3(get_range(dest)));
 
     rt::dag_node_ptr node = build.builder()->add_memcpy(
         std::move(explicit_copy), _requirements, _execution_hints);
@@ -680,9 +847,9 @@ private:
     _command_group_nodes.push_back(node);
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void validate_copy_src_accessor(const accessor<T, dim, mode, tgt>&)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void validate_copy_src_accessor(const accessor<T, dim, mode, tgt, variant> &) {
     static_assert(dim != 0, "0-dimensional accessors are currently not supported");
     static_assert(mode == access::mode::read || mode == access::mode::read_write,
       "Only read or read_write accessors can be copied from");
@@ -692,9 +859,9 @@ private:
       "supported for copying");
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt>
-  void validate_copy_dest_accessor(const accessor<T, dim, mode, tgt>&)
-  {
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  void validate_copy_dest_accessor(const accessor<T, dim, mode, tgt, variant> &) {
     static_assert(dim != 0, "0-dimensional accessors are currently not supported");
     static_assert(mode == access::mode::write ||
       mode == access::mode::read_write ||
@@ -707,7 +874,6 @@ private:
       "Only global_buffer or host_buffer accessors are currently "
       "supported for copying");
   }
-
 
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }
@@ -777,6 +943,13 @@ template<class AccessorType>
 void bind_to_handler(AccessorType& acc, sycl::handler& cgh)
 {
   cgh.require(acc);
+}
+
+template <class AccessorType, int Dim>
+void bind_to_handler(AccessorType& acc, sycl::handler& cgh,
+                     std::shared_ptr<rt::buffer_data_region> mem,
+                     sycl::id<Dim> offset, sycl::range<Dim> range, bool is_no_init) {
+  cgh.require(acc, detail::accessor_data<Dim>{mem, offset, range, is_no_init});
 }
 
 }

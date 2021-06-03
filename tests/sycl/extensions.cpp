@@ -26,7 +26,10 @@
  */
 
 
+#include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
+#include "hipSYCL/sycl/event.hpp"
+#include "hipSYCL/sycl/libkernel/accessor.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/handler.hpp"
 #include "hipSYCL/sycl/queue.hpp"
@@ -737,9 +740,144 @@ BOOST_AUTO_TEST_CASE(explicit_buffer_policies) {
     }
   }
 
-
-
 }
+#endif
+#ifdef HIPSYCL_EXT_ACCESSOR_VARIANTS
+#ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
+
+template <class T, int Dim, cl::sycl::access_mode M, cl::sycl::target Tgt,
+          cl::sycl::accessor_variant V>
+constexpr cl::sycl::accessor_variant
+get_accessor_variant(cl::sycl::accessor<T, Dim, M, Tgt, V>) {
+  return V;
+}
+
+BOOST_AUTO_TEST_CASE(accessor_variants) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+  sycl::range subrange{512};
+  sycl::id<1> offset{256};
+
+  sycl::buffer<int> buff{size};
+  sycl::accessor unranged_placeholder{buff, sycl::read_write, sycl::no_init};
+  sycl::accessor ranged_placeholder{buff, subrange, offset, sycl::read_write,
+                                    sycl::no_init};
+
+  BOOST_CHECK(get_accessor_variant(unranged_placeholder) ==
+              sycl::accessor_variant::unranged_placeholder);
+  BOOST_CHECK(get_accessor_variant(ranged_placeholder) ==
+              sycl::accessor_variant::ranged_placeholder);
+
+  BOOST_CHECK(unranged_placeholder.get_offset() == sycl::id<1>{});
+  BOOST_CHECK(ranged_placeholder.get_offset() == offset);
+  BOOST_CHECK(unranged_placeholder.get_range() == size);
+  BOOST_CHECK(ranged_placeholder.get_range() == subrange);
+  BOOST_CHECK(unranged_placeholder.is_placeholder());
+  BOOST_CHECK(ranged_placeholder.is_placeholder());
+
+
+  BOOST_CHECK(sizeof(ranged_placeholder) > sizeof(unranged_placeholder));
+
+  q.submit([&](sycl::handler &cgh) {
+    sycl::accessor unranged_acc{buff, cgh, sycl::read_write, sycl::no_init};
+    sycl::accessor ranged_acc{
+        buff, cgh, subrange, offset, sycl::read_write, sycl::no_init};
+
+    BOOST_CHECK(get_accessor_variant(unranged_acc) ==
+              sycl::accessor_variant::unranged);
+    BOOST_CHECK(get_accessor_variant(ranged_acc) ==
+              sycl::accessor_variant::ranged);
+
+    BOOST_CHECK(sizeof(ranged_acc) > sizeof(unranged_acc));
+    BOOST_CHECK(sizeof(ranged_placeholder) > sizeof(ranged_acc));
+
+    BOOST_CHECK(unranged_acc.get_offset() == sycl::id<1>{});
+    BOOST_CHECK(ranged_acc.get_offset() == offset);
+    BOOST_CHECK(unranged_acc.get_range() == size);
+    BOOST_CHECK(ranged_acc.get_range() == subrange);
+    BOOST_CHECK(!unranged_acc.is_placeholder());
+    BOOST_CHECK(!ranged_acc.is_placeholder());
+
+    sycl::accessor raw_acc{buff, cgh, sycl::read_write_raw, sycl::no_init};
+
+    BOOST_CHECK(sizeof(raw_acc) < sizeof(ranged_acc));
+
+    auto kernel = [=](sycl::id<1> idx){
+      raw_acc[idx] = idx.get(0);
+    };
+
+    cgh.parallel_for(size, kernel);
+  });
+
+  sycl::host_accessor hacc{buff};
+  for(std::size_t i = 0; i < size[0]; ++i){
+    BOOST_CHECK(hacc[i] == static_cast<int>(i));
+  }
+}
+
+#endif
+#endif
+#if defined(HIPSYCL_EXT_UPDATE_DEVICE) &&                                      \
+    defined(HIPSYCL_EXT_BUFFER_USM_INTEROP)
+BOOST_AUTO_TEST_CASE(update_device) {
+  using namespace cl;
+  sycl::queue q;
+  sycl::range size{1024};
+  sycl::buffer<int> buff{size};
+  {
+    sycl::host_accessor hacc{buff};
+
+    for(std::size_t i = 0; i < size[0]; ++i){
+      hacc[i] = static_cast<int>(i);
+    }
+  }
+
+  std::vector<int> target_buff(size[0]);
+
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor acc{buff, cgh};
+    cgh.update(acc);
+  }).wait();
+
+  // We have to use a USM copy to get the data for testing
+  // because we cannot know whether it was the accessor
+  // or the udpate() that updated the data if we use
+  // handler::copy()
+  int* dev_ptr = buff.get_pointer(q.get_device());
+  BOOST_CHECK(dev_ptr != nullptr);
+
+  q.memcpy(target_buff.data(), dev_ptr, size[0] * sizeof(int)).wait();
+
+  for(std::size_t i = 0; i < size[0]; ++i)
+    BOOST_CHECK(target_buff[i] == static_cast<int>(i));
+}
+#endif
+#ifdef HIPSYCL_EXT_QUEUE_WAIT_LIST
+
+BOOST_AUTO_TEST_CASE(queue_wait_list) {
+  using namespace cl;
+  sycl::queue out_of_order_q;
+  sycl::queue in_order_q{
+      sycl::property_list{sycl::property::queue::in_order{}}};
+
+  auto test = [](sycl::queue& q){
+    std::vector<sycl::event> evts;
+    for(int i = 0; i < 10; ++i)
+      evts.push_back(q.single_task([=](){}));
+    auto wait_list = q.get_wait_list();
+    
+    q.single_task(wait_list, [=](){}).wait();
+    for(sycl::event e : evts) {
+      BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
+                  sycl::info::event_command_status::complete);
+    }
+  };
+
+  test(out_of_order_q);
+  test(in_order_q);
+}
+
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,50 +26,21 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_BACKEND_HPP
-#define HIPSYCL_LIBKERNEL_BACKEND_HPP
+#if defined(__clang__) && (defined(__CUDACC__) || defined(__HIP__))
 
-#include "cuda/cuda_backend.hpp"
-#include "hip/hip_backend.hpp"
-#include "spirv/spirv_backend.hpp"
-#include "host/host_backend.hpp"
+#ifdef _WIN32
+#include <cmath>
 
-// define (legacy?) platform identification macros
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
- #define HIPSYCL_PLATFORM_ROCM
- #define HIPSYCL_PLATFORM_HIP
+namespace std {
+  __device__
+  inline bool signbit(long double v) { return signbit(static_cast<double>(v)); }
+}
 #endif
 
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
- #define HIPSYCL_PLATFORM_CUDA
-#endif
-
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
- #define HIPSYCL_PLATFORM_SPIRV
-#endif
-
-#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
+#pragma push_macro("__failed_assertion")
+#define __failed_assertion __cuda_failed_assertion
+#include_next <complex>
+#pragma pop_macro("__failed_assertion")
 #else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0
-#endif
-
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
- #define HIPSYCL_PLATFORM_CPU
-#endif
-
-#ifdef HIPSYCL_LIBKERNEL_DEVICE_PASS
- #define SYCL_DEVICE_ONLY
-#endif
-
-#ifdef __clang__
- #define HIPSYCL_FORCE_INLINE \
- __attribute__((always_inline)) __attribute__((flatten)) inline
-#else
- #define HIPSYCL_FORCE_INLINE inline
-#endif
-#define HIPSYCL_BUILTIN HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
-
+#error This file requires clang CUDA/HIP
 #endif

@@ -21,3 +21,4 @@
 # Configuration macros
 * `HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING` - define during compilation of the hipSYCL clang plugin to force enabling unique name mangling which is a requirement for explicit mulitpass compilation. This requires a clang that supports `__builting_unique_stable_name()`, and is automatically enabled on clang 11.
 * `HIPSYCL_DEBUG_LEVEL` - sets the output verbosity. `0`: none, `1`: error, `2`: warning, `3`: info, `4`: verbose, default is warning for Release and info for Debug builds.
+* `HIPSYCL_STRICT_ACCESSOR_DEDUCTION` - define when building your SYCL implementation to enforce strict SYCL 2020 accessor type deduction rules. While this might be required for the correct compilation of certain SYCL code, it also disables parts of the hipSYCL accessor variants performance optimization extension. As such, it can have a negative performance impact for code bound by register pressure.

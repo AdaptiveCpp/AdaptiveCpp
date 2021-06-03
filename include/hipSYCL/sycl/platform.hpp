@@ -55,7 +55,7 @@ public:
 
   template<class DeviceSelector>
   explicit platform(const DeviceSelector &deviceSelector) {
-    auto dev = detail::select_device(deviceSelector);
+    auto dev = detail::select_devices(deviceSelector)[0];
     this->_platform = rt::platform_id{dev._device_id};
   }
 

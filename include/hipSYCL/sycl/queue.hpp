@@ -128,16 +128,7 @@ public:
       std::enable_if_t<detail::is_device_selector_v<DeviceSelector>, int> = 0>
   explicit queue(const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{detail::select_device(
-                                                        deviceSelector)} {
-
-    _handler = _ctx._impl->handler;
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        detail::select_device(deviceSelector)._device_id));
-
-    this->init();
-  }
+      : queue{detail::select_devices(deviceSelector), propList} {}
 
   template <
       class DeviceSelector,
@@ -145,37 +136,15 @@ public:
   explicit queue(const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, 
-        _ctx{detail::select_device(deviceSelector), asyncHandler},
-        _handler{asyncHandler} {
-
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        detail::select_device(deviceSelector)._device_id));
-
-    this->init();
-  }
+      : queue{detail::select_devices(deviceSelector), asyncHandler, propList} {}
 
   explicit queue(const device &syclDevice, const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclDevice} {
-
-    _handler = _ctx._impl->handler;
-    
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
-
-    this->init();
-  }
+      : queue{context{syclDevice}, std::vector<device>{syclDevice}, propList} {}
 
   explicit queue(const device &syclDevice, const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList},
-        _ctx{syclDevice, asyncHandler}, _handler{asyncHandler} {
-
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
-
-    this->init();
-  }
+      : queue{context{syclDevice, asyncHandler}, std::vector<device>{syclDevice},
+              asyncHandler, propList} {}
 
   template <
       class DeviceSelector,
@@ -183,7 +152,7 @@ public:
   explicit queue(const context &syclContext,
                  const DeviceSelector &deviceSelector,
                  const property_list &propList = {})
-      : queue(syclContext, detail::select_device(deviceSelector), propList) {}
+      : queue(syclContext, detail::select_devices(deviceSelector), propList) {}
 
   template <
       class DeviceSelector,
@@ -192,37 +161,54 @@ public:
                  const DeviceSelector &deviceSelector,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
-      : queue(syclContext, detail::select_device(deviceSelector), asyncHandler,
+      : queue(syclContext, detail::select_devices(deviceSelector), asyncHandler,
               propList) {}
 
   explicit queue(const context &syclContext,
                  const device &syclDevice,
                  const property_list &propList = {})
-      : detail::property_carrying_object{propList}, _ctx{syclContext} {
+      : queue{syclContext, std::vector<device>{syclDevice}, propList} {}
 
-    _handler = _ctx._impl->handler;
+  explicit queue(const context &syclContext, const device &syclDevice,
+                 const async_handler &asyncHandler,
+                 const property_list &propList = {})
+      : queue{syclContext, std::vector<device>{syclDevice}, asyncHandler,
+              propList} {}
 
-    if (!is_device_in_context(syclDevice, syclContext))
-      throw invalid_object_error{"queue: Device is not in context"};
+  // hipSYCL-specific constructors for multiple devices
 
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
+  explicit queue(const std::vector<device> &devices,
+                 const async_handler &handler,
+                 const property_list &propList = {})
+      : queue{context{devices, handler}, devices, handler, propList} {}
 
-    this->init();
-  }
+  explicit queue(const std::vector<device>& devices, const property_list& propList = {})
+    : queue{context{devices}, devices, propList} {}
+
+  explicit queue(const context &syclContext, const std::vector<device> &devices,
+                 const property_list &propList = {})
+      : queue{syclContext, devices, async_handler{syclContext._impl->handler},
+              propList} {}
 
   explicit queue(const context &syclContext,
-                 const device &syclDevice,
+                 const std::vector<device> &devices,
                  const async_handler &asyncHandler,
                  const property_list &propList = {})
       : detail::property_carrying_object{propList}, _ctx{syclContext},
         _handler{asyncHandler} {
 
-    if (!is_device_in_context(syclDevice, syclContext))
-      throw invalid_object_error{"queue: Device is not in context"};
+    for(const auto& dev : devices)
+      if (!is_device_in_context(dev, syclContext))
+        throw invalid_object_error{"queue: Device is not in context"};
 
-    _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-        syclDevice._device_id));
+    if(devices.size() == 1)
+      _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
+          devices[0]._device_id));
+    else if(devices.size() > 1) {
+      // TODO: Attach hint to restrict scheduling to supplied devices
+    }
+    // Otherwise we are in completely unrestricted scheduling land - don't
+    // add any hints
 
     this->init();
   }

@@ -61,9 +61,7 @@ public:
 
   explicit context(async_handler handler = [](exception_list e) {
     glue::default_async_handler(e);
-  }) {
-    this->init(handler, detail::select_device(default_selector_v));
-  }
+  }) : context{detail::select_devices(default_selector_v), handler} {}
 
   explicit context(
       const device &dev, async_handler handler = [](exception_list e) {

@@ -265,6 +265,59 @@ void findAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::Splitter
     }
   }
 }
+
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
+  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, From);
+  if (!DbgValues.empty()) {
+    auto *DbgValue = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
+                                       InsertBefore);
+  }
+}
+
+void insertDbgValueInIncoming(llvm::PHINode *Phi, llvm::Value *IncomingValue, llvm::BasicBlock *IncomingBlock) {
+  llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
+  llvm::findDbgValues(DbgValues, Phi);
+  if (!DbgValues.empty()) {
+    auto *DbgV = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*IncomingBlock->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(IncomingValue, DbgV->getVariable(), DbgV->getExpression(), DbgV->getDebugLoc(),
+                                       IncomingBlock->getTerminator());
+  }
+}
+
+void dropDebugLocation(llvm::Instruction &I) {
+#if LLVM_VERSION_MAJOR >= 12
+  I.dropLocation();
+#else
+  I.setDebugLoc({});
+#endif
+}
+
+void dropDebugLocation(llvm::BasicBlock *BB) {
+  for (auto &I : *BB) {
+    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
+    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
+      dropDebugLocation(I);
+    }
+  }
+}
+
+llvm::DbgValueInst *getThisPtrDbgValue(llvm::Function *F) {
+  for (auto &A : F->args()) {
+    llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
+    llvm::findDbgValues(DbgValues, &A);
+    for (auto *DV : DbgValues) {
+      if (DV->getVariable()->getName() == "this") {
+        return DV;
+      }
+    }
+  }
+  return nullptr;
+}
+
 bool isInConditional(const llvm::CallBase *BarrierI, const llvm::DominatorTree &DT, const llvm::BasicBlock *Latch) {
   return !DT.properlyDominates(BarrierI->getParent(), Latch);
 }
@@ -491,6 +544,7 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
     for (auto *U : V->users()) {
       if (auto *I = llvm::dyn_cast<llvm::Instruction>(U)) {
         if (std::find(DependingBlocks.begin(), DependingBlocks.end(), I->getParent()) != DependingBlocks.end()) {
+          // don't store pointers if we can just copy the BC.
           if (auto *BCI = llvm::dyn_cast<llvm::BitCastInst>(V)) {
             if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(BCI->getOperand(0))) {
               auto *BCICloned = BCI->clone();
@@ -498,6 +552,7 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
               I->replaceUsesOfWith(BCI, BCICloned);
               V = GEP;
               I = BCICloned;
+              dropDebugLocation(*BCICloned);
             }
           }
           DependingInsts.insert(I);
@@ -689,88 +744,6 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
   }
 }
 
-void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
-  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
-  llvm::findDbgValues(DbgValues, From);
-  if (!DbgValues.empty()) {
-    auto *DbgValue = DbgValues.back();
-    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
-    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
-                                       InsertBefore);
-  }
-}
-
-void insertDbgValueInIncoming(llvm::PHINode *Phi, llvm::Value *IncomingValue, llvm::BasicBlock *IncomingBlock) {
-  llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
-  llvm::findDbgValues(DbgValues, Phi);
-  if (!DbgValues.empty()) {
-    auto *DbgV = DbgValues.back();
-    llvm::DIBuilder DbgBuilder{*IncomingBlock->getParent()->getParent()};
-    DbgBuilder.insertDbgValueIntrinsic(IncomingValue, DbgV->getVariable(), DbgV->getExpression(), DbgV->getDebugLoc(),
-                                       IncomingBlock->getTerminator());
-  }
-}
-
-void dropDebugLocation(llvm::BasicBlock *BB) {
-  for (auto &I : *BB) {
-    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
-    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
-#if LLVM_VERSION_MAJOR >= 12
-      I.dropLocation();
-#else
-      I.setDebugLoc({});
-#endif
-    }
-  }
-}
-
-llvm::DbgValueInst *getThisPtrDbgValue(llvm::Function *F) {
-  for (auto &A : F->args()) {
-    llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
-    llvm::findDbgValues(DbgValues, &A);
-    for (auto *DV : DbgValues) {
-      if (DV->getVariable()->getName() == "this") {
-        return DV;
-      }
-    }
-  }
-  return nullptr;
-}
-
-void replaceOperandsWithArrayLoad(llvm::Value *Idx,
-                                  const llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap,
-                                  const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts,
-                                  llvm::MDNode *MDAccessGroup) {
-  for (auto *I : DependingInsts) {
-    for (auto &OP : I->operands()) {
-      auto *OPV = OP.get();
-      if (auto *OPI = llvm::dyn_cast<llvm::GetElementPtrInst>(OPV)) {
-        if (OPI->hasMetadata(hipsycl::compiler::MDKind::Arrayified)) {
-          llvm::Instruction *ClonedI = OPI->clone();
-          ClonedI->insertBefore(I);
-          I->replaceUsesOfWith(OPI, ClonedI); // todo: optimize location and re-usage..
-          continue;
-        }
-      }
-      if (auto AllocaIt = ValueAllocaMap.find(OPV); AllocaIt != ValueAllocaMap.end()) {
-        auto *Alloca = llvm::cast<llvm::AllocaInst>(AllocaIt->getSecond());
-        auto *IP = I;
-        // here's probably not the place for this.. as we need this in the pre-header or so of the new loop and not in
-        // the old work-item loop.. :(
-        if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(I)) {
-          auto *IncomingBB = PhiI->getIncomingBlock(OP);
-          IP = IncomingBB->getTerminator();
-        }
-        llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, MDAccessGroup, OPV->getName());
-
-        copyDgbValues(OPV, Load, IP);
-
-        I->replaceUsesOfWith(OPV, Load);
-      }
-    }
-  }
-}
-
 void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
                                           llvm::DenseMap<llvm::Value *, llvm::Instruction *> &ValueAllocaMap,
                                           const llvm::SmallPtrSet<llvm::Instruction *, 8> &DependingInsts,
@@ -785,6 +758,7 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
           llvm::Instruction *ClonedI = OPI->clone();
           ClonedI->insertBefore(I);
           I->replaceUsesOfWith(OPI, ClonedI); // todo: optimize location and re-usage..
+          dropDebugLocation(*ClonedI);
           continue;
         }
       }
@@ -1279,6 +1253,7 @@ void cloneConditions(llvm::Function *F,
         auto *NewBCI = BCI->clone();
         VMap[BCI] = NewBCI;
         BCV = NewBCI;
+        dropDebugLocation(*NewBCI);
       }
       auto *NewCondBr = TermBuilder.CreateCondBr(BCV, LeftTarget, RightTarget,
                                                  const_cast<llvm::Instruction *>(Cond->Cond->getTerminator()));
@@ -1468,7 +1443,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
                                                   llvm::MDNode::get(F->getContext(), {}));
-
+  dropDebugLocation(L->getLoopPreheader());
   createParallelAccessesMdOrAddAccessGroup(F, L, MDAccessGroup);
 
   HIPSYCL_DEBUG_EXECUTE_INFO(
@@ -1505,6 +1480,7 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
 
     auto *NewLoad = loadFromAlloca(IncAlloca, NewWIIdx, NewLoadIP, MDAccessGroup, LInc->getName());
     copyDgbValues(LInc, NewLoad, NewLoadIP);
+
     VMap[LInc] = NewLoad;
     VMap[Phi] = NewLoad;
     auto *Copied = loadFromAlloca(IncAlloca, llvm::Constant::getNullValue(NewWIIdx->getType()),
@@ -1585,6 +1561,7 @@ void copyLoadsToPreHeader(llvm::BasicBlock *LoadBlock, llvm::BasicBlock *InnerHe
 
     IC->insertBefore(InnerPreHeader->getTerminator());
     HVMap[I] = IC;
+    dropDebugLocation(*IC);
   }
   llvm::remapInstructionsInBlocks(Headers, HVMap);
 }
@@ -1674,6 +1651,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
     replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());
 
     copyLoadsToPreHeader(LoadBlock, InnerHeader, InnerPreHeader);
+    dropDebugLocation(LoadBlock);
   }
 
   // perform loop inversion: the inner loop (pre-)header are moved in front of the WI headers and the inner latch

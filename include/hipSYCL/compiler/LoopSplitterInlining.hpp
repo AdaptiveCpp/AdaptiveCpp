@@ -26,41 +26,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LOOPSPLITTER_HPP
-#define HIPSYCL_LOOPSPLITTER_HPP
+#ifndef HIPSYCL_LOOPSPLITTERINLINING_HPP
+#define HIPSYCL_LOOPSPLITTERINLINING_HPP
 
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 
 namespace hipsycl {
 namespace compiler {
-
-class LoopSplitAtBarrierPassLegacy : public llvm::LoopPass {
-  bool IsO0_;
-
+class LoopSplitterInliningPassLegacy : public llvm::LoopPass {
 public:
   static char ID;
 
-  explicit LoopSplitAtBarrierPassLegacy(bool IsO0) : llvm::LoopPass(ID), IsO0_(IsO0) {}
+  explicit LoopSplitterInliningPassLegacy() : llvm::LoopPass(ID) {}
 
-  llvm::StringRef getPassName() const override { return "hipSYCL loop splitting pass"; }
+  llvm::StringRef getPassName() const override { return "hipSYCL loop splitter inlining pass"; }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
   bool runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) override;
 };
 
-class LoopSplitAtBarrierPass : public llvm::PassInfoMixin<LoopSplitAtBarrierPass> {
-  bool IsO0_;
-
+class LoopSplitterInliningPass : public llvm::PassInfoMixin<LoopSplitterInliningPass> {
 public:
-  explicit LoopSplitAtBarrierPass(bool IsO0) : IsO0_(IsO0) {}
-  
+  explicit LoopSplitterInliningPass() {}
+
   llvm::PreservedAnalyses run(llvm::Loop &L, llvm::LoopAnalysisManager &AM, llvm::LoopStandardAnalysisResults &AR,
                               llvm::LPMUpdater &LPMU);
   static bool isRequired() { return true; }
 };
 } // namespace compiler
 } // namespace hipsycl
-
-#endif
+#endif // HIPSYCL_LOOPSPLITTERINLINING_HPP

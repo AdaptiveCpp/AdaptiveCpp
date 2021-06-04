@@ -27,6 +27,8 @@
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
+#include "hipSYCL/compiler/LoopSplitterInlining.hpp"
+#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
@@ -57,20 +59,22 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
-static void registerLoopSplitAtBarrierPassO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{true});
 }
-static void registerLoopSplitAtBarrierPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{false});
 }
 
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                            registerLoopSplitAtBarrierPassO0);
+                                            registerLoopSplitAtBarrierPassesO0);
 
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
-                                                registerLoopSplitAtBarrierPass);
+                                                registerLoopSplitAtBarrierPasses);
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
@@ -79,6 +83,7 @@ extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginIn
             });
             PB.registerLateLoopOptimizationsEPCallback(
                 [](llvm::LoopPassManager &LPM, llvm::PassBuilder::OptimizationLevel Opt) {
+                  LPM.addPass(LoopSplitterInliningPass{});
                   LPM.addPass(LoopSplitAtBarrierPass{Opt == llvm::PassBuilder::OptimizationLevel::O0});
                 });
             // todo: add pruning pass as well

@@ -36,6 +36,8 @@ std::istream &operator>>(std::istream &istr, scheduler_type &out) {
   istr >> str;
   if (str == "direct")
     out = scheduler_type::direct;
+  else if (str == "unbound")
+    out = scheduler_type::unbound;
   else
     istr.setstate(std::ios_base::failbit);
   return istr;

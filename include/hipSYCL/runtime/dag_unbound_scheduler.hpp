@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,33 +25,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
-#endif
+#ifndef HIPSYCL_DAG_UNBOUND_SCHEDULER_HPP
+#define HIPSYCL_DAG_UNBOUND_SCHEDULER_HPP
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM
-#define HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
-#define HIPSYCL_EXT_CG_PROPERTY_RETARGET
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
-#define HIPSYCL_EXT_BUFFER_USM_INTEROP
-#define HIPSYCL_EXT_PREFETCH_HOST
-#define HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
-#define HIPSYCL_EXT_BUFFER_PAGE_SIZE
-#define HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
-#define HIPSYCL_EXT_ACCESSOR_VARIANTS
+#include "dag_node.hpp"
+#include "dag_direct_scheduler.hpp"
 
-#ifndef HIPSYCL_STRICT_ACCESSOR_DEDUCTION
- #define HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
-#endif
+namespace hipsycl {
+namespace rt {
 
-#define HIPSYCL_EXT_UPDATE_DEVICE
-#define HIPSYCL_EXT_QUEUE_WAIT_LIST
-#define HIPSYCL_EXT_MULTI_DEVICE_QUEUE
+class dag_unbound_scheduler {
+public:
+  dag_unbound_scheduler();
+
+  void submit(dag_node_ptr node);
+private:
+  std::vector<device_id> _devices;
+  rt::dag_direct_scheduler _direct_scheduler;
+};
+
+}
+}
 
 #endif

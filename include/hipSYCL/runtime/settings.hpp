@@ -40,7 +40,7 @@
 namespace hipsycl {
 namespace rt {
 
-enum class scheduler_type { direct };
+enum class scheduler_type { direct, unbound };
 
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
@@ -102,7 +102,7 @@ public:
         default_debug_level);
     _scheduler_type =
         get_environment_variable_or_default<setting::scheduler_type>(
-            scheduler_type::direct);
+            scheduler_type::unbound);
     _visibility_mask =
         get_environment_variable_or_default<setting::visibility_mask>(
             std::vector<rt::backend_id>{});

@@ -201,11 +201,17 @@ public:
       if (!is_device_in_context(dev, syclContext))
         throw invalid_object_error{"queue: Device is not in context"};
 
-    if(devices.size() == 1)
+    if(devices.size() == 1){
       _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-          devices[0]._device_id));
+          detail::extract_rt_device(devices[0])));
+    }
     else if(devices.size() > 1) {
-      // TODO: Attach hint to restrict scheduling to supplied devices
+      std::vector<rt::device_id> rt_devs;
+      for(const auto& d : devices) {
+        rt_devs.push_back(detail::extract_rt_device(d));
+      }
+      _default_hints.add_hint(
+          rt::make_execution_hint<rt::hints::bind_to_device_group>(rt_devs));
     }
     // Otherwise we are in completely unrestricted scheduling land - don't
     // add any hints
@@ -227,11 +233,45 @@ public:
       rt::device_id id =
           _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
       return device{id};
+    } else {
+      throw feature_not_supported{
+          "queue::get_device() is unsupported for multi-device queues"};
     }
-    return device{};
   }
 
-  bool is_host() const { return get_device().is_host(); }
+  std::vector<device> get_devices() const {
+    if(_default_hints.has_hint<rt::hints::bind_to_device>()) {
+
+      rt::device_id id =
+          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+      return std::vector<device>{device{id}};
+
+    } else if(_default_hints.has_hint<rt::hints::bind_to_device_group>()) {
+
+      std::vector<device> devs;
+      for (const auto &d :
+           _default_hints.get_hint<rt::hints::bind_to_device_group>()
+               ->get_devices()) {
+        devs.push_back(device{d});
+      }
+
+      return devs;
+    }
+    return std::vector<device>{};
+  }
+
+  bool is_host() const {
+    auto devs = get_devices();
+    if(devs.empty())
+      return false;
+    
+    for(const auto& d : devs) {
+      if(!d.is_host())
+        return false;
+    }
+    return true;
+  }
+  
   bool is_in_order() const {
     return _is_in_order;
   }

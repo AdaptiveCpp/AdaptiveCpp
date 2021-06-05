@@ -30,6 +30,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
 namespace hipsycl {
@@ -105,18 +106,18 @@ void dag_manager::flush_async()
       scheduler_type stype =
           application::get_settings().get<setting::scheduler_type>();
       
-      // Only one scheduler is currently supported
-      assert(stype == scheduler_type::direct);
-      
       // This is okay because get_command_groups() returns
       // the nodes in the order they were submitted. This
       // makes it safe to submit them in this order to the direct scheduler.
       for(auto node : new_dag.get_command_groups()){
         HIPSYCL_DEBUG_INFO
-            << "dag_manager [async]: Submitting node to direct scheduler!"
-            << std::endl;
-        _direct_scheduler.submit(node);
-      
+              << "dag_manager [async]: Submitting node to scheduler!"
+              << std::endl;
+        if(stype == scheduler_type::direct) {
+          _direct_scheduler.submit(node);
+        } else if(stype == scheduler_type::unbound) {
+          _unbound_scheduler.submit(node);
+        }
       }
     } else {
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
@@ -164,6 +165,5 @@ void dag_manager::trigger_flush_opportunity()
 std::vector<dag_node_ptr> dag_manager::get_group(std::size_t node_group_id) {
   return _submitted_ops.get_group(node_group_id);
 }
-
 }
 }

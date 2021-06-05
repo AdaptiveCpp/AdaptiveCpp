@@ -888,19 +888,19 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
   sycl::buffer<int> buff{sycl::range{1}};
 
   q.submit([&](sycl::handler& cgh){
-    sycl::accessor acc{buff, cgh, sycl::no_init};
+    sycl::accessor<int> acc{buff, cgh, sycl::no_init};
     cgh.single_task([=](){
       acc[0] = 1;
     });
   });
   q.submit([&](sycl::handler& cgh){
-    sycl::accessor acc{buff, cgh};
+    sycl::accessor<int> acc{buff, cgh};
     cgh.single_task([=](){
       acc[0] += 100;
     });
   });
   q.submit([&](sycl::handler& cgh){
-    sycl::accessor acc{buff, cgh};
+    sycl::accessor<int> acc{buff, cgh};
     cgh.single_task([=](){
       acc[0]++;
     });

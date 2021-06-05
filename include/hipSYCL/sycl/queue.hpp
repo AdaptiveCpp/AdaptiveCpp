@@ -197,6 +197,10 @@ public:
       : detail::property_carrying_object{propList}, _ctx{syclContext},
         _handler{asyncHandler} {
 
+    if(devices.empty()) {
+      throw invalid_parameter_error{"queue: No devices in device list"};
+    }
+
     for(const auto& dev : devices)
       if (!is_device_in_context(dev, syclContext))
         throw invalid_object_error{"queue: Device is not in context"};
@@ -271,7 +275,7 @@ public:
     }
     return true;
   }
-  
+
   bool is_in_order() const {
     return _is_in_order;
   }

@@ -30,6 +30,7 @@
 #include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 
@@ -64,6 +65,15 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
       eligible_devices = _devices;
     }
 
+    if(eligible_devices.empty()) {
+      register_error(
+          __hipsycl_here(),
+          error_info{"dag_unbound_scheduler: No devices available to "
+                     "dispatch operation; this indicates that the "
+                     "device selector did not find appropriate devices."});
+      node->cancel();
+      return;
+    }
     // Round-robin as placeholder. This is not intended
     // for anything practical, it's a _placeholder_
     static std::size_t dev = 0;

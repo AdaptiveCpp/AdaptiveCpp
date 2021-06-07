@@ -56,7 +56,7 @@ jobs:
         $env:PATH="$env:GITHUB_WORKSPACE\install\bin;$env:PATH"
         md -Force boost_1_75_0
         cd boost_1_75_0
-        Invoke-WebRequest -O boost_1_75_0.7z https://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0_vs17.7z
+        Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0_vs17.7z
         7z.exe x boost_1_75_0.7z
         cd ..
     - name: build hipSYCL

@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         clang_version: [11]
-        os: [windows-latest]
+        os: [windows-2016]
         cuda: ['10.0', '10.2', '11.0']
     steps:
     - uses: actions/checkout@v2
@@ -51,12 +51,12 @@ jobs:
       run: |
         Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/11.0.2/network_installers/cuda_11.0.2_win10_network.exe
         Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_11.0 nvprune_11.0 cupti_11.0 cublas_11.0 cublas_dev_11.0 cudart_11.0 cufft_11.0 cufft_dev_11.0 curand_11.0 curand_dev_11.0 cusolver_11.0 cusolver_dev_11.0 cusparse_11.0 cusparse_dev_11.0 npp_11.0 npp_dev_11.0 nvrtc_11.0 nvrtc_dev_11.0 nvml_dev_11.0" -Wait -NoNewWindow
-    - name: install boost (from source)
+    - name: install boost (from prebuilt)
       run: |
         $env:PATH="$env:GITHUB_WORKSPACE\install\bin;$env:PATH"
         md -Force boost_1_75_0
         cd boost_1_75_0
-        Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0.7z
+        Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0_vs17.7z
         7z.exe x boost_1_75_0.7z
         cd ..
     - name: build hipSYCL
@@ -65,7 +65,7 @@ jobs:
         CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/core"
         cd "%GITHUB_WORKSPACE%/build/core"
@@ -76,7 +76,7 @@ jobs:
       env:
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/tests-cpu"
         cd "%GITHUB_WORKSPACE%/build/tests-cpu"
@@ -87,7 +87,7 @@ jobs:
       env:
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/tests-cuda"
         cd "%GITHUB_WORKSPACE%/build/tests-cuda"

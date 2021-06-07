@@ -258,17 +258,20 @@ struct group
   }
 
 #ifdef SYCL_DEVICE_ONLY
+  HIPSYCL_KERNEL_TARGET
   id_type get_local_id() const
   {
     return detail::get_local_id<Dimensions>();
   }
 
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
     return detail::get_local_id<Dimensions>(dimension);
   }
 #endif
 
+  HIPSYCL_KERNEL_TARGET
   range<Dimensions> get_max_local_range() const{
     if constexpr (Dimensions == 1) {
       return {1024};
@@ -511,26 +514,31 @@ struct group
     _local_memory_ptr(local_memory_ptr)
   {}
 
+  HIPSYCL_KERNEL_TARGET
   void barrier() {
     (*_group_barrier)();
   }
 
+  HIPSYCL_KERNEL_TARGET
   id_type get_local_id() const
   {
     return _local_id;
   }
 
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
     return _local_id[dimension];
   }
 
+  HIPSYCL_KERNEL_TARGET
   linear_id_type get_local_linear_id() const
   {
     return detail::linear_id<Dimensions>::get(_local_id,
                                               _local_range);
   }
 
+  HIPSYCL_KERNEL_TARGET
   void *get_local_memory_ptr() const
   {
     return _local_memory_ptr;
@@ -553,6 +561,7 @@ public:
 
 #ifdef SYCL_DEVICE_ONLY
 
+  HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
     return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
@@ -560,6 +569,7 @@ public:
   }
 
   [[deprecated]]
+  HIPSYCL_KERNEL_TARGET
   size_t get_linear_local_id() const
   {
     return get_local_linear_id();

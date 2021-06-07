@@ -79,6 +79,39 @@ template <typename T> struct maximum {
   T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
 };
 
+
+template<typename BinaryOperation, typename AccumulatorT>
+struct known_identity;
+
+template <typename BinaryOperation, typename AccumulatorT>
+inline constexpr AccumulatorT known_identity_v = known_identity<BinaryOperation, AccumulatorT>::value;
+
+template<typename BinaryOperation, typename AccumulatorT>
+struct has_known_identity {
+    static constexpr bool value = false;
+};
+
+template <typename BinaryOperation, typename AccumulatorT>
+inline constexpr bool has_known_identity_v = has_known_identity<BinaryOperation, AccumulatorT>::value;
+
+#define HIPSYCL_DEFINE_IDENTITY(op, identity) \
+    template<typename T> \
+    struct known_identity<op<T>, T> { \
+        inline static constexpr T value = (identity); \
+    }; \
+    template<typename T> \
+    struct has_known_identity<op<T>, T> { \
+        static constexpr bool value = true; \
+    };
+
+HIPSYCL_DEFINE_IDENTITY(plus, 0);
+HIPSYCL_DEFINE_IDENTITY(multiplies, 1);
+HIPSYCL_DEFINE_IDENTITY(bit_or, T{});
+HIPSYCL_DEFINE_IDENTITY(bit_and, ~T{});
+HIPSYCL_DEFINE_IDENTITY(bit_xor, T{});
+HIPSYCL_DEFINE_IDENTITY(logical_or, T{0});
+HIPSYCL_DEFINE_IDENTITY(logical_and, ~T{});
+
 } // namespace sycl
 }
 

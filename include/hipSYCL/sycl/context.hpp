@@ -79,6 +79,8 @@ public:
     for (const auto &dev : devices) {
       _impl->devices.add(dev._device_id);
     }
+    // Always need to add the host device
+    _impl->devices.add(detail::get_host_device());
   }
 
   explicit context(
@@ -94,6 +96,8 @@ public:
     for(const device& dev : deviceList) {
       _impl->devices.add(dev._device_id);
     }
+    // Always need to add the host device
+    _impl->devices.add(detail::get_host_device());
   }
 
   bool is_host() const {
@@ -106,18 +110,26 @@ public:
   }
 
   platform get_platform() const {
-    std::size_t num_backends = 0;
+    bool found_device_backend = false;
     rt::backend_id last_backend;
+
     this->_impl->devices.for_each_backend([&](rt::backend_id b) {
-      ++num_backends;
-      last_backend = b;
+      if (b != detail::get_host_device().get_backend()) {
+        if (found_device_backend) {
+          // We already have a device backend
+          HIPSYCL_DEBUG_WARNING
+              << "context: get_platform() was called but this context spans "
+                 "multiple backends/platforms. Only returning last platform"
+              << std::endl;
+        }
+        
+        last_backend = b;
+        found_device_backend = true;
+      }
     });
 
-    if (num_backends > 1) {
-      HIPSYCL_DEBUG_WARNING
-          << "context: get_platform() was called but this context spans "
-             "multiple backends/platforms. Only returning last platform"
-          << std::endl;
+    if (!found_device_backend) {
+      last_backend = detail::get_host_device().get_backend(); 
     }
 
     return platform{last_backend};

@@ -80,37 +80,54 @@ template <typename T> struct maximum {
 };
 
 
+namespace detail {
+
+template<typename BinaryOperation, typename AccumulatorT, typename Enable = void>
+struct known_identity_trait {
+    static constexpr bool has_known_identity = false; \
+};
+
+#define HIPSYCL_DEFINE_IDENTITY(op, tmpl_params, acc, identity, defined_if) \
+    template<tmpl_params> \
+    struct known_identity_trait<op<acc>, acc, defined_if> { \
+        static constexpr bool has_known_identity = true; \
+        inline static constexpr acc known_identity = (identity); \
+    }; \
+    template<tmpl_params> \
+    struct known_identity_trait<op<void>, acc, defined_if> { \
+        inline static constexpr acc has_known_identity = true; \
+        inline static constexpr acc known_identity = (identity); \
+    };
+
+HIPSYCL_DEFINE_IDENTITY(plus, typename T, T, T{0}, std::enable_if_t<std::is_arithmetic_v<T>>)
+HIPSYCL_DEFINE_IDENTITY(multiplies, typename T, T, T{1}, std::enable_if_t<std::is_arithmetic_v<T>>)
+HIPSYCL_DEFINE_IDENTITY(bit_or, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
+HIPSYCL_DEFINE_IDENTITY(bit_and, typename T, T, ~T{}, std::enable_if_t<std::is_integral_v<T>>)
+HIPSYCL_DEFINE_IDENTITY(bit_xor, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
+HIPSYCL_DEFINE_IDENTITY(logical_or, , bool, false, void)
+HIPSYCL_DEFINE_IDENTITY(logical_and, , bool, true, void)
+
+#undef HIPSYCL_DEFINE_IDENTITY
+
+}
+
 template<typename BinaryOperation, typename AccumulatorT>
-struct known_identity;
+struct known_identity {
+    static constexpr AccumulatorT value = detail::known_identity_trait<
+        BinaryOperation, AccumulatorT>::known_identity;
+};
 
 template <typename BinaryOperation, typename AccumulatorT>
 inline constexpr AccumulatorT known_identity_v = known_identity<BinaryOperation, AccumulatorT>::value;
 
 template<typename BinaryOperation, typename AccumulatorT>
 struct has_known_identity {
-    static constexpr bool value = false;
+    static constexpr bool value = detail::known_identity_trait<
+        BinaryOperation, AccumulatorT>::has_known_identity;
 };
 
 template <typename BinaryOperation, typename AccumulatorT>
 inline constexpr bool has_known_identity_v = has_known_identity<BinaryOperation, AccumulatorT>::value;
-
-#define HIPSYCL_DEFINE_IDENTITY(op, identity) \
-    template<typename T> \
-    struct known_identity<op<T>, T> { \
-        inline static constexpr T value = (identity); \
-    }; \
-    template<typename T> \
-    struct has_known_identity<op<T>, T> { \
-        static constexpr bool value = true; \
-    };
-
-HIPSYCL_DEFINE_IDENTITY(plus, 0);
-HIPSYCL_DEFINE_IDENTITY(multiplies, 1);
-HIPSYCL_DEFINE_IDENTITY(bit_or, T{});
-HIPSYCL_DEFINE_IDENTITY(bit_and, ~T{});
-HIPSYCL_DEFINE_IDENTITY(bit_xor, T{});
-HIPSYCL_DEFINE_IDENTITY(logical_or, T{0});
-HIPSYCL_DEFINE_IDENTITY(logical_and, ~T{});
 
 } // namespace sycl
 }

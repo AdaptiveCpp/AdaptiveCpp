@@ -487,7 +487,7 @@ public:
     return hiplike::local_reducer<ReductionDescriptor>{
         _descriptor, my_local_id,
         static_cast<value_type *>(get_local_scratch_mem()), group_output_ptr,
-        global_input_ptr};
+        global_input_ptr, _is_final};
   }
 #endif
   

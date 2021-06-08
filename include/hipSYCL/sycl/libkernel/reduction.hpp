@@ -242,10 +242,14 @@ auto reduction(BufferT vars, handler &cgh, BinaryOperation combiner, property_li
   bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
   auto acc_prop_list = initialize_to_identity ? property_list{no_init} : property_list{};
   if constexpr (has_known_identity_v<BinaryOperation, typename BufferT::value_type>) {
-    return detail::accessor_reduction_descriptor{accessor{vars, cgh, write_only, acc_prop_list},
+    // TODO if initialize_to_identity is set, read_write introduces a false dependency
+    return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list},
         known_identity_v<BinaryOperation, typename BufferT::value_type>, combiner, initialize_to_identity};
   } else {
-    return detail::accessor_reduction_descriptor{accessor{vars, cgh, write_only, acc_prop_list}, combiner};
+    // Spec: "If the identity value of the reduction operator cannot be determined, the compiler must raise a
+    // diagnostic". This is impossible since we cannot inspect the prop_list at compile time, so we fail at runtime.
+    assert(!initialize_to_identity && "reduction constructed with initialize_to_identity, but identity is unknown");
+    return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list}, combiner};
   }
 }
 
@@ -255,16 +259,21 @@ auto reduction(BufferT vars, handler &cgh, const typename BufferT::value_type &i
   static_assert(!has_known_identity_v<BinaryOperation, typename BufferT::value_type>);
   bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
   auto acc_prop_list = initialize_to_identity ? property_list{no_init} : property_list{};
-  return detail::accessor_reduction_descriptor{accessor{vars, cgh, write_only, acc_prop_list}, identity, combiner,
+  // TODO if initialize_to_identity is set, read_write introduces a false dependency
+  return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list}, identity, combiner,
       initialize_to_identity};
 }
 
 template <typename T, typename BinaryOperation>
 auto reduction(T *var, BinaryOperation combiner, property_list prop_list = {}) {
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
   if constexpr (has_known_identity_v<BinaryOperation, T>) {
     return detail::pointer_reduction_descriptor{var, known_identity_v<BinaryOperation, T>, combiner,
-        prop_list.has_property<property::reduction::initialize_to_identity>()};
+        initialize_to_identity};
   } else {
+    // Spec: "If the identity value of the reduction operator cannot be determined, the compiler must raise a
+    // diagnostic". This is impossible since we cannot inspect the prop_list at compile time, so we fail at runtime.
+    assert(!initialize_to_identity && "reduction constructed with initialize_to_identity, but identity is unknown");
     return detail::pointer_reduction_descriptor{var, combiner};
   }
 }
@@ -272,8 +281,8 @@ auto reduction(T *var, BinaryOperation combiner, property_list prop_list = {}) {
 template <typename T, typename BinaryOperation>
 auto reduction(T *var, const T &identity, BinaryOperation combiner, property_list prop_list = {}) {
   static_assert(!has_known_identity_v<BinaryOperation, T>);
-  return detail::pointer_reduction_descriptor{var, identity, combiner,
-      prop_list.has_property<property::reduction::initialize_to_identity>()};
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
+  return detail::pointer_reduction_descriptor{var, identity, combiner, initialize_to_identity};
 }
 
 /* Unsupported until we have span

@@ -34,8 +34,11 @@ namespace hipsycl {
 namespace glue {
 namespace hiplike {
 
+template<class ReductionDescriptor, class Enable = void>
+class local_reducer;
+
 template<class ReductionDescriptor>
-class local_reducer {
+class local_reducer<ReductionDescriptor, std::enable_if_t<ReductionDescriptor::has_identity>> {
 public:
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
@@ -43,13 +46,10 @@ public:
   __host__ __device__ local_reducer(const ReductionDescriptor &desc, int my_lid,
                                     value_type *local_memory,
                                     value_type *local_output,
-                                    value_type *global_input = nullptr)
-      : _desc{desc}, _my_lid{my_lid}, _my_value{identity()},
+                                    value_type *global_input, bool is_final_stage)
+      : _desc{desc}, _my_lid{my_lid}, _my_value{desc.identity},
         _local_memory{local_memory}, _local_output{local_output},
-        _global_input{global_input} {}
-
-  __host__ __device__
-  value_type identity() const { return _desc.identity; }
+        _global_input{global_input}, _is_final_stage{is_final_stage} {}
 
   __host__ __device__
   void combine(const value_type& v) {
@@ -73,7 +73,11 @@ public:
       __syncthreads();
     }
     if (_my_lid == 0) {
-      *_local_output = _local_memory[0];
+      if (_is_final_stage && !_desc.initialize_to_identity) {
+        *_local_output = _desc.combiner(*_local_output, _local_memory[0]);
+      } else {
+        *_local_output = _local_memory[0];
+      }
     }
 #endif
   }
@@ -90,6 +94,7 @@ private:
   value_type* _local_memory;
   value_type* _local_output;
   value_type* _global_input;
+  bool _is_final_stage;
 };
 
 }

@@ -623,13 +623,15 @@ class cuda_multipass_invocation:
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
         "-fplugin=" + self._config.hipsycl_plugin_path,
-        "-fpass-plugin=" + self._config.hipsycl_plugin_path,
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
         "-S",
         "-o",self._explicit_pass_output_file(target)
       ]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._config.hipsycl_plugin_path]
     return flags
 
   # CXX flags for main pass
@@ -803,13 +805,15 @@ class cuda_invocation:
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
-        "-fpass-plugin=" + self._hipsycl_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
 
     flags += self._cxx_flags
     for t in self._cuda_targets:
       flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
       
     return flags
 
@@ -841,12 +845,14 @@ class hip_invocation:
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
-        "-fpass-plugin=" + self._hipsycl_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
     
     for t in self._hip_targets:
       flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
       
     return flags
 

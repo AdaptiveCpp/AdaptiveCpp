@@ -41,6 +41,7 @@ bool hipsycl::compiler::GlobalsPruningPassLegacy::runOnModule(llvm::Module &M) {
   return true;
 }
 
+#ifndef _WIN32
 llvm::PreservedAnalyses hipsycl::compiler::GlobalsPruningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   if (!CompilationStateManager::getASTPassState().isDeviceCompilation())
     return llvm::PreservedAnalyses::all();
@@ -50,5 +51,6 @@ llvm::PreservedAnalyses hipsycl::compiler::GlobalsPruningPass::run(llvm::Module 
   // todo: be a bit more granular
   return llvm::PreservedAnalyses::none();
 }
+#endif // !_WIN32
 
 char hipsycl::compiler::GlobalsPruningPassLegacy::ID = 0;

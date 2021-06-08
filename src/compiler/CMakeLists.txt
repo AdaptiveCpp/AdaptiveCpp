@@ -12,11 +12,14 @@ endif()
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 add_library(hipSYCL_clang SHARED
-  HipsyclClangPlugin.cpp)
+  HipsyclClangPlugin.cpp
+  GlobalsPruningPass.cpp
+)
 
 target_include_directories(hipSYCL_clang PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}/include
   ../../include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE

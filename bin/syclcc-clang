@@ -623,6 +623,7 @@ class cuda_multipass_invocation:
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
         "-fplugin=" + self._config.hipsycl_plugin_path,
+        "-fpass-plugin=" + self._config.hipsycl_plugin_path,
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
@@ -802,6 +803,7 @@ class cuda_invocation:
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
+        "-fpass-plugin=" + self._hipsycl_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
 
@@ -839,6 +841,7 @@ class hip_invocation:
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
+        "-fpass-plugin=" + self._hipsycl_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
     

@@ -24,35 +24,46 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "hipSYCL/common/config.hpp"
+
+#include "hipSYCL/compiler/FrontendPlugin.hpp"
+#include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
-#include "hipSYCL/compiler/FrontendPlugin.hpp"
-#include "hipSYCL/compiler/IR.hpp"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Pass.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 
 namespace hipsycl {
 namespace compiler {
 // Register and activate passes
 
-static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> 
-HipsyclFrontendPlugin {
-  "hipsycl_frontend", 
-  "enable hipSYCL frontend action"
-};
+static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> HipsyclFrontendPlugin{
+    "hipsycl_frontend", "enable hipSYCL frontend action"};
 
-static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &,
-                                          llvm::legacy::PassManagerBase &PM) {
-  PM.add(new FunctionPruningIRPass{});
+static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new GlobalsPruningPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
-  RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                         registerFunctionPruningIRPass);
+    RegisterGlobalsPruningPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                          registerGlobalsPruningPass);
 
 static llvm::RegisterStandardPasses
-  RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
-                                             registerFunctionPruningIRPass);
+    RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast, registerGlobalsPruningPass);
+
+#define HIPSYCL_STRINGIFY(V) #V
+#define HIPSYCL_PLUGIN_VERSION_STRING                                                                                  \
+  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MINOR)
+
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING, [](llvm::PassBuilder &PB) {
+            PB.registerPipelineStartEPCallback(
+                [](llvm::ModulePassManager &MPM) { MPM.addPass(hipsycl::compiler::GlobalsPruningPass{}); });
+          }};
+}
 
 } // namespace compiler
 } // namespace hipsycl
-

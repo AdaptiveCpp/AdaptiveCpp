@@ -357,8 +357,7 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
         cgh);
 
     auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<int>(), initialize_to_identity);
-    // auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>()); // TODO currently not on GPU
-    auto maxReduction = sycl::reduction(max_buff, cgh, 0, sycl::maximum<int>());
+    auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>());
 
     cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
                      [=](sycl::id<1> idx, auto &sum, auto &max) {
@@ -367,6 +366,7 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
                      });
   });
 
+  auto x = max_buff.get_host_access()[0];
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }

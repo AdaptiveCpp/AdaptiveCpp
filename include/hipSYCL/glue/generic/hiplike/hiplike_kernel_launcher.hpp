@@ -402,7 +402,7 @@ public:
 
     std::size_t num_scratch_elements = stages[0].num_groups.size();
     std::size_t scratch_memory_size =
-        sizeof(value_type) * num_scratch_elements;
+        (sizeof(value_type) + sizeof_initialized_flag) * num_scratch_elements;
 
     auto allocator =
         rt::application::get_backend(dev.get_backend()).get_allocator(dev);
@@ -457,7 +457,19 @@ public:
 #endif
   }
 
-  __host__ __device__ 
+  // Must be __host__ __device__ in order to be able to call
+  // hiplike_dynamic_local_memory()
+  __host__ __device__ void *get_local_scratch_mem_initialized() const {
+#ifdef SYCL_DEVICE_ONLY
+    return static_cast<void *>(
+        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
+        _local_memory_offset + work_group_size() * sizeof(value_type));
+#else
+    return nullptr;
+#endif
+  }
+
+  __host__ __device__
   void* get_reduction_output_buffer() const {
 #ifdef SYCL_DEVICE_ONLY
     if(!_is_final)
@@ -469,6 +481,17 @@ public:
 #endif
   }
 
+  __host__ __device__ 
+  void* get_reduction_output_initialized_buffer() const {
+#ifdef SYCL_DEVICE_ONLY
+    if(!_is_final)
+      return static_cast<value_type*>(_scratch_memory_out) + work_group_size();
+    // hiplike::local_reduction_accumulator will only write the output initialized flag
+    // for intermediate stages
+#endif
+    return nullptr;
+  }
+
 #ifdef SYCL_DEVICE_ONLY
   __device__ hiplike::local_reducer<ReductionDescriptor>
   construct_reducer() const {
@@ -478,21 +501,42 @@ public:
         __hipsycl_gid_z * __hipsycl_ngroups_y * __hipsycl_ngroups_x +
         __hipsycl_gid_y * __hipsycl_ngroups_x + __hipsycl_gid_x;
 
+    auto private_accumulator = sequential_reduction_accumulator<ReductionDescriptor>{_descriptor};
+    auto group_scratch_ptr = static_cast<value_type *>(get_local_scratch_mem());
     value_type *group_output_ptr =
         static_cast<value_type *>(get_reduction_output_buffer()) + my_group_id;
-
     value_type* global_input_ptr =
         static_cast<value_type*>(get_reduction_input_buffer());
 
-    return hiplike::local_reducer<ReductionDescriptor>{
-        _descriptor, my_local_id,
-        static_cast<value_type *>(get_local_scratch_mem()), group_output_ptr,
-        global_input_ptr, _is_final};
+    if constexpr (ReductionDescriptor::has_identity) {
+      return hiplike::local_reducer<ReductionDescriptor>{
+          _descriptor, my_local_id, private_accumulator,
+          hiplike::local_reduction_accumulator<ReductionDescriptor>{group_scratch_ptr,
+              group_output_ptr, global_input_ptr},
+          _is_final};
+    } else {
+      auto group_scratch_initialized_ptr = reinterpret_cast<hiplike::local_memory_flag*>(
+          get_local_scratch_mem_initialized());
+      auto group_output_initialized_ptr =
+          static_cast<hiplike::local_memory_flag *>(get_reduction_output_initialized_buffer()) + my_group_id;
+      auto global_input_initialized_ptr =
+          static_cast<hiplike::local_memory_flag *>(get_reduction_input_initialized_buffer());
+      return hiplike::local_reducer<ReductionDescriptor>{
+          _descriptor, my_local_id, private_accumulator,
+          hiplike::local_reduction_accumulator<ReductionDescriptor>{group_scratch_ptr,
+              group_scratch_initialized_ptr, group_output_ptr, group_output_initialized_ptr,
+              global_input_ptr, global_input_initialized_ptr},
+          _is_final};
+    }
   }
 #endif
-  
+
   __device__ void *get_reduction_input_buffer() const {
     return _scratch_memory_in;
+  }
+
+  __device__ void *get_reduction_input_initialized_buffer() const {
+    return static_cast<value_type*>(_scratch_memory_in) + work_group_size();
   }
 
   __host__ __device__
@@ -500,9 +544,10 @@ public:
     return _descriptor;
   }
 
-  
 private:
-  
+  constexpr static std::size_t sizeof_initialized_flag
+      = ReductionDescriptor::has_identity ? 0 : sizeof(hiplike::local_memory_flag);
+
   __host__ void initialize_local_memory(int work_group_size,
                                         int &allocated_local_mem_size) {
     
@@ -513,11 +558,15 @@ private:
         alignment;
 
     allocated_local_mem_size = _local_memory_offset + 
-        work_group_size * sizeof(value_type);
+        work_group_size * (sizeof(value_type) + sizeof_initialized_flag);
+  }
+
+  static __device__ int work_group_size() {
+    return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
   }
 
   bool _is_final;
-  
+
   void* _scratch_memory_in;
   void* _scratch_memory_out;
 

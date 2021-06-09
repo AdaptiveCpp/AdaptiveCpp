@@ -366,9 +366,33 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
                      });
   });
 
-  auto x = max_buff.get_host_access()[0];
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
+}
+
+BOOST_AUTO_TEST_CASE(combine_none_or_multiple) {
+  sycl::queue q;
+  sycl::buffer<int> sum_buff{1};
+  sycl::buffer<int> max_buff{1};
+  sum_buff.get_host_access()[0] = 0;
+  max_buff.get_host_access()[0] = 0;
+
+  q.submit([&](sycl::handler &cgh) {
+      auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<int>());
+      auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>()); // no identity
+
+      cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+          [=](sycl::id<1> idx, auto &sum, auto &max) {
+              // Test both validity of 0 combines or > 1 combine per item
+              for (int i = 0; i < static_cast<int>(idx.get(0)) % 3; ++i) {
+                sum += idx[0];
+                max.combine(idx[0]);
+              }
+          });
+  });
+
+  BOOST_CHECK(max_buff.get_host_access()[0] == 1022);
+  BOOST_CHECK(sum_buff.get_host_access()[0] == 523435);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

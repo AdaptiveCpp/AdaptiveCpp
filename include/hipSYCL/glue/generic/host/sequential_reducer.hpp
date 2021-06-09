@@ -31,6 +31,7 @@
 #include <new>
 #include <vector>
 
+#include "hipSYCL/glue/generic/reduction_accumulator.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 
@@ -51,50 +52,7 @@ constexpr std::size_t cache_line_size =
 #endif
 
 template <class T> struct cache_line_aligned {
-  alignas(cache_line_size) T value;
-};
-
-template<class ReductionDescriptor, class Enable = void>
-struct reduction_accumulator;
-
-template<class ReductionDescriptor>
-struct alignas(cache_line_size) reduction_accumulator<ReductionDescriptor,
-    std::enable_if_t<ReductionDescriptor::has_identity>> {
-  using value_type = typename ReductionDescriptor::value_type;
-
-  value_type value;
-
-  explicit reduction_accumulator(ReductionDescriptor &desc): value(desc.identity) {}
-
-  void combine_with(ReductionDescriptor &desc, const value_type &v) {
-    value = desc.combiner(value, v);
-  }
-
-  void combine_with(ReductionDescriptor &desc, const reduction_accumulator &v) {
-    value = desc.combiner(value, v.value);
-  }
-};
-
-template<class ReductionDescriptor>
-struct alignas(cache_line_size) reduction_accumulator<ReductionDescriptor,
-    std::enable_if_t<!ReductionDescriptor::has_identity>> {
-  using value_type = typename ReductionDescriptor::value_type;
-
-  value_type value;
-  bool initialized = false;
-
-  explicit reduction_accumulator(ReductionDescriptor &) {}
-
-  void combine_with(ReductionDescriptor &desc, const value_type &v) {
-    value = initialized ? desc.combiner(value, v) : v;
-    initialized = true;
-  }
-
-  void combine_with(ReductionDescriptor &desc, const reduction_accumulator &v) {
-    if (!v.initialized) return;
-    value = initialized ? desc.combiner(value, v.value) : v.value;
-    initialized = true;
-  }
+  alignas(cache_line_size) T data;
 };
 
 template<class ReductionDescriptor>
@@ -102,13 +60,14 @@ class sequential_reducer {
 public:
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
+  using accumulator_type = sequential_reduction_accumulator<ReductionDescriptor>;
 
   sequential_reducer(int num_threads, ReductionDescriptor &desc)
-      : _desc{desc}, _per_thread_results(num_threads, reduction_accumulator<ReductionDescriptor>{desc}) {}
+      : _desc{desc}, _per_thread_results(num_threads, {accumulator_type{desc}}) {}
 
   void combine(int my_thread_id, const value_type& v) {
     assert(my_thread_id < _per_thread_results.size());
-    _per_thread_results[my_thread_id].combine_with(_desc, v);
+    _per_thread_results[my_thread_id].data.combine_with(_desc, v);
   }
 
   // This should be executed in a single threaded scope.
@@ -118,12 +77,12 @@ public:
     if constexpr (ReductionDescriptor::has_identity) {
       initialize_from_dest = !_desc.initialize_to_identity;
     }
-    reduction_accumulator<ReductionDescriptor> accumulator(_desc);
+    accumulator_type accumulator(_desc);
     if (initialize_from_dest) {
       accumulator.combine_with(_desc, *_desc.get_pointer());
     }
     for (std::size_t i = 0; i < _per_thread_results.size(); ++i) {
-      accumulator.combine_with(_desc, _per_thread_results[i]);
+      accumulator.combine_with(_desc, _per_thread_results[i].data);
     }
     *(_desc.get_pointer()) = accumulator.value;
   }
@@ -133,7 +92,7 @@ private:
   // TODO: new does not necessarily respect over-aligned alignas requirements.
   // Depending on the value of std::max_align_t and cache_line_size,
   // alignment may be off and not match cache lines.
-  std::vector<reduction_accumulator<ReductionDescriptor>> _per_thread_results;
+  std::vector<cache_line_aligned<accumulator_type>> _per_thread_results;
 };
 
 }

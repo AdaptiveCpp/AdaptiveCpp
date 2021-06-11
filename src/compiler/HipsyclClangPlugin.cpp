@@ -29,6 +29,7 @@
 #include "hipSYCL/compiler/KernelFlattening.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
+#include "hipSYCL/compiler/MarkLoopsParallel.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
@@ -64,10 +65,12 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{true});
 }
+
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{false});
   PM.add(new KernelFlatteningPassLegacy{});
+  PM.add(new MarkLoopsParallelPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
@@ -101,6 +104,10 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         if (Opt == O3)
 #endif
           FPM.addPass(KernelFlatteningPass{});
+#if LLVM_VERSION_MAJOR >= 12
+        if (Opt != O0)
+#endif
+          FPM.addPass(MarkLoopsParallelPass{});
 
         MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
       });

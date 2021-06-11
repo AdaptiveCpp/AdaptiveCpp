@@ -67,4 +67,104 @@ bool checkedInlineFunction(llvm::CallBase *CI) {
                                           << CalleeName << ">\n";)
   return true;
 }
+
+bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging.
+  llvm::MDNode *DesiredLoopIdMetadata = TheLoop->getLoopID();
+
+  if (!DesiredLoopIdMetadata)
+    return false;
+
+  llvm::MDNode *ParallelAccesses = llvm::findOptionMDForLoop(TheLoop, "llvm.loop.parallel_accesses");
+  llvm::SmallPtrSet<llvm::MDNode *, 4> ParallelAccessGroups; // For scalable 'contains' check.
+  if (ParallelAccesses) {
+    for (const llvm::MDOperand &MD : llvm::drop_begin(ParallelAccesses->operands(), 1)) {
+      llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(MD.get());
+      assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+      ParallelAccessGroups.insert(AccGroup);
+    }
+  }
+
+  // The loop branch contains the parallel loop metadata. In order to ensure
+  // that any parallel-loop-unaware optimization pass hasn't added loop-carried
+  // dependencies (thus converted the loop back to a sequential loop), check
+  // that all the memory instructions in the loop belong to an access group that
+  // is parallel to this loop.
+  for (llvm::BasicBlock *BB : TheLoop->blocks()) {
+    for (llvm::Instruction &I : *BB) {
+      if (!I.mayReadOrWriteMemory())
+        continue;
+
+      if (llvm::MDNode *AccessGroup = I.getMetadata(llvm::LLVMContext::MD_access_group)) {
+        auto ContainsAccessGroup = [&ParallelAccessGroups](llvm::MDNode *AG) -> bool {
+          if (AG->getNumOperands() == 0) {
+            assert(llvm::isValidAsAccessGroup(AG) && "Item must be an access group");
+            return ParallelAccessGroups.count(AG);
+          }
+
+          for (const llvm::MDOperand &AccessListItem : AG->operands()) {
+            llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(AccessListItem.get());
+            assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+            if (ParallelAccessGroups.count(AccGroup))
+              return true;
+          }
+          return false;
+        };
+
+        if (ContainsAccessGroup(AccessGroup))
+          continue;
+      }
+      auto ReturnFalse = [&I]() {
+        HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
+                                      I.print(llvm::outs()); llvm::outs() << "\n";)
+        return false;
+      };
+      // The memory instruction can refer to the loop identifier metadata
+      // directly or indirectly through another list metadata (in case of
+      // nested parallel loops). The loop identifier metadata refers to
+      // itself so we can check both cases with the same routine.
+      llvm::MDNode *LoopIdMD = I.getMetadata(llvm::LLVMContext::MD_mem_parallel_loop_access);
+
+      if (!LoopIdMD)
+        return ReturnFalse();
+
+      if (!llvm::is_contained(LoopIdMD->operands(), DesiredLoopIdMetadata))
+        return ReturnFalse();
+    }
+  }
+  return true;
+}
+
+void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loop *const &L,
+                                              llvm::MDNode *MDAccessGroup) {
+  // findOptionMDForLoopID also checks if there's a loop id, so this is fine
+  if (auto *ParAccesses = llvm::findOptionMDForLoopID(L->getLoopID(), "llvm.loop.parallel_accesses")) {
+    llvm::SmallVector<llvm::Metadata *, 4> AccessGroups{ParAccesses->op_begin(),
+                                                        ParAccesses->op_end()}; // contains .parallel_accesses
+    AccessGroups.push_back(MDAccessGroup);
+    auto *NewParAccesses = llvm::MDNode::get(F->getContext(), AccessGroups);
+
+    const auto *const PIt = std::find(L->getLoopID()->op_begin(), L->getLoopID()->op_end(), ParAccesses);
+    auto PIdx = std::distance(L->getLoopID()->op_begin(), PIt);
+    L->getLoopID()->replaceOperandWith(PIdx, NewParAccesses);
+  } else {
+    auto *NewParAccesses = llvm::MDNode::get(
+        F->getContext(), {llvm::MDString::get(F->getContext(), "llvm.loop.parallel_accesses"), MDAccessGroup});
+    L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {}, {NewParAccesses}));
+  }
+}
+
+void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
+  if (auto *PresentMD = I->getMetadata(llvm::LLVMContext::MD_access_group)) {
+    llvm::SmallVector<llvm::Metadata *, 4> MDs;
+    if (PresentMD->getNumOperands() == 0)
+      MDs.push_back(PresentMD);
+    else
+      MDs.append(PresentMD->op_begin(), PresentMD->op_end());
+    MDs.push_back(MDAccessGroup);
+    auto *CombinedMDAccessGroup = llvm::MDNode::getDistinct(I->getContext(), MDs);
+    I->setMetadata(llvm::LLVMContext::MD_access_group, CombinedMDAccessGroup);
+  } else
+    I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+}
+
 } // namespace hipsycl::compiler::utils

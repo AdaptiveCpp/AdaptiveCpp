@@ -29,8 +29,11 @@
 #ifndef HIPSYCL_DEVICE_SELECTOR_HPP
 #define HIPSYCL_DEVICE_SELECTOR_HPP
 
+#include "hipSYCL/runtime/application.hpp"
+
 #include "exception.hpp"
 #include "device.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 
 #include <limits>
 #include <functional>
@@ -132,59 +135,7 @@ inline int select_default(const device& dev) {
 }
 
 template <class Selector>
-bool is_multi_device_selector(const Selector&) {
-  return selector_traits<Selector>::is_multi_device;
-}
-
-template <class Selector>
-selection_policy get_selection_policy(const Selector&) {
-  return selector_traits<Selector>::policy;
-}
-
-template <class Selector>
-std::vector<device> select_devices(const Selector &s) {
-  auto devices = device::get_devices();
-  // There should always be at least a CPU device
-  assert(devices.size() > 0);
-  std::vector<int> dev_indices(devices.size());
-  std::vector<int> dev_scores(devices.size());
-
-  std::iota(dev_indices.begin(), dev_indices.end(), 0);
-  std::transform(dev_indices.begin(), dev_indices.end(), dev_scores.begin(),
-                 [&](int dev_index){ return s(devices[dev_index]); });
-
-  std::sort(dev_indices.begin(), dev_indices.end(),
-            [&](int a, int b) { return s(devices[a]) > s(devices[b]); });
-
-  int max_devs = 1;
-  if(is_multi_device_selector(s))
-    max_devs = std::numeric_limits<int>::max();
-  selection_policy policy = get_selection_policy(s);
-
-  std::vector<device> result;
-  assert(!dev_indices.empty());
-
-  const int best_score = dev_scores[dev_indices[0]];
-  for(int i = 0; i < dev_indices.size(); ++i) {
-    // Only include devices with positive scores, no more than max_devs.
-    // If we are not in multi device selection mode, max_devs is 1
-    // so we will just select the best device.
-    if (dev_scores[dev_indices[i]] >= 0 && result.size() < max_devs) {
-      // If we are in best selection mode, we select all devices that
-      // have the top score.
-      // Otherwise, we select all devices that have positive score.
-      if (policy != selection_policy::best ||
-          dev_scores[dev_indices[i]] == best_score)
-        result.push_back(devices[dev_indices[i]]);
-    }
-  }
-
-  if (result.empty()) {
-    throw sycl::runtime_error{"No matching device"};
-  }
-
-  return result;
-}
+std::vector<device> select_devices(const Selector &s);
 
 template<class T>
 struct is_device_selector {
@@ -319,6 +270,67 @@ inline device::device(const DeviceSelector &deviceSelector) {
   this->_device_id = detail::select_devices(deviceSelector)[0]._device_id;
 }
 
+namespace detail {
+
+template <class Selector>
+std::vector<device> select_devices(const Selector &s) {
+
+  if(std::is_same_v<default_selector, Selector>) {
+    rt::default_selector_behavior b =
+        rt::application::get_settings()
+            .get<rt::setting::default_selector_behavior>();
+    
+    if(b == rt::default_selector_behavior::system)
+      return select_devices(system_selector_v);
+    else if(b == rt::default_selector_behavior::multigpu)
+      return select_devices(multi_gpu_selector_v);
+  }
+
+  auto devices = device::get_devices();
+  // There should always be at least a CPU device
+  assert(devices.size() > 0);
+  std::vector<int> dev_indices(devices.size());
+  std::vector<int> dev_scores(devices.size());
+
+  std::iota(dev_indices.begin(), dev_indices.end(), 0);
+  std::transform(dev_indices.begin(), dev_indices.end(), dev_scores.begin(),
+                 [&](int dev_index){ return s(devices[dev_index]); });
+
+  std::sort(dev_indices.begin(), dev_indices.end(),
+            [&](int a, int b) { return s(devices[a]) > s(devices[b]); });
+
+  int max_devs = 1;
+
+  if(selector_traits<Selector>::is_multi_device)
+    max_devs = std::numeric_limits<int>::max();
+  selection_policy policy = selector_traits<Selector>::policy;
+
+  std::vector<device> result;
+  assert(!dev_indices.empty());
+
+  const int best_score = dev_scores[dev_indices[0]];
+  for(int i = 0; i < dev_indices.size(); ++i) {
+    // Only include devices with positive scores, no more than max_devs.
+    // If we are not in multi device selection mode, max_devs is 1
+    // so we will just select the best device.
+    if (dev_scores[dev_indices[i]] >= 0 && result.size() < max_devs) {
+      // If we are in best selection mode, we select all devices that
+      // have the top score.
+      // Otherwise, we select all devices that have positive score.
+      if (policy != selection_policy::best ||
+          dev_scores[dev_indices[i]] == best_score)
+        result.push_back(devices[dev_indices[i]]);
+    }
+  }
+
+  if (result.empty()) {
+    throw sycl::runtime_error{"No matching device"};
+  }
+
+  return result;
+}
+
+}
 
 }
 }

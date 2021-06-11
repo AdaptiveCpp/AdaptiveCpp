@@ -8,3 +8,7 @@
 * `HIPSYCL_RT_SCHEDULER`: Set scheduler type. Allowed values: 
     * `direct` is a low-latency direct-submission scheduler. 
     * `unbound` is the default scheduler and supports automatic work distribution across multiple devices. If the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension is used, the scheduler must be `unbound`.
+* `HIPSYCL_DEFAULT_SELECTOR_BEHAVIOR`: Set behavior of default selector. Allowed values:
+    * `strict` (default): Strictly behave as defined by the SYCL specification
+    * `multigpu`: Makes default selector behave like a multigpu selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension
+    * `system`: Makes default selector behave like a system selector from the `HIPSYCL_EXT_MULTI_DEVICE_QUEUE` extension

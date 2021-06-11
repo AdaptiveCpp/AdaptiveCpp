@@ -73,5 +73,20 @@ std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
   }
   return istr;
 }
+
+std::istream &operator>>(std::istream &istr, default_selector_behavior& out) {
+  std::string str;
+  istr >> str;
+  if (str == "strict")
+    out = default_selector_behavior::strict;
+  else if (str == "multigpu")
+    out = default_selector_behavior::multigpu;
+  else if (str == "system")
+    out = default_selector_behavior::system;
+  else
+    istr.setstate(std::ios_base::failbit);
+  return istr;
+}
+
 }
 }

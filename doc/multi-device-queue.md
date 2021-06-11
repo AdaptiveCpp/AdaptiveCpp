@@ -1,10 +1,12 @@
 # `HIPSYCL_EXT_MULTI_DEVICE_QUEUE`
 
-This extension allows `sycl::queue` to automatically distribute work across multiple devices.
+This extension allows `sycl::queue` to automatically distribute work across multiple devices. The funcionality from this extension requires that the scheduler type is set to `unbound` (default).
 
 **Note:** This is highly experimental, not performance-optimized, the current work distribution algorithm is extremely primitive and a placeholder for a proper scheduling algorithm. This extension should not yet be used for any production workloads.
 
 A multi-device queue can be constructed either by passing a vector of `sycl::device` to the queue constructor, or by using the new device selectors, such as `system_selector_v`. See the API reference below for details.
+
+Additionally, the behavior of the default selector can be modified to behave like a system selector or a multi-gpu selector. See the documentation on environment variables for more details.
 
 ## Example
 

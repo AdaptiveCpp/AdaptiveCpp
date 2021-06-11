@@ -29,17 +29,55 @@
 #ifndef HIPSYCL_DEVICE_SELECTOR_HPP
 #define HIPSYCL_DEVICE_SELECTOR_HPP
 
+#include "hipSYCL/runtime/application.hpp"
+
 #include "exception.hpp"
 #include "device.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 
 #include <limits>
 #include <functional>
 #include <type_traits>
+#include <algorithm>
+#include <numeric>
 
 namespace hipsycl {
 namespace sycl {
 
+
+enum class selection_policy {
+  all,
+  best
+};
+
+template <class Selector, selection_policy P = selection_policy::all>
+class multi_device_selector {
+public:
+  constexpr multi_device_selector(const Selector& s = Selector{})
+  : _s{s} {}
+
+  int operator()(const device& dev) const {
+    return _s(dev);
+  }
+private:
+  Selector _s;
+};
+
+
 namespace detail {
+
+template<class Selector>
+struct selector_traits {
+  static constexpr bool is_multi_device = false;
+  static constexpr selection_policy policy = selection_policy::best;
+};
+
+template<class Selector, selection_policy P>
+struct selector_traits<multi_device_selector<Selector, P>>{
+  static constexpr bool is_multi_device = true;
+  static constexpr selection_policy policy = P;
+};
+
 
 inline int select_gpu(const device& dev) {
   if (dev.is_gpu()) {
@@ -88,37 +126,16 @@ inline int select_default(const device& dev) {
     // and cannot run kernels.
     return 1;
   } else {
-    // Last option: GPUs without compiled kernels
-    // This should never be selected in practice because
-    // there's always a CPU device.
-    return 0;
+    // Never select GPUs without compiled kernels
+    return -1;
   }
 #else
   return select_host(dev);
 #endif
 }
 
-template<class Selector>
-device select_device(const Selector& s) {
-  auto devices = device::get_devices();
-  // There should always be at least a CPU device
-  assert(devices.size() > 0);
-
-  int best_score = std::numeric_limits<int>::min();
-  device candidate;
-  for (const device &d : devices) {
-    int current_score = s(d);
-    if (current_score > best_score) {
-      best_score = current_score;
-      candidate = d;
-    }
-  }
-  if (best_score < 0) {
-    throw sycl::runtime_error{"No matching device"};
-  }
-
-  return candidate;
-}
+template <class Selector>
+std::vector<device> select_devices(const Selector &s);
 
 template<class T>
 struct is_device_selector {
@@ -139,7 +156,11 @@ public:
   virtual ~device_selector(){};
   
   device select_device() const {
-    return detail::select_device(*this);
+    auto res = detail::select_devices(*this);
+    // detail::select_devices should throw if it finds
+    // no matching devices
+    assert(!res.empty());
+    return res[0];
   }
 
   virtual int operator()(const device& dev) const = 0;
@@ -191,6 +212,22 @@ inline constexpr cpu_selector cpu_selector_v;
 inline constexpr gpu_selector gpu_selector_v;
 inline constexpr accelerator_selector accelerator_selector_v;
 
+// Currently we don't distinguish between multiple CPUs anyway
+// so it's unclear if this is even needed.
+inline constexpr multi_device_selector<cpu_selector, selection_policy::best>
+    multi_cpu_selector_v;
+
+// Important to use best policy here to exclude GPUs
+// that haven't been targeted.
+inline constexpr multi_device_selector<gpu_selector, selection_policy::best>
+    multi_gpu_selector_v;
+
+// default_selector will never pick devices that cannot run kernels
+// so we can implement system_selector_v by picking all devices
+// for which the default selector does not return a negative number.
+inline constexpr multi_device_selector<default_selector, selection_policy::all>
+    system_selector_v;
+
 inline auto aspect_selector(const std::vector<aspect> &aspectList,
                             const std::vector<aspect> &denyList = {}) {
 
@@ -230,11 +267,70 @@ auto aspect_selector() {
 
 template <class DeviceSelector>
 inline device::device(const DeviceSelector &deviceSelector) {
-  this->_device_id = detail::select_device(deviceSelector)._device_id;
+  this->_device_id = detail::select_devices(deviceSelector)[0]._device_id;
 }
 
+namespace detail {
 
+template <class Selector>
+std::vector<device> select_devices(const Selector &s) {
 
+  if(std::is_same_v<default_selector, Selector>) {
+    rt::default_selector_behavior b =
+        rt::application::get_settings()
+            .get<rt::setting::default_selector_behavior>();
+    
+    if(b == rt::default_selector_behavior::system)
+      return select_devices(system_selector_v);
+    else if(b == rt::default_selector_behavior::multigpu)
+      return select_devices(multi_gpu_selector_v);
+  }
+
+  auto devices = device::get_devices();
+  // There should always be at least a CPU device
+  assert(devices.size() > 0);
+  std::vector<int> dev_indices(devices.size());
+  std::vector<int> dev_scores(devices.size());
+
+  std::iota(dev_indices.begin(), dev_indices.end(), 0);
+  std::transform(dev_indices.begin(), dev_indices.end(), dev_scores.begin(),
+                 [&](int dev_index){ return s(devices[dev_index]); });
+
+  std::sort(dev_indices.begin(), dev_indices.end(),
+            [&](int a, int b) { return s(devices[a]) > s(devices[b]); });
+
+  int max_devs = 1;
+
+  if(selector_traits<Selector>::is_multi_device)
+    max_devs = std::numeric_limits<int>::max();
+  selection_policy policy = selector_traits<Selector>::policy;
+
+  std::vector<device> result;
+  assert(!dev_indices.empty());
+
+  const int best_score = dev_scores[dev_indices[0]];
+  for(int i = 0; i < dev_indices.size(); ++i) {
+    // Only include devices with positive scores, no more than max_devs.
+    // If we are not in multi device selection mode, max_devs is 1
+    // so we will just select the best device.
+    if (dev_scores[dev_indices[i]] >= 0 && result.size() < max_devs) {
+      // If we are in best selection mode, we select all devices that
+      // have the top score.
+      // Otherwise, we select all devices that have positive score.
+      if (policy != selection_policy::best ||
+          dev_scores[dev_indices[i]] == best_score)
+        result.push_back(devices[dev_indices[i]]);
+    }
+  }
+
+  if (result.empty()) {
+    throw sycl::runtime_error{"No matching device"};
+  }
+
+  return result;
+}
+
+}
 
 }
 }

@@ -879,5 +879,36 @@ BOOST_AUTO_TEST_CASE(queue_wait_list) {
 }
 
 #endif
+#ifdef HIPSYCL_EXT_MULTI_DEVICE_QUEUE
+
+BOOST_AUTO_TEST_CASE(multi_device_queue) {
+  using namespace cl;
+  sycl::queue q{sycl::system_selector_v};
+
+  sycl::buffer<int> buff{sycl::range{1}};
+
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor<int> acc{buff, cgh, sycl::no_init};
+    cgh.single_task([=](){
+      acc[0] = 1;
+    });
+  });
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor<int> acc{buff, cgh};
+    cgh.single_task([=](){
+      acc[0] += 100;
+    });
+  });
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor<int> acc{buff, cgh};
+    cgh.single_task([=](){
+      acc[0]++;
+    });
+  });
+
+  sycl::host_accessor hacc{buff};
+  BOOST_CHECK(hacc[0] == 102);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

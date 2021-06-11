@@ -22,6 +22,10 @@ hipSYCL supports interoperability between `sycl::buffer` and USM pointers. See [
 
 An extension that allows to eplicitly set view/non-view semantics for buffers as well as enable some behaviors that cannot be expressed in regular SYCL such as buffers that do not block in the destructor. See [here](explicit-buffer-policies.md) for details.
 
+### `HIPSYCL_EXT_MULTI_DEVICE_QUEUE`
+
+Allows constructing a queue that automatically distributes work across multiple devices, or even the entire system. See [here](multi-device-queue.md) for details.
+
 ### `HIPSYCL_EXT_ACCESSOR_VARIANTS` and `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION`
 
 hipSYCL supports various flavors of accessors that encode the purpose and feature set of the accessor (e.g. placeholder, ranged, unranged) in the accessor type. Based on this information, the size of the accessor is optimized by eliding unneeded information at compile time. This can be beneficial for performance in kernels bound by register pressure.

@@ -119,6 +119,8 @@ void dag_manager::flush_async()
           _unbound_scheduler.submit(node);
         }
       }
+      HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
+                         << std::endl;
     } else {
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
     }

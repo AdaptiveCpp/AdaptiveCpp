@@ -164,7 +164,7 @@ std::vector<device> select_devices(const Selector &s) {
   std::vector<device> result;
   assert(!dev_indices.empty());
 
-  int best_score = dev_scores[dev_indices[0]];
+  const int best_score = dev_scores[dev_indices[0]];
   for(int i = 0; i < dev_indices.size(); ++i) {
     // Only include devices with positive scores, no more than max_devs.
     // If we are not in multi device selection mode, max_devs is 1

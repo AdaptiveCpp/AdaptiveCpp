@@ -1432,8 +1432,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
 
   InnerLoop = LI.getLoopFor(InnerHeader);
   {
-    // move non ind vars out of header, as they'd be they'd be arrayified by the next split otherwise, leading to a
-    // mess.
+    // move non ind vars out of header, as they'd be arrayified by the next split otherwise, leading to a mess.
     llvm::Loop *PrevLoop = LI.getLoopFor(Header);
     moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), InnerLoop->getLoopPreheader(),
                              MDAccessGroup);
@@ -1790,12 +1789,25 @@ void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::Ana
 llvm::PreservedAnalyses hipsycl::compiler::LoopSplitAtBarrierPass::run(llvm::Loop &L, llvm::LoopAnalysisManager &AM,
                                                                        llvm::LoopStandardAnalysisResults &AR,
                                                                        llvm::LPMUpdater &LPMU) {
-  auto &SAA = AM.getResult<SplitterAnnotationAnalysis>(L, AR);
+  const auto &FAMProxy = AM.getResult<llvm::FunctionAnalysisManagerLoopProxy>(L, AR);
+  auto &F = *L.getBlocks()[0]->getParent();
+  const auto *MAMProxy = FAMProxy.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
+  const auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
+  if (!SAA) {
+    llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
+    return llvm::PreservedAnalyses::all();
+  }
+
   const auto &LAI = AM.getResult<llvm::LoopAccessAnalysis>(L, AR);
-  const auto &TTI = AM.getResult<llvm::TargetIRAnalysis>(L, AR);
-  auto &TLI = AM.getResult<llvm::TargetLibraryAnalysis>(L, AR);
+  const auto *TTI = FAMProxy.getCachedResult<llvm::TargetIRAnalysis>(F);
+  auto *TLI = FAMProxy.getCachedResult<llvm::TargetLibraryAnalysis>(F);
+  if (!TTI || !TLI) {
+    llvm::errs() << "TargetIRAnalysis or TargetLibraryAnalysis not cached.\n";
+    return llvm::PreservedAnalyses::all();
+  }
   if (!splitLoop(
-          &L, AR.LI, [&LPMU](llvm::Loop &L) { LPMU.addSiblingLoops({&L}); }, LAI, AR.DT, AR.SE, TTI, TLI, SAA, IsO0_))
+          &L, AR.LI, [&LPMU](llvm::Loop &L) { /*LPMU.addChildLoops({&L});*/ }, LAI, AR.DT, AR.SE, *TTI, *TLI, *SAA,
+          IsO0_))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();

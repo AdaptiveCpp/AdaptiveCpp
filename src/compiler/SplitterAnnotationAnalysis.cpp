@@ -75,3 +75,9 @@ hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::Module
 
 char hipsycl::compiler::SplitterAnnotationAnalysisLegacy::ID = 0;
 llvm::AnalysisKey hipsycl::compiler::SplitterAnnotationAnalysis::Key;
+
+llvm::PreservedAnalyses hipsycl::compiler::SplitterAnnotationAnalysisCacher::run(llvm::Module &M,
+                                                                                 llvm::ModuleAnalysisManager &AM) {
+  AM.getResult<SplitterAnnotationAnalysis>(M);
+  return llvm::PreservedAnalyses::all();
+}

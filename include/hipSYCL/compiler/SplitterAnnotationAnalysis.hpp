@@ -47,6 +47,9 @@ public:
   explicit SplitterAnnotationInfo(const llvm::Module &Module);
   inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.contains(F); }
   inline bool isKernelFunc(const llvm::Function *F) const { return NDKernels.contains(F); }
+  bool invalidate(llvm::Module& M, const llvm::PreservedAnalyses &PA, llvm::ModuleAnalysisManager::Invalidator &) {
+    return false;
+  }
 };
 
 /*!
@@ -84,6 +87,14 @@ public:
   using Result = SplitterAnnotationInfo;
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+};
+
+class SplitterAnnotationAnalysisCacher : public llvm::PassInfoMixin<SplitterAnnotationAnalysisCacher> {
+public:
+  explicit SplitterAnnotationAnalysisCacher() {}
+
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+  static bool isRequired() { return true; }
 };
 } // namespace compiler
 } // namespace hipsycl

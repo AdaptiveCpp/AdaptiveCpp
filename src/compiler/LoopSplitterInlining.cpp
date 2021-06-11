@@ -182,8 +182,17 @@ char hipsycl::compiler::LoopSplitterInliningPassLegacy::ID = 0;
 llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Loop &L, llvm::LoopAnalysisManager &AM,
                                                                          llvm::LoopStandardAnalysisResults &AR,
                                                                          llvm::LPMUpdater &LPMU) {
-  const auto &SAA = AM.getResult<SplitterAnnotationAnalysis>(L, AR);
-  if (!inlineSplitter(&L, AR.LI, AR.DT, SAA))
+  const auto &FAMProxy = AM.getResult<llvm::FunctionAnalysisManagerLoopProxy>(L, AR);
+  auto &F = *L.getBlocks()[0]->getParent();
+  const auto *MAMProxy =
+      FAMProxy.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
+  const auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
+  if(!SAA)
+  {
+    llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
+    return llvm::PreservedAnalyses::all();
+  }
+  if (!inlineSplitter(&L, AR.LI, AR.DT, *SAA))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();

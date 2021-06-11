@@ -76,17 +76,23 @@ static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
                                                 registerLoopSplitAtBarrierPasses);
 
-extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK llvmGetPassPluginInfo() {
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
             PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
               MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
             });
-            PB.registerLateLoopOptimizationsEPCallback(
-                [](llvm::LoopPassManager &LPM, llvm::PassBuilder::OptimizationLevel Opt) {
-                  LPM.addPass(LoopSplitterInliningPass{});
-                  LPM.addPass(LoopSplitAtBarrierPass{Opt == llvm::PassBuilder::OptimizationLevel::O0});
-                });
-            // todo: add pruning pass as well
+            PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
+              MPM.addPass(SplitterAnnotationAnalysisCacher{});
+
+              llvm::LoopPassManager LPM;
+              LPM.addPass(LoopSplitterInliningPass{});
+              LPM.addPass(LoopSplitAtBarrierPass{true});
+
+              llvm::FunctionPassManager FPM;
+              FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+
+              MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+            });
           }};
 }
 

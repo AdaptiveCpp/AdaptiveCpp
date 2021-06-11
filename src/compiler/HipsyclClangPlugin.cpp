@@ -26,6 +26,7 @@
  */
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
+#include "hipSYCL/compiler/KernelFlattening.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
@@ -66,6 +67,7 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{false});
+  PM.add(new KernelFlatteningPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
@@ -77,23 +79,33 @@ static llvm::RegisterStandardPasses
                                                 registerLoopSplitAtBarrierPasses);
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
-            PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
-              MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
-            });
-            PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
-              MPM.addPass(SplitterAnnotationAnalysisCacher{});
+  return {
+    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
+#if LLVM_VERSION_MAJOR < 12
+      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
+#else
+      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+#endif
+        MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
-              llvm::LoopPassManager LPM;
-              LPM.addPass(LoopSplitterInliningPass{});
-              LPM.addPass(LoopSplitAtBarrierPass{true});
+        llvm::LoopPassManager LPM;
+        LPM.addPass(LoopSplitterInliningPass{});
+        LPM.addPass(LoopSplitAtBarrierPass{true});
 
-              llvm::FunctionPassManager FPM;
-              FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+        llvm::FunctionPassManager FPM;
+        FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
-              MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
-            });
-          }};
+#if LLVM_VERSION_MAJOR >= 12
+        if (Opt == O3)
+#endif
+          FPM.addPass(KernelFlatteningPass{});
+
+        MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+      });
+    }
+  };
 }
 
 } // namespace compiler

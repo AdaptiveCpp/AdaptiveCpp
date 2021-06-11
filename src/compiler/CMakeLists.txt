@@ -17,7 +17,7 @@ add_library(hipSYCL_clang SHARED
   LoopSplitterInlining.cpp
   SplitterAnnotationAnalysis.cpp
   IRUtils.cpp
-)
+  KernelFlattening.cpp)
 
 target_include_directories(hipSYCL_clang PRIVATE
   ${LLVM_INCLUDE_DIRS}

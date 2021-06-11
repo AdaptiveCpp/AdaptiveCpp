@@ -115,13 +115,11 @@ llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Funct
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
-
-  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
-  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
-
   if (!SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
 
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto TLL = LI.getTopLevelLoops();
 
   bool Changed = false;

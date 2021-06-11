@@ -28,6 +28,22 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
                                               llvm::MDNode *MDAccessGroup);
 
 void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
+
+template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
+  for (auto *U : V->users())
+    if (UserType *UT = llvm::dyn_cast<UserType>(U))
+      if (L(UT))
+        return true;
+  return false;
+}
+
+template <class UserType, class Func> bool noneOfUsers(llvm::Value *V, Func &&L) {
+  return !anyOfUsers<UserType>(V, std::forward<Func>(L));
+}
+
+template <class UserType, class Func> bool allOfUsers(llvm::Value *V, Func &&L) {
+  return !anyOfUsers<UserType>(V, [L = std::forward<Func>(L)](UserType *UT) { return !L(UT); });
+}
 } // namespace utils
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_IRUTILS_HPP

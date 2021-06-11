@@ -27,6 +27,7 @@
  */
 
 #include "hipSYCL/compiler/LoopSplitter.hpp"
+
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
@@ -53,6 +54,18 @@
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 namespace {
+
+struct LoopSplitterAnalyses {
+  llvm::LoopInfo &LI;
+  llvm::DominatorTree &DT;
+  llvm::ScalarEvolution &SE;
+  llvm::TargetLibraryInfo &TLI;
+  const std::function<void(llvm::Loop &)> &LoopAdder;
+  const llvm::LoopAccessInfo &LAI;
+  const llvm::TargetTransformInfo &TTI;
+  const hipsycl::compiler::SplitterAnnotationInfo &SAA;
+  bool IsO0;
+};
 
 void findAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                           llvm::SmallVector<llvm::CallBase *, 8> &Barriers) {
@@ -557,23 +570,9 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
   }
 }
 
-template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
-  for (auto *U : V->users())
-    if (UserType *UT = llvm::dyn_cast<UserType>(U))
-      if (L(UT))
-        return true;
-  return false;
-}
-
-template <class UserType, class Func> bool noneOfUsers(llvm::Value *V, Func &&L) {
-  return !anyOfUsers<UserType>(V, std::forward<Func>(L));
-}
-
-template <class UserType, class Func> bool allOfUsers(llvm::Value *V, Func &&L) {
-  return !anyOfUsers<UserType>(V, [L = std::forward<Func>(L)](UserType *UT) { return !L(UT); });
-}
-
 void insertLifetimeEndForAllocas(llvm::Function *F, llvm::Value *Idx, llvm::Instruction *IP) {
+  using namespace hipsycl::compiler::utils;
+
   auto &EntryBlock = F->getEntryBlock();
   llvm::IRBuilder Builder{IP};
   auto IsLifetimeEnd = [](auto *CI) {
@@ -709,7 +708,7 @@ llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
     if (BI->isConditional()) {
       if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
         return CmpI;
-      else if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
+      if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
         return SelectI;
     }
   return nullptr;
@@ -757,22 +756,6 @@ llvm::SmallPtrSet<llvm::PHINode *, 2> getInductionVariables(const llvm::Loop &L)
   }
 
   return IndVars;
-}
-
-// only for inner loops required..
-llvm::BasicBlock *simplifyLatchNonCanonical(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
-                                            llvm::DominatorTree &DT) {
-  auto IndVars = getInductionVariables(*L);
-  assert(!IndVars.empty() && "Loop ind vars must be found");
-
-  llvm::SmallVector<llvm::PHINode *, 2> IndVarVec{IndVars.begin(), IndVars.end()};
-  std::sort(IndVarVec.begin(), IndVarVec.end(),
-            [&DT](llvm::PHINode *IndVar, llvm::PHINode *IndVar2) { return !DT.dominates(IndVar, IndVar2); });
-  auto *PhiI = IndVarVec[0];
-  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Loop ind var: "; PhiI->print(llvm::outs());
-                             llvm::outs() << "\n";)
-  auto *InductionInstr = llvm::cast<llvm::Instruction>(PhiI->getIncomingValueForBlock(Latch));
-  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
 void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx, llvm::BasicBlock *LoadBlock) {
@@ -825,28 +808,6 @@ void replaceIndexWithNull(const llvm::Loop *InnerLoop, const llvm::PHINode *Inde
   llvm::SmallVector<llvm::BasicBlock *, 8> BBs{InnerLoop->block_begin(), InnerLoop->block_end()};
   BBs.push_back(InnerLoop->getLoopPreheader());
   replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), Index);
-}
-
-llvm::LoadInst *getLoadInBlockForAlloca(const llvm::BasicBlock *SearchBlock, llvm::AllocaInst *Alloca) {
-  for (auto *User : Alloca->users()) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Alloca Use: ";
-    if (auto *UInst = llvm::dyn_cast<llvm::Instruction>(User)) {
-      UInst->print(llvm::outs());
-      if (UInst->getParent() == SearchBlock) {
-        if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(UInst)) {
-          auto U =
-              std::find_if(GEP->user_begin(), GEP->user_end(), [](auto *U) { return llvm::isa<llvm::LoadInst>(U); });
-          if (U != GEP->user_end())
-            UInst = llvm::cast<llvm::LoadInst>(*U);
-        }
-        if (auto *LoadInst = llvm::dyn_cast<llvm::LoadInst>(UInst)) {
-          return LoadInst;
-        }
-      }
-    }
-    llvm::outs() << "\n";
-  }
-  return nullptr;
 }
 
 void replacePredecessorsSuccessor(llvm::BasicBlock *OldBlock, llvm::BasicBlock *NewBlock, llvm::DominatorTree &DT,
@@ -992,143 +953,6 @@ void cloneConditions(llvm::Function *F,
   }
 }
 
-void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *FirstNewBlock,
-                            const llvm::BasicBlock *PreHeader, llvm::BasicBlock *Header, llvm::BasicBlock *Latch,
-                            llvm::BasicBlock *ExitBlock, llvm::Function *F, llvm::Loop *&L, llvm::Loop *ParentLoop,
-                            llvm::LoopInfo &LI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
-                            llvm::AssumptionCache &AC, const std::function<void(llvm::Loop &)> &LoopAdder,
-                            const llvm::StringRef &Suffix, llvm::DbgValueInst *ThisDbgValue) {
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
-
-  llvm::ValueToValueMapTy VMap;
-
-  auto CondsAndMerges = findIfCondition(Header, {ExitBlock, Header}, L->getLoopsInPreorder(), DT);
-  llvm::SmallVector<llvm::BasicBlock *, 8> BeforeSplitBlocks;
-  findBaseBlocks(Header, Latch, {LastOldBlock, ExitBlock}, DT, BeforeSplitBlocks, CondsAndMerges);
-  BeforeSplitBlocks.push_back(LastOldBlock);
-
-  llvm::SmallVector<llvm::BasicBlock *, 8> AfterSplitBlocks;
-  fillDescendantsExcl(Header, {Latch, ExitBlock}, DT, AfterSplitBlocks);
-  AfterSplitBlocks.push_back(Latch); // todo: maybe uniquify..
-
-  AfterSplitBlocks.erase(std::remove_if(AfterSplitBlocks.begin(), AfterSplitBlocks.end(),
-                                        [&BeforeSplitBlocks](auto *BB) {
-                                          return std::find(BeforeSplitBlocks.begin(), BeforeSplitBlocks.end(), BB) !=
-                                                 BeforeSplitBlocks.end();
-                                        }),
-                         AfterSplitBlocks.end());
-
-  arrayifyAllocas(&F->getEntryBlock(), *L, L->getCanonicalInductionVariable(), DT);
-
-  // remove latch again..
-  AfterSplitBlocks.erase(
-      std::remove_if(AfterSplitBlocks.begin(), AfterSplitBlocks.end(), [Latch](auto *BB) { return BB == Latch; }),
-      AfterSplitBlocks.end());
-
-  llvm::Loop &NewLoop = *LI.AllocateLoop();
-  ParentLoop->addChildLoop(&NewLoop);
-
-  VMap[PreHeader] = Header;
-
-  auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, Suffix, F, nullptr, nullptr);
-  VMap[Header] = NewHeader;
-  NewLoop.addBlockEntry(NewHeader);
-  NewLoop.moveToHeader(NewHeader);
-  AfterSplitBlocks.push_back(NewHeader);
-  dropDebugLocation(NewHeader);
-
-  auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, Suffix, F, nullptr, nullptr);
-  VMap[Latch] = NewLatch;
-  NewLoop.addBlockEntry(NewLatch);
-  AfterSplitBlocks.push_back(NewLatch);
-  dropDebugLocation(NewLatch);
-
-  //  L->removeBlockFromLoop(FirstNewBlock);
-  NewLoop.addBlockEntry(FirstNewBlock);
-
-  // connect new loop
-  //    NewHeader->getTerminator()->setSuccessor(0, NewBlock);
-  NewHeader->getTerminator()->setSuccessor(1, ExitBlock);
-  DT.addNewBlock(NewHeader, Header);
-  //    DT.changeImmediateDominator(NewBlock, NewHeader);
-  DT.changeImmediateDominator(ExitBlock, NewHeader);
-
-  replacePredecessorsSuccessor(Latch, NewLatch, DT);
-
-  NewLatch->getTerminator()->setSuccessor(0, NewHeader);
-  //    DT.changeImmediateDominator(newHeader, newLatch);
-
-  // fix old loop
-  Header->getTerminator()->setSuccessor(1, NewHeader);
-
-  replacePredecessorsSuccessor(FirstNewBlock, Latch, DT, &AfterSplitBlocks);
-
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "conds to clone\n";
-  llvm::BasicBlock *FirstBlockInNew = FirstNewBlock;
-  llvm::BasicBlock *LastCondInNew = NewHeader;
-  cloneConditions(F, CondsAndMerges, BeforeSplitBlocks, AfterSplitBlocks, NewLoop, NewHeader, NewLatch, Latch,
-                  FirstBlockInNew, LastCondInNew, DT, VMap);
-  VMap[LastOldBlock] = LastCondInNew;
-  llvm::outs().flush();
-
-  auto *LoadBlock = llvm::BasicBlock::Create(F->getContext(), "loadBB" + Suffix, F, FirstBlockInNew);
-  NewHeader->getTerminator()->setSuccessor(0, LoadBlock);
-  DT.addNewBlock(LoadBlock, NewHeader);
-
-  {
-    llvm::IRBuilder TermBuilder{LoadBlock, LoadBlock->getFirstInsertionPt()};
-    TermBuilder.CreateBr(FirstBlockInNew);
-    DT.changeImmediateDominator(FirstBlockInNew, LoadBlock);
-    FirstBlockInNew->replacePhiUsesWith(LastOldBlock,
-                                        LoadBlock); // won't be rewritten by remapping, so need to do manually
-
-    if (ThisDbgValue) { // copy the kernel functor's this pointer debug value to enable referencing it's members.
-      llvm::DIBuilder DbgBuilder{*ThisDbgValue->getParent()->getParent()->getParent()};
-      DbgBuilder.insertDbgValueIntrinsic(ThisDbgValue->getValue(), ThisDbgValue->getVariable(),
-                                         ThisDbgValue->getExpression(), ThisDbgValue->getDebugLoc(),
-                                         LoadBlock->getFirstNonPHI());
-    }
-  }
-
-  arrayifyDependencies(F, L->getCanonicalInductionVariable(), BeforeSplitBlocks, AfterSplitBlocks, LoadBlock, VMap);
-
-  AfterSplitBlocks.push_back(LoadBlock);
-  llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
-
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
-  llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet{AfterSplitBlocks.begin(), AfterSplitBlocks.end()};
-  for (auto *BB : BBSet)
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << " " << BB->getName() << "\n";
-  llvm::outs().flush();
-
-  llvm::remapInstructionsInBlocks(BbToRemap, VMap);
-  HIPSYCL_DEBUG_EXECUTE_INFO(for (auto *Block
-                                  : L->getParentLoop()->blocks()) {
-    if (!Block->getParent())
-      Block->print(llvm::errs());
-  } llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
-                 << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
-  L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
-  LoopAdder(*L);
-
-  F->viewCFG();
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
-  llvm::outs().flush();
-  llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &SE, &AC, nullptr, false);
-  for (auto *Block : L->blocks()) // need pre-headers -> after simplify
-    moveArrayLoadForPhiToIncomingBlock(Block);
-
-  L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
-                                                  llvm::MDNode::get(F->getContext(), {}));
-  dropDebugLocation(L->getLoopPreheader());
-
-  if (llvm::verifyFunction(*F, &llvm::errs())) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "function verification failed\n";
-  }
-}
-
 llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::Loop *PrevLoop,
                                                 const llvm::Loop *InnerLoop, llvm::BasicBlock *LoadBlock,
                                                 llvm::PHINode *OldWIIdx, llvm::PHINode *NewWIIdx,
@@ -1234,6 +1058,206 @@ void copyLoadsToPreHeader(llvm::BasicBlock *LoadBlock, llvm::BasicBlock *InnerHe
   llvm::remapInstructionsInBlocks(Headers, HVMap);
 }
 
+// we heavily rely on having the loop induction variables as
+// PHINodes and not as alloca store / loads.
+// this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
+void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyses, llvm::AssumptionCache &AC) {
+  promoteAllocas(&F->getEntryBlock(), Analyses.DT, AC);
+
+  // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
+  // a single loop header, so that it is muuch easier to work with.
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
+  for (auto *SL : Analyses.LI.getLoopsInPreorder()) {
+    if (SL->getHeader())
+      LoopHeaders.insert(SL->getHeader());
+    if (SL->getLoopPreheader())
+      LoopHeaders.insert(SL->getLoopPreheader());
+  }
+
+  for (auto *Loop : Analyses.LI.getTopLevelLoops())
+    for (auto *Block : Loop->blocks()) {
+      llvm::simplifyCFG(Block, Analyses.TTI, {}, &LoopHeaders);
+    }
+
+  // repair loop simplify form
+  L = hipsycl::compiler::utils::updateDtAndLi(Analyses.LI, Analyses.DT, L->getLoopLatch(), *F);
+  llvm::simplifyLoop(L, &Analyses.DT, &Analyses.LI, &Analyses.SE, &AC, nullptr, false);
+}
+
+/*!
+ * Finds's the work-item loop containing \a Barrier and fills the \a InnerLoops while at it.
+ * @param LI The LoopInfo
+ * @param Barrier Barrier call instruction.
+ * @param [out] InnerLoops The loops contained in the work-item loop, containing the barrier, from inner to outer.
+ * @return The work-item loop containing \a Barrier.
+ */
+llvm::Loop *getLoopsForBarrier(const llvm::LoopInfo &LI, llvm::CallBase *Barrier,
+                               llvm::SmallVectorImpl<llvm::Loop *> &InnerLoops) {
+  auto *BarrierBlock = Barrier->getParent();
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found barrier block: " << BarrierBlock->getName() << "\n";
+  auto *L = LI.getLoopFor(BarrierBlock);
+
+  // get work item loop and build up list of inner loops that need to be taken care of
+  while (L->getLoopDepth() > 2 &&
+         !L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+    InnerLoops.push_back(L);
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "ILP Header: " << L->getHeader()->getName()
+                 << " depth: " << L->getLoopDepth() << " parent: " << L->getParentLoop()->getHeader()->getName()
+                 << "\n";
+    L = L->getParentLoop();
+  }
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found header: " << L->getHeader()->getName() << "\n";
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+               << "Found pre-header: " << (L->getLoopPreheader() ? L->getLoopPreheader()->getName() : "") << "\n";
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found exit block: " << L->getExitBlock()->getName() << "\n";
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found latch block: " << L->getLoopLatch()->getName() << "\n";
+
+  llvm::outs().flush();
+  return L;
+}
+
+void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *FirstNewBlock, llvm::Function *F,
+                            llvm::Loop *&L, LoopSplitterAnalyses &Analyses, llvm::AssumptionCache &AC,
+                            const llvm::StringRef &Suffix, llvm::DbgValueInst *ThisDbgValue) {
+  const llvm::BasicBlock *PreHeader = L->getLoopPreheader();
+  llvm::BasicBlock *Header = L->getHeader();
+  llvm::BasicBlock *Latch = L->getLoopLatch();
+  llvm::BasicBlock *ExitBlock = L->getExitBlock();
+
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
+
+  llvm::ValueToValueMapTy VMap;
+
+  auto &DT = Analyses.DT;
+  auto &LI = Analyses.LI;
+
+  auto CondsAndMerges = findIfCondition(Header, {ExitBlock, Header}, L->getLoopsInPreorder(), DT);
+  llvm::SmallVector<llvm::BasicBlock *, 8> BeforeSplitBlocks;
+  findBaseBlocks(Header, Latch, {LastOldBlock, ExitBlock}, DT, BeforeSplitBlocks, CondsAndMerges);
+  BeforeSplitBlocks.push_back(LastOldBlock);
+
+  llvm::SmallVector<llvm::BasicBlock *, 8> AfterSplitBlocks;
+  fillDescendantsExcl(Header, {Latch, ExitBlock}, DT, AfterSplitBlocks);
+  AfterSplitBlocks.push_back(Latch); // todo: maybe uniquify..
+
+  AfterSplitBlocks.erase(std::remove_if(AfterSplitBlocks.begin(), AfterSplitBlocks.end(),
+                                        [&BeforeSplitBlocks](auto *BB) {
+                                          return std::find(BeforeSplitBlocks.begin(), BeforeSplitBlocks.end(), BB) !=
+                                                 BeforeSplitBlocks.end();
+                                        }),
+                         AfterSplitBlocks.end());
+
+  arrayifyAllocas(&F->getEntryBlock(), *L, L->getCanonicalInductionVariable(), DT);
+
+  // remove latch again..
+  AfterSplitBlocks.erase(
+      std::remove_if(AfterSplitBlocks.begin(), AfterSplitBlocks.end(), [Latch](auto *BB) { return BB == Latch; }),
+      AfterSplitBlocks.end());
+
+  llvm::Loop &NewLoop = *LI.AllocateLoop();
+  L->getParentLoop()->addChildLoop(&NewLoop);
+
+  VMap[PreHeader] = Header;
+
+  auto *NewHeader = llvm::CloneBasicBlock(Header, VMap, Suffix, F, nullptr, nullptr);
+  VMap[Header] = NewHeader;
+  NewLoop.addBlockEntry(NewHeader);
+  NewLoop.moveToHeader(NewHeader);
+  AfterSplitBlocks.push_back(NewHeader);
+  dropDebugLocation(NewHeader);
+
+  auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, Suffix, F, nullptr, nullptr);
+  VMap[Latch] = NewLatch;
+  NewLoop.addBlockEntry(NewLatch);
+  AfterSplitBlocks.push_back(NewLatch);
+  dropDebugLocation(NewLatch);
+
+  //  L->removeBlockFromLoop(FirstNewBlock);
+  NewLoop.addBlockEntry(FirstNewBlock);
+
+  // connect new loop
+  //    NewHeader->getTerminator()->setSuccessor(0, NewBlock);
+  NewHeader->getTerminator()->setSuccessor(1, ExitBlock);
+  DT.addNewBlock(NewHeader, Header);
+  //    DT.changeImmediateDominator(NewBlock, NewHeader);
+  DT.changeImmediateDominator(ExitBlock, NewHeader);
+
+  replacePredecessorsSuccessor(Latch, NewLatch, DT);
+
+  NewLatch->getTerminator()->setSuccessor(0, NewHeader);
+  //    DT.changeImmediateDominator(newHeader, newLatch);
+
+  // fix old loop
+  Header->getTerminator()->setSuccessor(1, NewHeader);
+
+  replacePredecessorsSuccessor(FirstNewBlock, Latch, DT, &AfterSplitBlocks);
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "conds to clone\n";
+  llvm::BasicBlock *FirstBlockInNew = FirstNewBlock;
+  llvm::BasicBlock *LastCondInNew = NewHeader;
+  cloneConditions(F, CondsAndMerges, BeforeSplitBlocks, AfterSplitBlocks, NewLoop, NewHeader, NewLatch, Latch,
+                  FirstBlockInNew, LastCondInNew, DT, VMap);
+  VMap[LastOldBlock] = LastCondInNew;
+  llvm::outs().flush();
+
+  auto *LoadBlock = llvm::BasicBlock::Create(F->getContext(), "loadBB" + Suffix, F, FirstBlockInNew);
+  NewHeader->getTerminator()->setSuccessor(0, LoadBlock);
+  DT.addNewBlock(LoadBlock, NewHeader);
+
+  {
+    llvm::IRBuilder TermBuilder{LoadBlock, LoadBlock->getFirstInsertionPt()};
+    TermBuilder.CreateBr(FirstBlockInNew);
+    DT.changeImmediateDominator(FirstBlockInNew, LoadBlock);
+    // won't be rewritten by remapping, so need to do manually
+    FirstBlockInNew->replacePhiUsesWith(LastOldBlock, LoadBlock);
+
+    if (ThisDbgValue) { // copy the kernel functor's this pointer debug value to enable referencing it's members.
+      llvm::DIBuilder DbgBuilder{*ThisDbgValue->getParent()->getParent()->getParent()};
+      DbgBuilder.insertDbgValueIntrinsic(ThisDbgValue->getValue(), ThisDbgValue->getVariable(),
+                                         ThisDbgValue->getExpression(), ThisDbgValue->getDebugLoc(),
+                                         LoadBlock->getFirstNonPHI());
+    }
+  }
+
+  arrayifyDependencies(F, L->getCanonicalInductionVariable(), BeforeSplitBlocks, AfterSplitBlocks, LoadBlock, VMap);
+
+  AfterSplitBlocks.push_back(LoadBlock);
+  llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet{AfterSplitBlocks.begin(), AfterSplitBlocks.end()};
+  for (auto *BB : BBSet)
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << " " << BB->getName() << "\n";
+  llvm::outs().flush();
+
+  llvm::remapInstructionsInBlocks(BbToRemap, VMap);
+  HIPSYCL_DEBUG_EXECUTE_INFO(for (auto *Block
+                                  : L->getParentLoop()->blocks()) {
+    if (!Block->getParent())
+      Block->print(llvm::errs());
+  } llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+                 << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
+  L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
+  Analyses.LoopAdder(*L);
+
+  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
+  llvm::outs().flush();
+  llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &Analyses.SE, &AC, nullptr, false);
+  for (auto *Block : L->blocks()) // need pre-headers -> after simplify
+    moveArrayLoadForPhiToIncomingBlock(Block);
+
+  L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
+                                                  llvm::MDNode::get(F->getContext(), {}));
+  dropDebugLocation(L->getLoopPreheader());
+
+  if (llvm::verifyFunction(*F, &llvm::errs())) {
+    llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "function verification failed\n";
+  }
+}
+
 // so the barrier is inside an inner loop.
 // we have to invert inner loop and work item loop, so that the work item loop can be split and both w-i loops are
 // in the inner loop. This way the barrier semantics are enforced but the loop iterations are still done.
@@ -1244,53 +1268,55 @@ void copyLoadsToPreHeader(llvm::BasicBlock *LoadBlock, llvm::BasicBlock *InnerHe
 // work item loops. This results in the need to actively move the "inner loops'" iteration variable into the last
 // work-item loop and store it into the loop state. From there the 0th element is loaded again in the "inner loop"
 // latch.
-void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, llvm::LoopInfo &LI,
-                    llvm::DominatorTree &DT, llvm::ScalarEvolution &SE, llvm::AssumptionCache &AC,
-                    llvm::Loop *&ParentLoop, llvm::BasicBlock *&Header, llvm::BasicBlock *&PreHeader,
-                    llvm::BasicBlock *&ExitBlock, llvm::BasicBlock *&Latch,
-                    const std::function<void(llvm::Loop &)> &LoopAdder, llvm::DbgValueInst *ThisDebugValue,
-                    const llvm::StringRef &BlockNameSuffix) {
+void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, llvm::AssumptionCache &AC,
+                    llvm::DbgValueInst *ThisDebugValue, const llvm::StringRef &BlockNameSuffix,
+                    LoopSplitterAnalyses &Analyses) {
+  const llvm::BasicBlock *PreHeader = L->getLoopPreheader();
+  llvm::BasicBlock *Header = L->getHeader();
+  llvm::BasicBlock *Latch = L->getLoopLatch();
+  llvm::BasicBlock *ExitBlock = L->getExitBlock();
+
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Barrier is in loop..\n";
   assert(InnerLoop->getLoopPreheader() && "must have preheader");
   auto *InnerHeader = InnerLoop->getHeader();
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "InnerHeader: " << InnerHeader->getName() << "\n";
 
   // split away everything before the inner loop into its own work item loop
-  splitIntoWorkItemLoops(InnerLoop->getLoopPreheader(), InnerLoop->getHeader(), PreHeader, Header, Latch, ExitBlock, F,
-                         L, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, ThisDebugValue);
+  splitIntoWorkItemLoops(InnerLoop->getLoopPreheader(), InnerLoop->getHeader(), F, L, Analyses, AC, BlockNameSuffix,
+                         ThisDebugValue);
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   auto *NewPreHeader = L->getLoopPreheader();
   auto *NewHeader = L->getHeader();
-  auto *NewLoop = LI.getLoopFor(NewHeader);
+  auto *NewLoop = Analyses.LI.getLoopFor(NewHeader);
   assert(NewLoop == L);
   auto *NewLatch = L->getLoopLatch();
   auto *NewExitBlock = L->getExitBlock();
 
-  InnerLoop = LI.getLoopFor(InnerHeader);
+  InnerLoop = Analyses.LI.getLoopFor(InnerHeader);
   {
     // move non ind vars out of header, as they'd be arrayified by the next split otherwise, leading to a mess.
-    llvm::Loop *PrevLoop = LI.getLoopFor(Header);
+    llvm::Loop *PrevLoop = Analyses.LI.getLoopFor(Header);
     moveNonIndVarOutOfHeader(*InnerLoop, *PrevLoop, L->getCanonicalInductionVariable(), InnerLoop->getLoopPreheader());
   }
   auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
   InnerHeader = InnerLoop->getHeader();
-  llvm::BasicBlock *NewInnerLoopExitBlock = splitEdge(InnerHeader, InnerLoopExitBlock, &LI, &DT);
+  llvm::BasicBlock *NewInnerLoopExitBlock = splitEdge(InnerHeader, InnerLoopExitBlock, &Analyses.LI, &Analyses.DT);
 
-  NewLatch = simplifyLatch(NewLoop, NewLatch, LI, DT);
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; DT.print(llvm::errs());)
+  NewLatch = simplifyLatch(NewLoop, NewLatch, Analyses.LI, Analyses.DT);
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; Analyses.DT.print(llvm::errs());)
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
 
   // split away the inner loop's exit block into its own work item loop
-  splitIntoWorkItemLoops(NewInnerLoopExitBlock, InnerLoopExitBlock, NewPreHeader, NewHeader, NewLatch, NewExitBlock, F,
-                         NewLoop, ParentLoop, LI, DT, SE, AC, LoopAdder, BlockNameSuffix, ThisDebugValue);
+  splitIntoWorkItemLoops(NewInnerLoopExitBlock, InnerLoopExitBlock, F, NewLoop, Analyses, AC, BlockNameSuffix,
+                         ThisDebugValue);
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
 
-  InnerLoop = LI.getLoopFor(InnerHeader);
-  L = LI.getLoopFor(NewHeader);
+  InnerLoop = Analyses.LI.getLoopFor(InnerHeader);
+  L = Analyses.LI.getLoopFor(NewHeader);
 
   auto *LoadBlock = L->getHeader()->getTerminator()->getSuccessor(0);
   auto *LastBlockBeforeInnerBody = InnerLoop->getLoopPreheader();
@@ -1305,10 +1331,10 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
                                                                      InnerLoop->getHeader()->getName() + ".pre");
 
     llvm::BasicBlock *InnerLatch = InnerLoop->getLoopLatch();
-    InnerLatch = llvm::SplitBlock(InnerLatch, InnerLatch->getTerminator(), &DT, &LI, nullptr,
+    InnerLatch = llvm::SplitBlock(InnerLatch, InnerLatch->getTerminator(), &Analyses.DT, &Analyses.LI, nullptr,
                                   InnerLatch->getName() + BlockNameSuffix);
 
-    llvm::Loop *PrevLoop = LI.getLoopFor(Header);
+    llvm::Loop *PrevLoop = Analyses.LI.getLoopFor(Header);
     arrayifyInnerLoopIndVars(L, PrevLoop, InnerLoop, LoadBlock);
 
     // then replace old loop's indices with 0
@@ -1324,7 +1350,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   // perform loop inversion: the inner loop (pre-)header are moved in front of the WI headers and the inner latch
   // becomes the new exit block of the WI loop.
   auto *InnerLatch = InnerLoop->getLoopLatch();
-  replacePredecessorsSuccessor(InnerLatch, NewLatch, DT);
+  replacePredecessorsSuccessor(InnerLatch, NewLatch, Analyses.DT);
 
   Header->getTerminator()->setSuccessor(1, InnerLoop->getLoopPreheader());
   auto *InnerBody = InnerHeader->getTerminator()->getSuccessor(0);
@@ -1339,62 +1365,25 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   llvm::MDNode *InnerMD = llvm::MDNode::get(F->getContext(), {llvm::MDString::get(F->getContext(), "hipSYCL_split")});
   InnerLatch->getTerminator()->setMetadata(hipsycl::compiler::MDKind::InnerLoop, InnerMD);
 
-  PreHeader = NewPreHeader;
-  Header = NewHeader;
-  Latch = NewLatch;
-  ExitBlock = InnerLatch;
-  ParentLoop = InnerLoop;
-  L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, NewHeader, *F);
+  L = hipsycl::compiler::utils::updateDtAndLi(Analyses.LI, Analyses.DT, NewHeader, *F);
 
   llvm::errs() << "last cfg in loop inversion\n";
 }
 
-// we heavily rely on having the loop induction variables as
-// PHINodes and not as alloca store / loads.
-// this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
-void simplifyO0(llvm::Function *F, llvm::Loop *&L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
-                llvm::ScalarEvolution &SE, llvm::AssumptionCache &AC, const llvm::TargetTransformInfo &TTI) {
-  promoteAllocas(&F->getEntryBlock(), DT, AC);
-
-  // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
-  // a single loop header, so that it is muuch easier to work with.
-  llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
-  for (auto *SL : LI.getLoopsInPreorder()) {
-    if (SL->getHeader())
-      LoopHeaders.insert(SL->getHeader());
-    if (SL->getLoopPreheader())
-      LoopHeaders.insert(SL->getLoopPreheader());
-  }
-
-  for (auto *Loop : LI.getTopLevelLoops())
-    for (auto *Block : Loop->blocks()) {
-      llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
-    }
-
-  // repair loop simplify form
-  L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, L->getLoopLatch(), *F);
-  llvm::simplifyLoop(L, &DT, &LI, &SE, &AC, nullptr, false);
-}
-
-bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm::Loop &)> &LoopAdder,
-               const llvm::LoopAccessInfo &LAI, llvm::DominatorTree &DT, llvm::ScalarEvolution &SE,
-               const llvm::TargetTransformInfo &TTI, llvm::TargetLibraryInfo &TLI,
-               const hipsycl::compiler::SplitterAnnotationInfo &SAA, bool IsO0) {
-  if (!SAA.isKernelFunc(L->getHeader()->getParent())) {
+bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
+  if (!Analyses.SAA.isKernelFunc(L->getHeader()->getParent())) {
     // are we in kernel?
     return false;
   }
 
   if (L->getLoopDepth() != 2) {
     // only second-level loop have to be considered as work-item loops -> must be using collapse on multi-dim kernels
-    HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs()
-                                   << HIPSYCL_DEBUG_PREFIX_INFO << "Splitter: not work-item loop!" << L << "\n";)
     return false;
   }
   llvm::Function *F = L->getBlocks()[0]->getParent();
 
   llvm::SmallVector<llvm::CallBase *, 8> Barriers;
-  findAllSplitterCalls(*L, SAA, Barriers);
+  findAllSplitterCalls(*L, Analyses.SAA, Barriers);
 
   if (Barriers.empty()) {
     HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO "Splitter: no splitter found.\n";)
@@ -1402,8 +1391,8 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
   }
 
   llvm::AssumptionCache AC(*F);
-  if (IsO0)
-    simplifyO0(F, L, LI, DT, SE, AC, TTI);
+  if (Analyses.IsO0)
+    simplifyO0(F, L, Analyses, AC);
 
   auto *ThisDebugValue = getThisPtrDbgValue(F);
   L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
@@ -1414,44 +1403,19 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
 
   bool Changed = false;
   std::size_t BC = 0;
-  for (auto *BarrierIt = Barriers.begin(); BarrierIt != Barriers.end(); ++BarrierIt) {
-    auto *Barrier = *BarrierIt;
+  for (auto *Barrier : Barriers) {
     Changed = true;
     ++BC;
 
-    auto *BarrierBlock = Barrier->getParent();
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found barrier block: " << BarrierBlock->getName() << "\n";
-    L = LI.getLoopFor(BarrierBlock);
-
-    // get work item loop and build up list of inner loops that need to be taken care of
     llvm::SmallVector<llvm::Loop *, 4> InnerLoopWL;
-    while (L->getLoopDepth() > 2 &&
-           !L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
-      InnerLoopWL.push_back(L);
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "ILP Header: " << L->getHeader()->getName()
-                   << " depth: " << L->getLoopDepth() << " parent: " << L->getParentLoop()->getHeader()->getName()
-                   << "\n";
-      L = L->getParentLoop();
-    }
-
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found header: " << L->getHeader()->getName() << "\n";
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
-                 << "Found pre-header: " << (L->getLoopPreheader() ? L->getLoopPreheader()->getName() : "") << "\n";
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found exit block: " << L->getExitBlock()->getName() << "\n";
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found latch block: " << L->getLoopLatch()->getName() << "\n";
-
-    llvm::outs().flush();
+    L = getLoopsForBarrier(Analyses.LI, Barrier, InnerLoopWL);
 
     llvm::Loop *ParentLoop = L->getParentLoop();
     llvm::BasicBlock *Header = L->getHeader();
     llvm::BasicBlock *PreHeader = L->getLoopPreheader();
     llvm::BasicBlock *ExitBlock = L->getExitBlock();
     llvm::BasicBlock *Latch = L->getLoopLatch();
-    Latch = simplifyLatch(L, Latch, LI, DT);
-
-    if (isInConditional(Barrier, DT, Latch)) {
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "is in conditional\n";
-    }
+    Latch = simplifyLatch(L, Latch, Analyses.LI, Analyses.DT);
 
     // need to take care of outer most loop first, so reverse and as LI is changed in a split, the loops become invalid
     // so just store the header from which the correct loop can be determined again.
@@ -1461,17 +1425,17 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
     for (auto *InnerLoopHeader : InnerLoopHeaders) {
       const std::string BlockNameSuffix = "lsplit" + std::to_string(BC);
 
-      splitInnerLoop(F, LI.getLoopFor(InnerLoopHeader), L, LI, DT, SE, AC, ParentLoop, Header, PreHeader, ExitBlock,
-                     Latch, LoopAdder, ThisDebugValue, BlockNameSuffix);
+      llvm::Loop *InnerLoop = Analyses.LI.getLoopFor(InnerLoopHeader);
+      splitInnerLoop(F, InnerLoop, L, AC, ThisDebugValue, BlockNameSuffix, Analyses);
     }
 
     const std::string BlockNameSuffix = "split" + std::to_string(BC);
-    auto *NewBlock =
-        llvm::SplitBlock(BarrierBlock, Barrier, &DT, &LI, nullptr, BarrierBlock->getName() + BlockNameSuffix);
+    auto *BarrierBlock = Barrier->getParent();
+    auto *NewBlock = llvm::SplitBlock(BarrierBlock, Barrier, &Analyses.DT, &Analyses.LI, nullptr,
+                                      BarrierBlock->getName() + BlockNameSuffix);
     Barrier->eraseFromParent();
 
-    splitIntoWorkItemLoops(BarrierBlock, NewBlock, PreHeader, Header, Latch, ExitBlock, F, L, ParentLoop, LI, DT, SE,
-                           AC, LoopAdder, BlockNameSuffix, ThisDebugValue);
+    splitIntoWorkItemLoops(BarrierBlock, NewBlock, F, L, Analyses, AC, BlockNameSuffix, ThisDebugValue);
 
     HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   }
@@ -1482,25 +1446,6 @@ bool splitLoop(llvm::Loop *L, llvm::LoopInfo &LI, const std::function<void(llvm:
   L = L->getSubLoops().back();
   if (Changed)
     insertLifetimeEndForAllocas(F, L->getCanonicalInductionVariable(), L->getLoopLatch()->getFirstNonPHIOrDbg());
-
-  llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
-  for (auto *SL : LI.getLoopsInPreorder()) {
-    if (SL->getHeader())
-      LoopHeaders.insert(SL->getHeader());
-    if (SL->getLoopPreheader())
-      LoopHeaders.insert(SL->getLoopPreheader());
-  }
-
-  for (auto *Loop : LI.getTopLevelLoops())
-    for (auto *Block : Loop->blocks()) {
-      llvm::SimplifyInstructionsInBlock(Block);
-      llvm::simplifyCFG(Block, TTI, {}, &LoopHeaders);
-    }
-
-  while (L->getLoopDepth() > 1)
-    L = L->getParentLoop();
-
-  L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, L->getHeader(), *L->getHeader()->getParent());
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG(); F->print(llvm::outs());)
   return Changed;
@@ -1520,7 +1465,7 @@ bool hipsycl::compiler::LoopSplitAtBarrierPassLegacy::runOnLoop(llvm::Loop *L, l
 
   llvm::LoopAccessInfo LAI(L, &SE, &TLI, &AA.getAAResults(), &DT, &LI);
   return splitLoop(
-      L, LI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, DT, SE, TTI, TLI, SAA, IsO0_);
+      L, LoopSplitterAnalyses{LI, DT, SE, TLI, [&LPM](llvm::Loop &L) { LPM.addLoop(L); }, LAI, TTI, SAA, IsO0_});
 }
 
 void hipsycl::compiler::LoopSplitAtBarrierPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
@@ -1559,9 +1504,10 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitAtBarrierPass::run(llvm::Loo
     llvm::errs() << "TargetIRAnalysis or TargetLibraryAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
-  if (!splitLoop(
-          &L, AR.LI, [&LPMU](llvm::Loop &L) { /*LPMU.addChildLoops({&L});*/ }, LAI, AR.DT, AR.SE, *TTI, *TLI, *SAA,
-          IsO0_))
+
+  if (!splitLoop(&L, LoopSplitterAnalyses{AR.LI, AR.DT, AR.SE, *TLI,
+                                          [&LPMU](llvm::Loop &L) { /*LPMU.addChildLoops({&L});*/ }, LAI, *TTI, *SAA,
+                                          IsO0_}))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();

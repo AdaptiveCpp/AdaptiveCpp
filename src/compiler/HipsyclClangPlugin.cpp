@@ -108,7 +108,6 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         if (Opt != O0)
 #endif
           FPM.addPass(MarkLoopsParallelPass{});
-
         MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
       });
     }

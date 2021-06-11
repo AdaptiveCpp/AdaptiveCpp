@@ -58,6 +58,7 @@ void worker_thread::wait()
     // Wait until no operation is pending
     _condition_wait.wait(lock, [this]{return _enqueued_operations.empty();});
   }
+  assert(_enqueued_operations.empty());
 }
 
 
@@ -98,6 +99,7 @@ void worker_thread::work()
     // In any way, process the pending operations
 
     async_function operation = [](){};
+    bool has_operation = false;
 
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -105,11 +107,17 @@ void worker_thread::work()
       if(!_enqueued_operations.empty())
       {
         operation = _enqueued_operations.front();
-        _enqueued_operations.pop();
+        has_operation = true;
       }
     }
 
     operation();
+
+    {
+      std::lock_guard<std::mutex> lock{_mutex};
+      if(has_operation)
+        _enqueued_operations.pop();
+    }
 
     _condition_wait.notify_one();
 

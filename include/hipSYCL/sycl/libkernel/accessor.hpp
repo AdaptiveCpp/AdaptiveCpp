@@ -1011,12 +1011,10 @@ private:
   void init(BufferT &buff, handler &cgh, id<dimensions> offset,
             range<dimensions> access_range, const property_list &prop_list) {
 
-    bool is_no_init_access = false;
+    bool is_no_init_access = this->is_no_init(prop_list);
     bool is_placeholder_access = false;
 
     if constexpr (has_accessor_properties) {
-      is_no_init_access = this->is_no_init(prop_list);
-
       this->detail::accessor::conditional_accessor_properties_storage<
           has_accessor_properties>::
           attempt_set(detail::accessor::accessor_properties{

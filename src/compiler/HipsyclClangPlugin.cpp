@@ -47,12 +47,11 @@ static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &, llvm::l
   PM.add(new GlobalsPruningPassLegacy{});
 }
 
-static llvm::RegisterStandardPasses
-    RegisterGlobalsPruningPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                          registerGlobalsPruningPass);
+static llvm::RegisterStandardPasses RegisterGlobalsPruningPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                                                        registerGlobalsPruningPass);
 
-static llvm::RegisterStandardPasses
-    RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast, registerGlobalsPruningPass);
+static llvm::RegisterStandardPasses RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
+                                                                            registerGlobalsPruningPass);
 
 #ifndef _WIN32
 #define HIPSYCL_STRINGIFY(V) #V
@@ -61,8 +60,10 @@ static llvm::RegisterStandardPasses
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING, [](llvm::PassBuilder &PB) {
-            PB.registerPipelineStartEPCallback(
-                [](llvm::ModulePassManager &MPM) { MPM.addPass(hipsycl::compiler::GlobalsPruningPass{}); });
+            // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't really used there anyways..
+            PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel) {
+              MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
+            });
           }};
 }
 #endif // !_WIN32

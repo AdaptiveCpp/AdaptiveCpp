@@ -25,8 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-
 #include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -53,9 +51,7 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
     });
   }
 
-  if(node->get_execution_hints().has_hint<hints::bind_to_device>()){
-    _direct_scheduler.submit(node);
-  } else {
+  if(!node->get_execution_hints().has_hint<hints::bind_to_device>()){
     std::vector<rt::device_id> eligible_devices;
     if(node->get_execution_hints().has_hint<hints::bind_to_device_group>()) {
       eligible_devices = node->get_execution_hints()
@@ -82,9 +78,9 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
     rt::device_id target_dev = eligible_devices[dev % eligible_devices.size()];
     node->get_execution_hints().add_hint(
         make_execution_hint<rt::hints::bind_to_device>(target_dev));
-
-    _direct_scheduler.submit(node);
   }
+
+  _direct_scheduler.submit(node);
 }
 
 }

@@ -36,7 +36,7 @@ int main()
           const auto lid = item.get_local_id(0);
           const auto group_size = item.get_local_range(0);
 
-          if(item.get_group_id(0) == 0)
+          if(item.get_group(0) == 0)
           {
             scratch[lid] = acc[item.get_global_id()];
             for(size_t i = group_size / 2; i > 0; i /= 2)

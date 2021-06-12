@@ -1065,7 +1065,11 @@ void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyse
 
   for (auto *Loop : Analyses.LI.getTopLevelLoops())
     for (auto *Block : Loop->blocks()) {
+#if LLVM_VERSION_MAJOR >= 12
+      llvm::simplifyCFG(Block, Analyses.TTI, nullptr, {}, &LoopHeaders);
+#else
       llvm::simplifyCFG(Block, Analyses.TTI, {}, &LoopHeaders);
+#endif
     }
 
   // repair loop simplify form

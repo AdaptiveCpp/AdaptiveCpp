@@ -32,8 +32,10 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/LoopAccessAnalysis.h>
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
@@ -184,11 +186,9 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::L
                                                                          llvm::LPMUpdater &LPMU) {
   const auto &FAMProxy = AM.getResult<llvm::FunctionAnalysisManagerLoopProxy>(L, AR);
   auto &F = *L.getBlocks()[0]->getParent();
-  const auto *MAMProxy =
-      FAMProxy.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
+  const auto *MAMProxy = FAMProxy.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
-  if(!SAA)
-  {
+  if (!SAA) {
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }

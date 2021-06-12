@@ -101,11 +101,11 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
 #if LLVM_VERSION_MAJOR >= 12
-        if (Opt == O3)
+        if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
 #endif
           FPM.addPass(KernelFlatteningPass{});
 #if LLVM_VERSION_MAJOR >= 12
-        if (Opt != O0)
+        if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
 #endif
           FPM.addPass(MarkLoopsParallelPass{});
         MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));

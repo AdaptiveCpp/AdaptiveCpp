@@ -678,18 +678,7 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
   llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
   auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
-  auto *NewLatch = llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-
-  // work-item loops should really always be vectorizable, so emit metadata to suggest so
-  if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.enable")) {
-    llvm::IRBuilder MDBuilder{NewLatch->getContext()};
-    auto *MDVectorize = llvm::MDNode::get(NewLatch->getContext(),
-                                          {llvm::MDString::get(NewLatch->getContext(), "llvm.loop.vectorize.enable"),
-                                           llvm::ConstantAsMetadata::get(MDBuilder.getTrue())});
-    auto *LoopID = llvm::makePostTransformationMetadata(NewLatch->getContext(), L->getLoopID(), {}, {MDVectorize});
-    L->setLoopID(LoopID);
-  }
-  return NewLatch;
+  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
 llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,

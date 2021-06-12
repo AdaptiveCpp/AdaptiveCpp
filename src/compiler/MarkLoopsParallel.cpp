@@ -42,14 +42,28 @@ bool markLoopsParallel(llvm::Function &F, const llvm::LoopInfo &LI) {
     for (auto *SL : L->getLoopsInPreorder()) {
       if (SL->getLoopLatch()->getTerminator()->hasMetadata(MDKind::WorkItemLoop)) {
         Changed = true;
+
+        // Mark memory accesses with access group
         auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
-        utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
         for (auto *BB : SL->blocks()) {
           for (auto &I : *BB) {
             if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
               utils::addAccessGroupMD(&I, MDAccessGroup);
             }
           }
+        }
+
+        // make the access group parallel w.r.t the WI loop
+        utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
+
+        // work-item loops should be vectorizable, so emit metadata to suggest so
+        if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.enable")) {
+          auto *MDVectorize =
+              llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
+                                                 llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
+                                                     llvm::IntegerType::get(F.getContext(), 1)))});
+          auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorize});
+          SL->setLoopID(LoopID);
         }
 
         if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
@@ -91,7 +105,7 @@ bool hipsycl::compiler::MarkLoopsParallelPassLegacy::runOnFunction(llvm::Functio
 }
 
 llvm::PreservedAnalyses hipsycl::compiler::MarkLoopsParallelPass::run(llvm::Function &F,
-                                                                     llvm::FunctionAnalysisManager &AM) {
+                                                                      llvm::FunctionAnalysisManager &AM) {
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());

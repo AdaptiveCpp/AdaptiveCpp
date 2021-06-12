@@ -34,10 +34,12 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Function.h"
@@ -1066,7 +1068,7 @@ void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyse
   for (auto *Loop : Analyses.LI.getTopLevelLoops())
     for (auto *Block : Loop->blocks()) {
 #if LLVM_VERSION_MAJOR >= 12
-      llvm::simplifyCFG(Block, Analyses.TTI, nullptr, {}, &LoopHeaders);
+      llvm::simplifyCFG(Block, Analyses.TTI, nullptr, {}, LoopHeaders);
 #else
       llvm::simplifyCFG(Block, Analyses.TTI, {}, &LoopHeaders);
 #endif
@@ -1236,6 +1238,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
   Analyses.LoopAdder(*L);
 
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
   llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
   llvm::outs().flush();
   llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &Analyses.SE, &AC, nullptr, false);

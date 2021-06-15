@@ -83,11 +83,17 @@ private:
 
 }
 }
-
+#ifndef HIPSYCL_COMPILER_COMPONENT
 #define HIPSYCL_DEBUG_STREAM(level, prefix)                                    \
   if (level > ::hipsycl::common::output_stream::get().get_debug_level())       \
     ;                                                                          \
   else ::hipsycl::common::output_stream::get().get_stream() << prefix
+#else
+#define HIPSYCL_DEBUG_STREAM(level, prefix)                                    \
+  if (level > ::hipsycl::common::output_stream::get().get_debug_level())       \
+    ;                                                                          \
+  else llvm::outs() << prefix
+#endif
 
 #ifdef HIPSYCL_DEBUG_NOCOLOR
 #define HIPSYCL_DEBUG_PREFIX_ERROR   "[hipSYCL Error] "

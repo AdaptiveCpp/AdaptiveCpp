@@ -383,7 +383,7 @@ public:
       for (auto&& RD : CCS.getReachableDecls())
       {
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
-                           << RD->getQualifiedNameAsString() << std::endl;
+                           << RD->getQualifiedNameAsString() << "\n";
         markAsHostDevice(RD);
         if (!RD->hasAttr<clang::CUDAHostAttr>() && !RD->hasAttr<clang::CUDADeviceAttr>())
         {
@@ -432,7 +432,7 @@ private:
         f;
 
       HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
-                        << Kernel->getQualifiedNameAsString() << std::endl;
+                        << Kernel->getQualifiedNameAsString() << "\n";
 
       // Mark local variables as shared memory, unless they are explicitly marked private.
       // Do this not only for the kernel itself, but consider all functions called by the kernel.
@@ -468,7 +468,7 @@ private:
         for (auto &D : CCS.getReachableDecls()) {
           if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
             HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: " << D->getQualifiedNameAsString()
-                               << std::endl;
+                               << "\n";
             D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
           }
         }
@@ -530,7 +530,7 @@ private:
                   << "AST Processing: Marking variable "
                   << V->getNameAsString()
                   << " as __shared__"
-                  << std::endl;
+                  << "\n";
 
     if (!V->hasAttr<clang::CUDASharedAttr>()) {
       V->addAttr(clang::CUDASharedAttr::CreateImplicit(
@@ -568,9 +568,9 @@ public:
         Instance.getSema().getLangOpts().CUDAIsDevice);
 
     if(CompilationStateManager::getASTPassState().isDeviceCompilation())
-      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __device__ ****** " << std::endl;
+      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __device__ ****** " << "\n";
     else
-      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __host__ ****** " << std::endl;
+      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __host__ ****** " << "\n";
 
     Visitor.applyAttributes();
 

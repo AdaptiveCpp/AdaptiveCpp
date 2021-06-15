@@ -127,11 +127,11 @@ private:
     }
 
     HIPSYCL_DEBUG_INFO << "IR Processing: Keeping " << FunctionsToKeep.size() << " out of "
-                       << Functions.size() << " functions"<< std::endl;
+                       << Functions.size() << " functions"<< "\n";
 
     for(llvm::Function* F : FunctionsToKeep)
     {
-      HIPSYCL_DEBUG_INFO << "IR Processing: Keeping function " << F->getName().str() << std::endl;
+      HIPSYCL_DEBUG_INFO << "IR Processing: Keeping function " << F->getName().str() << "\n";
     }
 
     std::size_t NumRemovedFunctions = 0;
@@ -141,7 +141,7 @@ private:
       if (FunctionsToKeep.find(F) == FunctionsToKeep.end() && !F->isIntrinsic())
       {
         HIPSYCL_DEBUG_INFO << "IR Processing: Pruning unused function from device code: "
-                           << F->getName().str() << std::endl;
+                           << F->getName().str() << "\n";
 
         F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
         F->eraseFromParent();
@@ -151,14 +151,14 @@ private:
 
     HIPSYCL_DEBUG_INFO << "===> IR Processing: Function pruning complete, removed "
                       << NumRemovedFunctions << " function(s)."
-                      << std::endl;
+                      << "\n";
   }
 
   void pruneUnusedGlobals(llvm::Module& M)
   {
 
     HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******"
-                       << std::endl;
+                       << "\n";
 
     std::vector<llvm::GlobalVariable*> VariablesForPruning;
 
@@ -170,7 +170,7 @@ private:
         VariablesForPruning.push_back(GPtr);
 
         HIPSYCL_DEBUG_INFO << "IR Processing: Pruning unused global variable from device code: "
-                           << G->getName().str() << std::endl;
+                           << G->getName().str() << "\n";
       }
     }
 
@@ -181,7 +181,7 @@ private:
     }
     HIPSYCL_DEBUG_INFO << "===> IR Processing: Pruning of globals complete, removed "
                        << VariablesForPruning.size() << " global variable(s)."
-                       << std::endl;
+                       << "\n";
   }
 
   bool canGlobalVariableBeRemoved(llvm::GlobalVariable* G) const

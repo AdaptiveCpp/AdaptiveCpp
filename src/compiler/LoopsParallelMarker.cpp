@@ -26,7 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/MarkLoopsParallel.hpp"
+#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
+#include <llvm/IR/Dominators.h>
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
@@ -35,7 +36,7 @@
 
 namespace {
 using namespace hipsycl::compiler;
-bool markLoopsParallel(llvm::Function &F, const llvm::LoopInfo &LI) {
+bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
   bool Changed = false;
 
   for (auto *L : LI.getTopLevelLoops()) {
@@ -88,23 +89,23 @@ bool markLoopsParallel(llvm::Function &F, const llvm::LoopInfo &LI) {
 }
 } // namespace
 
-void hipsycl::compiler::MarkLoopsParallelPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+void hipsycl::compiler::LoopsParallelMarkerPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
 }
-bool hipsycl::compiler::MarkLoopsParallelPassLegacy::runOnFunction(llvm::Function &F) {
+bool hipsycl::compiler::LoopsParallelMarkerPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   if (!SAA.isKernelFunc(&F))
     return false;
 
   const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  return markLoopsParallel(F, LI);
+  return markLoopsWorkItem(F, LI);
 }
 
-llvm::PreservedAnalyses hipsycl::compiler::MarkLoopsParallelPass::run(llvm::Function &F,
+llvm::PreservedAnalyses hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Function &F,
                                                                       llvm::FunctionAnalysisManager &AM) {
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
@@ -114,9 +115,9 @@ llvm::PreservedAnalyses hipsycl::compiler::MarkLoopsParallelPass::run(llvm::Func
     return llvm::PreservedAnalyses::all();
   }
   if (SAA->isKernelFunc(&F))
-    markLoopsParallel(F, LI);
+    markLoopsWorkItem(F, LI);
 
   return llvm::PreservedAnalyses::all();
 }
 
-char hipsycl::compiler::MarkLoopsParallelPassLegacy::ID = 0;
+char hipsycl::compiler::LoopsParallelMarkerPassLegacy::ID = 0;

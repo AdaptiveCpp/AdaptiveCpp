@@ -1378,8 +1378,7 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
     return false;
   }
 
-  if (L->getLoopDepth() != 2) {
-    // only second-level loop have to be considered as work-item loops -> must be using collapse on multi-dim kernels
+  if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
     return false;
   }
   llvm::Function *F = L->getBlocks()[0]->getParent();
@@ -1397,8 +1396,6 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
     simplifyO0(F, L, Analyses, AC);
 
   auto *ThisDebugValue = getThisPtrDbgValue(F);
-  L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
-                                                  llvm::MDNode::get(F->getContext(), {}));
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->print(llvm::outs());)
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)

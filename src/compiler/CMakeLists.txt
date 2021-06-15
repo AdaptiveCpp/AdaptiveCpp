@@ -18,7 +18,8 @@ add_library(hipSYCL_clang SHARED
   SplitterAnnotationAnalysis.cpp
   IRUtils.cpp
   KernelFlattening.cpp
-  MarkLoopsParallel.cpp
+  LoopsParallelMarker.cpp
+  WILoopMarker.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

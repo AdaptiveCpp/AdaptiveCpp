@@ -29,8 +29,9 @@
 #include "hipSYCL/compiler/KernelFlattening.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
-#include "hipSYCL/compiler/MarkLoopsParallel.hpp"
+#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include <hipSYCL/compiler/WILoopMarker.hpp>
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
@@ -62,15 +63,17 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
 static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{true});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{false});
   PM.add(new KernelFlatteningPassLegacy{});
-  PM.add(new MarkLoopsParallelPassLegacy{});
+  PM.add(new LoopsParallelMarkerPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
@@ -93,11 +96,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 #endif
         MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
+        llvm::FunctionPassManager FPM;
+        FPM.addPass(WILoopMarkerPass{});
+
         llvm::LoopPassManager LPM;
         LPM.addPass(LoopSplitterInliningPass{});
         LPM.addPass(LoopSplitAtBarrierPass{true});
 
-        llvm::FunctionPassManager FPM;
         FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -107,7 +112,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 #if LLVM_VERSION_MAJOR >= 12
         if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
 #endif
-          FPM.addPass(MarkLoopsParallelPass{});
+          FPM.addPass(LoopsParallelMarkerPass{});
         MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
       });
     }

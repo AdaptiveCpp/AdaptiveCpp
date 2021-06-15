@@ -26,39 +26,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_MARKLOOPSPARALLEL_HPP
-#define HIPSYCL_MARKLOOPSPARALLEL_HPP
+#ifndef HIPSYCL_WILOOPMARKER_HPP
+#define HIPSYCL_WILOOPMARKER_HPP
 
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
 
 namespace hipsycl {
 namespace compiler {
 
-class MarkLoopsParallelPassLegacy : public llvm::FunctionPass {
+class WILoopMarkerPassLegacy : public llvm::FunctionPass {
 
 public:
   static char ID;
 
-  explicit MarkLoopsParallelPassLegacy() : llvm::FunctionPass(ID) {}
+  explicit WILoopMarkerPassLegacy() : llvm::FunctionPass(ID) {}
 
-  llvm::StringRef getPassName() const override { return "hipSYCL loop parallel marking pass"; }
+  llvm::StringRef getPassName() const override { return "hipSYCL work item loop marker pass"; }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
   bool runOnFunction(llvm::Function &L) override;
 };
 
-class MarkLoopsParallelPass : public llvm::PassInfoMixin<MarkLoopsParallelPass> {
+class WILoopMarkerPass : public llvm::PassInfoMixin<WILoopMarkerPass> {
 
 public:
-  explicit MarkLoopsParallelPass() {}
+  explicit WILoopMarkerPass() {}
 
   llvm::PreservedAnalyses run(llvm::Function &F,
                               llvm::FunctionAnalysisManager &AM);
-  static bool isRequired() { return false; }
+  static bool isRequired() { return true; }
 };
 } // namespace compiler
 } // namespace hipsycl
 
-#endif // HIPSYCL_MARKLOOPSPARALLEL_HPP
+#endif // HIPSYCL_WILOOPMARKER_HPP

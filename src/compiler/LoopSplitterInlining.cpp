@@ -142,8 +142,7 @@ bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     return false;
   }
 
-  if (L->getLoopDepth() != 2) {
-    // only second-level loop have to be considered as work-item loops -> must be using collapse on multi-dim kernels
+  if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
     HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs()
                                    << HIPSYCL_DEBUG_PREFIX_INFO << "Inliner: not work-item loop!" << L << "\n";)
     return false;

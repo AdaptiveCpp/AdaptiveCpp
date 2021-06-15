@@ -390,6 +390,7 @@ public:
     } else {
       // for non-in-order queues we need to ask the runtime for
       // all nodes of this node group
+      rt::application::dag().flush_sync();
       auto nodes = rt::application::dag().get_group(_node_group_id);
       std::vector<event> evts;
       for(auto node : nodes){

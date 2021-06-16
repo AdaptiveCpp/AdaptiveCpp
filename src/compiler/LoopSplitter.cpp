@@ -1058,7 +1058,6 @@ void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyse
   // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
   // a single loop header, so that it is muuch easier to work with.
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> LoopHeaders;
-  using SetElemT = llvm::BasicBlock *;
 
   for (auto *SL : Analyses.LI.getLoopsInPreorder()) {
     if (SL->getHeader())
@@ -1067,10 +1066,14 @@ void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyse
       LoopHeaders.insert(SL->getLoopPreheader());
   }
 
+#if LLVM_VERSION_MAJOR >= 12
+  llvm::SmallVector<llvm::WeakVH, 8> LoopHeaderHandles(LoopHeaders.begin(), LoopHeaders.end());
+#endif
+
   for (auto *Loop : Analyses.LI.getTopLevelLoops())
     for (auto *Block : Loop->blocks()) {
 #if LLVM_VERSION_MAJOR >= 12
-      llvm::simplifyCFG(Block, Analyses.TTI, nullptr, {}, llvm::SmallVector<llvm::WeakVH>{LoopHeaders.begin(), LoopHeaders.end()});
+      llvm::simplifyCFG(Block, Analyses.TTI, nullptr, {}, LoopHeaderHandles);
 #else
       llvm::simplifyCFG(Block, Analyses.TTI, {}, &LoopHeaders);
 #endif

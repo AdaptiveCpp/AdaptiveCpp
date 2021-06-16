@@ -52,19 +52,16 @@ bool checkedInlineFunction(llvm::CallBase *CI) {
 #if LLVM_VERSION_MAJOR <= 10
   llvm::InlineResult ILR = llvm::InlineFunction(CI, IFI, nullptr);
   if (!static_cast<bool>(ILR)) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.message
-                 << "'\n";
+    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.message << "'\n";
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
   if (!ILR.isSuccess()) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Failed to inline function <" << CalleeName << ">: '"
-                 << ILR.getFailureReason() << "'\n";
+    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << CalleeName << ">: '" << ILR.getFailureReason() << "'\n";
 #endif
     return false;
   }
 
-  HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "LoopSplitter inlined function <"
-                                          << CalleeName << ">\n";)
+  HIPSYCL_DEBUG_INFO << "LoopSplitter inlined function <" << CalleeName << ">\n";
   return true;
 }
 

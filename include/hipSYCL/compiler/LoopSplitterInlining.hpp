@@ -34,25 +34,24 @@
 
 namespace hipsycl {
 namespace compiler {
-class LoopSplitterInliningPassLegacy : public llvm::LoopPass {
+class LoopSplitterInliningPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;
 
-  explicit LoopSplitterInliningPassLegacy() : llvm::LoopPass(ID) {}
+  explicit LoopSplitterInliningPassLegacy() : llvm::FunctionPass(ID) {}
 
   llvm::StringRef getPassName() const override { return "hipSYCL loop splitter inlining pass"; }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
-  bool runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) override;
+  bool runOnFunction(llvm::Function &L) override;
 };
 
 class LoopSplitterInliningPass : public llvm::PassInfoMixin<LoopSplitterInliningPass> {
 public:
   explicit LoopSplitterInliningPass() {}
 
-  llvm::PreservedAnalyses run(llvm::Loop &L, llvm::LoopAnalysisManager &AM, llvm::LoopStandardAnalysisResults &AR,
-                              llvm::LPMUpdater &LPMU);
+  llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
   static bool isRequired() { return true; }
 };
 } // namespace compiler

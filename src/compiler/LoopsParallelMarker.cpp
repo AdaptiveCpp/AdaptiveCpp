@@ -68,12 +68,12 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
         }
 
         if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
-          if (utils::isAnnotatedParallel(SL))
-            llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "loop is parallel: " << SL->getHeader()->getName() << "\n";
-          else if (SL->getLoopID()) {
+          if (utils::isAnnotatedParallel(SL)) {
+            HIPSYCL_DEBUG_INFO << "loop is parallel: " << SL->getHeader()->getName() << "\n";
+          } else if (SL->getLoopID()) {
             assert(SL->getLoopID());
             const llvm::Module *M = F.getParent();
-            llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop id for " << SL->getHeader()->getName();
+            HIPSYCL_DEBUG_WARNING << "loop id for " << SL->getHeader()->getName();
             SL->getLoopID()->print(llvm::outs(), M);
             for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
               MDOp->print(llvm::outs(), M);
@@ -106,7 +106,7 @@ bool hipsycl::compiler::LoopsParallelMarkerPassLegacy::runOnFunction(llvm::Funct
 }
 
 llvm::PreservedAnalyses hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Function &F,
-                                                                      llvm::FunctionAnalysisManager &AM) {
+                                                                        llvm::FunctionAnalysisManager &AM) {
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());

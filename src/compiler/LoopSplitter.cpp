@@ -164,7 +164,7 @@ bool fillBlocksInBranch(const llvm::DomTreeNodeBase<llvm::BasicBlock> *First, co
   while (!WL.empty()) {
     const llvm::DomTreeNodeBase<llvm::BasicBlock> *N = WL.pop_back_val();
     if (N->getBlock() != Merge) {
-      HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << N->getBlock()->getName() << "\n";)
+      HIPSYCL_DEBUG_INFO << N->getBlock()->getName() << "\n";
       Blocks.push_back(N->getBlock());
       WL.append(N->begin(), N->end());
     }
@@ -175,12 +175,13 @@ bool fillBlocksInBranch(const llvm::DomTreeNodeBase<llvm::BasicBlock> *First, co
 bool findBlocksInBranch(const llvm::BasicBlock *Cond, const llvm::BasicBlock *Merge, const llvm::DominatorTree &DT,
                         llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks1,
                         llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks2) {
-  if (Cond->getTerminator()->getNumSuccessors() != 2)
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Must be dual child branch\n";
+  if (Cond->getTerminator()->getNumSuccessors() != 2) {
+    HIPSYCL_DEBUG_ERROR << "Must be dual child branch\n";
+  }
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "cond blocks " << Cond->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "cond blocks " << Cond->getName() << "\n";
   fillBlocksInBranch(DT.getNode(Cond->getTerminator()->getSuccessor(0)), Merge, Blocks1);
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "cond blocks2 " << Cond->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "cond blocks2 " << Cond->getName() << "\n";
   fillBlocksInBranch(DT.getNode(Cond->getTerminator()->getSuccessor(1)), Merge, Blocks2);
   return !Blocks1.empty() || !Blocks2.empty();
 }
@@ -238,7 +239,7 @@ void findIfConditionInner(
         if (Branch->Cond != Successor) {
           Branch->Merge = Successor;
 
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << Branch->Cond->getName() << ">>" << Successor->getName() << "\n";
+          HIPSYCL_DEBUG_INFO << Branch->Cond->getName() << ">>" << Successor->getName() << "\n";
           findBlocksInBranch(Branch->Cond, Successor, DT, Branch->BlocksLeft, Branch->BlocksRight);
           llvm::outs().flush();
         }
@@ -258,7 +259,7 @@ findIfCondition(const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::B
   llvm::SmallDenseMap<const llvm::BasicBlock *, std::unique_ptr<Condition>, 8> BranchCondAndMerge;
 
   for (auto *L : Loops) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "L Header " << L->getHeader()->getName() << "\n";
+    HIPSYCL_DEBUG_INFO << "L Header " << L->getHeader()->getName() << "\n";
   }
 
   LookedAtBBs[Root] = 0;
@@ -271,7 +272,7 @@ findIfCondition(const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::B
   }
   for (auto &CondPair : BranchCondAndMerge) {
     Condition *Cond = CondPair.second.get();
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "cond " << Cond->Cond->getName() << "\n";
+    HIPSYCL_DEBUG_INFO << "cond " << Cond->Cond->getName() << "\n";
     auto *RightIt = std::find_if(Cond->BlocksRight.begin(), Cond->BlocksRight.end(), [&BranchCondAndMerge](auto *BB) {
       return BranchCondAndMerge.find(BB) != BranchCondAndMerge.end();
     });
@@ -289,10 +290,11 @@ findIfCondition(const llvm::BasicBlock *Root, const llvm::ArrayRef<const llvm::B
   }
   for (auto &CondPair : BranchCondAndMerge) {
     auto *Branch = CondPair.second.get();
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "cond " << Branch->Cond->getName()
-                 << " parent: " << (Branch->ParentCond ? Branch->ParentCond->getName() : "")
-                 << " left child cond: " << (Branch->InnerCondLeft ? Branch->InnerCondLeft->getName() : "")
-                 << " right child cond " << (Branch->InnerCondRight ? Branch->InnerCondRight->getName() : "") << "\n";
+    HIPSYCL_DEBUG_INFO << "cond " << Branch->Cond->getName()
+                       << " parent: " << (Branch->ParentCond ? Branch->ParentCond->getName() : "")
+                       << " left child cond: " << (Branch->InnerCondLeft ? Branch->InnerCondLeft->getName() : "")
+                       << " right child cond " << (Branch->InnerCondRight ? Branch->InnerCondRight->getName() : "")
+                       << "\n";
   }
   return BranchCondAndMerge;
 }
@@ -321,16 +323,18 @@ bool findBaseBlocks(
                            [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); });
           ExclIt != CondBlocks.end()) {
         if (std::any_of(CondBlocks2.begin(), CondBlocks2.end(),
-                        [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); }))
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "The other branch must not also contain an end\n";
+                        [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); })) {
+          HIPSYCL_DEBUG_ERROR << "The other branch must not also contain an end\n";
+        }
         WL.push_back(DT.getNode(CondIt->second->Cond->getTerminator()->getSuccessor(0)));
       } else if (auto *ExclIt2 =
                      std::find_if(CondBlocks2.begin(), CondBlocks2.end(),
                                   [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); });
                  ExclIt2 != CondBlocks2.end()) {
         if (std::any_of(CondBlocks.begin(), CondBlocks.end(),
-                        [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); }))
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "The other branch must not also contain an end2\n";
+                        [&Excl](auto *BB) { return std::find(Excl.begin(), Excl.end(), BB) != Excl.end(); })) {
+          HIPSYCL_DEBUG_ERROR << "The other branch must not also contain an end2\n";
+        }
         WL.push_back(DT.getNode(CondIt->second->Cond->getTerminator()->getSuccessor(1)));
       } else {
         for (auto *CN : N->children()) {
@@ -421,7 +425,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
       auto ArrSize = ArrSizeC->getLimitedValue();
       if (ArrSize > 1) {
         T = llvm::ArrayType::get(T, ArrSize);
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Caution, alloca was array\n";
+        HIPSYCL_DEBUG_WARNING << "Caution, alloca was array\n";
       }
     }
 
@@ -607,7 +611,7 @@ void arrayifyDependencies(llvm::Function *F, llvm::Value *Idx,
   llvm::DenseMap<llvm::Value *, llvm::Instruction *> ValueAllocaMap;
 
   HIPSYCL_DEBUG_EXECUTE_INFO(
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "baseblocks:\n"; for (auto *BB
+      HIPSYCL_DEBUG_INFO << "baseblocks:\n"; for (auto *BB
                                                                          : ArrfBaseBlocks) { BB->print(llvm::outs()); }
 
                                                                     llvm::outs()
@@ -872,7 +876,7 @@ void cloneConditions(llvm::Function *F,
         });
     if (std::find(BeforeSplitBlocks.begin(), BeforeSplitBlocks.end(), Cond->Cond) != BeforeSplitBlocks.end() &&
         (BlocksLeftIt != Cond->BlocksLeft.end() || BlocksRightIt != Cond->BlocksRight.end())) {
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << Cond->Cond->getName() << "\n";
+      HIPSYCL_DEBUG_INFO << Cond->Cond->getName() << "\n";
 
       auto *DefaultNewTarget = NewLatch;
       llvm::BasicBlock *DefaultOldTarget = nullptr;
@@ -887,12 +891,12 @@ void cloneConditions(llvm::Function *F,
       getCondTargets(Cond->Cond->getTerminator()->getSuccessor(1), Cond->InnerCondRight, BlocksRightIt,
                      Cond->BlocksRight.end(), Cond->Merge, OldLatch, DT, RightTarget, OldRightTarget, CondsAndMerges);
 
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "  left target: " << LeftTarget->getName() << "\n";
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "  right target: " << RightTarget->getName() << "\n";
+      HIPSYCL_DEBUG_INFO << "  left target: " << LeftTarget->getName() << "\n";
+      HIPSYCL_DEBUG_INFO << "  right target: " << RightTarget->getName() << "\n";
 
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+      HIPSYCL_DEBUG_INFO
                    << "  old left target: " << (OldLeftTarget ? OldLeftTarget->getName() : "") << "\n";
-      llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+      HIPSYCL_DEBUG_INFO
                    << "  old right target: " << (OldRightTarget ? OldRightTarget->getName() : "") << "\n";
 
       auto *NewCond = llvm::BasicBlock::Create(Cond->Cond->getContext(),
@@ -924,7 +928,7 @@ void cloneConditions(llvm::Function *F,
       if (!Cond->ParentCond) {
         DT.addNewBlock(NewCond, NewHeader);
 
-        llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "   overwriting FirstBlockInNew " << FirstBlockInNew->getName()
+        HIPSYCL_DEBUG_INFO << "   overwriting FirstBlockInNew " << FirstBlockInNew->getName()
                      << " with " << Cond->Cond->getName() << "\n";
         FirstBlockInNew = NewCond;
       } else if (VMap.find(Cond->ParentCond) != VMap.end()) {
@@ -977,7 +981,7 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
   } else if (llvm::isa<llvm::Instruction>(VInc)) {
     // todo: instructions, could do the same as with consts, but not sure why we should ever have a non load
     // instruction incoming..
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "Incoming value not load instruction: ";
+    HIPSYCL_DEBUG_ERROR << "Incoming value not load instruction: ";
     VInc->print(llvm::outs());
     llvm::outs() << "\n";
     llvm::outs().flush();
@@ -1094,24 +1098,24 @@ void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyse
 llvm::Loop *getLoopsForBarrier(const llvm::LoopInfo &LI, llvm::CallBase *Barrier,
                                llvm::SmallVectorImpl<llvm::Loop *> &InnerLoops) {
   auto *BarrierBlock = Barrier->getParent();
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found barrier block: " << BarrierBlock->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Found barrier block: " << BarrierBlock->getName() << "\n";
   auto *L = LI.getLoopFor(BarrierBlock);
 
   // get work item loop and build up list of inner loops that need to be taken care of
   while (L->getLoopDepth() > 2 &&
          !L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
     InnerLoops.push_back(L);
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "ILP Header: " << L->getHeader()->getName()
+    HIPSYCL_DEBUG_INFO << "ILP Header: " << L->getHeader()->getName()
                  << " depth: " << L->getLoopDepth() << " parent: " << L->getParentLoop()->getHeader()->getName()
                  << "\n";
     L = L->getParentLoop();
   }
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found header: " << L->getHeader()->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+  HIPSYCL_DEBUG_INFO << "Found header: " << L->getHeader()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO
                << "Found pre-header: " << (L->getLoopPreheader() ? L->getLoopPreheader()->getName() : "") << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found exit block: " << L->getExitBlock()->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found latch block: " << L->getLoopLatch()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Found exit block: " << L->getExitBlock()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Found latch block: " << L->getLoopLatch()->getName() << "\n";
 
   llvm::outs().flush();
   return L;
@@ -1193,7 +1197,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   replacePredecessorsSuccessor(FirstNewBlock, Latch, DT, &AfterSplitBlocks);
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "conds to clone\n";
+  HIPSYCL_DEBUG_INFO << "conds to clone\n";
   llvm::BasicBlock *FirstBlockInNew = FirstNewBlock;
   llvm::BasicBlock *LastCondInNew = NewHeader;
   cloneConditions(F, CondsAndMerges, BeforeSplitBlocks, AfterSplitBlocks, NewLoop, NewHeader, NewLatch, Latch,
@@ -1225,10 +1229,11 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   AfterSplitBlocks.push_back(LoadBlock);
   llvm::SmallVector<llvm::BasicBlock *, 8> BbToRemap = AfterSplitBlocks;
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
+  HIPSYCL_DEBUG_INFO << "BLOCKS TO REMAP " << BbToRemap.size() << "\n";
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet{AfterSplitBlocks.begin(), AfterSplitBlocks.end()};
-  for (auto *BB : BBSet)
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << " " << BB->getName() << "\n";
+  for (auto *BB : BBSet) {
+    HIPSYCL_DEBUG_INFO << " " << BB->getName() << "\n";
+  }
   llvm::outs().flush();
 
   llvm::remapInstructionsInBlocks(BbToRemap, VMap);
@@ -1236,7 +1241,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                                   : L->getParentLoop()->blocks()) {
     if (!Block->getParent())
       Block->print(llvm::errs());
-  } llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO
+  } HIPSYCL_DEBUG_INFO
                  << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
   L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
@@ -1244,7 +1249,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   Analyses.LoopAdder(*L);
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
+  HIPSYCL_DEBUG_INFO << "new loop.. " << L << " with parent " << L->getParentLoop() << "\n";
   llvm::outs().flush();
   llvm::simplifyLoop(L->getParentLoop(), &DT, &LI, &Analyses.SE, &AC, nullptr, false);
   for (auto *Block : L->blocks()) // need pre-headers -> after simplify
@@ -1255,7 +1260,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   dropDebugLocation(L->getLoopPreheader());
 
   if (llvm::verifyFunction(*F, &llvm::errs())) {
-    llvm::outs() << HIPSYCL_DEBUG_PREFIX_ERROR << "function verification failed\n";
+    HIPSYCL_DEBUG_ERROR << "function verification failed\n";
   }
 }
 
@@ -1277,11 +1282,16 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   llvm::BasicBlock *Latch = L->getLoopLatch();
   llvm::BasicBlock *ExitBlock = L->getExitBlock();
 
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "Barrier is in loop..\n";
+  HIPSYCL_DEBUG_INFO << "Inner PreHeader: " << InnerLoop->getLoopPreheader()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Inner Header: " << InnerLoop->getHeader()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Inner Latch: " << InnerLoop->getLoopLatch()->getName() << "\n";
+  HIPSYCL_DEBUG_INFO << "Inner Exit: " << InnerLoop->getExitBlock()->getName() << "\n";
+
+  HIPSYCL_DEBUG_WARNING << "Barrier is in loop..\n";
   assert(InnerLoop->getLoopPreheader() && "must have preheader");
   auto *InnerHeader = InnerLoop->getHeader();
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "InnerHeader: " << InnerHeader->getName() << "\n";
-
+  HIPSYCL_DEBUG_WARNING << "InnerHeader: " << InnerHeader->getName() << "\n";
+  llvm::outs().flush();
   // split away everything before the inner loop into its own work item loop
   splitIntoWorkItemLoops(InnerLoop->getLoopPreheader(), InnerLoop->getHeader(), F, L, Analyses, AC, BlockNameSuffix,
                          ThisDebugValue);
@@ -1306,9 +1316,9 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
 
   NewLatch = simplifyLatch(NewLoop, NewLatch, Analyses.LI, Analyses.DT);
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; Analyses.DT.print(llvm::errs());)
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
-  llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
+  HIPSYCL_DEBUG_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
+  HIPSYCL_DEBUG_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
+  HIPSYCL_DEBUG_WARNING << "NewExitBlock: " << NewExitBlock->getName() << "\n";
 
   // split away the inner loop's exit block into its own work item loop
   splitIntoWorkItemLoops(NewInnerLoopExitBlock, InnerLoopExitBlock, F, NewLoop, Analyses, AC, BlockNameSuffix,
@@ -1378,6 +1388,7 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
   }
 
   if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+    HIPSYCL_DEBUG_INFO << "Splitter: not workitem loop." << L->getHeader()->getName() << "\n";
     return false;
   }
   llvm::Function *F = L->getBlocks()[0]->getParent();
@@ -1386,7 +1397,7 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
   findAllSplitterCalls(*L, Analyses.SAA, Barriers);
 
   if (Barriers.empty()) {
-    HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO "Splitter: no splitter found.\n";)
+    HIPSYCL_DEBUG_INFO "Splitter: no splitter found.\n";
     return false;
   }
 

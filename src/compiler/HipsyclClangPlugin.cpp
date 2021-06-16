@@ -98,9 +98,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
         llvm::FunctionPassManager FPM;
         FPM.addPass(WILoopMarkerPass{});
+        FPM.addPass(LoopSplitterInliningPass{});
 
         llvm::LoopPassManager LPM;
-        LPM.addPass(LoopSplitterInliningPass{});
         LPM.addPass(LoopSplitAtBarrierPass{true});
 
         FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));

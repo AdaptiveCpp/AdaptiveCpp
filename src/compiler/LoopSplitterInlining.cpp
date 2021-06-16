@@ -97,7 +97,7 @@ bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
 bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   if (F.isDeclaration() && !F.isIntrinsic()) {
-    HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << F.getName() << " is not defined!\n";)
+    HIPSYCL_DEBUG_WARNING << F.getName() << " is not defined!\n";
   }
   if (SAA.isSplitterFunc(&F)) {
     FuncsWSplitter.insert(&F);
@@ -137,66 +137,67 @@ bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::Split
 
 bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (!SAA.isKernelFunc(L->getHeader()->getParent())) {
-    // are we in kernel?
-    return false;
-  }
-
   if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
-    HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs()
-                                   << HIPSYCL_DEBUG_PREFIX_INFO << "Inliner: not work-item loop!" << L << "\n";)
+    HIPSYCL_DEBUG_INFO << "Inliner: not work-item loop!" << L << "\n";
     return false;
   }
 
   llvm::SmallPtrSet<llvm::Function *, 8> SplitterCallers;
   if (!fillTransitiveSplitterCallers(*L, SAA, SplitterCallers)) {
-    HIPSYCL_DEBUG_EXECUTE_INFO(llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Inliner: transitively no splitter found."
-                                            << L << "\n";)
+    HIPSYCL_DEBUG_INFO << "Inliner: transitively no splitter found." << L << "\n";
     return false;
   }
   return inlineCallsInLoop(L, SplitterCallers, SAA, LI, DT);
+}
+
+bool inlineSplitter(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
+                    const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  if (!SAA.isKernelFunc(&F)) {
+    // are we in kernel?
+    return false;
+  }
+
+  bool Changed = false;
+  for (auto *L : LI.getTopLevelLoops()) {
+    for (auto *SL : L->getSubLoops()) {
+      Changed |= inlineSplitter(SL, LI, DT, SAA);
+    }
+  }
+
+  return Changed;
 }
 } // namespace
 
 void hipsycl::compiler::LoopSplitterInliningPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
-  AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
-  AU.addPreserved<llvm::ScalarEvolutionWrapperPass>();
   AU.addRequired<llvm::LoopInfoWrapperPass>();
-  AU.addPreserved<llvm::LoopInfoWrapperPass>();
-  AU.addRequired<llvm::AAResultsWrapperPass>();
-  AU.addPreserved<llvm::AAResultsWrapperPass>();
   AU.addRequired<llvm::DominatorTreeWrapperPass>();
-  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
 }
 
-bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
+bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnFunction(llvm::Function &F) {
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  return inlineSplitter(L, LI, DT, SAA);
+  return inlineSplitter(F, LI, DT, SAA);
 }
 
 char hipsycl::compiler::LoopSplitterInliningPassLegacy::ID = 0;
-llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Loop &L, llvm::LoopAnalysisManager &AM,
-                                                                         llvm::LoopStandardAnalysisResults &AR,
-                                                                         llvm::LPMUpdater &LPMU) {
-  const auto &FAMProxy = AM.getResult<llvm::FunctionAnalysisManagerLoopProxy>(L, AR);
-  auto &F = *L.getBlocks()[0]->getParent();
-  const auto *MAMProxy = FAMProxy.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
+llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Function &F,
+                                                                         llvm::FunctionAnalysisManager &AM) {
+  const auto *MAMProxy = AM.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
-  if (!inlineSplitter(&L, AR.LI, AR.DT, *SAA))
+  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+  if (!inlineSplitter(F, LI, DT, *SAA))
     return llvm::PreservedAnalyses::all();
 
-  llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();
+  llvm::PreservedAnalyses PA;
   PA.preserve<SplitterAnnotationAnalysis>();
-  PA.preserve<llvm::LoopAnalysis>();
-  PA.preserve<llvm::DominatorTreeAnalysis>();
   return PA;
 }

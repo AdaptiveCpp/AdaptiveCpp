@@ -48,10 +48,10 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module
             llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())->getAsCString();
         if (Annotation.compare(SplitterAnnotation) == 0) {
           SplitterFuncs.insert(F);
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found splitter annotated function " << F->getName() << "\n";
+          HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << F->getName() << "\n";
         } else if (Annotation.compare(KernelAnnotation) == 0) {
           NDKernels.insert(F);
-          llvm::outs() << HIPSYCL_DEBUG_PREFIX_INFO << "Found kernel annotated function " << F->getName() << "\n";
+          HIPSYCL_DEBUG_INFO << "Found kernel annotated function " << F->getName() << "\n";
         }
       }
     }

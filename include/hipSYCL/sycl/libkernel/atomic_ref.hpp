@@ -338,7 +338,7 @@ class atomic_ref<T *, DefaultOrder, DefaultScope, Space> {
   static T *int_to_ptr(std::intptr_t i) {
     return reinterpret_cast<T *>(i);
   }
-  
+
   static std::intptr_t &ptr_ref_to_int_ref(T *&p) {
     T **pp = &p;
     return *reinterpret_cast<std::intptr_t *>(pp);
@@ -351,8 +351,10 @@ public:
   // TODO
   static constexpr bool is_always_lock_free = true;
 
-  static constexpr memory_order default_read_order = memory_order_traits<DefaultOrder>::read_order;
-  static constexpr memory_order default_write_order = memory_order_traits<DefaultOrder>::write_order;
+  static constexpr memory_order default_read_order =
+      memory_order_traits<DefaultOrder>::read_order;
+  static constexpr memory_order default_write_order =
+      memory_order_traits<DefaultOrder>::write_order;
   static constexpr memory_order default_read_modify_write_order = DefaultOrder;
   static constexpr memory_scope default_scope = DefaultScope;
 
@@ -437,20 +439,20 @@ public:
     return compare_exchange_strong(expected, desired, order, order, scope);
   }
 
-  T* fetch_add(difference_type x,
-    memory_order order = default_read_modify_write_order,
-    memory_scope scope = default_scope) const noexcept {
+  T *fetch_add(difference_type x,
+               memory_order order = default_read_modify_write_order,
+               memory_scope scope = default_scope) const noexcept {
 
     return int_to_ptr(detail::__hipsycl_atomic_fetch_add<std::intptr_t, Space>(
-        _ptr, x, order, scope));
+        _ptr, static_cast<std::intptr_t>(x) * sizeof(T), order, scope));
   }
 
-  T* fetch_sub(difference_type x,
-    memory_order order = default_read_modify_write_order,
-    memory_scope scope = default_scope) const noexcept {
+  T *fetch_sub(difference_type x,
+               memory_order order = default_read_modify_write_order,
+               memory_scope scope = default_scope) const noexcept {
 
     return int_to_ptr(detail::__hipsycl_atomic_fetch_sub<std::intptr_t, Space>(
-        _ptr, x, order, scope));
+        _ptr, static_cast<std::intptr_t>(x) * sizeof(T), order, scope));
   }
 
   T* operator++(int) const noexcept {

@@ -83,27 +83,27 @@ void atomic_device_reduction_test(AtomicTester t, Verifier v) {
   q.submit([&](sycl::handler& cgh){
     sycl::accessor acc{b, cgh, sycl::read_write};
     cgh.parallel_for(sycl::range{size}, [=](sycl::id<1> idx){
-
-      sycl::atomic_ref<T, sycl::memory_order::relaxed,
-                       sycl::memory_scope::device> r{acc[0]};
-      if constexpr(std::is_pointer_v<T>) {
-        t(r, reinterpret_cast<std::ptrdiff_t>(acc[idx]));
-      } else {
-        t(r, acc[idx]);
+      if(idx.get(0) != 0) {
+        sycl::atomic_ref<T, sycl::memory_order::relaxed,
+                        sycl::memory_scope::device> r{acc[0]};
+        if constexpr(std::is_pointer_v<T>) {
+          t(r, reinterpret_cast<std::ptrdiff_t>(acc[idx]));
+        } else {
+          t(r, acc[idx]);
+        }
       }
     });
   });
   {
     sycl::host_accessor hacc{b};
     T expected = int_to_t<T>(0);
-    for(std::size_t i = 0; i < size; ++i) {
+    for(std::size_t i = 1; i < size; ++i) {
       if constexpr(std::is_pointer_v<T>) {
         v(expected, static_cast<std::ptrdiff_t>(i));
       } else {
         v(expected, int_to_t<T>(i));
       }
     }
-    assert(expected == hacc[0]);
     BOOST_CHECK(expected == hacc[0]);
   }
 }
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
   };
 
   auto fetch_xor = [](auto& atomic, auto x) {
-    return atomic.fetch_or(x);
+    return atomic.fetch_xor(x);
   };
 
   auto fetch_min = [](auto& atomic, auto x) {

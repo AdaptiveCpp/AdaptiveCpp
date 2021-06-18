@@ -331,9 +331,15 @@ template <typename T, memory_order DefaultOrder, memory_scope DefaultScope,
           access::address_space Space>
 class atomic_ref<T *, DefaultOrder, DefaultScope, Space> {
 
-  std::intptr_t ptr_to_int(T* p) { return reinterpret_cast<std::intptr_t>(p); }
-  T* int_to_ptr(std::intptr_t i) { return reinterpret_cast<T*>(i); }
-  std::intptr_t &ptr_ref_to_int_ref(T *&p) {
+  static std::intptr_t ptr_to_int(T *p) {
+    return reinterpret_cast<std::intptr_t>(p);
+  }
+
+  static T *int_to_ptr(std::intptr_t i) {
+    return reinterpret_cast<T *>(i);
+  }
+  
+  static std::intptr_t &ptr_ref_to_int_ref(T *&p) {
     T **pp = &p;
     return *reinterpret_cast<std::intptr_t *>(pp);
   }
@@ -356,7 +362,7 @@ public:
   }
 
   explicit atomic_ref(T*& val) {
-    _ptr = reinterpret_cast<std::intptr_t>(&val);
+    _ptr = reinterpret_cast<std::intptr_t*>(&val);
   }
 
   atomic_ref(const atomic_ref&) noexcept = default;

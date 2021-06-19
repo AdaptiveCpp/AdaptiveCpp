@@ -70,25 +70,29 @@ HIPSYCL_BUILTIN T __hipsycl_atomic_load(T *addr, memory_order order,
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_exchange(T *addr, T x, memory_order order,
                                             memory_scope scope) noexcept {
-  return __atomic_exchange_n(addr, x, builtin_memory_order(order));
+  return atomicExch(addr, x);
 }
 
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_weak(
     T *addr, T &expected, T desired, memory_order success, memory_order failure,
     memory_scope scope) noexcept {
-  return __atomic_compare_exchange_n(addr, &expected, desired, true,
-                                     builtin_memory_order(success),
-                                     builtin_memory_order(failure));
+
+  T old = expected;
+  expected = atomicCAS(addr, expected, desired);
+  return old == expected;
+
 }
 
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
     T *addr, T &expected, T desired, memory_order success, memory_order failure,
     memory_scope scope) noexcept {
-  return __atomic_compare_exchange_n(addr, &expected, desired, false,
-                                     builtin_memory_order(success),
-                                     builtin_memory_order(failure));
+
+  T old = expected;
+  expected = atomicCAS(addr, expected, desired);
+  return old == expected;
+
 }
 
 // Integral values only
@@ -96,19 +100,19 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_and(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-  return __atomic_fetch_and(addr, x, builtin_memory_order(order));
+  return atomicAnd(addr, x);
 }
 
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_or(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-   return __atomic_fetch_or(addr, x, builtin_memory_order(order));
+   return atomicOr(addr, x);
 }
 
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_xor(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-   return __atomic_fetch_xor(addr, x, builtin_memory_order(order));
+   return atomicXor(addr, x);
 }
 
 // Floating point and integral values
@@ -116,13 +120,13 @@ HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_xor(T *addr, T x, memory_order order,
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_add(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-   return __atomic_fetch_add(addr, x, builtin_memory_order(order));
+   return atomicAdd(addr, x);
 }
 
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_sub(T *addr, T x, memory_order order,
                                              memory_scope scope) noexcept {
-   return __atomic_fetch_sub(addr, x, builtin_memory_order(order));
+   return atomicSub(addr, x);
 }
 
 template <class T, access::address_space S>

@@ -80,14 +80,22 @@ jobs:
           mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
 
+          export CXXFLAGS="-DHIPSYCL_NO_FIBERS"
           if [[ "${{matrix.clang_version}}" == "12" ]]; then
-             export CXX_FLAGS=-fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/hipSYCL_clang.so
+            export CC=clang-12
+            export CXX=clang++-12
+            export CXXFLAGS="$CXXFLAGS -fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/libhipSYCL_clang.so"
           fi
 
-          cmake -DHIPSYCL_PLATFORM=cpu -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_FLAGS=-DHIPSYCL_NO_FIBERS /home/runner/work/hipSYCL/hipSYCL/tests
+          cmake -DHIPSYCL_PLATFORM=cpu -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
           make -j2
       - name: run CPU tests
+        if: ${{matrix.clang_version}} == 12
+        run: |
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests
+      - name: run LIT tests on CPU
+        if: ${{matrix.clang_version}} == 11
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make -j2 check
-          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests

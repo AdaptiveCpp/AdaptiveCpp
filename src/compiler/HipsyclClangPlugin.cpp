@@ -24,16 +24,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "hipSYCL/compiler/BarrierTailReplication.hpp"
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
 #include "hipSYCL/compiler/KernelFlattening.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
+#include "hipSYCL/compiler/PHIsToAllocas.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
-#include <hipSYCL/compiler/BarrierTailReplication.hpp>
-#include <hipSYCL/compiler/WILoopMarker.hpp>
+#include "hipSYCL/compiler/WILoopMarker.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
@@ -72,6 +73,7 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
+  PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
 }
 
@@ -79,6 +81,7 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
+  PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
@@ -110,12 +113,14 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(WILoopMarkerPass{});
         FPM.addPass(LoopSplitterInliningPass{});
 
+        FPM.addPass(PHIsToAllocasPass{});
+
         FPM.addPass(BarrierTailReplicationPass{});
         // todo: remove or integrate in legacy as well or add custom wrapper pass?
         FPM.addPass(llvm::LoopSimplifyPass{});
+
         // llvm::LoopPassManager LPM;
         // LPM.addPass(LoopSplitAtBarrierPass{true});
-
         // FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
 #if LLVM_VERSION_MAJOR >= 12

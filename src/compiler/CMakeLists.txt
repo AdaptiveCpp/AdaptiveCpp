@@ -22,6 +22,7 @@ add_library(hipSYCL_clang SHARED
   WILoopMarker.cpp
   BarrierTailReplication.cpp
   VariableUniformityAnalysis.cpp
+  PHIsToAllocas.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

@@ -89,7 +89,7 @@ public:
   bool runOnFunction(llvm::Function &F) override;
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
-  const VariableUniformityInfo &getResult() const { return *VariableUniformity_; }
+  VariableUniformityInfo &getResult() { return *VariableUniformity_; }
 };
 
 class VariableUniformityAnalysis : public llvm::AnalysisInfoMixin<VariableUniformityAnalysis> {

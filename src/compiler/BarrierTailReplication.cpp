@@ -26,6 +26,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/BarrierTailReplication.hpp"
+#include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
@@ -184,11 +185,7 @@ bool BarrierTailReplication::replicateJoinedSubgraphs(llvm::BasicBlock *Dominato
     if (Changed) {
       // We have modified the function. Possibly created new loops.
       // Update analysis passes.
-      DT_.reset();
-      DT_.recalculate(*F);
-
-      LI_.releaseMemory();
-      LI_.analyze(DT_);
+      hipsycl::compiler::utils::updateDtAndLi(LI_, DT_, nullptr, *F);
     }
   }
   ProcessedBbs.insert(SubgraphEntry);

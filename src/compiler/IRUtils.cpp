@@ -164,4 +164,16 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
     I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
 }
 
+std::vector<llvm::BasicBlock *> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI) {
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet;
+  for (auto *L : LI.getTopLevelLoops()) {
+    for (auto *WIL : L->getLoopsInPreorder()) {
+      if (!WIL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+        BBSet.insert(WIL->block_begin(), WIL->block_end());
+      }
+    }
+  }
+  return {BBSet.begin(), BBSet.end()};
+}
+
 } // namespace hipsycl::compiler::utils

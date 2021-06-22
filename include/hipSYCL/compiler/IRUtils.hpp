@@ -29,6 +29,8 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
 
 void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
+std::vector<llvm::BasicBlock *> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
+
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())
     if (UserType *UT = llvm::dyn_cast<UserType>(U))

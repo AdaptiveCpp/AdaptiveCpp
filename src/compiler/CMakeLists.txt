@@ -23,6 +23,7 @@ add_library(hipSYCL_clang SHARED
   BarrierTailReplication.cpp
   VariableUniformityAnalysis.cpp
   PHIsToAllocas.cpp
+  IsolateRegions.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

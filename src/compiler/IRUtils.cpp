@@ -28,6 +28,8 @@
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 
+#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -39,6 +41,16 @@ llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llv
   LI.releaseMemory();
   LI.analyze(DT);
   return LI.getLoopFor(B);
+}
+
+bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  for (const auto &I : *BB) {
+    if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(&I))
+      if (CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction()))
+        return true;
+  }
+
+  return false;
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI) {

@@ -27,6 +27,7 @@
 #include "hipSYCL/compiler/BarrierTailReplication.hpp"
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
+#include "hipSYCL/compiler/IsolateRegions.hpp"
 #include "hipSYCL/compiler/KernelFlattening.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
@@ -74,7 +75,9 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
   PM.add(new PHIsToAllocasPassLegacy{});
+  PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new IsolateRegionsPassLegacy{});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
@@ -82,7 +85,9 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
   PM.add(new PHIsToAllocasPassLegacy{});
+  PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
@@ -114,8 +119,10 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(LoopSplitterInliningPass{});
 
         FPM.addPass(PHIsToAllocasPass{});
+        FPM.addPass(IsolateRegionsPass{});
 
         FPM.addPass(BarrierTailReplicationPass{});
+        FPM.addPass(IsolateRegionsPass{});
         // todo: remove or integrate in legacy as well or add custom wrapper pass?
         FPM.addPass(llvm::LoopSimplifyPass{});
 

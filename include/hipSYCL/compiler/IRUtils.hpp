@@ -17,8 +17,12 @@ struct MDKind {
   static constexpr const char WorkItemLoop[] = "hipSYCL.loop.workitem";
 };
 
+class SplitterAnnotationInfo;
+
 namespace utils {
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F);
+
+bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 
 bool checkedInlineFunction(llvm::CallBase *CI);
 

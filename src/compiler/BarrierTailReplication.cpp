@@ -37,16 +37,6 @@
 
 namespace {
 
-bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  for (const auto &I : *BB) {
-    if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(&I))
-      if (CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction()))
-        return true;
-  }
-
-  return false;
-}
-
 class BarrierTailReplication {
 
 public:
@@ -114,7 +104,7 @@ bool BarrierTailReplication::findBarriersDfs(llvm::BasicBlock *BB, BasicBlockSet
 
   ProcessedBBs.insert(BB);
 
-  if (blockHasBarrier(BB, SAA_)) {
+  if (hipsycl::compiler::utils::blockHasBarrier(BB, SAA_)) {
 #ifdef DEBUG_BARRIER_REPL
     std::cerr << "### block " << BB->getName().str() << " has barrier, RJS" << std::endl;
 #endif

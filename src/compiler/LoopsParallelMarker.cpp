@@ -27,12 +27,13 @@
  */
 
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
-#include <llvm/IR/Dominators.h>
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
 #include "hipSYCL/common/debug.hpp"
+
+#include <llvm/IR/Dominators.h>
 
 namespace {
 using namespace hipsycl::compiler;

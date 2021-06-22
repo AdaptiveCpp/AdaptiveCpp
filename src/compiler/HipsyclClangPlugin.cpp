@@ -31,6 +31,8 @@
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
+#include <hipSYCL/compiler/BarrierTailReplication.hpp>
 #include <hipSYCL/compiler/WILoopMarker.hpp>
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
@@ -62,16 +64,22 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
+static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
+    varUniformityReg("var-uniformity", "hipSYCL variable uniformity analysis pass", true /* Only looks at CFG */,
+                     true /* Analysis Pass */);
+
 static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
-  PM.add(new LoopSplitAtBarrierPassLegacy{true});
+  //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
+  PM.add(new BarrierTailReplicationPassLegacy{});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
-  PM.add(new LoopSplitAtBarrierPassLegacy{false});
+  //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
+  PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
@@ -89,6 +97,8 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
     LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
       PB.registerAnalysisRegistrationCallback(
           [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::FunctionAnalysisManager &FAM) { FAM.registerPass([] { return VariableUniformityAnalysis{}; }); });
 #if LLVM_VERSION_MAJOR < 12
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
 #else
@@ -100,10 +110,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(WILoopMarkerPass{});
         FPM.addPass(LoopSplitterInliningPass{});
 
-        llvm::LoopPassManager LPM;
-        LPM.addPass(LoopSplitAtBarrierPass{true});
+        FPM.addPass(BarrierTailReplicationPass{});
+        // todo: remove or integrate in legacy as well or add custom wrapper pass?
+        FPM.addPass(llvm::LoopSimplifyPass{});
+        // llvm::LoopPassManager LPM;
+        // LPM.addPass(LoopSplitAtBarrierPass{true});
 
-        FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+        // FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
 #if LLVM_VERSION_MAJOR >= 12
         if (Opt == llvm::PassBuilder::OptimizationLevel::O3)

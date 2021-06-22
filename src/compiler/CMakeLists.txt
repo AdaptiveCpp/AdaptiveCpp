@@ -20,16 +20,19 @@ add_library(hipSYCL_clang SHARED
   KernelFlattening.cpp
   LoopsParallelMarker.cpp
   WILoopMarker.cpp
+  BarrierTailReplication.cpp
+  VariableUniformityAnalysis.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE
+  ../../include
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ../../include)
+)
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  
+
 if(NOT ${LLVM_ENABLE_EH})
   target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
 endif()

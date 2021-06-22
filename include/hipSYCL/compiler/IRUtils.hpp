@@ -17,12 +17,19 @@ struct MDKind {
   static constexpr const char WorkItemLoop[] = "hipSYCL.loop.workitem";
 };
 
+static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
+
 class SplitterAnnotationInfo;
 
 namespace utils {
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F);
 
+bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA);
 bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+llvm::CallInst* createBarrier(llvm::Instruction* InsertBefore, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+
+bool isWorkItemLoop(const llvm::Loop &L);
 
 bool checkedInlineFunction(llvm::CallBase *CI);
 

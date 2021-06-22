@@ -24,6 +24,8 @@ add_library(hipSYCL_clang SHARED
   VariableUniformityAnalysis.cpp
   PHIsToAllocas.cpp
   IsolateRegions.cpp
+  ReqdLoopBarriers.cpp
+  RemoveBarrierCalls.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

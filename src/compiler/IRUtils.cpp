@@ -43,14 +43,64 @@ llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llv
   return LI.getLoopFor(B);
 }
 
-bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  for (const auto &I : *BB) {
-    if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(&I))
-      if (CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction()))
-        return true;
-  }
-
+bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA) {
+  if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(I))
+    return CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction());
   return false;
+}
+
+bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return std::any_of(BB->begin(), BB->end(), [&SAA](const auto &I) { return isBarrier(&I, SAA); });
+}
+
+// Returns true in case the given basic block starts with a barrier,
+// that is, contains a branch instruction after possible PHI nodes.
+bool startsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return isBarrier(BB->getFirstNonPHI(), SAA);
+}
+
+// Returns true in case the given basic block ends with a barrier,
+// that is, contains only a branch instruction after a barrier call.
+bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  const llvm::Instruction *T = BB->getTerminator();
+  return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode(), SAA);
+}
+
+bool hasOnlyBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return endsWithBarrier(BB, SAA) && BB->size() == 2;
+}
+
+// Returns true in case the given function is a kernel with work-group
+// barriers inside it.
+bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  for (auto &BB : F) {
+    if (blockHasBarrier(&BB, SAA)) {
+
+      // Ignore the implicit entry and exit barriers.
+      if (hasOnlyBarrier(&BB, SAA) && &BB == &F.getEntryBlock())
+        continue;
+
+      if (hasOnlyBarrier(&BB, SAA) && BB.getTerminator()->getNumSuccessors() == 0)
+        continue;
+
+      return true;
+    }
+  }
+  return false;
+}
+
+llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const SplitterAnnotationInfo &SAA) {
+  llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
+
+  if (InsertBefore != &InsertBefore->getParent()->front() && isBarrier(InsertBefore->getPrevNode(), SAA))
+    return llvm::cast<llvm::CallInst>(InsertBefore->getPrevNode());
+  llvm::Function *F = llvm::cast<llvm::Function>(
+      M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext())).getCallee());
+
+  F->addFnAttr(llvm::Attribute::NoDuplicate);
+  F->setLinkage(llvm::GlobalValue::LinkOnceAnyLinkage);
+
+  return llvm::CallInst::Create(F, "", InsertBefore);
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI) {
@@ -180,12 +230,16 @@ std::vector<llvm::BasicBlock *> getBasicBlocksInWorkItemLoops(const llvm::LoopIn
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet;
   for (auto *L : LI.getTopLevelLoops()) {
     for (auto *WIL : L->getLoopsInPreorder()) {
-      if (!WIL->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+      if (!isWorkItemLoop(*WIL)) {
         BBSet.insert(WIL->block_begin(), WIL->block_end());
       }
     }
   }
   return {BBSet.begin(), BBSet.end()};
+}
+
+bool isWorkItemLoop(const llvm::Loop &L) {
+  return L.getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop);
 }
 
 } // namespace hipsycl::compiler::utils

@@ -33,6 +33,8 @@
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/PHIsToAllocas.hpp"
+#include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
+#include "hipSYCL/compiler/ReqdLoopBarriers.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 #include "hipSYCL/compiler/WILoopMarker.hpp"
@@ -76,8 +78,10 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
   PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new RemoveBarrierCallsPassLegacy{});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
@@ -86,8 +90,10 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
   PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new RemoveBarrierCallsPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
@@ -121,8 +127,14 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(PHIsToAllocasPass{});
         FPM.addPass(IsolateRegionsPass{});
 
+        llvm::LoopPassManager LPM;
+        LPM.addPass(AddRequiredLoopBarriersPass{});
+        FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
+
         FPM.addPass(BarrierTailReplicationPass{});
         FPM.addPass(IsolateRegionsPass{});
+        FPM.addPass(RemoveBarrierCallsPass{});
+
         // todo: remove or integrate in legacy as well or add custom wrapper pass?
         FPM.addPass(llvm::LoopSimplifyPass{});
 

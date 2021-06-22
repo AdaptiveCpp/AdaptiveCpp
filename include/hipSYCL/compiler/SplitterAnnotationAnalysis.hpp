@@ -41,10 +41,10 @@ class SplitterAnnotationInfo {
   llvm::SmallPtrSet<llvm::Function *, 2> SplitterFuncs;
   llvm::SmallPtrSet<llvm::Function *, 8> NDKernels;
 
-  bool analyzeModule(const llvm::Module &Module);
+  bool analyzeModule(llvm::Module &M);
 
 public:
-  explicit SplitterAnnotationInfo(const llvm::Module &Module);
+  explicit SplitterAnnotationInfo(llvm::Module &Module);
   inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.contains(F); }
   inline bool isKernelFunc(const llvm::Function *F) const { return NDKernels.contains(F); }
   bool invalidate(llvm::Module& M, const llvm::PreservedAnalyses &PA, llvm::ModuleAnalysisManager::Invalidator &) {
@@ -89,6 +89,9 @@ public:
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
 };
 
+/*!
+ * \brief Requires the SplitterAnnotationAnalysis once, so it is actually performed and thus cached by the MAM.
+ */
 class SplitterAnnotationAnalysisCacher : public llvm::PassInfoMixin<SplitterAnnotationAnalysisCacher> {
 public:
   explicit SplitterAnnotationAnalysisCacher() {}

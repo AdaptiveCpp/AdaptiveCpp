@@ -28,6 +28,8 @@
 
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
+#include "hipSYCL/compiler/IRUtils.hpp"
+
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/IR/Constants.h>
@@ -36,8 +38,12 @@ std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::
   return Ost << StrRef.begin();
 }
 
-bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module &Module) {
-  for (auto &I : Module.globals()) {
+bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
+  auto *Intrinsic = llvm::cast<llvm::Function>(
+      M.getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M.getContext())).getCallee());
+  SplitterFuncs.insert(Intrinsic);
+
+  for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
@@ -59,7 +65,7 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(const llvm::Module
   return false;
 }
 
-hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(const llvm::Module &Module) { analyzeModule(Module); }
+hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) { analyzeModule(Module); }
 
 bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
   if (SplitterAnnotation_)

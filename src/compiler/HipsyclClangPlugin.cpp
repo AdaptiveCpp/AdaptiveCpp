@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "hipSYCL/compiler/BarrierTailReplication.hpp"
+#include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
 #include "hipSYCL/compiler/IsolateRegions.hpp"
@@ -80,6 +81,7 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new CanonicalizeBarriersPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
 }
@@ -92,6 +94,7 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new CanonicalizeBarriersPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
@@ -132,6 +135,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
         FPM.addPass(BarrierTailReplicationPass{});
+        FPM.addPass(CanonicalizeBarriersPass{});
         FPM.addPass(IsolateRegionsPass{});
         FPM.addPass(RemoveBarrierCallsPass{});
 

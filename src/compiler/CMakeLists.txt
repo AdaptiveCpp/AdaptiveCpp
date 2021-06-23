@@ -26,6 +26,7 @@ add_library(hipSYCL_clang SHARED
   IsolateRegions.cpp
   ReqdLoopBarriers.cpp
   RemoveBarrierCalls.cpp
+  CanonicalizeBarriers.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

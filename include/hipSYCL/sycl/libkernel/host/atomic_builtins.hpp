@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_ATOMIC_HOST_BUILTINS_HPP
 #define HIPSYCL_ATOMIC_HOST_BUILTINS_HPP
 
-#include <bits/stdint-intn.h>
 #include <cstdint>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"

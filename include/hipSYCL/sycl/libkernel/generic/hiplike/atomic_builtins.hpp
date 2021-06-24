@@ -41,6 +41,22 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
+inline constexpr int builtin_memory_order(memory_order o) noexcept {
+  switch(o){
+    case memory_order::relaxed:
+      return __ATOMIC_RELAXED;
+    case memory_order::acquire:
+      return __ATOMIC_ACQUIRE;
+    case memory_order::release:
+      return __ATOMIC_RELEASE;
+    case memory_order::acq_rel:
+      return __ATOMIC_ACQ_REL;
+    case memory_order::seq_cst:
+      return __ATOMIC_SEQ_CST;
+  }
+  return __ATOMIC_RELAXED;
+}
+
 template <class T, access::address_space S>
 HIPSYCL_BUILTIN void __hipsycl_atomic_store(T *addr, T x, memory_order order,
                                             memory_scope scope) noexcept {

@@ -9,6 +9,10 @@
 
 #include <llvm/Analysis/LoopInfo.h>
 
+namespace llvm {
+class Region;
+}
+
 namespace hipsycl::compiler {
 static constexpr size_t NumArrayElements = 1024;
 struct MDKind {
@@ -34,6 +38,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const hipsycl::co
 
 bool isWorkItemLoop(const llvm::Loop &L);
 bool isInWorkItemLoop(const llvm::Loop &L);
+bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI);
 
 bool checkedInlineFunction(llvm::CallBase *CI);
 
@@ -44,7 +49,7 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
 
 void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
-std::vector<llvm::BasicBlock *> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
+llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
 
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())

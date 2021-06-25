@@ -143,6 +143,7 @@ namespace hipsycl::compiler {
 char IsolateRegionsPassLegacy::ID = 0;
 
 void IsolateRegionsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
@@ -151,7 +152,10 @@ void IsolateRegionsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
 bool IsolateRegionsPassLegacy::runOnRegion(llvm::Region *R, llvm::RGPassManager &) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  return isolateRegion(R, SAA);
+  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>(*R->getEntry()->getParent()).getLoopInfo();
+  if (utils::isInWorkItemLoop(*R, LI))
+    return isolateRegion(R, SAA);
+  return false;
 }
 
 llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
@@ -164,13 +168,16 @@ llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::Functio
 
   bool Changed = false;
 
+  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+
   auto &RI = AM.getResult<llvm::RegionInfoAnalysis>(F);
   llvm::SmallVector<llvm::Region *, 8> WorkList{RI.getTopLevelRegion()};
 
   do {
     llvm::SmallVector<llvm::Region *, 8> CurrentRegions;
     for (auto *R : WorkList) {
-      Changed |= isolateRegion(R, *SAA);
+      if (utils::isInWorkItemLoop(*R, LI))
+        Changed |= isolateRegion(R, *SAA);
       std::transform(R->begin(), R->end(), std::back_inserter(CurrentRegions), [](auto &UR) { return UR.get(); });
     }
 

@@ -40,6 +40,12 @@
 namespace {
 bool addRequiredBarriersToLoop(llvm::Loop *L, llvm::DominatorTree &DT,
                                const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  if (!hipsycl::compiler::utils::hasBarriers(*L->getHeader()->getParent(), SAA))
+    return false;
+
+  if (!hipsycl::compiler::utils::isInWorkItemLoop(*L))
+    return false;
+
   bool isBLoop = false;
   bool changed = false;
 
@@ -151,12 +157,6 @@ void AddRequiredLoopBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU
 bool AddRequiredLoopBarriersPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   if (!SAA.isKernelFunc(L->getHeader()->getParent()))
-    return false;
-
-  if (!utils::hasBarriers(*L->getHeader()->getParent(), SAA))
-    return false;
-
-  if (!utils::isWorkItemLoop(*L->getParentLoop()))
     return false;
 
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();

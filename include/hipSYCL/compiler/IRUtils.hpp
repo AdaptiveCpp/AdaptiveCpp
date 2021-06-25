@@ -33,6 +33,7 @@ bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::Splitt
 llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 
 bool isWorkItemLoop(const llvm::Loop &L);
+bool isInWorkItemLoop(const llvm::Loop &L);
 
 bool checkedInlineFunction(llvm::CallBase *CI);
 

@@ -242,4 +242,14 @@ bool isWorkItemLoop(const llvm::Loop &L) {
   return L.getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop);
 }
 
+bool isInWorkItemLoop(const llvm::Loop &L) {
+  llvm::Loop *PL = L.getParentLoop();
+  while (PL) {
+    if (isWorkItemLoop(*PL))
+      return true;
+    PL = PL->getParentLoop();
+  }
+  return false;
+}
+
 } // namespace hipsycl::compiler::utils

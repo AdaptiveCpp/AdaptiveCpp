@@ -44,7 +44,7 @@ bool removeBarrierCalls(llvm::Function &F, const hipsycl::compiler::SplitterAnno
   for (auto *B : BarriersToRemove) {
     B->eraseFromParent();
   }
-
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   return !BarriersToRemove.empty();
 }
 

@@ -111,7 +111,11 @@ bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformit
   }
 
   bool Changed = false;
+  HIPSYCL_DEBUG_INFO << "Break PHIs to alloca:\n";
   for (auto *I : PHIs) {
+    HIPSYCL_DEBUG_INFO << "  ";
+    I->print(llvm::outs());
+    HIPSYCL_DEBUG_INFO << "\n";
     breakPHIToAllocas(I, VUA);
     Changed = true;
   }

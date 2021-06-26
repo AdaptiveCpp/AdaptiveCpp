@@ -137,7 +137,7 @@ bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::Split
 
 bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+  if (!hipsycl::compiler::utils::isWorkItemLoop(*L)) {
     HIPSYCL_DEBUG_INFO << "Inliner: not work-item loop!" << L << "\n";
     return false;
   }

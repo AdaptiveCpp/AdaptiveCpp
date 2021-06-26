@@ -38,11 +38,18 @@ namespace {
 // containing only the barrier and the terminator, with just one
 // predecessor. This allows us to use those BBs as markers only,
 // they will not be replicated.
-bool canonicalizeBarriers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
+                          const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   using namespace hipsycl::compiler;
   bool Changed = false;
 
-  llvm::BasicBlock *Entry = &F.getEntryBlock();
+  auto *WILoop = utils::getSingleWorkItemLoop(LI);
+  assert(WILoop && "No WI Loop found!");
+
+  llvm::BasicBlock *Entry = nullptr;
+  Entry = utils::getWorkItemLoopBodyEntry(WILoop);
+  assert(Entry && "No WI Loop Entry found!");
+
   if (!utils::hasOnlyBarrier(Entry, SAA)) {
     llvm::BasicBlock *EffectiveEntry = SplitBlock(Entry, &(Entry->front()));
 
@@ -52,12 +59,13 @@ bool canonicalizeBarriers(llvm::Function &F, const hipsycl::compiler::SplitterAn
     Changed = true;
   }
 
-  for (auto &BB : F) {
-    auto *T = BB.getTerminator();
-    const bool IsExitNode = (T->getNumSuccessors() == 0) && (!utils::hasOnlyBarrier(&BB, SAA));
+  auto *WILatch = WILoop->getLoopLatch();
+
+  for (auto *BB : llvm::predecessors(WILatch)) {
+    auto *T = BB->getTerminator();
 
     // The function exits should have barriers.
-    if (IsExitNode && !utils::hasOnlyBarrier(&BB, SAA)) {
+    if (!utils::hasOnlyBarrier(BB, SAA)) {
       /* In case the bb is already terminated with a barrier,
          split before the barrier so we don'T create an empty
          parallel region.
@@ -68,10 +76,10 @@ bool canonicalizeBarriers(llvm::Function &F, const hipsycl::compiler::SplitterAn
          b) there are no empty parallel regions (which would be formed
          between the explicit barrier and the added one). */
       llvm::BasicBlock *Exit;
-      if (utils::endsWithBarrier(&BB, SAA))
-        Exit = SplitBlock(&BB, T->getPrevNode());
+      if (utils::endsWithBarrier(BB, SAA))
+        Exit = SplitBlock(BB, T->getPrevNode());
       else
-        Exit = SplitBlock(&BB, T);
+        Exit = SplitBlock(BB, T);
       Exit->setName("exit.barrier");
       utils::createBarrier(T, SAA);
       Changed = true;
@@ -165,6 +173,8 @@ namespace hipsycl::compiler {
 char CanonicalizeBarriersPassLegacy::ID = 0;
 
 void CanonicalizeBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequired<llvm::LoopInfoWrapperPass>();
+
   AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
@@ -174,8 +184,8 @@ bool CanonicalizeBarriersPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   if (!SAA.isKernelFunc(&F))
     return false;
-
-  return canonicalizeBarriers(F, SAA);
+  const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  return canonicalizeBarriers(F, LI, SAA);
 }
 
 llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
@@ -185,7 +195,9 @@ llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::F
     return llvm::PreservedAnalyses::all();
   }
 
-  if (!canonicalizeBarriers(F, *SAA))
+  const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+
+  if (!canonicalizeBarriers(F, LI, *SAA))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;

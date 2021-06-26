@@ -36,15 +36,18 @@
 #include "hipSYCL/compiler/PHIsToAllocas.hpp"
 #include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
 #include "hipSYCL/compiler/ReqdLoopBarriers.hpp"
+#include "hipSYCL/compiler/SimplifyKernel.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 #include "hipSYCL/compiler/WILoopMarker.hpp"
+#include "hipSYCL/compiler/WorkItemLoopCreation.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 namespace hipsycl {
 namespace compiler {
@@ -74,6 +77,7 @@ static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
                      true /* Analysis Pass */);
 
 static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new SimplifyKernelPassLegacy{});
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
@@ -83,10 +87,12 @@ static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &,
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new CanonicalizeBarriersPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new WorkItemLoopCreationPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new SimplifyKernelPassLegacy{});
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
@@ -96,6 +102,7 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new CanonicalizeBarriersPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
+  PM.add(new WorkItemLoopCreationPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
@@ -124,6 +131,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
         llvm::FunctionPassManager FPM;
+        FPM.addPass(SimplifyKernelPass{});
         FPM.addPass(WILoopMarkerPass{});
         FPM.addPass(LoopSplitterInliningPass{});
 
@@ -136,7 +144,10 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
         FPM.addPass(BarrierTailReplicationPass{});
         FPM.addPass(CanonicalizeBarriersPass{});
+        FPM.addPass(llvm::LoopSimplifyPass{});
+
         FPM.addPass(IsolateRegionsPass{});
+        FPM.addPass(WorkItemLoopCreationPass{});
         FPM.addPass(RemoveBarrierCallsPass{});
 
         // todo: remove or integrate in legacy as well or add custom wrapper pass?

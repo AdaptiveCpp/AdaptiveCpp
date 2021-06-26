@@ -33,7 +33,9 @@
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/RegionInfo.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/PromoteMemToReg.h>
 
 namespace hipsycl::compiler::utils {
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F) {
@@ -229,18 +231,20 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet;
-  for (auto *L : LI.getTopLevelLoops()) {
-    for (auto *WIL : L->getLoopsInPreorder()) {
-      if (!isWorkItemLoop(*WIL)) {
-        BBSet.insert(WIL->block_begin(), WIL->block_end());
-      }
-    }
-  }
+  for (auto *L : LI.getTopLevelLoops())
+    for (auto *WIL : L->getLoopsInPreorder())
+      if (isWorkItemLoop(*WIL))
+        for (auto *BB : WIL->blocks())
+          if (BB != WIL->getLoopLatch() && BB != WIL->getHeader() && BB != WIL->getExitBlock())
+            BBSet.insert(BB);
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(HIPSYCL_DEBUG_INFO << "WorkItemLoop BBs:\n";
+                                for (auto *BB
+                                     : BBSet) { HIPSYCL_DEBUG_INFO << "  " << BB->getName() << "\n"; })
   return BBSet;
 }
 
 bool isWorkItemLoop(const llvm::Loop &L) {
-  return L.getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop);
+  return llvm::findOptionMDForLoop(&L, hipsycl::compiler::MDKind::WorkItemLoop);
 }
 
 bool isInWorkItemLoop(const llvm::Loop &L) {
@@ -257,6 +261,54 @@ bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI) {
   if (auto *L = LI.getLoopFor(R.getEntry()))
     return isWorkItemLoop(*L) || isInWorkItemLoop(*L);
   return false;
+}
+
+llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI) {
+  for (auto *OL : LI) {
+    for (auto *L : *OL) {
+      if (isWorkItemLoop(*L))
+        return L;
+    }
+  }
+  return nullptr;
+}
+
+llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
+  llvm::BasicBlock *Entry;
+  for (auto *Succ : llvm::successors(WILoop->getHeader())) {
+    if (Succ != WILoop->getExitBlock()) {
+      Entry = Succ;
+      break;
+    }
+  }
+  return Entry;
+}
+
+llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
+                            llvm::DominatorTree *DT) {
+  auto *NewInnerLoopExitBlock = llvm::SplitEdge(Root, Target, DT, LI, nullptr);
+#if LLVM_VERSION_MAJOR < 12
+  // NewInnerLoopExitBlock should be between header and InnerLoopExitBlock
+  // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
+  std::swap(NewInnerLoopExitBlock, Target);
+#endif
+  return NewInnerLoopExitBlock;
+}
+
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  while (true) {
+    WL.clear();
+    for (auto &I : *EntryBlock) {
+      if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+        if (llvm::isAllocaPromotable(Alloca))
+          WL.push_back(Alloca);
+      }
+    }
+    if (WL.empty())
+      break;
+    PromoteMemToReg(WL, DT, &AC);
+  }
 }
 
 } // namespace hipsycl::compiler::utils

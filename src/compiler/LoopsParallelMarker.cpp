@@ -42,7 +42,7 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
 
   for (auto *L : LI.getTopLevelLoops()) {
     for (auto *SL : L->getLoopsInPreorder()) {
-      if (SL->getLoopLatch()->getTerminator()->hasMetadata(MDKind::WorkItemLoop)) {
+      if (utils::isWorkItemLoop(*L)) {
         Changed = true;
 
         // Mark memory accesses with access group

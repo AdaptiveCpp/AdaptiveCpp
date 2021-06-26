@@ -11,7 +11,8 @@
 
 namespace llvm {
 class Region;
-}
+class AssumptionCache;
+} // namespace llvm
 
 namespace hipsycl::compiler {
 static constexpr size_t NumArrayElements = 1024;
@@ -39,6 +40,13 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const hipsycl::co
 bool isWorkItemLoop(const llvm::Loop &L);
 bool isInWorkItemLoop(const llvm::Loop &L);
 bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI);
+/*!
+ * Get's the original work item loop.
+ * @param LI The LoopInfo used to find the loop.
+ * @return The single work item loop annotated with hipSYCL.loop.workitem.
+ */
+llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI);
+llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop);
 
 bool checkedInlineFunction(llvm::CallBase *CI);
 
@@ -50,6 +58,10 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
 void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
+
+llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
+                            llvm::DominatorTree *DT);
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC);
 
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())

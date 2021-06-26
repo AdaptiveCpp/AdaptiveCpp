@@ -53,7 +53,6 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
-#include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 namespace {
 
@@ -383,22 +382,6 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
   }
 }
 
-void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
-  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
-  while (true) {
-    WL.clear();
-    for (auto &I : *EntryBlock) {
-      if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
-        if (llvm::isAllocaPromotable(Alloca))
-          WL.push_back(Alloca);
-      }
-    }
-    if (WL.empty())
-      break;
-    PromoteMemToReg(WL, DT, &AC);
-  }
-}
-
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
@@ -612,10 +595,10 @@ void arrayifyDependencies(llvm::Function *F, llvm::Value *Idx,
 
   HIPSYCL_DEBUG_EXECUTE_INFO(
       HIPSYCL_DEBUG_INFO << "baseblocks:\n"; for (auto *BB
-                                                                         : ArrfBaseBlocks) { BB->print(llvm::outs()); }
+                                                  : ArrfBaseBlocks) { BB->print(llvm::outs()); }
 
-                                                                    llvm::outs()
-                                                                    << HIPSYCL_DEBUG_PREFIX_INFO << "searchblocks:\n";
+                                             llvm::outs()
+                                             << HIPSYCL_DEBUG_PREFIX_INFO << "searchblocks:\n";
       for (auto *BB
            : ArrfSearchBlocks) { BB->print(llvm::outs()); })
 
@@ -685,17 +668,6 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
   auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
   return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-}
-
-llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
-                            llvm::DominatorTree *DT) {
-  auto *NewInnerLoopExitBlock = llvm::SplitEdge(Root, Target, DT, LI, nullptr);
-#if LLVM_VERSION_MAJOR < 12
-  // NewInnerLoopExitBlock should be between header and InnerLoopExitBlock
-  // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
-  std::swap(NewInnerLoopExitBlock, Target);
-#endif
-  return NewInnerLoopExitBlock;
 }
 
 llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
@@ -894,10 +866,8 @@ void cloneConditions(llvm::Function *F,
       HIPSYCL_DEBUG_INFO << "  left target: " << LeftTarget->getName() << "\n";
       HIPSYCL_DEBUG_INFO << "  right target: " << RightTarget->getName() << "\n";
 
-      HIPSYCL_DEBUG_INFO
-                   << "  old left target: " << (OldLeftTarget ? OldLeftTarget->getName() : "") << "\n";
-      HIPSYCL_DEBUG_INFO
-                   << "  old right target: " << (OldRightTarget ? OldRightTarget->getName() : "") << "\n";
+      HIPSYCL_DEBUG_INFO << "  old left target: " << (OldLeftTarget ? OldLeftTarget->getName() : "") << "\n";
+      HIPSYCL_DEBUG_INFO << "  old right target: " << (OldRightTarget ? OldRightTarget->getName() : "") << "\n";
 
       auto *NewCond = llvm::BasicBlock::Create(Cond->Cond->getContext(),
                                                Cond->Cond->getName() + llvm::Twine(".condcopy"), F, nullptr);
@@ -928,8 +898,8 @@ void cloneConditions(llvm::Function *F,
       if (!Cond->ParentCond) {
         DT.addNewBlock(NewCond, NewHeader);
 
-        HIPSYCL_DEBUG_INFO << "   overwriting FirstBlockInNew " << FirstBlockInNew->getName()
-                     << " with " << Cond->Cond->getName() << "\n";
+        HIPSYCL_DEBUG_INFO << "   overwriting FirstBlockInNew " << FirstBlockInNew->getName() << " with "
+                           << Cond->Cond->getName() << "\n";
         FirstBlockInNew = NewCond;
       } else if (VMap.find(Cond->ParentCond) != VMap.end()) {
         if (auto *NewParent = llvm::dyn_cast<llvm::BasicBlock>(VMap[Cond->ParentCond])) {
@@ -1057,7 +1027,7 @@ void copyLoadsToPreHeader(llvm::BasicBlock *LoadBlock, llvm::BasicBlock *InnerHe
 // PHINodes and not as alloca store / loads.
 // this is what the Mem2Reg or PromoteMemToReg pass does, for -O0 this is not done, thus we need to do this..
 void simplifyO0(llvm::Function *F, llvm::Loop *&L, LoopSplitterAnalyses &Analyses, llvm::AssumptionCache &AC) {
-  promoteAllocas(&F->getEntryBlock(), Analyses.DT, AC);
+  hipsycl::compiler::utils::promoteAllocas(&F->getEntryBlock(), Analyses.DT, AC);
 
   // also for O0 builds only, we need to simplify the CFG, as this merges multiple conditional branches into
   // a single loop header, so that it is muuch easier to work with.
@@ -1105,15 +1075,13 @@ llvm::Loop *getLoopsForBarrier(const llvm::LoopInfo &LI, llvm::CallBase *Barrier
   while (L->getLoopDepth() > 2 &&
          !L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
     InnerLoops.push_back(L);
-    HIPSYCL_DEBUG_INFO << "ILP Header: " << L->getHeader()->getName()
-                 << " depth: " << L->getLoopDepth() << " parent: " << L->getParentLoop()->getHeader()->getName()
-                 << "\n";
+    HIPSYCL_DEBUG_INFO << "ILP Header: " << L->getHeader()->getName() << " depth: " << L->getLoopDepth()
+                       << " parent: " << L->getParentLoop()->getHeader()->getName() << "\n";
     L = L->getParentLoop();
   }
 
   HIPSYCL_DEBUG_INFO << "Found header: " << L->getHeader()->getName() << "\n";
-  HIPSYCL_DEBUG_INFO
-               << "Found pre-header: " << (L->getLoopPreheader() ? L->getLoopPreheader()->getName() : "") << "\n";
+  HIPSYCL_DEBUG_INFO << "Found pre-header: " << (L->getLoopPreheader() ? L->getLoopPreheader()->getName() : "") << "\n";
   HIPSYCL_DEBUG_INFO << "Found exit block: " << L->getExitBlock()->getName() << "\n";
   HIPSYCL_DEBUG_INFO << "Found latch block: " << L->getLoopLatch()->getName() << "\n";
 
@@ -1241,8 +1209,8 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                                   : L->getParentLoop()->blocks()) {
     if (!Block->getParent())
       Block->print(llvm::errs());
-  } HIPSYCL_DEBUG_INFO
-                 << "new loopx.. " << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
+  } HIPSYCL_DEBUG_INFO << "new loopx.. "
+                       << &NewLoop << " with parent " << NewLoop.getParentLoop() << "\n";)
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
   L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, NewLatch, *L->getHeader()->getParent());
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(DT.print(llvm::errs());)
@@ -1312,7 +1280,8 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   }
   auto *InnerLoopExitBlock = InnerLoop->getExitBlock();
   InnerHeader = InnerLoop->getHeader();
-  llvm::BasicBlock *NewInnerLoopExitBlock = splitEdge(InnerHeader, InnerLoopExitBlock, &Analyses.LI, &Analyses.DT);
+  llvm::BasicBlock *NewInnerLoopExitBlock =
+      hipsycl::compiler::utils::splitEdge(InnerHeader, InnerLoopExitBlock, &Analyses.LI, &Analyses.DT);
 
   NewLatch = simplifyLatch(NewLoop, NewLatch, Analyses.LI, Analyses.DT);
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; Analyses.DT.print(llvm::errs());)

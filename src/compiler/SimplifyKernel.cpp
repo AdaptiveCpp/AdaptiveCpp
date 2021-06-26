@@ -26,67 +26,60 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/WILoopMarker.hpp"
-#include <llvm/IR/Dominators.h>
+#include "hipSYCL/compiler/SimplifyKernel.hpp"
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/Analysis/AssumptionCache.h>
+#include <llvm/IR/Dominators.h>
+
 namespace {
 using namespace hipsycl::compiler;
-bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
-  bool Changed = false;
-  auto *MDWorkItemLoop =
-      llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), hipsycl::compiler::MDKind::WorkItemLoop)});
-  for (auto *L : LI.getTopLevelLoops()) {
-    for (auto *SL : L->getSubLoopsVector()) {
-      assert(SL->getLoopDepth() == 2);
-
-      // only second-level loop have to be considered as work-item loops at this phase
-      // -> must be using collapse on multi-dim kernels
-      if (!llvm::findOptionMDForLoop(SL, hipsycl::compiler::MDKind::WorkItemLoop)) {
-        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDWorkItemLoop});
-        SL->setLoopID(LoopID);
-        HIPSYCL_DEBUG_INFO << "Marked work-item loop: " << SL->getHeader()->getName() << " in " << F.getName() << "\n";
-        Changed = true;
-      }
-    }
-  }
-
-  return Changed;
+bool simplifyKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
+  utils::promoteAllocas(&F.getEntryBlock(), DT, AC);
+  return true;
 }
 } // namespace
 
-void hipsycl::compiler::WILoopMarkerPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+void hipsycl::compiler::SimplifyKernelPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
-  AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  AU.addRequired<llvm::DominatorTreeWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
+  AU.addRequired<llvm::AssumptionCacheTracker>();
+  AU.addPreserved<llvm::AssumptionCacheTracker>();
 }
-bool hipsycl::compiler::WILoopMarkerPassLegacy::runOnFunction(llvm::Function &F) {
+
+bool hipsycl::compiler::SimplifyKernelPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   if (!SAA.isKernelFunc(&F))
     return false;
 
-  const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  return markLoopsWorkItem(F, LI);
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  auto &AC = getAnalysis<llvm::AssumptionCacheTracker>().getAssumptionCache(F);
+  return simplifyKernel(F, DT, AC);
 }
 
-llvm::PreservedAnalyses hipsycl::compiler::WILoopMarkerPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
-  const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+llvm::PreservedAnalyses hipsycl::compiler::SimplifyKernelPass::run(llvm::Function &F,
+                                                                   llvm::FunctionAnalysisManager &AM) {
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+  auto &AC = AM.getResult<llvm::AssumptionAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
-  if (SAA->isKernelFunc(&F))
-    markLoopsWorkItem(F, LI);
+  if (!SAA->isKernelFunc(&F) || !simplifyKernel(F, DT, AC))
+    return llvm::PreservedAnalyses::all();
 
-  return llvm::PreservedAnalyses::all();
+  llvm::PreservedAnalyses PA;
+  PA.preserveSet<llvm::CFGAnalyses>();
+  return PA;
 }
 
-char hipsycl::compiler::WILoopMarkerPassLegacy::ID = 0;
+char hipsycl::compiler::SimplifyKernelPassLegacy::ID = 0;

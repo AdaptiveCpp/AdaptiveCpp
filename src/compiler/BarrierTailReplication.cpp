@@ -54,6 +54,7 @@ private:
   llvm::DominatorTree &DT_;
   llvm::LoopInfo &LI_;
   const hipsycl::compiler::SplitterAnnotationInfo &SAA_;
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> WIBBs_; //< BBs in the work item loop
 
   bool findBarriersDfs(llvm::BasicBlock *BB, BasicBlockSet &ProcessedBBs);
   bool replicateJoinedSubgraphs(llvm::BasicBlock *Dominator, llvm::BasicBlock *SubgraphEntry,
@@ -77,13 +78,18 @@ bool BarrierTailReplication::processFunction(llvm::Function &F) {
 
   BasicBlockSet ProcessedBbs;
 
-  bool Changed = findBarriersDfs(&F.getEntryBlock(), ProcessedBbs);
+  WIBBs_ = hipsycl::compiler::utils::getBasicBlocksInWorkItemLoops(LI_);
+  auto *WILoop = hipsycl::compiler::utils::getSingleWorkItemLoop(LI_);
+  auto *WIEntry = hipsycl::compiler::utils::getWorkItemLoopBodyEntry(WILoop);
+
+  // todo: start at WI loop header? shouldn't really matter, due to missing barriers
+  bool Changed = findBarriersDfs(WIEntry, ProcessedBbs);
   /* The created tails might contain PHI nodes with operands
      referring to the non-predecessor (split point) BB.
      These must be cleaned to avoid breakage later on.
    */
-  for (auto &BB : F) {
-    Changed |= cleanupPHIs(&BB);
+  for (auto *BB : WIBBs_) {
+    Changed |= cleanupPHIs(BB);
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   return Changed;
@@ -99,7 +105,7 @@ bool BarrierTailReplication::findBarriersDfs(llvm::BasicBlock *BB, BasicBlockSet
 
   // Check if we already visited this BB (to avoid
   // infinite recursion in case of unbarriered loops).
-  if (ProcessedBBs.count(BB) != 0)
+  if (ProcessedBBs.count(BB) != 0 || !WIBBs_.contains(BB))
     return Changed;
 
   ProcessedBBs.insert(BB);
@@ -136,12 +142,11 @@ bool BarrierTailReplication::replicateJoinedSubgraphs(llvm::BasicBlock *Dominato
   for (int SucIdx = 0, NumSuc = T->getNumSuccessors(); SucIdx != NumSuc; ++SucIdx) {
     llvm::BasicBlock *BB = T->getSuccessor(SucIdx);
 #ifdef DEBUG_BARRIER_REPL
-    std::cerr << "### traversing from " << subgraph_entry->getName().str() << " to " << BB->getName().str()
-              << std::endl;
+    std::cerr << "### traversing from " << SubgraphEntry->getName().str() << " to " << BB->getName().str() << std::endl;
 #endif
 
     // Check if we already handled this BB and all its branches.
-    if (ProcessedBbs.count(BB) != 0) {
+    if (ProcessedBbs.count(BB) != 0 || !WIBBs_.contains(BB)) {
 #ifdef DEBUG_BARRIER_REPL
       std::cerr << "### already processed " << std::endl;
 #endif
@@ -159,12 +164,12 @@ bool BarrierTailReplication::replicateJoinedSubgraphs(llvm::BasicBlock *Dominato
     }
     if (DT_.dominates(Dominator, BB)) {
 #ifdef DEBUG_BARRIER_REPL
-      std::cerr << "### " << dominator->getName().str() << " dominates " << BB->getName().str() << std::endl;
+      std::cerr << "### " << Dominator->getName().str() << " dominates " << BB->getName().str() << std::endl;
 #endif
       Changed |= replicateJoinedSubgraphs(Dominator, BB, ProcessedBbs);
     } else {
 #ifdef DEBUG_BARRIER_REPL
-      std::cerr << "### " << dominator->getName().str() << " does not dominate " << BB->getName().str()
+      std::cerr << "### " << Dominator->getName().str() << " does not dominate " << BB->getName().str()
                 << " replicating " << std::endl;
 #endif
       llvm::BasicBlock *ReplicatedSubgraphEntry = replicateSubgraph(BB, F);
@@ -208,7 +213,7 @@ bool BarrierTailReplication::cleanupPHIs(llvm::BasicBlock *BB) {
       }
       if (!IsSuccessor) {
 #ifdef DEBUG_BARRIER_REPL
-        std::cerr << "removing incoming value " << i << " from PHINode:" << std::endl;
+        std::cerr << "removing incoming value " << I << " from PHINode:" << std::endl;
         PN->dump();
 #endif
         PN->removeIncomingValue(I, true);
@@ -262,7 +267,7 @@ void BarrierTailReplication::findSubgraph(BasicBlockVector &Subgraph, llvm::Basi
   auto *T = Entry->getTerminator();
   for (auto *Successor : llvm::successors(T)) {
     const bool IsBackedge = DT_.dominates(Successor, Entry);
-    if (IsBackedge)
+    if (IsBackedge || !WIBBs_.contains(Successor))
       continue;
     findSubgraph(Subgraph, Successor);
   }
@@ -277,9 +282,10 @@ void BarrierTailReplication::replicateBasicBlocks(BasicBlockVector &NewGraph, ll
     llvm::BasicBlock *NewB = llvm::BasicBlock::Create(BB->getContext(), BB->getName() + ".btr", F);
     ReferenceMap.insert(std::make_pair(BB, NewB));
     NewGraph.push_back(NewB);
+    WIBBs_.insert(NewB);
 
 #ifdef DEBUG_BARRIER_REPL
-    std::cerr << "Replicated BB: " << new_b->getName().str() << std::endl;
+    std::cerr << "Replicated BB: " << NewB->getName().str() << std::endl;
 #endif
 
     for (const auto &I : *BB) {

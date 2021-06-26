@@ -127,6 +127,7 @@ bool isolateRegion(llvm::Region *R, const hipsycl::compiler::SplitterAnnotationI
   if (!Entry)
     return Changed;
 
+  // todo: wi header?
   bool IsFunctionEntry = &Entry->getParent()->getEntryBlock() == Entry;
 
   if (hipsycl::compiler::utils::blockHasBarrier(Entry, SAA) || IsFunctionEntry) {
@@ -184,6 +185,7 @@ llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::Functio
     WorkList.swap(CurrentRegions);
   } while (!WorkList.empty());
 
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   llvm::PreservedAnalyses PA;
   PA.preserve<VariableUniformityAnalysis>();
   PA.preserve<SplitterAnnotationAnalysis>();

@@ -27,6 +27,9 @@ add_library(hipSYCL_clang SHARED
   ReqdLoopBarriers.cpp
   RemoveBarrierCalls.cpp
   CanonicalizeBarriers.cpp
+  WorkItemLoopCreation.cpp
+  ParallelRegion.cpp
+  SimplifyKernel.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

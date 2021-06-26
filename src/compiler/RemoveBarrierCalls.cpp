@@ -42,9 +42,18 @@ bool removeBarrierCalls(llvm::Function &F, const hipsycl::compiler::SplitterAnno
   }
 
   for (auto *B : BarriersToRemove) {
+    HIPSYCL_DEBUG_INFO << "Remove barrier ";
+    HIPSYCL_DEBUG_EXECUTE_INFO(B->print(llvm::outs()); llvm::outs() << " from " << B->getParent()->getName() << "\n";)
     B->eraseFromParent();
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
+  auto *M = F.getParent();
+  if (auto *B = M->getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
+    if (B->getNumUses() == 0) {
+      B->eraseFromParent();
+      HIPSYCL_DEBUG_INFO << "Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName << "\n";
+    }
+  }
   return !BarriersToRemove.empty();
 }
 

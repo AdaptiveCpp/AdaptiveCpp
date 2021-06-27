@@ -64,11 +64,39 @@ HIPSYCL_BUILTIN void __hipsycl_atomic_store(T *addr, T x, memory_order order,
 }
 
 template <class T, access::address_space S>
+HIPSYCL_BUILTIN float __hipsycl_atomic_store(float *addr, float x, memory_order order,
+                                            memory_scope scope) noexcept {
+  __atomic_store_n(reinterpret_cast<unsigned int *>(addr),
+                   bit_cast<unsigned int>(x), builtin_memory_order(order));
+}
+
+template <class T, access::address_space S>
+HIPSYCL_BUILTIN double __hipsycl_atomic_store(double *addr, double x, memory_order order,
+                                            memory_scope scope) noexcept {
+  __atomic_store_n(reinterpret_cast<unsigned long long *>(addr),
+                   bit_cast<unsigned long long>(x), builtin_memory_order(order));
+}
+
+template <class T, access::address_space S>
 HIPSYCL_BUILTIN T __hipsycl_atomic_load(T *addr, memory_order order,
                                         memory_scope scope) noexcept {
   return __atomic_load_n(addr, builtin_memory_order(order));
 }
 
+template <class T, access::address_space S>
+HIPSYCL_BUILTIN float __hipsycl_atomic_load(float *addr, memory_order order,
+                                            memory_scope scope) noexcept {
+  return bit_cast<float>(__atomic_load_n(reinterpret_cast<unsigned int *>(addr),
+                                         builtin_memory_order(order)));
+}
+
+template <class T, access::address_space S>
+HIPSYCL_BUILTIN double __hipsycl_atomic_load(double *addr, memory_order order,
+                                             memory_scope scope) noexcept {
+  return bit_cast<double>(
+      __atomic_load_n(reinterpret_cast<unsigned long long *>(addr),
+                      builtin_memory_order(order)));
+}
 
 //********************* atomic exchange ***********************
 
@@ -159,7 +187,7 @@ HIPSYCL_BUILTIN bool __hipsycl_bitcast_compare_exchange_strong(
 
   InvokedT cast_expected = bit_cast<InvokedT>(expected);
   
-  bool r = __hipsycl_atomic_exchange<InvokedT, S>(
+  bool r = __hipsycl_atomic_compare_exchange_strong<InvokedT, S>(
       reinterpret_cast<InvokedT *>(addr), cast_expected,
       bit_cast<InvokedT>(desired), success, failure, scope);
 
@@ -174,7 +202,7 @@ HIPSYCL_BUILTIN bool __hipsycl_staticcast_compare_exchange_strong(
 
   InvokedT cast_expected = static_cast<InvokedT>(expected);
   
-  bool r = __hipsycl_atomic_exchange<InvokedT, S>(
+  bool r = __hipsycl_atomic_compare_exchange_strong<InvokedT, S>(
       reinterpret_cast<InvokedT *>(addr), cast_expected,
       static_cast<InvokedT>(desired), success, failure, scope);
 
@@ -191,7 +219,7 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 
   return __hipsycl_bitcast_compare_exchange_strong<long long, S,
                                                    unsigned long long>(
-      addr, expected, desired, success, failure, order);
+      addr, expected, desired, success, failure, scope);
 }
 
 template <class T, access::address_space S>
@@ -201,11 +229,11 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 
   if constexpr(sizeof(long) == 4) {
     return __hipsycl_staticcast_compare_exchange_strong<long, S, int>(
-        addr, expected, desired, success, failure, order);
+        addr, expected, desired, success, failure, scope);
   } else {
     return __hipsycl_bitcast_compare_exchange_strong<long, S,
                                                      unsigned long long>(
-        addr, expected, desired, success, failure, order);
+        addr, expected, desired, success, failure, scope);
   }
 }
 
@@ -216,11 +244,11 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 
   if constexpr(sizeof(unsigned long) == 4) {
     return __hipsycl_staticcast_compare_exchange_strong<unsigned long, S, unsigned int>(
-        addr, expected, desired, success, failure, order);
+        addr, expected, desired, success, failure, scope);
   } else {
     return __hipsycl_staticcast_compare_exchange_strong<unsigned long, S,
                                                         unsigned long long>(
-        addr, expected, desired, success, failure, order);
+        addr, expected, desired, success, failure, scope);
   }
 }
 
@@ -231,7 +259,7 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 
   return __hipsycl_bitcast_compare_exchange_strong<float, S,
                                                    int>(
-      addr, expected, desired, success, failure, order);
+      addr, expected, desired, success, failure, scope);
 }
 
 template <class T, access::address_space S>
@@ -241,7 +269,7 @@ HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
 
   return __hipsycl_bitcast_compare_exchange_strong<double, S,
                                                    unsigned long long>(
-      addr, expected, desired, success, failure, order);
+      addr, expected, desired, success, failure, scope);
 }
 
 // ******************* atomic compare exchange weak ********************

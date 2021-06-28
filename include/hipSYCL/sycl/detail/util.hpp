@@ -101,7 +101,7 @@ Tout bit_cast(Tin x) {
   static_assert(sizeof(Tout)==sizeof(Tin), "Types must match sizes");
 
   Tout out;
-#if defined(__clang_major__) && __clang_major__ >= 11
+#if !defined(__APPLE__) && defined(__clang_major__) && __clang_major__ >= 11
   __builtin_memcpy_inline(&out, &x, sizeof(Tin));
 #elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
   memcpy(&out, &x, sizeof(Tin));

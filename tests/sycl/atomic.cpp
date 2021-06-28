@@ -35,36 +35,50 @@ using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(atomic_tests, reset_device_fixture)
 
-
-// mainly compile test
-BOOST_AUTO_TEST_CASE(load_store) {
-  sycl::queue q;
-
-  sycl::buffer<int> b{sycl::range{1}};
-
-  q.submit([&](sycl::handler& cgh){
-    sycl::accessor acc{b, cgh, sycl::read_write};
-    cgh.single_task([=]() {
-      sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                       sycl::memory_scope::device>
-          r{acc[0]};
-      r.store(1);
-      int x = r.load();
-      r.store(x+1);
-    });
-  });
-  sycl::host_accessor hacc{b};
-  BOOST_CHECK(hacc[0] == 2);
-}
-
-template<class T>
-T int_to_t(int i) {
+template<class T, class IntT>
+T int_to_t(IntT i) {
   if constexpr(std::is_pointer_v<T>) {
     return reinterpret_cast<T>(i);
   } else {
     return static_cast<T>(i);
   }
 }
+
+template<class T>
+unsigned long long t_to_int(T x) {
+  if constexpr(std::is_pointer_v<T>) {
+    return reinterpret_cast<unsigned long long>(x);
+  } else {
+    return static_cast<unsigned long long>(x);
+  }
+}
+
+using exchange_test_types =
+    boost::mpl::list<int, unsigned int, long, unsigned long, long long,
+                     unsigned long long, float, double, int *>;
+// mainly compile test
+BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
+                              exchange_test_types::type) {
+  sycl::queue q;
+
+  sycl::buffer<Type> b{sycl::range{1}};
+
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor acc{b, cgh, sycl::read_write};
+    cgh.single_task([=]() {
+      sycl::atomic_ref<Type, sycl::memory_order::relaxed,
+                       sycl::memory_scope::device>
+          r{acc[0]};
+      r.store(int_to_t<Type>(1));
+      unsigned long long x = t_to_int(r.load());
+      r.store(int_to_t<Type>(x+2));
+      r.exchange(int_to_t<Type>(x+1));
+    });
+  });
+  sycl::host_accessor hacc{b};
+  BOOST_CHECK(t_to_int(hacc[0]) == 2);
+}
+
 
 template <class T, class AtomicTester,
           class Verifier>

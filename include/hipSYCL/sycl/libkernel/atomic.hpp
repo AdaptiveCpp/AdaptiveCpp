@@ -77,21 +77,21 @@ public:
   HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile {
-    detail::__hipsycl_atomic_store<T, addressSpace>(
+    detail::__hipsycl_atomic_store<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
   HIPSYCL_KERNEL_TARGET
   T load(memory_order memoryOrder = memory_order::relaxed) const volatile {
-    return detail::__hipsycl_atomic_load<T, addressSpace>(_ptr, memoryOrder,
-                                                          default_scope());
+    return detail::__hipsycl_atomic_load<addressSpace>(_ptr, memoryOrder,
+                                                       default_scope());
   }
 
   HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_exchange<T, addressSpace>(
+    return detail::__hipsycl_atomic_exchange<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -101,7 +101,7 @@ public:
                                memory_order successMemoryOrder = memory_order::relaxed,
                                memory_order failMemoryOrder = memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_compare_exchange_strong<T, addressSpace>(
+    return detail::__hipsycl_atomic_compare_exchange_strong<addressSpace>(
         _ptr, expected, desired, successMemoryOrder, failMemoryOrder,
         default_scope());
   }
@@ -113,7 +113,7 @@ public:
   T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_add<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_add<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -124,7 +124,7 @@ public:
   T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_sub<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_sub<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -135,7 +135,7 @@ public:
   T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_and<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_and<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -146,7 +146,7 @@ public:
   T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_or<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_or<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -157,7 +157,7 @@ public:
   T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_xor<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_xor<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -168,7 +168,7 @@ public:
   T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_min<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_min<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 
@@ -179,7 +179,7 @@ public:
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-    return detail::__hipsycl_atomic_fetch_max<T, addressSpace>(
+    return detail::__hipsycl_atomic_fetch_max<addressSpace>(
         _ptr, operand, memoryOrder, default_scope());
   }
 

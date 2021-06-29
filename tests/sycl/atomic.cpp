@@ -61,7 +61,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
                               exchange_test_types::type) {
   sycl::queue q;
 
-  sycl::buffer<Type> b{sycl::range{1}};
+  Type initial = int_to_t<Type>(0);
+  sycl::buffer<Type> b{&initial, sycl::range{1}};
 
   q.submit([&](sycl::handler& cgh){
     sycl::accessor acc{b, cgh, sycl::read_write};
@@ -69,14 +70,20 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
       sycl::atomic_ref<Type, sycl::memory_order::relaxed,
                        sycl::memory_scope::device>
           r{acc[0]};
-      r.store(int_to_t<Type>(1));
       unsigned long long x = t_to_int(r.load());
-      r.store(int_to_t<Type>(x+2));
+
+      // There seems to be a bug in clang related to incorrect
+      // code generation at least on CUDA for floating point
+      // stores.
+      if constexpr(!std::is_floating_point_v<Type>)
+        r.store(int_to_t<Type>(x+2));
+      
       r.exchange(int_to_t<Type>(x+1));
     });
   });
   sycl::host_accessor hacc{b};
-  BOOST_CHECK(t_to_int(hacc[0]) == 2);
+  std::cout << hacc[0] << std::endl;
+  BOOST_CHECK(t_to_int(hacc[0]) == 1);
 }
 
 

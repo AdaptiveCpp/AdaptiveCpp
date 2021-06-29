@@ -26,6 +26,7 @@
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
@@ -152,6 +153,9 @@ char AddRequiredLoopBarriersPassLegacy::ID = 0;
 
 void AddRequiredLoopBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::DominatorTreeWrapperPass>();
+  AU.addRequired<SplitterAnnotationAnalysisLegacy>();
+  AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
+  AU.addPreserved<VariableUniformityAnalysisLegacy>();
 }
 
 bool AddRequiredLoopBarriersPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
@@ -180,6 +184,7 @@ llvm::PreservedAnalyses AddRequiredLoopBarriersPass::run(llvm::Loop &L, llvm::Lo
 
   llvm::PreservedAnalyses PA = llvm::getLoopPassPreservedAnalyses();
   PA.preserve<SplitterAnnotationAnalysis>();
+  PA.preserve<VariableUniformityAnalysis>();
   PA.preserve<llvm::LoopAnalysis>();
   PA.preserve<llvm::DominatorTreeAnalysis>();
   return PA;

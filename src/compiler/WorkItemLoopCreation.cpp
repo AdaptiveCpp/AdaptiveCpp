@@ -201,7 +201,7 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
 
   llvm::BasicBlock *OldExit = ExitBb->getTerminator()->getSuccessor(0);
 
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F->viewCFG();)
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfg for OldExit: " << OldExit->getName() << "\n"; F->viewCFG();)
   llvm::ValueToValueMapTy VMap;
   auto *WIPreHeader = WorkItemLoop->getLoopPreheader();
   auto *WILatch = WorkItemLoop->getLoopLatch();
@@ -224,20 +224,49 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
   HIPSYCL_DEBUG_EXECUTE_INFO(Header->print(llvm::outs()); WorkItemLoop->getHeader()->print(llvm::outs());)
 
   VMap[WIPreHeader] = PreHeader;
-  VMap[WorkItemLoop->getHeader()] = Header;
   VMap[WILatch] = Latch;
   Header->replacePhiUsesWith(WIPreHeader, PreHeader);
   Header->replacePhiUsesWith(WILatch, Latch);
   Header->getTerminator()->setSuccessor(0, LoopBodyEntryBb);
   Header->getTerminator()->setSuccessor(1, OldExit);
   Latch->getTerminator()->setSuccessor(0, Header);
-  PreHeader->getTerminator()->setSuccessor(0, Header);
 
-  if (PeeledFirst)
+  llvm::SmallVector<llvm::BasicBlock *, 4> NewBlocks{PreHeader, Latch, Header};
+  llvm::remapInstructionsInBlocks(NewBlocks, VMap);
+  if (PeeledFirst) {
+    PreHeader->getTerminator()->setSuccessor(0, Header);
+
     for (auto &PHI : Header->phis())
       PHI.setIncomingValueForBlock(
           PreHeader, llvm::Constant::getIntegerValue(
                          PHI.getType(), llvm::APInt::getOneBitSet(PHI.getType()->getIntegerBitWidth(), 0)));
+
+    NewBlocks.push_back(Header);
+    VMap[WorkItemLoop->getHeader()] = Header;
+  } else {
+    PreHeader->getTerminator()->setSuccessor(0, LoopBodyEntryBb);
+
+    auto *BrCmpI = utils::getBrCmp(*Header);
+    assert(BrCmpI && "WI Header must have cmp.");
+    for (auto *BrOp : BrCmpI->operand_values()) {
+      if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(BrOp)) {
+        auto *LatchV = Phi->getIncomingValueForBlock(Latch);
+
+        for (auto *U : Phi->users()) {
+          if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+            if (UI->getParent() == Header)
+              UI->replaceUsesOfWith(Phi, LatchV);
+          }
+        }
+
+        // Move PHI from Header to for body
+        Phi->moveBefore(&*LoopBodyEntryBb->begin());
+        Phi->replaceIncomingBlockWith(Latch, Header);
+        VMap[WorkItemLoop->getHeader()] = LoopBodyEntryBb;
+        break;
+      }
+    }
+  }
 
   DT.reset();
   DT.recalculate(*F);
@@ -268,7 +297,7 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
   ExitBb->getTerminator()->replaceUsesOfWith(OldExit, Latch);
 
   Region.remap(VMap);
-  llvm::remapInstructionsInBlocks(llvm::SmallVector<llvm::BasicBlock *, 4>{PreHeader, Latch, Header}, VMap);
+  llvm::remapInstructionsInBlocks(NewBlocks, VMap);
 
   return std::make_pair(PreHeader, utils::splitEdge(Header, OldExit, nullptr, &DT));
 }

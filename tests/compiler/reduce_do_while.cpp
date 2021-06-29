@@ -1,5 +1,3 @@
-// Todo: Not supported, yet.
-// XFAIL: *
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
 // RUN: %t | FileCheck %s
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS -O

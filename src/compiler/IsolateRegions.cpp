@@ -27,6 +27,7 @@
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
+#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -75,6 +76,8 @@
 */
 
 namespace {
+using namespace hipsycl::compiler;
+
 /**
  * Adds a dummy node after the given basic block.
  */
@@ -103,22 +106,17 @@ void addDummyBefore(llvm::Region *R, llvm::BasicBlock *BB) {
 }
 
 bool isolateRegion(llvm::Region *R, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  // Todo: restrict to regions inside WI-loop?
   llvm::BasicBlock *Exit = R->getExit();
-  if (!Exit || !SAA.isKernelFunc(Exit->getParent()))
+  if (!Exit)
     return false;
 
-#ifdef DEBUG_ISOLATE_REGIONS
-  std::cerr << "### processing region:" << std::endl;
-  R->dump();
-  std::cerr << "### exit block:" << std::endl;
-  exit->dump();
-#endif
+  HIPSYCL_DEBUG_INFO << "Isolating Region: " << R->getEntry()->getName() << "\n";
+
   const bool IsFunctionExit = Exit->getTerminator()->getNumSuccessors() == 0;
 
   bool Changed = false;
 
-  if (hipsycl::compiler::utils::blockHasBarrier(Exit, SAA) || IsFunctionExit) {
+  if (utils::blockHasBarrier(Exit, SAA) || IsFunctionExit) {
     addDummyBefore(R, Exit);
     Changed = true;
   }
@@ -130,11 +128,29 @@ bool isolateRegion(llvm::Region *R, const hipsycl::compiler::SplitterAnnotationI
   // todo: wi header?
   bool IsFunctionEntry = &Entry->getParent()->getEntryBlock() == Entry;
 
-  if (hipsycl::compiler::utils::blockHasBarrier(Entry, SAA) || IsFunctionEntry) {
+  if (utils::blockHasBarrier(Entry, SAA) || IsFunctionEntry) {
     addDummyAfter(R, Entry);
     Changed = true;
   }
 
+  return Changed;
+}
+
+bool isolateRegions(const hipsycl::compiler::SplitterAnnotationInfo &SAA, const llvm::LoopInfo &LI,
+                    const llvm::RegionInfo &RI) {
+  llvm::SmallVector<llvm::Region *, 8> WorkList{RI.getTopLevelRegion()};
+  bool Changed = false;
+
+  do {
+    llvm::SmallVector<llvm::Region *, 8> CurrentRegions;
+    for (auto *R : WorkList) {
+      if (utils::isInWorkItemLoop(*R, LI))
+        Changed |= isolateRegion(R, SAA);
+      std::transform(R->begin(), R->end(), std::back_inserter(CurrentRegions), [](auto &UR) { return UR.get(); });
+    }
+
+    WorkList.swap(CurrentRegions);
+  } while (!WorkList.empty());
   return Changed;
 }
 
@@ -144,20 +160,48 @@ namespace hipsycl::compiler {
 char IsolateRegionsPassLegacy::ID = 0;
 
 void IsolateRegionsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-  AU.addRequired<llvm::LoopInfoWrapperPass>();
+  //  AU.addRequired<llvm::RegionInfoPass>();
   AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
-}
 
-bool IsolateRegionsPassLegacy::runOnRegion(llvm::Region *R, llvm::RGPassManager &) {
+  AU.addRequired<llvm::LoopInfoWrapperPass>();
+  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  AU.addRequired<llvm::DominatorTreeWrapperPass>();
+  //  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
+  AU.addRequired<llvm::PostDominatorTreeWrapperPass>();
+  //  AU.addPreserved<llvm::PostDominatorTreeWrapperPass>();
+  //  AU.addRequired<llvm::DominanceFrontierWrapperPass>();
+  //  AU.addPreserved<llvm::DominanceFrontierWrapperPass>();
+  //  AU.addRequired<llvm::PostDominatorTreeWrapperPass>();
+  //  AU.addRequired<llvm::DominanceFrontierWrapperPass>();
+}
+bool IsolateRegionsPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>(*R->getEntry()->getParent()).getLoopInfo();
-  if (utils::isInWorkItemLoop(*R, LI))
-    return isolateRegion(R, SAA);
-  return false;
+  if (!SAA.isKernelFunc(&F))
+    return false;
+
+  const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  //  //  const auto &RI = getAnalysis<llvm::RegionInfoPass>(F).getRegionInfo();
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  auto &PDT = getAnalysis<llvm::PostDominatorTreeWrapperPass>().getPostDomTree();
+  llvm::DominanceFrontier DF{};
+  DF.analyze(DT);
+  llvm::RegionInfo RI;
+  RI.recalculate(F, &DT, &PDT, &DF);
+  return isolateRegions(SAA, LI, RI);
+  //  return false;
 }
+
+// bool IsolateRegionsPassLegacy::runOnRegion(llvm::Region *R, llvm::RGPassManager &) {
+//   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+//
+//   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>(*R->getEntry()->getParent()).getLoopInfo();
+//   if (utils::isInWorkItemLoop(*R, LI))
+//     return isolateRegion(R, SAA);
+//   return false;
+// }
 
 llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
@@ -167,23 +211,10 @@ llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::Functio
     return llvm::PreservedAnalyses::all();
   }
 
-  bool Changed = false;
-
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
 
   auto &RI = AM.getResult<llvm::RegionInfoAnalysis>(F);
-  llvm::SmallVector<llvm::Region *, 8> WorkList{RI.getTopLevelRegion()};
-
-  do {
-    llvm::SmallVector<llvm::Region *, 8> CurrentRegions;
-    for (auto *R : WorkList) {
-      if (utils::isInWorkItemLoop(*R, LI))
-        Changed |= isolateRegion(R, *SAA);
-      std::transform(R->begin(), R->end(), std::back_inserter(CurrentRegions), [](auto &UR) { return UR.get(); });
-    }
-
-    WorkList.swap(CurrentRegions);
-  } while (!WorkList.empty());
+  isolateRegions(*SAA, LI, RI);
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   llvm::PreservedAnalyses PA;
@@ -192,4 +223,5 @@ llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::Functio
   PA.preserve<llvm::RegionInfoAnalysis>();
   return PA;
 }
+
 } // namespace hipsycl::compiler

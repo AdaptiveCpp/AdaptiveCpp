@@ -30,6 +30,7 @@
 #include "hipSYCL/compiler/IR.hpp"
 #include "hipSYCL/compiler/IsolateRegions.hpp"
 #include "hipSYCL/compiler/KernelFlattening.hpp"
+#include "hipSYCL/compiler/LoopSimplify.hpp"
 #include "hipSYCL/compiler/LoopSplitter.hpp"
 #include "hipSYCL/compiler/LoopSplitterInlining.hpp"
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
@@ -77,30 +78,37 @@ static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
                      true /* Analysis Pass */);
 
 static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  PM.add(new SimplifyKernelPassLegacy{});
+  //  PM.add(new SplitterAnnotationAnalysisLegacy{});
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
-  //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
+  PM.add(new SimplifyKernelPassLegacy{});
+  //  //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
   PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new CanonicalizeBarriersPassLegacy{});
+  PM.add(new LoopSimplifyPassLegacy{});
+
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new WorkItemLoopCreationPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
 }
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  PM.add(new SimplifyKernelPassLegacy{});
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
+  PM.add(new SimplifyKernelPassLegacy{});
   //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
   PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
+  PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new CanonicalizeBarriersPassLegacy{});
+  PM.add(new LoopSimplifyPassLegacy{});
+
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new WorkItemLoopCreationPassLegacy{});
   PM.add(new RemoveBarrierCallsPassLegacy{});
@@ -131,9 +139,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
         llvm::FunctionPassManager FPM;
-        FPM.addPass(SimplifyKernelPass{});
         FPM.addPass(WILoopMarkerPass{});
         FPM.addPass(LoopSplitterInliningPass{});
+        FPM.addPass(SimplifyKernelPass{});
 
         FPM.addPass(PHIsToAllocasPass{});
         FPM.addPass(IsolateRegionsPass{});
@@ -143,6 +151,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
         FPM.addPass(BarrierTailReplicationPass{});
+        FPM.addPass(PHIsToAllocasPass{});
         FPM.addPass(CanonicalizeBarriersPass{});
         FPM.addPass(llvm::LoopSimplifyPass{});
 

@@ -29,6 +29,9 @@
 
 namespace {
 bool removeBarrierCalls(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  if (!SAA.isKernelFunc(&F))
+    return false;
+
   // Collect the barrier calls to be removed first, not remove them
   // instantly as it'd invalidate the iterators.
   llvm::SmallPtrSet<llvm::Instruction *, 8> BarriersToRemove;
@@ -64,7 +67,6 @@ namespace hipsycl::compiler {
 char RemoveBarrierCallsPassLegacy::ID = 0;
 
 bool RemoveBarrierCallsPassLegacy::runOnFunction(llvm::Function &F) {
-
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   return removeBarrierCalls(F, SAA);
 }
@@ -78,9 +80,8 @@ void RemoveBarrierCallsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) con
 llvm::PreservedAnalyses RemoveBarrierCallsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F)) {
+  if (!SAA)
     return llvm::PreservedAnalyses::all();
-  }
 
   if (!removeBarrierCalls(F, *SAA))
     return llvm::PreservedAnalyses::all();

@@ -30,7 +30,8 @@ add_library(hipSYCL_clang SHARED
   WorkItemLoopCreation.cpp
   ParallelRegion.cpp
   SimplifyKernel.cpp
-)
+  LoopSimplify.cpp
+  )
 
 target_include_directories(hipSYCL_clang PRIVATE
   ../../include

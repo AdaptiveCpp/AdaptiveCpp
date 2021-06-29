@@ -38,7 +38,7 @@ namespace compiler {
 class SplitterAnnotationInfo {
   static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
   static constexpr const char *KernelAnnotation = "hipsycl_nd_kernel";
-  llvm::SmallPtrSet<llvm::Function *, 2> SplitterFuncs;
+  llvm::SmallPtrSet<llvm::Function *, 4> SplitterFuncs;
   llvm::SmallPtrSet<llvm::Function *, 8> NDKernels;
 
   bool analyzeModule(llvm::Module &M);
@@ -47,7 +47,7 @@ public:
   explicit SplitterAnnotationInfo(llvm::Module &Module);
   inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.contains(F); }
   inline bool isKernelFunc(const llvm::Function *F) const { return NDKernels.contains(F); }
-  bool invalidate(llvm::Module& M, const llvm::PreservedAnalyses &PA, llvm::ModuleAnalysisManager::Invalidator &) {
+  bool invalidate(llvm::Module &M, const llvm::PreservedAnalyses &PA, llvm::ModuleAnalysisManager::Invalidator &) {
     return false;
   }
 };

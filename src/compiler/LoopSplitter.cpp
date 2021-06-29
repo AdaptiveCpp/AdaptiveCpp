@@ -670,17 +670,6 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
   return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
-llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
-  if (auto *BI = llvm::dyn_cast_or_null<llvm::BranchInst>(BB.getTerminator()))
-    if (BI->isConditional()) {
-      if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
-        return CmpI;
-      if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
-        return SelectI;
-    }
-  return nullptr;
-}
-
 llvm::SmallPtrSet<llvm::PHINode *, 2> getInductionVariables(const llvm::Loop &L) {
   // adapted from LLVM 11s Loop->getInductionVariable, just finding an induction var in more cases..
   if (!L.isLoopSimplifyForm())
@@ -688,9 +677,9 @@ llvm::SmallPtrSet<llvm::PHINode *, 2> getInductionVariables(const llvm::Loop &L)
 
   llvm::BasicBlock *Header = L.getHeader();
   assert(Header && "Expected a valid loop header");
-  llvm::Instruction *CmpInst = getBrCmp(*Header);
+  llvm::Instruction *CmpInst = hipsycl::compiler::utils::getBrCmp(*Header);
   if (!CmpInst) {
-    CmpInst = getBrCmp(*L.getLoopLatch());
+    CmpInst = hipsycl::compiler::utils::getBrCmp(*L.getLoopLatch());
     if (!CmpInst)
       return {};
   }

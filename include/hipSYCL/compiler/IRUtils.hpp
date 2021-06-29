@@ -62,6 +62,7 @@ llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llv
 llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
                             llvm::DominatorTree *DT);
 void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC);
+llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())

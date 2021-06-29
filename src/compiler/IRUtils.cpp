@@ -311,4 +311,15 @@ void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm:
   }
 }
 
+llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
+  if (auto *BI = llvm::dyn_cast_or_null<llvm::BranchInst>(BB.getTerminator()))
+    if (BI->isConditional()) {
+      if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
+        return CmpI;
+      if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
+        return SelectI;
+    }
+  return nullptr;
+}
+
 } // namespace hipsycl::compiler::utils

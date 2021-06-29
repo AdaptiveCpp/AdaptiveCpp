@@ -138,6 +138,7 @@ void PHIsToAllocasPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
+  AU.addPreserved<llvm::PostDominatorTreeWrapperPass>();
 }
 
 bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {

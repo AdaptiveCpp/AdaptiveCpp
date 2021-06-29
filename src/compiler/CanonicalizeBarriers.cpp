@@ -46,8 +46,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
   auto *WILoop = utils::getSingleWorkItemLoop(LI);
   assert(WILoop && "No WI Loop found!");
 
-  llvm::BasicBlock *Entry = nullptr;
-  Entry = utils::getWorkItemLoopBodyEntry(WILoop);
+  llvm::BasicBlock *Entry = utils::getWorkItemLoopBodyEntry(WILoop);
   assert(Entry && "No WI Loop Entry found!");
 
   if (!utils::hasOnlyBarrier(Entry, SAA)) {
@@ -100,6 +99,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
   // iterators.
   for (auto *Barrier : Barriers) {
     llvm::BasicBlock *BB = Barrier->getParent();
+    HIPSYCL_DEBUG_INFO << "[Canonicalize] Barrier in: " << BB->getName() << "\n";
 
     // Split post barrier first cause it does not make the barrier
     // to belong to another basic block.
@@ -113,6 +113,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
     const bool HasNonBranchInstructionsAfterBarrier = T->getPrevNode() != Barrier;
 
     if (HasNonBranchInstructionsAfterBarrier) {
+      HIPSYCL_DEBUG_INFO << "[Canonicalize] Splitting after barrier in: " << BB->getName() << "\n";
       llvm::BasicBlock *NewB = SplitBlock(BB, Barrier->getNextNode());
       NewB->setName(BB->getName() + ".postbarrier");
       Changed = true;
@@ -136,6 +137,8 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
     // (allow multiple predecessors, eases loop handling).
     // if (&BB->front() == (*i))
     //   continue;
+    HIPSYCL_DEBUG_INFO << "[Canonicalize] Splitting before barrier in: " << BB->getName() << "\n";
+
     llvm::BasicBlock *NewB = SplitBlock(BB, Barrier);
     NewB->takeName(BB);
     BB->setName(NewB->getName() + ".prebarrier");
@@ -144,7 +147,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
 
   // Prune empty regions. That is, if there are two successive
   // pure barrier blocks without side branches, remove the other one.
-  bool EmptyRegionDeleted = false;
+  bool EmptyRegionDeleted;
   do {
     EmptyRegionDeleted = false;
     for (auto &BB : F) {

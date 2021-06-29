@@ -26,36 +26,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_ISOLATEREGIONS_HPP
-#define HIPSYCL_ISOLATEREGIONS_HPP
+#ifndef HIPSYCL_LOOPSIMPLIFY_HPP
+#define HIPSYCL_LOOPSIMPLIFY_HPP
 
-#include "llvm/Analysis/RegionPass.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Pass.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 
 namespace hipsycl {
 namespace compiler {
 
-class IsolateRegionsPassLegacy : public llvm::FunctionPass {
+class LoopSimplifyPassLegacy : public llvm::LoopPass {
 public:
   static char ID;
 
-  explicit IsolateRegionsPassLegacy() : llvm::FunctionPass(ID) {}
+  explicit LoopSimplifyPassLegacy() : llvm::LoopPass(ID) {}
 
-  llvm::StringRef getPassName() const override { return "hipSYCL region isolation pass"; }
+  llvm::StringRef getPassName() const override { return "hipSYCL loop simplify pass"; }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
-  bool runOnFunction(llvm::Function &F) override;
-};
-
-class IsolateRegionsPass : public llvm::PassInfoMixin<IsolateRegionsPass> {
-public:
-  explicit IsolateRegionsPass() {}
-
-  llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
-  static bool isRequired() { return true; }
+  bool runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) override;
 };
 } // namespace compiler
 } // namespace hipsycl
-#endif // HIPSYCL_ISOLATEREGIONS_HPP
+#endif // HIPSYCL_LOOPSIMPLIFY_HPP

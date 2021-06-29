@@ -34,13 +34,22 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/AssumptionCache.h>
+#include <llvm/Analysis/InstructionSimplify.h>
+#include <llvm/Analysis/MemorySSA.h>
+#include <llvm/Analysis/MemorySSAUpdater.h>
+#include <llvm/Analysis/ScalarEvolution.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/Transforms/Utils/LoopRotationUtils.h>
+#include <llvm/Transforms/Utils/LoopUtils.h>
 
 namespace {
 using namespace hipsycl::compiler;
 bool simplifyKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
+  bool Changed = true;
+  HIPSYCL_DEBUG_INFO << "Promote allocas in " << F.getName() << "\n";
   utils::promoteAllocas(&F.getEntryBlock(), DT, AC);
-  return true;
+  return Changed;
 }
 } // namespace
 
@@ -66,15 +75,16 @@ bool hipsycl::compiler::SimplifyKernelPassLegacy::runOnFunction(llvm::Function &
 
 llvm::PreservedAnalyses hipsycl::compiler::SimplifyKernelPass::run(llvm::Function &F,
                                                                    llvm::FunctionAnalysisManager &AM) {
-  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
-  auto &AC = AM.getResult<llvm::AssumptionAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA) {
-    llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
+  assert(SAA && "Must have SplitterAnnotationAnalysis cached!");
+  if (!SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
-  }
-  if (!SAA->isKernelFunc(&F) || !simplifyKernel(F, DT, AC))
+
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+  auto &AC = AM.getResult<llvm::AssumptionAnalysis>(F);
+
+  if (!simplifyKernel(F, DT, AC))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;

@@ -286,13 +286,15 @@ llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
 
 llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
                             llvm::DominatorTree *DT) {
-  auto *NewInnerLoopExitBlock = llvm::SplitEdge(Root, Target, DT, LI, nullptr);
+  auto *NewBlockAtEdge = llvm::SplitEdge(Root, Target, DT, LI, nullptr);
 #if LLVM_VERSION_MAJOR < 12
-  // NewInnerLoopExitBlock should be between header and InnerLoopExitBlock
+  // NewBlockAtEdge should be between Root and Target
   // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
-  std::swap(NewInnerLoopExitBlock, Target);
+  if (NewBlockAtEdge->getTerminator()->getSuccessor(0) != Target)
+    std::swap(NewBlockAtEdge, Target);
 #endif
-  return NewInnerLoopExitBlock;
+  assert(NewBlockAtEdge->getTerminator()->getSuccessor(0) == Target && "NewBlockAtEdge must be predecessor to Target");
+  return NewBlockAtEdge;
 }
 
 void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {

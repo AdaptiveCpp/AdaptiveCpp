@@ -27,6 +27,7 @@
 
 #include "hipSYCL/compiler/LoopSimplify.hpp"
 
+#include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
@@ -55,6 +56,7 @@ bool LoopSimplifyPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) 
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
   auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
 
+  HIPSYCL_DEBUG_INFO << "[LoopSimplify] Simplifying loop: " << L->getHeader()->getName() << "\n";
   return llvm::simplifyLoop(L, &DT, &LI, &SE, nullptr, nullptr, false);
 }
 } // namespace hipsycl::compiler

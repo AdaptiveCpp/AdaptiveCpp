@@ -77,24 +77,6 @@ static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
     varUniformityReg("var-uniformity", "hipSYCL variable uniformity analysis pass", true /* Only looks at CFG */,
                      true /* Analysis Pass */);
 
-static void registerLoopSplitAtBarrierPassesO0(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  //  PM.add(new SplitterAnnotationAnalysisLegacy{});
-  PM.add(new WILoopMarkerPassLegacy{});
-  PM.add(new LoopSplitterInliningPassLegacy{});
-  PM.add(new SimplifyKernelPassLegacy{});
-  //  //  PM.add(new LoopSplitAtBarrierPassLegacy{true});
-  PM.add(new PHIsToAllocasPassLegacy{});
-  PM.add(new IsolateRegionsPassLegacy{});
-  PM.add(new AddRequiredLoopBarriersPassLegacy{});
-  PM.add(new BarrierTailReplicationPassLegacy{});
-  PM.add(new PHIsToAllocasPassLegacy{});
-  PM.add(new CanonicalizeBarriersPassLegacy{});
-  PM.add(new LoopSimplifyPassLegacy{});
-
-  PM.add(new IsolateRegionsPassLegacy{});
-  PM.add(new WorkItemLoopCreationPassLegacy{});
-  PM.add(new RemoveBarrierCallsPassLegacy{});
-}
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
@@ -117,11 +99,7 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
 }
 
 static llvm::RegisterStandardPasses
-    RegisterLoopSplitAtBarrierPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                            registerLoopSplitAtBarrierPassesO0);
-
-static llvm::RegisterStandardPasses
-    RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_ModuleOptimizerEarly,
+    RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_EarlyAsPossible,
                                                 registerLoopSplitAtBarrierPasses);
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {

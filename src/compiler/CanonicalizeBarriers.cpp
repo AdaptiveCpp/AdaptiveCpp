@@ -59,9 +59,21 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
   }
 
   auto *WILatch = WILoop->getLoopLatch();
+  assert(WILatch && "No WI Latch found!");
+  llvm::SmallVector<llvm::BasicBlock *, 4> Exits{llvm::pred_begin(WILatch), llvm::pred_end(WILatch)};
 
-  for (auto *BB : llvm::predecessors(WILatch)) {
+  for (auto *BB : Exits) {
     auto *T = BB->getTerminator();
+
+    // If conditional branch, split the edge, so we have a barrier only block.
+    if (T->getNumSuccessors() > 1) {
+      BB = utils::splitEdge(BB, WILatch, nullptr, nullptr);
+      T = BB->getTerminator();
+      BB->setName("exit.barrier");
+      utils::createBarrier(T, SAA);
+      Changed = true;
+      continue;
+    }
 
     // The function exits should have barriers.
     if (!utils::hasOnlyBarrier(BB, SAA)) {

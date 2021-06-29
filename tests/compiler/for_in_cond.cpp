@@ -1,5 +1,3 @@
-// Todo: Not supported, yet.
-// XFAIL: *
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
 // RUN: %t | FileCheck %s
 // RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS -O
@@ -55,9 +53,9 @@ int main()
   for(size_t i = 0; i < global_size / local_size; ++i)
   {
     // CHECK: 32640
-    // CHECK: 0
-    // CHECK: 0
-    // CHECK: 0
+    // CHECK: 256
+    // CHECK: 512
+    // CHECK: 768
     std::cout << host_buf[i * local_size] << "\n";
   }
 }

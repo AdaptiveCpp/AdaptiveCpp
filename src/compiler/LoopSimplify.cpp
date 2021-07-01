@@ -31,6 +31,8 @@
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
+#include <llvm/Analysis/ScalarEvolution.h>
+
 namespace hipsycl::compiler {
 char LoopSimplifyPassLegacy::ID = 0;
 

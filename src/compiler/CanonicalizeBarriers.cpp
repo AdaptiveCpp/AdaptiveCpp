@@ -29,37 +29,15 @@
 
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <llvm/ADT/SmallVector.h>
 
 #include <iostream>
 
 namespace {
+using namespace hipsycl::compiler;
 
-// Canonicalize barriers: ensure all barriers are in a separate BB
-// containing only the barrier and the terminator, with just one
-// predecessor. This allows us to use those BBs as markers only,
-// they will not be replicated.
-bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
-                          const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  using namespace hipsycl::compiler;
-  bool Changed = false;
-
-  auto *WILoop = utils::getSingleWorkItemLoop(LI);
-  assert(WILoop && "No WI Loop found!");
-
-  llvm::BasicBlock *Entry = utils::getWorkItemLoopBodyEntry(WILoop);
-  assert(Entry && "No WI Loop Entry found!");
-
-  if (!utils::hasOnlyBarrier(Entry, SAA)) {
-    llvm::BasicBlock *EffectiveEntry = SplitBlock(Entry, &(Entry->front()));
-
-    EffectiveEntry->takeName(Entry);
-    Entry->setName("entry.barrier");
-    utils::createBarrier(Entry->getTerminator(), SAA);
-    Changed = true;
-  }
-
-  auto *WILatch = WILoop->getLoopLatch();
-  assert(WILatch && "No WI Latch found!");
+bool canonicalizeExitBarriers(llvm::BasicBlock *WILatch, llvm::LoopInfo &LI, const SplitterAnnotationInfo &SAA) {
+  bool Changed;
   llvm::SmallVector<llvm::BasicBlock *, 4> Exits{llvm::pred_begin(WILatch), llvm::pred_end(WILatch)};
 
   for (auto *BB : Exits) {
@@ -67,7 +45,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
 
     // If conditional branch, split the edge, so we have a barrier only block.
     if (T->getNumSuccessors() > 1) {
-      BB = utils::splitEdge(BB, WILatch, nullptr, nullptr);
+      BB = utils::splitEdge(BB, WILatch, &LI, nullptr);
       T = BB->getTerminator();
       BB->setName("exit.barrier");
       utils::createBarrier(T, SAA);
@@ -96,12 +74,97 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
       Changed = true;
     }
   }
+  return Changed;
+}
+
+/*!
+ * Adding barriers at inner loop latches to fix issues with barriers inside conditionals inside the loop.
+ *
+ * @param WILoop The WI loop to get the sub loops from.
+ * @param SAA The SplitterAnnotationInfo
+ * @return \b true if changed, \b false else.
+ */
+bool readdBarrierAtInnerLatches(const llvm::Loop *WILoop, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  bool Changed;
+  for (auto *L : WILoop->getSubLoops()) {
+    auto *Latch = L->getLoopLatch();
+    assert(Latch && "Inner loops should be simplified!");
+
+    llvm::SmallVector<llvm::BasicBlock *, 4> Preds{llvm::pred_begin(Latch), llvm::pred_end(Latch)};
+
+    if (std::all_of(Preds.begin(), Preds.end(),
+                    [&SAA](auto *Pred) { return hipsycl::compiler::utils::endsWithBarrier(Pred, SAA); })) {
+      HIPSYCL_DEBUG_INFO << "[Canonicalize] Creating barrier at latch: " << Latch->getName() << "\n";
+      utils::createBarrier(Latch->getTerminator(), SAA);
+      Changed = true;
+    }
+  }
+  return Changed;
+}
+
+bool pruneEmptyRegions(llvm::Function &F, const SplitterAnnotationInfo &SAA) {
+  bool Changed = false;
+  // Prune empty regions. That is, if there are two successive
+  // pure barrier blocks without side branches, remove the other one.
+  bool EmptyRegionDeleted;
+  do {
+    EmptyRegionDeleted = false;
+    for (auto &BB : F) {
+      auto *T = BB.getTerminator();
+      if (!utils::hasOnlyBarrier(&BB, SAA) || T->getNumSuccessors() != 1)
+        continue;
+
+      llvm::BasicBlock *Successor = T->getSuccessor(0);
+
+      if (utils::hasOnlyBarrier(Successor, SAA) && Successor->getSinglePredecessor() == &BB) {
+        HIPSYCL_DEBUG_INFO << "Prune BasicBlock: " << BB.getName() << "\n";
+        BB.replaceAllUsesWith(Successor);
+        BB.eraseFromParent();
+        EmptyRegionDeleted = true;
+        Changed = true;
+        break;
+      }
+    }
+  } while (EmptyRegionDeleted);
+  return Changed;
+}
+bool canonicalizeEntry(llvm::BasicBlock *Entry, const SplitterAnnotationInfo &SAA) {
+  bool Changed = false;
+  if (!utils::hasOnlyBarrier(Entry, SAA)) {
+    llvm::BasicBlock *EffectiveEntry = SplitBlock(Entry, &(Entry->front()));
+
+    EffectiveEntry->takeName(Entry);
+    Entry->setName("entry.barrier");
+    utils::createBarrier(Entry->getTerminator(), SAA);
+    Changed = true;
+  }
+  return Changed;
+}
+// Canonicalize barriers: ensure all barriers are in a separate BB
+// containing only the barrier and the terminator, with just one
+// predecessor. This allows us to use those BBs as markers only,
+// they will not be replicated.
+bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, const SplitterAnnotationInfo &SAA) {
+  auto *WILoop = utils::getSingleWorkItemLoop(LI);
+  assert(WILoop && "No WI Loop found!");
+
+  llvm::BasicBlock *Entry = utils::getWorkItemLoopBodyEntry(WILoop);
+  assert(Entry && "No WI Loop Entry found!");
+
+  auto *WILatch = WILoop->getLoopLatch();
+  assert(WILatch && "No WI Latch found!");
+
+  bool Changed = canonicalizeEntry(Entry, SAA);
+
+  Changed |= canonicalizeExitBarriers(WILatch, LI, SAA);
+
+  Changed |= readdBarrierAtInnerLatches(WILoop, SAA);
 
   llvm::SmallPtrSet<llvm::Instruction *, 8> Barriers;
 
   for (auto &BB : F) {
     for (auto &I : BB) {
-      if (hipsycl::compiler::utils::isBarrier(&I, SAA)) {
+      if (utils::isBarrier(&I, SAA)) {
         Barriers.insert(&I);
       }
     }
@@ -157,27 +220,7 @@ bool canonicalizeBarriers(llvm::Function &F, const llvm::LoopInfo &LI,
     Changed = true;
   }
 
-  // Prune empty regions. That is, if there are two successive
-  // pure barrier blocks without side branches, remove the other one.
-  bool EmptyRegionDeleted;
-  do {
-    EmptyRegionDeleted = false;
-    for (auto &BB : F) {
-      auto *T = BB.getTerminator();
-      if (!hipsycl::compiler::utils::endsWithBarrier(&BB, SAA) || T->getNumSuccessors() != 1)
-        continue;
-
-      llvm::BasicBlock *Successor = T->getSuccessor(0);
-
-      if (hipsycl::compiler::utils::hasOnlyBarrier(Successor, SAA) && Successor->getSinglePredecessor() == &BB) {
-        BB.replaceAllUsesWith(Successor);
-        BB.eraseFromParent();
-        EmptyRegionDeleted = true;
-        Changed = true;
-        break;
-      }
-    }
-  } while (EmptyRegionDeleted);
+  Changed |= pruneEmptyRegions(F, SAA);
 
   return Changed;
 }
@@ -199,7 +242,7 @@ bool CanonicalizeBarriersPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   if (!SAA.isKernelFunc(&F))
     return false;
-  const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
   return canonicalizeBarriers(F, LI, SAA);
 }
 
@@ -210,7 +253,7 @@ llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::F
     return llvm::PreservedAnalyses::all();
   }
 
-  const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
 
   if (!canonicalizeBarriers(F, LI, *SAA))
     return llvm::PreservedAnalyses::all();

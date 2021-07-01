@@ -88,8 +88,9 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   PM.add(new AddRequiredLoopBarriersPassLegacy{});
   PM.add(new BarrierTailReplicationPassLegacy{});
   PM.add(new PHIsToAllocasPassLegacy{});
-  PM.add(new CanonicalizeBarriersPassLegacy{});
+
   PM.add(new LoopSimplifyPassLegacy{});
+  PM.add(new CanonicalizeBarriersPassLegacy{});
 
   PM.add(new IsolateRegionsPassLegacy{});
   PM.add(new WorkItemLoopCreationPassLegacy{});
@@ -130,8 +131,8 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
         FPM.addPass(BarrierTailReplicationPass{});
         FPM.addPass(PHIsToAllocasPass{});
-        FPM.addPass(CanonicalizeBarriersPass{});
         FPM.addPass(llvm::LoopSimplifyPass{});
+        FPM.addPass(CanonicalizeBarriersPass{});
 
         FPM.addPass(IsolateRegionsPass{});
         FPM.addPass(WorkItemLoopCreationPass{});

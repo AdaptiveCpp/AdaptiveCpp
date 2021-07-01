@@ -82,7 +82,6 @@ bool BarrierTailReplication::processFunction(llvm::Function &F) {
   auto *WILoop = hipsycl::compiler::utils::getSingleWorkItemLoop(LI_);
   auto *WIEntry = hipsycl::compiler::utils::getWorkItemLoopBodyEntry(WILoop);
 
-  // todo: start at WI loop header? shouldn't really matter, due to missing barriers
   bool Changed = findBarriersDfs(WIEntry, ProcessedBbs);
   /* The created tails might contain PHI nodes with operands
      referring to the non-predecessor (split point) BB.

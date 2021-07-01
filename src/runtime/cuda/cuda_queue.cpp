@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h> //for make_cudaPitchedPtr
@@ -71,7 +72,8 @@ void cuda_queue::activate_device() const {
   cuda_device_manager::get().activate_device(_dev.get_id());
 }
 
-cuda_queue::cuda_queue(device_id dev) : _dev{dev}, _module_invoker{this} {
+cuda_queue::cuda_queue(device_id dev)
+    : _dev{dev}, _module_invoker{this}, _stream{nullptr} {
   this->activate_device();
 
   auto err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
@@ -79,7 +81,10 @@ cuda_queue::cuda_queue(device_id dev) : _dev{dev}, _module_invoker{this} {
     register_error(__hipsycl_here(),
                    error_info{"cuda_queue: Couldn't construct backend stream",
                               error_code{"CUDA", err}});
+    return;
   }
+
+  _profiler_baseline = cuda_timestamp_profiler::baseline::record(_stream);
 }
 
 CUstream_st* cuda_queue::get_stream() const { return _stream; }
@@ -97,19 +102,12 @@ cuda_queue::~cuda_queue() {
 std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   this->activate_device();
 
-  cudaEvent_t evt;
-  cudaError_t err = cudaEventCreate(&evt);
-
-  if (err != cudaSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"cuda_queue: Couldn't create event", error_code{"CUDA", err}});
-    
+  auto evt = make_cuda_event();
+  if (!evt) {
     return nullptr;
   }
 
-  err = cudaEventRecord(evt, this->get_stream());
-
+  auto err = cudaEventRecord(evt.get(), this->get_stream());
   if (err != cudaSuccess) {
     register_error(
         __hipsycl_here(),
@@ -117,10 +115,26 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<cuda_node_event>(_dev, evt);
+  return std::make_shared<cuda_node_event>(_dev, std::move(evt));
 }
 
-result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
+std::unique_ptr<cuda_timestamp_profiler> cuda_queue::begin_profiling(const operation &op) const {
+  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
+    return nullptr;
+  this->activate_device();
+  auto profiler = std::make_unique<cuda_timestamp_profiler>(&_profiler_baseline);
+  profiler->record_before_operation(_stream);
+  return profiler;
+}
+
+void cuda_queue::finish_profiling(operation &op,
+                                  std::unique_ptr<cuda_timestamp_profiler> profiler) const {
+  if (!profiler) return;
+  profiler->record_after_operation(_stream);
+  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
+}
+
+result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -175,6 +189,8 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
 
   assert(dimension >= 1 && dimension <= 3);
 
+  auto profiler = begin_profiling(op);
+
   cudaError_t err = cudaSuccess;
   if (dimension == 1) {
     err = cudaMemcpyAsync(
@@ -216,6 +232,7 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
     err = cudaMemcpy3DAsync(&params, get_stream());
   }
 
+  finish_profiling(op, std::move(profiler));
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
@@ -225,21 +242,25 @@ result cuda_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
+result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 
   this->activate_device();
-  rt::backend_kernel_launcher *l = 
+  rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::cuda);
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
+
+  auto profiler = begin_profiling(op);
   l->invoke(node.get());
+  finish_profiling(op, std::move(profiler));
 
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
+result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
 #ifndef _WIN32
+  auto profiler = begin_profiling(op);
   cudaError_t err = cudaSuccess;
   if (op.get_target().is_host()) {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
@@ -248,6 +269,7 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
                                          _dev.get_id(), get_stream());
   }
+  finish_profiling(op, std::move(profiler));
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
@@ -261,10 +283,12 @@ result cuda_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(const memset_operation &op, dag_node_ptr) {
-  
+result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr) {
+
+  auto profiler = begin_profiling(op);
   cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
                                     op.get_num_bytes(), get_stream());
+  finish_profiling(op, std::move(profiler));
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),

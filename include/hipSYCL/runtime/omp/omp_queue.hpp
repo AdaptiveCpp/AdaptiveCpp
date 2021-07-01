@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "omp_instrumentation.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -45,10 +46,10 @@ public:
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
 
-  virtual result submit_memcpy(const memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(const kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(const memset_operation&, dag_node_ptr) override;
+  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
+  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
+  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
+  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
@@ -64,6 +65,9 @@ public:
 private:
   backend_id _backend_id;
   worker_thread _worker;
+
+  static std::unique_ptr<omp_timestamp_profiler> begin_profiling(const operation &op);
+  static void finish_profiling(operation &op, std::unique_ptr<omp_timestamp_profiler> profiler);
 };
 
 }

@@ -52,6 +52,10 @@ bind_to_device::bind_to_device(device_id d)
 device_id bind_to_device::get_device_id() const
 { return _dev; }
 
+enable_profiling::enable_profiling()
+    : execution_hint{execution_hint_type::enable_profiling}
+{}
+
 } // hints
 
 void execution_hints::add_hint(execution_hint_ptr hint)

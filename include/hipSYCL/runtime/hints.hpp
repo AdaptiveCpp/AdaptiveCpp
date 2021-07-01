@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,7 +50,8 @@ enum class execution_hint_type
   bind_to_device,
   bind_to_device_group,
   prefer_execution_lane,
-  node_group
+  node_group,
+  enable_profiling
 };
 
 class execution_hint
@@ -83,7 +84,7 @@ public:
   static constexpr execution_hint_type type = 
     execution_hint_type::bind_to_device;
 
-  bind_to_device(device_id d);
+  explicit bind_to_device(device_id d);
 
   device_id get_device_id() const;
 private:
@@ -140,6 +141,14 @@ public:
   }
 private:
   std::size_t _group_id;
+};
+
+class enable_profiling : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type = execution_hint_type::enable_profiling;
+
+  enable_profiling();
 };
 
 } // hints

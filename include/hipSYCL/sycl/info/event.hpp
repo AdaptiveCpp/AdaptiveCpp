@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_INFO_EVENT_HPP
 #define HIPSYCL_INFO_EVENT_HPP
 
+#include <cstdint>
+
 #include "../types.hpp"
 #include "param_traits.hpp"
 
@@ -59,6 +61,10 @@ enum class event_profiling : int
 
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::command_execution_status, event_command_status);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::reference_count, detail::u_int);
+
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_submit, uint64_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_start, uint64_t);
+HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_end, uint64_t);
 
 }
 }

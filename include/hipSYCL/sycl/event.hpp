@@ -37,6 +37,7 @@
 
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -120,9 +121,50 @@ public:
   template <info::event param>
   typename info::param_traits<info::event, param>::return_type get_info() const;
 
+  // Wait for and retrieve profiling timestamps. Supports all handler operations except
+  // handler::require() and handler::update_host().
+  // Will throw sycl::invalid_object_error unless the queue was constructed with
+  // `property::queue::enable_profiling`.
+  // Timestamps are returned in std::chrono::system_clock nanoseconds-since-epoch.
   template <info::event_profiling param>
   typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
-  { throw unimplemented{"event::get_profiling_info() is unimplemented."}; }
+  {
+    if (!_node
+      || !_node->get_operation()->is_instrumented()
+      || !_node->get_operation()->get_instrumentations().is_instrumented<rt::timestamp_profiler>())
+    {
+      const char *msg;
+      if (!_node) {
+        msg = "event has not been initialized from a command group";
+      } else if (_node->get_operation()->is_requirement()) {
+        msg = "hipSYCL currently does not support profiling explicit requirements or host updates";
+      } else {
+        msg = "operation was not instrumented, make sure to construct queue with "
+              "property::queue::enable_profiling";
+      }
+      HIPSYCL_DEBUG_WARNING << "event: profiling info not available: " << msg << std::endl;
+
+      throw invalid_object_error{rt::make_error(
+          __hipsycl_here(), {"operation not profiled", rt::error_type::invalid_object_error})};
+    }
+
+    rt::timestamp_profiler::event profiler_event;
+    switch(param) {
+      case info::event_profiling::command_submit:
+        profiler_event = rt::timestamp_profiler::event::operation_submitted;
+        break;
+      case info::event_profiling::command_start:
+        profiler_event = rt::timestamp_profiler::event::operation_started;
+        break;
+      case info::event_profiling::command_end:
+        profiler_event = rt::timestamp_profiler::event::operation_finished;
+        break;
+    }
+
+    auto &profiler = _node->get_operation()->get_instrumentations().await<rt::timestamp_profiler>();
+    auto time_point = profiler.await_event(profiler_event);
+    return time_point.time_since_epoch().count();
+  }
 
   friend bool operator ==(const event& lhs, const event& rhs)
   { return lhs._node == rhs._node; }

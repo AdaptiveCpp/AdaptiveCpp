@@ -25,44 +25,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_EVENT_HPP
-#define HIPSYCL_CUDA_EVENT_HPP
+#ifndef HIPSYCL_OMP_INSTRUMENTATION_HPP
+#define HIPSYCL_OMP_INSTRUMENTATION_HPP
 
-#include "../event.hpp"
+#include <condition_variable>
+#include <mutex>
 
-// Note: CUevent_st* == cudaEvent_t 
-struct CUevent_st;
+#include "omp_event.hpp"
+#include "../instrumentation.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-struct cuda_event_deleter {
-  void operator()(CUevent_st *evt) const;
-};
-
-/// Manages a cudaEvent_t.
-using cuda_unique_event = std::unique_ptr<CUevent_st, cuda_event_deleter>;
-
-cuda_unique_event make_cuda_event();
-
-class cuda_node_event : public dag_node_event
+class omp_timestamp_profiler final : public timestamp_profiler
 {
 public:
-  /// \c evt Must have been properly initialized and recorded.
-  cuda_node_event(device_id dev, cuda_unique_event evt);
+  static std::unique_ptr<omp_timestamp_profiler> make_no_op();
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
+  void record_submit();  // not thread-safe
+  void record_start();  // thread-safe
+  void record_finish();  // thread-safe
 
-  CUevent_st* get_event() const;
-  device_id get_device() const;
+  virtual profiler_clock::time_point await_event(event event) const override; // thread-safe
+
 private:
-  device_id _dev;
-  cuda_unique_event _evt;
+  profiler_clock::time_point _operation_submitted;
+  profiler_clock::time_point _operation_started;
+  profiler_clock::time_point _operation_finished;
+  mutable std::mutex _mutex;
+  mutable std::condition_variable _update;
+
+  void record(profiler_clock::time_point &event);
 };
 
 }
 }
-
 
 #endif

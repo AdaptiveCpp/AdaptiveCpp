@@ -166,14 +166,18 @@ else()
   set(SYCLCC_CONFIG_FILE_INSTALL_DIR etc/hipSYCL)
 endif()
 
+if(Boost_FIBER_LIBRARY_DEBUG)
+  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+else()
+  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
+endif()
+
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
   
-  if(NOT ${Boost_FIBER_LIBRARY_DEBUG})
-    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+  if(Boost_FIBER_LIBRARY_DEBUG)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   else()
-    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   endif()
 else()
@@ -197,8 +201,8 @@ endif()
 # need add_subdirectory(src) before this!
 set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
 set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
-set(DEFAULT_OMP_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_ROOT}/lib ${DEFAULT_OMP_FLAG}")
-set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -lomp -Wl,-rpath=${BOOST_ROOT}/lib")
+set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR} ${DEFAULT_OMP_FLAG}")
+set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -lomp -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
 if(NOT ROCM_LINK_LINE)

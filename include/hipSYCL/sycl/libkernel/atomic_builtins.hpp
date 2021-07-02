@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,55 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_MEMORY_HPP
-#define HIPSYCL_MEMORY_HPP
+#ifndef HIPSYCL_ATOMIC_BUILTINS_HPP
+#define HIPSYCL_ATOMIC_BUILTINS_HPP
 
-namespace hipsycl {
-namespace sycl {
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
-enum class memory_scope {
-  work_item,
-  sub_group,
-  work_group,
-  device,
-  system
-};
-
-inline constexpr auto memory_scope_work_item = memory_scope::work_item;
-inline constexpr auto memory_scope_sub_group = memory_scope::sub_group;
-inline constexpr auto memory_scope_work_group = memory_scope::work_group;
-inline constexpr auto memory_scope_device = memory_scope::device;
-inline constexpr auto memory_scope_system = memory_scope::system;
-
-enum class memory_order : int
-{
-  relaxed,
-  acquire,
-  release,
-  acq_rel,
-  seq_cst
-};
-
-inline constexpr auto memory_order_relaxed = memory_order::relaxed;
-inline constexpr auto memory_order_acquire = memory_order::acquire;
-inline constexpr auto memory_order_release = memory_order::release;
-inline constexpr auto memory_order_acq_rel = memory_order::acq_rel;
-inline constexpr auto memory_order_seq_cst = memory_order::seq_cst;
-
-namespace access {
-
-enum class address_space : int
-{
-  global_space,
-  local_space,
-  constant_space,
-  private_space,
-  generic_space
-};
-
-} // namespace access
-
-}
-} // namespace hipsycl
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#include "host/atomic_builtins.hpp"
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                 \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+#include "generic/hiplike/atomic_builtins.hpp"
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+#include "spirv/atomic_builtins.hpp"
+#endif
 
 #endif

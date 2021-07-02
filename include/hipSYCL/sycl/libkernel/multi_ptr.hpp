@@ -30,22 +30,12 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/libkernel/memory.hpp"
 
 #include <type_traits>
 
 namespace hipsycl {
 namespace sycl {
-namespace access {
-
-enum class address_space : int
-{
-  global_space,
-  local_space,
-  constant_space,
-  private_space
-};
-
-} // namespace access
 
 template<typename dataT, int dimensions,
          access::mode accessmode,

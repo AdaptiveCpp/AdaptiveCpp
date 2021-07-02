@@ -32,17 +32,16 @@
 
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/host/atomic_builtins.hpp"
+#include "hipSYCL/sycl/libkernel/memory.hpp"
 #include "multi_ptr.hpp"
 
+
+#include "atomic_builtins.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
-
-enum class memory_order : int
-{
-  relaxed
-};
 
 #ifdef HIPSYCL_EXT_FP_ATOMICS
   #define HIPSYCL_CONDITIONALLY_ENABLE_ATOMICS(template_param) \
@@ -52,11 +51,19 @@ enum class memory_order : int
     std::enable_if_t<std::is_integral<template_param>::value>* = nullptr
 #endif
 
-/// \todo Atomics are only partially implemented.
-/// In particular, load / store are unimplemented on GPU.
+
 template <typename T, access::address_space addressSpace =
           access::address_space::global_space>
 class atomic {
+  static constexpr memory_scope default_scope() {
+    if(addressSpace == access::address_space::global_space)
+      return memory_scope::device;
+    else if(addressSpace == access::address_space::local_space)
+      return memory_scope::work_group;
+    else if(addressSpace == access::address_space::private_space)
+      return memory_scope::work_item;
+    return memory_scope::device;
+  }
 public:
   template <typename pointerT>
   HIPSYCL_UNIVERSAL_TARGET
@@ -67,25 +74,25 @@ public:
                   "Invalid pointer type for atomic<>");
   }
 
-  /// \todo unimplemented on GPU
   HIPSYCL_KERNEL_TARGET
   void store(T operand, memory_order memoryOrder =
-      memory_order::relaxed) volatile;
+      memory_order::relaxed) volatile {
+    detail::__hipsycl_atomic_store<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
+  }
 
-  /// \todo unimplemented on GPU
   HIPSYCL_KERNEL_TARGET
-  T load(memory_order memoryOrder = memory_order::relaxed) const volatile;
+  T load(memory_order memoryOrder = memory_order::relaxed) const volatile {
+    return detail::__hipsycl_atomic_load<addressSpace>(_ptr, memoryOrder,
+                                                       default_scope());
+  }
 
   HIPSYCL_KERNEL_TARGET
   T exchange(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicExch(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_exchange_n(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_exchange<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -94,15 +101,9 @@ public:
                                memory_order successMemoryOrder = memory_order::relaxed,
                                memory_order failMemoryOrder = memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    T old = expected;
-    expected = atomicCAS(_ptr, expected, desired);
-    return old == expected;
-#else
-    assert(successMemoryOrder == memory_order::relaxed);
-    assert(failMemoryOrder == memory_order::relaxed);
-    return __atomic_compare_exchange_n(_ptr, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_compare_exchange_strong<addressSpace>(
+        _ptr, expected, desired, successMemoryOrder, failMemoryOrder,
+        default_scope());
   }
 
   /* Available only when: T != float */
@@ -112,12 +113,8 @@ public:
   T fetch_add(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicAdd(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_fetch_add(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_fetch_add<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -127,12 +124,8 @@ public:
   T fetch_sub(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicSub(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_fetch_sub(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_fetch_sub<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -142,12 +135,8 @@ public:
   T fetch_and(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicAnd(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_fetch_and(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_fetch_and<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -157,12 +146,8 @@ public:
   T fetch_or(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicOr(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_fetch_or(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_fetch_or<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -172,12 +157,8 @@ public:
   T fetch_xor(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicXor(_ptr, operand);
-#else
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_fetch_xor(_ptr, operand, __ATOMIC_RELAXED);
-#endif
+    return detail::__hipsycl_atomic_fetch_xor<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -187,16 +168,8 @@ public:
   T fetch_min(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicMin(_ptr, operand);
-#else
-    t old = load();
-    do
-    {
-        if (old < operand) return old;
-    } while(!compare_exchange_strong(old, operand));
-    return operand;
-#endif
+    return detail::__hipsycl_atomic_fetch_min<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
   /* Available only when: T != float */
@@ -206,40 +179,13 @@ public:
   T fetch_max(T operand, memory_order memoryOrder =
       memory_order::relaxed) volatile
   {
-#ifdef SYCL_DEVICE_ONLY
-    return atomicMax(_ptr, operand);
-#else
-    t old = load();
-    do
-    {
-        if (old > operand) return old;
-    } while(!compare_exchange_strong(old, operand));
-    return operand;
-#endif
+    return detail::__hipsycl_atomic_fetch_max<addressSpace>(
+        _ptr, operand, memoryOrder, default_scope());
   }
 
 private:
   T* _ptr;
 };
-
-#ifdef HIPSYCL_PLATFORM_CPU
-  template <typename T, access::address_space addressSpace>
-  HIPSYCL_KERNEL_TARGET
-  void atomic<T,addressSpace>::store(T operand, memory_order memoryOrder) volatile
-  {
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_store_n(_ptr, operand, __ATOMIC_RELAXED);
-  }
-
-  template <typename T, access::address_space addressSpace>
-  HIPSYCL_KERNEL_TARGET
-  T atomic<T,addressSpace>::load(memory_order memoryOrder) const volatile
-  {
-    assert(memoryOrder == memory_order::relaxed);
-    return __atomic_load_n(_ptr, __ATOMIC_RELAXED);
-  }
-#endif
-
 
 
 template <typename T, access::address_space addressSpace>

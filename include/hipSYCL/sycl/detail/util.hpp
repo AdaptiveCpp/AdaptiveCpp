@@ -32,6 +32,8 @@
 #include <atomic>
 #include <tuple>
 #include <utility>
+#include <cstring>
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -92,6 +94,25 @@ void separate_last_argument_and_apply(F&& f, Args&& ... args) {
 
   std::apply(f,
              std::tuple_cat(std::make_tuple(last_element), preceding_elements));
+}
+
+template <class Tout, class Tin>
+Tout bit_cast(Tin x) {
+  static_assert(sizeof(Tout)==sizeof(Tin), "Types must match sizes");
+
+  Tout out;
+#if !defined(__APPLE__) && defined(__clang_major__) && __clang_major__ >= 11
+  __builtin_memcpy_inline(&out, &x, sizeof(Tin));
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+  memcpy(&out, &x, sizeof(Tin));
+#else
+  char* cout = &out;
+  char* cin = &x;
+  for(int i = 0; i < sizeof(Tin); ++i)
+    cout[i] = cin[i];
+#endif
+  
+  return out;
 }
 
 }

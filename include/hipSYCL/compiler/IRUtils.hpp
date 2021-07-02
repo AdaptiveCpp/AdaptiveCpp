@@ -35,7 +35,7 @@ bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnot
 bool hasOnlyBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 bool startsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
-llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, hipsycl::compiler::SplitterAnnotationInfo &SAA);
 
 bool isWorkItemLoop(const llvm::Loop &L);
 bool isInWorkItemLoop(const llvm::Loop &L);

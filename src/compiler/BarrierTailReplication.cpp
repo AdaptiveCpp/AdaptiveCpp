@@ -356,7 +356,7 @@ void hipsycl::compiler::BarrierTailReplicationPassLegacy::getAnalysisUsage(llvm:
 
 bool hipsycl::compiler::BarrierTailReplicationPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<hipsycl::compiler::SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  if (!SAA.isKernelFunc(&F))
+  if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
 
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
@@ -373,9 +373,8 @@ llvm::PreservedAnalyses hipsycl::compiler::BarrierTailReplicationPass::run(llvm:
                                                                            llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F)) {
+  if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA))
     return llvm::PreservedAnalyses::all();
-  }
 
   auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);

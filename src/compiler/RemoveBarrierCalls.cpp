@@ -28,7 +28,7 @@
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 namespace {
-bool removeBarrierCalls(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!SAA.isKernelFunc(&F))
     return false;
 
@@ -54,6 +54,7 @@ bool removeBarrierCalls(llvm::Function &F, const hipsycl::compiler::SplitterAnno
   if (auto *B = M->getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
     if (B->getNumUses() == 0) {
       B->eraseFromParent();
+      SAA.removeSplitter(B);
       HIPSYCL_DEBUG_INFO << "Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName << "\n";
     }
   }
@@ -67,7 +68,7 @@ namespace hipsycl::compiler {
 char RemoveBarrierCallsPassLegacy::ID = 0;
 
 bool RemoveBarrierCallsPassLegacy::runOnFunction(llvm::Function &F) {
-  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+  auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
   return removeBarrierCalls(F, SAA);
 }
 
@@ -79,7 +80,7 @@ void RemoveBarrierCallsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) con
 
 llvm::PreservedAnalyses RemoveBarrierCallsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
-  const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
+  auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA)
     return llvm::PreservedAnalyses::all();
 

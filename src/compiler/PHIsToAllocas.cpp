@@ -114,8 +114,7 @@ bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformit
   HIPSYCL_DEBUG_INFO << "Break PHIs to alloca:\n";
   for (auto *I : PHIs) {
     HIPSYCL_DEBUG_INFO << "  ";
-    I->print(llvm::outs());
-    HIPSYCL_DEBUG_INFO << "\n";
+    HIPSYCL_DEBUG_EXECUTE_INFO(I->print(llvm::outs()); llvm::outs()  << "\n";)
     breakPHIToAllocas(I, VUA);
     Changed = true;
   }
@@ -143,7 +142,7 @@ void PHIsToAllocasPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
 
 bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  if (!SAA.isKernelFunc(&F))
+  if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
 
   const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
@@ -156,7 +155,7 @@ bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {
 llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F)) {
+  if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA)) {
     return llvm::PreservedAnalyses::all();
   }
 

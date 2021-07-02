@@ -84,7 +84,7 @@ public:
   static char ID;
 
   WorkItemLoopCreator(llvm::Function &F, llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT, llvm::LoopInfo &LI,
-                      VariableUniformityInfo &VUA, const SplitterAnnotationInfo &SAA);
+                      VariableUniformityInfo &VUA, SplitterAnnotationInfo &SAA);
 
 private:
   typedef std::vector<llvm::BasicBlock *> BasicBlockVector;
@@ -95,7 +95,7 @@ private:
   llvm::DominatorTree &DT;
   llvm::LoopInfo &LI;
   llvm::PostDominatorTree &PDT;
-  const SplitterAnnotationInfo &SAA;
+  SplitterAnnotationInfo &SAA;
   VariableUniformityInfo &VUA;
 
   ParallelRegion::ParallelRegionVector *OriginalParallelRegions;
@@ -430,10 +430,13 @@ ParallelRegion *WorkItemLoopCreator::createParallelRegionBefore(llvm::BasicBlock
   llvm::BasicBlock *RegionEntryBarrier = NULL;
   llvm::BasicBlock *Entry = NULL;
   llvm::BasicBlock *Exit = B->getSinglePredecessor();
-  auto NotWILoopEntry = [WILoopEntry = this->WILoopEntry](llvm::BasicBlock *BB) { return BB != WILoopEntry; };
+  auto NotWILoopEntry = [WILoopEntry = this->WILoopEntry](llvm::BasicBlock *BB) {
+    return BB != WILoopEntry->getSinglePredecessor();
+  };
   addPredecessorsIf(PendingBlocks, B, NotWILoopEntry);
 
 #ifdef DEBUG_PR_CREATION
+  llvm::outs().SetUnbuffered();
   HIPSYCL_DEBUG_INFO << "createParallelRegionBefore " << B->getName() << "\n";
 #endif
 
@@ -1215,8 +1218,7 @@ bool WorkItemLoopCreator::fixUndominatedVariableUses(llvm::Function &F) {
 }
 
 WorkItemLoopCreator::WorkItemLoopCreator(llvm::Function &F, llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT,
-                                         llvm::LoopInfo &LI, VariableUniformityInfo &VUA,
-                                         const SplitterAnnotationInfo &SAA)
+                                         llvm::LoopInfo &LI, VariableUniformityInfo &VUA, SplitterAnnotationInfo &SAA)
     : OriginalParallelRegions(nullptr), DT(DT), PDT(PDT), LI(LI), VUA(VUA), SAA(SAA), TempInstructionIndex(0) {
   llvm::Module *M = F.getParent();
   llvm::DataLayout DL(M);
@@ -1268,8 +1270,8 @@ void WorkItemLoopCreationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) c
 }
 
 bool WorkItemLoopCreationPassLegacy::runOnFunction(llvm::Function &F) {
-  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  if (!SAA.isKernelFunc(&F))
+  auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+  if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
 
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
@@ -1290,9 +1292,9 @@ bool WorkItemLoopCreationPassLegacy::runOnFunction(llvm::Function &F) {
 
 llvm::PreservedAnalyses WorkItemLoopCreationPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
-  const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
+  auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
 
-  if (!SAA || !SAA->isKernelFunc(&F)) {
+  if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA)) {
     return llvm::PreservedAnalyses::all();
   }
 

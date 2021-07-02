@@ -40,7 +40,7 @@
 
 namespace {
 bool addRequiredBarriersToLoop(llvm::Loop *L, llvm::DominatorTree &DT,
-                               const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+                               hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!hipsycl::compiler::utils::hasBarriers(*L->getHeader()->getParent(), SAA))
     return false;
 
@@ -159,8 +159,8 @@ void AddRequiredLoopBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU
 }
 
 bool AddRequiredLoopBarriersPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
-  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  if (!SAA.isKernelFunc(L->getHeader()->getParent()))
+  auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+  if (!SAA.isKernelFunc(L->getHeader()->getParent()) || !utils::hasBarriers(*L->getHeader()->getParent(), SAA))
     return false;
 
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
@@ -175,8 +175,8 @@ llvm::PreservedAnalyses AddRequiredLoopBarriersPass::run(llvm::Loop &L, llvm::Lo
   auto &FAM = AM.getResult<llvm::FunctionAnalysisManagerLoopProxy>(L, AR);
 
   auto *MAM = FAM.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(*F);
-  const auto *SAA = MAM->getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F->getParent());
-  if (!SAA || !SAA->isKernelFunc(F))
+  auto *SAA = MAM->getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F->getParent());
+  if (!SAA || !SAA->isKernelFunc(F) || !utils::hasBarriers(*F, *SAA))
     return llvm::PreservedAnalyses::all();
 
   if (!addRequiredBarriersToLoop(&L, AR.DT, *SAA))

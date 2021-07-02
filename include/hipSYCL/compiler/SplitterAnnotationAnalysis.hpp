@@ -47,7 +47,11 @@ public:
   explicit SplitterAnnotationInfo(llvm::Module &Module);
   inline bool isSplitterFunc(const llvm::Function *F) const { return SplitterFuncs.contains(F); }
   inline bool isKernelFunc(const llvm::Function *F) const { return NDKernels.contains(F); }
-  bool invalidate(llvm::Module &M, const llvm::PreservedAnalyses &PA, llvm::ModuleAnalysisManager::Invalidator &) {
+
+  inline void removeSplitter(llvm::Function *F) { SplitterFuncs.erase(F); }
+  inline void addSplitter(llvm::Function *F) { SplitterFuncs.insert(F); }
+
+  bool invalidate(llvm::Module &, const llvm::PreservedAnalyses &, llvm::ModuleAnalysisManager::Invalidator &) {
     return false;
   }
 };
@@ -74,6 +78,7 @@ public:
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override { AU.setPreservesAll(); }
 
   const SplitterAnnotationInfo &getAnnotationInfo() const { return *SplitterAnnotation_; }
+  SplitterAnnotationInfo &getAnnotationInfo() { return *SplitterAnnotation_; }
 };
 
 /*!

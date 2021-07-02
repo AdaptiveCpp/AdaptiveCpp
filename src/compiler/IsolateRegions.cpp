@@ -160,30 +160,21 @@ namespace hipsycl::compiler {
 char IsolateRegionsPassLegacy::ID = 0;
 
 void IsolateRegionsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-  //  AU.addRequired<llvm::RegionInfoPass>();
   AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 
   AU.addRequired<llvm::LoopInfoWrapperPass>();
-  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addRequired<llvm::DominatorTreeWrapperPass>();
-  //  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
   AU.addRequired<llvm::PostDominatorTreeWrapperPass>();
-  //  AU.addPreserved<llvm::PostDominatorTreeWrapperPass>();
-  //  AU.addRequired<llvm::DominanceFrontierWrapperPass>();
-  //  AU.addPreserved<llvm::DominanceFrontierWrapperPass>();
-  //  AU.addRequired<llvm::PostDominatorTreeWrapperPass>();
-  //  AU.addRequired<llvm::DominanceFrontierWrapperPass>();
 }
 bool IsolateRegionsPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  if (!SAA.isKernelFunc(&F))
+  if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
 
   const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  //  //  const auto &RI = getAnalysis<llvm::RegionInfoPass>(F).getRegionInfo();
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   auto &PDT = getAnalysis<llvm::PostDominatorTreeWrapperPass>().getPostDomTree();
   llvm::DominanceFrontier DF{};
@@ -191,23 +182,13 @@ bool IsolateRegionsPassLegacy::runOnFunction(llvm::Function &F) {
   llvm::RegionInfo RI;
   RI.recalculate(F, &DT, &PDT, &DF);
   return isolateRegions(SAA, LI, RI);
-  //  return false;
 }
-
-// bool IsolateRegionsPassLegacy::runOnRegion(llvm::Region *R, llvm::RGPassManager &) {
-//   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-//
-//   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>(*R->getEntry()->getParent()).getLoopInfo();
-//   if (utils::isInWorkItemLoop(*R, LI))
-//     return isolateRegion(R, SAA);
-//   return false;
-// }
 
 llvm::PreservedAnalyses IsolateRegionsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
 
-  if (!SAA || !SAA->isKernelFunc(&F)) {
+  if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA)) {
     return llvm::PreservedAnalyses::all();
   }
 

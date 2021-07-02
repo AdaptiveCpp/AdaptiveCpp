@@ -92,7 +92,7 @@ bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnot
   return false;
 }
 
-llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const SplitterAnnotationInfo &SAA) {
+llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotationInfo &SAA) {
   llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
 
   if (InsertBefore != &InsertBefore->getParent()->front() && isBarrier(InsertBefore->getPrevNode(), SAA))
@@ -102,6 +102,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, const SplitterAnn
 
   F->addFnAttr(llvm::Attribute::NoDuplicate);
   F->setLinkage(llvm::GlobalValue::LinkOnceAnyLinkage);
+  SAA.addSplitter(F);
 
   return llvm::CallInst::Create(F, "", InsertBefore);
 }

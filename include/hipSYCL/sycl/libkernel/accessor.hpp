@@ -30,6 +30,7 @@
 #define HIPSYCL_ACCESSOR_HPP
 
 #include <exception>
+#include <memory>
 #include <type_traits>
 #include <cassert>
 
@@ -1097,19 +1098,21 @@ private:
     auto data = data_mobile_ptr.get_shared_ptr();
     assert(data);
 
-    if(sizeof(dataT) != data->get_element_size())
-      assert(false && "Accessors with different element size than original "
-                      "buffer are not yet supported");
-
     rt::dag_node_ptr node;
     {
       rt::dag_build_guard build{rt::application::dag()};
 
-      auto explicit_requirement =
-          rt::make_operation<rt::buffer_memory_requirement>(
+      std::unique_ptr<rt::buffer_memory_requirement> explicit_requirement;
+      if(sizeof(dataT) != data->get_num_elements())
+        explicit_requirement.reset(new rt::buffer_memory_requirement(
+              data, rt::id<3>{}, data->get_num_elements(),
+              detail::get_effective_access_mode(accessmode, is_no_init),
+              accessTarget));
+      else
+        explicit_requirement.reset(new rt::buffer_memory_requirement(
               data, rt::make_id(get_offset()), rt::make_range(get_range()),
               detail::get_effective_access_mode(accessmode, is_no_init),
-              accessTarget);
+              accessTarget));
 
       rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get())
           ->bind(this->get_uid());

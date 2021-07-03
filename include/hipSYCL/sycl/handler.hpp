@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_HANDLER_HPP
 #define HIPSYCL_HANDLER_HPP
 
+#include <memory>
 #include <type_traits>
 #include <unordered_map>
 
@@ -105,20 +106,22 @@ class handler {
           "because it is not bound to a buffer."};
     }
 
-    size_t element_size = data.mem->get_element_size();
-
-    if (element_size != sizeof(typename AccessorType::value_type)) {
-      assert(false && "Reinterpreting data with elements of different size is "
-                      "not yet supported");
-    }
-
     // Translate no_init property and host_task modes
     access_mode mode =
         detail::get_effective_access_mode(AccessorType::mode, data.is_no_init);
+    
+    size_t element_size = data.mem->get_element_size();
 
-    auto req = std::make_unique<rt::buffer_memory_requirement>(
+    std::unique_ptr<rt::buffer_memory_requirement> req;
+    if (element_size != sizeof(typename AccessorType::value_type)) {
+      req.reset(new rt::buffer_memory_requirement(
+        data.mem, rt::id<3>{}, data.mem->get_num_elements(), mode,
+        AccessorType::access_target));
+    } else {
+      req.reset(new rt::buffer_memory_requirement(
         data.mem, rt::make_id(data.offset), rt::make_range(data.range), mode,
-        AccessorType::access_target);
+        AccessorType::access_target));
+    }
 
     // Bind the accessor's embedded pointer to the requirement, such that
     // the scheduler is able to initialize the accessor's data pointer
@@ -716,14 +719,16 @@ private:
 
     std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
 
-    if(sizeof(T) != data->get_element_size())
-      assert(false && "Accessors with different element size than original "
-                      "buffer are not yet supported");
-
     rt::dag_build_guard build{rt::application::dag()};
 
-    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
-        data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt);
+    std::unique_ptr<rt::buffer_memory_requirement> explicit_requirement;
+    if(sizeof(T) != data->get_element_size()) {
+      explicit_requirement.reset(new rt::buffer_memory_requirement(
+          data, rt::id<3>{}, data->get_num_elements(), mode, tgt));
+    } else {
+      explicit_requirement.reset(new rt::buffer_memory_requirement(
+          data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt));
+    }
 
     rt::execution_hints enforce_bind_to_dev;
     enforce_bind_to_dev.add_hint(

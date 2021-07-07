@@ -1081,6 +1081,7 @@ llvm::Loop *getLoopsForBarrier(const llvm::LoopInfo &LI, llvm::CallBase *Barrier
 void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *FirstNewBlock, llvm::Function *F,
                             llvm::Loop *&L, LoopSplitterAnalyses &Analyses, llvm::AssumptionCache &AC,
                             const llvm::StringRef &Suffix, llvm::DbgValueInst *ThisDbgValue) {
+  llvm::simplifyLoop(L, &Analyses.DT, &Analyses.LI, &Analyses.SE, &AC, nullptr, false);
   const llvm::BasicBlock *PreHeader = L->getLoopPreheader();
   llvm::BasicBlock *Header = L->getHeader();
   llvm::BasicBlock *Latch = L->getLoopLatch();
@@ -1345,7 +1346,7 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
     return false;
   }
 
-  if (!L->getLoopLatch()->getTerminator()->hasMetadata(hipsycl::compiler::MDKind::WorkItemLoop)) {
+  if (hipsycl::compiler::utils::isWorkItemLoop(*L)) {
     HIPSYCL_DEBUG_INFO << "Splitter: not workitem loop." << L->getHeader()->getName() << "\n";
     return false;
   }

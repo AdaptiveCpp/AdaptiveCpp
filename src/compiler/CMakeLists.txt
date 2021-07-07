@@ -31,7 +31,8 @@ add_library(hipSYCL_clang SHARED
   ParallelRegion.cpp
   SimplifyKernel.cpp
   LoopSimplify.cpp
-  )
+  PipelineBuilder.cpp
+        )
 
 target_include_directories(hipSYCL_clang PRIVATE
   ../../include

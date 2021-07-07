@@ -24,24 +24,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "hipSYCL/compiler/BarrierTailReplication.hpp"
-#include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
-#include "hipSYCL/compiler/IsolateRegions.hpp"
-#include "hipSYCL/compiler/KernelFlattening.hpp"
-#include "hipSYCL/compiler/LoopSimplify.hpp"
-#include "hipSYCL/compiler/LoopSplitter.hpp"
-#include "hipSYCL/compiler/LoopSplitterInlining.hpp"
-#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
-#include "hipSYCL/compiler/PHIsToAllocas.hpp"
-#include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
-#include "hipSYCL/compiler/ReqdLoopBarriers.hpp"
-#include "hipSYCL/compiler/SimplifyKernel.hpp"
+#include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
-#include "hipSYCL/compiler/WILoopMarker.hpp"
-#include "hipSYCL/compiler/WorkItemLoopCreation.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
@@ -77,26 +64,18 @@ static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
     varUniformityReg("var-uniformity", "hipSYCL variable uniformity analysis pass", true /* Only looks at CFG */,
                      true /* Analysis Pass */);
 
-
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  PM.add(new WILoopMarkerPassLegacy{});
-  PM.add(new LoopSplitterInliningPassLegacy{});
-  PM.add(new SimplifyKernelPassLegacy{});
-  //  PM.add(new LoopSplitAtBarrierPassLegacy{false});
-  PM.add(new PHIsToAllocasPassLegacy{});
-  PM.add(new IsolateRegionsPassLegacy{});
-  PM.add(new AddRequiredLoopBarriersPassLegacy{});
-  PM.add(new BarrierTailReplicationPassLegacy{});
-  PM.add(new PHIsToAllocasPassLegacy{});
-
-  PM.add(new LoopSimplifyPassLegacy{});
-  PM.add(new CanonicalizeBarriersPassLegacy{});
-
-  PM.add(new IsolateRegionsPassLegacy{});
-  PM.add(new WorkItemLoopCreationPassLegacy{});
-  PM.add(new RemoveBarrierCallsPassLegacy{});
-  PM.add(new KernelFlatteningPassLegacy{});
-  PM.add(new LoopsParallelMarkerPassLegacy{});
+  switch (hipsycl::compiler::selectPipeline()) {
+  case LoopSplittingPipeline::Original:
+    registerOriginalPipelineLegacy(PM);
+    break;
+  case hipsycl::compiler::LoopSplittingPipeline::Pocl:
+    registerPoclPipelineLegacy(PM);
+    break;
+  case LoopSplittingPipeline::WhileSwitch:
+    registerWhileSwitchPipelineLegacy(PM);
+    break;
+  }
 }
 
 static llvm::RegisterStandardPasses
@@ -112,48 +91,21 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           [](llvm::FunctionAnalysisManager &FAM) { FAM.registerPass([] { return VariableUniformityAnalysis{}; }); });
 #if LLVM_VERSION_MAJOR < 12
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
+        llvm::PassBuilder::OptimizationLevel Opt = llvm::PassBuilder::OptimizationLevel::O3;
 #else
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
 #endif
-        MPM.addPass(SplitterAnnotationAnalysisCacher{});
-
-        llvm::FunctionPassManager FPM;
-        FPM.addPass(WILoopMarkerPass{});
-        FPM.addPass(LoopSplitterInliningPass{});
-        FPM.addPass(SimplifyKernelPass{});
-
-        FPM.addPass(PHIsToAllocasPass{});
-        FPM.addPass(IsolateRegionsPass{});
-
-        llvm::LoopPassManager LPM;
-        LPM.addPass(AddRequiredLoopBarriersPass{});
-        FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
-
-        FPM.addPass(BarrierTailReplicationPass{});
-        FPM.addPass(PHIsToAllocasPass{});
-        FPM.addPass(llvm::LoopSimplifyPass{});
-        FPM.addPass(CanonicalizeBarriersPass{});
-
-        FPM.addPass(IsolateRegionsPass{});
-        FPM.addPass(WorkItemLoopCreationPass{});
-        FPM.addPass(RemoveBarrierCallsPass{});
-
-        // todo: remove or integrate in legacy as well or add custom wrapper pass?
-        FPM.addPass(llvm::LoopSimplifyPass{});
-
-        // llvm::LoopPassManager LPM;
-        // LPM.addPass(LoopSplitAtBarrierPass{true});
-        // FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
-
-#if LLVM_VERSION_MAJOR >= 12
-        if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
-#endif
-          FPM.addPass(KernelFlatteningPass{});
-#if LLVM_VERSION_MAJOR >= 12
-        if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
-#endif
-          FPM.addPass(LoopsParallelMarkerPass{});
-        MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+        switch (hipsycl::compiler::selectPipeline()) {
+        case LoopSplittingPipeline::Original:
+          registerOriginalPipeline(MPM, Opt);
+          break;
+        case hipsycl::compiler::LoopSplittingPipeline::Pocl:
+          registerPoclPipeline(MPM, Opt);
+          break;
+        case LoopSplittingPipeline::WhileSwitch:
+          registerWhileSwitchPipeline(MPM, Opt);
+          break;
+        }
       });
     }
   };

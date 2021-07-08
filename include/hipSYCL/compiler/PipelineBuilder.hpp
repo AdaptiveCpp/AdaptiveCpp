@@ -37,17 +37,17 @@ class PassManagerBase;
 } // namespace llvm
 
 namespace hipsycl::compiler {
-enum class LoopSplittingPipeline { Original, Pocl, WhileSwitch };
+enum class LoopSplittingPipeline { Original, Pocl, ContinuationBasedSynchronization };
 constexpr LoopSplittingPipeline DefaultLoopSplittingPipeline = LoopSplittingPipeline::Pocl;
 
 LoopSplittingPipeline selectPipeline();
 
 void registerOriginalPipelineLegacy(llvm::legacy::PassManagerBase &PM);
 void registerPoclPipelineLegacy(llvm::legacy::PassManagerBase &PM);
-void registerWhileSwitchPipelineLegacy(llvm::legacy::PassManagerBase &PM);
+void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM);
 
 void registerOriginalPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt);
 void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt);
-void registerWhileSwitchPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt);
+void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt);
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_PIPELINEBUILDER_HPP

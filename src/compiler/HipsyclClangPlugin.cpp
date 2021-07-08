@@ -72,8 +72,8 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
   case hipsycl::compiler::LoopSplittingPipeline::Pocl:
     registerPoclPipelineLegacy(PM);
     break;
-  case LoopSplittingPipeline::WhileSwitch:
-    registerWhileSwitchPipelineLegacy(PM);
+  case LoopSplittingPipeline::ContinuationBasedSynchronization:
+    registerCBSPipelineLegacy(PM);
     break;
   }
 }
@@ -102,8 +102,8 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
         case hipsycl::compiler::LoopSplittingPipeline::Pocl:
           registerPoclPipeline(MPM, Opt);
           break;
-        case LoopSplittingPipeline::WhileSwitch:
-          registerWhileSwitchPipeline(MPM, Opt);
+        case LoopSplittingPipeline::ContinuationBasedSynchronization:
+          registerCBSPipeline(MPM, Opt);
           break;
         }
       });

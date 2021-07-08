@@ -62,8 +62,8 @@ LoopSplittingPipeline selectPipeline() {
     return LoopSplittingPipeline::Original;
   if (EnvVar.equals_lower("pocl"))
     return LoopSplittingPipeline::Pocl;
-  if (EnvVar.equals_lower("while-switch"))
-    return LoopSplittingPipeline::WhileSwitch;
+  if (EnvVar.equals_lower("cbs"))
+    return LoopSplittingPipeline::ContinuationBasedSynchronization;
   return DefaultLoopSplittingPipeline;
 }
 
@@ -95,10 +95,16 @@ void registerPoclPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
-void registerWhileSwitchPipelineLegacy(llvm::legacy::PassManagerBase &PM) {}
+void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
+  PM.add(new WILoopMarkerPassLegacy{});
+  PM.add(new LoopSplitterInliningPassLegacy{});
+  PM.add(new LoopSimplifyPassLegacy{});
+
+  PM.add(new KernelFlatteningPassLegacy{});
+  PM.add(new LoopsParallelMarkerPassLegacy{});
+}
 
 void registerOriginalPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
-
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -158,6 +164,25 @@ void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optim
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 
-void registerWhileSwitchPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {}
+void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+  MPM.addPass(SplitterAnnotationAnalysisCacher{});
+
+  llvm::FunctionPassManager FPM;
+  FPM.addPass(WILoopMarkerPass{});
+  FPM.addPass(LoopSplitterInliningPass{});
+  FPM.addPass(llvm::LoopSimplifyPass{});
+
+
+
+#if LLVM_VERSION_MAJOR >= 12
+  if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
+#endif
+    FPM.addPass(KernelFlatteningPass{});
+#if LLVM_VERSION_MAJOR >= 12
+  if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
+#endif
+    FPM.addPass(LoopsParallelMarkerPass{});
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+}
 
 } // namespace hipsycl::compiler

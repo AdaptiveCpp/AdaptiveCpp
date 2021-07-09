@@ -59,8 +59,8 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
 
-llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
-                            llvm::DominatorTree *DT);
+llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI = nullptr,
+                            llvm::DominatorTree *DT = nullptr);
 void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC);
 llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 

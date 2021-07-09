@@ -38,7 +38,7 @@ class PassManagerBase;
 
 namespace hipsycl::compiler {
 enum class LoopSplittingPipeline { Original, Pocl, ContinuationBasedSynchronization };
-constexpr LoopSplittingPipeline DefaultLoopSplittingPipeline = LoopSplittingPipeline::Pocl;
+constexpr LoopSplittingPipeline DefaultLoopSplittingPipeline = LoopSplittingPipeline::ContinuationBasedSynchronization;
 
 LoopSplittingPipeline selectPipeline();
 

@@ -66,6 +66,7 @@ bool startsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::Spli
 // that is, contains only a branch instruction after a barrier call.
 bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   const llvm::Instruction *T = BB->getTerminator();
+  assert(T);
   return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode(), SAA);
 }
 

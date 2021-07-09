@@ -32,7 +32,8 @@ add_library(hipSYCL_clang SHARED
   SimplifyKernel.cpp
   LoopSimplify.cpp
   PipelineBuilder.cpp
-        )
+  cbs/SubCfgFormation.cpp
+)
 
 target_include_directories(hipSYCL_clang PRIVATE
   ../../include

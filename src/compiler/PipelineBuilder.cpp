@@ -43,6 +43,7 @@
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 #include "hipSYCL/compiler/WILoopMarker.hpp"
 #include "hipSYCL/compiler/WorkItemLoopCreation.hpp"
+#include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/IR/LegacyPassManager.h>
@@ -99,6 +100,11 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSimplifyPassLegacy{});
+
+  PM.add(new CanonicalizeBarriersPassLegacy{});
+  PM.add(new SubCfgFormationPassLegacy{});
+
+  PM.add(new RemoveBarrierCallsPassLegacy{});
 
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
@@ -172,7 +178,11 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optimi
   FPM.addPass(LoopSplitterInliningPass{});
   FPM.addPass(llvm::LoopSimplifyPass{});
 
+  FPM.addPass(CanonicalizeBarriersPass{});
 
+  FPM.addPass(SubCfgFormationPass{});
+
+  FPM.addPass(RemoveBarrierCallsPass{});
 
 #if LLVM_VERSION_MAJOR >= 12
   if (Opt == llvm::PassBuilder::OptimizationLevel::O3)

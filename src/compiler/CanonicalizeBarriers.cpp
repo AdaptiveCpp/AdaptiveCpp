@@ -140,6 +140,7 @@ bool canonicalizeEntry(llvm::BasicBlock *Entry, SplitterAnnotationInfo &SAA) {
   }
   return Changed;
 }
+
 // Canonicalize barriers: ensure all barriers are in a separate BB
 // containing only the barrier and the terminator, with just one
 // predecessor. This allows us to use those BBs as markers only,

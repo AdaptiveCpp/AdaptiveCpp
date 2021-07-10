@@ -49,9 +49,11 @@ For each allocation managed on each device, the `buffer` implementation shall tr
 
 If a page is fully contained within or overlaps with the accessed range of an accessor (taking into account the accessor's access offset and range), we use the terminology that the page is part of the accessor's *page range*.
 
-Using an accessor that is not of a read-only access mode on a device *d*  shall cause all pages within its page range to be marked as outdated on all allocations except for those on device *d*. This is because the implementations has to assume that data was modified on `d`.
+Using an accessor that is not of a read-only access mode on a device *d*  shall cause all pages within its page range to be marked as outdated on all allocations except for those on device *d*. This is because the implementation has to assume that data was modified on `d`.
 
 Data transfers generated from accessors (see below) shall cause transferred pages to be marked as up-to-date on the target allocation.
+
+After reinterpreting a `buffer` with a differing type, the implementation may require the transfer of all pages, despite a smaller range being specified by an accessor.
 
 #### Data transfers
 

@@ -131,4 +131,16 @@ BOOST_AUTO_TEST_CASE(vec_api) {
 }
 
 
+// Regression test: convert<>() would not compile because of illegal private data member access
+BOOST_AUTO_TEST_CASE(vec_convert) {
+  auto floats_in = cl::sycl::float4{1.f, 2.f, 3.f, 4.f};
+  auto ints = floats_in.convert<int>();
+  auto floats_out = ints.convert<float>();
+  BOOST_TEST(floats_in.x() == floats_out.x());
+  BOOST_TEST(floats_in.y() == floats_out.y());
+  BOOST_TEST(floats_in.z() == floats_out.z());
+  BOOST_TEST(floats_in.w() == floats_out.w());
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

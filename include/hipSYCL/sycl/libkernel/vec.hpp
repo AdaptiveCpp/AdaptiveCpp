@@ -323,7 +323,7 @@ public:
 
     for(int i = 0; i < N; ++i) {
       // TODO: Take rounding mode into account
-      result._data[i] = static_cast<ConvertT>(_data[i]);
+      result[i] = static_cast<ConvertT>(_data[i]);
     }
 
     return result;
@@ -341,7 +341,7 @@ public:
     
     AsT* in_ptr = reinterpret_cast<AsT*>(&_data[0]);
     for(int i = 0; i < OtherN; ++i)
-      result._data[i] = in_ptr[i];
+      result[i] = in_ptr[i];
 
     return result;
   }

@@ -99,6 +99,9 @@ void registerPoclPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
+
+  PM.add(new SimplifyKernelPassLegacy{});
+  PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new LoopSimplifyPassLegacy{});
 
   PM.add(new CanonicalizeBarriersPassLegacy{});
@@ -176,6 +179,9 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optimi
   llvm::FunctionPassManager FPM;
   FPM.addPass(WILoopMarkerPass{});
   FPM.addPass(LoopSplitterInliningPass{});
+
+  FPM.addPass(SimplifyKernelPass{});
+  FPM.addPass(PHIsToAllocasPass{});
   FPM.addPass(llvm::LoopSimplifyPass{});
 
   FPM.addPass(CanonicalizeBarriersPass{});

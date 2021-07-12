@@ -33,6 +33,7 @@
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/RegionInfo.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/PromoteMemToReg.h>
@@ -324,6 +325,101 @@ llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
         return SelectI;
     }
   return nullptr;
+}
+
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT) {
+  assert(Idx && "Valid WI-Index required");
+
+  auto *MDAlloca =
+      llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+
+  auto &LoopBlocks = L.getBlocksSet();
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  for (auto &I : *EntryBlock) {
+    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
+        continue; // already arrayificated
+      if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
+            auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);
+            return Inst && LoopBlocks.contains(Inst->getParent());
+          }))
+        continue;
+      WL.push_back(Alloca);
+    }
+  }
+
+  for (auto *I : WL) {
+    llvm::IRBuilder AllocaBuilder{I};
+    llvm::Type *T = I->getAllocatedType();
+    if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
+      auto ArrSize = ArrSizeC->getLimitedValue();
+      if (ArrSize > 1) {
+        T = llvm::ArrayType::get(T, ArrSize);
+        HIPSYCL_DEBUG_WARNING << "Caution, alloca was array\n";
+      }
+    }
+
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+                                              I->getName() + "_alloca");
+    Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+    llvm::Instruction *GepIp = nullptr;
+    for (auto *U : I->users()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (!GepIp || DT.dominates(UI, GepIp))
+          GepIp = UI;
+      }
+    }
+    if (GepIp) {
+      llvm::IRBuilder LoadBuilder{GepIp};
+      auto *GEPV = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, I->getName() + "_gep");
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(GEPV);
+      GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+      I->replaceAllUsesWith(GEP);
+      I->eraseFromParent();
+    }
+  }
+}
+
+llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, llvm::MDTuple *MDAlloca) {
+  assert(Idx && "Valid WI-Index required");
+
+  if (!MDAlloca)
+    MDAlloca =
+        llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+
+  auto *T = ToArrayify->getType();
+  llvm::IRBuilder AllocaBuilder{IPAllocas};
+  auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+                                            ToArrayify->getName() + "_alloca");
+  Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+  const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
+
+  llvm::IRBuilder WriteBuilder{InsertionPoint};
+  auto *GEP = WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep");
+  WriteBuilder.CreateLifetimeStart(GEP, WriteBuilder.getInt64(Layout.getTypeAllocSize(Alloca->getAllocatedType())));
+  WriteBuilder.CreateStore(ToArrayify, GEP);
+  return Alloca;
+}
+
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
+                                      llvm::MDTuple *MDAlloca) {
+  llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
+
+  return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, MDAlloca);
+}
+
+llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
+                               const llvm::Twine &NamePrefix) {
+  assert(Idx && "Valid WI-Index required");
+
+  llvm::IRBuilder LoadBuilder{InsertBefore};
+  auto *GEP = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep");
+  auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
+  return Load;
 }
 
 } // namespace hipsycl::compiler::utils

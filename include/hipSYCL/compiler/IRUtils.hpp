@@ -64,6 +64,15 @@ llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, l
 void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC);
 llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 
+/// Arrayification of work item private values
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT);
+llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, llvm::MDTuple *MDAlloca = nullptr);
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
+                                      llvm::MDTuple *MDAlloca = nullptr);
+llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
+                               const llvm::Twine &NamePrefix = "");
+
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())
     if (UserType *UT = llvm::dyn_cast<UserType>(U))

@@ -33,6 +33,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/IR/Dominators.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 
@@ -47,10 +48,15 @@ class SubCFG {
   size_t EntryId_;
   llvm::SmallDenseMap<llvm::BasicBlock *, size_t> ExitIds_;
   llvm::AllocaInst *LastBarrierIdStorage_;
+  llvm::Value *WIIndVar_;
 
   //  void addBlock(llvm::BasicBlock *BB) { Blocks_.push_back(BB); }
   llvm::BasicBlock *createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, unsigned long> BarrierPair,
                                      llvm::BasicBlock *After, llvm::BasicBlock *WILatch);
+
+  void loadMultiSubCfgValues(const llvm::Loop *WILoop,
+                             const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                             llvm::ValueToValueMapTy &VMap, llvm::BasicBlock *WIHeader);
 
 public:
   SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
@@ -60,8 +66,12 @@ public:
   BlockVector &getBlocks() noexcept { return Blocks_; }
   const BlockVector &getBlocks() const noexcept { return Blocks_; }
 
-  void replicate(llvm::Loop *WILoop);
+  void replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap);
   void cleanupOldBlocks();
+
+  void arrayifyMutliSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                                 llvm::SmallPtrSetImpl<const llvm::BasicBlock *> &WILoopBBs,
+                                 llvm::Instruction *AllocaIP);
 
   void print() const;
 };
@@ -89,6 +99,7 @@ SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdSt
                const SplitterAnnotationInfo &SAA)
     : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)) {
   const auto *WILatch = WILoop->getLoopLatch();
+  WIIndVar_ = WILoop->getCanonicalInductionVariable();
 
   llvm::SmallVector<llvm::BasicBlock *, 4> WL{EntryBarrier};
   while (!WL.empty()) {
@@ -127,7 +138,8 @@ void SubCFG::print() const {
   } llvm::outs() << "\n";)
 }
 
-void SubCFG::replicate(llvm::Loop *WILoop) {
+void SubCFG::replicate(llvm::Loop *WILoop,
+                       const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap) {
   llvm::ValueToValueMapTy VMap;
   auto *WIHeader = llvm::CloneBasicBlock(WILoop->getHeader(), VMap, ".subcfg." + llvm::Twine{EntryId_} + "b",
                                          WILoop->getHeader()->getParent());
@@ -147,8 +159,7 @@ void SubCFG::replicate(llvm::Loop *WILoop) {
     }
   }
 
-  auto *OldWIEntry = utils::getWorkItemLoopBodyEntry(WILoop);
-  VMap[OldWIEntry] = NewBlocks_.front();
+  loadMultiSubCfgValues(WILoop, InstAllocaMap, VMap, WIHeader);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BlocksToRemap{NewBlocks_.begin(), NewBlocks_.end()};
   BlocksToRemap.push_back(WIHeader);
@@ -164,10 +175,46 @@ void SubCFG::cleanupOldBlocks() {
   Blocks_.clear();
 }
 
-void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, const SplitterAnnotationInfo &SAA) {
+void SubCFG::arrayifyMutliSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                                       llvm::SmallPtrSetImpl<const llvm::BasicBlock *> &WILoopBBs,
+                                       llvm::Instruction *AllocaIP) {
+  for (auto *BB : Blocks_) {
+    for (auto &I : *BB) {
+      if (utils::anyOfUsers<llvm::Instruction>(&I, [&WILoopBBs, this](auto *UI) {
+            return std::find(Blocks_.begin(), Blocks_.end(), UI->getParent()) == Blocks_.end() &&
+                   WILoopBBs.find(UI->getParent()) != WILoopBBs.end();
+          }))
+        InstAllocaMap.insert({&I, utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_)});
+    }
+  }
+}
+
+void SubCFG::loadMultiSubCfgValues(const llvm::Loop *WILoop,
+                                   const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                                   llvm::ValueToValueMapTy &VMap, llvm::BasicBlock *WIHeader) {
+  llvm::Value *NewWIIndVar = VMap[WIIndVar_];
+  auto *LoadBB = llvm::BasicBlock::Create(WIHeader->getContext(), "loadblock.subcfg." + llvm::Twine{EntryId_} + "b",
+                                          WIHeader->getParent(), NewBlocks_.front());
+  llvm::IRBuilder Builder{LoadBB, LoadBB->getFirstInsertionPt()};
+  auto *LoadTerm = Builder.CreateBr(NewBlocks_.front());
+
+  for (auto &InstAllocaPair : InstAllocaMap) {
+    if (utils::anyOfUsers<llvm::Instruction>(InstAllocaPair.first, [this](auto *UI) {
+          return std::find(NewBlocks_.begin(), NewBlocks_.end(), UI->getParent()) != NewBlocks_.end();
+        }))
+      VMap[InstAllocaPair.first] =
+          utils::loadFromAlloca(InstAllocaPair.second, NewWIIndVar, LoadTerm, InstAllocaPair.first->getName());
+  }
+  auto *OldWIEntry = utils::getWorkItemLoopBodyEntry(WILoop);
+  VMap[OldWIEntry] = LoadBB;
+}
+
+void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, const SplitterAnnotationInfo &SAA) {
   auto *WILoop = utils::getSingleWorkItemLoop(LI);
   assert(WILoop && "Must have work item loop in kernel");
   F.viewCFG();
+  llvm::PHINode *WIIndVar = WILoop->getCanonicalInductionVariable();
+  assert(WIIndVar && "Must have work item index");
 
   auto *WIEntry = utils::getWorkItemLoopBodyEntry(WILoop);
   llvm::DenseMap<llvm::BasicBlock *, size_t> Barriers;
@@ -183,21 +230,29 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, const SplitterAnnotation
     if (Barriers.find(BB) == Barriers.end() && utils::hasOnlyBarrier(BB, SAA))
       Barriers.insert({BB, Barriers.size()});
 
-  llvm::DataLayout DL{F.getParent()};
+  utils::arrayifyAllocas(&F.getEntryBlock(), *WILoop, WIIndVar, DT);
+
+  const llvm::DataLayout &DL = F.getParent()->getDataLayout();
   llvm::IRBuilder Builder{F.getEntryBlock().getFirstNonPHI()};
   auto *LastBarrierIdStorage =
       Builder.CreateAlloca(DL.getLargestLegalIntType(F.getContext()), nullptr, "LastBarrierId");
 
+  // create subcfgs
   std::vector<SubCFG> SubCFGs;
-  for (auto BIt : Barriers) {
+  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> InstAllocaMap;
+  for (auto &BIt : Barriers) {
     HIPSYCL_DEBUG_INFO << "Create SubCFG from " << BIt.first->getName() << "(" << BIt.first << ") id: " << BIt.second
                        << "\n";
-    if (BIt.second != ExitBarrierId)
+    if (BIt.second != ExitBarrierId) {
       SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA);
+      SubCFGs.back().arrayifyMutliSubCfgValues(InstAllocaMap, WILoop->getBlocksSet(),
+                                               F.getEntryBlock().getFirstNonPHI());
+    }
   }
+
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
-    Cfg.replicate(WILoop);
+    Cfg.replicate(WILoop, InstAllocaMap);
   }
 
   // todo: remove original structure
@@ -212,18 +267,23 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, const SplitterAnnotation
 namespace hipsycl::compiler {
 void SubCfgFormationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::LoopInfoWrapperPass>();
-  AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
+  AU.addRequiredTransitive<llvm::DominatorTreeWrapperPass>();
+  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
 
 bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
 
   if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
-  formSubCfgs(F, LI, SAA);
+
+  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+
+  formSubCfgs(F, LI, DT, SAA);
   return false;
 }
 
@@ -236,7 +296,8 @@ llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F, llvm::Functi
     return llvm::PreservedAnalyses::all();
 
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
-  formSubCfgs(F, LI, *SAA);
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+  formSubCfgs(F, LI, DT, *SAA);
 
   llvm::PreservedAnalyses PA;
   PA.preserve<SplitterAnnotationAnalysis>();

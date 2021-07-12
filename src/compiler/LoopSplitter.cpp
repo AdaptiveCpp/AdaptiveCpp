@@ -55,6 +55,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
 namespace {
+using namespace hipsycl::compiler;
 
 struct LoopSplitterAnalyses {
   llvm::LoopInfo &LI;
@@ -382,59 +383,6 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
   }
 }
 
-void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT) {
-  auto *MDAlloca =
-      llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
-
-  auto &LoopBlocks = L.getBlocksSet();
-  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
-  for (auto &I : *EntryBlock) {
-    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
-      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
-        continue; // already arrayificated
-      if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
-            auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);
-            return Inst && LoopBlocks.contains(Inst->getParent());
-          }))
-        continue;
-      WL.push_back(Alloca);
-    }
-  }
-
-  for (auto *I : WL) {
-    llvm::IRBuilder AllocaBuilder{I};
-    llvm::Type *T = I->getAllocatedType();
-    if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
-      auto ArrSize = ArrSizeC->getLimitedValue();
-      if (ArrSize > 1) {
-        T = llvm::ArrayType::get(T, ArrSize);
-        HIPSYCL_DEBUG_WARNING << "Caution, alloca was array\n";
-      }
-    }
-
-    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
-                                              I->getName() + "_alloca");
-    Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
-
-    llvm::Instruction *GepIp = nullptr;
-    for (auto *U : I->users()) {
-      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
-        if (!GepIp || DT.dominates(UI, GepIp))
-          GepIp = UI;
-      }
-    }
-    if (GepIp) {
-      llvm::IRBuilder LoadBuilder{GepIp};
-      auto *GEPV = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, I->getName() + "_gep");
-      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(GEPV);
-      GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
-
-      I->replaceAllUsesWith(GEP);
-      I->eraseFromParent();
-    }
-  }
-}
-
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   llvm::AllocaInst *Alloca = nullptr;
   if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
@@ -445,34 +393,6 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
     return Alloca;
   return nullptr;
-}
-
-llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx,
-                                llvm::MDTuple *MDAlloca = nullptr) {
-  if (!MDAlloca)
-    MDAlloca =
-        llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
-
-  auto *T = ToArrayify->getType();
-  llvm::IRBuilder AllocaBuilder{IPAllocas};
-  auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
-                                            ToArrayify->getName() + "_alloca");
-  Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
-
-  llvm::IRBuilder WriteBuilder{InsertionPoint};
-  auto *GEP = WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep");
-  auto *LTStart = WriteBuilder.CreateLifetimeStart(GEP); // todo: calculate size of object.
-  auto *Store = WriteBuilder.CreateStore(ToArrayify, GEP);
-  return Alloca;
-}
-
-llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
-                               const llvm::Twine &NamePrefix = "") {
-  llvm::IRBuilder LoadBuilder{InsertBefore};
-  auto *GEP = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep");
-  auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
-  return Load;
 }
 
 // If InsertBefore = nullptr, ToStore must be an llvm::Instruction.
@@ -488,13 +408,6 @@ void storeToAlloca(llvm::Value &ToStore, llvm::AllocaInst &DstAlloca, llvm::Valu
   llvm::IRBuilder WriteBuilder{InsertBefore};
   auto *GEP = WriteBuilder.CreateInBoundsGEP(&DstAlloca, {&Idx}, ToStore.getName() + "_gep");
   WriteBuilder.CreateStore(&ToStore, GEP);
-}
-
-llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
-                                      llvm::MDTuple *MDAlloca = nullptr) {
-  llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
-
-  return arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, MDAlloca);
 }
 
 void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
@@ -513,7 +426,7 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
       }
     }
 
-    ValueAllocaMap[I] = arrayifyInstruction(IPAllocas, I, Idx, MDAlloca);
+    ValueAllocaMap[I] = utils::arrayifyInstruction(IPAllocas, I, Idx, MDAlloca);
   }
 }
 
@@ -541,11 +454,11 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
         if (auto *PhiI = llvm::dyn_cast<llvm::PHINode>(I)) {
           auto *IncomingBB = PhiI->getIncomingBlock(OP);
           auto *IP = IncomingBB->getTerminator();
-          llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, IP, OPV->getName());
+          llvm::LoadInst *Load = utils::loadFromAlloca(Alloca, Idx, IP, OPV->getName());
           copyDgbValues(OPV, Load, IP);
           I->replaceUsesOfWith(OPV, Load);
         } else if (!AllocasInHeader.contains(Alloca)) {
-          llvm::LoadInst *Load = loadFromAlloca(Alloca, Idx, InsertBefore, OPV->getName());
+          llvm::LoadInst *Load = utils::loadFromAlloca(Alloca, Idx, InsertBefore, OPV->getName());
 
           copyDgbValues(OPV, Load, InsertBefore);
           VMap[AllocaIt->first] = Load;
@@ -732,7 +645,7 @@ void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx
         assert(!llvm::isa<llvm::Instruction>(FromPreHeaderV) && "If input not load, then only const allowed");
 
         auto *IP = llvm::dyn_cast<llvm::Instruction>(PrevL.getLoopLatch()->getFirstNonPHIOrDbgOrLifetime());
-        AllocaI = arrayifyValue(Header->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), FromPreHeaderV, IP,
+        AllocaI = utils::arrayifyValue(Header->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), FromPreHeaderV, IP,
                                 PrevL.getCanonicalInductionVariable());
       }
       if (auto *FromLatchV = PhiI.getIncomingValueForBlock(L.getLoopLatch())) {
@@ -922,16 +835,16 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
     // todo: if the value from the alloca is really only used as the initial value of the loop, it would be possible to
     //  re-use that alloca and reduce stack storage usage
     auto *ToStore =
-        loadFromAlloca(OrgAlloca, OldWIIdx, PrevLoop->getLoopLatch()->getFirstNonPHIOrDbgOrLifetime(), LInc->getName());
-    llvm::AllocaInst *IncAlloca = arrayifyInstruction(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(),
+        utils::loadFromAlloca(OrgAlloca, OldWIIdx, PrevLoop->getLoopLatch()->getFirstNonPHIOrDbgOrLifetime(), LInc->getName());
+    llvm::AllocaInst *IncAlloca = utils::arrayifyInstruction(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(),
                                                       ToStore, PrevLoop->getCanonicalInductionVariable());
 
-    auto *NewLoad = loadFromAlloca(IncAlloca, NewWIIdx, NewLoadIP, LInc->getName());
+    auto *NewLoad = utils::loadFromAlloca(IncAlloca, NewWIIdx, NewLoadIP, LInc->getName());
     copyDgbValues(LInc, NewLoad, NewLoadIP);
 
     VMap[LInc] = NewLoad;
     VMap[Phi] = NewLoad;
-    auto *Copied = loadFromAlloca(IncAlloca, llvm::Constant::getNullValue(NewWIIdx->getType()),
+    auto *Copied = utils::loadFromAlloca(IncAlloca, llvm::Constant::getNullValue(NewWIIdx->getType()),
                                   InnerLoop->getLoopPreheader()->getFirstNonPHI(), LInc->getName());
     llvm::dropDebugUsers(*Phi);
 
@@ -948,9 +861,9 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
   } else { // constants
     auto *IP = PrevLoop->getLoopLatch()->getFirstNonPHIOrDbgOrLifetime();
 
-    llvm::AllocaInst *ValueAlloca = arrayifyValue(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), VInc,
+    llvm::AllocaInst *ValueAlloca = utils::arrayifyValue(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), VInc,
                                                   IP, PrevLoop->getCanonicalInductionVariable());
-    auto *Load = loadFromAlloca(ValueAlloca, NewWIIdx, NewLoadIP, Phi->getName());
+    auto *Load = utils::loadFromAlloca(ValueAlloca, NewWIIdx, NewLoadIP, Phi->getName());
     copyDgbValues(Phi, Load, NewLoadIP);
     llvm::dropDebugUsers(*Phi);
     VMap[Phi] = Load;
@@ -964,7 +877,7 @@ llvm::LoadInst *replaceIncomingFromLatchWithLoad(llvm::PHINode *Phi, const llvm:
                                                  llvm::AllocaInst *Alloca) {
   llvm::Value *IncV = Phi->getIncomingValueForBlock(InnerLoop->getLoopLatch());
   auto *IP = InnerLoop->getLoopLatch()->getTerminator();
-  auto *LoadI = loadFromAlloca(Alloca, llvm::Constant::getNullValue(NewWIIdx->getType()), IP, IncV->getName() + "LL");
+  auto *LoadI = utils::loadFromAlloca(Alloca, llvm::Constant::getNullValue(NewWIIdx->getType()), IP, IncV->getName() + "LL");
   Phi->replaceUsesOfWith(IncV, LoadI);
   storeToAlloca(*IncV, *Alloca, *NewWIIdx);
   return LoadI;
@@ -1110,7 +1023,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
                                         }),
                          AfterSplitBlocks.end());
 
-  arrayifyAllocas(&F->getEntryBlock(), *L, L->getCanonicalInductionVariable(), DT);
+  utils::arrayifyAllocas(&F->getEntryBlock(), *L, L->getCanonicalInductionVariable(), DT);
 
   // remove latch again..
   AfterSplitBlocks.erase(

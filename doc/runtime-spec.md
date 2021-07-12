@@ -53,7 +53,7 @@ Using an accessor that is not of a read-only access mode on a device *d*  shall 
 
 Data transfers generated from accessors (see below) shall cause transferred pages to be marked as up-to-date on the target allocation.
 
-After reinterpreting a `buffer` with a differing type, the implementation may require the transfer of all pages, despite a smaller range being specified by an accessor.
+If a `buffer` is reinterpreted to a data type of different size than the original buffer element size, the implementation may assume a page range for accessors to the reinterpreted buffer that is larger than the page range as defined above.
 
 #### Data transfers
 

@@ -150,12 +150,17 @@ hip_queue::~hip_queue() {
 std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   this->activate_device();
 
-  auto evt = make_hip_event();
-  if (!evt) {
+  hipEvent_t evt;
+  auto err = hipEventCreate(&evt);
+  if(err != hipSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
     return nullptr;
   }
 
-  auto err = hipEventRecord(evt.get(), this->get_stream());
+
+  err = hipEventRecord(evt, this->get_stream());
   if (err != hipSuccess) {
     register_error(
         __hipsycl_here(),

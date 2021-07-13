@@ -160,12 +160,16 @@ cuda_queue::~cuda_queue() {
 std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   this->activate_device();
 
-  auto evt = make_cuda_event();
-  if (!evt) {
+  cudaEvent_t evt;
+  auto err = cudaEventCreate(&evt);
+  if(err != cudaSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"cuda_queue: Couldn't create event", error_code{"CUDA", err}});
     return nullptr;
   }
 
-  auto err = cudaEventRecord(evt.get(), this->get_stream());
+  err = cudaEventRecord(evt, this->get_stream());
   if (err != cudaSuccess) {
     register_error(
         __hipsycl_here(),
@@ -173,7 +177,7 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<cuda_node_event>(_dev, std::move(evt));
+  return std::make_shared<cuda_node_event>(_dev, evt);
 }
 
 

@@ -42,8 +42,6 @@
 // cuda_runtime_api.h in runtime header files.
 // Note: CUstream_st* == cudaStream_t.
 struct CUstream_st;
-// Note: CUevent_st* == cudaEvent_t
-struct CUevent_st;
 
 namespace hipsycl {
 namespace rt {

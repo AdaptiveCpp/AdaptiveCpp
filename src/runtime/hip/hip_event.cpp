@@ -31,8 +31,13 @@
 namespace hipsycl {
 namespace rt {
 
-void hip_event_deleter::operator()(hipEvent_t evt) const {
-  auto err = hipEventDestroy(evt);
+
+hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
+: _dev{dev}, _evt{evt}
+{}
+
+hip_node_event::~hip_node_event() {
+  auto err = hipEventDestroy(_evt);
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_node_event: Couldn't destroy event",
@@ -40,26 +45,9 @@ void hip_event_deleter::operator()(hipEvent_t evt) const {
   }
 }
 
-hip_unique_event make_hip_event() {
-  hipEvent_t evt;
-  if (hipError_t err = hipEventCreate(&evt); err != hipSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_event: Couldn't create event", error_code{"HIP", err}});
-    return nullptr;
-  } else {
-    return hip_unique_event{evt};
-  }
-}
-
-
-hip_node_event::hip_node_event(device_id dev, hip_unique_event evt)
-: _dev{dev}, _evt{std::move(evt)}
-{}
-
 bool hip_node_event::is_complete() const
 {
-  hipError_t err = hipEventQuery(_evt.get());
+  hipError_t err = hipEventQuery(_evt);
   if (err != hipErrorNotReady && err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_node_event: Couldn't query event status",
@@ -70,7 +58,7 @@ bool hip_node_event::is_complete() const
 
 void hip_node_event::wait()
 {
-  auto err = hipEventSynchronize(_evt.get());
+  auto err = hipEventSynchronize(_evt);
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_node_event: hipEventSynchronize() failed",
@@ -80,7 +68,7 @@ void hip_node_event::wait()
 
 hipEvent_t hip_node_event::get_event() const
 {
-  return _evt.get();
+  return _evt;
 }
 
 device_id hip_node_event::get_device() const

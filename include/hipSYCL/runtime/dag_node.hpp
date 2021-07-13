@@ -30,7 +30,6 @@
 
 #include <memory>
 #include <atomic>
-#include <future>
 
 #include "hints.hpp"
 #include "event.hpp"

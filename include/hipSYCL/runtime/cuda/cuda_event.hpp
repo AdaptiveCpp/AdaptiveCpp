@@ -36,20 +36,12 @@ struct CUevent_st;
 namespace hipsycl {
 namespace rt {
 
-struct cuda_event_deleter {
-  void operator()(CUevent_st *evt) const;
-};
-
-/// Manages a cudaEvent_t.
-using cuda_unique_event = std::unique_ptr<CUevent_st, cuda_event_deleter>;
-
-cuda_unique_event make_cuda_event();
-
 class cuda_node_event : public dag_node_event
 {
 public:
   /// \c evt Must have been properly initialized and recorded.
-  cuda_node_event(device_id dev, cuda_unique_event evt);
+  cuda_node_event(device_id dev, CUevent_st* evt);
+  ~cuda_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
@@ -58,7 +50,7 @@ public:
   device_id get_device() const;
 private:
   device_id _dev;
-  cuda_unique_event _evt;
+  CUevent_st* _evt;
 };
 
 }

@@ -34,20 +34,13 @@
 namespace hipsycl {
 namespace rt {
 
-struct hip_event_deleter {
-  void operator()(hipEvent_t evt) const;
-};
-
-/// Manages a hipEvent_t.
-using hip_unique_event = std::unique_ptr<ihipEvent_t, hip_event_deleter>;
-
-hip_unique_event make_hip_event();
 
 class hip_node_event : public dag_node_event
 {
 public:
   /// \c evt Must have been properly initialized and recorded.
-  hip_node_event(device_id dev, hip_unique_event evt);
+  hip_node_event(device_id dev, hipEvent_t evt);
+  ~hip_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
@@ -56,7 +49,7 @@ public:
   device_id get_device() const;
 private:
   device_id _dev;
-  hip_unique_event _evt;
+  hipEvent_t _evt;
 };
 
 }

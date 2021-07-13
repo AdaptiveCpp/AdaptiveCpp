@@ -94,10 +94,67 @@ struct input_generator <T, sycl::multiplies<T>> {
 
     if(i % 100 == 0)
       return static_cast<T>(2);
-    
+
     return static_cast<T>(1);
   }
 };
+
+template<class T>
+struct input_generator <T, sycl::minimum<T>> {
+  T operator() (std::size_t i) const {
+    return 1234 - (i % 567);
+  }
+};
+
+template<class T>
+struct input_generator <T, sycl::maximum<T>> {
+  T operator() (std::size_t i) const {
+    return 1234 + (i % 567);
+  }
+};
+
+template<class T>
+struct input_generator <T, sycl::bit_and<T>> {
+  T operator() (std::size_t i) const {
+    return static_cast<T>((2ull * static_cast<unsigned long long>(i)) | (1ull << (8 * sizeof(T) - 1)) | 1ull);
+  }
+};
+
+template<class T>
+struct input_generator <T, sycl::bit_or<T>> {
+T operator() (std::size_t i) const {
+  return static_cast<T>(i ? 2ull * static_cast<unsigned long long>(i) : (1ull << (8 * sizeof(T) - 1)));
+}
+};
+
+template<class T>
+struct input_generator <T, sycl::bit_xor<T>> {
+  T operator() (std::size_t i) const {
+    return static_cast<T>(17 * i);
+  }
+};
+
+template<>
+struct input_generator <bool, sycl::logical_or<bool>> {
+  bool operator() (std::size_t i) const {
+    return i == 0;
+  }
+};
+
+template<>
+struct input_generator <bool, sycl::logical_and<bool>> {
+bool operator() (std::size_t i) const {
+  return i != 0;
+}
+};
+
+
+// Unknown to SYCL, so either an explicit identity must be provided or the slow non-identity reduction path is entered
+template<typename T>
+struct no_identity_maximum {
+    T operator()(T a, T b) const { return a < b ? b : a ;}
+};
+
 
 template<class T, class BinaryOp, int Line>
 class reduction_kernel;
@@ -309,9 +366,24 @@ using large_test_types = boost::mpl::list<unsigned int, int, long long, float,
 using very_large_test_types = boost::mpl::list<unsigned int, long long, float, 
   double>;
 
+using int_test_types = boost::mpl::list<char, unsigned int, int, long long>;
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_reduction, T, all_test_types) {
   test_single_reduction<T>(128, 128, sycl::plus<T>{});
   test_single_reduction<T>(128, 128, sycl::multiplies<T>{});
+  test_single_reduction<T>(128, 128, sycl::minimum<T>{});
+  test_single_reduction<T>(128, 128, sycl::maximum<T>{});
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_int_reduction, T, int_test_types) {
+  test_single_reduction<T>(128, 128, sycl::bit_or<T>{});
+  test_single_reduction<T>(128, 128, sycl::bit_and<T>{});
+  test_single_reduction<T>(128, 128, sycl::bit_xor<T>{});
+}
+
+BOOST_AUTO_TEST_CASE(single_kernel_single_scalar_bool_reduction) {
+  test_single_reduction<bool>(128, 128, sycl::logical_and<bool>{});
+  test_single_reduction<bool>(128, 128, sycl::logical_or<bool>{});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(two_kernels_single_scalar_reduction, T, large_test_types) {
@@ -334,11 +406,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(oversized_group_size, T, all_test_types) {
   test_single_reduction<T>(20, 128, sycl::multiplies<T>{});
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(oversized_group_size_int, T, int_test_types) {
+  test_single_reduction<T>(20, 128, sycl::bit_or<T>{});
+  test_single_reduction<T>(20, 128, sycl::bit_and<T>{});
+  test_single_reduction<T>(20, 128, sycl::bit_xor<T>{});
+}
+
+BOOST_AUTO_TEST_CASE(oversized_group_size_bool) {
+  test_single_reduction<bool>(20, 128, sycl::logical_or<bool>{});
+  test_single_reduction<bool>(20, 128, sycl::logical_and<bool>{});
+}
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
   test_two_reductions<T>(128*128, 128);
 }
 
-BOOST_AUTO_TEST_CASE(accessor_reduction) {
+BOOST_AUTO_TEST_CASE(buffer_reduction) {
   sycl::queue q;
   const auto initialize_to_identity = sycl::property::reduction::initialize_to_identity{};
   sycl::buffer<int> values_buff{1024};

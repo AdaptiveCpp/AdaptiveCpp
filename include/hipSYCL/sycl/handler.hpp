@@ -112,16 +112,18 @@ class handler {
     
     size_t element_size = data.mem->get_element_size();
 
-    std::unique_ptr<rt::buffer_memory_requirement> req;
-    if (element_size != sizeof(typename AccessorType::value_type)) {
-      req.reset(new rt::buffer_memory_requirement(
-        data.mem, rt::id<3>{}, data.mem->get_num_elements(), mode,
-        AccessorType::access_target));
-    } else {
-      req.reset(new rt::buffer_memory_requirement(
-        data.mem, rt::make_id(data.offset), rt::make_range(data.range), mode,
-        AccessorType::access_target));
-    }
+    const rt::range<Dim> buffer_shape = rt::make_range(acc.get_buffer_shape());
+    
+    auto req = std::make_unique<rt::buffer_memory_requirement>(
+      data.mem,
+      detail::get_effective_offset<typename AccessorType::value_type>(
+          data.mem, rt::make_id(data.offset), buffer_shape,
+          AccessorType::has_access_range),
+      detail::get_effective_range<typename AccessorType::value_type>(
+          data.mem, rt::make_range(data.range), buffer_shape,
+          AccessorType::has_access_range),
+      mode, AccessorType::access_target
+    );
 
     // Bind the accessor's embedded pointer to the requirement, such that
     // the scheduler is able to initialize the accessor's data pointer
@@ -713,22 +715,26 @@ private:
         << "handler: Spawning async generalized device update task"
         << std::endl;
 
-    if(!get_memory_region(acc))
+    std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
+
+    if(!data)
       throw sycl::invalid_parameter_error{
           "update_dev(): Accessor is not bound to buffer"};
 
-    std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
-
     rt::dag_build_guard build{rt::application::dag()};
 
-    std::unique_ptr<rt::buffer_memory_requirement> explicit_requirement;
-    if(sizeof(T) != data->get_element_size()) {
-      explicit_requirement.reset(new rt::buffer_memory_requirement(
-          data, rt::id<3>{}, data->get_num_elements(), mode, tgt));
-    } else {
-      explicit_requirement.reset(new rt::buffer_memory_requirement(
-          data, rt::make_id(get_offset(acc)), rt::make_range(get_range(acc)), mode, tgt));
-    }
+    const rt::range<dim> buffer_shape = rt::make_range(acc.get_buffer_shape());
+    constexpr bool has_access_range =
+      accessor<T, dim, mode, tgt, variant>::has_access_range;
+
+    auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+      data,
+      detail::get_effective_offset<T>(data, rt::make_id(get_offset(acc)),
+                                      buffer_shape, has_access_range),
+      detail::get_effective_range<T>(data, rt::make_range(get_range(acc)),
+                                      buffer_shape, has_access_range),
+      mode, tgt
+    );
 
     rt::execution_hints enforce_bind_to_dev;
     enforce_bind_to_dev.add_hint(

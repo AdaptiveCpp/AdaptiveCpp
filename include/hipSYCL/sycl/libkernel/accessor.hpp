@@ -428,6 +428,29 @@ inline access_mode get_effective_access_mode(access_mode accessmode,
   return mode;
 }
 
+template <class T, int Dim>
+rt::range<3> get_effective_range(const std::shared_ptr<rt::buffer_data_region> &mem_region,
+                                  const rt::range<Dim> range, const rt::range<Dim> buffer_shape,
+                                  const bool has_access_range) {
+  // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
+  if(!has_access_range || sizeof(T) != mem_region->get_element_size() 
+      || rt::embed_in_range3(buffer_shape) != mem_region->get_num_elements())
+    return mem_region->get_num_elements();
+
+  return rt::embed_in_range3(range);
+}
+
+template <class T, int Dim>
+rt::id<3> get_effective_offset(const std::shared_ptr<rt::buffer_data_region> &mem_region,
+                                  const rt::id<Dim> offset, const rt::range<Dim> buffer_shape, 
+                                  const bool has_access_range) {
+  // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
+  if(!has_access_range || sizeof(T) != mem_region->get_element_size()
+      || rt::embed_in_range3(buffer_shape) != mem_region->get_num_elements())
+    return {};
+  return rt::embed_in_id3(offset);
+}
+
 /// The accessor base allows us to retrieve the associated buffer
 /// for the accessor.
 template<class T>
@@ -1101,18 +1124,17 @@ private:
     rt::dag_node_ptr node;
     {
       rt::dag_build_guard build{rt::application::dag()};
-
-      std::unique_ptr<rt::buffer_memory_requirement> explicit_requirement;
-      if(sizeof(dataT) != data->get_num_elements())
-        explicit_requirement.reset(new rt::buffer_memory_requirement(
-              data, rt::id<3>{}, data->get_num_elements(),
-              detail::get_effective_access_mode(accessmode, is_no_init),
-              accessTarget));
-      else
-        explicit_requirement.reset(new rt::buffer_memory_requirement(
-              data, rt::make_id(get_offset()), rt::make_range(get_range()),
-              detail::get_effective_access_mode(accessmode, is_no_init),
-              accessTarget));
+      
+      const rt::range<dimensions> buffer_shape = rt::make_range(get_buffer_shape());
+      auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+        data,
+        detail::get_effective_offset<dataT>(data, rt::make_id(get_offset()),
+                                            buffer_shape, has_access_range),
+        detail::get_effective_range<dataT>(data, rt::make_range(get_range()),
+                                            buffer_shape, has_access_range),
+        detail::get_effective_access_mode(accessmode, is_no_init),
+        accessTarget
+      );
 
       rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get())
           ->bind(this->get_uid());

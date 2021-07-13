@@ -120,10 +120,14 @@ BOOST_AUTO_TEST_CASE(buffer_api_2d) {
   BOOST_REQUIRE(buf_a == buf_c);
 
   // compile test, that reinterpreted buffer uses rebound allocator
-  s::buffer<std::uint16_t, 1, s::buffer_allocator<std::uint16_t>> buf_d = buf_a.reinterpret<std::uint16_t>(s::range<1>{32});
-  s::buffer<std::uint32_t, 1, s::buffer_allocator<std::uint32_t>> buf_e = buf_a.reinterpret<std::uint32_t, 1>();
-  s::buffer<std::uint16_t, 2, s::buffer_allocator<std::uint16_t>> buf_f = buf_a.reinterpret<std::uint16_t>(s::range<2>{4, 8});
-  s::buffer<std::uint32_t, 2, s::buffer_allocator<std::uint32_t>> buf_g = buf_a.reinterpret<std::uint32_t, 2>();
+  s::buffer<std::uint16_t, 1, s::buffer_allocator<std::uint16_t>> buf_d
+    = buf_a.reinterpret<std::uint16_t>(s::range<1>{32});
+  s::buffer<std::uint32_t, 1, s::buffer_allocator<std::uint32_t>> buf_e
+    = buf_a.reinterpret<std::uint32_t, 1>();
+  s::buffer<std::uint16_t, 2, s::buffer_allocator<std::uint16_t>> buf_f
+    = buf_a.reinterpret<std::uint16_t>(s::range<2>{4, 8});
+  s::buffer<std::uint32_t, 2, s::buffer_allocator<std::uint32_t>> buf_g
+    = buf_a.reinterpret<std::uint32_t, 2>();
 
   auto host_d = buf_d.get_host_access();
   auto host_e = buf_e.get_host_access();
@@ -132,8 +136,10 @@ BOOST_AUTO_TEST_CASE(buffer_api_2d) {
   auto host_a = buf_a.get_host_access();
   for(size_t i = 0; i < host_a.get_range()[0]; ++i) {
     for(size_t j = 0; j < host_a.get_range()[1]; ++j) {
-      BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_d[i * host_a.get_range()[1] * 2 + j * 2]));
-      BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_e[i * host_a.get_range()[1] + j]));
+      BOOST_CHECK_EQUAL(host_a[i][j], 
+        static_cast<int>(host_d[i * host_a.get_range()[1] * 2 + j * 2]));
+      BOOST_CHECK_EQUAL(host_a[i][j], 
+        static_cast<int>(host_e[i * host_a.get_range()[1] + j]));
       BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_f[i][j * 2]));
       BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_g[i][j]));
     }

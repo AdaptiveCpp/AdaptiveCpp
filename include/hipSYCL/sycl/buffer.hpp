@@ -711,8 +711,8 @@ public:
 
   template <typename ReinterpretT, int ReinterpretDim>
   buffer<ReinterpretT, ReinterpretDim,
-        typename std::allocator_traits<AllocatorT>::template rebind_alloc<
-             ReinterpretT>>
+        typename std::allocator_traits<AllocatorT>
+                 ::template rebind_alloc<ReinterpretT>>
   reinterpret(range<ReinterpretDim> reinterpretRange) const {
     if(_range.size() * sizeof(T) != reinterpretRange.size() * sizeof(ReinterpretT))
       throw invalid_parameter_error{"reinterpret must preserve the byte count of the buffer"};
@@ -732,7 +732,8 @@ public:
     std::enable_if_t<ReinterpretDim == 1 ||
       (ReinterpretDim == dimensions && sizeof(ReinterpretT) == sizeof(T)), int> = 0>
   buffer<ReinterpretT, ReinterpretDim,
-    typename std::allocator_traits<AllocatorT>::template rebind_alloc<ReinterpretT>>
+        typename std::allocator_traits<AllocatorT>
+                 ::template rebind_alloc<ReinterpretT>>
   reinterpret() const {
     if constexpr (ReinterpretDim == 1) {
       return reinterpret<ReinterpretT, 1>(range<1>{

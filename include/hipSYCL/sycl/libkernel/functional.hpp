@@ -99,6 +99,19 @@ struct known_identity_trait {
         inline static constexpr acc known_identity = (identity); \
     };
 
+template<typename T, typename Enable=void>
+struct minmax_identity {
+    inline static constexpr T max_id = std::numeric_limits<T>::lowest();
+    inline static constexpr T min_id = std::numeric_limits<T>::max();
+};
+
+template<typename T>
+struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>> {
+    inline static constexpr T max_id = -std::numeric_limits<T>::infinity();
+    inline static constexpr T min_id = std::numeric_limits<T>::infinity();
+};
+
+// TODO is_arithmetic implicitly covers the current pseudo half = ushort type, resolve once half is implemented
 HIPSYCL_DEFINE_IDENTITY(plus, typename T, T, T{0}, std::enable_if_t<std::is_arithmetic_v<T>>)
 HIPSYCL_DEFINE_IDENTITY(multiplies, typename T, T, T{1}, std::enable_if_t<std::is_arithmetic_v<T>>)
 HIPSYCL_DEFINE_IDENTITY(bit_or, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
@@ -106,6 +119,8 @@ HIPSYCL_DEFINE_IDENTITY(bit_and, typename T, T, ~T{}, std::enable_if_t<std::is_i
 HIPSYCL_DEFINE_IDENTITY(bit_xor, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
 HIPSYCL_DEFINE_IDENTITY(logical_or, , bool, false, void)
 HIPSYCL_DEFINE_IDENTITY(logical_and, , bool, true, void)
+HIPSYCL_DEFINE_IDENTITY(minimum, typename T, T, minmax_identity<T>::min_id, std::enable_if_t<std::is_arithmetic_v<T>>);
+HIPSYCL_DEFINE_IDENTITY(maximum, typename T, T, minmax_identity<T>::max_id, std::enable_if_t<std::is_arithmetic_v<T>>);
 
 #undef HIPSYCL_DEFINE_IDENTITY
 

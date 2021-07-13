@@ -185,7 +185,7 @@ private:
 
 #define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
   class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
-  std::enable_if_t<std::is_same_v<                                             \
+  std::enable_if_t<std::is_same_v<Op, T<void>> || std::is_same_v<              \
             Op, T<typename reducer<BackendReducerImpl>::value_type>>> * =      \
             nullptr
 

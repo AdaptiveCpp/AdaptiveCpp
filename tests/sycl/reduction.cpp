@@ -79,15 +79,15 @@ void test_scalar_reduction(sycl::queue &q, std::size_t num_elements,
 template<class T, class BinaryOp>
 struct input_generator {};
 
-template<class T>
-struct input_generator <T, sycl::plus<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::plus<U>> {
   T operator() (std::size_t i) const {
     return static_cast<T>(i);
   }
 };
 
-template<class T>
-struct input_generator <T, sycl::multiplies<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::multiplies<U>> {
   T operator() (std::size_t i) const {
     if(i > 1500)
       return static_cast<T>(1);
@@ -99,50 +99,50 @@ struct input_generator <T, sycl::multiplies<T>> {
   }
 };
 
-template<class T>
-struct input_generator <T, sycl::minimum<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::minimum<U>> {
   T operator() (std::size_t i) const {
     return 1234 - (i % 567);
   }
 };
 
-template<class T>
-struct input_generator <T, sycl::maximum<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::maximum<U>> {
   T operator() (std::size_t i) const {
     return 1234 + (i % 567);
   }
 };
 
-template<class T>
-struct input_generator <T, sycl::bit_and<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::bit_and<U>> {
   T operator() (std::size_t i) const {
     return static_cast<T>((2ull * static_cast<unsigned long long>(i)) | (1ull << (8 * sizeof(T) - 1)) | 1ull);
   }
 };
 
-template<class T>
-struct input_generator <T, sycl::bit_or<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::bit_or<U>> {
 T operator() (std::size_t i) const {
   return static_cast<T>(i ? 2ull * static_cast<unsigned long long>(i) : (1ull << (8 * sizeof(T) - 1)));
 }
 };
 
-template<class T>
-struct input_generator <T, sycl::bit_xor<T>> {
+template<class T, typename U>
+struct input_generator <T, sycl::bit_xor<U>> {
   T operator() (std::size_t i) const {
     return static_cast<T>(17 * i);
   }
 };
 
-template<>
-struct input_generator <bool, sycl::logical_or<bool>> {
+template<typename U>
+struct input_generator <bool, sycl::logical_or<U>> {
   bool operator() (std::size_t i) const {
     return i == 0;
   }
 };
 
-template<>
-struct input_generator <bool, sycl::logical_and<bool>> {
+template<typename U>
+struct input_generator <bool, sycl::logical_and<U>> {
 bool operator() (std::size_t i) const {
   return i != 0;
 }
@@ -376,9 +376,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_reduction, T, all_test
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_int_reduction, T, int_test_types) {
-  test_single_reduction<T>(128, 128, sycl::bit_or<T>{});
-  test_single_reduction<T>(128, 128, sycl::bit_and<T>{});
-  test_single_reduction<T>(128, 128, sycl::bit_xor<T>{});
+  test_single_reduction<T>(128, 128, sycl::bit_or<>{});
+  test_single_reduction<T>(128, 128, sycl::bit_and<>{});
+  test_single_reduction<T>(128, 128, sycl::bit_xor<>{});
 }
 
 BOOST_AUTO_TEST_CASE(single_kernel_single_scalar_bool_reduction) {
@@ -387,8 +387,8 @@ BOOST_AUTO_TEST_CASE(single_kernel_single_scalar_bool_reduction) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(two_kernels_single_scalar_reduction, T, large_test_types) {
-  test_single_reduction<T>(128*128, 128, sycl::plus<T>{});
-  test_single_reduction<T>(128*128, 128, sycl::multiplies<T>{});
+  test_single_reduction<T>(128*128, 128, sycl::plus<>{});
+  test_single_reduction<T>(128*128, 128, sycl::multiplies<>{});
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(three_kernels_single_scalar_reduction, T, very_large_test_types) {
@@ -439,7 +439,7 @@ BOOST_AUTO_TEST_CASE(buffer_reduction) {
     auto values_acc = values_buff.get_access<sycl::access_mode::read>(
         cgh);
 
-    auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<int>(), initialize_to_identity);
+    auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<>(), initialize_to_identity);
     auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>());
 
     cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
@@ -461,7 +461,7 @@ BOOST_AUTO_TEST_CASE(combine_none_or_multiple) {
   max_buff.get_host_access()[0] = 0;
 
   q.submit([&](sycl::handler &cgh) {
-      auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<int>());
+      auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<>());
       auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>()); // no identity
 
       cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,

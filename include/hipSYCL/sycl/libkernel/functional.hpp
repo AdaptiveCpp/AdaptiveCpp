@@ -34,47 +34,101 @@
 namespace hipsycl {
 namespace sycl {
 
-template <typename T> struct plus {
+template <typename T = void> struct plus {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x + y; }
 };
 
-template <typename T> struct multiplies {
+template <> struct plus<void> {
+  template<typename T>
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x + y; }
+};
+
+template <typename T = void> struct multiplies {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x * y; }
 };
 
-template <typename T> struct bit_and {
+template <> struct multiplies<void> {
+  template<typename T>
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x * y; }
+};
+
+template <typename T = void> struct bit_and {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x & y; }
 };
 
-template <typename T> struct bit_or {
+template <> struct bit_and<void> {
+  template<typename T>
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return x & y; }
+};
+
+template <typename T = void> struct bit_or {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x | y; }
 };
 
-template <typename T> struct bit_xor {
+template <> struct bit_or<void> {
+    template<typename T>
+    HIPSYCL_KERNEL_TARGET
+    T operator()(const T &x, const T &y) const { return x | y; }
+};
+
+template <typename T = void> struct bit_xor {
+    HIPSYCL_KERNEL_TARGET
+    T operator()(const T &x, const T &y) const { return x ^ y; }
+};
+
+template <> struct bit_xor<void> {
+  template<typename T>
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return x ^ y; }
 };
 
-template <typename T> struct logical_and {
+template <typename T = void> struct logical_and {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x && y); }
 };
 
-template <typename T> struct logical_or {
+template <> struct logical_and<void> {
+  template<typename T>
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return static_cast<T>(x && y); }
+};
+
+template <typename T = void> struct logical_or {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return static_cast<T>(x || y); }
 };
 
-template <typename T> struct minimum {
+template <> struct logical_or<void> {
+  template<typename T>
+  HIPSYCL_KERNEL_TARGET
+  T operator()(const T &x, const T &y) const { return static_cast<T>(x || y); }
+};
+
+template <typename T = void> struct minimum {
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x < y) ? x : y; }
 };
 
-template <typename T> struct maximum {
+template <> struct minimum<void> {
+    template<typename T>
+    HIPSYCL_KERNEL_TARGET
+    T operator()(const T &x, const T &y) const { return (x < y) ? x : y; }
+};
+
+template <typename T = void> struct maximum {
+    HIPSYCL_KERNEL_TARGET
+    T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
+};
+
+template <> struct maximum<void> {
+  template<typename T>
   HIPSYCL_KERNEL_TARGET
   T operator()(const T &x, const T &y) const { return (x > y) ? x : y; }
 };
@@ -87,17 +141,17 @@ struct known_identity_trait {
     static constexpr bool has_known_identity = false; \
 };
 
-#define HIPSYCL_DEFINE_IDENTITY(op, tmpl_params, acc, identity, defined_if) \
-    template<tmpl_params> \
-    struct known_identity_trait<op<acc>, acc, defined_if> { \
+#define HIPSYCL_DEFINE_IDENTITY(op, cond, identity) \
+    template<typename T, typename U> \
+    struct known_identity_trait<op<T>, U, std::enable_if_t<cond>> { \
         static constexpr bool has_known_identity = true; \
-        inline static constexpr acc known_identity = (identity); \
+        inline static constexpr T known_identity = (identity); \
     }; \
-    template<tmpl_params> \
-    struct known_identity_trait<op<void>, acc, defined_if> { \
-        inline static constexpr acc has_known_identity = true; \
-        inline static constexpr acc known_identity = (identity); \
-    };
+    template<typename T> \
+    struct known_identity_trait<op<void>, T, std::enable_if_t<cond>> { \
+        inline static constexpr bool has_known_identity = true; \
+        inline static constexpr T known_identity = (identity); \
+    }
 
 template<typename T, typename Enable=void>
 struct minmax_identity {
@@ -112,15 +166,15 @@ struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>
 };
 
 // TODO is_arithmetic implicitly covers the current pseudo half = ushort type, resolve once half is implemented
-HIPSYCL_DEFINE_IDENTITY(plus, typename T, T, T{0}, std::enable_if_t<std::is_arithmetic_v<T>>)
-HIPSYCL_DEFINE_IDENTITY(multiplies, typename T, T, T{1}, std::enable_if_t<std::is_arithmetic_v<T>>)
-HIPSYCL_DEFINE_IDENTITY(bit_or, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
-HIPSYCL_DEFINE_IDENTITY(bit_and, typename T, T, ~T{}, std::enable_if_t<std::is_integral_v<T>>)
-HIPSYCL_DEFINE_IDENTITY(bit_xor, typename T, T, T{}, std::enable_if_t<std::is_integral_v<T>>)
-HIPSYCL_DEFINE_IDENTITY(logical_or, , bool, false, void)
-HIPSYCL_DEFINE_IDENTITY(logical_and, , bool, true, void)
-HIPSYCL_DEFINE_IDENTITY(minimum, typename T, T, minmax_identity<T>::min_id, std::enable_if_t<std::is_arithmetic_v<T>>);
-HIPSYCL_DEFINE_IDENTITY(maximum, typename T, T, minmax_identity<T>::max_id, std::enable_if_t<std::is_arithmetic_v<T>>);
+HIPSYCL_DEFINE_IDENTITY(plus, std::is_arithmetic_v<T>, T{});
+HIPSYCL_DEFINE_IDENTITY(multiplies, std::is_arithmetic_v<T>, T{1});
+HIPSYCL_DEFINE_IDENTITY(bit_or, std::is_integral_v<T>, T{});
+HIPSYCL_DEFINE_IDENTITY(bit_and, std::is_integral_v<T>, ~T{});
+HIPSYCL_DEFINE_IDENTITY(bit_xor, std::is_integral_v<T>, T{});
+HIPSYCL_DEFINE_IDENTITY(logical_or, (std::is_same_v<T, bool>), false);
+HIPSYCL_DEFINE_IDENTITY(logical_and, (std::is_same_v<T, bool>), true);
+HIPSYCL_DEFINE_IDENTITY(minimum, std::is_arithmetic_v<T>, minmax_identity<T>::min_id);
+HIPSYCL_DEFINE_IDENTITY(maximum, std::is_arithmetic_v<T>, minmax_identity<T>::max_id);
 
 #undef HIPSYCL_DEFINE_IDENTITY
 

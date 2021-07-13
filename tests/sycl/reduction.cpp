@@ -439,10 +439,10 @@ BOOST_AUTO_TEST_CASE(buffer_reduction) {
     auto values_acc = values_buff.get_access<sycl::access_mode::read>(
         cgh);
 
-    auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<>(), initialize_to_identity);
-    auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>());
+    auto sum_reduction = sycl::reduction(sum_buff, cgh, sycl::plus<>(), initialize_to_identity);
+    auto max_reduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>());
 
-    cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+    cgh.parallel_for(sycl::range<1>{1024}, sum_reduction, max_reduction,
                      [=](sycl::id<1> idx, auto &sum, auto &max) {
                        sum += values_acc[idx];
                        max.combine(values_acc[idx]);
@@ -461,10 +461,10 @@ BOOST_AUTO_TEST_CASE(combine_none_or_multiple) {
   max_buff.get_host_access()[0] = 0;
 
   q.submit([&](sycl::handler &cgh) {
-      auto sumReduction = sycl::reduction(sum_buff, cgh, sycl::plus<>());
-      auto maxReduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>()); // no identity
+      auto sum_reduction = sycl::reduction(sum_buff, cgh, sycl::plus<>());
+      auto max_reduction = sycl::reduction(max_buff, cgh, sycl::maximum<int>()); // no identity
 
-      cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
+      cgh.parallel_for(sycl::range<1>{1024}, sum_reduction, max_reduction,
           [=](sycl::id<1> idx, auto &sum, auto &max) {
               // Test both validity of 0 combines or > 1 combine per item
               for (int i = 0; i < static_cast<int>(idx.get(0)) % 3; ++i) {
@@ -476,6 +476,33 @@ BOOST_AUTO_TEST_CASE(combine_none_or_multiple) {
 
   BOOST_CHECK(max_buff.get_host_access()[0] == 1022);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523435);
+}
+
+BOOST_AUTO_TEST_CASE(deprecated_accessor_reduction) {
+    sycl::queue q;
+    sycl::buffer<int> sum_buff_a{1};
+    sycl::buffer<int> sum_buff_b{1};
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated"
+
+    q.submit([&](sycl::handler &cgh) {
+      auto sum_a_reduction = sycl::reduction(sycl::accessor{sum_buff_a, cgh, sycl::write_only, sycl::no_init},
+          sycl::plus<>());
+      auto sum_b_reduction = sycl::reduction(sycl::accessor{sum_buff_b, cgh, sycl::write_only, sycl::no_init},
+          0, sycl::plus<int>());
+
+      cgh.parallel_for(sycl::range<1>{1024}, sum_a_reduction, sum_b_reduction,
+          [=](sycl::item<1> idx, auto &sum_a, auto &sum_b) {
+              sum_a += idx.get_id(0);
+              sum_b += idx.get_id(0);
+          });
+    });
+
+#pragma GCC diagnostic pop
+
+    BOOST_CHECK(sum_buff_a.get_host_access()[0] == 523776);
+    BOOST_CHECK(sum_buff_b.get_host_access()[0] == 523776);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

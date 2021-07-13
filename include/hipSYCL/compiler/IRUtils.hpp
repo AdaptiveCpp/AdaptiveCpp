@@ -73,6 +73,8 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
                                const llvm::Twine &NamePrefix = "");
 
+llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst);
+
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())
     if (UserType *UT = llvm::dyn_cast<UserType>(U))
@@ -88,6 +90,12 @@ template <class UserType, class Func> bool noneOfUsers(llvm::Value *V, Func &&L)
 template <class UserType, class Func> bool allOfUsers(llvm::Value *V, Func &&L) {
   return !anyOfUsers<UserType>(V, [L = std::forward<Func>(L)](UserType *UT) { return !L(UT); });
 }
+
+/// dbg handling
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore);
+void dropDebugLocation(llvm::Instruction &I);
+void dropDebugLocation(llvm::BasicBlock *BB);
+
 } // namespace utils
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_IRUTILS_HPP

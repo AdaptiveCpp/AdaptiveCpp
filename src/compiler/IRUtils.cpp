@@ -32,10 +32,12 @@
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/Analysis/RegionInfo.h>
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/Local.h>
 #include <llvm/Transforms/Utils/PromoteMemToReg.h>
 
 namespace hipsycl::compiler::utils {
@@ -372,8 +374,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
     }
     if (GepIp) {
       llvm::IRBuilder LoadBuilder{GepIp};
-      auto *GEPV = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, I->getName() + "_gep");
-      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(GEPV);
+      auto *GEP =
+          llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
       I->replaceAllUsesWith(GEP);
@@ -420,6 +422,45 @@ llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm:
   auto *GEP = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep");
   auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
   return Load;
+}
+
+llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
+  llvm::AllocaInst *Alloca = nullptr;
+  if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(GEPI->getPointerOperand());
+  } else {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(LInst.getPointerOperand());
+  }
+  if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
+    return Alloca;
+  return nullptr;
+}
+
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
+  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, From);
+  if (!DbgValues.empty()) {
+    auto *DbgValue = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
+                                       InsertBefore);
+  }
+}
+void dropDebugLocation(llvm::Instruction &I) {
+#if LLVM_VERSION_MAJOR >= 12
+  I.dropLocation();
+#else
+  I.setDebugLoc({});
+#endif
+}
+
+void dropDebugLocation(llvm::BasicBlock *BB) {
+  for (auto &I : *BB) {
+    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
+    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
+      dropDebugLocation(I);
+    }
+  }
 }
 
 } // namespace hipsycl::compiler::utils

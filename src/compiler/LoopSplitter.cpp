@@ -82,17 +82,6 @@ void findAllSplitterCalls(const llvm::Loop &L, const hipsycl::compiler::Splitter
   }
 }
 
-void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
-  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
-  llvm::findDbgValues(DbgValues, From);
-  if (!DbgValues.empty()) {
-    auto *DbgValue = DbgValues.back();
-    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
-    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
-                                       InsertBefore);
-  }
-}
-
 void insertDbgValueInIncoming(llvm::PHINode *Phi, llvm::Value *IncomingValue, llvm::BasicBlock *IncomingBlock) {
   llvm::SmallVector<llvm::DbgValueInst *, 2> DbgValues;
   llvm::findDbgValues(DbgValues, Phi);
@@ -101,23 +90,6 @@ void insertDbgValueInIncoming(llvm::PHINode *Phi, llvm::Value *IncomingValue, ll
     llvm::DIBuilder DbgBuilder{*IncomingBlock->getParent()->getParent()};
     DbgBuilder.insertDbgValueIntrinsic(IncomingValue, DbgV->getVariable(), DbgV->getExpression(), DbgV->getDebugLoc(),
                                        IncomingBlock->getTerminator());
-  }
-}
-
-void dropDebugLocation(llvm::Instruction &I) {
-#if LLVM_VERSION_MAJOR >= 12
-  I.dropLocation();
-#else
-  I.setDebugLoc({});
-#endif
-}
-
-void dropDebugLocation(llvm::BasicBlock *BB) {
-  for (auto &I : *BB) {
-    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
-    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
-      dropDebugLocation(I);
-    }
   }
 }
 
@@ -372,7 +344,7 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
               I->replaceUsesOfWith(BCI, BCICloned);
               V = GEP;
               I = BCICloned;
-              dropDebugLocation(*BCICloned);
+              utils::dropDebugLocation(*BCICloned);
             }
           }
           DependingInsts.insert(I);
@@ -381,18 +353,6 @@ void findDependenciesBetweenBlocks(const llvm::SmallVectorImpl<llvm::BasicBlock 
       }
     }
   }
-}
-
-llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
-  llvm::AllocaInst *Alloca = nullptr;
-  if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
-    Alloca = llvm::dyn_cast<llvm::AllocaInst>(GEPI->getPointerOperand());
-  } else {
-    Alloca = llvm::dyn_cast<llvm::AllocaInst>(LInst.getPointerOperand());
-  }
-  if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
-    return Alloca;
-  return nullptr;
 }
 
 // If InsertBefore = nullptr, ToStore must be an llvm::Instruction.
@@ -420,7 +380,7 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
       continue; // currently just have one MD, so no further value checks
 
     if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(I)) {
-      if (auto *Alloca = getLoopStateAllocaForLoad(*LInst)) {
+      if (auto *Alloca = utils::getLoopStateAllocaForLoad(*LInst)) {
         ValueAllocaMap[I] = Alloca;
         continue;
       }
@@ -443,7 +403,7 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
           llvm::Instruction *ClonedI = OPI->clone();
           ClonedI->insertBefore(I);
           I->replaceUsesOfWith(OPI, ClonedI); // todo: optimize location and re-usage..
-          dropDebugLocation(*ClonedI);
+          utils::dropDebugLocation(*ClonedI);
           continue;
         }
       }
@@ -455,12 +415,12 @@ void replaceOperandsWithArrayLoadInHeader(llvm::Value *Idx,
           auto *IncomingBB = PhiI->getIncomingBlock(OP);
           auto *IP = IncomingBB->getTerminator();
           llvm::LoadInst *Load = utils::loadFromAlloca(Alloca, Idx, IP, OPV->getName());
-          copyDgbValues(OPV, Load, IP);
+          utils::copyDgbValues(OPV, Load, IP);
           I->replaceUsesOfWith(OPV, Load);
         } else if (!AllocasInHeader.contains(Alloca)) {
           llvm::LoadInst *Load = utils::loadFromAlloca(Alloca, Idx, InsertBefore, OPV->getName());
 
-          copyDgbValues(OPV, Load, InsertBefore);
+          utils::copyDgbValues(OPV, Load, InsertBefore);
           VMap[AllocaIt->first] = Load;
           AllocasInHeader.insert(Alloca);
           I->replaceUsesOfWith(OPV, Load);
@@ -547,7 +507,7 @@ bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
         GEP->moveBefore(Phi->getIncomingBlock(OP)->getTerminator());
         Changed = true; // todo: remind me, why do we need the GEP here alone again?
       } else if (auto *Load = llvm::dyn_cast<llvm::LoadInst>(&OP)) {
-        if (getLoopStateAllocaForLoad(*Load) == nullptr)
+        if (utils::getLoopStateAllocaForLoad(*Load) == nullptr)
           continue; // only do this for loads that load from a loop state alloca.
         Load->moveBefore(Phi->getIncomingBlock(OP)->getTerminator());
         auto *Ptr = Load->getPointerOperand();
@@ -640,7 +600,7 @@ void moveNonIndVarOutOfHeader(llvm::Loop &L, llvm::Loop &PrevL, llvm::Value *Idx
       llvm::AllocaInst *AllocaI = nullptr;
       auto *FromPreHeaderV = PhiI.getIncomingValueForBlock(L.getLoopPreheader());
       if (auto *FromPreHeaderLI = llvm::dyn_cast<llvm::LoadInst>(FromPreHeaderV)) {
-        AllocaI = getLoopStateAllocaForLoad(*FromPreHeaderLI);
+        AllocaI = utils::getLoopStateAllocaForLoad(*FromPreHeaderLI);
       } else { // constant values
         assert(!llvm::isa<llvm::Instruction>(FromPreHeaderV) && "If input not load, then only const allowed");
 
@@ -779,7 +739,7 @@ void cloneConditions(llvm::Function *F,
         auto *NewBCI = BCI->clone();
         VMap[BCI] = NewBCI;
         BCV = NewBCI;
-        dropDebugLocation(*NewBCI);
+        utils::dropDebugLocation(*NewBCI);
       }
       auto *NewCondBr = TermBuilder.CreateCondBr(BCV, LeftTarget, RightTarget,
                                                  const_cast<llvm::Instruction *>(Cond->Cond->getTerminator()));
@@ -827,7 +787,7 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
   llvm::Instruction *NewLoadIP = LoadBlock->getFirstNonPHIOrDbg();
   llvm::Value *VInc = Phi->getIncomingValueForBlock(InnerLoop->getLoopPreheader());
   if (auto *LInc = llvm::dyn_cast<llvm::LoadInst>(VInc)) {
-    llvm::AllocaInst *OrgAlloca = getLoopStateAllocaForLoad(*LInc);
+    llvm::AllocaInst *OrgAlloca = utils::getLoopStateAllocaForLoad(*LInc);
 
     // create a new alloca, as the load currently is in a load block in the current WI loop, which will be moved inside
     // the inner loop, another load inside the last work item loop is required. That value is then immediately stored to
@@ -840,7 +800,7 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
                                                       ToStore, PrevLoop->getCanonicalInductionVariable());
 
     auto *NewLoad = utils::loadFromAlloca(IncAlloca, NewWIIdx, NewLoadIP, LInc->getName());
-    copyDgbValues(LInc, NewLoad, NewLoadIP);
+    utils::copyDgbValues(LInc, NewLoad, NewLoadIP);
 
     VMap[LInc] = NewLoad;
     VMap[Phi] = NewLoad;
@@ -864,7 +824,7 @@ llvm::AllocaInst *arrayifyIncomingFromPreheader(llvm::PHINode *Phi, const llvm::
     llvm::AllocaInst *ValueAlloca = utils::arrayifyValue(LoadBlock->getParent()->getEntryBlock().getFirstNonPHIOrDbg(), VInc,
                                                   IP, PrevLoop->getCanonicalInductionVariable());
     auto *Load = utils::loadFromAlloca(ValueAlloca, NewWIIdx, NewLoadIP, Phi->getName());
-    copyDgbValues(Phi, Load, NewLoadIP);
+    utils::copyDgbValues(Phi, Load, NewLoadIP);
     llvm::dropDebugUsers(*Phi);
     VMap[Phi] = Load;
 
@@ -920,7 +880,7 @@ void copyLoadsToPreHeader(llvm::BasicBlock *LoadBlock, llvm::BasicBlock *InnerHe
 
     IC->insertBefore(InnerPreHeader->getTerminator());
     HVMap[I] = IC;
-    dropDebugLocation(*IC);
+    utils::dropDebugLocation(*IC);
   }
   llvm::remapInstructionsInBlocks(Headers, HVMap);
 }
@@ -1040,13 +1000,13 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
   NewLoop.addBlockEntry(NewHeader);
   NewLoop.moveToHeader(NewHeader);
   AfterSplitBlocks.push_back(NewHeader);
-  dropDebugLocation(NewHeader);
+  utils::dropDebugLocation(NewHeader);
 
   auto *NewLatch = llvm::CloneBasicBlock(Latch, VMap, Suffix, F, nullptr, nullptr);
   VMap[Latch] = NewLatch;
   NewLoop.addBlockEntry(NewLatch);
   AfterSplitBlocks.push_back(NewLatch);
-  dropDebugLocation(NewLatch);
+  utils::dropDebugLocation(NewLatch);
 
   //  L->removeBlockFromLoop(FirstNewBlock);
   NewLoop.addBlockEntry(FirstNewBlock);
@@ -1128,7 +1088,7 @@ void splitIntoWorkItemLoops(llvm::BasicBlock *LastOldBlock, llvm::BasicBlock *Fi
 
   L->getLoopLatch()->getTerminator()->setMetadata(hipsycl::compiler::MDKind::WorkItemLoop,
                                                   llvm::MDNode::get(F->getContext(), {}));
-  dropDebugLocation(L->getLoopPreheader());
+  utils::dropDebugLocation(L->getLoopPreheader());
 
   if (llvm::verifyFunction(*F, &llvm::errs())) {
     HIPSYCL_DEBUG_ERROR << "function verification failed\n";
@@ -1227,7 +1187,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
     replaceIndexWithNull(BBs, InnerLoop->getLoopPreheader()->getFirstNonPHI(), L->getCanonicalInductionVariable());
 
     copyLoadsToPreHeader(LoadBlock, InnerHeader, InnerPreHeader);
-    dropDebugLocation(LoadBlock);
+    utils::dropDebugLocation(LoadBlock);
   }
 
   // perform loop inversion: the inner loop (pre-)header are moved in front of the WI headers and the inner latch

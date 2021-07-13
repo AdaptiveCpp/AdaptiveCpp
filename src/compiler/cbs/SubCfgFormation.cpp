@@ -85,11 +85,13 @@ public:
   llvm::BasicBlock *getEntry() noexcept { return EntryBB_; }
   llvm::BasicBlock *getExit() noexcept { return ExitBB_; }
 
-  void replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap);
+  void replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                 llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
 
   void arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
                                  llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP);
-  void fixSingleSubCfgValues(llvm::DominatorTree &DT);
+  void fixSingleSubCfgValues(llvm::DominatorTree &DT,
+                             const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
 
   void print() const;
 };
@@ -156,8 +158,17 @@ void SubCFG::print() const {
   } llvm::outs() << "\n";)
 }
 
-void SubCFG::replicate(llvm::Loop *WILoop,
-                       const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap) {
+void addRemappedDenseMapKeys(const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &OrgInstAllocaMap,
+                             const llvm::ValueToValueMapTy &VMap,
+                             llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &NewInstAllocaMap) {
+  for (auto &InstAllocaPair : OrgInstAllocaMap) {
+    if (auto *NewInst = llvm::dyn_cast_or_null<llvm::Instruction>(VMap.lookup(InstAllocaPair.first)))
+      NewInstAllocaMap.insert({NewInst, InstAllocaPair.second});
+  }
+}
+
+void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
   llvm::ValueToValueMapTy VMap;
   auto *WIHeader = llvm::CloneBasicBlock(WILoop->getHeader(), VMap, ".subcfg." + llvm::Twine{EntryId_} + "b",
                                          WILoop->getHeader()->getParent());
@@ -177,6 +188,8 @@ void SubCFG::replicate(llvm::Loop *WILoop,
     }
   }
   print();
+
+  addRemappedDenseMapKeys(InstAllocaMap, VMap, RemappedInstAllocaMap);
   loadMultiSubCfgValues(WILoop, InstAllocaMap, VMap, WIHeader);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BlocksToRemap{NewBlocks_.begin(), NewBlocks_.end()};
@@ -199,6 +212,8 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
 
   for (auto *BB : Blocks_) {
     for (auto &I : *BB) {
+      if (InstAllocaMap.lookup(&I))
+        continue;
       HIPSYCL_DEBUG_INFO << "Find I: ";
       HIPSYCL_DEBUG_EXECUTE_INFO(I.print(llvm::outs()); llvm::outs() << "\n";)
       if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {
@@ -206,7 +221,8 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
             HIPSYCL_DEBUG_EXECUTE_INFO(UI->print(llvm::outs()); llvm::outs() << "\n";)
             return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
           })) {
-
+        HIPSYCL_DEBUG_INFO << "Arrayify I: ";
+        HIPSYCL_DEBUG_EXECUTE_INFO(I.print(llvm::outs()); llvm::outs() << "\n";)
         if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(&I))
           if (auto *Alloca = utils::getLoopStateAllocaForLoad(*LInst)) {
             InstAllocaMap.insert({&I, Alloca});
@@ -260,7 +276,8 @@ void SubCFG::loadMultiSubCfgValues(const llvm::Loop *WILoop,
   VMap[OldWIEntry] = LoadBB_;
 }
 
-void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT) {
+void SubCFG::fixSingleSubCfgValues(
+    llvm::DominatorTree &DT, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
   auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getFirstNonPHIOrDbgOrLifetime();
   auto *LoadIP = LoadBB_->getTerminator();
 
@@ -279,6 +296,8 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT) {
           }
 
           llvm::AllocaInst *Alloca = nullptr;
+          if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI))
+            Alloca = RemAlloca;
           if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca)
@@ -369,9 +388,10 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs)
     Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI());
 
+  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> RemappedInstAllocaMap;
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
-    Cfg.replicate(WILoop, InstAllocaMap);
+    Cfg.replicate(WILoop, InstAllocaMap, RemappedInstAllocaMap);
   }
 
   generateWhileSwitchAround(WILoop, LastBarrierIdStorage, SubCFGs);
@@ -381,7 +401,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   DT.recalculate(F);
   for (auto &Cfg : SubCFGs)
-    Cfg.fixSingleSubCfgValues(DT);
+    Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap);
   F.viewCFG();
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");
 }

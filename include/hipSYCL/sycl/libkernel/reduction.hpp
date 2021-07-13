@@ -264,6 +264,19 @@ auto reduction(BufferT vars, handler &cgh, const typename BufferT::value_type &i
       initialize_to_identity};
 }
 
+template <typename AccessorT, typename BinaryOperation>
+[[deprecated("Use the sycl::reduction() overload taking a buffer instead")]]
+auto reduction(AccessorT vars, BinaryOperation combiner) {
+  auto identity = typename AccessorT::value_type{};
+  return detail::accessor_reduction_descriptor{vars, identity, combiner, true /* initialize_to_identity */};
+}
+
+template <typename AccessorT, typename BinaryOperation>
+[[deprecated("Use the sycl::reduction() overload taking a buffer instead")]]
+auto reduction(AccessorT vars, const typename AccessorT::value_type &identity, BinaryOperation combiner) {
+  return detail::accessor_reduction_descriptor{vars, identity, combiner, true /* initialize_to_identity */};
+}
+
 template <typename T, typename BinaryOperation>
 auto reduction(T *var, BinaryOperation combiner, property_list prop_list = {}) {
   bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();

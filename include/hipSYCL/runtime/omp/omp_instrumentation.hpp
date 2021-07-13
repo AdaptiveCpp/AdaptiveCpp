@@ -31,31 +31,36 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "hipSYCL/runtime/signal_channel.hpp"
 #include "omp_event.hpp"
 #include "../instrumentation.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class omp_timestamp_profiler final : public timestamp_profiler
-{
+using omp_submission_timestamp = simple_submission_timestamp;
+
+class omp_execution_start_timestamp
+    : public instrumentations::execution_start_timestamp {
 public:
-  static std::unique_ptr<omp_timestamp_profiler> make_no_op();
-
-  void record_submit();  // not thread-safe
-  void record_start();  // thread-safe
-  void record_finish();  // thread-safe
-
-  virtual profiler_clock::time_point await_event(event event) const override; // thread-safe
-
+  virtual profiler_clock::time_point get_time_point() const override;
+  virtual void wait() const override;
+  void record_time();
 private:
-  profiler_clock::time_point _operation_submitted;
-  profiler_clock::time_point _operation_started;
-  profiler_clock::time_point _operation_finished;
-  mutable std::mutex _mutex;
-  mutable std::condition_variable _update;
+  profiler_clock::time_point _time;
+  mutable signal_channel _signal;
+};
 
-  void record(profiler_clock::time_point &event);
+class omp_execution_finish_timestamp
+    : public instrumentations::execution_finish_timestamp {
+public:
+  virtual profiler_clock::time_point get_time_point() const override;
+
+  virtual void wait() const override;
+  void record_time();
+private:
+  profiler_clock::time_point _time;
+  mutable signal_channel _signal;
 };
 
 }

@@ -36,6 +36,7 @@
 
 #include "data.hpp"
 #include "event.hpp"
+#include "instrumentation.hpp"
 #include "device_id.hpp"
 #include "kernel_launcher.hpp"
 #include "util.hpp"
@@ -58,8 +59,6 @@ using buffer_data_region = data_region<void *>;
 class backend_executor;
 class dag_node;
 using dag_node_ptr = std::shared_ptr<dag_node>;
-
-class instrumentation_set;
 
 class kernel_operation;
 class memcpy_operation;
@@ -93,13 +92,11 @@ public:
 
   virtual result dispatch(operation_dispatcher* dispatch, dag_node_ptr node) = 0;
 
-  bool is_instrumented() const { return _instr_set != nullptr; }
   instrumentation_set &get_instrumentations();
   const instrumentation_set &get_instrumentations() const;
 
 private:
-  // unique_ptr: reduce memory footprint in the non-instrumented case
-  mutable std::unique_ptr<instrumentation_set> _instr_set;
+  instrumentation_set _instr_set;
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,9 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/hip/hip_instrumentation.hpp"
-#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
 #include <cassert>
 #include <memory>
@@ -35,104 +36,27 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
+profiler_clock::duration
+hip_event_time_delta::operator()(std::shared_ptr<dag_node_event> t0,
+                                 std::shared_ptr<dag_node_event> t1) const {
+  assert(t0 && t0->is_complete());
+  assert(t1 && t1->is_complete());
 
-// precondition: activate device
-hip_unique_event async_record_event(hipStream_t stream) {
-  auto evt = make_hip_event();
-  if (!evt) return nullptr;
-
-  // see cuda_instrumentation.cpp async_record_event()
-  auto err = hipEventRecord(evt.get(), stream);
-  if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_timestamp_profiler: hipEventRecord() failed",
-                              error_code{"HIP", err}});
-    return nullptr;
-  }
-
-  return evt;
-}
-
-profiler_clock::duration wait_and_measure_elapsed_time(hipEvent_t start, hipEvent_t end) {
-  if (!end) {
-    register_error(__hipsycl_here(), error_info{"hip_timestamp_profiler: event not recorded"});
-  }
-
-  auto err = hipEventSynchronize(end);
-  if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_timestamp_profiler: hipEventSynchronize() failed",
-                              error_code{"HIP", err}});
-  }
-
+  hipEvent_t t0_evt = cast<hip_node_event>(t0.get())->get_event();
+  hipEvent_t t1_evt = cast<hip_node_event>(t1.get())->get_event();
+  
   float ms = 0.0f;
-  err = hipEventElapsedTime(&ms, start, end);
+  hipError_t err = hipEventElapsedTime(&ms, t0_evt, t1_evt);
+
   if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_timestamp_profiler: hipEventElapsedTime() failed",
-                              error_code{"HIP", err}});
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_event_time_delta: hipEventElapsedTime() failed",
+                   error_code{"HIP", err}});
   }
 
   return std::chrono::round<profiler_clock::duration>(
       std::chrono::duration<float, std::milli>{ms});
-}
-
-}
-
-hip_timestamp_profiler::baseline hip_timestamp_profiler::baseline::record(hipStream_t stream) {
-  baseline b;
-  b._device_event = async_record_event(stream);
-
-  auto err = hipEventSynchronize(b._device_event.get());
-  if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_queue: hipEventSynchronize() failed",
-                              error_code{"HIP", err}});
-  }
-
-  b._host_time = profiler_clock::now();
-  return b;
-}
-
-hip_timestamp_profiler::hip_timestamp_profiler(const baseline *b): _baseline(b) {}
-
-void hip_timestamp_profiler::record_before_operation(hipStream_t stream) {
-  assert(_operation_submitted == profiler_clock::time_point{});
-  assert(_operation_started == nullptr);
-  _operation_submitted = profiler_clock::now();
-  _operation_started = async_record_event(stream);
-}
-
-void hip_timestamp_profiler::record_after_operation(hipStream_t stream) {
-  assert(_operation_finished == nullptr);
-  _operation_finished = async_record_event(stream);
-}
-
-profiler_clock::time_point hip_timestamp_profiler::await_event(event event) const {
-  if (event == event::operation_submitted) {
-    // The function creating the profiler must also record the submission. This happens before
-    // yielding the profiler to the profiler_promise, so all reads on that variable can happen
-    // concurrently without synchronization.
-    assert(_operation_submitted != profiler_clock::time_point{});
-    return _operation_submitted;
-  }
-
-  auto queue_creation_to_start = wait_and_measure_elapsed_time(
-      _baseline->get_device_event(), _operation_started.get());
-  if (event == event::operation_started) {
-    return _baseline->get_host_time() + queue_creation_to_start;
-  }
-
-  // HIP reports elapsed time as a single-precision float with around 1 µs resolution. Since this
-  // type can only represent 7.22 decimal digits, precision will drop once the elapsed time
-  // exceeds about 10 seconds (= 1e7 µs). To allow precise measurement of run times (end - start),
-  // we measure twice and add the durations in the higher-precision profiler_clock representation.
-
-  assert(event == event::operation_finished);
-  auto start_to_end = wait_and_measure_elapsed_time(_operation_started.get(),
-                                                    _operation_finished.get());
-  return _baseline->get_host_time() + queue_creation_to_start + start_to_end;
 }
 
 }

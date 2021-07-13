@@ -30,8 +30,11 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
+#include "../generic/host_timestamped_event.hpp"
+
 #include "hip_target.hpp"
 #include "hip_instrumentation.hpp"
+
 
 namespace hipsycl {
 namespace rt {
@@ -62,15 +65,16 @@ public:
   virtual void* get_native_type() const override;
 
   virtual module_invoker* get_module_invoker() override;
+
+  const host_timestamped_event& get_timing_reference() const {
+    return _reference_event;
+  }
 private:
   void activate_device() const;
 
-  std::unique_ptr<hip_timestamp_profiler> begin_profiling(const operation &op) const;
-  void finish_profiling(operation &op, std::unique_ptr<hip_timestamp_profiler> profiler) const;
-
   device_id _dev;
   hipStream_t _stream;
-  hip_timestamp_profiler::baseline _profiler_baseline;
+  host_timestamped_event _reference_event;
 };
 
 }

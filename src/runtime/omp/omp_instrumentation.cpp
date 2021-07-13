@@ -27,67 +27,36 @@
 
 #include "hipSYCL/runtime/omp/omp_instrumentation.hpp"
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
 
 #include <cassert>
 
 namespace hipsycl {
 namespace rt {
 
-inline void omp_timestamp_profiler::record(profiler_clock::time_point &event) {
-  {
-    std::lock_guard lock{_mutex};
-    assert(event == profiler_clock::time_point{});
-    event = profiler_clock::now();
-  }
-  _update.notify_all();
+void omp_execution_start_timestamp::wait() const { _signal.wait(); }
+
+profiler_clock::time_point
+omp_execution_start_timestamp::get_time_point() const {
+  return _time;
 }
 
-void omp_timestamp_profiler::record_submit() {
-  record(_operation_submitted);
+void omp_execution_start_timestamp::record_time() {
+  _time = profiler_clock::now();
+  _signal.signal();
 }
 
-void omp_timestamp_profiler::record_start() {
-  record(_operation_started);
+void omp_execution_finish_timestamp::wait() const { _signal.wait(); }
+
+profiler_clock::time_point
+omp_execution_finish_timestamp::get_time_point() const {
+  return _time;
 }
 
-void omp_timestamp_profiler::record_finish() {
-  record(_operation_finished);
+void omp_execution_finish_timestamp::record_time() {
+  _time = profiler_clock::now();
+  _signal.signal();
 }
-
-profiler_clock::time_point omp_timestamp_profiler::await_event(event event) const {
-  const profiler_clock::time_point *wait_for;
-  switch (event) {
-    case event::operation_submitted:
-      wait_for = &_operation_submitted;
-      break;
-    case event::operation_started:
-      wait_for = &_operation_started;
-      break;
-    case event::operation_finished:
-      wait_for = &_operation_finished;
-      break;
-  }
-
-  if (event == event::operation_submitted) {
-    if (_operation_submitted == profiler_clock::time_point{}) {
-      register_error(__hipsycl_here(),
-                     error_info{"omp_timestamp_profiler: submission event not recorded"});
-    }
-    return _operation_submitted;
-  }
-
-  std::unique_lock lock{_mutex};
-  _update.wait(lock, [&] { return *wait_for != profiler_clock::time_point{}; });
-  return *wait_for;
-}
-
-std::unique_ptr<omp_timestamp_profiler> omp_timestamp_profiler::make_no_op()
-{
-  auto p = std::make_unique<omp_timestamp_profiler>();
-  p->_operation_finished = p->_operation_started = p->_operation_submitted = profiler_clock::now();
-  return p;
-}
-
 }
 }
 

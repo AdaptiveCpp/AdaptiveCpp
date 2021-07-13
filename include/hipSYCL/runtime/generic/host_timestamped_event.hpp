@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay and contributors
+ * Copyright (c) 2019-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#ifndef HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
+#define HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
 
-#include <cuda_runtime_api.h>
-
-#include <cassert>
-#include <memory>
+#include "hipSYCL/runtime/inorder_queue.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
+#include "hipSYCL/runtime/event.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-profiler_clock::duration
-cuda_event_time_delta::operator()(std::shared_ptr<dag_node_event> t0,
-                                  std::shared_ptr<dag_node_event> t1) const {
-  assert(t0 && t0->is_complete());
-  assert(t1 && t1->is_complete());
+class host_timestamped_event {
+public:
+  host_timestamped_event() = default;
 
-  cudaEvent_t t0_evt = cast<cuda_node_event>(t0.get())->get_event();
-  cudaEvent_t t1_evt = cast<cuda_node_event>(t1.get())->get_event();
-  
-  float ms = 0.0f;
-  cudaError_t err = cudaEventElapsedTime(&ms, t0_evt, t1_evt);
+  host_timestamped_event(inorder_queue* q)
+  : host_timestamped_event{q->insert_event()} {}
 
-  if (err != cudaSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"cuda_event_time_delta: cudaEventElapsedTime() failed",
-                   error_code{"CUDA", err}});
+  host_timestamped_event(std::shared_ptr<dag_node_event> evt) 
+  : _evt{evt} {
+    _evt->wait();
+    _time = profiler_clock::now();
   }
 
-  return std::chrono::round<profiler_clock::duration>(
-      std::chrono::duration<float, std::milli>{ms});
-}
+  std::shared_ptr<dag_node_event> get_event() const {
+    return _evt;
+  }
+
+  profiler_clock::time_point get_timestamp() const {
+    return _time;
+  }
+private:
+  std::shared_ptr<dag_node_event> _evt;
+  profiler_clock::time_point _time;
+};
+
 
 }
 }
 
+#endif

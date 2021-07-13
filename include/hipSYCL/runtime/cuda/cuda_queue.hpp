@@ -30,9 +30,11 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include "cuda_instrumentation.hpp"
+#include "../generic/host_timestamped_event.hpp"
 
+#include "cuda_instrumentation.hpp"
 #include "cuda_module.hpp"
+
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
 // It's not possible to include both HIP and CUDA headers since they
@@ -100,16 +102,16 @@ public:
                                    unsigned dynamic_shared_mem,
                                    void **kernel_args);
 
+  const host_timestamped_event& get_timing_reference() const {
+    return _reference_event;
+  }
 private:
   void activate_device() const;
-
-  std::unique_ptr<cuda_timestamp_profiler> begin_profiling(const operation &op) const;
-  void finish_profiling(operation &op, std::unique_ptr<cuda_timestamp_profiler> profiler) const;
 
   device_id _dev;
   CUstream_st *_stream;
   cuda_module_invoker _module_invoker;
-  cuda_timestamp_profiler::baseline _profiler_baseline;
+  host_timestamped_event _reference_event;
 };
 
 }

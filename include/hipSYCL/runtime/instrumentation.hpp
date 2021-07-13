@@ -28,12 +28,15 @@
 #ifndef HIPSYCL_INSTRUMENTATION_HPP
 #define HIPSYCL_INSTRUMENTATION_HPP
 
+#include <cassert>
 #include <cstdint>
 #include <chrono>
 #include <future>
-#include <unordered_map>
+#include <vector>
 #include <typeindex>
 #include <type_traits>
+
+#include "signal_channel.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -49,12 +52,17 @@ public:
   constexpr static bool is_steady = true;
 
   static time_point now() {
-    return time_point{duration{std::chrono::steady_clock::now().time_since_epoch()}};
+    return time_point{
+        duration{std::chrono::steady_clock::now().time_since_epoch()}};
   }
 };
 
 class instrumentation {
 public:
+  /// Waits until an instrumentation has its result available
+  /// This does not need to be called manually, as the instrumentation_set
+  /// will call it automatically if an instrumentation result is requested.
+  virtual void wait() const = 0;
   virtual ~instrumentation() = default;
 };
 
@@ -62,71 +70,121 @@ template<typename T>
 inline constexpr bool is_instrumentation_v
     = std::is_convertible_v<std::remove_cv_t<T> *, instrumentation *>;
 
-// Provides synchronization points for instrumentations between front- and backend threads.
-//
-// Thread safety: Before submission - single-threaded access only
-//                After submission: - concurrent access, but do not call instrument<>()
 class instrumentation_set {
 public:
-  // Create a producer-consumer channel for a particular instrumentation
-  template<typename Instr>
-  void instrument() {
-    static_assert(is_instrumentation_v<Instr>);
-    if (_instrs.find(typeid(Instr)) == _instrs.end()) {
-      _instrs.emplace(typeid(Instr), future_instrumentation{});
+  /// Wait for the given instrumentation to make results available. 
+  /// Returns nullptr if the given instrumentation was not set up.
+  template<typename Instr> const std::shared_ptr<Instr> get() const {
+    // First wait until all instrumentations have been set up
+    if(!_is_registration_complete){
+      _registration_complete_signal.wait();
+      _is_registration_complete = true;
     }
+    
+    std::shared_ptr<Instr> i = nullptr;
+
+    for(const auto& current : _instrs) {
+      if(current.first == typeid(Instr)) {
+        i = std::static_pointer_cast<Instr>(current.second);
+      }
+    }
+
+    if(!i)
+      return nullptr;
+    // Wait for the target instrumentation to return results
+    i->wait();
+
+    return i;
   }
 
-  // Whether instrument<Instr>() has been called before.
   template<typename Instr>
-  bool is_instrumented() const {
-    static_assert(is_instrumentation_v<Instr>);
-    return _instrs.find(typeid(Instr)) != _instrs.end();
+  void add_instrumentation(std::shared_ptr<Instr> instr) {
+    assert(!_is_registration_complete);
+    for(const auto& i : _instrs) {
+      if(i.first == typeid(Instr)) {
+        assert(false && "Instrumentation already exists!");
+      }
+    }
+    std::type_index idx = typeid(Instr);
+    _instrs.push_back(std::make_pair(idx, instr));
   }
 
-  // Resolve the instrument<Instr>() promise by providing an instrumentation instance.
-  // instrument<Instr>() must have been called before submission.
-  template<typename Instr, typename T>
-  void provide(std::unique_ptr<T> instr) {
-    static_assert(is_instrumentation_v<Instr>);
-    static_assert(std::is_convertible_v<T*, Instr*>);
-    _instrs.at(typeid(Instr)).provide(std::move(instr));
-  }
-
-  // Wait until another thread provide()s an instance of Instr.
-  // instrument<Instr>() must have been called before submission.
-  template<typename Instr> const Instr &await() const {
-    static_assert(is_instrumentation_v<Instr>);
-      // static_cast: type is statically checked in resolve()
-    return static_cast<const Instr &>(_instrs.at(typeid(Instr)).await());
+  // This will be called by the scheduler after node submission.
+  // After calling, no additional instrumentations can be added anymore.
+  void mark_set_complete() {
+    _is_registration_complete = true;
+    _registration_complete_signal.signal();
   }
 
 private:
-  class future_instrumentation {
-  public:
-    future_instrumentation(): _future{_promise.get_future()} {}
-    void provide(std::unique_ptr<instrumentation> instr) { _promise.set_value(std::move(instr)); }
-    const instrumentation &await() const { return *_future.get(); }
+  std::vector<std::pair<std::type_index, std::shared_ptr<instrumentation>>>
+      _instrs;
 
-  private:
-    std::promise<std::unique_ptr<instrumentation>> _promise;
-    std::shared_future<std::unique_ptr<instrumentation>> _future;
-  };
-
-  std::unordered_map<std::type_index, future_instrumentation> _instrs;
+  mutable signal_channel _registration_complete_signal;
+  mutable std::atomic<bool> _is_registration_complete = false;
 };
 
-class timestamp_profiler: public instrumentation
-{
-public:
-  enum class event
-  {
-    operation_submitted,
-    operation_started,
-    operation_finished
-  };
+namespace instrumentations {
 
-  virtual profiler_clock::time_point await_event(event) const = 0;
+class submission_timestamp : public instrumentation {
+public:
+  virtual profiler_clock::time_point get_time_point() const = 0;
+  virtual ~submission_timestamp() = default;
+
+  std::size_t get_ns_ticks() const {
+    return get_time_point().time_since_epoch().count();
+  }
+
+  double get_time_seconds() const {
+    return static_cast<double>(get_ns_ticks()) /
+           1.e9;
+  }
+};
+
+class execution_start_timestamp : public instrumentation {
+public:
+  virtual profiler_clock::time_point get_time_point() const = 0;
+  virtual ~execution_start_timestamp() = default;
+
+  std::size_t get_ns_ticks() const {
+    return get_time_point().time_since_epoch().count();
+  }
+
+  double get_time_seconds() const {
+    return static_cast<double>(get_ns_ticks()) /
+           1.e9;
+  }
+};
+
+class execution_finish_timestamp : public instrumentation {
+public:
+  virtual profiler_clock::time_point get_time_point() const = 0;
+  virtual ~execution_finish_timestamp() = default;
+
+  std::size_t get_ns_ticks() const {
+    return get_time_point().time_since_epoch().count();
+  }
+
+  double get_time_seconds() const {
+    return static_cast<double>(get_ns_ticks()) /
+           1.e9;
+  }
+};
+
+}
+
+class simple_submission_timestamp : public instrumentations::submission_timestamp {
+public:
+  simple_submission_timestamp(profiler_clock::time_point submission_time)
+  : _time{submission_time} {}
+
+  virtual profiler_clock::time_point get_time_point() const override {
+    return _time;
+  }
+
+  virtual void wait() const override {}
+private:
+  profiler_clock::time_point _time;
 };
 
 }

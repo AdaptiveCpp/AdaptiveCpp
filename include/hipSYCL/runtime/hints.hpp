@@ -51,7 +51,10 @@ enum class execution_hint_type
   bind_to_device_group,
   prefer_execution_lane,
   node_group,
-  enable_profiling
+
+  request_instrumentation_submission_timestamp,
+  request_instrumentation_start_timestamp,
+  request_instrumentation_finish_timestamp
 };
 
 class execution_hint
@@ -143,12 +146,35 @@ private:
   std::size_t _group_id;
 };
 
-class enable_profiling : public execution_hint
-{
+class request_instrumentation_submission_timestamp : public execution_hint {
 public:
-  static constexpr execution_hint_type type = execution_hint_type::enable_profiling;
+  static constexpr execution_hint_type type =
+      execution_hint_type::request_instrumentation_submission_timestamp;
 
-  enable_profiling();
+  request_instrumentation_submission_timestamp()
+      : execution_hint{execution_hint_type::
+                           request_instrumentation_submission_timestamp} {}
+};
+
+
+class request_instrumentation_start_timestamp : public execution_hint {
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::request_instrumentation_start_timestamp;
+
+  request_instrumentation_start_timestamp()
+      : execution_hint{execution_hint_type::
+                           request_instrumentation_start_timestamp} {}
+};
+
+class request_instrumentation_finish_timestamp : public execution_hint {
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::request_instrumentation_finish_timestamp;
+
+  request_instrumentation_finish_timestamp()
+      : execution_hint{execution_hint_type::
+                           request_instrumentation_finish_timestamp} {}
 };
 
 } // hints

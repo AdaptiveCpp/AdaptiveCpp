@@ -65,9 +65,6 @@ public:
 private:
   backend_id _backend_id;
   worker_thread _worker;
-
-  static std::unique_ptr<omp_timestamp_profiler> begin_profiling(const operation &op);
-  static void finish_profiling(operation &op, std::unique_ptr<omp_timestamp_profiler> profiler);
 };
 
 }

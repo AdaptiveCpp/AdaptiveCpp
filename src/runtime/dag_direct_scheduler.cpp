@@ -192,6 +192,11 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   node->assign_to_executor(executor);
   
   executor->submit_directly(node, op, reqs);
+
+  // After node submission, no additional instrumentations can be added.
+  // Marking as complete causes code that waits for instrumentation results
+  // to proceed to waiting on the requested instrumentation.
+  op->get_instrumentations().mark_set_complete();
 }
 
 result submit_requirement(dag_node_ptr req) {

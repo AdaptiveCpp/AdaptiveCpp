@@ -58,6 +58,62 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
 }
 
 
+
+class hip_instrumentation_guard {
+public:
+  hip_instrumentation_guard(hip_queue *q,
+                             operation &op, dag_node_ptr node) 
+                             : _queue{q}, _operation{&op}, _node{node} {
+    assert(q);
+    assert(_node);
+
+    if (_node->get_execution_hints()
+            .has_hint<
+                rt::hints::request_instrumentation_submission_timestamp>()) {
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::submission_timestamp>(
+            std::make_shared<hip_submission_timestamp>(profiler_clock::now()));
+    }
+
+    if (_node->get_execution_hints().has_hint<
+                rt::hints::request_instrumentation_start_timestamp>()) {
+
+      _task_start = _queue->insert_event();
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::execution_start_timestamp>(
+              std::make_shared<hip_execution_start_timestamp>(
+                  _queue->get_timing_reference(), _task_start));
+    }
+  }
+
+  ~hip_instrumentation_guard() {
+    if (_node->get_execution_hints()
+            .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+      std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();
+
+      if(_task_start) {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<hip_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), _task_start, task_finish));
+      } else {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<hip_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), task_finish));
+      }
+    }
+  }
+
+private:
+  hip_queue* _queue;
+  operation* _operation;
+  dag_node_ptr _node;
+  std::shared_ptr<dag_node_event> _task_start;
+};
+
 }
 
 
@@ -76,7 +132,7 @@ hip_queue::hip_queue(device_id dev) : _dev{dev}, _stream{nullptr} {
     return;
   }
 
-  _profiler_baseline = hip_timestamp_profiler::baseline::record(_stream);
+  _reference_event = host_timestamped_event{this};
 }
 
 hipStream_t hip_queue::get_stream() const { return _stream; }
@@ -110,23 +166,8 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   return std::make_shared<hip_node_event>(_dev, std::move(evt));
 }
 
-std::unique_ptr<hip_timestamp_profiler> hip_queue::begin_profiling(const operation &op) const {
-  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
-    return nullptr;
-  this->activate_device();
-  auto profiler = std::make_unique<hip_timestamp_profiler>(&_profiler_baseline);
-  profiler->record_before_operation(_stream);
-  return profiler;
-}
 
-void hip_queue::finish_profiling(operation &op,
-                                 std::unique_ptr<hip_timestamp_profiler> profiler) const {
-  if (!profiler) return;
-  profiler->record_after_operation(_stream);
-  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
-}
-
-result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
+result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -183,7 +224,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
   
   assert(dimension >= 1 && dimension <= 3);
 
-  auto profiler = begin_profiling(op);
+  hip_instrumentation_guard instrumentation{this, op, node};
 
   hipError_t err = hipSuccess;
   if (dimension == 1) {
@@ -225,8 +266,6 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
     err = hipMemcpy3DAsync(&params, get_stream());
   }
 
-  finish_profiling(op, std::move(profiler));
-
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"hip_queue: Couldn't submit memcpy",
@@ -246,16 +285,16 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
-  auto profiler = begin_profiling(op);
+  hip_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
-  finish_profiling(op, std::move(profiler));
 
   return make_success();
 }
 
-result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
+result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
 #ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
-  auto profiler = begin_profiling(op);
+  
+  hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipSuccess;
   
   if (op.get_target().is_host()) {
@@ -265,7 +304,6 @@ result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
     err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
                               _dev.get_id(), get_stream());
   }
-  finish_profiling(op, std::move(profiler));
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
@@ -282,12 +320,11 @@ result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
   return make_success();
 }
 
-result hip_queue::submit_memset(memset_operation &op, dag_node_ptr) {
+result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
-  auto profiler = begin_profiling(op);
+  hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
                                   op.get_num_bytes(), get_stream());
-  finish_profiling(op, std::move(profiler));
 
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),

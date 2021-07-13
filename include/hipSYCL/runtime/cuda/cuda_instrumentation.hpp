@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2019-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,48 +29,30 @@
 #define HIPSYCL_CUDA_INSTRUMENTATION_HPP
 
 #include "cuda_event.hpp"
+#include "../generic/host_timestamped_event.hpp"
+#include "../generic/timestamp_delta_instrumentation.hpp"
 #include "../instrumentation.hpp"
-
-// Note: CUstream_st* == cudaStream_t
-struct CUstream_st;
+#include "hipSYCL/runtime/event.hpp"
+#include <chrono>
 
 namespace hipsycl {
 namespace rt {
 
-class cuda_timestamp_profiler final : public timestamp_profiler
-{
+class cuda_event_time_delta {
 public:
-  // host and device "timestamps" for converting relative time measurements
-  // from cudaEventElapsedTime to absolute profiler_clock times
-  class baseline {
-  public:
-    // precondition: activate device
-    static baseline record(CUstream_st *stream);
-
-    CUevent_st *get_device_event() const { return _device_event.get(); }
-    profiler_clock::time_point get_host_time() const { return _host_time; }
-
-  private:
-    cuda_unique_event _device_event;
-    profiler_clock::time_point _host_time;
-  };
-
-  // queue_created_device and queue_created_host must represent the same instance in time.
-  // queue_create_device must be recorded and synchronized already.
-  explicit cuda_timestamp_profiler(const baseline *b);
-
-  // precondition: activate device
-  void record_before_operation(CUstream_st *stream);
-  void record_after_operation(CUstream_st *stream);
-
-  virtual profiler_clock::time_point await_event(event event) const override;
-
-private:
-  const baseline *_baseline;  // shared, owned by the cuda_queue
-  profiler_clock::time_point _operation_submitted;
-  cuda_unique_event _operation_started;
-  cuda_unique_event _operation_finished;
+  profiler_clock::duration operator()(std::shared_ptr<dag_node_event> t0,
+                                      std::shared_ptr<dag_node_event> t1) const;
 };
+
+using cuda_submission_timestamp = simple_submission_timestamp;
+
+using cuda_execution_start_timestamp =
+    timestamp_delta_instrumentation<instrumentations::execution_start_timestamp,
+                                    cuda_event_time_delta>;
+
+using cuda_execution_finish_timestamp =
+    timestamp_delta_instrumentation<instrumentations::execution_finish_timestamp,
+                                    cuda_event_time_delta>;
 
 }
 }

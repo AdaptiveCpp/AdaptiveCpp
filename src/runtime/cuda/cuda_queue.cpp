@@ -26,12 +26,15 @@
  */
 
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/cuda/cuda_queue.hpp"
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
+#include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
@@ -65,6 +68,61 @@ void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
 }
 
 
+class cuda_instrumentation_guard {
+public:
+  cuda_instrumentation_guard(cuda_queue *q,
+                             operation &op, dag_node_ptr node) 
+                             : _queue{q}, _operation{&op}, _node{node} {
+    assert(q);
+    assert(_node);
+
+    if (_node->get_execution_hints()
+            .has_hint<
+                rt::hints::request_instrumentation_submission_timestamp>()) {
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::submission_timestamp>(
+            std::make_shared<cuda_submission_timestamp>(profiler_clock::now()));
+    }
+
+    if (_node->get_execution_hints().has_hint<
+                rt::hints::request_instrumentation_start_timestamp>()) {
+
+      _task_start = _queue->insert_event();
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::execution_start_timestamp>(
+              std::make_shared<cuda_execution_start_timestamp>(
+                  _queue->get_timing_reference(), _task_start));
+    }
+  }
+
+  ~cuda_instrumentation_guard() {
+    if (_node->get_execution_hints()
+            .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+      std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();
+
+      if(_task_start) {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<cuda_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), _task_start, task_finish));
+      } else {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<cuda_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), task_finish));
+      }
+    }
+  }
+
+private:
+  cuda_queue* _queue;
+  operation* _operation;
+  dag_node_ptr _node;
+  std::shared_ptr<dag_node_event> _task_start;
+};
+
 }
 
 
@@ -84,7 +142,7 @@ cuda_queue::cuda_queue(device_id dev)
     return;
   }
 
-  _profiler_baseline = cuda_timestamp_profiler::baseline::record(_stream);
+  _reference_event = host_timestamped_event{this};
 }
 
 CUstream_st* cuda_queue::get_stream() const { return _stream; }
@@ -118,23 +176,8 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   return std::make_shared<cuda_node_event>(_dev, std::move(evt));
 }
 
-std::unique_ptr<cuda_timestamp_profiler> cuda_queue::begin_profiling(const operation &op) const {
-  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
-    return nullptr;
-  this->activate_device();
-  auto profiler = std::make_unique<cuda_timestamp_profiler>(&_profiler_baseline);
-  profiler->record_before_operation(_stream);
-  return profiler;
-}
 
-void cuda_queue::finish_profiling(operation &op,
-                                  std::unique_ptr<cuda_timestamp_profiler> profiler) const {
-  if (!profiler) return;
-  profiler->record_after_operation(_stream);
-  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
-}
-
-result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
+result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -189,7 +232,8 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
 
   assert(dimension >= 1 && dimension <= 3);
 
-  auto profiler = begin_profiling(op);
+
+  cuda_instrumentation_guard instrumentation{this, op, node};
 
   cudaError_t err = cudaSuccess;
   if (dimension == 1) {
@@ -224,21 +268,20 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr) {
                                         op.dest().get_allocation_shape()[2],
                                         op.dest().get_allocation_shape()[1]);
     params.extent = {op.get_num_transferred_elements()[2] *
-                         op.source().get_element_size(),
-                     op.get_num_transferred_elements()[1],
-                     op.get_num_transferred_elements()[0]};
+                        op.source().get_element_size(),
+                    op.get_num_transferred_elements()[1],
+                    op.get_num_transferred_elements()[0]};
     params.kind = copy_kind;
 
     err = cudaMemcpy3DAsync(&params, get_stream());
   }
-
-  finish_profiling(op, std::move(profiler));
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"cuda_queue: Couldn't submit memcpy",
                                   error_code{"CUDA", err}});
   }
+  
   return make_success();
 }
 
@@ -251,25 +294,27 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
-  auto profiler = begin_profiling(op);
+  
+  cuda_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
-  finish_profiling(op, std::move(profiler));
 
   return make_success();
 }
 
-result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
+result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
 #ifndef _WIN32
-  auto profiler = begin_profiling(op);
+  
   cudaError_t err = cudaSuccess;
+  
+  cuda_instrumentation_guard instrumentation{this, op, node};
   if (op.get_target().is_host()) {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                         cudaCpuDeviceId, get_stream());
+                                        cudaCpuDeviceId, get_stream());
   } else {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
-                                         _dev.get_id(), get_stream());
+                                        _dev.get_id(), get_stream());
   }
-  finish_profiling(op, std::move(profiler));
+
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
@@ -283,12 +328,13 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr) {
   return make_success();
 }
 
-result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr) {
+result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
-  auto profiler = begin_profiling(op);
+  cuda_instrumentation_guard instrumentation{this, op, node};
+  
   cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
                                     op.get_num_bytes(), get_stream());
-  finish_profiling(op, std::move(profiler));
+  
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),

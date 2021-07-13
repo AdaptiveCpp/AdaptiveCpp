@@ -55,10 +55,10 @@ public:
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
 
-  virtual result submit_memcpy(const memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(const kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(const memset_operation&, dag_node_ptr) override;
+  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
+  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
+  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
+  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend

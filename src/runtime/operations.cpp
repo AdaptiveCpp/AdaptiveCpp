@@ -32,27 +32,15 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-
-template<typename T>
-T &ensure_instance(std::unique_ptr<T> &ptr) {
-  if (!ptr) {
-    ptr = std::make_unique<T>();
-  }
-  return *ptr;
-}
-
-}
-
 operation::operation() noexcept = default;
 operation::~operation() = default;
 
 instrumentation_set &operation::get_instrumentations() {
-  return ensure_instance(_instr_set);
+  return _instr_set;
 }
 
 const instrumentation_set &operation::get_instrumentations() const {
-  return ensure_instance(_instr_set);
+  return _instr_set;
 }
 
 kernel_operation::kernel_operation(

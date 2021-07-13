@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2019-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,45 +29,30 @@
 #define HIPSYCL_HIP_INSTRUMENTATION_HPP
 
 #include "hip_event.hpp"
+#include "../generic/host_timestamped_event.hpp"
+#include "../generic/timestamp_delta_instrumentation.hpp"
 #include "../instrumentation.hpp"
+#include "hipSYCL/runtime/event.hpp"
+#include <chrono>
 
 namespace hipsycl {
 namespace rt {
 
-class hip_timestamp_profiler final : public timestamp_profiler
-{
+class hip_event_time_delta {
 public:
-  // host and device "timestamps" for converting relative time measurements
-  // from hipEventElapsedTime to absolute profiler_clock times
-  class baseline {
-  public:
-    // precondition: activate device
-    static baseline record(hipStream_t stream);
-
-    hipEvent_t get_device_event() const { return _device_event.get(); }
-    profiler_clock::time_point get_host_time() const { return _host_time; }
-
-  private:
-    hip_unique_event _device_event;
-    profiler_clock::time_point _host_time;
-  };
-
-  // queue_created_device and queue_created_host must represent the same instance in time.
-  // queue_create_device must be recorded and synchronized already.
-  explicit hip_timestamp_profiler(const baseline *b);
-
-  // precondition: activate device
-  void record_before_operation(hipStream_t stream);
-  void record_after_operation(hipStream_t stream);
-
-  virtual profiler_clock::time_point await_event(event event) const override;
-
-private:
-  const baseline *_baseline;  // shared, owned by the hip_queue
-  profiler_clock::time_point _operation_submitted;
-  hip_unique_event _operation_started;
-  hip_unique_event _operation_finished;
+  profiler_clock::duration operator()(std::shared_ptr<dag_node_event> t0,
+                                      std::shared_ptr<dag_node_event> t1) const;
 };
+
+using hip_submission_timestamp = simple_submission_timestamp;
+
+using hip_execution_start_timestamp =
+    timestamp_delta_instrumentation<instrumentations::execution_start_timestamp,
+                                    hip_event_time_delta>;
+
+using hip_execution_finish_timestamp =
+    timestamp_delta_instrumentation<instrumentations::execution_finish_timestamp,
+                                    hip_event_time_delta>;
 
 }
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#ifndef HIPSYCL_SIGNAL_CHANNEL_HPP
+#define HIPSYCL_SIGNAL_CHANNEL_HPP
 
-#include <cuda_runtime_api.h>
+#include <future>
+#include <chrono>
 
-#include <cassert>
-#include <memory>
 
 namespace hipsycl {
 namespace rt {
 
-profiler_clock::duration
-cuda_event_time_delta::operator()(std::shared_ptr<dag_node_event> t0,
-                                  std::shared_ptr<dag_node_event> t1) const {
-  assert(t0 && t0->is_complete());
-  assert(t1 && t1->is_complete());
-
-  cudaEvent_t t0_evt = cast<cuda_node_event>(t0.get())->get_event();
-  cudaEvent_t t1_evt = cast<cuda_node_event>(t1.get())->get_event();
-  
-  float ms = 0.0f;
-  cudaError_t err = cudaEventElapsedTime(&ms, t0_evt, t1_evt);
-
-  if (err != cudaSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"cuda_event_time_delta: cudaEventElapsedTime() failed",
-                   error_code{"CUDA", err}});
+class signal_channel {
+public:
+  signal_channel() {
+    _shared_future = _promise.get_future().share();
   }
 
-  return std::chrono::round<profiler_clock::duration>(
-      std::chrono::duration<float, std::milli>{ms});
-}
+  void signal() {
+    _promise.set_value(true);
+  }
+
+  void wait() {
+    auto future = _shared_future;
+    future.wait();
+  }
+
+  bool has_signalled() const {
+    auto future = _shared_future;
+    return future.wait_for(std::chrono::seconds(0)) ==
+           std::future_status::ready;
+  }
+
+private:
+  std::promise<bool> _promise;
+  std::shared_future<bool> _shared_future;
+};
 
 }
 }
 
+#endif

@@ -28,10 +28,13 @@
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
 #include "hipSYCL/runtime/omp/omp_event.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/runtime/omp/omp_instrumentation.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
 #include <memory>
@@ -69,7 +72,67 @@ bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
   return true;
 }
 
+
+class omp_instrumentation_setup {
+public:
+  omp_instrumentation_setup(operation &op, dag_node_ptr node) {
+    if (node->get_execution_hints()
+            .has_hint<
+                rt::hints::request_instrumentation_submission_timestamp>()) {
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::submission_timestamp>(
+            std::make_shared<omp_submission_timestamp>(profiler_clock::now()));
+    }
+    if (node->get_execution_hints().has_hint<
+                rt::hints::request_instrumentation_start_timestamp>()) {
+
+      _start = std::make_shared<omp_execution_start_timestamp>();
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::execution_start_timestamp>(
+            _start);
+    }
+    if (node->get_execution_hints().has_hint<
+                rt::hints::request_instrumentation_finish_timestamp>()) {
+
+      _finish = std::make_shared<omp_execution_finish_timestamp>();
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::execution_finish_timestamp>(
+            _finish);
+    }
+  }
+
+  class task_guard {
+  public:
+    task_guard(std::shared_ptr<omp_execution_start_timestamp> start,
+               std::shared_ptr<omp_execution_finish_timestamp> finish)
+        : _finish{finish} {
+      if(start)
+        start->record_time();
+    }
+
+    ~task_guard() {
+      if(_finish)
+        _finish->record_time();
+    }
+
+  private:
+    std::shared_ptr<omp_execution_finish_timestamp> _finish;
+  };
+
+  task_guard instrument_task() const {
+    return task_guard{_start, _finish};
+  }
+
+private:
+  std::shared_ptr<omp_execution_start_timestamp> _start;
+  std::shared_ptr<omp_execution_finish_timestamp> _finish;
+};
+
 }
+
 
 omp_queue::omp_queue(backend_id id)
 : _backend_id(id) {}
@@ -91,20 +154,7 @@ std::shared_ptr<dag_node_event> omp_queue::insert_event() {
   return evt;
 }
 
-std::unique_ptr<omp_timestamp_profiler> omp_queue::begin_profiling(const operation &op) {
-  if (!op.is_instrumented() || !op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
-    return nullptr;
-  auto profiler = std::make_unique<omp_timestamp_profiler>();
-  profiler->record_submit();
-  return profiler;
-}
-
-void omp_queue::finish_profiling(operation &op, std::unique_ptr<omp_timestamp_profiler> profiler) {
-  if (!profiler) return;
-  op.get_instrumentations().provide<rt::timestamp_profiler>(std::move(profiler));
-}
-
-result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
+result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting memcpy operation..." << std::endl;
 
   if (op.source().get_device().is_host() && op.dest().get_device().is_host()) {
@@ -130,10 +180,10 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
     bool is_dest_contiguous =
         is_contigous(dest_offset, transferred_range, dest_allocation_shape);
 
-    auto profiler = begin_profiling(op);
+    omp_instrumentation_setup instrumentation_setup{op, node};
 
-    _worker([=, profiler=profiler.get()]() {
-      if (profiler) profiler->record_start();
+    _worker([=]() {
+      auto instrumentation_guard = instrumentation_setup.instrument_task();
 
       auto linear_index = [](id<3> id, range<3> allocation_shape) {
         return id[2] + allocation_shape[2] * id[1] +
@@ -189,12 +239,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
           ++current_src_offset[0];
         }
       }
-
-      if (profiler) profiler->record_finish();
     });
-
-    finish_profiling(op, std::move(profiler));
-
   } else {
     return register_error(
         __hipsycl_here(),
@@ -219,33 +264,38 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
         error_type::runtime_error});
   }
 
-  auto profiler = begin_profiling(op);
+  
   rt::dag_node* node_ptr = node.get();
   
-  _worker([=, profiler=profiler.get()]() {
+
+  omp_instrumentation_setup instrumentation_setup{op, node};
+  _worker([=]() {
+    auto instrumentation_guard = instrumentation_setup.instrument_task();
+
     HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
-    if (profiler) profiler->record_start();
     launcher->invoke(node_ptr);
-    if (profiler) profiler->record_finish();
   });
 
-  finish_profiling(op, std::move(profiler));
   return make_success();
 }
 
-result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO
       << "omp_queue: Received prefetch submission request, ignoring"
       << std::endl;
   // Yeah, what are you going to do? Prefetching CPU memory on CPU? Go home!
   // (TODO: maybe we should handle the case that we have USM memory from another
   // backend here)
-  if (op.is_instrumented() && op.get_instrumentations().is_instrumented<rt::timestamp_profiler>())
-    op.get_instrumentations().provide<rt::timestamp_profiler>(omp_timestamp_profiler::make_no_op());
+  
+  omp_instrumentation_setup instrumentation_setup{op, node};
+  {
+    auto instrumentation_guard = instrumentation_setup.instrument_task();
+    // empty instrumentation region because of no-op
+  }
   return make_success();
 }
 
-result omp_queue::submit_memset(memset_operation & op, dag_node_ptr) {
+result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
@@ -257,15 +307,14 @@ result omp_queue::submit_memset(memset_operation & op, dag_node_ptr) {
             "omp_queue: submit_memset(): Invalid argument, pointer is null."});
   }
 
-  auto profiler = begin_profiling(op);
 
-  _worker([=, profiler=profiler.get()]() {
-    if (profiler) profiler->record_start();
+  omp_instrumentation_setup instrumentation_setup{op, node};
+  _worker([=]() {
+    auto instrumentation_guard = instrumentation_setup.instrument_task();
+
     memset(ptr, pattern, bytes);
-    if (profiler) profiler->record_finish();
   });
 
-  finish_profiling(op, std::move(profiler));
   return make_success();
     
 }

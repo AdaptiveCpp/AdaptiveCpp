@@ -819,7 +819,14 @@ private:
 
     if (this->has_property<property::queue::enable_profiling>()) {
       _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::enable_profiling>());
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_submission_timestamp>());
+      _default_hints.add_hint(
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_start_timestamp>());
+      _default_hints.add_hint(
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_finish_timestamp>());
     }
 
     _is_in_order = this->has_property<property::queue::in_order>();

@@ -77,6 +77,9 @@ public:
   BlockVector &getBlocks() noexcept { return Blocks_; }
   const BlockVector &getBlocks() const noexcept { return Blocks_; }
 
+  BlockVector &getNewBlocks() noexcept { return NewBlocks_; }
+  const BlockVector &getNewBlocks() const noexcept { return NewBlocks_; }
+
   size_t getEntryId() const noexcept { return EntryId_; }
 
   llvm::BasicBlock *getEntry() noexcept { return EntryBB_; }
@@ -316,6 +319,11 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::Loop *WILoop, llvm::AllocaInst
   }
   Switch->addCase(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), ExitBarrierId), WIExit);
 
+  Builder.SetInsertPoint(WIPreHeader->getTerminator());
+  Builder.CreateLifetimeStart(LastBarrierIdStorage,
+                              Builder.getInt64(DL.getTypeAllocSize(LastBarrierIdStorage->getAllocatedType())));
+  Builder.CreateStore(llvm::ConstantInt::get(LastBarrierIdStorage->getAllocatedType(), EntryBarrierId),
+                      LastBarrierIdStorage);
   WIPreHeader->getTerminator()->replaceSuccessorWith(WIHeader, WhileHeader);
   return WhileHeader;
 }

@@ -363,6 +363,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
 
     auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
                                               I->getName() + "_alloca");
+    Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
     llvm::Instruction *GepIp = nullptr;
@@ -396,6 +397,7 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   llvm::IRBuilder AllocaBuilder{IPAllocas};
   auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
                                             ToArrayify->getName() + "_alloca");
+  Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
   const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();

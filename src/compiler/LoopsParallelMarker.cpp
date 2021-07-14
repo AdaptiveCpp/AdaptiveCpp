@@ -42,8 +42,9 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
 
   for (auto *L : LI.getTopLevelLoops()) {
     for (auto *SL : L->getLoopsInPreorder()) {
-      if (utils::isWorkItemLoop(*L)) {
+      if (utils::isWorkItemLoop(*SL)) {
         Changed = true;
+        HIPSYCL_DEBUG_INFO << "[ParallelMarker] Mark loop: " << SL->getName() << "\n";
 
         // Mark memory accesses with access group
         auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
@@ -70,11 +71,11 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
 
         if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
           if (utils::isAnnotatedParallel(SL)) {
-            HIPSYCL_DEBUG_INFO << "loop is parallel: " << SL->getHeader()->getName() << "\n";
+            HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << SL->getHeader()->getName() << "\n";
           } else if (SL->getLoopID()) {
             assert(SL->getLoopID());
             const llvm::Module *M = F.getParent();
-            HIPSYCL_DEBUG_WARNING << "loop id for " << SL->getHeader()->getName();
+            HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << SL->getHeader()->getName();
             SL->getLoopID()->print(llvm::outs(), M);
             for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
               MDOp->print(llvm::outs(), M);
@@ -85,6 +86,7 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
       }
     }
   }
+  F.viewCFG();
 
   return Changed;
 }

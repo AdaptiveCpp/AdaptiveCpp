@@ -26,6 +26,7 @@
  */
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/IR.hpp"
+#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
@@ -82,6 +83,14 @@ static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_EarlyAsPossible,
                                                 registerLoopSplitAtBarrierPasses);
 
+static void registerMarkParallelPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopsParallelMarkerPassLegacy());
+}
+
+// SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
+static llvm::RegisterStandardPasses RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
+                                                                         registerMarkParallelPass);
+
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
     LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
@@ -106,6 +115,11 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           registerCBSPipeline(MPM, Opt);
           break;
         }
+      });
+      // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
+      // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
+      PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager& FPM, llvm::PassBuilder::OptimizationLevel) {
+        FPM.addPass(LoopsParallelMarkerPass{});
       });
     }
   };

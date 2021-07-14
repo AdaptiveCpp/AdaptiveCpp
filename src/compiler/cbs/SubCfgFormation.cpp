@@ -343,12 +343,23 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::Loop *WILoop, llvm::AllocaInst
   Switch->addCase(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), ExitBarrierId), WIExit);
 
   Builder.SetInsertPoint(WIPreHeader->getTerminator());
-  Builder.CreateLifetimeStart(LastBarrierIdStorage,
-                              Builder.getInt64(DL.getTypeAllocSize(LastBarrierIdStorage->getAllocatedType())));
   Builder.CreateStore(llvm::ConstantInt::get(LastBarrierIdStorage->getAllocatedType(), EntryBarrierId),
                       LastBarrierIdStorage);
   WIPreHeader->getTerminator()->replaceSuccessorWith(WIHeader, WhileHeader);
   return WhileHeader;
+}
+
+void purgeLifetime(SubCFG &Cfg) {
+  llvm::SmallVector<llvm::Instruction *, 8> ToDelete;
+  for (auto *BB : Cfg.getNewBlocks())
+    for (auto &I : *BB)
+      if (auto *CI = llvm::dyn_cast<llvm::CallInst>(&I))
+        if (CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_start ||
+            CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_end)
+          ToDelete.push_back(CI);
+
+  for (auto *I : ToDelete)
+    I->eraseFromParent();
 }
 
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, const SplitterAnnotationInfo &SAA) {
@@ -403,8 +414,10 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   llvm::removeUnreachableBlocks(F);
 
   DT.recalculate(F);
-  for (auto &Cfg : SubCFGs)
+  for (auto &Cfg : SubCFGs) {
     Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap);
+    purgeLifetime(Cfg);
+  }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");
 }

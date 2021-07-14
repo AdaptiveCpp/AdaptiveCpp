@@ -405,7 +405,6 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
       WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep"));
   GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
-  WriteBuilder.CreateLifetimeStart(GEP, WriteBuilder.getInt64(Layout.getTypeAllocSize(Alloca->getAllocatedType())));
   WriteBuilder.CreateStore(ToArrayify, GEP);
   return Alloca;
 }

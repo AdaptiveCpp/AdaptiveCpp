@@ -214,15 +214,9 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
     for (auto &I : *BB) {
       if (InstAllocaMap.lookup(&I))
         continue;
-      HIPSYCL_DEBUG_INFO << "Find I: ";
-      HIPSYCL_DEBUG_EXECUTE_INFO(I.print(llvm::outs()); llvm::outs() << "\n";)
       if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {
-            HIPSYCL_DEBUG_INFO << "Find UI: ";
-            HIPSYCL_DEBUG_EXECUTE_INFO(UI->print(llvm::outs()); llvm::outs() << "\n";)
             return UI->getParent() != I.getParent() && OtherCFGBlocks.contains(UI->getParent());
           })) {
-        HIPSYCL_DEBUG_INFO << "Arrayify I: ";
-        HIPSYCL_DEBUG_EXECUTE_INFO(I.print(llvm::outs()); llvm::outs() << "\n";)
         if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(&I))
           if (auto *Alloca = utils::getLoopStateAllocaForLoad(*LInst)) {
             InstAllocaMap.insert({&I, Alloca});
@@ -252,17 +246,15 @@ void SubCFG::loadMultiSubCfgValues(const llvm::Loop *WILoop,
 
   for (auto &InstAllocaPair : InstAllocaMap) {
     if (std::find(Blocks_.begin(), Blocks_.end(), InstAllocaPair.first->getParent()) == Blocks_.end()) {
-      HIPSYCL_DEBUG_INFO << "I: ";
-      HIPSYCL_DEBUG_EXECUTE_INFO(InstAllocaPair.first->print(llvm::outs()); llvm::outs() << "\n";)
       if (utils::anyOfUsers<llvm::Instruction>(InstAllocaPair.first, [this](llvm::Instruction *UI) {
-            HIPSYCL_DEBUG_INFO << "UI: ";
-            HIPSYCL_DEBUG_EXECUTE_INFO(UI->print(llvm::outs()); llvm::outs() << "\n";)
             return std::find(NewBlocks_.begin(), NewBlocks_.end(), UI->getParent()) != NewBlocks_.end();
           })) {
         if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(InstAllocaPair.first))
-          if (GEP->hasMetadata(hipsycl::compiler::MDKind::Arrayified)) {
-            VMap[InstAllocaPair.first] =
-                Builder.CreateInBoundsGEP(GEP->getPointerOperand(), {NewWIIndVar}, GEP->getName() + "c");
+          if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
+            auto *NewGEP = llvm::cast<llvm::GetElementPtrInst>(
+                Builder.CreateInBoundsGEP(GEP->getPointerOperand(), {NewWIIndVar}, GEP->getName() + "c"));
+            NewGEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDArrayified);
+            VMap[InstAllocaPair.first] = NewGEP;
             continue;
           }
         auto *Load =
@@ -278,10 +270,12 @@ void SubCFG::loadMultiSubCfgValues(const llvm::Loop *WILoop,
 
 void SubCFG::fixSingleSubCfgValues(
     llvm::DominatorTree &DT, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
+
   auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getFirstNonPHIOrDbgOrLifetime();
   auto *LoadIP = LoadBB_->getTerminator();
+  llvm::IRBuilder Builder{LoadIP};
 
-  llvm::DenseMap<llvm::Instruction *, llvm::LoadInst *> InstLoadMap;
+  llvm::DenseMap<llvm::Instruction *, llvm::Instruction *> InstLoadMap;
 
   for (auto *BB : NewBlocks_)
     for (auto &I : *BB)
@@ -294,6 +288,16 @@ void SubCFG::fixSingleSubCfgValues(
             I.replaceUsesOfWith(OPI, Load);
             continue;
           }
+
+          if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(OPI))
+            if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
+              auto *NewGEP = llvm::cast<llvm::GetElementPtrInst>(
+                  Builder.CreateInBoundsGEP(GEP->getPointerOperand(), {WIIndVar_}, GEP->getName() + "c"));
+              NewGEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDArrayified);
+              I.replaceUsesOfWith(OPI, NewGEP);
+              InstLoadMap.insert({OPI, NewGEP});
+              continue;
+            }
 
           llvm::AllocaInst *Alloca = nullptr;
           if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI))
@@ -350,7 +354,7 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::Loop *WILoop, llvm::AllocaInst
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, const SplitterAnnotationInfo &SAA) {
   auto *WILoop = utils::getSingleWorkItemLoop(LI);
   assert(WILoop && "Must have work item loop in kernel");
-  F.viewCFG();
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   llvm::PHINode *WIIndVar = WILoop->getCanonicalInductionVariable();
   assert(WIIndVar && "Must have work item index");
 
@@ -396,13 +400,12 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   generateWhileSwitchAround(WILoop, LastBarrierIdStorage, SubCFGs);
 
-  F.viewCFG();
   llvm::removeUnreachableBlocks(F);
 
   DT.recalculate(F);
   for (auto &Cfg : SubCFGs)
     Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap);
-  F.viewCFG();
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");
 }
 } // namespace

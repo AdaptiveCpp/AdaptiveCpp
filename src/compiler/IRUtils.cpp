@@ -401,7 +401,10 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
 
   llvm::IRBuilder WriteBuilder{InsertionPoint};
-  auto *GEP = WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep");
+  auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
+      WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep"));
+  GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
   WriteBuilder.CreateLifetimeStart(GEP, WriteBuilder.getInt64(Layout.getTypeAllocSize(Alloca->getAllocatedType())));
   WriteBuilder.CreateStore(ToArrayify, GEP);
   return Alloca;
@@ -417,9 +420,12 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
                                const llvm::Twine &NamePrefix) {
   assert(Idx && "Valid WI-Index required");
+  auto *MDAlloca = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified);
 
   llvm::IRBuilder LoadBuilder{InsertBefore};
-  auto *GEP = LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep");
+  auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep"));
+  GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
   auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
   return Load;
 }

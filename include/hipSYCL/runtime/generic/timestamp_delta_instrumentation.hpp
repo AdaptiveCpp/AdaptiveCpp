@@ -49,16 +49,15 @@ public:
     std::shared_ptr<dag_node_event> event)
   : _t0{t0}, _event{event} {}
 
-    /// Instead of the basic constructor this calculated the timestamp as
-    /// t0 + (t1- t0) + (t_event - t1).
-    /// This can allow for more accurate calculations of kernel durations
-    /// for long running applications if backends utilize low precision time
-    /// encodings. E.g. cuda represents time as single precision float.
-    timestamp_delta_instrumentation(
-    const host_timestamped_event& t0,
-    std::shared_ptr<dag_node_event> t1,
-    std::shared_ptr<dag_node_event> event)
-  : _t0{t0}, _t1{t1}, _event{event} {}
+  /// Instead of the basic constructor this calculates the timestamp as
+  /// t0 + (t1- t0) + (t_event - t1).
+  /// This can allow for more accurate calculations of kernel durations
+  /// for long running applications if backends utilize low precision time
+  /// encodings. E.g. cuda represents time as single precision float.
+  timestamp_delta_instrumentation(const host_timestamped_event &t0,
+                                  std::shared_ptr<dag_node_event> t1,
+                                  std::shared_ptr<dag_node_event> event)
+      : _t0{t0}, _t1{t1}, _event{event} {}
 
   virtual profiler_clock::time_point get_time_point() const override{
     EventTimeDeltaCalculator td;

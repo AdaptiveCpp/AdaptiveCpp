@@ -168,9 +168,8 @@ private:
 #pragma omp threadprivate(_origin)
 };
 
-HIPSYCL_KERNEL_TARGET
-inline void* hiplike_dynamic_local_memory() {
-#ifdef SYCL_DEVICE_ONLY
+#if defined(HIPSYCL_PLATFORM_HIP) || defined(HIPSYCL_PLATFORM_CUDA)
+__device__ inline void* hiplike_dynamic_local_memory() {
   #ifdef HIPSYCL_PLATFORM_CUDA
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
@@ -178,11 +177,8 @@ inline void* hiplike_dynamic_local_memory() {
   #ifdef HIPSYCL_PLATFORM_ROCM
     return __amdgcn_get_dynamicgroupbaseptr();
   #endif
-#else
-  assert(false && "this function should only be called on device");
-  return nullptr;
-#endif
 }
+#endif
 
 class local_memory
 {

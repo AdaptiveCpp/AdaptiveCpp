@@ -146,11 +146,10 @@ public:
   using local_accumulator_type = local_reduction_accumulator<ReductionDescriptor>;
 
   __host__ __device__ local_reducer(const ReductionDescriptor &desc, int my_lid,
-                                    const private_accumulator_type &private_accumulator,
                                     const local_accumulator_type &local_accumulator,
                                     bool is_final_stage)
       : _desc{desc}, _my_lid{my_lid},
-        _private_accumulator{private_accumulator}, _local_accumulator{local_accumulator},
+        _private_accumulator{desc}, _local_accumulator{local_accumulator},
         _is_final_stage{is_final_stage} {}
 
   __host__ __device__

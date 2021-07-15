@@ -35,11 +35,20 @@ namespace hipsycl {
 namespace glue {
 namespace hiplike {
 
-using local_memory_flag = bool;
+// For reductions with no known identity, stores whether any one thread has produced a value.
+// TODO this is
+//   a) somewhat wasteful with 7 unused bits of padding per flag
+//   b) not friendly to (at least) CUDA shared memory where the smallest addressable unit is 32 bits
+// We should evaluate whether bitmasks together with subgroup reductions can improve performance here.
+using initialized_flag = bool;
 
+// Provides a common interface to local_reducer for performing local-memory tree reduction on reduction operations
+// with and without a known identity value.
 template<class ReductionDescriptor, class Enable = void>
 class local_reduction_accumulator;
 
+// In the common case, when the identity of the reduction operation is known, each per-thread result can
+// initialized to the identity value.
 template<class ReductionDescriptor>
 class local_reduction_accumulator<ReductionDescriptor,
     std::enable_if_t<ReductionDescriptor::has_identity>> {
@@ -47,42 +56,54 @@ public:
   using value_type = typename ReductionDescriptor::value_type;
   using private_accumulator_type = sequential_reduction_accumulator<ReductionDescriptor>;
 
-  __host__ __device__ local_reduction_accumulator(value_type *local_memory,
-      value_type *local_output, value_type *global_input)
-      : _local_memory{local_memory}, _local_output{local_output}, _global_input{global_input} {}
+  // scratch_values: local scratch memory, group-sized, uninitialized
+  // output_values: local or global output value pointer, unit-sized, uninitialized
+  // global_input_values: (optional) reduction input for stand-alone reduction kernels
+  __host__ __device__ local_reduction_accumulator(value_type *scratch_values,
+      value_type *output_values, value_type *global_input_values)
+      : _scratch_values{scratch_values}, _output_values{output_values}, _global_input_values{global_input_values} {}
 
+  // Initialize from a per-thread result
   __host__ __device__ void init_value(int my_lid,
       const private_accumulator_type &private_accumulator) {
-    _local_memory[my_lid] = private_accumulator.value;
+    _scratch_values[my_lid] = private_accumulator.value;
   }
 
+  // Combine intermediates in the same tree (for parallel local-memory reduction)
   __host__ __device__ void combine_with(const ReductionDescriptor &desc,
       int my_lid, int other_lid) {
-    _local_memory[my_lid] = desc.combiner(_local_memory[my_lid], _local_memory[other_lid]);
+    _scratch_values[my_lid] = desc.combiner(_scratch_values[my_lid], _scratch_values[other_lid]);
   }
 
+  // Store intermediate output which will be re-loaded by a subsequent stand-alone reduction kernel
   __host__ __device__ void store_intermediate_output() {
-    *_local_output = _local_memory[0];
+    *_output_values = _scratch_values[0];
   }
 
+  // Overwrite or combine reduction output into final SYCL output buffer
   __host__ __device__ void combine_final_output(const ReductionDescriptor &desc) {
      if (!desc.initialize_to_identity) {
-       *_local_output = desc.combiner(*_local_output, _local_memory[0]);
+       *_output_values = desc.combiner(*_output_values, _scratch_values[0]);
      } else {
-       *_local_output = _local_memory[0];
+       *_output_values = _scratch_values[0];
      }
   }
 
+  // Construct a sequential accumulator from global input of a previous kernel
   __host__ __device__ private_accumulator_type get_global_input(int my_global_id) {
-    return private_accumulator_type{_global_input[my_global_id]};
+    return private_accumulator_type{_global_input_values[my_global_id]};
   }
 
 private:
-  value_type *_local_memory;
-  value_type *_local_output;
-  value_type *_global_input;
+  value_type *_scratch_values;
+  value_type *_output_values;
+  value_type *_global_input_values;
 };
 
+// In the special case of a reduction operation without a known identity, we semantically reduce over optionals
+// instead of values directly. Since not every item has to produce a value via combine(), the absence of inputs must
+// be incorporated in the tree-reduction phase as well. Instead of using `std::optional` which will waste local memory
+// on padding bytes for types with alignment > 1, we keep separate value-buffers and initialized-flag-buffers.
 template<class ReductionDescriptor>
 class local_reduction_accumulator<ReductionDescriptor,
     std::enable_if_t<!ReductionDescriptor::has_identity>> {
@@ -90,51 +111,62 @@ public:
   using value_type = typename ReductionDescriptor::value_type;
   using private_accumulator_type = sequential_reduction_accumulator<ReductionDescriptor>;
 
+  // scratch_values: local scratch memory, group-sized, uninitialized
+  // scratch_initialized_flags: local scratch memory, group-sized, uninitialized
+  // output_values: local or global output value pointer, unit-sized, uninitialized
+  // output_initialized_flags: pointer to flag in local or global memory, unit-sized, uninitialized
+  // global_input_values: (optional) reduction input values for stand-alone reduction kernels
+  // global_input_initialized_flags: (optional) reduction input initialized-flag for stand-alone reduction kernels
   __host__ __device__ local_reduction_accumulator(
-      value_type *local_memory, local_memory_flag *memory_initialized,
-      value_type *local_output, local_memory_flag *output_initialized,
-      value_type *global_input, local_memory_flag *input_initialized)
-    : _local_memory{local_memory}, _memory_initialized{memory_initialized}
-    , _local_output{local_output}, _output_initialized{output_initialized}
-    , _global_input{global_input}, _input_initialized{input_initialized} {}
+      value_type *scratch_values, initialized_flag *scratch_initialized_flags,
+      value_type *output_values, initialized_flag *output_initialized_flags,
+      value_type *global_input_values, initialized_flag *global_input_initialized_flags)
+    : _scratch_values{scratch_values}, _scratch_initialized_flags{scratch_initialized_flags}
+    , _output_values{output_values}, _output_initialized_flags{output_initialized_flags}
+    , _global_input_values{global_input_values}, _global_input_initialized_flags{global_input_initialized_flags} {}
 
+  // Initialize from a per-thread result
   __host__ __device__ void init_value(int my_lid,
       const private_accumulator_type &private_accumulator) {
-    _local_memory[my_lid] = private_accumulator.value;
-    _memory_initialized[my_lid] = private_accumulator.initialized;
+    _scratch_values[my_lid] = private_accumulator.value;
+    _scratch_initialized_flags[my_lid] = private_accumulator.initialized;
   }
 
+  // Combine intermediates in the same tree (for parallel local-memory reduction)
   __host__ __device__ void combine_with(const ReductionDescriptor &desc,
       int my_lid, int other_lid) {
-    if (!_memory_initialized[other_lid]) return;
-    _local_memory[my_lid] = _memory_initialized[my_lid]
-        ? desc.combiner(_local_memory[my_lid], _local_memory[other_lid])
-        : _local_memory[other_lid];
-    _memory_initialized[my_lid] = true;
+    if (!_scratch_initialized_flags[other_lid]) return;
+    _scratch_values[my_lid] = _scratch_initialized_flags[my_lid]
+        ? desc.combiner(_scratch_values[my_lid], _scratch_values[other_lid])
+        : _scratch_values[other_lid];
+    _scratch_initialized_flags[my_lid] = true;
   }
 
+  // Store intermediate output which will be re-loaded by a subsequent stand-alone reduction kernel
   __host__ __device__ void store_intermediate_output() {
-    *_local_output = _local_memory[0];
-    *_output_initialized = _memory_initialized[0];
+    *_output_values = _scratch_values[0];
+    *_output_initialized_flags = _scratch_initialized_flags[0];
   }
 
+  // Overwrite or combine reduction output into final SYCL output buffer, if a value has been produced
   __host__ __device__ void combine_final_output(const ReductionDescriptor &desc) {
-    if (_memory_initialized[0]) {
-      *_local_output = desc.combiner(*_local_output, _local_memory[0]);
+    if (_scratch_initialized_flags[0]) {
+      *_output_values = desc.combiner(*_output_values, _scratch_values[0]);
     }
   }
 
-  __host__ __device__ private_accumulator_type get_global_input(int my_global_id) {
-    return private_accumulator_type{_global_input[my_global_id], _input_initialized[my_global_id]};
+  // Construct a sequential accumulator from global input of a previous kernel
+  __host__ __device__ private_accumulator_type get_global_input_values(int my_global_id) {
+    return private_accumulator_type{_global_input_values[my_global_id], _global_input_initialized_flags[my_global_id]};
   }
 
 private:
-  value_type *_local_memory;
-  local_memory_flag *_memory_initialized;
-  value_type *_local_output;
-  local_memory_flag *_output_initialized;
-  value_type *_global_input;
-  local_memory_flag *_input_initialized;
+  value_type *_scratch_values;
+  initialized_flag *_scratch_initialized_flags;
+  value_type *_output_values;
+  initialized_flag *_output_initialized_flags;
+  value_type *_global_input_values;
+  initialized_flag *_global_input_initialized_flags;
 };
 
 template<class ReductionDescriptor>

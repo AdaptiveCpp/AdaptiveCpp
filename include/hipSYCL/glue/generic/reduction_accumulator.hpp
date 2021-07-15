@@ -33,9 +33,12 @@
 namespace hipsycl {
 namespace glue {
 
+// Common interface for accumulating values in a reduction variable, for both the known-identity and the
+// unknown-identity cases.
 template<class ReductionDescriptor, class Enable = void>
 struct sequential_reduction_accumulator;
 
+// In the common case, the accumulator is initialized to the known identity.
 template<class ReductionDescriptor>
 struct sequential_reduction_accumulator<ReductionDescriptor,
     std::enable_if_t<ReductionDescriptor::has_identity>> {
@@ -60,6 +63,8 @@ struct sequential_reduction_accumulator<ReductionDescriptor,
   }
 };
 
+// When the identity is unknown, the accumulator is effectively a std::optional, remembering whether at least one
+// value has been combine()d.
 template<class ReductionDescriptor>
 struct sequential_reduction_accumulator<ReductionDescriptor,
     std::enable_if_t<!ReductionDescriptor::has_identity>> {

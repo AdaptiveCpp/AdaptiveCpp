@@ -471,8 +471,10 @@ public:
   }
 
 private:
+  // For reductions without a known identity, we need to allocate additional space to store flags indicating
+  // whether each reduction input/output has been is initialized
   constexpr static std::size_t sizeof_initialized_flag
-      = ReductionDescriptor::has_identity ? 0 : sizeof(hiplike::local_memory_flag);
+      = ReductionDescriptor::has_identity ? 0 : sizeof(hiplike::initialized_flag);
 
   __host__ void initialize_local_memory(int work_group_size,
                                         int &allocated_local_mem_size) {
@@ -483,7 +485,9 @@ private:
         ceil_division(allocated_local_mem_size, alignment) *
         alignment;
 
-    allocated_local_mem_size = _local_memory_offset + 
+    // Dynamic local memory layout, reduction known:   [values...]
+    // Dynamic local memory layout, reduction unknown: [values...][initialized_flags...]
+    allocated_local_mem_size = _local_memory_offset +
         work_group_size * (sizeof(value_type) + sizeof_initialized_flag);
   }
 
@@ -491,8 +495,8 @@ private:
     return static_cast<value_type*>(_scratch_memory_in);
   }
 
-  __device__ hiplike::local_memory_flag *get_input_initialized_flag_buffer() const {
-    return reinterpret_cast<hiplike::local_memory_flag*>(
+  __device__ hiplike::initialized_flag *get_input_initialized_flag_buffer() const {
+    return reinterpret_cast<hiplike::initialized_flag*>(
         static_cast<value_type*>(_scratch_memory_in) + work_group_size());
   }
 
@@ -502,8 +506,8 @@ private:
             _local_memory_offset);
   }
 
-  __device__ hiplike::local_memory_flag* get_scratch_initialized_flag_buffer() const {
-    return reinterpret_cast<hiplike::local_memory_flag *>(
+  __device__ hiplike::initialized_flag* get_scratch_initialized_flag_buffer() const {
+    return reinterpret_cast<hiplike::initialized_flag *>(
         static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
             _local_memory_offset + work_group_size() * sizeof(value_type));
   }
@@ -515,11 +519,11 @@ private:
       return _descriptor.get_pointer();
   }
 
-  __device__ hiplike::local_memory_flag* get_output_initialized_flag_buffer() const {
+  __device__ hiplike::initialized_flag* get_output_initialized_flag_buffer() const {
     // hiplike::local_reduction_accumulator will only write the output initialized flag
     // for intermediate stages
     if(!_is_final_stage)
-      return reinterpret_cast<hiplike::local_memory_flag*>(
+      return reinterpret_cast<hiplike::initialized_flag*>(
           static_cast<value_type*>(_scratch_memory_out) + work_group_size());
     else
       return nullptr;

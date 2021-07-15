@@ -86,9 +86,8 @@ public:
   /// Returns nullptr if the given instrumentation was not set up.
   template<typename Instr> const std::shared_ptr<Instr> get() const {
     // First wait until all instrumentations have been set up
-    if(!_is_registration_complete){
+    if(!_registration_complete_signal.has_signalled()){
       _registration_complete_signal.wait();
-      _is_registration_complete = true;
     }
     
     std::shared_ptr<Instr> i = nullptr;
@@ -109,7 +108,7 @@ public:
 
   template<typename Instr>
   void add_instrumentation(std::shared_ptr<Instr> instr) {
-    assert(!_is_registration_complete);
+    assert(!_registration_complete_signal.has_signalled());
     for(const auto& i : _instrs) {
       if(i.first == typeid(Instr)) {
         assert(false && "Instrumentation already exists!");
@@ -122,7 +121,6 @@ public:
   // This will be called by the scheduler after node submission.
   // After calling, no additional instrumentations can be added anymore.
   void mark_set_complete() {
-    _is_registration_complete = true;
     _registration_complete_signal.signal();
   }
 
@@ -131,7 +129,6 @@ private:
       _instrs;
 
   mutable signal_channel _registration_complete_signal;
-  mutable std::atomic<bool> _is_registration_complete = false;
 };
 
 namespace instrumentations {

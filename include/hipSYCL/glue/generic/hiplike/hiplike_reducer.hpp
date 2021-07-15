@@ -218,6 +218,11 @@ public:
     _private_accumulator.combine_with(_desc, _local_accumulator.get_global_input(my_global_id));
 #endif
   }
+
+  __host__ __device__ value_type identity() const {
+    return _desc.identity;
+  }
+
 private:
   const ReductionDescriptor &_desc;
   const int _my_lid;

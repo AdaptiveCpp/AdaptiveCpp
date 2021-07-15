@@ -445,7 +445,9 @@ BOOST_AUTO_TEST_CASE(buffer_reduction) {
     cgh.parallel_for(sycl::range<1>{1024}, sum_reduction, max_reduction,
                      [=](sycl::id<1> idx, auto &sum, auto &max) {
                        sum += values_acc[idx];
+                       sum += sum.identity();
                        max.combine(values_acc[idx]);
+                       max.combine(max.identity());
                      });
   });
 

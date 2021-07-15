@@ -87,6 +87,10 @@ public:
     *(_desc.get_pointer()) = accumulator.value;
   }
 
+  value_type identity() const {
+    return _desc.identity;
+  }
+
 private:
   ReductionDescriptor &_desc;
   // TODO: new does not necessarily respect over-aligned alignas requirements.

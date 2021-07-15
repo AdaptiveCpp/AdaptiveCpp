@@ -395,7 +395,7 @@ public:
       const ReductionDescriptor& desc,
       rt::device_id dev, const std::vector<ReductionStage> &stages,
       std::vector<void *> &managed_scratch_memory)
-      : _descriptor{desc}, _is_final{false}, _scratch_memory_in{nullptr},
+      : _descriptor{desc}, _is_final_stage{false}, _scratch_memory_in{nullptr},
         _scratch_memory_out{nullptr} {
     
     assert(stages.size() > 0);
@@ -438,61 +438,13 @@ public:
                                   stage.allocated_local_memory);
 
     if (stage_index + 1 == num_stages)
-      _is_final = true;
+      _is_final_stage = true;
   
     if (stage_index > 0) {
       std::swap(_scratch_memory_in, _scratch_memory_out);
     }
   }
 
-  // Must be __host__ __device__ in order to be able to call
-  // hiplike_dynamic_local_memory()
-  __host__ __device__ void *get_local_scratch_mem() const {
-#ifdef SYCL_DEVICE_ONLY
-    return static_cast<void *>(
-        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
-        _local_memory_offset);
-#else
-    return nullptr;
-#endif
-  }
-
-  // Must be __host__ __device__ in order to be able to call
-  // hiplike_dynamic_local_memory()
-  __host__ __device__ void *get_local_scratch_mem_initialized() const {
-#ifdef SYCL_DEVICE_ONLY
-    return static_cast<void *>(
-        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
-        _local_memory_offset + work_group_size() * sizeof(value_type));
-#else
-    return nullptr;
-#endif
-  }
-
-  __host__ __device__
-  void* get_reduction_output_buffer() const {
-#ifdef SYCL_DEVICE_ONLY
-    if(!_is_final)
-      return _scratch_memory_out;
-    else
-      return _descriptor.get_pointer();
-#else
-    return nullptr;
-#endif
-  }
-
-  __host__ __device__ 
-  void* get_reduction_output_initialized_buffer() const {
-#ifdef SYCL_DEVICE_ONLY
-    if(!_is_final)
-      return static_cast<value_type*>(_scratch_memory_out) + work_group_size();
-    // hiplike::local_reduction_accumulator will only write the output initialized flag
-    // for intermediate stages
-#endif
-    return nullptr;
-  }
-
-#ifdef SYCL_DEVICE_ONLY
   __device__ hiplike::local_reducer<ReductionDescriptor>
   construct_reducer() const {
     int my_local_id = __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
@@ -501,47 +453,21 @@ public:
         __hipsycl_gid_z * __hipsycl_ngroups_y * __hipsycl_ngroups_x +
         __hipsycl_gid_y * __hipsycl_ngroups_x + __hipsycl_gid_x;
 
-    auto private_accumulator = sequential_reduction_accumulator<ReductionDescriptor>{_descriptor};
-    auto group_scratch_ptr = static_cast<value_type *>(get_local_scratch_mem());
-    value_type *group_output_ptr =
-        static_cast<value_type *>(get_reduction_output_buffer()) + my_group_id;
-    value_type* global_input_ptr =
-        static_cast<value_type*>(get_reduction_input_buffer());
-
-    if constexpr (ReductionDescriptor::has_identity) {
+    if constexpr(ReductionDescriptor::has_identity) {
       return hiplike::local_reducer<ReductionDescriptor>{
-          _descriptor, my_local_id, private_accumulator,
-          hiplike::local_reduction_accumulator<ReductionDescriptor>{group_scratch_ptr,
-              group_output_ptr, global_input_ptr},
-          _is_final};
+          _descriptor, my_local_id,
+          hiplike::local_reduction_accumulator<ReductionDescriptor>{get_scratch_value_buffer(),
+              get_output_value_buffer() + my_group_id, get_input_value_buffer()},
+          _is_final_stage};
     } else {
-      auto group_scratch_initialized_ptr = reinterpret_cast<hiplike::local_memory_flag*>(
-          get_local_scratch_mem_initialized());
-      auto group_output_initialized_ptr =
-          static_cast<hiplike::local_memory_flag *>(get_reduction_output_initialized_buffer()) + my_group_id;
-      auto global_input_initialized_ptr =
-          static_cast<hiplike::local_memory_flag *>(get_reduction_input_initialized_buffer());
       return hiplike::local_reducer<ReductionDescriptor>{
-          _descriptor, my_local_id, private_accumulator,
-          hiplike::local_reduction_accumulator<ReductionDescriptor>{group_scratch_ptr,
-              group_scratch_initialized_ptr, group_output_ptr, group_output_initialized_ptr,
-              global_input_ptr, global_input_initialized_ptr},
-          _is_final};
+          _descriptor, my_local_id,
+          hiplike::local_reduction_accumulator<ReductionDescriptor>{get_scratch_value_buffer(),
+              get_scratch_initialized_flag_buffer(), get_output_value_buffer() + my_group_id,
+              get_output_initialized_flag_buffer() + my_group_id,
+              get_input_value_buffer(), get_input_initialized_flag_buffer()},
+          _is_final_stage};
     }
-  }
-#endif
-
-  __device__ void *get_reduction_input_buffer() const {
-    return _scratch_memory_in;
-  }
-
-  __device__ void *get_reduction_input_initialized_buffer() const {
-    return static_cast<value_type*>(_scratch_memory_in) + work_group_size();
-  }
-
-  __host__ __device__
-  const ReductionDescriptor& get_descriptor() const {
-    return _descriptor;
   }
 
 private:
@@ -561,11 +487,49 @@ private:
         work_group_size * (sizeof(value_type) + sizeof_initialized_flag);
   }
 
+  __device__ value_type *get_input_value_buffer() const {
+    return static_cast<value_type*>(_scratch_memory_in);
+  }
+
+  __device__ hiplike::local_memory_flag *get_input_initialized_flag_buffer() const {
+    return reinterpret_cast<hiplike::local_memory_flag*>(
+        static_cast<value_type*>(_scratch_memory_in) + work_group_size());
+  }
+
+  __device__ value_type* get_scratch_value_buffer() const {
+    return reinterpret_cast<value_type *>(
+        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
+            _local_memory_offset);
+  }
+
+  __device__ hiplike::local_memory_flag* get_scratch_initialized_flag_buffer() const {
+    return reinterpret_cast<hiplike::local_memory_flag *>(
+        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
+            _local_memory_offset + work_group_size() * sizeof(value_type));
+  }
+
+  __device__ value_type* get_output_value_buffer() const {
+    if(!_is_final_stage)
+      return static_cast<value_type*>(_scratch_memory_out);
+    else
+      return _descriptor.get_pointer();
+  }
+
+  __device__ hiplike::local_memory_flag* get_output_initialized_flag_buffer() const {
+    // hiplike::local_reduction_accumulator will only write the output initialized flag
+    // for intermediate stages
+    if(!_is_final_stage)
+      return reinterpret_cast<hiplike::local_memory_flag*>(
+          static_cast<value_type*>(_scratch_memory_out) + work_group_size());
+    else
+      return nullptr;
+  }
+
   static __device__ int work_group_size() {
     return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
   }
 
-  bool _is_final;
+  bool _is_final_stage;
 
   void* _scratch_memory_in;
   void* _scratch_memory_out;

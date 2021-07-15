@@ -78,8 +78,8 @@ public:
 class operation
 {
 public:
-  operation() noexcept;
-  virtual ~operation();
+  operation() = default;
+  virtual ~operation() = default;
 
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }

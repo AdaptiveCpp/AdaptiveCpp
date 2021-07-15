@@ -32,9 +32,6 @@
 namespace hipsycl {
 namespace rt {
 
-operation::operation() noexcept = default;
-operation::~operation() = default;
-
 instrumentation_set &operation::get_instrumentations() {
   return _instr_set;
 }

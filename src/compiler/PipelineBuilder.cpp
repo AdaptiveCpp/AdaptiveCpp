@@ -59,11 +59,11 @@ LoopSplittingPipeline selectPipeline() {
   if (!Env)
     return DefaultLoopSplittingPipeline;
   llvm::StringRef EnvVar{Env};
-  if (EnvVar.equals_lower("org"))
+  if (EnvVar.equals("org"))
     return LoopSplittingPipeline::Original;
-  if (EnvVar.equals_lower("pocl"))
+  if (EnvVar.equals("pocl"))
     return LoopSplittingPipeline::Pocl;
-  if (EnvVar.equals_lower("cbs"))
+  if (EnvVar.equals("cbs"))
     return LoopSplittingPipeline::ContinuationBasedSynchronization;
   return DefaultLoopSplittingPipeline;
 }

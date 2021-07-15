@@ -179,6 +179,9 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_system_allocations:
     return false;
     break;
+  case device_support_aspect::execution_timestamps:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();

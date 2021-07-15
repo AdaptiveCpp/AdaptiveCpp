@@ -153,9 +153,12 @@ void for_each_explicit_operation(
                                 bmem_req->get_data_region()};
             memory_location dest{target_device, region.first,
                                  bmem_req->get_data_region()};
-            memcpy_operation op{src, dest, region.second};
+            std::unique_ptr<operation> op =
+                std::make_unique<memcpy_operation>(src, dest, region.second);
 
-            explicit_op_handler(&op);
+            explicit_op_handler(op.get());
+            /// TODO This has to be changed once we support multi-operation nodes
+            node->assign_effective_operation(std::move(op));
           }
         });
   }

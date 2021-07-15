@@ -32,6 +32,7 @@
 #include <exception>
 #include <functional>
 #include <string>
+#include <system_error>
 
 #include "hipSYCL/runtime/error.hpp"
 #include "types.hpp"
@@ -60,6 +61,11 @@ public:
   bool has_context() const
   {
     return false;
+  }
+
+  const std::error_code& code() const noexcept
+  {
+    return std::error_code(_error_details.info().error_code().get_code(), std::system_category());
   }
 
   // Implementation in context.hpp

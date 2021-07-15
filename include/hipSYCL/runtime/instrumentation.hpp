@@ -55,6 +55,16 @@ public:
     return time_point{
         duration{std::chrono::steady_clock::now().time_since_epoch()}};
   }
+
+  static std::size_t ns_ticks(const time_point& tp) {
+    return tp.time_since_epoch().count();
+  }
+
+  static double seconds(const time_point& tp) {
+    auto ticks = ns_ticks(tp);
+    return static_cast<double>(ticks) /
+           1.e9;
+  }
 };
 
 class instrumentation {
@@ -130,45 +140,18 @@ class submission_timestamp : public instrumentation {
 public:
   virtual profiler_clock::time_point get_time_point() const = 0;
   virtual ~submission_timestamp() = default;
-
-  std::size_t get_ns_ticks() const {
-    return get_time_point().time_since_epoch().count();
-  }
-
-  double get_time_seconds() const {
-    return static_cast<double>(get_ns_ticks()) /
-           1.e9;
-  }
 };
 
 class execution_start_timestamp : public instrumentation {
 public:
   virtual profiler_clock::time_point get_time_point() const = 0;
   virtual ~execution_start_timestamp() = default;
-
-  std::size_t get_ns_ticks() const {
-    return get_time_point().time_since_epoch().count();
-  }
-
-  double get_time_seconds() const {
-    return static_cast<double>(get_ns_ticks()) /
-           1.e9;
-  }
 };
 
 class execution_finish_timestamp : public instrumentation {
 public:
   virtual profiler_clock::time_point get_time_point() const = 0;
   virtual ~execution_finish_timestamp() = default;
-
-  std::size_t get_ns_ticks() const {
-    return get_time_point().time_since_epoch().count();
-  }
-
-  double get_time_seconds() const {
-    return static_cast<double>(get_ns_ticks()) /
-           1.e9;
-  }
 };
 
 }

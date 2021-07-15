@@ -178,7 +178,7 @@ public:
           throw invalid_object_error(
               "Operation not profiled: No submission timestamp available");
 
-      return submission->get_ns_ticks();
+      return rt::profiler_clock::ns_ticks(submission->get_time_point());
     } else if (param == info::event_profiling::command_start) {
       auto start =
           _node->get_operation()
@@ -189,7 +189,7 @@ public:
           throw invalid_object_error(
               "Operation not profiled: No execution start timestamp available");
 
-      return start->get_ns_ticks();
+      return rt::profiler_clock::ns_ticks(start->get_time_point());
     } else if (param == info::event_profiling::command_end) {
       auto finish =
           _node->get_operation()
@@ -200,7 +200,7 @@ public:
           throw invalid_object_error(
               "Operation not profiled: No execution end timestamp available");
 
-      return finish->get_ns_ticks();
+      return rt::profiler_clock::ns_ticks(finish->get_time_point());
     } else {
       throw invalid_parameter_error{"Unknown event profiling request"};
     }

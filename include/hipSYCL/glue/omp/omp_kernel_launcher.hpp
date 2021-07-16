@@ -204,7 +204,7 @@ inline void iterate_nd_range_omp(Function f, const sycl::range<Dim> num_groups,
         sycl::id<Dim> local_id{l_x};
         sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
                                      local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
-        f(std::move(this_item), reducers...);
+        f(this_item, reducers...);
       }
     }
   } else if constexpr (Dim == 2) {
@@ -220,7 +220,7 @@ inline void iterate_nd_range_omp(Function f, const sycl::range<Dim> num_groups,
             sycl::nd_item<Dim> this_item{&offset,    group_id,
                                          local_id,   local_size,
                                          num_groups, &barrier_impl, group_shared_memory_ptr};
-            f(std::move(this_item), reducers...);
+            f(this_item, reducers...);
           }
         }
       }
@@ -240,7 +240,7 @@ inline void iterate_nd_range_omp(Function f, const sycl::range<Dim> num_groups,
                 sycl::nd_item<Dim> this_item{&offset,    group_id,
                                              local_id,   local_size,
                                              num_groups, &barrier_impl, group_shared_memory_ptr};
-                f(std::move(this_item), reducers...);
+                f(this_item, reducers...);
               }
             }
           }

@@ -383,8 +383,6 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     if (Barriers.find(BB) == Barriers.end() && utils::hasOnlyBarrier(BB, SAA))
       Barriers.insert({BB, Barriers.size()});
 
-  utils::arrayifyAllocas(&F.getEntryBlock(), *WILoop, WIIndVar, DT);
-
   const llvm::DataLayout &DL = F.getParent()->getDataLayout();
   llvm::IRBuilder Builder{F.getEntryBlock().getFirstNonPHI()};
   auto *LastBarrierIdStorage =
@@ -399,6 +397,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     if (BIt.second != ExitBarrierId)
       SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA);
   }
+
+  utils::arrayifyAllocas(&F.getEntryBlock(), *WILoop, WIIndVar, DT);
 
   for (auto &Cfg : SubCFGs)
     Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI());

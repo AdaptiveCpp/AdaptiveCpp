@@ -141,7 +141,6 @@ if(WITH_CPU_BACKEND)
     omp/omp_backend.cpp
     omp/omp_event.cpp
     omp/omp_hardware_manager.cpp
-    omp/omp_instrumentation.cpp
     omp/omp_queue.cpp)
 
     find_package(OpenMP REQUIRED)

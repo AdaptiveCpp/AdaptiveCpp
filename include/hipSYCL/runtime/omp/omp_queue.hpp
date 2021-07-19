@@ -32,7 +32,6 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
-#include "omp_instrumentation.hpp"
 
 namespace hipsycl {
 namespace rt {

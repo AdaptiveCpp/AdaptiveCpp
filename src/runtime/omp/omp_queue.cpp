@@ -34,7 +34,6 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
-#include "hipSYCL/runtime/omp/omp_instrumentation.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
 #include <memory>
@@ -72,6 +71,56 @@ bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
   return true;
 }
 
+class instrumentation_task_guard;
+
+template <class BaseInstrumentation>
+class omp_task_timestamp : public BaseInstrumentation {
+public:
+  friend class instrumentation_task_guard;
+
+  virtual profiler_clock::time_point get_time_point() const override {
+    return _time;
+  }
+
+  virtual void wait() const override { _signal.wait(); }
+
+private:
+  // This should only be called once by the instrumentation_task_guard
+  void record_time() {
+    assert(!_signal.has_signalled());
+    _time = profiler_clock::now();
+    _signal.signal();
+  }
+
+  profiler_clock::time_point _time;
+  mutable signal_channel _signal;
+};
+
+using omp_submission_timestamp = simple_submission_timestamp;
+
+using omp_execution_start_timestamp =
+    omp_task_timestamp<instrumentations::execution_start_timestamp>;
+
+using omp_execution_finish_timestamp =
+    omp_task_timestamp<instrumentations::execution_finish_timestamp>;
+
+class instrumentation_task_guard {
+public:
+  instrumentation_task_guard(std::shared_ptr<omp_execution_start_timestamp> start,
+             std::shared_ptr<omp_execution_finish_timestamp> finish)
+      : _finish{finish} {
+    if(start)
+      start->record_time();
+  }
+
+  ~instrumentation_task_guard() {
+    if(_finish)
+      _finish->record_time();
+  }
+
+private:
+  std::shared_ptr<omp_execution_finish_timestamp> _finish;
+};
 
 class omp_instrumentation_setup {
 public:
@@ -104,26 +153,8 @@ public:
     }
   }
 
-  class task_guard {
-  public:
-    task_guard(std::shared_ptr<omp_execution_start_timestamp> start,
-               std::shared_ptr<omp_execution_finish_timestamp> finish)
-        : _finish{finish} {
-      if(start)
-        start->record_time();
-    }
-
-    ~task_guard() {
-      if(_finish)
-        _finish->record_time();
-    }
-
-  private:
-    std::shared_ptr<omp_execution_finish_timestamp> _finish;
-  };
-
-  task_guard instrument_task() const {
-    return task_guard{_start, _finish};
+  instrumentation_task_guard instrument_task() const {
+    return instrumentation_task_guard{_start, _finish};
   }
 
 private:

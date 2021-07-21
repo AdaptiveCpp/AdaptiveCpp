@@ -485,8 +485,8 @@ private:
         ceil_division(allocated_local_mem_size, alignment) *
         alignment;
 
-    // Dynamic local memory layout, reduction known:   [values...]
-    // Dynamic local memory layout, reduction unknown: [values...][initialized_flags...]
+    // Dynamic local memory layout, identity known:   [values...]
+    // Dynamic local memory layout, identity unknown: [values...][initialized_flags...]
     allocated_local_mem_size = _local_memory_offset +
         work_group_size * (sizeof(value_type) + sizeof_initialized_flag);
   }

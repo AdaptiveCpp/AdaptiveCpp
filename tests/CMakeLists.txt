@@ -60,6 +60,7 @@ add_executable(sycl_tests
   sycl/explicit_copy.cpp
   sycl/extensions.cpp
   sycl/fill.cpp
+  sycl/functional.cpp
   sycl/group_functions/group_functions_misc.cpp
   sycl/group_functions/group_functions_binary_reduce.cpp
   sycl/group_functions/group_functions_reduce.cpp

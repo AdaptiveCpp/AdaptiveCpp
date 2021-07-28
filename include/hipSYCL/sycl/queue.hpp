@@ -609,22 +609,22 @@ public:
   
   template <typename T>
   event copy(const T* src, T* dest, std::size_t count) {
-    return this->memcpy(reinterpret_cast<void*>(dest), 
-      reinterpret_cast<const void*>(src), count * sizeof(T));
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T));
   }
   
   template <typename T>
   event copy(const T* src, T* dest, std::size_t count, 
              event dependency) {
-    return this->memcpy(reinterpret_cast<void*>(dest), 
-      reinterpret_cast<const void*>(src), count * sizeof(T), dependency);
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T), dependency);
   }
   
   template <typename T>
   event copy(const T* src, T* dest, std::size_t count, 
              const std::vector<event>& dependencies) {
-    return this->memcpy(reinterpret_cast<void*>(dest), 
-      reinterpret_cast<const void*>(src), count * sizeof(T), dependencies);
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T), dependencies);
   }
 
   event memset(void *ptr, int value, std::size_t num_bytes) {

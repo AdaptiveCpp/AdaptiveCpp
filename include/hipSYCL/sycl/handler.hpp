@@ -558,8 +558,8 @@ public:
   
   template <typename T>
   void copy(const T* src, T* dest, std::size_t count) {
-    this->memcpy(reinterpret_cast<void*>(dest), 
-      reinterpret_cast<const void*>(src), count * sizeof(T));
+    this->memcpy(static_cast<void*>(dest),
+      static_cast<const void*>(src), count * sizeof(T));
   }
 
 

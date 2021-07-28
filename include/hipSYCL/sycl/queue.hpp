@@ -761,6 +761,71 @@ public:
     });
   }
 
+  
+  // Explicit copy functions
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event copy(accessor<T, dim, mode, tgt, variant> src,
+             shared_ptr_class<T> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.copy(src, dest);
+    });           
+  }
+  
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event copy(shared_ptr_class<T> src,
+             accessor<T, dim, mode, tgt, variant> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.copy(src, dest);
+    });           
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event copy(accessor<T, dim, mode, tgt, variant> src,
+             T *dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.copy(src, dest);
+    });     
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event copy(const T *src,
+             accessor<T, dim, mode, tgt, variant> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.copy(src, dest);
+    });             
+  }
+
+  template <typename T, int dim, access::mode srcMode, access::mode dstMode,
+            access::target srcTgt, access::target destTgt,
+            accessor_variant VariantSrc, accessor_variant VariantDest>
+  event copy(accessor<T, dim, srcMode, srcTgt, VariantSrc> src,
+             accessor<T, dim, dstMode, destTgt, VariantDest> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.copy(src, dest);
+    });  
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event update_host(accessor<T, dim, mode, tgt, variant> acc) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.update_host(acc);
+    });  
+  }
+
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            accessor_variant variant>
+  event fill(accessor<T, dim, mode, tgt, variant> dest, const T &src) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.fill(dest, src);
+    });  
+  }
+
+
 
 private:
   template<int Dim>

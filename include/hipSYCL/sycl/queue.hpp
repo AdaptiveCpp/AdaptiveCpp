@@ -765,7 +765,7 @@ public:
   
   // Explicit copy functions
   
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
              shared_ptr_class<T> dest) {
@@ -775,7 +775,7 @@ public:
     });           
   }
   
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event copy(shared_ptr_class<T> src,
              accessor<T, dim, mode, tgt, isPlaceholder> dest) {
@@ -785,7 +785,7 @@ public:
     });           
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
              T *dest) {
@@ -795,7 +795,7 @@ public:
     });     
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event copy(const T *src,
              accessor<T, dim, mode, tgt, isPlaceholder> dest) {
@@ -805,8 +805,8 @@ public:
     });             
   }
 
-  template <typename T, int dim, access::mode srcMode, access::mode dstMode,
-            access::target srcTgt, access::target destTgt,
+  template <typename T, int dim, access_mode srcMode, access_mode dstMode,
+            target srcTgt, target destTgt,
             access::placeholder isPlaceholderSrc, access::placeholder isPlaceholderDst>
   event copy(accessor<T, dim, srcMode, srcTgt, isPlaceholderSrc> src,
              accessor<T, dim, dstMode, destTgt, isPlaceholderDst> dest) {
@@ -817,7 +817,7 @@ public:
     });  
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event update_host(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -826,7 +826,7 @@ public:
     });  
   }
   
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event update(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
     return this->submit([&](sycl::handler &cgh) {
@@ -835,7 +835,7 @@ public:
     });  
   }
 
-  template <typename T, int dim, access::mode mode, access::target tgt,
+  template <typename T, int dim, access_mode mode, target tgt,
             access::placeholder isPlaceholder>
   event fill(accessor<T, dim, mode, tgt, isPlaceholder> dest, const T &src) {
     return this->submit([&](sycl::handler &cgh) {

@@ -766,7 +766,7 @@ public:
   // Explicit copy functions
   
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
              shared_ptr_class<T> dest) {
     return this->submit([&](sycl::handler &cgh) {
@@ -776,7 +776,7 @@ public:
   }
   
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event copy(shared_ptr_class<T> src,
              accessor<T, dim, mode, tgt, isPlaceholder> dest) {
     return this->submit([&](sycl::handler &cgh) {
@@ -786,7 +786,7 @@ public:
   }
 
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
              T *dest) {
     return this->submit([&](sycl::handler &cgh) {
@@ -796,7 +796,7 @@ public:
   }
 
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event copy(const T *src,
              accessor<T, dim, mode, tgt, isPlaceholder> dest) {
     return this->submit([&](sycl::handler &cgh) {
@@ -807,7 +807,7 @@ public:
 
   template <typename T, int dim, access_mode srcMode, access_mode dstMode,
             target srcTgt, target destTgt,
-            access::placeholder isPlaceholderSrc, access::placeholder isPlaceholderDst>
+            accessor_variant isPlaceholderSrc, accessor_variant isPlaceholderDst>
   event copy(accessor<T, dim, srcMode, srcTgt, isPlaceholderSrc> src,
              accessor<T, dim, dstMode, destTgt, isPlaceholderDst> dest) {
     return this->submit([&](sycl::handler &cgh) {
@@ -818,7 +818,7 @@ public:
   }
 
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event update_host(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.require(acc);
@@ -827,7 +827,7 @@ public:
   }
   
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event update(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.require(acc);
@@ -836,7 +836,7 @@ public:
   }
 
   template <typename T, int dim, access_mode mode, target tgt,
-            access::placeholder isPlaceholder>
+            accessor_variant isPlaceholder>
   event fill(accessor<T, dim, mode, tgt, isPlaceholder> dest, const T &src) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.require(dest);

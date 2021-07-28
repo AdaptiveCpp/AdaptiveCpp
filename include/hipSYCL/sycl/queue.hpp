@@ -825,6 +825,15 @@ public:
       cgh.update_host(acc);
     });  
   }
+  
+  template <typename T, int dim, access::mode mode, access::target tgt,
+            access::placeholder isPlaceholder>
+  event update(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(acc);
+      cgh.update(acc);
+    });  
+  }
 
   template <typename T, int dim, access::mode mode, access::target tgt,
             access::placeholder isPlaceholder>

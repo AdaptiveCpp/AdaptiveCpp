@@ -39,9 +39,11 @@ class signal_channel {
 public:
   signal_channel() {
     _shared_future = _promise.get_future().share();
+    _has_signalled_flag = false;
   }
 
   void signal() {
+    _has_signalled_flag = true;
     _promise.set_value(true);
   }
 
@@ -51,14 +53,13 @@ public:
   }
 
   bool has_signalled() const {
-    auto future = _shared_future;
-    return future.wait_for(std::chrono::seconds(0)) ==
-           std::future_status::ready;
+    return(_has_signalled_flag);
   }
 
 private:
   std::promise<bool> _promise;
   std::shared_future<bool> _shared_future;
+  std::atomic<bool> _has_signalled_flag;
 };
 
 }

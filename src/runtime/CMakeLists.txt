@@ -71,6 +71,7 @@ if(WITH_CUDA_BACKEND)
   add_library(rt-backend-cuda SHARED
     cuda/cuda_event.cpp
     cuda/cuda_queue.cpp
+    cuda/cuda_instrumentation.cpp
     cuda/cuda_allocator.cpp
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
@@ -93,6 +94,7 @@ if(WITH_ROCM_BACKEND)
   add_library(rt-backend-hip SHARED
     hip/hip_event.cpp
     hip/hip_queue.cpp
+    hip/hip_instrumentation.cpp
     hip/hip_allocator.cpp
     hip/hip_device_manager.cpp
     hip/hip_hardware_manager.cpp

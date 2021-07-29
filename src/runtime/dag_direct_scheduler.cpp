@@ -153,9 +153,12 @@ void for_each_explicit_operation(
                                 bmem_req->get_data_region()};
             memory_location dest{target_device, region.first,
                                  bmem_req->get_data_region()};
-            memcpy_operation op{src, dest, region.second};
+            std::unique_ptr<operation> op =
+                std::make_unique<memcpy_operation>(src, dest, region.second);
 
-            explicit_op_handler(&op);
+            explicit_op_handler(op.get());
+            /// TODO This has to be changed once we support multi-operation nodes
+            node->assign_effective_operation(std::move(op));
           }
         });
   }
@@ -192,6 +195,11 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   node->assign_to_executor(executor);
   
   executor->submit_directly(node, op, reqs);
+
+  // After node submission, no additional instrumentations can be added.
+  // Marking as complete causes code that waits for instrumentation results
+  // to proceed to waiting on the requested instrumentation.
+  op->get_instrumentations().mark_set_complete();
 }
 
 result submit_requirement(dag_node_ptr req) {

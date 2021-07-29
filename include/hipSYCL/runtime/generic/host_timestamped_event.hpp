@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay and contributors
+ * Copyright (c) 2019-2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OMP_QUEUE_HPP
-#define HIPSYCL_OMP_QUEUE_HPP
+#ifndef HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
+#define HIPSYCL_HOST_TIMESTAMPED_EVENT_HPP
 
-#include "../generic/async_worker.hpp"
-#include "../executor.hpp"
-#include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
+#include "hipSYCL/runtime/instrumentation.hpp"
+#include "hipSYCL/runtime/event.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class omp_queue : public inorder_queue
-{
+class host_timestamped_event {
 public:
-  omp_queue(backend_id id);
-  virtual ~omp_queue();
+  host_timestamped_event() = default;
 
-  /// Inserts an event into the stream
-  virtual std::shared_ptr<dag_node_event> insert_event() override;
+  host_timestamped_event(inorder_queue* q)
+  : host_timestamped_event{q->insert_event()} {}
 
-  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
-  virtual result submit_external_wait_for(dag_node_ptr node) override;
+  host_timestamped_event(std::shared_ptr<dag_node_event> evt) 
+  : _evt{evt} {
+    _evt->wait();
+    _time = profiler_clock::now();
+  }
 
-  virtual device_id get_device() const override;
-  virtual void *get_native_type() const override;
+  std::shared_ptr<dag_node_event> get_event() const {
+    return _evt;
+  }
 
-  virtual module_invoker *get_module_invoker() override;
-  
-  worker_thread& get_worker();
+  profiler_clock::time_point get_timestamp() const {
+    return _time;
+  }
 private:
-  backend_id _backend_id;
-  worker_thread _worker;
+  std::shared_ptr<dag_node_event> _evt;
+  profiler_clock::time_point _time;
 };
+
 
 }
 }

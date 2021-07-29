@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
+
 #include <mutex>
 
 // TODO: Implement the following optimization:
@@ -164,7 +165,9 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
 dag_node_ptr
 dag_builder::add_command_group(std::unique_ptr<operation> op,
                                const requirements_list &requirements,
-                               const execution_hints &hints) {
+                               const execution_hints &hints)
+{
+  assert(op);
 
   std::lock_guard<std::mutex> lock{_mutex};
 

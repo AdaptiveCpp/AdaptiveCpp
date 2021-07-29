@@ -124,6 +124,12 @@ void dag_node::assign_execution_index(std::size_t index)
   this->_assigned_execution_index = index;
 }
 
+void dag_node::assign_effective_operation(std::unique_ptr<operation> op)
+{
+  assert(!_replacement_executed_operation);
+  _replacement_executed_operation = std::move(op);
+}
+
 std::size_t dag_node::get_assigned_execution_index() const
 {
   return this->_assigned_execution_index;

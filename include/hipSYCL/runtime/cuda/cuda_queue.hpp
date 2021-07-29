@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,11 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
+#include "../generic/host_timestamped_event.hpp"
 
+#include "cuda_instrumentation.hpp"
 #include "cuda_module.hpp"
+
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
 // It's not possible to include both HIP and CUDA headers since they
@@ -73,10 +76,10 @@ public:
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
 
-  virtual result submit_memcpy(const memcpy_operation &, dag_node_ptr) override;
-  virtual result submit_kernel(const kernel_operation &, dag_node_ptr) override;
-  virtual result submit_prefetch(const prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(const memset_operation &, dag_node_ptr) override;
+  virtual result submit_memcpy(memcpy_operation &, dag_node_ptr) override;
+  virtual result submit_kernel(kernel_operation &, dag_node_ptr) override;
+  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
+  virtual result submit_memset(memset_operation &, dag_node_ptr) override;
 
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
@@ -97,12 +100,16 @@ public:
                                    unsigned dynamic_shared_mem,
                                    void **kernel_args);
 
+  const host_timestamped_event& get_timing_reference() const {
+    return _reference_event;
+  }
 private:
   void activate_device() const;
-  
+
   device_id _dev;
   CUstream_st *_stream;
   cuda_module_invoker _module_invoker;
+  host_timestamped_event _reference_event;
 };
 
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,48 +25,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OMP_QUEUE_HPP
-#define HIPSYCL_OMP_QUEUE_HPP
+#include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_instrumentation.hpp"
+#include "hipSYCL/runtime/hip/hip_event.hpp"
+#include "hipSYCL/runtime/error.hpp"
 
-#include "../generic/async_worker.hpp"
-#include "../executor.hpp"
-#include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include <cassert>
+#include <memory>
 
 namespace hipsycl {
 namespace rt {
 
-class omp_queue : public inorder_queue
-{
-public:
-  omp_queue(backend_id id);
-  virtual ~omp_queue();
+profiler_clock::duration
+hip_event_time_delta::operator()(const dag_node_event& t0,
+                                 const dag_node_event& t1) const {
+  assert(t0 && t0->is_complete());
+  assert(t1 && t1->is_complete());
 
-  /// Inserts an event into the stream
-  virtual std::shared_ptr<dag_node_event> insert_event() override;
-
-  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
+  hipEvent_t t0_evt = cast<const hip_node_event>(&t0)->get_event();
+  hipEvent_t t1_evt = cast<const hip_node_event>(&t1)->get_event();
   
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
-  virtual result submit_external_wait_for(dag_node_ptr node) override;
+  float ms = 0.0f;
+  hipError_t err = hipEventElapsedTime(&ms, t0_evt, t1_evt);
 
-  virtual device_id get_device() const override;
-  virtual void *get_native_type() const override;
+  if (err != hipSuccess) {
+    register_error(
+        __hipsycl_here(),
+        error_info{"hip_event_time_delta: hipEventElapsedTime() failed",
+                   error_code{"HIP", err}});
+  }
 
-  virtual module_invoker *get_module_invoker() override;
-  
-  worker_thread& get_worker();
-private:
-  backend_id _backend_id;
-  worker_thread _worker;
-};
+  return std::chrono::round<profiler_clock::duration>(
+      std::chrono::duration<float, std::milli>{ms});
+}
 
 }
 }
 
-#endif

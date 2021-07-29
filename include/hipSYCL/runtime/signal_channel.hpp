@@ -53,12 +53,15 @@ public:
   }
 
   bool has_signalled() const {
-    return(_has_signalled_flag);
+    return _has_signalled_flag;
   }
 
 private:
   std::promise<bool> _promise;
   std::shared_future<bool> _shared_future;
+  // This flag is a workaround for a serious performance
+  // bug in libstdc++ prior to version 11, where the
+  // future::wait_for(duration(0)) pattern is extremely inefficient
   std::atomic<bool> _has_signalled_flag;
 };
 

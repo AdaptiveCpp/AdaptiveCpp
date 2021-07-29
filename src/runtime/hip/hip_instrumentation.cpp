@@ -37,13 +37,13 @@ namespace hipsycl {
 namespace rt {
 
 profiler_clock::duration
-hip_event_time_delta::operator()(std::shared_ptr<dag_node_event> t0,
-                                 std::shared_ptr<dag_node_event> t1) const {
+hip_event_time_delta::operator()(const dag_node_event& t0,
+                                 const dag_node_event& t1) const {
   assert(t0 && t0->is_complete());
   assert(t1 && t1->is_complete());
 
-  hipEvent_t t0_evt = cast<hip_node_event>(t0.get())->get_event();
-  hipEvent_t t1_evt = cast<hip_node_event>(t1.get())->get_event();
+  hipEvent_t t0_evt = cast<const hip_node_event>(&t0)->get_event();
+  hipEvent_t t1_evt = cast<const hip_node_event>(&t1)->get_event();
   
   float ms = 0.0f;
   hipError_t err = hipEventElapsedTime(&ms, t0_evt, t1_evt);

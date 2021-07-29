@@ -40,8 +40,8 @@ namespace rt {
 
 class cuda_event_time_delta {
 public:
-  profiler_clock::duration operator()(std::shared_ptr<dag_node_event> t0,
-                                      std::shared_ptr<dag_node_event> t1) const;
+  profiler_clock::duration operator()(const dag_node_event& t0,
+                                      const dag_node_event& t1) const;
 };
 
 using cuda_submission_timestamp = simple_submission_timestamp;

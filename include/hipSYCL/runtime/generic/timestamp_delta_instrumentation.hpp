@@ -65,14 +65,14 @@ public:
     assert(_t0.get_event()->is_complete());
 
     if(!_t1) {
-      auto delta = td(_t0.get_event(), _event);
+      auto delta = td(*_t0.get_event(), *_event);
     
       return _t0.get_timestamp() + delta;
     } else {
       assert(_t1->is_complete());
 
-      auto delta_t1_t0 = td(_t0.get_event(), _t1);
-      auto delta_t2_t1 = td(_t1, _event);
+      auto delta_t1_t0 = td(*_t0.get_event(), *_t1);
+      auto delta_t2_t1 = td(*_t1, *_event);
 
       return _t0.get_timestamp() + delta_t1_t0 + delta_t2_t1;
     }

@@ -38,13 +38,13 @@ namespace hipsycl {
 namespace rt {
 
 profiler_clock::duration
-cuda_event_time_delta::operator()(std::shared_ptr<dag_node_event> t0,
-                                  std::shared_ptr<dag_node_event> t1) const {
-  assert(t0 && t0->is_complete());
-  assert(t1 && t1->is_complete());
+cuda_event_time_delta::operator()(const dag_node_event& t0,
+                                  const dag_node_event& t1) const {
+  assert(t0.is_complete());
+  assert(t1.is_complete());
 
-  cudaEvent_t t0_evt = cast<cuda_node_event>(t0.get())->get_event();
-  cudaEvent_t t1_evt = cast<cuda_node_event>(t1.get())->get_event();
+  cudaEvent_t t0_evt = cast<const cuda_node_event>(&t0)->get_event();
+  cudaEvent_t t1_evt = cast<const cuda_node_event>(&t1)->get_event();
   
   float ms = 0.0f;
   cudaError_t err = cudaEventElapsedTime(&ms, t0_evt, t1_evt);

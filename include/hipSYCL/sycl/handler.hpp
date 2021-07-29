@@ -555,6 +555,12 @@ public:
 
     _command_group_nodes.push_back(node);
   }
+  
+  template <typename T>
+  void copy(const T* src, T* dest, std::size_t count) {
+    this->memcpy(static_cast<void*>(dest),
+      static_cast<const void*>(src), count * sizeof(T));
+  }
 
 
   template <class T> void fill(void *ptr, const T &pattern, std::size_t count) {

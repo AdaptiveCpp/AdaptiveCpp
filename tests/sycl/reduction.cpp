@@ -483,8 +483,10 @@ BOOST_AUTO_TEST_CASE(deprecated_accessor_reduction) {
     sycl::buffer<int> sum_buff_a{1};
     sycl::buffer<int> sum_buff_b{1};
 
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated"
+#endif
 
     q.submit([&](sycl::handler &cgh) {
       auto sum_a_reduction = sycl::reduction(sycl::accessor{sum_buff_a, cgh, sycl::write_only, sycl::no_init},
@@ -499,7 +501,9 @@ BOOST_AUTO_TEST_CASE(deprecated_accessor_reduction) {
           });
     });
 
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
 
     BOOST_CHECK(sum_buff_a.get_host_access()[0] == 523776);
     BOOST_CHECK(sum_buff_b.get_host_access()[0] == 523776);

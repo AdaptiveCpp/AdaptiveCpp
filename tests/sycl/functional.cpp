@@ -31,9 +31,13 @@ namespace s = cl::sycl;
 
 BOOST_FIXTURE_TEST_SUITE(functional_tests, reset_device_fixture)
 
-// list of types classified as "genfloat" in the SYCL standard
 using known_identity_types = boost::mpl::list<float, double, char, signed char, unsigned char,
-    int, long, unsigned int, unsigned long, bool>;
+    int, long, unsigned int, unsigned long, bool, const float, const bool>;
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbool-operation"  // allow ~bool, bool & bool
+#endif
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(known_identities, T, known_identity_types::type) {
   static_assert(s::has_known_identity_v<s::minimum<T>, T>);
@@ -70,7 +74,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(known_identities, T, known_identity_types::type) {
     BOOST_TEST((s::known_identity_v<s::bit_xor<>, T>) == T{0});
   }
 
-  if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
+  if constexpr (std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) {
     static_assert(s::has_known_identity_v<s::bit_and<T>, T>);
     static_assert(s::has_known_identity_v<s::bit_and<>, T>);
 
@@ -78,7 +82,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(known_identities, T, known_identity_types::type) {
     BOOST_TEST((s::known_identity_v<s::bit_and<>, T>) == static_cast<T>(~T{0}));
   }
 
-  if constexpr (std::is_same_v<T, bool>) {
+  if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>) {
     static_assert(s::has_known_identity_v<s::bit_and<T>, T>);
     static_assert(s::has_known_identity_v<s::bit_and<>, T>);
     static_assert(s::has_known_identity_v<s::logical_or<T>, T>);
@@ -94,5 +98,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(known_identities, T, known_identity_types::type) {
     BOOST_TEST((s::known_identity_v<s::logical_and<>, T>) == true);
   }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

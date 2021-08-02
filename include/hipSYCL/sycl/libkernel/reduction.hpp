@@ -43,30 +43,30 @@ struct reduction_descriptor_base;
 
 template<typename T, typename BinaryOperation>
 struct reduction_descriptor_base<T, BinaryOperation, false> {
-    using value_type = T;
-    using combiner_type = BinaryOperation;
+  using value_type = T;
+  using combiner_type = BinaryOperation;
 
-    constexpr static bool has_identity = false;
+  constexpr static bool has_identity = false;
 
-    BinaryOperation combiner;
+  BinaryOperation combiner;
 
-    explicit reduction_descriptor_base(BinaryOperation combiner)
-        : combiner(combiner) {}
+  explicit reduction_descriptor_base(BinaryOperation combiner)
+      : combiner(combiner) {}
 };
 
 template<typename T, typename BinaryOperation>
 struct reduction_descriptor_base<T, BinaryOperation, true> {
-    using value_type = T;
-    using combiner_type = BinaryOperation;
+  using value_type = T;
+  using combiner_type = BinaryOperation;
 
-    constexpr static bool has_identity = true;
+  constexpr static bool has_identity = true;
 
-    BinaryOperation combiner;
-    T identity;
-    bool initialize_to_identity;
+  BinaryOperation combiner;
+  T identity;
+  bool initialize_to_identity;
 
-    explicit reduction_descriptor_base(BinaryOperation combiner, T identity, bool initialize_to_identity)
-        : combiner(combiner), identity(identity), initialize_to_identity(initialize_to_identity) {}
+  explicit reduction_descriptor_base(BinaryOperation combiner, T identity, bool initialize_to_identity)
+      : combiner(combiner), identity(identity), initialize_to_identity(initialize_to_identity) {}
 };
 
 template <class T, typename BinaryOperation, bool KnownIdentity>

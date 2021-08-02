@@ -156,13 +156,13 @@ struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>
 #define HIPSYCL_DEFINE_IDENTITY(op, cond, identity) \
     template<typename T, typename U> \
     struct known_identity_trait<op<T>, U, std::enable_if_t<cond>> { \
-        inline static constexpr bool has_known_identity = true; \
-        inline static constexpr std::remove_cv_t<T> known_identity = (identity); \
+      inline static constexpr bool has_known_identity = true; \
+      inline static constexpr std::remove_cv_t<T> known_identity = (identity); \
     }; \
     template<typename T> \
     struct known_identity_trait<op<void>, T, std::enable_if_t<cond>> { \
-        inline static constexpr bool has_known_identity = true; \
-        inline static constexpr std::remove_cv_t<T> known_identity = (identity); \
+      inline static constexpr bool has_known_identity = true; \
+      inline static constexpr std::remove_cv_t<T> known_identity = (identity); \
     }
 
 #ifdef __GNUC__

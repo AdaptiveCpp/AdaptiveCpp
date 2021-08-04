@@ -437,7 +437,18 @@ protected:
   glue::embedded_pointer<T> _ptr;
 };
 
+template<class T>
+inline constexpr auto default_access_tag(){
+  if constexpr(std::is_const_v<T>)
+    return sycl::read_only;
+  else
+    return sycl::read_write;
+}
 
+template<class T>
+inline constexpr sycl::access_mode default_access_mode() {
+  return std::is_const_v<T> ? access_mode::read : access_mode::read_write;
+}
 
 } // detail
 
@@ -450,9 +461,7 @@ struct no_init : public detail::property {};
 inline constexpr property::no_init no_init;
 
 template <typename dataT, int dimensions = 1,
-          access_mode accessmode =
-              (std::is_const_v<dataT> ? access_mode::read
-                                      : access_mode::read_write),
+          access_mode accessmode = detail::default_access_mode<dataT>(),
           target accessTarget = target::device,
           accessor_variant AccessorVariant = accessor_variant::false_t>
 class accessor
@@ -1279,6 +1288,64 @@ accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
                 HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
                     TagT, accessor_variant::false_t, accessor_variant::ranged)>;
 
+// Non-TagT deduction guides
+
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef,
+         const property_list &prop_list = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
+                    detail::default_access_tag<T>(), accessor_variant::true_t,
+                    accessor_variant::unranged_placeholder)>;
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         const property_list &prop_list = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(detail::default_access_tag<T>(),
+                                                  accessor_variant::false_t,
+                                                  accessor_variant::unranged)>;
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         const property_list &propList = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
+                    detail::default_access_tag<T>(), accessor_variant::true_t,
+                    accessor_variant::ranged_placeholder)>;
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         id<Dim> accessOffset, const property_list &propList = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
+                    detail::default_access_tag<T>(), accessor_variant::true_t,
+                    accessor_variant::ranged_placeholder)>;
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         range<Dim> accessRange, const property_list &propList = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
+                    detail::default_access_tag<T>(), accessor_variant::false_t,
+                    accessor_variant::ranged)>;
+
+template <typename T, int Dim, typename AllocatorT>
+accessor(buffer<T, Dim, AllocatorT> &bufferRef, handler &commandGroupHandlerRef,
+         range<Dim> accessRange, id<Dim> accessOffset,
+         const property_list &propList = {})
+    -> accessor<T, Dim, detail::default_access_mode<T>(),
+                target::device,
+                HIPSYCL_ACCESSOR_VARIANT_SELECTOR(
+                    detail::default_access_tag<T>(), accessor_variant::false_t,
+                    accessor_variant::ranged)>;
+
 //host_accessor implementation
 
 template <typename dataT, int dimensions = 1,
@@ -1475,6 +1542,26 @@ template <typename T, int Dim, typename AllocatorT, typename TagT>
 host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
          id<Dim> accessOffset, TagT tag, const property_list &propList = {})
     -> host_accessor<T, Dim, detail::deduce_access_mode<TagT>()>;
+
+// Non-TagT guides
+
+template <typename T, int Dim, typename AllocatorT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef,
+          const property_list &prop_list = {})
+    -> host_accessor<T, Dim, 
+          detail::deduce_access_mode<detail::default_access_tag<T>()>()>;
+
+template <typename T, int Dim, typename AllocatorT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+              const property_list &propList = {})
+    -> host_accessor<T, Dim, 
+          detail::deduce_access_mode<detail::default_access_tag<T>()>()>;
+
+template <typename T, int Dim, typename AllocatorT>
+host_accessor(buffer<T, Dim, AllocatorT> &bufferRef, range<Dim> accessRange,
+         id<Dim> accessOffset, const property_list &propList = {})
+    -> host_accessor<T, Dim, 
+          detail::deduce_access_mode<detail::default_access_tag<T>()>()>;
 
 /// Accessor specialization for local memory
 template <typename dataT,

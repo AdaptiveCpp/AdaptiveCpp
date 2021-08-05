@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
     });
   });
   sycl::host_accessor hacc{b};
-  std::cout << hacc[0] << std::endl;
+
   BOOST_CHECK(t_to_int(hacc[0]) == 1);
 }
 

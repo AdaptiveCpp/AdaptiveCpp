@@ -84,6 +84,8 @@ public:
 
   llvm::BasicBlock *getEntry() noexcept { return EntryBB_; }
   llvm::BasicBlock *getExit() noexcept { return ExitBB_; }
+  llvm::BasicBlock *getLoadBB() noexcept { return LoadBB_; }
+  llvm::Value *getWIIndVar() noexcept { return WIIndVar_; }
 
   void replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
@@ -117,7 +119,7 @@ llvm::BasicBlock *SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::Basi
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
                const SplitterAnnotationInfo &SAA)
-    : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)) {
+    : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)), LoadBB_(nullptr) {
   const auto *WILatch = WILoop->getLoopLatch();
   WIIndVar_ = WILoop->getCanonicalInductionVariable();
 
@@ -315,7 +317,7 @@ void SubCFG::fixSingleSubCfgValues(
 }
 
 llvm::BasicBlock *createUnreachableBlock(llvm::Function &F) {
-  auto *Default = llvm::BasicBlock::Create(F.getContext(), "csb.while.default", &F);
+  auto *Default = llvm::BasicBlock::Create(F.getContext(), "cbs.while.default", &F);
   llvm::IRBuilder Builder{Default, Default->getFirstInsertionPt()};
   Builder.CreateUnreachable();
   return Default;
@@ -331,9 +333,9 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::Loop *WILoop, llvm::AllocaInst
   const auto &DL = M.getDataLayout();
 
   auto *WhileHeader =
-      llvm::BasicBlock::Create(WIPreHeader->getContext(), "csb.while.header", WIPreHeader->getParent(), WIHeader);
+      llvm::BasicBlock::Create(WIPreHeader->getContext(), "cbs.while.header", WIPreHeader->getParent(), WIHeader);
   llvm::IRBuilder Builder{WhileHeader, WhileHeader->getFirstInsertionPt()};
-  auto *LastID = Builder.CreateLoad(LastBarrierIdStorage, "csb.while.last_barr.load");
+  auto *LastID = Builder.CreateLoad(LastBarrierIdStorage, "cbs.while.last_barr.load");
   auto *Switch = Builder.CreateSwitch(LastID, createUnreachableBlock(F), SubCFGs.size());
   for (auto &Cfg : SubCFGs) {
     Switch->addCase(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), Cfg.getEntryId()), Cfg.getEntry());
@@ -360,6 +362,115 @@ void purgeLifetime(SubCFG &Cfg) {
 
   for (auto *I : ToDelete)
     I->eraseFromParent();
+
+  // remove dead bitcasts
+  for (auto *BB : Cfg.getNewBlocks())
+    llvm::SimplifyInstructionsInBlock(BB);
+}
+
+void fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruction *> &Hull) {
+  llvm::SmallVector<llvm::Instruction *, 8> WL;
+  std::transform(Alloca->user_begin(), Alloca->user_end(), std::back_inserter(WL),
+                 [](auto *U) { return llvm::cast<llvm::Instruction>(U); });
+  llvm::SmallPtrSet<llvm::Instruction *, 32> AlreadySeen;
+  while (!WL.empty()) {
+    auto *I = WL.pop_back_val();
+    AlreadySeen.insert(I);
+    Hull.push_back(I);
+    for (auto *U : I->users()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (!AlreadySeen.contains(UI))
+          if (UI->mayReadOrWriteMemory() || UI->getType()->isPointerTy())
+            WL.push_back(UI);
+      }
+    }
+  }
+}
+
+template <class PtrSet> struct PtrSetWrapper {
+  PtrSet &Set;
+  using iterator = typename PtrSet::iterator;
+  using value_type = typename PtrSet::value_type;
+  template <class IT, class ValueT> IT insert(IT, const ValueT &Value) { return Set.insert(Value).first; }
+};
+
+bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> &SubCfgs,
+                            const llvm::DominatorTree &DT) {
+  llvm::SmallPtrSet<llvm::BasicBlock *, 16> UserBlocks;
+  {
+    llvm::SmallVector<llvm::Instruction *, 32> Users;
+    fillUserHull(Alloca, Users);
+    PtrSetWrapper<decltype(UserBlocks)> Wrapper{UserBlocks};
+    std::transform(Users.begin(), Users.end(), std::inserter(Wrapper, UserBlocks.end()),
+                   [](auto *I) { return I->getParent(); });
+  }
+
+  for (auto &SubCfg : SubCfgs) {
+    llvm::SmallPtrSet<llvm::BasicBlock *, 8> SubCfgSet{SubCfg.getNewBlocks().begin(), SubCfg.getNewBlocks().end()};
+    if (std::any_of(UserBlocks.begin(), UserBlocks.end(), [&SubCfgSet](auto *BB) { return SubCfgSet.contains(BB); }) &&
+        !std::all_of(UserBlocks.begin(), UserBlocks.end(), [&SubCfgSet, Alloca](auto *BB) {
+          if (SubCfgSet.contains(BB)) {
+            return true;
+          }
+          HIPSYCL_DEBUG_INFO << "[SubCFG] BB not in subcfgset: " << BB->getName() << " for alloca: ";
+          HIPSYCL_DEBUG_EXECUTE_INFO(Alloca->print(llvm::outs()); llvm::outs() << "\n";)
+          return false;
+        }))
+      return false;
+  }
+
+  return true;
+}
+
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std::vector<SubCFG> &SubCfgs) {
+  auto *MDAlloca =
+      llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+
+  llvm::SmallPtrSet<llvm::BasicBlock *, 32> SubCfgsBlocks;
+  for (auto &SubCfg : SubCfgs)
+    SubCfgsBlocks.insert(SubCfg.getNewBlocks().begin(), SubCfg.getNewBlocks().end());
+
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  for (auto &I : *EntryBlock) {
+    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+      if (Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
+        continue; // already arrayified
+      if (utils::anyOfUsers<llvm::Instruction>(
+              Alloca, [&SubCfgsBlocks](llvm::Instruction *UI) { return !SubCfgsBlocks.contains(UI->getParent()); }))
+        continue;
+      if (!isAllocaSubCfgInternal(Alloca, SubCfgs, DT))
+        WL.push_back(Alloca);
+    }
+  }
+
+  for (auto *I : WL) {
+    llvm::IRBuilder AllocaBuilder{I};
+    llvm::Type *T = I->getAllocatedType();
+    if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
+      auto ArrSize = ArrSizeC->getLimitedValue();
+      if (ArrSize > 1) {
+        T = llvm::ArrayType::get(T, ArrSize);
+        HIPSYCL_DEBUG_WARNING << "Caution, alloca was array\n";
+      }
+    }
+
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+                                              I->getName() + "_alloca");
+    Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
+    Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+    for (auto &SubCfg : SubCfgs) {
+      auto *GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
+
+      llvm::IRBuilder LoadBuilder{GepIp};
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
+          LoadBuilder.CreateInBoundsGEP(Alloca, {SubCfg.getWIIndVar()}, I->getName() + "_gep"));
+      GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+      llvm::replaceDominatedUsesWith(I, GEP, DT, SubCfg.getLoadBB());
+    }
+    I->eraseFromParent();
+  }
 }
 
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, const SplitterAnnotationInfo &SAA) {
@@ -398,8 +509,6 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
       SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA);
   }
 
-  utils::arrayifyAllocas(&F.getEntryBlock(), *WILoop, WIIndVar, DT);
-
   for (auto &Cfg : SubCFGs)
     Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI());
 
@@ -407,6 +516,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
     Cfg.replicate(WILoop, InstAllocaMap, RemappedInstAllocaMap);
+    purgeLifetime(Cfg);
   }
 
   generateWhileSwitchAround(WILoop, LastBarrierIdStorage, SubCFGs);
@@ -414,9 +524,10 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   llvm::removeUnreachableBlocks(F);
 
   DT.recalculate(F);
+  arrayifyAllocas(&F.getEntryBlock(), DT, SubCFGs);
+
   for (auto &Cfg : SubCFGs) {
     Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap);
-    purgeLifetime(Cfg);
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");

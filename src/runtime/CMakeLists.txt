@@ -17,6 +17,7 @@ add_library(hipSYCL-rt SHARED
   dag_node.cpp
   dag_builder.cpp
   dag_direct_scheduler.cpp
+  dag_unbound_scheduler.cpp
   dag_manager.cpp
   dag_submitted_ops.cpp
   settings.cpp

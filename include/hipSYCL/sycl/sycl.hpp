@@ -63,6 +63,7 @@
 #include "libkernel/vec.hpp"
 #include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"
+#include "libkernel/atomic_ref.hpp"
 #include "libkernel/stream.hpp"
 #include "libkernel/sub_group.hpp"
 #include "libkernel/memory.hpp"

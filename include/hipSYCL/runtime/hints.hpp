@@ -48,6 +48,7 @@ enum class execution_hint_type
 {
   // mark a DAG node as bound to a particular device for execution
   bind_to_device,
+  bind_to_device_group,
   prefer_execution_lane,
   node_group
 };
@@ -88,6 +89,25 @@ public:
 private:
   device_id _dev;
 };
+
+
+class bind_to_device_group : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type = 
+    execution_hint_type::bind_to_device_group;
+
+  bind_to_device_group(const std::vector<device_id> &devs)
+      : execution_hint{execution_hint_type::bind_to_device_group}, _devs{devs} {
+  }
+
+  const std::vector<device_id>& get_devices() const {
+    return _devs;
+  }
+private:
+  std::vector<device_id> _devs;
+};
+
 
 class prefer_execution_lane : public execution_hint
 {

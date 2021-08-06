@@ -31,6 +31,7 @@
 #include "dag.hpp"
 #include "dag_builder.hpp"
 #include "dag_direct_scheduler.hpp"
+#include "dag_unbound_scheduler.hpp"
 #include "dag_submitted_ops.hpp"
 #include "generic/async_worker.hpp"
 
@@ -68,6 +69,7 @@ private:
   worker_thread _worker;
   
   dag_direct_scheduler _direct_scheduler;
+  dag_unbound_scheduler _unbound_scheduler;
   dag_submitted_ops _submitted_ops;
 };
 

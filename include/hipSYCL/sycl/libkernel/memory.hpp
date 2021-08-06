@@ -35,8 +35,43 @@ enum class memory_scope {
   work_item,
   sub_group,
   work_group,
-  device
+  device,
+  system
 };
+
+inline constexpr auto memory_scope_work_item = memory_scope::work_item;
+inline constexpr auto memory_scope_sub_group = memory_scope::sub_group;
+inline constexpr auto memory_scope_work_group = memory_scope::work_group;
+inline constexpr auto memory_scope_device = memory_scope::device;
+inline constexpr auto memory_scope_system = memory_scope::system;
+
+enum class memory_order : int
+{
+  relaxed,
+  acquire,
+  release,
+  acq_rel,
+  seq_cst
+};
+
+inline constexpr auto memory_order_relaxed = memory_order::relaxed;
+inline constexpr auto memory_order_acquire = memory_order::acquire;
+inline constexpr auto memory_order_release = memory_order::release;
+inline constexpr auto memory_order_acq_rel = memory_order::acq_rel;
+inline constexpr auto memory_order_seq_cst = memory_order::seq_cst;
+
+namespace access {
+
+enum class address_space : int
+{
+  global_space,
+  local_space,
+  constant_space,
+  private_space,
+  generic_space
+};
+
+} // namespace access
 
 }
 } // namespace hipsycl

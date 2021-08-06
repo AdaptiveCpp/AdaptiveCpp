@@ -40,10 +40,12 @@
 namespace hipsycl {
 namespace rt {
 
-enum class scheduler_type { direct };
+enum class scheduler_type { direct, unbound };
+enum class default_selector_behavior { strict, multigpu, system };
 
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
+std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
 
 enum class setting {
   debug_level,
@@ -51,7 +53,8 @@ enum class setting {
   visibility_mask,
   dag_req_optimization_depth,
   mqe_lane_statistics_max_size,
-  mqe_lane_statistics_decay_time_sec
+  mqe_lane_statistics_decay_time_sec,
+  default_selector_behavior
 };
 
 template <setting S> struct setting_trait {};
@@ -71,6 +74,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_max_size,
                               "rt_mqe_lane_statistics_max_size", std::size_t);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_decay_time_sec,
                               "rt_mqe_lane_statistics_decay_time_sec", double);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::default_selector_behavior,
+                              "default_selector_behavior", default_selector_behavior);
 
 class settings
 {
@@ -89,6 +94,8 @@ public:
       return _mqe_lane_statistics_max_size;
     } else if constexpr (S == setting::mqe_lane_statistics_decay_time_sec) {
       return _mqe_lane_statistics_decay_time_sec;
+    } else if constexpr (S == setting::default_selector_behavior) {
+      return _default_selector_behavior;
     }
     return typename setting_trait<S>::type{};
   }
@@ -102,7 +109,7 @@ public:
         default_debug_level);
     _scheduler_type =
         get_environment_variable_or_default<setting::scheduler_type>(
-            scheduler_type::direct);
+            scheduler_type::unbound);
     _visibility_mask =
         get_environment_variable_or_default<setting::visibility_mask>(
             std::vector<rt::backend_id>{});
@@ -112,6 +119,9 @@ public:
         setting::mqe_lane_statistics_max_size>(100);
     _mqe_lane_statistics_decay_time_sec = get_environment_variable_or_default<
         setting::mqe_lane_statistics_decay_time_sec>(10.0);
+    _default_selector_behavior =
+        get_environment_variable_or_default<setting::default_selector_behavior>(
+            default_selector_behavior::strict);
   }
 
 private:
@@ -147,6 +157,7 @@ private:
   std::size_t _dag_requirement_optimization_depth;
   std::size_t _mqe_lane_statistics_max_size;
   double _mqe_lane_statistics_decay_time_sec;
+  default_selector_behavior _default_selector_behavior;
 };
 
 }

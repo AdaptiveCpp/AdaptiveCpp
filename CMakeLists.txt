@@ -166,14 +166,18 @@ else()
   set(SYCLCC_CONFIG_FILE_INSTALL_DIR etc/hipSYCL)
 endif()
 
+if(Boost_FIBER_LIBRARY_DEBUG)
+  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+else()
+  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
+endif()
+
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
   
-  if(NOT ${Boost_FIBER_LIBRARY_DEBUG})
-    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+  if(Boost_FIBER_LIBRARY_DEBUG)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   else()
-    get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_RELEASE} ${Boost_FIBER_LIBRARY_RELEASE} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   endif()
 else()
@@ -197,8 +201,8 @@ endif()
 # need add_subdirectory(src) before this!
 set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
 set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
-set(DEFAULT_OMP_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -Wl,-rpath=${BOOST_ROOT}/lib ${DEFAULT_OMP_FLAG}")
-set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${BOOST_ROOT}/lib -lboost_context -lboost_fiber -lomp -Wl,-rpath=${BOOST_ROOT}/lib")
+set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR} ${DEFAULT_OMP_FLAG}")
+set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -lomp -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
 if(NOT ROCM_LINK_LINE)
@@ -243,7 +247,7 @@ if(NOT ROCM_CXX_FLAGS)
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
 
-  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
+  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
 if(NOT CUDA_CXX_FLAGS)	

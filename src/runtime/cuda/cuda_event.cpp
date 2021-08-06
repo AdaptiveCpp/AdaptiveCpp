@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,11 @@ namespace hipsycl {
 namespace rt {
 
 
-cuda_node_event::cuda_node_event(device_id dev, CUevent_st* evt)
+cuda_node_event::cuda_node_event(device_id dev, cudaEvent_t evt)
 : _dev{dev}, _evt{evt}
 {}
 
-cuda_node_event::~cuda_node_event()
-{
+cuda_node_event::~cuda_node_event() {
   auto err = cudaEventDestroy(_evt);
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),

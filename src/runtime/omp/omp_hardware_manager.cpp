@@ -118,6 +118,9 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::usm_system_allocations:
     return true;
     break;
+  case device_support_aspect::execution_timestamps:
+    return true;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;

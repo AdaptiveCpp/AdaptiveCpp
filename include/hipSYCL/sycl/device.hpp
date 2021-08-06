@@ -127,7 +127,8 @@ public:
     } else if(asp == aspect::online_linker) {
       return false;
     } else if(asp == aspect::queue_profiling) {
-      return false;
+      return get_rt_device()->has(
+          rt::device_support_aspect::execution_timestamps);
     } else if(asp == aspect::usm_device_allocations) {
       return get_rt_device()->has(
           rt::device_support_aspect::usm_device_allocations);
@@ -604,8 +605,9 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, execution_capabilities)
   };
 }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling)
-{ return false; }
+HIPSYCL_SPECIALIZE_GET_INFO(device, queue_profiling) {
+  return get_rt_device()->has(rt::device_support_aspect::execution_timestamps);
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, built_in_kernels)
 { return std::vector<string_class>{}; }

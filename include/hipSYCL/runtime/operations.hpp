@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 
 #include "data.hpp"
 #include "event.hpp"
+#include "instrumentation.hpp"
 #include "device_id.hpp"
 #include "kernel_launcher.hpp"
 #include "util.hpp"
@@ -77,7 +78,8 @@ public:
 class operation
 {
 public:
-  virtual ~operation(){}
+  operation() = default;
+  virtual ~operation() = default;
 
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }
@@ -89,6 +91,12 @@ public:
   }
 
   virtual result dispatch(operation_dispatcher* dispatch, dag_node_ptr node) = 0;
+
+  instrumentation_set &get_instrumentations();
+  const instrumentation_set &get_instrumentations() const;
+
+private:
+  instrumentation_set _instr_set;
 };
 
 

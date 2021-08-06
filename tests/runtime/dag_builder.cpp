@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
       "test_kernel",
       std::vector<std::unique_ptr<rt::backend_kernel_launcher>>{},
       reqs);
-  
+
   rt::dag_node_ptr node = builder.add_kernel(
       std::move(dummy_kernel_op), reqs, hints);
 

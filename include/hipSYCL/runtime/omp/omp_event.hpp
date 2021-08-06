@@ -28,39 +28,12 @@
 #ifndef HIPSYCL_OMP_EVENT_HPP
 #define HIPSYCL_OMP_EVENT_HPP
 
-#include <future>
-#include <chrono>
-
 #include "../event.hpp"
+#include "../signal_channel.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class signal_channel {
-public:
-  signal_channel() {
-    _shared_future = _promise.get_future().share();
-  }
-
-  void signal() {
-    _promise.set_value(true);
-  }
-
-  void wait() {
-    auto future = _shared_future;
-    future.wait();
-  }
-
-  bool has_signalled() const {
-    auto future = _shared_future;
-    return future.wait_for(std::chrono::seconds(0)) ==
-           std::future_status::ready;
-  }
-
-private:
-  std::promise<bool> _promise;
-  std::shared_future<bool> _shared_future;
-};
 
 class omp_node_event : public dag_node_event
 {

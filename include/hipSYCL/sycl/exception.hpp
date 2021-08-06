@@ -32,6 +32,7 @@
 #include <exception>
 #include <functional>
 #include <string>
+#include <system_error>
 
 #include "hipSYCL/runtime/error.hpp"
 #include "types.hpp"
@@ -46,11 +47,15 @@ class exception {
 public:
   exception(const std::string& message)
   : _msg{message}
-  {}
+  {
+    set_error_code();
+  }
 
   exception(const rt::result& details)
     : _msg{details.what()}, _error_details{details}
-  {}
+  {
+    set_error_code();
+  }
 
   const char *what() const
   {
@@ -62,10 +67,19 @@ public:
     return false;
   }
 
+  const std::error_code& code() const noexcept
+  {
+    return error_code;
+  }
+
   // Implementation in context.hpp
   context get_context() const;
 
 private:
+  void set_error_code(){
+    error_code = std::error_code(_error_details.info().error_code().get_code(), std::system_category());
+  }
+  std::error_code error_code;
   string_class _msg;
   rt::result _error_details;
 };

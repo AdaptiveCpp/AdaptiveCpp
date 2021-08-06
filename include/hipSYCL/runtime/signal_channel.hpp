@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,45 +25,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OMP_QUEUE_HPP
-#define HIPSYCL_OMP_QUEUE_HPP
+#ifndef HIPSYCL_SIGNAL_CHANNEL_HPP
+#define HIPSYCL_SIGNAL_CHANNEL_HPP
 
-#include "../generic/async_worker.hpp"
-#include "../executor.hpp"
-#include "../inorder_queue.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
+#include <future>
+#include <chrono>
+
 
 namespace hipsycl {
 namespace rt {
 
-class omp_queue : public inorder_queue
-{
+class signal_channel {
 public:
-  omp_queue(backend_id id);
-  virtual ~omp_queue();
+  signal_channel() {
+    _shared_future = _promise.get_future().share();
+    _has_signalled_flag = false;
+  }
 
-  /// Inserts an event into the stream
-  virtual std::shared_ptr<dag_node_event> insert_event() override;
+  void signal() {
+    _has_signalled_flag = true;
+    _promise.set_value(true);
+  }
 
-  virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
-  virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
-  virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
-  virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
-  /// Causes the queue to wait until an event on another queue has occured.
-  /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
-  virtual result submit_external_wait_for(dag_node_ptr node) override;
+  void wait() {
+    auto future = _shared_future;
+    future.wait();
+  }
 
-  virtual device_id get_device() const override;
-  virtual void *get_native_type() const override;
+  bool has_signalled() const {
+    return _has_signalled_flag;
+  }
 
-  virtual module_invoker *get_module_invoker() override;
-  
-  worker_thread& get_worker();
 private:
-  backend_id _backend_id;
-  worker_thread _worker;
+  std::promise<bool> _promise;
+  std::shared_future<bool> _shared_future;
+  // This flag is a workaround for a serious performance
+  // bug in libstdc++ prior to version 11, where the
+  // future::wait_for(duration(0)) pattern is extremely inefficient
+  std::atomic<bool> _has_signalled_flag;
 };
 
 }

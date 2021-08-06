@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,16 +59,29 @@ public:
   bool is_cancelled() const;
   bool is_virtual() const;
   
+  /// Only to be called by the backend executor/scheduler
   void mark_submitted(std::shared_ptr<dag_node_event> completion_evt);
+  /// Only to be called by the backend executor/scheduler
   void mark_virtually_submitted();
+  /// Only to be called by the backend executor/scheduler
   void cancel();
-
+  /// Only to be called by the backend executor/scheduler
   void assign_to_executor(backend_executor* ctx);
+  /// Only to be called by the backend executor/scheduler
   void assign_to_device(device_id dev);
+  /// Only to be called by the backend executor/scheduler
   void assign_to_execution_lane(std::size_t lane_id);
-  // can be used by the backend executor to store
-  // ordering information between nodes
+  /// Can be used by the backend executor to store
+  /// ordering information between nodes.
+  /// Only to be called by the backend executor/scheduler
   void assign_execution_index(std::size_t index);
+    /// Only to be called by the backend executor/scheduler.
+  /// This API will be replaced once subnodes are available
+  /// to implement multi-operation nodes.
+  /// Sets an effective operation. The original operation will persist,
+  /// but for_each_executed_operation() will recognize that this was
+  /// the operation that was actually executed.
+  void assign_effective_operation(std::unique_ptr<operation> op);
 
   device_id get_assigned_device() const;
   backend_executor *get_assigned_executor() const;
@@ -93,6 +106,16 @@ public:
 
   void for_each_nonvirtual_requirement(std::function<void(dag_node_ptr)>
                                            handler) const;
+  /// Iterates across all operations that have actually been executed.
+  /// Precondition: is_submitted() returns true
+  template<class Handler>
+  void for_each_executed_operation(Handler h) {
+    assert(is_submitted());
+    if(_replacement_executed_operation)
+      h(_replacement_executed_operation.get());
+    else
+      h(_operation.get());
+  }
 private:
   execution_hints _hints;
   std::vector<dag_node_ptr> _requirements;
@@ -104,6 +127,11 @@ private:
 
   std::shared_ptr<dag_node_event> _event;
   std::unique_ptr<operation> _operation;
+  /// This is a temporary solution to access operations
+  /// executed for requirements; we should move to an
+  /// API consisting of subnodes to properly handle
+  /// dependencies for multi-operation cases
+  std::unique_ptr<operation> _replacement_executed_operation;
 
   std::atomic<bool> _is_submitted;
   mutable std::atomic<bool> _is_complete;

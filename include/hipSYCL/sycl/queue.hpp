@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018,2019 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,6 +98,9 @@ struct hipSYCL_prefer_execution_lane : public detail::cg_property{
 namespace property::queue {
 
 class in_order : public detail::queue_property
+{};
+
+class enable_profiling : public detail::property
 {};
 
 }
@@ -606,6 +609,26 @@ public:
       cgh.memcpy(dest, src, num_bytes);
     });
   }
+  
+  template <typename T>
+  event copy(const T* src, T* dest, std::size_t count) {
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T));
+  }
+  
+  template <typename T>
+  event copy(const T* src, T* dest, std::size_t count, 
+             event dependency) {
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T), dependency);
+  }
+  
+  template <typename T>
+  event copy(const T* src, T* dest, std::size_t count, 
+             const std::vector<event>& dependencies) {
+    return this->memcpy(static_cast<void*>(dest), 
+      static_cast<const void*>(src), count * sizeof(T), dependencies);
+  }
 
   event memset(void *ptr, int value, std::size_t num_bytes) {
     return this->submit([&](sycl::handler &cgh) {
@@ -741,6 +764,89 @@ public:
     });
   }
 
+  /// Placeholder accessor shortcuts
+  
+  // Explicit copy functions
+  
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
+             shared_ptr_class<T> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(src);
+      cgh.copy(src, dest);
+    });           
+  }
+  
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event copy(shared_ptr_class<T> src,
+             accessor<T, dim, mode, tgt, isPlaceholder> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(dest);
+      cgh.copy(src, dest);
+    });           
+  }
+
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event copy(accessor<T, dim, mode, tgt, isPlaceholder> src,
+             T *dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(src);
+      cgh.copy(src, dest);
+    });     
+  }
+
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event copy(const T *src,
+             accessor<T, dim, mode, tgt, isPlaceholder> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(dest);
+      cgh.copy(src, dest);
+    });             
+  }
+
+  template <typename T, int dim, access_mode srcMode, access_mode dstMode,
+            target srcTgt, target destTgt,
+            accessor_variant isPlaceholderSrc, accessor_variant isPlaceholderDst>
+  event copy(accessor<T, dim, srcMode, srcTgt, isPlaceholderSrc> src,
+             accessor<T, dim, dstMode, destTgt, isPlaceholderDst> dest) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(src);
+      cgh.require(dest);
+      cgh.copy(src, dest);
+    });  
+  }
+
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event update_host(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(acc);
+      cgh.update_host(acc);
+    });  
+  }
+  
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event update(accessor<T, dim, mode, tgt, isPlaceholder> acc) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(acc);
+      cgh.update(acc);
+    });  
+  }
+
+  template <typename T, int dim, access_mode mode, target tgt,
+            accessor_variant isPlaceholder>
+  event fill(accessor<T, dim, mode, tgt, isPlaceholder> dest, const T &src) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.require(dest);
+      cgh.fill(dest, src);
+    });  
+  }
+
 
 private:
   template<int Dim>
@@ -813,6 +919,18 @@ private:
 
     _default_hints.add_hint(
         rt::make_execution_hint<rt::hints::node_group>(_node_group_id));
+
+    if (this->has_property<property::queue::enable_profiling>()) {
+      _default_hints.add_hint(
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_submission_timestamp>());
+      _default_hints.add_hint(
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_start_timestamp>());
+      _default_hints.add_hint(
+          rt::make_execution_hint<
+              rt::hints::request_instrumentation_finish_timestamp>());
+    }
 
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();

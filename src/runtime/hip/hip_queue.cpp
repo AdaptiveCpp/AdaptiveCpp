@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,62 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
 }
 
 
+
+class hip_instrumentation_guard {
+public:
+  hip_instrumentation_guard(hip_queue *q,
+                             operation &op, dag_node_ptr node) 
+                             : _queue{q}, _operation{&op}, _node{node} {
+    assert(q);
+    assert(_node);
+
+    if (_node->get_execution_hints()
+            .has_hint<
+                rt::hints::request_instrumentation_submission_timestamp>()) {
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::submission_timestamp>(
+            std::make_shared<hip_submission_timestamp>(profiler_clock::now()));
+    }
+
+    if (_node->get_execution_hints().has_hint<
+                rt::hints::request_instrumentation_start_timestamp>()) {
+
+      _task_start = _queue->insert_event();
+
+      op.get_instrumentations()
+          .add_instrumentation<instrumentations::execution_start_timestamp>(
+              std::make_shared<hip_execution_start_timestamp>(
+                  _queue->get_timing_reference(), _task_start));
+    }
+  }
+
+  ~hip_instrumentation_guard() {
+    if (_node->get_execution_hints()
+            .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
+      std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();
+
+      if(_task_start) {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<hip_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), _task_start, task_finish));
+      } else {
+        _operation->get_instrumentations()
+            .add_instrumentation<instrumentations::execution_finish_timestamp>(
+                std::make_shared<hip_execution_finish_timestamp>(
+                    _queue->get_timing_reference(), task_finish));
+      }
+    }
+  }
+
+private:
+  hip_queue* _queue;
+  operation* _operation;
+  dag_node_ptr _node;
+  std::shared_ptr<dag_node_event> _task_start;
+};
+
 }
 
 
@@ -65,7 +121,7 @@ void hip_queue::activate_device() const {
   hip_device_manager::get().activate_device(_dev.get_id());
 }
 
-hip_queue::hip_queue(device_id dev) : _dev{dev} {
+hip_queue::hip_queue(device_id dev) : _dev{dev}, _stream{nullptr} {
   this->activate_device();
 
   auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
@@ -73,7 +129,10 @@ hip_queue::hip_queue(device_id dev) : _dev{dev} {
     register_error(__hipsycl_here(),
                    error_info{"hip_queue: Couldn't construct backend stream",
                               error_code{"HIP", err}});
+    return;
   }
+
+  _reference_event = host_timestamped_event{this};
 }
 
 hipStream_t hip_queue::get_stream() const { return _stream; }
@@ -92,18 +151,16 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
   this->activate_device();
 
   hipEvent_t evt;
-  hipError_t err = hipEventCreate(&evt);
-
-  if (err != hipSuccess) {
+  auto err = hipEventCreate(&evt);
+  if(err != hipSuccess) {
     register_error(
         __hipsycl_here(),
         error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
-    
     return nullptr;
   }
 
-  err = hipEventRecord(evt, this->get_stream());
 
+  err = hipEventRecord(evt, this->get_stream());
   if (err != hipSuccess) {
     register_error(
         __hipsycl_here(),
@@ -111,10 +168,11 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<hip_node_event>(_dev, evt);
+  return std::make_shared<hip_node_event>(_dev, std::move(evt));
 }
 
-result hip_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
+
+result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
 
   device_id source_dev = op.source().get_device();
   device_id dest_dev = op.dest().get_device();
@@ -171,6 +229,8 @@ result hip_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
   
   assert(dimension >= 1 && dimension <= 3);
 
+  hip_instrumentation_guard instrumentation{this, op, node};
+
   hipError_t err = hipSuccess;
   if (dimension == 1) {
 
@@ -220,7 +280,7 @@ result hip_queue::submit_memcpy(const memcpy_operation & op, dag_node_ptr) {
   return make_success();
 }
 
-result hip_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
+result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 
   this->activate_device();
   rt::backend_kernel_launcher *l =
@@ -228,16 +288,18 @@ result hip_queue::submit_kernel(const kernel_operation &op, dag_node_ptr node) {
   
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
-  
   l->set_params(this);
+
+  hip_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
 
   return make_success();
 }
 
-result hip_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
-
-#ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
+result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
+#ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
+  
+  hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipSuccess;
   
   if (op.get_target().is_host()) {
@@ -263,8 +325,9 @@ result hip_queue::submit_prefetch(const prefetch_operation& op, dag_node_ptr) {
   return make_success();
 }
 
-result hip_queue::submit_memset(const memset_operation &op, dag_node_ptr) {
+result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
+  hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipMemsetAsync(op.get_pointer(), op.get_pattern(),
                                   op.get_num_bytes(), get_stream());
 

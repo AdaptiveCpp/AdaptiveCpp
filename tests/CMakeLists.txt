@@ -68,6 +68,7 @@ add_executable(sycl_tests
   sycl/item.cpp
   sycl/kernel_invocation.cpp
   sycl/math.cpp
+  sycl/profiler.cpp
   sycl/reduction.cpp
   sycl/sub_group.cpp
   sycl/sycl_test_suite.cpp 

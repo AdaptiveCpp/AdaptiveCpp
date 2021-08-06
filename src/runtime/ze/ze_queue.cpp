@@ -126,7 +126,7 @@ std::shared_ptr<dag_node_event> ze_queue::insert_event() {
   return _last_submitted_op_event;
 }
 
-result ze_queue::submit_memcpy(const memcpy_operation& op, dag_node_ptr node) {
+result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 
   // TODO We could probably unify some of the logic here between
   // ze/cuda/hip backends
@@ -185,7 +185,7 @@ result ze_queue::submit_memcpy(const memcpy_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_kernel(const kernel_operation& op, dag_node_ptr node) {
+result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
   rt::backend_kernel_launcher *l = 
       op.get_launcher().find_launcher(backend_id::level_zero);
   
@@ -198,11 +198,11 @@ result ze_queue::submit_kernel(const kernel_operation& op, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_prefetch(const prefetch_operation &, dag_node_ptr node) {
+result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_memset(const memset_operation&, dag_node_ptr node) {
+result ze_queue::submit_memset(memset_operation&, dag_node_ptr node) {
   return make_success();
 }
   

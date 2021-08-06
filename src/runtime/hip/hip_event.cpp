@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2019-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,8 +36,7 @@ hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
 : _dev{dev}, _evt{evt}
 {}
 
-hip_node_event::~hip_node_event()
-{
+hip_node_event::~hip_node_event() {
   auto err = hipEventDestroy(_evt);
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),

@@ -86,7 +86,7 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
       }
     }
   }
-  F.viewCFG();
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
 
   return Changed;
 }

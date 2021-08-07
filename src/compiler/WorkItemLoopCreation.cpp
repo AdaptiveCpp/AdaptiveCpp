@@ -266,6 +266,9 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
         break;
       }
     }
+
+    // Header is now latch, so copy loop md over
+    Header->getTerminator()->setMetadata("llvm.loop", Latch->getTerminator()->getMetadata("llvm.loop"));
   }
 
   DT.reset();

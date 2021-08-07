@@ -434,21 +434,21 @@ T group_broadcast(Group g, T x, typename Group::id_type local_id) {
 // any_of
 template<typename Group>
 HIPSYCL_KERNEL_TARGET
-inline bool group_any_of(Group g, bool pred) {
+inline bool any_of_group(Group g, bool pred) {
   return __syncthreads_or(pred);
 }
 
 // all_of
 template<typename Group>
 HIPSYCL_KERNEL_TARGET
-inline bool group_all_of(Group g, bool pred) {
+inline bool all_of_group(Group g, bool pred) {
   return __syncthreads_and(pred);
 }
 
 // none_of
 template<typename Group>
 HIPSYCL_KERNEL_TARGET
-inline bool group_none_of(Group g, bool pred) {
+inline bool none_of_group(Group g, bool pred) {
   return !__syncthreads_or(pred);
 }
 
@@ -456,7 +456,7 @@ inline bool group_none_of(Group g, bool pred) {
 template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
-T group_reduce(Group g, T x, BinaryOperation binary_op) {
+T reduce_over_group(Group g, T x, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
           scratch_storage;
@@ -469,7 +469,7 @@ T group_reduce(Group g, T x, BinaryOperation binary_op) {
 template<typename Group, typename T, typename V, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
-T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
+T exclusive_scan_over_group(Group g, T x, V init, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
                scratch_storage;
@@ -509,7 +509,7 @@ T group_exclusive_scan(Group g, T x, V init, BinaryOperation binary_op) {
 template<typename Group, typename T, typename BinaryOperation,
          typename std::enable_if_t<!std::is_same_v<Group, sub_group>, int> = 0>
 HIPSYCL_KERNEL_TARGET
-T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
+T inclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
                scratch_storage;

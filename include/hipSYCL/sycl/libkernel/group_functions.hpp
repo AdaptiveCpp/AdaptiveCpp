@@ -67,46 +67,44 @@ inline constexpr bool is_group_v = is_group<T>::value;
 template<typename Group, typename T, typename Predicate,
          typename std::enable_if_t<!std::is_same_v<T, Predicate>, int> = 0>
 HIPSYCL_KERNEL_TARGET
-bool group_any_of(Group g, T x, Predicate pred) {
-  return group_any_of(g, pred(x));
+bool any_of_group(Group g, T x, Predicate pred) {
+  return any_of_group(g, pred(x));
 }
-
 
 // all_of
 template<typename Group, typename T, typename Predicate>
 HIPSYCL_KERNEL_TARGET
-bool group_all_of(Group g, T x, Predicate pred) {
-  return group_all_of(g, pred(x));
+bool all_of_group(Group g, T x, Predicate pred) {
+  return all_of_group(g, pred(x));
 }
-
 
 // none_of
 template<typename Group, typename T, typename Predicate>
 HIPSYCL_KERNEL_TARGET
-bool group_none_of(Group g, T x, Predicate pred) {
-  return group_none_of(g, pred(x));
+bool none_of_group(Group g, T x, Predicate pred) {
+  return none_of_group(g, pred(x));
 }
 
 // reduce
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_reduce(Group g, V x, T init, BinaryOperation binary_op) {
-  T reduction = group_reduce(g, T{x}, binary_op);
+T reduce_over_group(Group g, V x, T init, BinaryOperation binary_op) {
+  T reduction = reduce_over_group(g, T{x}, binary_op);
   return binary_op(reduction, init);
 }
 
 // exclusive_scan
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_exclusive_scan(Group g, T x, BinaryOperation binary_op) {
-  return group_exclusive_scan(g, x, T{}, binary_op);
+T exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
+  return exclusive_scan_over_group(g, x, T{}, binary_op);
 }
 
 // inclusive_scan
 template<typename Group, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_inclusive_scan(Group g, V x, T init, BinaryOperation binary_op) {
-  T scan = group_inclusive_scan(g, T{x}, binary_op);
+T inclusive_scan_over_group(Group g, V x, T init, BinaryOperation binary_op) {
+  T scan = inclusive_scan_over_group(g, T{x}, binary_op);
   return binary_op(scan, init);
 }
 

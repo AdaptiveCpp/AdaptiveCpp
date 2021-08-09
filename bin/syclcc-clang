@@ -629,6 +629,9 @@ class cuda_multipass_invocation:
         "-S",
         "-o",self._explicit_pass_output_file(target)
       ]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._config.hipsycl_plugin_path]
     return flags
 
   # CXX flags for main pass
@@ -808,6 +811,9 @@ class cuda_invocation:
     flags += self._cxx_flags
     for t in self._cuda_targets:
       flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
       
     return flags
 
@@ -844,6 +850,9 @@ class hip_invocation:
     
     for t in self._hip_targets:
       flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
       
     return flags
 

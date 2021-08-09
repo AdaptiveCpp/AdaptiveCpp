@@ -38,6 +38,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/Local.h>
+#include <llvm/Transforms/Utils/LoopSimplify.h>
 
 namespace {
 using namespace hipsycl::compiler;
@@ -199,7 +200,31 @@ void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instructio
   BlocksToRemap.push_back(WILatch);
   llvm::remapInstructionsInBlocks(BlocksToRemap, VMap);
 
-  EntryBB_ = WIHeader;
+  auto *BrCmpI = utils::getBrCmp(*WIHeader);
+  assert(BrCmpI && "WI Header must have cmp.");
+  for (auto *BrOp : BrCmpI->operand_values()) {
+    if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(BrOp)) {
+      auto *LatchV = Phi->getIncomingValueForBlock(WILatch);
+
+      for (auto *U : Phi->users()) {
+        if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+          if (UI->getParent() == WIHeader)
+            UI->replaceUsesOfWith(Phi, LatchV);
+        }
+      }
+
+      // Move PHI from Header to for body
+      Phi->moveBefore(&*LoadBB_->begin());
+      Phi->replaceIncomingBlockWith(WILatch, WIHeader);
+      VMap[WILoop->getHeader()] = LoadBB_;
+      break;
+    }
+  }
+  // Header is now latch, so copy loop md over
+  WIHeader->getTerminator()->setMetadata("llvm.loop", WILatch->getTerminator()->getMetadata("llvm.loop"));
+  WILatch->getTerminator()->setMetadata("llvm.loop", nullptr);
+
+  EntryBB_ = LoadBB_;
   ExitBB_ = WIHeader;
   WIIndVar_ = VMap[WIIndVar_];
 }
@@ -519,7 +544,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     purgeLifetime(Cfg);
   }
 
-  generateWhileSwitchAround(WILoop, LastBarrierIdStorage, SubCFGs);
+  auto *WhileHeader = generateWhileSwitchAround(WILoop, LastBarrierIdStorage, SubCFGs);
 
   llvm::removeUnreachableBlocks(F);
 
@@ -531,15 +556,17 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");
+
+  // simplify while loop to get single latch that isn't marked as wi-loop to prevent misunderstandings.
+  auto *WhileLoop = utils::updateDtAndLi(LI, DT, WhileHeader, F);
+  llvm::simplifyLoop(WhileLoop, &DT, &LI, nullptr, nullptr, nullptr, false);
 }
 } // namespace
 
 namespace hipsycl::compiler {
 void SubCfgFormationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::LoopInfoWrapperPass>();
-  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addRequiredTransitive<llvm::DominatorTreeWrapperPass>();
-  //  AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }

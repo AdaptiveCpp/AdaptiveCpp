@@ -8,7 +8,8 @@ bool canGlobalVariableBeRemoved(llvm::GlobalVariable *G) {
 
 void pruneUnusedGlobals(llvm::Module &M) {
 
-  HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******" << std::endl;
+  HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******"
+                     << std::endl;
 
   std::vector<llvm::GlobalVariable *> VariablesForPruning;
 
@@ -17,8 +18,9 @@ void pruneUnusedGlobals(llvm::Module &M) {
     if (canGlobalVariableBeRemoved(GPtr)) {
       VariablesForPruning.push_back(GPtr);
 
-      HIPSYCL_DEBUG_INFO << "IR Processing: Pruning unused global variable from device code: " << G->getName().str()
-                         << std::endl;
+      HIPSYCL_DEBUG_INFO
+          << "IR Processing: Pruning unused global variable from device code: "
+          << G->getName().str() << std::endl;
     }
   }
 
@@ -26,8 +28,8 @@ void pruneUnusedGlobals(llvm::Module &M) {
     G->replaceAllUsesWith(llvm::UndefValue::get(G->getType()));
     G->eraseFromParent();
   }
-  HIPSYCL_DEBUG_INFO << "===> IR Processing: Pruning of globals complete, removed " << VariablesForPruning.size()
-                     << " global variable(s)." << std::endl;
+  HIPSYCL_DEBUG_INFO << "===> IR Processing: Pruning of globals complete, removed "
+                     << VariablesForPruning.size() << " global variable(s)." << std::endl;
 }
 
 } // namespace
@@ -42,7 +44,9 @@ bool hipsycl::compiler::GlobalsPruningPassLegacy::runOnModule(llvm::Module &M) {
 }
 
 #ifndef _WIN32
-llvm::PreservedAnalyses hipsycl::compiler::GlobalsPruningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::GlobalsPruningPass::run(llvm::Module &M,
+                                           llvm::ModuleAnalysisManager &AM) {
   if (!CompilationStateManager::getASTPassState().isDeviceCompilation())
     return llvm::PreservedAnalyses::all();
 

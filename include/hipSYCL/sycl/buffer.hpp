@@ -674,12 +674,12 @@ public:
   }
 
   template<typename... Args>
-  auto get_access(Args... args) {
+  auto get_access(Args&&... args) {
     return accessor{*this, args...};
   }
 
   template<typename... Args>
-  auto get_host_access(Args... args) {
+  auto get_host_access(Args&&... args) {
     return host_accessor{*this, args...};
   }
 

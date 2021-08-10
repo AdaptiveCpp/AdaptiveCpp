@@ -1227,8 +1227,8 @@ using unranged_placeholder_accessor =
 
 // Accessor deduction guides
 #ifdef HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
- #define HIPSYCL_ACCESSOR_VARIANT_SELECTOR(TagT, fallback, optimized) \
-  detail::deduce_accessor_variant(TagT, optimized)
+ #define HIPSYCL_ACCESSOR_VARIANT_SELECTOR(tag, fallback, optimized) \
+  detail::deduce_accessor_variant(tag, optimized)
 #else
  #define HIPSYCL_ACCESSOR_VARIANT_SELECTOR(tag, fallback, optimized) fallback
 #endif

@@ -311,10 +311,13 @@ void SubCFG::fixSingleSubCfgValues(
           HIPSYCL_DEBUG_WARNING << "Instruction not dominated ";
           HIPSYCL_DEBUG_EXECUTE_WARNING(I.print(llvm::outs()); llvm::outs() << " operand: "; OPI->print(llvm::outs());
                                         llvm::outs() << "\n";)
-          if (auto *Load = InstLoadMap.lookup(OPI)) {
-            I.replaceUsesOfWith(OPI, Load);
-            continue;
-          }
+
+          if (auto *Load = InstLoadMap.lookup(OPI))
+            // if the already inserted Load does not dominate I, we must create another load.
+            if (DT.dominates(Load, &I)) {
+              I.replaceUsesOfWith(OPI, Load);
+              continue;
+            }
 
           if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(OPI))
             if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
@@ -334,8 +337,16 @@ void SubCFG::fixSingleSubCfgValues(
           if (!Alloca)
             Alloca = utils::arrayifyInstruction(AllocaIP, OPI, WIIndVar_);
 
-          auto *Load = utils::loadFromAlloca(Alloca, WIIndVar_, LoadIP, OPI->getName());
-          utils::copyDgbValues(OPI, Load, LoadIP);
+          // in split loop, OPI might be used multiple times, get the user, dominating this user and insert load there
+          llvm::Instruction *NewIP = &I;
+          for (auto *U : OPI->users()) {
+            if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U); UI && DT.dominates(UI, NewIP)) {
+              NewIP = UI;
+            }
+          }
+
+          auto *Load = utils::loadFromAlloca(Alloca, WIIndVar_, NewIP, OPI->getName());
+          utils::copyDgbValues(OPI, Load, NewIP);
           I.replaceUsesOfWith(OPI, Load);
           InstLoadMap.insert({OPI, Load});
         }

@@ -127,7 +127,11 @@ llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Funct
     Changed |= inlineCallsInLoop(L, LI, DT);
   }
 
-  return llvm::PreservedAnalyses::all();
+  llvm::PreservedAnalyses PA;
+  PA.preserve<llvm::LoopAnalysis>();
+  PA.preserve<llvm::DominatorTreeAnalysis>();
+  PA.preserve<SplitterAnnotationAnalysis>();
+  return PA;
 }
 
 char hipsycl::compiler::KernelFlatteningPassLegacy::ID = 0;

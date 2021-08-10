@@ -52,12 +52,12 @@
 // imply all the work-items execute the loop same number of times!
 void hipsycl::compiler::VariableUniformityInfo::markInductionVariables(llvm::Function &F, llvm::Loop &L) {
 
-  if (llvm::PHINode *inductionVar = L.getCanonicalInductionVariable()) {
+  if (llvm::PHINode *InductionVar = L.getCanonicalInductionVariable()) {
 #ifdef DEBUG_UNIFORMITY_ANALYSIS
     std::cerr << "### canonical induction variable, assuming uniform:";
     inductionVar->dump();
 #endif
-    setUniform(&F, inductionVar);
+    setUniform(&F, InductionVar);
   }
   for (llvm::Loop *Subloop : L.getSubLoops()) {
     markInductionVariables(F, *Subloop);

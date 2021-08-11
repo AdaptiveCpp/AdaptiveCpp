@@ -58,7 +58,7 @@ struct GlobalsPruningPassLegacy : public llvm::ModulePass {
   bool runOnModule(llvm::Module &M) override;
 };
 
-#ifndef _WIN32
+#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 class GlobalsPruningPass : public llvm::PassInfoMixin<GlobalsPruningPass> {
 public:
   explicit GlobalsPruningPass() {}
@@ -66,7 +66,7 @@ public:
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
   static bool isRequired() { return true; }
 };
-#endif // !_WIN32
+#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
 
 } // namespace compiler
 } // namespace hipsycl

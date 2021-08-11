@@ -42,7 +42,7 @@
 namespace {
 
 bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
-                             const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+                             hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed = false;
   bool LastChanged;
 
@@ -50,11 +50,16 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
     LastChanged = false;
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end() &&
-            !SAA.isSplitterFunc(CallI->getCalledFunction())) {
-          LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI);
-          if (LastChanged)
+        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end()) {
+          if (!SAA.isSplitterFunc(CallI->getCalledFunction())) {
+            LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI);
+            if (LastChanged)
+              break;
+          } else if (CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
+            hipsycl::compiler::utils::createBarrier(CallI, SAA);
+            CallI->eraseFromParent();
             break;
+          }
         }
       }
     }
@@ -68,7 +73,7 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
 //! \pre all contained functions are non recursive!
 // todo: have a recursive-ness termination
 bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
-                       const hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
+                       hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
                        llvm::DominatorTree &DT) {
   bool Changed = false;
   bool LastChanged = false;
@@ -136,7 +141,7 @@ bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::Split
 }
 
 bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
-                    const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+                    hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!hipsycl::compiler::utils::isWorkItemLoop(*L)) {
     HIPSYCL_DEBUG_INFO << "Inliner: not work-item loop!" << L << "\n";
     return false;
@@ -151,7 +156,7 @@ bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 }
 
 bool inlineSplitter(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
-                    const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+                    hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!SAA.isKernelFunc(&F)) {
     // are we in kernel?
     return false;
@@ -178,7 +183,7 @@ void hipsycl::compiler::LoopSplitterInliningPassLegacy::getAnalysisUsage(llvm::A
 bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnFunction(llvm::Function &F) {
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
-  const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
+  auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
   return inlineSplitter(F, LI, DT, SAA);
 }
@@ -187,7 +192,7 @@ char hipsycl::compiler::LoopSplitterInliningPassLegacy::ID = 0;
 llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Function &F,
                                                                          llvm::FunctionAnalysisManager &AM) {
   const auto *MAMProxy = AM.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
-  const auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
+  auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();

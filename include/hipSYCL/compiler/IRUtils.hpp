@@ -28,6 +28,15 @@ static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
 class SplitterAnnotationInfo;
 
 namespace utils {
+// can be used to make `llvm::SmallPtrSet` compatible with `std::inserter`
+template <class PtrSet> struct PtrSetWrapper {
+  explicit PtrSetWrapper(PtrSet &PtrSetArg) : Set(PtrSetArg) {}
+  PtrSet &Set;
+  using iterator = typename PtrSet::iterator;
+  using value_type = typename PtrSet::value_type;
+  template <class IT, class ValueT> IT insert(IT, const ValueT &Value) { return Set.insert(Value).first; }
+};
+
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F);
 
 bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA);
@@ -59,6 +68,21 @@ void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loo
 void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
+
+/*!
+ * In _too simple_ loops, we might not have a dedicated latch.. so make one!
+ * Only simple / canonical loops supported.
+ *
+ * Also adds vectorization hint to latch, so only use for work item loops..
+ *
+ * @param L The loop without a dedicated latch.
+ * @param Latch The loop latch.
+ * @param LI LoopInfo to be updated.
+ * @param DT DominatorTree to be updated.
+ * @return The new latch block, mostly containing the loop induction instruction.
+ */
+llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
+                                llvm::DominatorTree &DT);
 
 llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI = nullptr,
                             llvm::DominatorTree *DT = nullptr);

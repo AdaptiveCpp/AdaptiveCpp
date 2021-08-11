@@ -523,26 +523,6 @@ bool moveArrayLoadForPhiToIncomingBlock(llvm::BasicBlock *BB) {
   return Changed;
 }
 
-/*!
- * In _too simple_ loops, we might not have a dedicated latch.. so make one!
- * Only simple / canonical loops supported.
- *
- * Also adds vectorization hint to latch, so only use for work item loops..
- *
- * @param L The loop without a dedicated latch.
- * @param Latch The loop latch.
- * @param LI LoopInfo to be updated.
- * @param DT DominatorTree to be updated.
- * @return The new latch block, mostly containing the loop induction instruction.
- */
-llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
-                                llvm::DominatorTree &DT) {
-  assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
-  llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
-  auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
-  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
-}
-
 llvm::SmallPtrSet<llvm::PHINode *, 2> getInductionVariables(const llvm::Loop &L) {
   // adapted from LLVM 11s Loop->getInductionVariable, just finding an induction var in more cases..
   if (!L.isLoopSimplifyForm())
@@ -1146,7 +1126,7 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   llvm::BasicBlock *NewInnerLoopExitBlock =
       hipsycl::compiler::utils::splitEdge(InnerHeader, InnerLoopExitBlock, &Analyses.LI, &Analyses.DT);
 
-  NewLatch = simplifyLatch(NewLoop, NewLatch, Analyses.LI, Analyses.DT);
+  NewLatch = utils::simplifyLatch(NewLoop, NewLatch, Analyses.LI, Analyses.DT);
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfgbefore 2nd inversion split\n"; Analyses.DT.print(llvm::errs());)
   HIPSYCL_DEBUG_WARNING << "NewLatch: " << NewLatch->getName() << "\n";
   HIPSYCL_DEBUG_WARNING << "NewHeader: " << NewHeader->getName() << "\n";
@@ -1209,8 +1189,6 @@ void splitInnerLoop(llvm::Function *F, llvm::Loop *InnerLoop, llvm::Loop *&L, ll
   InnerLatch->getTerminator()->setMetadata(hipsycl::compiler::MDKind::InnerLoop, InnerMD);
 
   L = hipsycl::compiler::utils::updateDtAndLi(Analyses.LI, Analyses.DT, NewHeader, *F);
-
-  llvm::errs() << "last cfg in loop inversion\n";
 }
 
 bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
@@ -1256,7 +1234,7 @@ bool splitLoop(llvm::Loop *L, LoopSplitterAnalyses &&Analyses) {
     llvm::BasicBlock *PreHeader = L->getLoopPreheader();
     llvm::BasicBlock *ExitBlock = L->getExitBlock();
     llvm::BasicBlock *Latch = L->getLoopLatch();
-    Latch = simplifyLatch(L, Latch, Analyses.LI, Analyses.DT);
+    Latch = utils::simplifyLatch(L, Latch, Analyses.LI, Analyses.DT);
 
     // need to take care of outer most loop first, so reverse and as LI is changed in a split, the loops become invalid
     // so just store the header from which the correct loop can be determined again.

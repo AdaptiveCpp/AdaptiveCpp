@@ -141,11 +141,25 @@ bool canonicalizeEntry(llvm::BasicBlock *Entry, SplitterAnnotationInfo &SAA) {
   return Changed;
 }
 
+llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
+                                llvm::DominatorTree &DT) {
+  assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
+  auto *IndVar = llvm::cast<llvm::Instruction>(L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch));
+  llvm::SmallVector<llvm::Instruction *, 4> WL;
+  for (auto It = ++IndVar->getIterator(); It != Latch->end(); ++It)
+    if (Latch->getTerminator() != &*It)
+      WL.push_back(&*It);
+  for (auto *I : WL) {
+    I->moveBefore(IndVar);
+  }
+  return llvm::SplitBlock(Latch, IndVar, &DT, &LI, nullptr, Latch->getName() + ".latch");
+}
+
 // Canonicalize barriers: ensure all barriers are in a separate BB
 // containing only the barrier and the terminator, with just one
 // predecessor. This allows us to use those BBs as markers only,
 // they will not be replicated.
-bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, SplitterAnnotationInfo &SAA) {
+bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, SplitterAnnotationInfo &SAA) {
   auto *WILoop = utils::getSingleWorkItemLoop(LI);
   assert(WILoop && "No WI Loop found!");
 
@@ -154,6 +168,8 @@ bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, SplitterAnnotat
 
   auto *WILatch = WILoop->getLoopLatch();
   assert(WILatch && "No WI Latch found!");
+
+  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
 
   bool Changed = canonicalizeEntry(Entry, SAA);
 
@@ -233,6 +249,7 @@ char CanonicalizeBarriersPassLegacy::ID = 0;
 
 void CanonicalizeBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<llvm::LoopInfoWrapperPass>();
+  AU.addRequiredTransitive<llvm::DominatorTreeWrapperPass>();
 
   AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
@@ -244,7 +261,8 @@ bool CanonicalizeBarriersPassLegacy::runOnFunction(llvm::Function &F) {
   if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  return canonicalizeBarriers(F, LI, SAA);
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  return canonicalizeBarriers(F, LI, DT, SAA);
 }
 
 llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
@@ -254,8 +272,9 @@ llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::F
     return llvm::PreservedAnalyses::all();
 
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
 
-  if (!canonicalizeBarriers(F, LI, *SAA))
+  if (!canonicalizeBarriers(F, LI, DT, *SAA))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;

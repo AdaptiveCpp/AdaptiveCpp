@@ -47,8 +47,24 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/IPO/SCCP.h>
+#include <llvm/Transforms/InstCombine/InstCombine.h>
+#include <llvm/Transforms/Scalar/SROA.h>
 
 #include <cstdlib>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
+
+namespace llvm {
+FunctionPass *createSROAPass();
+ModulePass *createIPSCCPPass();
+#if LLVM_VERSION_MAJOR >= 12
+FunctionPass *createCFGSimplificationPass(SimplifyCFGOptions Options, std::function<bool(const Function &)> Ftor = nullptr);
+#else
+FunctionPass *createCFGSimplificationPass(unsigned Threshold = 1, bool ForwardSwitchCond = false,
+                                          bool ConvertSwitch = false, bool KeepLoops = true, bool SinkCommon = false,
+                                          std::function<bool(const Function &)> Ftor = nullptr);
+#endif
+} // namespace llvm
 
 namespace hipsycl::compiler {
 LoopSplittingPipeline selectPipeline() {
@@ -99,6 +115,18 @@ void registerPoclPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
+
+  PM.add(new KernelFlatteningPassLegacy{});
+  PM.add(new SimplifyKernelPassLegacy{});
+
+  PM.add(llvm::createIPSCCPPass());
+  PM.add(llvm::createInstructionCombiningPass());
+  PM.add(llvm::createSROAPass());
+#if LLVM_VERSION_MAJOR >= 12
+  PM.add(llvm::createCFGSimplificationPass(llvm::SimplifyCFGOptions{}));
+#else
+  PM.add(llvm::createCFGSimplificationPass());
+#endif
 
   PM.add(new SimplifyKernelPassLegacy{});
   PM.add(new PHIsToAllocasPassLegacy{});
@@ -179,6 +207,16 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optimi
   llvm::FunctionPassManager FPM;
   FPM.addPass(WILoopMarkerPass{});
   FPM.addPass(LoopSplitterInliningPass{});
+
+  FPM.addPass(KernelFlatteningPass{});
+  FPM.addPass(SimplifyKernelPass{});
+
+  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+  MPM.addPass(llvm::IPSCCPPass{});
+  FPM.addPass(llvm::InstCombinePass{});
+  FPM.addPass(llvm::SROA{});
+
+  FPM.addPass(llvm::SimplifyCFGPass{});
 
   FPM.addPass(SimplifyKernelPass{});
   FPM.addPass(PHIsToAllocasPass{});

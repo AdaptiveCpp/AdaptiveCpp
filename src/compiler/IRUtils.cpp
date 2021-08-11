@@ -112,7 +112,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI) {
-  if (CI->getCalledFunction()->isIntrinsic())
+  if (CI->getCalledFunction()->isIntrinsic() && CI->getCalledFunction()->getName() != BarrierIntrinsicName)
     return false;
 
   // needed to be valid for success log
@@ -287,6 +287,14 @@ llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
     }
   }
   return Entry;
+}
+
+llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
+                                llvm::DominatorTree &DT) {
+  assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
+  llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
+  auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
+  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
 }
 
 llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,

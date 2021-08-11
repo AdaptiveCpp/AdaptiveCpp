@@ -75,7 +75,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi, hipsycl::compiler::Vari
     if (OriginalPHIWasUniform)
       VUA.setUniform(Function, Store);
   }
-  Builder.SetInsertPoint(Phi);
+  Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
 
   llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca);
   Phi->replaceAllUsesWith(LoadedValue);
@@ -100,21 +100,22 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi, hipsycl::compiler::Vari
 bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformityInfo &VUA, const llvm::LoopInfo &LI) {
   std::vector<llvm::PHINode *> PHIs;
 
-  auto BBsInWI = hipsycl::compiler::utils::getBasicBlocksInWorkItemLoops(LI);
+  auto &BBsInWI = F.getBasicBlockList();
 
-  for (auto *BB : BBsInWI) {
-    for (auto &I : *BB) {
-      if (llvm::isa<llvm::PHINode>(I)) {
-        PHIs.push_back(llvm::cast<llvm::PHINode>(&I));
-      }
-    }
-  }
+  auto *L = hipsycl::compiler::utils::getSingleWorkItemLoop(LI);
+  auto *WIInd = L->getCanonicalInductionVariable();
+  assert(WIInd);
+  for (auto &BB : BBsInWI)
+    for (auto &I : BB)
+      if (auto *PHI = llvm::dyn_cast<llvm::PHINode>(&I))
+        if (PHI != WIInd)
+          PHIs.push_back(PHI);
 
   bool Changed = false;
   HIPSYCL_DEBUG_INFO << "Break PHIs to alloca:\n";
   for (auto *I : PHIs) {
     HIPSYCL_DEBUG_INFO << "  ";
-    HIPSYCL_DEBUG_EXECUTE_INFO(I->print(llvm::outs()); llvm::outs()  << "\n";)
+    HIPSYCL_DEBUG_EXECUTE_INFO(I->print(llvm::outs()); llvm::outs() << "\n";)
     breakPHIToAllocas(I, VUA);
     Changed = true;
   }

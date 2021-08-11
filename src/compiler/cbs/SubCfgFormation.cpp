@@ -423,20 +423,13 @@ void fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruct
   }
 }
 
-template <class PtrSet> struct PtrSetWrapper {
-  PtrSet &Set;
-  using iterator = typename PtrSet::iterator;
-  using value_type = typename PtrSet::value_type;
-  template <class IT, class ValueT> IT insert(IT, const ValueT &Value) { return Set.insert(Value).first; }
-};
-
 bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> &SubCfgs,
                             const llvm::DominatorTree &DT) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> UserBlocks;
   {
     llvm::SmallVector<llvm::Instruction *, 32> Users;
     fillUserHull(Alloca, Users);
-    PtrSetWrapper<decltype(UserBlocks)> Wrapper{UserBlocks};
+    utils::PtrSetWrapper<decltype(UserBlocks)> Wrapper{UserBlocks};
     std::transform(Users.begin(), Users.end(), std::inserter(Wrapper, UserBlocks.end()),
                    [](auto *I) { return I->getParent(); });
   }

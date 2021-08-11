@@ -172,7 +172,7 @@ bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::Dominator
   auto *WILatch = WILoop->getLoopLatch();
   assert(WILatch && "No WI Latch found!");
 
-//  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
+  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
 
   bool Changed = canonicalizeEntry(Entry, SAA);
 

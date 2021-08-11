@@ -39,8 +39,8 @@ namespace rt {
 profiler_clock::duration
 hip_event_time_delta::operator()(const dag_node_event& t0,
                                  const dag_node_event& t1) const {
-  assert(t0 && t0->is_complete());
-  assert(t1 && t1->is_complete());
+  assert(t0.is_complete());
+  assert(t1.is_complete());
 
   hipEvent_t t0_evt = cast<const hip_node_event>(&t0)->get_event();
   hipEvent_t t1_evt = cast<const hip_node_event>(&t1)->get_event();

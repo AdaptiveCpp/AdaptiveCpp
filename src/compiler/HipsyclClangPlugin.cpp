@@ -56,7 +56,7 @@ static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
                                             registerGlobalsPruningPass);
 
-#ifndef _WIN32
+#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 #define HIPSYCL_STRINGIFY(V) #V
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                    \
   "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                    \
@@ -73,7 +73,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
                 });
           }};
 }
-#endif // !_WIN32
+#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
 
 } // namespace compiler
 } // namespace hipsycl

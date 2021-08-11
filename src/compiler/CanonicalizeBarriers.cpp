@@ -84,7 +84,7 @@ bool canonicalizeExitBarriers(llvm::BasicBlock *WILatch, llvm::LoopInfo &LI, Spl
  * @param SAA The SplitterAnnotationInfo
  * @return \b true if changed, \b false else.
  */
-bool readdBarrierAtInnerLatches(const llvm::Loop *WILoop, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool readBarrierAtInnerLatches(const llvm::Loop *WILoop, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed;
   for (auto *L : WILoop->getSubLoops()) {
     auto *Latch = L->getLoopLatch();
@@ -143,6 +143,9 @@ bool canonicalizeEntry(llvm::BasicBlock *Entry, SplitterAnnotationInfo &SAA) {
 
 llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                 llvm::DominatorTree &DT) {
+  if(Latch->size() == 2)
+    return Latch;
+
   assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
   auto *IndVar = llvm::cast<llvm::Instruction>(L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch));
   llvm::SmallVector<llvm::Instruction *, 4> WL;
@@ -169,13 +172,13 @@ bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::Dominator
   auto *WILatch = WILoop->getLoopLatch();
   assert(WILatch && "No WI Latch found!");
 
-  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
+//  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
 
   bool Changed = canonicalizeEntry(Entry, SAA);
 
   Changed |= canonicalizeExitBarriers(WILatch, LI, SAA);
 
-  Changed |= readdBarrierAtInnerLatches(WILoop, SAA);
+  Changed |= readBarrierAtInnerLatches(WILoop, SAA);
 
   llvm::SmallPtrSet<llvm::Instruction *, 8> Barriers;
 

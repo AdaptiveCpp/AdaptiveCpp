@@ -52,13 +52,15 @@
 #include <llvm/Transforms/Scalar/SROA.h>
 
 #include <cstdlib>
+#include <hipSYCL/common/debug.hpp>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
 namespace llvm {
 FunctionPass *createSROAPass();
 ModulePass *createIPSCCPPass();
 #if LLVM_VERSION_MAJOR >= 12
-FunctionPass *createCFGSimplificationPass(SimplifyCFGOptions Options, std::function<bool(const Function &)> Ftor = nullptr);
+FunctionPass *createCFGSimplificationPass(SimplifyCFGOptions Options,
+                                          std::function<bool(const Function &)> Ftor = nullptr);
 #else
 FunctionPass *createCFGSimplificationPass(unsigned Threshold = 1, bool ForwardSwitchCond = false,
                                           bool ConvertSwitch = false, bool KeepLoops = true, bool SinkCommon = false,
@@ -89,6 +91,7 @@ void registerOriginalPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopSplitterInliningPassLegacy{});
   PM.add(new LoopSimplifyPassLegacy{});
   PM.add(new LoopSplitAtBarrierPassLegacy{true});
+  PM.add(new RemoveBarrierCallsPassLegacy{});
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
@@ -153,18 +156,19 @@ void registerOriginalPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::O
   LPM.addPass(LoopSplitAtBarrierPass{true});
   FPM.addPass(llvm::createFunctionToLoopPassAdaptor(std::move(LPM)));
 
-#if LLVM_VERSION_MAJOR >= 12
+  FPM.addPass(RemoveBarrierCallsPass{});
+
   if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
-#endif
     FPM.addPass(KernelFlatteningPass{});
-#if LLVM_VERSION_MAJOR >= 12
   if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
-#endif
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 
 void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+  if (Opt == llvm::PassBuilder::OptimizationLevel::O0) {
+    HIPSYCL_DEBUG_ERROR << "POCL pipeline is currently not fully supported with -O0 on the new PM\n";
+  }
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -190,13 +194,9 @@ void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optim
 
   FPM.addPass(llvm::LoopSimplifyPass{});
 
-#if LLVM_VERSION_MAJOR >= 12
   if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
-#endif
     FPM.addPass(KernelFlatteningPass{});
-#if LLVM_VERSION_MAJOR >= 12
   if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
-#endif
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
@@ -228,13 +228,9 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optimi
 
   FPM.addPass(RemoveBarrierCallsPass{});
 
-#if LLVM_VERSION_MAJOR >= 12
   if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
-#endif
     FPM.addPass(KernelFlatteningPass{});
-#if LLVM_VERSION_MAJOR >= 12
   if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
-#endif
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }

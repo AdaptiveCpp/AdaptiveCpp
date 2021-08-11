@@ -112,7 +112,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI) {
-  if (CI->getCalledFunction()->isIntrinsic() && CI->getCalledFunction()->getName() != BarrierIntrinsicName)
+  if (CI->getCalledFunction()->isIntrinsic() || CI->getCalledFunction()->getName() == BarrierIntrinsicName)
     return false;
 
   // needed to be valid for success log

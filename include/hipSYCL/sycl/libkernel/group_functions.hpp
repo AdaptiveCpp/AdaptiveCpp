@@ -33,6 +33,24 @@
 #include "sub_group.hpp"
 #include <type_traits>
 
+namespace hipsycl {
+namespace sycl {
+
+template<class T>
+struct is_group : public std::false_type {};
+
+template<int Dim> 
+struct is_group<group<Dim>> : public std::true_type {};
+
+template<>
+struct is_group<sub_group> : public std::true_type {};
+
+template<class T>
+inline constexpr bool is_group_v = is_group<T>::value;
+
+}
+}
+
 #ifdef SYCL_DEVICE_ONLY
 #include "generic/hiplike/group_functions.hpp"
 
@@ -50,18 +68,6 @@
 
 namespace hipsycl {
 namespace sycl {
-
-template<class T>
-struct is_group : public std::false_type {};
-
-template<int Dim> 
-struct is_group<group<Dim>> : public std::true_type {};
-
-template<>
-struct is_group<sub_group> : public std::true_type {};
-
-template<class T>
-inline constexpr bool is_group_v = is_group<T>::value;
 
 // any_of
 template<typename Group, typename T, typename Predicate,
@@ -106,82 +112,6 @@ HIPSYCL_KERNEL_TARGET
 T inclusive_scan_over_group(Group g, V x, T init, BinaryOperation binary_op) {
   T scan = inclusive_scan_over_group(g, T{x}, binary_op);
   return binary_op(scan, init);
-}
-
-// SYCL 2020 final interface for InputIterator
-
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool joint_any_of(Group g, Ptr first, Ptr last,
-                                        Predicate pred) {
-  return detail::any_of(g, first, last, pred);
-}
-
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool joint_all_of(Group g, Ptr first, Ptr last,
-                                        Predicate pred) {
-  return detail::all_of(g, first, last, pred);
-}
-
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool joint_none_of(Group g, Ptr first, Ptr last,
-                                         Predicate pred) {
-  return detail::none_of(g, first, last, pred);
-}
-
-// *TODO*: Only make available for SYCL binary_op operators and
-// Pointers to fundamental types
-template <typename Group, typename Ptr, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-typename std::iterator_traits<Ptr>::value_type
-joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
-  return detail::reduce(g, first, last, binary_op);
-}
-
-template <typename Group, typename Ptr, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-T joint_reduce(Group g, Ptr first, Ptr last, T init, BinaryOperation binary_op) {
-  return detail::reduce(g, first, last, init, binary_op);
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                            BinaryOperation binary_op) {
-  return detail::exclusive_scan(g, first, last, result, binary_op);
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T init,
-                       BinaryOperation binary_op) {
-  return detail::exclusive_scan(g, first, last, result, init, binary_op);
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                            BinaryOperation binary_op) {
-  return detail::inclusive_scan(g, first, last, result, binary_op);
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                       BinaryOperation binary_op, T init) {
-  return detail::inclusive_scan(g, first, last, result, init, binary_op);
 }
 
 } // namespace sycl

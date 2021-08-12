@@ -157,11 +157,6 @@ bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
 bool inlineSplitter(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                     hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  if (!SAA.isKernelFunc(&F)) {
-    // are we in kernel?
-    return false;
-  }
-
   bool Changed = false;
   for (auto *L : LI.getTopLevelLoops()) {
     for (auto *SL : L->getSubLoops()) {
@@ -185,6 +180,9 @@ bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnFunction(llvm::Func
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
+  if (!SAA.isKernelFunc(&F))
+    return false;
+
   return inlineSplitter(F, LI, DT, SAA);
 }
 
@@ -197,6 +195,9 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::F
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
+  if (!SAA->isKernelFunc(&F))
+    return llvm::PreservedAnalyses::all();
+
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
   if (!inlineSplitter(F, LI, DT, *SAA))

@@ -322,7 +322,7 @@ void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm:
     }
     if (WL.empty())
       break;
-    PromoteMemToReg(WL, DT, &AC);
+    llvm::PromoteMemToReg(WL, DT, &AC);
   }
 }
 

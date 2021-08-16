@@ -111,7 +111,7 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
   return llvm::CallInst::Create(F, "", InsertBefore);
 }
 
-bool checkedInlineFunction(llvm::CallBase *CI) {
+bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
   if (CI->getCalledFunction()->isIntrinsic() || CI->getCalledFunction()->getName() == BarrierIntrinsicName)
     return false;
 
@@ -122,16 +122,18 @@ bool checkedInlineFunction(llvm::CallBase *CI) {
 #if LLVM_VERSION_MAJOR <= 10
   llvm::InlineResult ILR = llvm::InlineFunction(CI, IFI, nullptr);
   if (!static_cast<bool>(ILR)) {
-    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << calleeName << ">: '" << ILR.message << "'\n";
+    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << calleeName << ">: '" << ILR.message
+                          << "'\n";
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
   if (!ILR.isSuccess()) {
-    HIPSYCL_DEBUG_WARNING << "Failed to inline function <" << CalleeName << ">: '" << ILR.getFailureReason() << "'\n";
+    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
+                          << ILR.getFailureReason() << "'\n";
 #endif
     return false;
   }
 
-  HIPSYCL_DEBUG_INFO << "LoopSplitter inlined function <" << CalleeName << ">\n";
+  HIPSYCL_DEBUG_INFO << PassPrefix << " inlined function <" << CalleeName << ">\n";
   return true;
 }
 

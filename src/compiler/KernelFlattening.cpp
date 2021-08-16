@@ -43,7 +43,7 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
         if (CallI->getCalledFunction()) {
-          LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI);
+          LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI, "[KernelFlattening]");
           if (LastChanged)
             break;
         }

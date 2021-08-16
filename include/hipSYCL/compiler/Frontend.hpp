@@ -392,6 +392,17 @@ public:
         }
       }
     }
+
+    for(auto* F : NDKernels) {
+      detail::CompleteCallSet CCS(F);
+      for (auto &D : CCS.getReachableDecls()) {
+        if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
+          HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: " << D->getQualifiedNameAsString()
+                             << "\n";
+          D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
+        }
+      }
+    }
   }
 
   std::unordered_set<clang::FunctionDecl*>& getMarkedHostDeviceFunctions()
@@ -408,6 +419,7 @@ private:
   std::unordered_set<clang::FunctionDecl*> MarkedHostDeviceFunctions;
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
   std::unordered_set<clang::FunctionDecl*> UserKernels;
+  std::unordered_set<clang::FunctionDecl*> NDKernels;
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
 
   void markAsHostDevice(clang::FunctionDecl* F)
@@ -418,6 +430,11 @@ private:
   void markAsKernel(clang::FunctionDecl* F)
   {
     this->MarkedKernels.insert(F);
+  }
+
+  void markAsNDKernel(clang::FunctionDecl* F)
+  {
+    this->NDKernels.insert(F);
   }
 
   void processFunctionDecl(clang::FunctionDecl* f)
@@ -464,14 +481,7 @@ private:
 
     if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
       if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
-        detail::CompleteCallSet CCS(f);
-        for (auto &D : CCS.getReachableDecls()) {
-          if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
-            HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: " << D->getQualifiedNameAsString()
-                               << "\n";
-            D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
-          }
-        }
+        markAsNDKernel(f);
       }
     }
   }

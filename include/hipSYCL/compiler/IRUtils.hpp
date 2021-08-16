@@ -58,7 +58,7 @@ bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI);
 llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI);
 llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop);
 
-bool checkedInlineFunction(llvm::CallBase *CI);
+bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix);
 
 bool isAnnotatedParallel(llvm::Loop *TheLoop);
 

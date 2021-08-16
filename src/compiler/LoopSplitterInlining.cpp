@@ -50,14 +50,18 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
     LastChanged = false;
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (CallI->getCalledFunction() && SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end()) {
-          if (!SAA.isSplitterFunc(CallI->getCalledFunction())) {
-            LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI);
+        if (CallI->getCalledFunction()) {
+          if (SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end() &&
+              !SAA.isSplitterFunc(CallI->getCalledFunction())) {
+            LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI, "[LoopSplitterInlining]");
             if (LastChanged)
               break;
-          } else if (CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
+          } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
+                     CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
+            HIPSYCL_DEBUG_INFO << "Replace barrier with intrinsic: " << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);
             CallI->eraseFromParent();
+            LastChanged = true;
             break;
           }
         }
@@ -73,8 +77,7 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
 //! \pre all contained functions are non recursive!
 // todo: have a recursive-ness termination
 bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
-                       hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
-                       llvm::DominatorTree &DT) {
+                       hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI, llvm::DominatorTree &DT) {
   bool Changed = false;
   bool LastChanged = false;
 
@@ -200,6 +203,7 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::F
 
   auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
+
   if (!inlineSplitter(F, LI, DT, *SAA))
     return llvm::PreservedAnalyses::all();
 

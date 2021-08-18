@@ -114,8 +114,8 @@ inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope
   } else if (fence_scope == memory_scope::work_group) {
     g.barrier();
   } else if (fence_scope == memory_scope::device) {
-    g.barrier();
   }
+  g.barrier();
 }
 
 template<>

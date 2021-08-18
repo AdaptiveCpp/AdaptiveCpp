@@ -52,10 +52,15 @@ T group_broadcast(sub_group g, T x,
 // barrier
 template<typename Group>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
+inline void group_barrier(Group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   }
+  __syncthreads();
+}
+template<typename Group>
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(Group g) {
   __syncthreads();
 }
 
@@ -67,6 +72,11 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   } else if (fence_scope == memory_scope::work_group) {
     __threadfence_block();
   }
+  __syncwarp(); // not necessarily needed, but might improve performance
+}
+template<>
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(sub_group g) {
   __syncwarp(); // not necessarily needed, but might improve performance
 }
 

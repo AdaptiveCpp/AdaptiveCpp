@@ -69,6 +69,10 @@ namespace detail {
 ///
 /// Utility type to generate the set of all function declarations
 /// implictly or explictly reachable from some initial declaration.
+/// 
+/// NOTE: Must only be used when the full translation unit is present,
+/// e.g. in HandleTranslationUnitDecl, otherwise the callset
+/// might not be complete.
 ///
 class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
   public:
@@ -395,6 +399,31 @@ public:
         }
       }
     }
+
+    for(auto* Kernel : HierarchicalKernels){
+      HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
+                        << Kernel->getQualifiedNameAsString() << std::endl;
+
+      // Mark local variables as shared memory, unless they are explicitly marked private.
+      // Do this not only for the kernel itself, but consider all functions called by the kernel.
+      detail::CompleteCallSet CCS(Kernel);
+      for(auto&& RD : CCS.getReachableDecls())
+      {
+        // To prevent every local variable in any function being marked as shared,
+        // we only consider functions that receive a hipsycl::sycl::group as their parameter.
+        for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
+        {
+          auto Type = (*Param)->getOriginalType().getTypePtr();
+          if(auto DeclType = Type->getAsCXXRecordDecl()) {
+            if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
+            {
+              storeLocalVariablesInLocalMemory(RD->getBody(), RD);
+              break;
+            }
+          }
+        }
+      }
+    }
   }
 
   std::unordered_set<clang::FunctionDecl*>& getMarkedHostDeviceFunctions()
@@ -410,6 +439,7 @@ public:
 private:
   std::unordered_set<clang::FunctionDecl*> MarkedHostDeviceFunctions;
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
+  std::unordered_set<clang::FunctionDecl*> HierarchicalKernels;
   std::unordered_set<clang::FunctionDecl*> UserKernels;
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
 
@@ -433,29 +463,7 @@ private:
     {
       clang::FunctionDecl* Kernel = f;
       
-      HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
-                        << Kernel->getQualifiedNameAsString() << std::endl;
-
-      // Mark local variables as shared memory, unless they are explicitly marked private.
-      // Do this not only for the kernel itself, but consider all functions called by the kernel.
-      detail::CompleteCallSet CCS(Kernel);
-      for(auto&& RD : CCS.getReachableDecls())
-      {
-        // To prevent every local variable in any function being marked as shared,
-        // we only consider functions that receive a hipsycl::sycl::group as their parameter.
-        for(auto Param = RD->param_begin(); Param != RD->param_end(); ++Param)
-        {
-          auto Type = (*Param)->getOriginalType().getTypePtr();
-          if(auto DeclType = Type->getAsCXXRecordDecl()) {
-            if(DeclType->getQualifiedNameAsString() == "hipsycl::sycl::group")
-            {
-              storeLocalVariablesInLocalMemory(RD->getBody(), RD);
-              break;
-            }
-          }
-        }
-      }
-    
+      HierarchicalKernels.insert(Kernel);    
     }
   
     

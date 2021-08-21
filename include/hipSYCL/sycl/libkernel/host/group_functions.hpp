@@ -45,9 +45,9 @@ namespace sycl {
 
 namespace detail {
 // reduce implementation
-template<typename Group, typename T, typename BinaryOperation>
+template<int Dim, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
+T group_reduce(group<Dim> g, T x, BinaryOperation binary_op, T *scratch) {
   const size_t lid = g.get_local_linear_id();
 
   scratch[lid] = x;
@@ -72,9 +72,9 @@ T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
 } // namespace detail
 
 // broadcast
-template<typename Group, typename T>
+template<int Dim, typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id = 0) {
+T group_broadcast(group<Dim> g, T x, typename group<Dim>::linear_id_type local_linear_id = 0) {
   T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
   const size_t lid     = g.get_local_linear_id();
 
@@ -89,9 +89,9 @@ T group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id =
   return tmp;
 }
 
-template<typename Group, typename T>
+template<int Dim, typename T>
 HIPSYCL_KERNEL_TARGET
-T group_broadcast(Group g, T x, typename Group::id_type local_id) {
+T group_broadcast(group<Dim> g, T x, typename group<Dim>::id_type local_id) {
   const size_t target_lid =
       detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
   return group_broadcast(g, x, target_lid);
@@ -104,17 +104,23 @@ T group_broadcast(sub_group g, T x,
   return x;
 }
 
-// barrier
-template<typename Group>
+template<typename T>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
+T group_broadcast(sub_group g, T x,
+                  typename sub_group::id_type local_id) {
+  return x;
+}
+
+// barrier
+template<int Dim>
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(group<Dim> g, memory_scope fence_scope = group<Dim>::fence_scope) {
   if (fence_scope == memory_scope::device) {
     detail::mem_fence<>();
   }
   g.barrier();
 }
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(sub_group g, memory_scope fence_scope) {
   // doesn't need sync
@@ -122,7 +128,8 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
 
 // any_of
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename Ptr, typename Predicate>
+template <typename Group, typename Ptr, typename Predicate,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = false;
@@ -147,9 +154,9 @@ HIPSYCL_KERNEL_TARGET bool joint_any_of(Group g, Ptr first, Ptr last,
   return group_broadcast(g, result);
 }
 
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline bool any_of_group(Group g, bool pred) {
+inline bool any_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
   scratch[0] = false;
@@ -167,7 +174,6 @@ inline bool any_of_group(Group g, bool pred) {
   return tmp;
 }
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool any_of_group(sub_group g, bool pred) {
   return pred;
@@ -175,7 +181,8 @@ inline bool any_of_group(sub_group g, bool pred) {
 
 // all_of
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename Ptr, typename Predicate>
+template<typename Group, typename Ptr, typename Predicate,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool leader_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = true;
@@ -200,9 +207,9 @@ HIPSYCL_KERNEL_TARGET bool joint_all_of(Group g, Ptr first, Ptr last,
   return group_broadcast(g, result);
 }
 
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline bool all_of_group(Group g, bool pred) {
+inline bool all_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
   scratch[0] = true;
@@ -220,7 +227,6 @@ inline bool all_of_group(Group g, bool pred) {
   return tmp;
 }
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool all_of_group(sub_group g, bool pred) {
   return pred;
@@ -228,7 +234,8 @@ inline bool all_of_group(sub_group g, bool pred) {
 
 // none_of
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename Ptr, typename Predicate>
+template<typename Group, typename Ptr, typename Predicate,
+        std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool leader_none_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = true;
@@ -253,9 +260,9 @@ HIPSYCL_KERNEL_TARGET bool joint_none_of(Group g, Ptr first, Ptr last,
   return group_broadcast(g, result);
 }
 
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline bool none_of_group(Group g, bool pred) {
+inline bool none_of_group(group<Dim> g, bool pred) {
   bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
   scratch[0] = true;
@@ -273,7 +280,6 @@ inline bool none_of_group(Group g, bool pred) {
   return tmp;
 }
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool none_of_group(sub_group g, bool pred) {
   return pred;
@@ -281,7 +287,8 @@ inline bool none_of_group(sub_group g, bool pred) {
 
 // reduce
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename T, typename BinaryOperation>
+template<typename Group, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
   T result{};
@@ -298,7 +305,8 @@ T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
   return result;
 }
 
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T leader_reduce(Group g, T *first, T *last, V init, BinaryOperation binary_op) {
   auto result = leader_reduce(g, first, last, binary_op);
@@ -329,9 +337,9 @@ T joint_reduce(Group g, Ptr first, Ptr last, T init, BinaryOperation binary_op) 
   return group_broadcast(g, result);
 }
 
-template<typename Group, typename T, typename BinaryOperation>
+template<int Dim, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T reduce_over_group(Group g, T x, BinaryOperation binary_op) {
+T reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
   T tmp = detail::group_reduce(g, x, binary_op, scratch);
@@ -347,7 +355,8 @@ T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
 
 // exclusive_scan
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
                          BinaryOperation binary_op) {
@@ -362,7 +371,8 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
   return result;
 }
 
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T *leader_exclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op) {
@@ -389,9 +399,9 @@ OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
   return joint_exclusive_scan(g, first, last, result, typename std::remove_pointer_t<InPtr>{}, binary_op);
 }
 
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<int Dim, typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T exclusive_scan_over_group(Group g, V x, T init, BinaryOperation binary_op) {
+T exclusive_scan_over_group(group<Dim> g, V x, T init, BinaryOperation binary_op) {
   T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
   const size_t lid     = g.get_local_linear_id();
 
@@ -420,7 +430,8 @@ T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op)
 
 // inclusive_scan
 namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op, T init) {
@@ -437,7 +448,8 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
   return result;
 }
 
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op) {
@@ -463,9 +475,9 @@ OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                             BinaryOperation binary_op) {
   return joint_inclusive_scan(g, first, last, result, binary_op, typename std::remove_pointer_t<InPtr>{});
 }
-template<typename Group, typename T, typename BinaryOperation>
+template<int Dim, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T inclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
+T inclusive_scan_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
   const size_t lid     = g.get_local_linear_id();
 
@@ -491,12 +503,13 @@ T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
 }
 
 // shift_left
-template<typename Group, typename T>
-T shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
+template<int Dim, typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_left(group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
-  typename Group::linear_id_type lid        = g.get_local_linear_id();
-  typename Group::linear_id_type target_lid = lid + delta;
+  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid = lid + delta;
 
   scratch[lid] = x;
   group_barrier(g);
@@ -511,22 +524,24 @@ T shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
 }
 
 template<typename T>
+HIPSYCL_KERNEL_TARGET
 T shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // shift_right
-template<typename Group, typename T>
-T shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
+template<int Dim, typename T>
+HIPSYCL_KERNEL_TARGET
+T shift_group_right(group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
-  typename Group::linear_id_type lid        = g.get_local_linear_id();
-  typename Group::linear_id_type target_lid = lid - delta;
+  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid = lid - delta;
 
   scratch[lid] = x;
   group_barrier(g);
 
-  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
   if (target_lid > g.get_local_range().size() || target_lid < 0)
     target_lid = 0;
 
@@ -537,22 +552,24 @@ T shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
 }
 
 template<typename T>
+HIPSYCL_KERNEL_TARGET
 T shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // permute_group_by_xor
-template<typename Group, typename T>
-T permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
+template<int Dim, typename T>
+HIPSYCL_KERNEL_TARGET
+T permute_group_by_xor(group<Dim> g, T x, typename group<Dim>::linear_id_type mask) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
-  typename Group::linear_id_type lid        = g.get_local_linear_id();
-  typename Group::linear_id_type target_lid = lid ^ mask;
+  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid = lid ^ mask;
 
   scratch[lid] = x;
   group_barrier(g);
 
-  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
   if (target_lid > g.get_local_range().size() || target_lid < 0)
     target_lid = 0;
 
@@ -564,23 +581,25 @@ T permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
 
 // permute_group_by_xor
 template<typename T>
+HIPSYCL_KERNEL_TARGET
 T permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
   return x;
 }
 
 // select_from_group
-template<typename Group, typename T>
-T select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
+template<int Dim, typename T>
+HIPSYCL_KERNEL_TARGET
+T select_from_group(group<Dim> g, T x, typename group<Dim>::id_type remote_local_id) {
   T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
-  typename Group::linear_id_type lid = g.get_local_linear_id();
-  typename Group::linear_id_type target_lid =
+  typename group<Dim>::linear_id_type lid = g.get_local_linear_id();
+  typename group<Dim>::linear_id_type target_lid =
       detail::linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
 
   scratch[lid] = x;
   group_barrier(g);
 
-  // checking for both larger and smaller in case 'Group::linear_id_type' is not unsigned
+  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
   if (target_lid > g.get_local_range().size() || target_lid < 0)
     target_lid = 0;
 
@@ -591,6 +610,7 @@ T select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
 }
 
 template<typename T>
+HIPSYCL_KERNEL_TARGET
 T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
   return x;
 }

@@ -41,31 +41,22 @@
 namespace hipsycl {
 namespace sycl {
 
-// broadcast
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x,
-                  typename sub_group::linear_id_type local_linear_id = 0) {
-  return detail::shuffle_impl(x, static_cast<int>(local_linear_id));
-}
-
 // barrier
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g, memory_scope fence_scope) {
+inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   }
   __syncthreads();
 }
 
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g) {
+inline void group_barrier(group<Dim> g) {
   __syncthreads();
 }
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(sub_group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
@@ -75,27 +66,23 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   }
   // threads run in lock-step no sync needed
 }
-template<>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(sub_group g) {
 }
 
 // any_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool any_of_group(sub_group g, bool pred) {
   return __any(pred);
 }
 
 // all_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool all_of_group(sub_group g, bool pred) {
   return __all(pred);
 }
 
 // none_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool none_of_group(sub_group g, bool pred) {
   return !__any(pred);

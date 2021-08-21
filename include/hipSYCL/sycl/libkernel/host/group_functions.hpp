@@ -32,6 +32,7 @@
 
 #include "../backend.hpp"
 #include "../detail/data_layout.hpp"
+#include "../detail/mem_fence.hpp"
 #include "../functional.hpp"
 #include "../group.hpp"
 #include "../id.hpp"
@@ -107,13 +108,8 @@ T group_broadcast(sub_group g, T x,
 template<typename Group>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
-  if (fence_scope == memory_scope::work_item) {
-    // doesn't need sync
-  } else if (fence_scope == memory_scope::sub_group) {
-    // doesn't need sync (sub_group size = 1)
-  } else if (fence_scope == memory_scope::work_group) {
-    g.barrier();
-  } else if (fence_scope == memory_scope::device) {
+  if (fence_scope == memory_scope::device) {
+    detail::mem_fence<>();
   }
   g.barrier();
 }

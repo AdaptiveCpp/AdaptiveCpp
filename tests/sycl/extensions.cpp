@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     cgh.parallel<class Kernel>(s::range<1>{input_size / Group_size}, s::range<1>{Group_size}, 
     [=](auto grp){
       s::local_memory<int [Group_size]> scratch{grp};
-      s::private_memory<int> load{grp};
+      s::s_private_memory<int> load{grp};
       
       s::distribute_items(grp, [&](s::s_item<1> idx){
           load(idx) = data_accessor[idx.get_global_id(0)];

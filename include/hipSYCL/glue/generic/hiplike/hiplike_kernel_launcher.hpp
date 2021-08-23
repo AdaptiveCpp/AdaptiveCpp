@@ -47,6 +47,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
@@ -279,13 +280,9 @@ parallel_region(Function f, sycl::range<dimensions> num_groups,
             sycl::detail::get_local_size<dimensions>(),
             sycl::detail::get_grid_size<dimensions>()};
 #endif
-        sycl::physical_item<dimensions> phys_idx = sycl::detail::make_sp_item(
-            sycl::detail::get_local_id<dimensions>(),
-            sycl::detail::get_group_id<dimensions>(),
-            sycl::detail::get_local_size<dimensions>(),
-            sycl::detail::get_grid_size<dimensions>());
-
-        f(this_group, phys_idx, reducers...);
+        using group_properties =
+            sycl::detail::sp_property_descriptor<dimensions, 0>;
+        f(sycl::detail::sp_group<group_properties>{this_group}, reducers...);
       },
       reductions...);
 #endif

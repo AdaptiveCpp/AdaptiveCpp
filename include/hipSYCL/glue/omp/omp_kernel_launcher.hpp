@@ -46,6 +46,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
@@ -323,14 +324,14 @@ inline void parallel_region(Function f,
             num_local_mem_bytes);
 
         iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
-          sycl::group<dimensions> this_group{group_id, group_size,
-                                              num_groups};
 
-          auto phys_item = sycl::detail::make_sp_item(
-              sycl::id<dimensions>{}, group_id, group_size, num_groups);
+          using group_properties =
+              sycl::detail::sp_property_descriptor<dimensions, 0>;
 
-          f(this_group, phys_item, reducers...);
-            
+          sycl::detail::sp_group<group_properties> this_group {
+                  sycl::group<dimensions>{group_id, group_size, num_groups}};
+
+          f(this_group, reducers...);
         });
 
         sycl::detail::host_local_memory::release();

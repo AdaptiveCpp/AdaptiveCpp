@@ -43,6 +43,7 @@
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/device_array.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
@@ -317,13 +318,10 @@ public:
             sycl::detail::get_local_size<Dim>(),
             sycl::detail::get_grid_size<Dim>()};
 #endif
-          sycl::physical_item<Dim> phys_idx = sycl::detail::make_sp_item(
-            sycl::detail::get_local_id<Dim>(),
-            sycl::detail::get_group_id<Dim>(),
-            sycl::detail::get_local_size<Dim>(),
-            sycl::detail::get_grid_size<Dim>());
+          using group_properties =
+            sycl::detail::sp_property_descriptor<Dim, 0>;
 
-          k(this_group, phys_idx);
+          k(sycl::detail::sp_group<group_properties>{this_group});
 #else
           (void)k;
 #endif

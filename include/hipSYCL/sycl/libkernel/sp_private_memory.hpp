@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,29 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PRIVATE_MEMORY_HPP
-#define HIPSYCL_PRIVATE_MEMORY_HPP
+#ifndef HIPSYCL_SP_PRIVATE_MEMORY_HPP
+#define HIPSYCL_SP_PRIVATE_MEMORY_HPP
 
 #include <memory>
 
-#include "group.hpp"
-#include "h_item.hpp"
+#include "sp_item.hpp"
+#include "sp_group.hpp"
 
 namespace hipsycl {
 namespace sycl {
 
 #ifdef SYCL_DEVICE_ONLY
 
-template<typename T, int Dimensions = 1>
-class private_memory
+template<typename T, class SpGroup>
+class s_private_memory
 {
+  static constexpr int dimensions = SpGroup::dimensions;
 public:
-  HIPSYCL_KERNEL_TARGET
-  private_memory(const group<Dimensions>&)
+  template <class SG = SpGroup,
+            std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
+  HIPSYCL_KERNEL_TARGET explicit s_private_memory(const SpGroup & grp)
   {}
 
+  s_private_memory(const s_private_memory&) = delete;
+  s_private_memory& operator=(const s_private_memory&) = delete;
+
   HIPSYCL_KERNEL_TARGET
-  T& operator()(const h_item<Dimensions>&)
+  T& operator()(const detail::sp_item<dimensions>&) noexcept
   {
     return _data;
   }
@@ -58,28 +63,35 @@ private:
 
 #else
 
-template<typename T, int Dimensions = 1>
-class private_memory
+template<typename T, class SpGroup>
+class s_private_memory
 {
+  static constexpr int dimensions = SpGroup::dimensions;
 public:
+  template <class SG = SpGroup,
+            std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
   HIPSYCL_KERNEL_TARGET
-  private_memory(const group<Dimensions>& grp)
-  : _data{new T [grp.get_local_range().size()]}
+  explicit s_private_memory(const SpGroup& grp)
+  : _data{new T [grp.get_logical_local_linear_range()]}, _grp{grp}
   {}
 
+  s_private_memory(const s_private_memory&) = delete;
+  s_private_memory& operator=(const s_private_memory&) = delete;
+
   HIPSYCL_KERNEL_TARGET
-  T& operator()(const h_item<Dimensions>& idx)
+  T& operator()(const detail::sp_item<dimensions>& idx) noexcept
   {
-    return get(idx.get_local_id(), idx.get_local_range());
+    return get(idx.get_local_id(_grp), idx.get_local_range(_grp));
   }
 
 private:
   std::unique_ptr<T []> _data;
+  const SpGroup& _grp;
 
   HIPSYCL_KERNEL_TARGET
-  T& get(id<Dimensions> id, range<Dimensions> local_range)
-  {
-    return _data.get()[detail::linear_id<Dimensions>::get(id, local_range)];
+  T &get(const id<dimensions> &id,
+         const range<dimensions> &local_range) noexcept {
+    return _data.get()[detail::linear_id<dimensions>::get(id, local_range)];
   }
 };
 #endif

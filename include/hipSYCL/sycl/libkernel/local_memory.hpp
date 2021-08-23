@@ -31,7 +31,7 @@
 #include <type_traits>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "group.hpp"
+#include "sp_group.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -42,9 +42,9 @@ class local_memory
 public:
   using scalar_type = typename std::remove_extent<T>::type;
 
-  template<int Dim>
+  template<class PropertyDescriptor>
   HIPSYCL_KERNEL_TARGET
-  local_memory(group<Dim>&) {}
+  local_memory(detail::sp_group<PropertyDescriptor>&) {}
 
   template<class t = scalar_type, 
           std::enable_if_t<std::is_array<T>::value>* = nullptr>

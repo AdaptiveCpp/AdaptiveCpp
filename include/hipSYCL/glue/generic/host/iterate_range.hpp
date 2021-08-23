@@ -38,7 +38,7 @@ namespace glue {
 namespace host {
 
 template <int Dim, class Function>
-void iterate_range(sycl::range<Dim> r, Function f) noexcept {
+void iterate_range(const sycl::range<Dim> r, Function f) noexcept {
 
   if constexpr (Dim == 1) {
     for (std::size_t i = 0; i < r.get(0); ++i) {
@@ -61,8 +61,70 @@ void iterate_range(sycl::range<Dim> r, Function f) noexcept {
   }
 }
 
+// Iterate range by subdividing it into tiles of given size. 
+// The argument passed into f is the index of the tiles.
 template <int Dim, class Function>
-void iterate_range(sycl::id<Dim> offset, sycl::range<Dim> r,
+void iterate_range_tiles(const sycl::range<Dim> r,
+                         const sycl::range<Dim> tile_size,
+                         Function f) noexcept {
+
+  if constexpr (Dim == 1) {
+    for (std::size_t i = 0; i * tile_size.get(0) < r.get(0); ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    for (std::size_t i = 0; i * tile_size.get(0) < r.get(0); ++i) {
+      for (std::size_t j = 0; j * tile_size.get(1) < r.get(1); ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    for (std::size_t i = 0; i * tile_size.get(0) < r.get(0); ++i) {
+      for (std::size_t j = 0; j * tile_size.get(1) < r.get(1); ++j) {
+        for (std::size_t k = 0; k * tile_size.get(2) < r.get(2); ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
+template <int Dim, class Function>
+void iterate_range_simd(const sycl::range<Dim> r, Function f) noexcept {
+
+  if constexpr (Dim == 1) {
+#ifdef _OPENMP
+#pragma omp simd
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      f(sycl::id<Dim>{i});
+    }
+  } else if constexpr (Dim == 2) {
+    #ifdef _OPENMP
+#pragma omp simd collapse(2)
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      for (std::size_t j = 0; j < r.get(1); ++j) {
+        f(sycl::id<Dim>{i, j});
+      }
+    }
+  } else if constexpr (Dim == 3) {
+#ifdef _OPENMP
+#pragma omp simd collapse(3)
+#endif
+    for (std::size_t i = 0; i < r.get(0); ++i) {
+      for (std::size_t j = 0; j < r.get(1); ++j) {
+        for (std::size_t k = 0; k < r.get(2); ++k) {
+          f(sycl::id<Dim>{i, j, k});
+        }
+      }
+    }
+  }
+}
+
+template <int Dim, class Function>
+void iterate_range(const sycl::id<Dim> offset,
+                   const sycl::range<Dim> r,
                    Function f) noexcept {
 
   const std::size_t min_i = offset.get(0);
@@ -98,8 +160,10 @@ void iterate_range(sycl::id<Dim> offset, sycl::range<Dim> r,
 }
 
 template <int Dim, class Function>
-void iterate_partial_range(sycl::range<Dim> whole_range, sycl::id<Dim> begin,
-                           std::size_t num_elements, Function f) noexcept {
+void iterate_partial_range(const sycl::range<Dim> whole_range,
+                           const sycl::id<Dim> begin,
+                           const std::size_t num_elements,
+                           Function f) noexcept {
 
   if constexpr (Dim == 1) {
     for (std::size_t i = begin.get(0); i < begin.get(0) + num_elements; ++i) {

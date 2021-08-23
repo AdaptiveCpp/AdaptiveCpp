@@ -37,6 +37,12 @@ namespace sycl {
 
 using backend = hipsycl::rt::backend_id;
 
+// Per SYCL 2020, 4.1.1 Backend macros
+#define SYCL_BACKEND_CUDA
+#define SYCL_BACKEND_HIP
+#define SYCL_BACKEND_LEVEL_ZERO
+#define SYCL_BACKEND_OMP
+
 #if defined(HIPSYCL_PLATFORM_CPU) && defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_OMPHOST
 #endif

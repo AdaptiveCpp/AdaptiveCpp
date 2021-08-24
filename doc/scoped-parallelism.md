@@ -180,7 +180,7 @@ int main(){
   q.submit([&](sycl::handler& cgh){
     auto data_accessor = buff.get_access<sycl::access::mode::read_write>(cgh);
     cgh.parallel<class Kernel>(sycl::range<1>{input_size / Group_size}, sycl::range<1>{Group_size}, 
-    [=](sycl::group<1> grp){
+    [=](auto grp){
       // Outside of distribute_items(), the degree of parallelism is implementation-defined.
       // the implementation can use whatever is most efficient for hardware/backend.
       // In hipSYCL CPU, this would be executed by a single thread on CPU
@@ -194,7 +194,7 @@ int main(){
       // Same goes for s_private_memory, if required (here only dummy example)
       // This will allocate memory in the private memory of the _logical_ work item.
       // See the existing SYCL documentation on private_memory for more information.
-      sycl::s_private_memory<int> dummy{grp};
+      sycl::s_private_memory<int, decltype(grp)> dummy{grp};
       
       // Variables not explicitly marked as either will be allocated in private
       // memory of the _physical_ work item (see the for loop below)

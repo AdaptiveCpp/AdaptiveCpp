@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
       s::s_private_memory<int, decltype(grp)> load{grp};
       
       s::distribute_items(grp, [&](s::s_item<1> idx){
-          load(idx) = data_accessor[idx.get_global_id(0)];
+        load(idx) = data_accessor[idx.get_global_id(0)];
       });
       s::distribute_items(grp, [&](s::s_item<1> idx){
           scratch[idx.get_innermost_local_id(0)] = load(idx);

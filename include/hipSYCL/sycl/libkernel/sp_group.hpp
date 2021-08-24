@@ -176,7 +176,7 @@ struct sp_group
   id_type
   get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return idx.get_global_id() - get_group_id() * get_group_range();
+    return idx.get_global_id() - get_group_id() * get_logical_local_range();
 #else
     return _grp.get_local_id();
 #endif
@@ -185,14 +185,14 @@ struct sp_group
   linear_id_type
   get_logical_local_linear_id(const detail::sp_item<dimensions> &idx) const noexcept {
     return detail::linear_id<dimensions>::get(get_logical_local_id(idx),
-                                              get_logical_local_range(idx));
+                                              get_logical_local_range());
   }
 
   size_t get_logical_local_id(const detail::sp_item<dimensions> &idx,
                               int dimension) const noexcept {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
     return idx.get_global_id(dimension) -
-           get_group_id(dimension) * get_group_range(dimension);
+           get_group_id(dimension) * get_logical_local_range(dimension);
 #else
     return _grp.get_local_id(dimension);
 #endif
@@ -1021,8 +1021,9 @@ inline  void subdivide_group(
   // Only expose subgroup in 1D case to make sure
   // all range and id queries are well defined
   if constexpr(dim == 1) {
-    sycl::id<dim> global_offset = get_group_global_id_offset(g) +
-                                  sycl::sub_group{}.get_group_id();
+    sycl::id<dim> global_offset =
+        get_group_global_id_offset(g) +
+        sycl::sub_group{}.get_group_id() * sycl::sub_group{}.get_local_range();
 
     sp_sub_group<next_property_descriptor> subgroup{global_offset};
     f(subgroup, f);
@@ -1089,10 +1090,10 @@ void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF f) noexcept
                  get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range(), global_range));
 #else
-
+  auto group_offset = get_group_global_id_offset(g);
   glue::host::iterate_range_simd(
       g.get_logical_local_range(), [&](auto local_idx) {
-        f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
+        f(make_sp_item(local_idx, group_offset + local_idx,
                        g.get_logical_local_range(), global_range));
       });
 #endif

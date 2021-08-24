@@ -634,7 +634,7 @@ public:
   /// The get_innermost_local_id() family of functions may be more efficient
   /// than calling get_local_id(const Group&) family with the appropriate innermost
   /// group.
-  sycl::id<Dim> get_innermost_local_id(int dimensions) const noexcept;
+  size_t get_innermost_local_id(int dimensions) const noexcept;
 
   /// Returns the local linear id in the of this 
   /// logical work item with respect to the group nested innermost

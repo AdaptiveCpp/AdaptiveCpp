@@ -97,7 +97,7 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  sycl::id<Dim> get_innermost_local_id(int dimensions) const noexcept {
+  size_t get_innermost_local_id(int dimensions) const noexcept {
     return _local_id[dimensions];
   }
 

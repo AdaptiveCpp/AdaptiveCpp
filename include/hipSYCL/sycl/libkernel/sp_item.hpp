@@ -39,11 +39,12 @@ namespace detail {
 template<int Dim>
 class sp_item
 {
-  template<int D>
-  HIPSYCL_KERNEL_TARGET
-  friend sp_item<D> make_sp_item(
-    sycl::id<D> local_id, sycl::id<D> global_id,
-    sycl::range<D> local_range, sycl::range<D> global_range);
+  template <int D>
+  HIPSYCL_KERNEL_TARGET friend sp_item<D>
+  make_sp_item(sycl::id<D> local_id, sycl::id<D> global_id,
+               sycl::range<D> local_range,
+               sycl::range<D> global_range) noexcept;
+
 public:
 
   HIPSYCL_KERNEL_TARGET

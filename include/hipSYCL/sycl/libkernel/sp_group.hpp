@@ -955,7 +955,7 @@ inline void subdivide_group(
       sp_next_level_descriptor_t<PropertyDescriptor>;
 
   sp_scalar_group<next_property_descriptor> subgroup{
-      sycl::id<dim>{}, g.get_local_range(), g.get_global_group_offset()};
+      sycl::id<dim>{}, g.get_local_range(), get_group_global_id_offset(g)};
   f(subgroup, f);
 }
 
@@ -980,7 +980,7 @@ inline  void subdivide_group(
                 "Cannot handle static local size on GPU");
 
   sycl::id<dim> subgroup_global_offset =
-      g.get_global_group_offset() + g.get_local_id();
+      get_group_global_id_offset(g) + g.get_local_id();
   sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
   f(subgroup, f);
 #else
@@ -990,7 +990,7 @@ inline  void subdivide_group(
     glue::host::iterate_range_simd(
         g.get_local_range(), [&](const sycl::id<dim> &idx) {
           sp_scalar_group<next_property_descriptor> subgroup{idx, g.get_local_range(),
-                                          g.get_global_group_offset()+idx};
+                                          get_group_global_id_offset(g)+idx};
           f(subgroup, f);
         });
   } else {
@@ -1021,7 +1021,7 @@ inline  void subdivide_group(
   // Only expose subgroup in 1D case to make sure
   // all range and id queries are well defined
   if constexpr(dim == 1) {
-    sycl::id<dim> global_offset = g.get_global_group_offset() +
+    sycl::id<dim> global_offset = get_group_global_id_offset(g) +
                                   sycl::sub_group{}.get_group_id();
 
     sp_sub_group<next_property_descriptor> subgroup{global_offset};
@@ -1029,7 +1029,7 @@ inline  void subdivide_group(
 
   } else {
     sycl::id<dim> subgroup_global_offset =
-      g.get_global_group_offset() + g.get_physical_local_id();
+      get_group_global_id_offset(g) + g.get_physical_local_id();
     
     sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
     f(subgroup, f);
@@ -1045,7 +1045,7 @@ inline  void subdivide_group(
       g.get_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
 
         sp_sub_group<next_property_descriptor> subgroup{
-            idx, num_groups, g.get_global_group_offset() + idx * subgroup_size};
+            idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
         
         f(subgroup, f);
       });
@@ -1055,7 +1055,7 @@ inline  void subdivide_group(
 template <class PropertyDescriptor, typename NestedF>
 void distribute_items(const sp_scalar_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
-  f(make_sp_item(g.get_logical_local_id(), g.get_global_group_offset(),
+  f(make_sp_item(g.get_logical_local_id(), get_group_global_id_offset(g),
                  g.get_logical_local_range()),
     sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
 }
@@ -1065,7 +1065,7 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
 #ifdef SYCL_DEVICE_ONLY
   f(make_sp_item(g.get_logical_local_id(),
-                 g.get_global_group_offset() + g.get_physical_local_id(),
+                 get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range()),
     sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
 #else
@@ -1074,7 +1074,7 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
 
   glue::host::iterate_range_simd(
       g.get_logical_local_range(), [&](auto local_idx) {
-        f(make_sp_item(local_idx, g.get_global_group_offset() + local_idx,
+        f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
                        g.get_logical_local_range()), global_range);
       });
 #endif
@@ -1086,13 +1086,13 @@ void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF f) noexcept
 
 #ifdef SYCL_DEVICE_ONLY
   f(make_sp_item(g.get_logical_local_id(),
-                 g.get_global_group_offset() + g.get_physical_local_id(),
+                 get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range(), global_range));
 #else
 
   glue::host::iterate_range_simd(
       g.get_logical_local_range(), [&](auto local_idx) {
-        f(make_sp_item(local_idx, g.get_global_group_offset() + local_idx,
+        f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
                        g.get_logical_local_range(), global_range));
       });
 #endif

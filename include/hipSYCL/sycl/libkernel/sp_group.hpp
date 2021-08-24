@@ -95,9 +95,17 @@ struct sp_property_descriptor{
       return sycl::range<dimensions>{};
     }
   }
-
-  using next_level_descriptor_t = decltype(make_next_level_descriptor());
 };
+
+template<class PropertyDescriptor>
+struct sp_property_descriptor_traits {
+  using next_level_descriptor_t =
+      decltype(PropertyDescriptor::make_next_level_descriptor());
+};
+
+template <class PropertyDescriptor>
+using sp_next_level_descriptor_t = typename sp_property_descriptor_traits<
+    PropertyDescriptor>::next_level_descriptor_t;
 
 template<int... Sizes>
 struct sp_sub_group_host_descriptor {
@@ -944,7 +952,7 @@ inline void subdivide_group(
   // The offset of the items in the global iteration space remains unchanged.
   constexpr int dim = sp_scalar_group<PropertyDescriptor>::dimensions;
   using next_property_descriptor =
-      typename PropertyDescriptor::next_level_descriptor_t;
+      sp_next_level_descriptor_t<PropertyDescriptor>;
 
   sp_scalar_group<next_property_descriptor> subgroup{
       sycl::id<dim>{}, g.get_local_range(), g.get_global_group_offset()};
@@ -960,7 +968,7 @@ inline  void subdivide_group(
  
   constexpr int dim = sp_sub_group<PropertyDescriptor>::dimensions;
   using next_property_descriptor =
-      typename PropertyDescriptor::next_level_descriptor_t;
+      sp_next_level_descriptor_t<PropertyDescriptor>;
 
   // TODO: On CPU we could introduce another tiling level
 #ifdef SYCL_DEVICE_ONLY
@@ -1003,7 +1011,7 @@ inline  void subdivide_group(
  
   constexpr int dim = sp_group<PropertyDescriptor>::dimensions;
   using next_property_descriptor =
-      typename PropertyDescriptor::next_level_descriptor_t;
+      sp_next_level_descriptor_t<PropertyDescriptor>;
   
   // Need to store global range to allow querying global range in items
   sp_global_kernel_state<PropertyDescriptor::dimensions>::configure_global_range(

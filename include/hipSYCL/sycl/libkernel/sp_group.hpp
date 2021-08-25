@@ -962,7 +962,7 @@ inline void subdivide_group(
 
   sp_scalar_group<next_property_descriptor> subgroup{
       sycl::id<dim>{}, g.get_local_range(), get_group_global_id_offset(g)};
-  f(subgroup, f);
+  f(subgroup);
 }
 
 /// Subdivide a subgroup. Currently, this subdivides
@@ -988,7 +988,7 @@ inline  void subdivide_group(
   sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_local_id();
   sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
-  f(subgroup, f);
+  f(subgroup);
 #else
   // On CPU, we need to iterate now across all elements of this subgroup
   // to construct scalar groups.
@@ -997,7 +997,7 @@ inline  void subdivide_group(
         g.get_local_range(), [&](const sycl::id<dim> &idx) {
           sp_scalar_group<next_property_descriptor> subgroup{idx, g.get_local_range(),
                                           get_group_global_id_offset(g)+idx};
-          f(subgroup, f);
+          f(subgroup);
         });
   } else {
     glue::host::iterate_range_tiles(g.get_local_range(), 
@@ -1032,14 +1032,14 @@ inline  void subdivide_group(
         sycl::sub_group{}.get_group_id() * sycl::sub_group{}.get_local_range();
 
     sp_sub_group<next_property_descriptor> subgroup{global_offset};
-    f(subgroup, f);
+    f(subgroup);
 
   } else {
     sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_physical_local_id();
     
     sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
-    f(subgroup, f);
+    f(subgroup);
   }
 #else
 
@@ -1054,7 +1054,7 @@ inline  void subdivide_group(
         sp_sub_group<next_property_descriptor> subgroup{
             idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
         
-        f(subgroup, f);
+        f(subgroup);
       });
 #endif
 }

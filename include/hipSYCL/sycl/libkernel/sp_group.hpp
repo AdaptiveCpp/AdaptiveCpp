@@ -791,7 +791,7 @@ private:
   }
 
   HIPSYCL_KERNEL_TARGET
-  sycl::range<dimensions> get_physical_local_range() const noexcept {
+  range_type get_physical_local_range() const noexcept {
     if constexpr (dimensions == 1) {
       return range_type{sycl::sub_group{}.get_local_linear_range()};
     } else if constexpr (dimensions == 2) {
@@ -799,17 +799,17 @@ private:
     } else if constexpr (dimensions == 3) {
       return range_type{1, 1, sycl::sub_group{}.get_local_linear_range()};
     } else {
-      return range_type<dimensions>{};
+      return range_type{};
     }
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const noexcept {
     if constexpr (dimensions == 1) {
-      return sycl::sub_group.get_local_linear_range();
+      return sycl::sub_group{}.get_local_linear_range();
     } else {
       if(dimension == dimensions - 1){
-        return sycl::sub_group.get_local_linear_range();
+        return sycl::sub_group{}.get_local_linear_range();
       } else {
         return 1;
       }

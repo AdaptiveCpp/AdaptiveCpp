@@ -1033,7 +1033,7 @@ inline  void subdivide_group(
     sycl::id<dim> global_offset =
         get_group_global_id_offset(g) +
         sycl::sub_group{}.get_group_id() *
-            sycl::sub_group{}.get_logical_local_range();
+            sycl::sub_group{}.get_local_range();
 
     sp_sub_group<next_property_descriptor> subgroup{global_offset};
     f(subgroup);

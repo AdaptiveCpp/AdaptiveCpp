@@ -987,7 +987,8 @@ inline  void subdivide_group(
 
   sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_local_id();
-  sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
+  sp_scalar_group<next_property_descriptor> subgroup{
+    g.get_physical_local_id(), g.get_local_range(), subgroup_global_offset};
   f(subgroup);
 #else
   // On CPU, we need to iterate now across all elements of this subgroup
@@ -1038,7 +1039,8 @@ inline  void subdivide_group(
     sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_physical_local_id();
     
-    sp_scalar_group<next_property_descriptor> subgroup{subgroup_global_offset};
+    sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
+      g.get_local_range(), subgroup_global_offset};
     f(subgroup);
   }
 #else
@@ -1075,8 +1077,8 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
 #ifdef SYCL_DEVICE_ONLY
   f(make_sp_item(g.get_physical_local_id(),
                  get_group_global_id_offset(g) + g.get_physical_local_id(),
-                 g.get_logical_local_range()),
-    sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
+                 g.get_logical_local_range(),
+    sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range()));
 #else
   auto global_range = sp_global_kernel_state<
           PropertyDescriptor::dimensions>::get_global_range();

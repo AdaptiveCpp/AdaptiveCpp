@@ -1064,8 +1064,8 @@ HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_scalar_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
   f(make_sp_item(sycl::id<PropertyDescriptor::dimensions>{},
-                 get_group_global_id_offset(g), g.get_logical_local_range()),
-    sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
+                 get_group_global_id_offset(g), g.get_logical_local_range(),
+    sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range()));
 }
 
 template <class PropertyDescriptor, typename NestedF>
@@ -1084,7 +1084,7 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
   glue::host::iterate_range_simd(
       g.get_logical_local_range(), [&](auto local_idx) {
         f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
-                       g.get_logical_local_range()), global_range);
+                       g.get_logical_local_range(), global_range));
       });
 #endif
 }

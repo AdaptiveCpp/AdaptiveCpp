@@ -1054,18 +1054,20 @@ inline  void subdivide_group(
 }
 
 template <class PropertyDescriptor, typename NestedF>
+HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_scalar_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
-  f(make_sp_item(g.get_logical_local_id(), get_group_global_id_offset(g),
-                 g.get_logical_local_range()),
+  f(make_sp_item(sycl::id<PropertyDescriptor::dimensions>{},
+                 get_group_global_id_offset(g), g.get_logical_local_range()),
     sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
 }
 
 template <class PropertyDescriptor, typename NestedF>
+HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
 #ifdef SYCL_DEVICE_ONLY
-  f(make_sp_item(g.get_logical_local_id(),
+  f(make_sp_item(g.get_physical_local_id(),
                  get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range()),
     sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range());
@@ -1082,11 +1084,12 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
 }
 
 template<class PropertyDescriptor, typename NestedF>
+HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF f) noexcept {
   auto global_range = g.get_logical_local_range() * g.get_group_range();
 
 #ifdef SYCL_DEVICE_ONLY
-  f(make_sp_item(g.get_logical_local_id(),
+  f(make_sp_item(g.get_physical_local_id(),
                  get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range(), global_range));
 #else

@@ -573,11 +573,6 @@ public:
   
   static constexpr memory_scope fence_scope = memory_scope::sub_group;
 
-  HIPSYCL_KERNEL_TARGET
-  bool leader() const noexcept {
-    return get_local_linear_id() == 0;
-  }
-
   id_type get_global_group_offset() const noexcept {
     return _global_offset;
   }
@@ -735,6 +730,11 @@ public:
   HIPSYCL_KERNEL_TARGET
   size_t get_group_range(int dimension) const noexcept {
     return _num_groups[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const noexcept {
+    return get_local_linear_id() == 0;
   }
 private:
   

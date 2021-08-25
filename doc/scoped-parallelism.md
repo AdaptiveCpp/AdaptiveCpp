@@ -3,11 +3,11 @@
 ## Introduction
 
 Scoped parallelism provides a novel way to formulate kernels in a hierarchical and performance-portable way. It contributes the following features to the SYCL world:
-* Hierarchical kernels with arbitrary nesting depth
-* Performance portability (`nd_range` parallel for is notoriously difficult to implement efficiently in library-only CPU implementations)
-* Multi-dimensional (potentially nested) subgroups
-* group algorithms in another model apart from `nd_range` parallel for
-* A model that allows for compile-time hints encoded in the group type that can be used by e.g. group algorithms to provide optimized implementations
+* Hierarchical kernels with arbitrary nesting depth, while avoid the implementation and performance pitfalls from old SYCL 1.2.1 hierarchical parallelism by giving the implementation more freedom;
+* Performance portability (`nd_range` parallel for is notoriously difficult to implement efficiently in library-only CPU implementations);
+* Multi-dimensional (potentially nested) subgroups;
+* group algorithms in another model apart from `nd_range` parallel for;
+* A model that allows for compile-time hints encoded in the group type that can be used by e.g. group algorithms to provide optimized implementations;
 * A hierarchical-like model that is built using SYCL 2020 instead of 1.2.1 concepts, such as multiple group types.
 
 Scoped parallelism expands hierarchical parallelism concepts from SYCL 1.2.1 by introducing a group hierarchy below work group scope, including subgroups, and potentially further group types such as sub-subgroups depending on the backend. This can allow the backend to automatically use tiling optimization strategies. It also solves performance and implementation issues in traditional SYCL 1.2.1 hierarchical parallelism by giving the SYCL implementation more freedom with respect to the degree of parallelism that is employed in executing code:
@@ -24,7 +24,7 @@ Because scoped parallelism enforces explicit information about where to allocate
 
 ## `distribute_items()`
 
-When submitting a kernel using `handler::parallel()` or `queue::parallel()`, the user provides a *logical group size* that describes the number of logical work items. When calling the `sycl::distribute_items()` function, the backend will distribute the items from the logical iteration space size across the available physical parallelism:
+When submitting a kernel using `handler::parallel()` or `queue::parallel()`, the user provides a *logical group size* that describes the number of logical work items. When calling the `sycl::distribute_items()` function, the backend will distribute the items from the logical iteration space of the provided group across the available physical work items that have been assigned to processing the group.
 
 ```c++
 sycl::range<1> num_work_groups = ...
@@ -45,14 +45,17 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
   });
 ```
 
-In general, the backend will configure scoped parallelism groups with compile-time optimization hints that enter the type as template arguments. It is therefore strongly recommended to use `auto` or template types to accept any group type inside kernels. To be more specific, the provided top-level work group is of type `sycl::s_group<class __UnspecifiedParameter__>`. It is guaranteed that this type is *not* the same as the regular `sycl::group`.
+In general, the backend will configure scoped parallelism groups with compile-time optimization hints that enter the type as template arguments. It is therefore strongly recommended to use `auto` or template parameters to accept any group type inside kernels. To be more specific, the provided top-level work group is of type `sycl::s_group<class __UnspecifiedParameter__>`. While the precise name of this type might change in the future, it is guaranteed that this type is *not* the same as the regular `sycl::group`.
 
 ## `distribute_groups()`
 
-Additionally, the user can invoke `sycl::distribute_groups()`, which hints to the backend that the user would like to subdivide a group into smaller units (this can be useful for tiling opimization strategies). `distribute_groups()` will then attempt to provide subdivided groups to the user.
-`distribute_groups()` invocations can be nested arbitrarily deep. However, the size of the provided smaller groups is backend-defined, and might also depend on the device, specific kernels, or kernel parameters. For example, if the logical work group size is not divisible by sub group sizes that can be executed by the backend or device, it might might be forced to instead subdivide into trivial scalar groups that only contain a single work item.
+Additionally, the user can invoke `sycl::distribute_groups()`, which instructs the backend that the user would like to subdivide a group into smaller units (this can be useful for tiling opimization strategies). `distribute_groups()` will then attempt to provide subdivided groups to the user, and distribute a number of physical work items across the new groups.
+
+`distribute_groups()` invocations can be nested arbitrarily deep. However, the size of the provided smaller groups is backend-defined, and might also depend on the device, specific kernels, or kernel parameters. For example, if the logical work group size is not divisible by sub group sizes that can be executed by the backend or device, the SYCL implementation might be forced to instead subdivide into trivial scalar groups that only contain a single work item.
 
 *Note:* After a sufficiently deep nesting level, only scalar groups will be returned from then on, but the nesting level where this happens is unspecified.
+
+When invoking `distribute_groups`, a number of physical work items from the parent group is assigned to each subdivided group. Inside the subdivided groups, `distribute_items` can again be used to then distribute the logical iteration space across the available physical work items.
 
 ```c++
 sycl::range<1> num_work_groups = ...

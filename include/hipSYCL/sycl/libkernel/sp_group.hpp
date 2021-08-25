@@ -893,7 +893,7 @@ template <class PropertyDescriptor>
 HIPSYCL_KERNEL_TARGET
 auto get_group_global_id_offset(
     const sp_group<PropertyDescriptor> &g) noexcept {
-  return g.get_group_id() * g.get_local_range();
+  return g.get_group_id() * g.get_logical_local_range();
 }
 
 template <class PropertyDescriptor>
@@ -961,7 +961,7 @@ inline void subdivide_group(
       sp_next_level_descriptor_t<PropertyDescriptor>;
 
   sp_scalar_group<next_property_descriptor> subgroup{
-      sycl::id<dim>{}, g.get_local_range(), get_group_global_id_offset(g)};
+      sycl::id<dim>{}, g.get_logical_local_range(), get_group_global_id_offset(g)};
   f(subgroup);
 }
 
@@ -988,20 +988,22 @@ inline  void subdivide_group(
   sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_local_id();
   sp_scalar_group<next_property_descriptor> subgroup{
-    g.get_physical_local_id(), g.get_local_range(), subgroup_global_offset};
+      g.get_physical_local_id(), g.get_physical_local_range(),
+      subgroup_global_offset};
   f(subgroup);
 #else
   // On CPU, we need to iterate now across all elements of this subgroup
   // to construct scalar groups.
   if constexpr(next_property_descriptor::has_scalar_static_local_size()){
     glue::host::iterate_range_simd(
-        g.get_local_range(), [&](const sycl::id<dim> &idx) {
-          sp_scalar_group<next_property_descriptor> subgroup{idx, g.get_local_range(),
-                                          get_group_global_id_offset(g)+idx};
+        g.get_logical_local_range(), [&](const sycl::id<dim> &idx) {
+          sp_scalar_group<next_property_descriptor> subgroup{
+              idx, g.get_logical_local_range(),
+              get_group_global_id_offset(g) + idx};
           f(subgroup);
         });
   } else {
-    glue::host::iterate_range_tiles(g.get_local_range(), 
+    glue::host::iterate_range_tiles(g.get_logical_local_range(), 
       next_property_descriptor::get_static_local_size(), [&](sycl::id<dim>& idx){
         // TODO: Multi-Level static tiling on CPU
         //sp_sub_group<next_property_descriptor> subgroup{};
@@ -1030,7 +1032,8 @@ inline  void subdivide_group(
   if constexpr(dim == 1) {
     sycl::id<dim> global_offset =
         get_group_global_id_offset(g) +
-        sycl::sub_group{}.get_group_id() * sycl::sub_group{}.get_local_range();
+        sycl::sub_group{}.get_group_id() *
+            sycl::sub_group{}.get_logical_local_range();
 
     sp_sub_group<next_property_descriptor> subgroup{global_offset};
     f(subgroup);
@@ -1040,7 +1043,7 @@ inline  void subdivide_group(
       get_group_global_id_offset(g) + g.get_physical_local_id();
     
     sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
-      g.get_local_range(), subgroup_global_offset};
+      g.get_logical_local_range(), subgroup_global_offset};
     f(subgroup);
   }
 #else
@@ -1049,9 +1052,9 @@ inline  void subdivide_group(
     "No compile-time subgroup size available on CPU");
 
   const auto subgroup_size = next_property_descriptor::get_static_local_size();
-  const auto num_groups = g.get_local_range() / subgroup_size;
+  const auto num_groups = g.get_logical_local_range() / subgroup_size;
   glue::host::iterate_range_tiles(
-      g.get_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
+      g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
 
         sp_sub_group<next_property_descriptor> subgroup{
             idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};

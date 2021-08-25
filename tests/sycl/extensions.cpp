@@ -166,6 +166,81 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
 }
 #endif
 #ifdef HIPSYCL_EXT_SCOPED_PARALLELISM_V2
+
+template<class KernelName, int N>
+class enumerated_kernel_name;
+
+template<class KernelName, int Dim>
+void test_distribute_groups(){
+  namespace s = cl::sycl;
+  s::queue q;
+
+  s::range<Dim> input_size;
+  s::range<Dim> group_size;
+
+  if constexpr(Dim == 1){
+    input_size = s::range{1024};
+    group_size = s::range{128};
+  } else if constexpr(Dim == 2){
+    input_size = s::range{512,512};
+    group_size = s::range{16,16};
+  } else {
+    input_size = s::range{64,64,64};
+    group_size = s::range{4,4,8};
+  }
+
+  s::buffer<int> output_buff{input_size.size()};
+
+  q.submit([&](s::handler &cgh) {
+    s::accessor acc{output_buff, cgh, s::no_init};
+    cgh.parallel<enumerated_kernel_name<KernelName,0>>(
+        s::range{input_size / group_size}, s::range{group_size},
+        [=](auto grp) {
+          s::distribute_groups(grp, [&](auto subgrp) {
+            s::distribute_groups(subgrp, [&](auto subsubgrp) {
+              s::distribute_items(subsubgrp, [&](s::s_item<Dim> idx) {
+                acc[idx.get_global_linear_id()] =
+                    idx.get_global_linear_id();
+              });
+            });
+          });
+        });
+      });
+  {
+    s::host_accessor hacc{output_buff};
+    int* result_ptr = hacc.get_pointer();
+    for(std::size_t i = 0; i < input_size.size(); ++i){
+      BOOST_CHECK(result_ptr[i] == static_cast<int>(i));
+    }
+  }
+
+  q.submit([&](s::handler &cgh) {
+    s::accessor acc{output_buff, cgh, s::no_init};
+    cgh.parallel<enumerated_kernel_name<KernelName, 1>>(
+        s::range{input_size / group_size}, s::range{group_size}, [=](auto grp) {
+          s::distribute_groups(grp, [&](auto subgrp) {
+            s::distribute_items(subgrp, [&](s::s_item<Dim> idx) {
+              acc[idx.get_global_linear_id()] = idx.get_global_linear_id();
+            });
+          });
+        });
+      });
+
+  {
+    s::host_accessor hacc{output_buff};
+    int* result_ptr = hacc.get_pointer();
+    for(std::size_t i = 0; i < input_size.size(); ++i){
+      BOOST_CHECK(result_ptr[i] == static_cast<int>(i));
+    }
+  }
+  
+}
+
+BOOST_AUTO_TEST_CASE(scoped_parallelism_api) {
+  test_distribute_groups<class ScopedParallelismDistGroups1D, 1>();
+  test_distribute_groups<class ScopedParallelismDistGroups2D, 2>();
+  test_distribute_groups<class ScopedParallelismDistGroups3D, 3>();
+}
 BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
   namespace s = cl::sycl;
   s::queue q;
@@ -181,33 +256,33 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
   
   q.submit([&](s::handler& cgh){
     auto data_accessor = buff.get_access<s::access::mode::read_write>(cgh);
-    cgh.parallel<class Kernel>(s::range<1>{input_size / Group_size}, s::range<1>{Group_size}, 
-    [=](auto grp){
+    cgh.parallel<class ScopedReductionKernel>(
+        s::range<1>{input_size / Group_size}, s::range<1>{Group_size},
+        [=](auto grp) {
+          s::local_memory<int[Group_size], decltype(grp)> scratch;
+          s::s_private_memory<int, decltype(grp)> load{grp};
 
-      s::local_memory<int [Group_size], decltype(grp)> scratch;
-      s::s_private_memory<int, decltype(grp)> load{grp};
-      
-      s::distribute_items(grp, [&](s::s_item<1> idx){
-        load(idx) = data_accessor[idx.get_global_id(0)];
-      });
-      s::distribute_items(grp, [&](s::s_item<1> idx){
-          scratch[idx.get_innermost_local_id(0)] = load(idx);
-      });
-      
-      s::group_barrier(grp);
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            load(idx) = data_accessor[idx.get_global_id(0)];
+          });
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            scratch[idx.get_innermost_local_id(0)] = load(idx);
+          });
 
-      for(int i = Group_size / 2; i > 0; i /= 2){
-        s::distribute_items_and_wait(grp,[&](s::s_item<1> idx){
-          size_t lid = idx.get_innermost_local_id(0);
-          if(lid < i)
-            scratch[lid] += scratch[lid+i];
+          s::group_barrier(grp);
+
+          for (int i = Group_size / 2; i > 0; i /= 2) {
+            s::distribute_items_and_wait(grp, [&](s::s_item<1> idx) {
+              size_t lid = idx.get_innermost_local_id(0);
+              if (lid < i)
+                scratch[lid] += scratch[lid + i];
+            });
+          }
+
+          s::single_item(grp, [&]() {
+            data_accessor[grp.get_group_id(0) * Group_size] = scratch[0];
+          });
         });
-      }
-      
-      s::single_item(grp, [&](){
-        data_accessor[grp.get_group_id(0)*Group_size] = scratch[0];
-      });
-    });
   });
   
   auto host_acc = buff.get_access<s::access::mode::read>();

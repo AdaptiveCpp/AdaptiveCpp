@@ -183,7 +183,8 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     auto data_accessor = buff.get_access<s::access::mode::read_write>(cgh);
     cgh.parallel<class Kernel>(s::range<1>{input_size / Group_size}, s::range<1>{Group_size}, 
     [=](auto grp){
-      s::local_memory<int [Group_size]> scratch{grp};
+
+      s::local_memory<int [Group_size], decltype(grp)> scratch;
       s::s_private_memory<int, decltype(grp)> load{grp};
       
       s::distribute_items(grp, [&](s::s_item<1> idx){

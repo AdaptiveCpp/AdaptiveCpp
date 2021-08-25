@@ -36,15 +36,11 @@
 namespace hipsycl {
 namespace sycl {
 
-template<class T>
+template<class T, class SpGroup>
 class local_memory
 {
 public:
   using scalar_type = typename std::remove_extent<T>::type;
-
-  template<class PropertyDescriptor>
-  HIPSYCL_KERNEL_TARGET
-  local_memory(detail::sp_group<PropertyDescriptor>&) {}
 
   template<class t = scalar_type, 
           std::enable_if_t<std::is_array<T>::value>* = nullptr>

@@ -190,7 +190,7 @@ int main(){
 
       // Local memory scope must be allocated explicitly as such. Of course, local
       // accessors can also be used.
-      sycl::local_memory<int [Group_size]> scratch{grp};
+      sycl::local_memory<int [Group_size], decltype(grp)> scratch{grp};
       // Same goes for s_private_memory, if required (here only dummy example)
       // This will allocate memory in the private memory of the _logical_ work item.
       // See the existing SYCL documentation on private_memory for more information.
@@ -553,21 +553,17 @@ public:
 
 ```
 
-## New class `local_memory<T>`
+## New class `local_memory<T, Group>`
 
 ```c++
 namespace sycl {
 
 // Allocates a variable of type T in local memory.
-template<class T>
+template<class T, class Group>
 class local_memory
 {
 public:
   using scalar_type = typename std::remove_extent<T>::type;
-
-  // Constructor
-  template<class __Properties__>
-  local_memory(s_group<__Properties__>&);
 
   // Only available if T is array. Returns reference to a single 
   // element of the array.

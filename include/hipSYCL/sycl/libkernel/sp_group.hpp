@@ -890,18 +890,21 @@ template<class G>
 inline constexpr bool is_sp_group_v = is_sp_group<G>::value;
 
 template <class PropertyDescriptor>
+HIPSYCL_KERNEL_TARGET
 auto get_group_global_id_offset(
     const sp_group<PropertyDescriptor> &g) noexcept {
   return g.get_group_id() * g.get_local_range();
 }
 
 template <class PropertyDescriptor>
+HIPSYCL_KERNEL_TARGET
 auto get_group_global_id_offset(
     const sp_sub_group<PropertyDescriptor> &g) noexcept {
   return g.get_global_group_offset();
 }
 
 template <class PropertyDescriptor>
+HIPSYCL_KERNEL_TARGET
 auto get_group_global_id_offset(
     const sp_scalar_group<PropertyDescriptor> &g) noexcept {
   return g.get_global_group_offset();
@@ -911,6 +914,7 @@ auto get_group_global_id_offset(
 template<int Dim>
 class sp_global_kernel_state {
 public:
+  HIPSYCL_KERNEL_TARGET
   static sycl::range<Dim> get_global_range() noexcept {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
     return get()._global_range;
@@ -919,6 +923,7 @@ public:
 #endif
   }
 
+  HIPSYCL_KERNEL_TARGET
   static void configure_global_range(const sycl::range<Dim> &range) noexcept {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
     get()._global_range = range;
@@ -927,6 +932,7 @@ public:
 
 private:
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+  HIPSYCL_KERNEL_TARGET
   static sp_global_kernel_state& get() {
     static thread_local sp_global_kernel_state state;
     return state;

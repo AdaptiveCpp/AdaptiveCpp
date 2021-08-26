@@ -96,7 +96,7 @@ The user then expresses the kernel using calls to `distribute_groups` and `distr
 ## Scoped parallelism nesting rules
 
 Any program not obeying any of the following rules is **illegal**.
-1. The group object passed to `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) must be the smallest available group subunit available at that point in the code. In other words, it must be the group object that is "closest" in the nesting hierarchy. Otherwise you would request execution within a parent group from a subunit of the parent group, at which point not all items from the parent group might participate anymore.
+1. The group object passed to `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) must be the smallest available group subunit available at that point in the code. In other words, it must be the group object that is "closest" in the nesting hierarchy. Otherwise the code would request execution within a parent group from a subunit of the parent group, at which point not all items from the parent group might participate anymore.
 2. `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) may not be called from within `distribute_items()` calls. `s_private_memory` objects may not be declared inside `distribute_items()` calls.
 3. `distribute_items(), distribute_groups(), single_item()`, their `*_and_wait` counterparts as well as group algorithms (e.g. `group_barrier()`) are collective with respect to the physical work items of the group object they operate on. The user must guarantee that each physical work item of the provided group object reaches their callsite. As soon as one physical item of a group invokes those functions, all others from the same group need to invoke it as well. There are no requirements regarding other, independent groups.
 
@@ -161,6 +161,12 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
 ```
 
 ## Synchronization
+
+There are two ways of synchronizing:
+* `distribute_items_and_wait()`, `distribute_groups_and_wait()`, `single_item_and_wait()` automatically insert a barrier on the group provided as argument to those functions after executing the user-provided callable.
+* alternatively, `group_barrier()` can be invoked directly outside of `distribute_items` and in the appropriate scope of the group. This can provide more control as the fence scope can also be specified in this way.
+
+`distribute_items()`, `distribute_groups()`, `single_item()` do not synchronize.
 
 ## Example code
 

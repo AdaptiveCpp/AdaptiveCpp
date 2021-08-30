@@ -102,7 +102,7 @@ public:
   }
 
 private:
-  static std::size_t generate_seed()
+  static typename std::mt19937::result_type generate_seed()
   {
     std::random_device rd;
     return rd();

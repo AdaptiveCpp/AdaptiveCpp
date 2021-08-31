@@ -458,11 +458,20 @@ struct no_init : public detail::property {};
 
 inline constexpr property::no_init no_init;
 
+// manually align layout with Itanium ABI, until MS ABI default changes
+// in a "future major version"
+// https://devblogs.microsoft.com/cppblog/optimizing-the-layout-of-empty-base-classes-in-vs2015-update-2-3/
+#if !defined(HIPSYCL_EMPTY_BASES) && defined(_WIN32)
+#define HIPSYCL_EMPTY_BASES __declspec(empty_bases)
+#else
+#define HIPSYCL_EMPTY_BASES
+#endif // HIPSYCL_EMPTY_BASES
+
 template <typename dataT, int dimensions = 1,
           access_mode accessmode = detail::default_access_mode<dataT>(),
           target accessTarget = target::device,
           accessor_variant AccessorVariant = accessor_variant::false_t>
-class accessor
+class HIPSYCL_EMPTY_BASES accessor
     : public detail::accessor_base<std::remove_const_t<dataT>>,
       public detail::accessor::conditional_buffer_pointer_storage<
           detail::accessor::stores_buffer_pointer(AccessorVariant)>,

@@ -80,7 +80,7 @@ static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, l
 }
 
 static llvm::RegisterStandardPasses
-    RegisterLoopSplitAtBarrierPassOptimizerLast(llvm::PassManagerBuilder::EP_EarlyAsPossible,
+    RegisterLoopSplitAtBarrierPassOptimizerFirst(llvm::PassManagerBuilder::EP_EarlyAsPossible,
                                                 registerLoopSplitAtBarrierPasses);
 
 static void registerMarkParallelPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {

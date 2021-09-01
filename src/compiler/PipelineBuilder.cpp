@@ -116,22 +116,13 @@ void registerPoclPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
+  HIPSYCL_DEBUG_WARNING << "CBS pipeline might not result in peak performance with old PM\n";
   PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
 
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new SimplifyKernelPassLegacy{});
 
-  PM.add(llvm::createIPSCCPPass());
-  PM.add(llvm::createInstructionCombiningPass());
-  PM.add(llvm::createSROAPass());
-#if LLVM_VERSION_MAJOR >= 12
-  PM.add(llvm::createCFGSimplificationPass(llvm::SimplifyCFGOptions{}));
-#else
-  PM.add(llvm::createCFGSimplificationPass());
-#endif
-
-  PM.add(new SimplifyKernelPassLegacy{});
   PM.add(new PHIsToAllocasPassLegacy{});
   PM.add(new LoopSimplifyPassLegacy{});
 

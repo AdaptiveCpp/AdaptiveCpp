@@ -39,6 +39,11 @@ std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::
 }
 
 bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
+  if(auto* BarrIntrinsic = M.getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
+    SplitterFuncs.insert(BarrIntrinsic);
+    HIPSYCL_DEBUG_INFO << "Found splitter intrinsic " << BarrIntrinsic->getName() << "\n";
+  }
+
   for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));

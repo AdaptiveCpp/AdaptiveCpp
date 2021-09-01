@@ -58,7 +58,7 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
               break;
           } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
                      CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
-            HIPSYCL_DEBUG_INFO << "Replace barrier with intrinsic: " << CallI->getCalledFunction()->getName() << "\n";
+            HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: " << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);
             CallI->eraseFromParent();
             LastChanged = true;
@@ -105,7 +105,7 @@ bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
 bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   if (F.isDeclaration() && !F.isIntrinsic()) {
-    HIPSYCL_DEBUG_WARNING << F.getName() << " is not defined!\n";
+    HIPSYCL_DEBUG_WARNING << "[LoopSplitterInlining] " << F.getName() << " is not defined!\n";
   }
   if (SAA.isSplitterFunc(&F)) {
     FuncsWSplitter.insert(&F);
@@ -146,13 +146,13 @@ bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::Split
 bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                     hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!hipsycl::compiler::utils::isWorkItemLoop(*L)) {
-    HIPSYCL_DEBUG_INFO << "Inliner: not work-item loop!" << L << "\n";
+    HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] not work-item loop!" << L << "\n";
     return false;
   }
 
   llvm::SmallPtrSet<llvm::Function *, 8> SplitterCallers;
   if (!fillTransitiveSplitterCallers(*L, SAA, SplitterCallers)) {
-    HIPSYCL_DEBUG_INFO << "Inliner: transitively no splitter found." << L << "\n";
+    HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] transitively no splitter found." << L << "\n";
     return false;
   }
   return inlineCallsInLoop(L, SplitterCallers, SAA, LI, DT);
@@ -195,7 +195,7 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::F
   const auto *MAMProxy = AM.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {
-    llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
+    llvm::errs() << "[LoopSplitterInlining] SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
   if (!SAA->isKernelFunc(&F))

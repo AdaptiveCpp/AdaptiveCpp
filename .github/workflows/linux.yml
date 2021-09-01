@@ -4,19 +4,24 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}
+    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, ${{ matrix.splitter_pipeline }}}
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    env:
+      HIPSYCL_PIPELINE: ${{ matrix.splitter_pipeline }}
     strategy:
       matrix:
-        clang_version: [11, 12]
+        clang_version: [11, 12, 13]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04]
-        cuda: [10.0, 10.2, 11.0]
+        cuda: [11.0]
+        splitter_pipeline: ["cbs", "pocl"]
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: 'recursive'
       - name: install Level Zero
+        if: false
         run : |
           wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb
           wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero_1.2.3+u18.04_amd64.deb
@@ -41,6 +46,7 @@ jobs:
           sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/hipSYCL/cuda || true
           echo "CUDA Version 11.0.0" | sudo tee /opt/hipSYCL/cuda/version.txt
       - name: install ROCm
+        if: false
         run: |
           sudo apt install libnuma-dev cmake unzip
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
@@ -68,34 +74,52 @@ jobs:
         if: matrix.os == 'ubuntu-20.04'
         run: |
           sudo apt install libboost-all-dev
-      - name: build hipSYCL
+      - name: setup build env
         run: |
-          mkdir build && cd build
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda -DROCM_PATH=/opt/rocm ..
-          make -j2 install
-          cp /opt/hipSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
-          cp /opt/hipSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
-      - name: build CPU tests with loop splitting
-        run: |
-          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-
-          export CXXFLAGS="-DHIPSYCL_NO_FIBERS"
+          
           if [[ "${{matrix.clang_version}}" == "12" ]]; then
             export CC=clang-12
             export CXX=clang++-12
-            export CXXFLAGS="$CXXFLAGS -fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/libhipSYCL_clang.so"
+          elif [[ "${{matrix.clang_version}}" == "13" ]]; then
+            export CC=clang-13
+            export CXX=clang++-13
           fi
-
+          if [[ "${{matrix.clang_version}}" != "11" ]]; then
+          if [[ "${{matrix.splitter_pipeline}}" == "cbs" ]]; then
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/libhipSYCL_clang.so"
+          else
+            export OMP_CXX_FLAGS="$CXXFLAGS -fno-experimental-new-pass-manager"
+          fi
+          fi
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
+      - name: build hipSYCL
+        run: |
+          mkdir build && cd build
+          echo ${CXXFLAGS}
+          
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/hipSYCL/cuda ..
+          make -j2 install
+          cp /opt/hipSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
+          cp /opt/hipSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
+      - name: setup CPU tests with loop splitting
+        run: |
+          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          
+          export CXXFLAGS="-DHIPSYCL_NO_FIBERS"
+          
           cmake -DHIPSYCL_PLATFORM=cpu -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
-          make -j2
-      - name: run CPU tests
-        if: ${{matrix.clang_version}} == 12
+      - name: build CPU tests with loop splitting
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests
+          make -j2
       - name: run LIT tests on CPU
-        if: ${{matrix.clang_version}} == 11
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make -j2 check
+      - name: run CPU tests
+        run: |
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests

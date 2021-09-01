@@ -359,6 +359,10 @@ ParallelRegion::ParallelRegionVector *WorkItemLoopCreator::getParallelRegions(ll
     llvm::BasicBlock *Exit = ExitBlocks.back();
     ExitBlocks.pop_back();
 
+    // already handled
+    if (FoundBarriers.contains(Exit))
+      continue;
+
     while (ParallelRegion *PR = createParallelRegionBefore(Exit)) {
       assert(PR != NULL && !PR->empty() && "Empty parallel region in kernel (contiguous barriers)!");
 

@@ -6,7 +6,6 @@ jobs:
   test:
     name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, ${{ matrix.splitter_pipeline }}}
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
     env:
       HIPSYCL_PIPELINE: ${{ matrix.splitter_pipeline }}
     strategy:
@@ -120,6 +119,7 @@ jobs:
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make -j2 check
       - name: run CPU tests
+        continue-on-error: true
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests

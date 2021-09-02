@@ -223,17 +223,16 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
   if(input_size % local_size == 0) {
 
     q.parallel_for<reduction_kernel<T,class MultiOp,__LINE__>>(
-                sycl::nd_range(sycl::range{input_size}, 
-                               sycl::range{local_size}), 
+                sycl::nd_range(sycl::range{input_size},
+                               sycl::range{local_size}),
                 sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-                sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
+                sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
                 [=](sycl::nd_item<1> idx, auto& add_reducer, auto& mul_reducer){
       add_reducer += input0[idx.get_global_linear_id()];
-      mul_reducer *= input1[idx.get_global_linear_id()];
-      
 #ifndef HIPSYCL_HAS_FIBERS
       idx.barrier(); // workaround for omp simd failure as below.
 #endif
+      mul_reducer *= input1[idx.get_global_linear_id()];
     });
 
     verify();

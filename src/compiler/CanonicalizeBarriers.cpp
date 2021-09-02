@@ -24,12 +24,13 @@
 
 #include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
 #include "hipSYCL/compiler/IRUtils.hpp"
+#include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include <llvm/ADT/SmallVector.h>
 
 #include <iostream>
 
@@ -143,7 +144,7 @@ bool canonicalizeEntry(llvm::BasicBlock *Entry, SplitterAnnotationInfo &SAA) {
 
 llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                 llvm::DominatorTree &DT) {
-  if(Latch->size() == 2)
+  if (Latch->size() == 2)
     return Latch;
 
   assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
@@ -199,15 +200,16 @@ bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::Dominator
     // Split post barrier first cause it does not make the barrier
     // to belong to another basic block.
     llvm::Instruction *T = BB->getTerminator();
-    // if ((T->getNumSuccessors() > 1) ||
-    //     (T->getPrevNode() != *i)) {
     // Change: barriers with several successors are all right
     // they just start several parallel regions. Simplifies
     // loop handling.
+    // CBS: looses conditional branches if in the same BB as a barrier
 
-    const bool HasNonBranchInstructionsAfterBarrier = T->getPrevNode() != Barrier;
+    const bool SplitAfterBarrier =
+        T->getPrevNode() != Barrier ||
+        (selectPipeline() == LoopSplittingPipeline::ContinuationBasedSynchronization && T->getNumSuccessors() > 1);
 
-    if (HasNonBranchInstructionsAfterBarrier) {
+    if (SplitAfterBarrier) {
       HIPSYCL_DEBUG_INFO << "[Canonicalize] Splitting after barrier in: " << BB->getName() << "\n";
       llvm::BasicBlock *NewB = SplitBlock(BB, Barrier->getNextNode());
       NewB->setName(BB->getName() + ".postbarrier");

@@ -68,6 +68,17 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
 
 hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) { analyzeModule(Module); }
 
+void hipsycl::compiler::SplitterAnnotationInfo::print(llvm::raw_ostream &Stream) {
+  Stream << "Splitters:\n";
+  for(auto* F : SplitterFuncs){
+    Stream << F->getName() << "\n";
+  }
+  Stream << "NDRange Kernels:\n";
+  for(auto* F : NDKernels){
+    Stream << F->getName() << "\n";
+  }
+}
+
 bool hipsycl::compiler::SplitterAnnotationAnalysisLegacy::runOnFunction(llvm::Function &F) {
   if (SplitterAnnotation_)
     return false;

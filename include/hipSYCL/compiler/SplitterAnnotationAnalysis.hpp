@@ -51,6 +51,8 @@ public:
   inline void removeSplitter(llvm::Function *F) { SplitterFuncs.erase(F); }
   inline void addSplitter(llvm::Function *F) { SplitterFuncs.insert(F); }
 
+  void print(llvm::raw_ostream& Stream);
+
   bool invalidate(llvm::Module &, const llvm::PreservedAnalyses &, llvm::ModuleAnalysisManager::Invalidator &) {
     return false;
   }

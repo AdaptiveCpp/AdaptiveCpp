@@ -60,4 +60,10 @@ $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
 
+Other cmake variables that maybe useful to set are
+* `BOOST_ROOT` path to the root directory of Boost
+* `CMAKE_C_COMPILER` C compiler to use
+* `CMAKE_CXX_COMPILER` C++ compiler to use
+
+
 For experimental building on Windows see the corresponding [wiki](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).

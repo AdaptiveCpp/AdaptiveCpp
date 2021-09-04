@@ -386,7 +386,7 @@ void arrayifyDependedUponValues(llvm::Instruction *IPAllocas, llvm::Value *Idx,
       }
     }
 
-    ValueAllocaMap[I] = utils::arrayifyInstruction(IPAllocas, I, Idx, MDAlloca);
+    ValueAllocaMap[I] = utils::arrayifyInstruction(IPAllocas, I, Idx, hipsycl::compiler::NumArrayElements, MDAlloca);
   }
 }
 

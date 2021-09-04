@@ -92,8 +92,9 @@ llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 /// Arrayification of work item private values
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT);
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, llvm::MDTuple *MDAlloca = nullptr);
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, size_t NumValues = hipsycl::compiler::NumArrayElements, llvm::MDTuple *MDAlloca = nullptr);
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
+                                      size_t NumValues = hipsycl::compiler::NumArrayElements,
                                       llvm::MDTuple *MDAlloca = nullptr);
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
                                const llvm::Twine &NamePrefix = "");

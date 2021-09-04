@@ -396,7 +396,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
 }
 
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, llvm::MDTuple *MDAlloca) {
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, size_t NumElements,
+                                llvm::MDTuple *MDAlloca) {
   assert(Idx && "Valid WI-Index required");
 
   if (!MDAlloca)
@@ -405,7 +406,7 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
 
   auto *T = ToArrayify->getType();
   llvm::IRBuilder AllocaBuilder{IPAllocas};
-  auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+  auto *Alloca = AllocaBuilder.CreateAlloca(T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
                                             ToArrayify->getName() + "_alloca");
   Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
@@ -413,19 +414,22 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
 
   llvm::IRBuilder WriteBuilder{InsertionPoint};
-  auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
-      WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep"));
-  GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
-
-  WriteBuilder.CreateStore(ToArrayify, GEP);
+  llvm::Value *StoreTarget = Alloca;
+  if (NumElements != 1) {
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
+        WriteBuilder.CreateInBoundsGEP(Alloca, {Idx}, ToArrayify->getName() + "_gep"));
+    GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+    StoreTarget = GEP;
+  }
+  WriteBuilder.CreateStore(ToArrayify, StoreTarget);
   return Alloca;
 }
 
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
-                                      llvm::MDTuple *MDAlloca) {
+                                      size_t NumElements, llvm::MDTuple *MDAlloca) {
   llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
 
-  return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, MDAlloca);
+  return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }
 
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
@@ -434,10 +438,13 @@ llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm:
   auto *MDAlloca = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified);
 
   llvm::IRBuilder LoadBuilder{InsertBefore};
-  auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep"));
-  GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
-
-  auto *Load = LoadBuilder.CreateLoad(GEP, NamePrefix + "_load");
+  llvm::Value *LoadFrom = Alloca;
+  if (Alloca->isArrayAllocation()) {
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(Alloca, {Idx}, NamePrefix + "_lgep"));
+    GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+    LoadFrom = GEP;
+  }
+  auto *Load = LoadBuilder.CreateLoad(LoadFrom, NamePrefix + "_load");
   return Load;
 }
 

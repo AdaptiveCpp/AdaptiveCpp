@@ -757,9 +757,15 @@ private:
 
   HIPSYCL_KERNEL_TARGET
   id_type get_physical_local_id() const noexcept {
-    id_type idx;
-    idx[dimensions - 1] = sycl::sub_group{}.get_local_linear_id();
-    return idx;
+    const size_t subgroup_lid = sycl::sub_group{}.get_local_linear_id();
+
+    if constexpr(dimensions == 1) {
+      return id_type{subgroup_lid};
+    } else if constexpr(dimensions == 2){
+      return id_type{0, subgroup_lid};
+    } else {
+      return id_type{0, 0, subgroup_lid};
+    }
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -824,9 +830,15 @@ private:
 
   HIPSYCL_KERNEL_TARGET
   id_type get_group_id() const noexcept {
-    id_type idx;
-    idx[dimensions - 1] = get_group_linear_id();
-    return idx;
+    const size_t group_id = get_group_linear_id();
+
+    if constexpr(dimensions == 1) {
+      return id_type{group_id};
+    } else if constexpr(dimensions == 2){
+      return id_type{0, group_id};
+    } else {
+      return id_type{0, 0, group_id};
+    }
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -861,7 +873,7 @@ private:
     if(dimension == dimensions - 1)
       return sycl::sub_group{}.get_group_linear_range();
     else
-      return 0;
+      return 1;
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -944,7 +956,7 @@ private:
 
 /// Subdivide a scalar group - this will always result in another
 /// scalar group at the same position in the global iteration space.
-/// However, the local id of the calling work item will then be 0, which
+/// However, the group id of the calling work item will then be 0, which
 /// is not the case for a scalar group that was created from a non-scalar
 /// group.
 template<class PropertyDescriptor, class NestedF>
@@ -986,7 +998,7 @@ inline  void subdivide_group(
                 "Cannot handle static local size on GPU");
 
   sycl::id<dim> subgroup_global_offset =
-      get_group_global_id_offset(g) + g.get_local_id();
+      get_group_global_id_offset(g) + g.get_physical_local_id();
   sp_scalar_group<next_property_descriptor> subgroup{
       g.get_physical_local_id(), g.get_physical_local_range(),
       subgroup_global_offset};
@@ -1030,20 +1042,21 @@ inline  void subdivide_group(
   // Only expose subgroup in 1D case to make sure
   // all range and id queries are well defined
   if constexpr(dim == 1) {
-    sycl::id<dim> global_offset =
-        get_group_global_id_offset(g) +
-        sycl::sub_group{}.get_group_id() *
-            sycl::sub_group{}.get_local_range();
+    const size_t global_offset = get_group_global_id_offset(g)[0] +
+                                 g.get_physical_local_linear_id() -
+                                 sycl::sub_group{}.get_local_linear_id();
 
-    sp_sub_group<next_property_descriptor> subgroup{global_offset};
+    sp_sub_group<next_property_descriptor> subgroup{sycl::id<1>{global_offset}};
     f(subgroup);
 
   } else {
+    // TODO This is incorrect; using subgroups for dim > 1 is currently
+    // not supported on device.
     sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_physical_local_id();
     
     sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
-      g.get_logical_local_range(), subgroup_global_offset};
+      g.get_physical_local_range(), subgroup_global_offset};
     f(subgroup);
   }
 #else

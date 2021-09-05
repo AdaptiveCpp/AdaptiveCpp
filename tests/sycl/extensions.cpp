@@ -214,6 +214,11 @@ void test_distribute_groups(){
     }
   }
 
+  q.submit([&](s::handler& cgh){
+    s::accessor acc{output_buff, cgh, s::no_init};
+    cgh.fill(acc, 0);
+  });
+
   q.submit([&](s::handler &cgh) {
     s::accessor acc{output_buff, cgh, s::no_init};
     cgh.parallel<enumerated_kernel_name<KernelName, 1>>(
@@ -236,10 +241,14 @@ void test_distribute_groups(){
   
 }
 
-BOOST_AUTO_TEST_CASE(scoped_parallelism_api) {
-  test_distribute_groups<class ScopedParallelismDistGroups1D, 1>();
-  test_distribute_groups<class ScopedParallelismDistGroups2D, 2>();
-  test_distribute_groups<class ScopedParallelismDistGroups3D, 3>();
+template<class Name, int D>
+class nd_kernel_name;
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(scoped_parallelism_api, _dimensions,
+                              test_dimensions::type) {
+  constexpr int d = _dimensions::value;
+  test_distribute_groups<nd_kernel_name<class ScopedParallelismDistrGroups, d>,
+                         d>();
 }
 BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
   namespace s = cl::sycl;

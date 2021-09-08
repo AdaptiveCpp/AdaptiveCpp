@@ -147,11 +147,10 @@ public:
 
 private:
   sp_item(sycl::id<Dim> local_id, sycl::id<Dim> global_id,
-          sycl::range<Dim> local_range, sycl::range<Dim> global_range)
-    : _local_id{local_id}, _global_id{global_id}, 
-      _local_range{local_range}, _global_range{global_range}
-  {}
-  
+          sycl::range<Dim> local_range, sycl::range<Dim> global_range) noexcept
+      : _local_id{local_id}, _global_id{global_id}, _local_range{local_range},
+        _global_range{global_range} {}
+
   const sycl::id<Dim> _local_id;
   const sycl::id<Dim> _global_id;
 

@@ -1008,7 +1008,7 @@ inline  void subdivide_group(
   // to construct scalar groups.
   if constexpr(next_property_descriptor::has_scalar_static_local_size()){
     glue::host::iterate_range_simd(
-        g.get_logical_local_range(), [&](const sycl::id<dim> &idx) {
+        g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
           sp_scalar_group<next_property_descriptor> subgroup{
               idx, g.get_logical_local_range(),
               get_group_global_id_offset(g) + idx};
@@ -1100,7 +1100,7 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
           PropertyDescriptor::dimensions>::get_global_range();
 
   glue::host::iterate_range_simd(
-      g.get_logical_local_range(), [&](auto local_idx) {
+      g.get_logical_local_range(), [&](auto local_idx) noexcept {
         f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
                        g.get_logical_local_range(), global_range));
       });
@@ -1109,7 +1109,7 @@ void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
 
 template<class PropertyDescriptor, typename NestedF>
 HIPSYCL_KERNEL_TARGET
-void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF f) noexcept {
+void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF&& f) noexcept {
   auto global_range = g.get_logical_local_range() * g.get_group_range();
 
 #ifdef SYCL_DEVICE_ONLY
@@ -1117,11 +1117,13 @@ void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF f) noexcept
                  get_group_global_id_offset(g) + g.get_physical_local_id(),
                  g.get_logical_local_range(), global_range));
 #else
-  auto group_offset = get_group_global_id_offset(g);
+  const auto group_offset = get_group_global_id_offset(g);
+  const auto local_range = g.get_logical_local_range();
+
   glue::host::iterate_range_simd(
-      g.get_logical_local_range(), [&](auto local_idx) {
-        f(make_sp_item(local_idx, group_offset + local_idx,
-                       g.get_logical_local_range(), global_range));
+      local_range, [&] (const auto local_idx) noexcept {
+        f(make_sp_item(local_idx, group_offset + local_idx, local_range,
+                       global_range));
       });
 #endif
 }

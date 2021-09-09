@@ -31,7 +31,9 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/static_property_list.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
 
@@ -57,14 +59,40 @@ namespace glue {
 /// Construct kernel launchers.
 /// Note: For basic parallel for kernels, local range may argument may be ignored.
 ///       If it is non-0, it *may* be used as a hint for the backend.
-template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
-          typename... Reductions>
+template <class KernelNameTag, rt::kernel_type Type, int Dim,
+          class WrappedKernel, typename... Reductions>
 std::vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       sycl::range<Dim> global_range,
-                      std::size_t dynamic_local_memory, Kernel k,
-                      Reductions... reductions) {
+                      std::size_t dynamic_local_memory,
+                      WrappedKernel wrapped_kernel, Reductions... reductions) {
 
+  using Kernel = typename sycl::detail::static_property_wrapper_traits<
+      WrappedKernel>::wrapped_type;
+  Kernel k = sycl::detail::static_property_wrapper_traits<
+      WrappedKernel>::get_wrapped_data(wrapped_kernel);
+  using static_property_list_t =
+      typename sycl::detail::static_property_wrapper_traits<
+          WrappedKernel>::static_property_list_type;
+
+  if constexpr (static_property_list_t::template has_property<
+                    sycl::reqd_work_group_size>()) {
+    if (static_property_list_t::template get_property<
+            sycl::reqd_work_group_size>()
+            .get_range() != local_range) {
+
+      if(Type == rt::kernel_type::ndrange_parallel_for || 
+        Type == rt::kernel_type::hierarchical_parallel_for ||
+        Type == rt::kernel_type::scoped_parallel_for) {
+        throw sycl::invalid_parameter_error{
+            "Requested work group size violates required work group size"};
+      }
+    }
+  }
+
+  // TODO: For named kernels, we need to include the property list in the kernel
+  // name to ensure two kernel invocations that only differ in properties are
+  // distinguishable
   using complete_name = complete_kernel_name_t<KernelNameTag, Kernel>;
   using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
   
@@ -72,8 +100,9 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
-    launcher->bind<complete_name, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k, reductions...);
+    launcher->bind<complete_name, Type, static_property_list_t>(
+        offset, global_range, local_range, dynamic_local_memory, k,
+        reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -81,8 +110,9 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   {
     auto launcher = std::make_unique<cuda_kernel_launcher>();
-    launcher->bind<complete_name, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k, reductions...);
+    launcher->bind<complete_name, Type, static_property_list_t>(
+        offset, global_range, local_range, dynamic_local_memory, k,
+        reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -92,8 +122,9 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
     using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
 
     auto launcher = std::make_unique<ze_kernel_launcher>();
-    launcher->bind<effective_name, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k, reductions...);
+    launcher->bind<effective_name, Type, static_property_list_t>(
+        offset, global_range, local_range, dynamic_local_memory, k,
+        reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif
@@ -103,8 +134,9 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
    !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
-    launcher->bind<complete_name, Type>(offset, global_range, local_range,
-                                        dynamic_local_memory, k, reductions...);
+    launcher->bind<complete_name, Type, static_property_list_t>(
+        offset, global_range, local_range, dynamic_local_memory, k,
+        reductions...);
     launchers.emplace_back(std::move(launcher));
   }
 #endif

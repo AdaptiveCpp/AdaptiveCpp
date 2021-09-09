@@ -6,6 +6,7 @@ jobs:
   build_appleclang:
     name: AppleClang [macOS]
     runs-on: macos-latest
+    if: false
     steps:
     - uses: actions/checkout@v2
       with:

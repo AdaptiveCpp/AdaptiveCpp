@@ -27,6 +27,7 @@
 
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/BarrierTailReplication.hpp"
 #include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
 #include "hipSYCL/compiler/IsolateRegions.hpp"
@@ -47,13 +48,13 @@
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/IRPrintingPasses.h>
 #include <llvm/Transforms/IPO/SCCP.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/SROA.h>
+#include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
 #include <cstdlib>
-#include <hipSYCL/common/debug.hpp>
-#include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
 namespace llvm {
 FunctionPass *createSROAPass();

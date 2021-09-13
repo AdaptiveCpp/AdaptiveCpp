@@ -460,6 +460,27 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   return nullptr;
 }
 
+std::array<size_t, 3> getReqdWgSize(const llvm::Function &F) {
+  auto FName = F.getName();
+  llvm::Regex Rgx("reqd_work_group_sizeILm([0-9]+)ELm([0-9]+)ELm([0-9]+)E");
+  llvm::SmallVector<llvm::StringRef, 4> Matches;
+  if (Rgx.match(FName, &Matches)) {
+    return {std::stoull(static_cast<std::string>(Matches[1])), std::stoull(static_cast<std::string>(Matches[2])),
+            std::stoull(static_cast<std::string>(Matches[3]))};
+  }
+  return {};
+}
+
+size_t getReqdStackElements(const llvm::Function &F) {
+  auto ReqdWgSize = getReqdWgSize(F);
+  std::size_t NumStackElements = std::accumulate(ReqdWgSize.cbegin(), ReqdWgSize.cend(), 1, std::multiplies{});
+  llvm::outs() << NumStackElements;
+  if (NumStackElements == 0)
+    NumStackElements = NumArrayElements;
+  llvm::outs() << " " << NumStackElements  << "\n";
+  return NumStackElements;
+}
+
 void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
   llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
   llvm::findDbgValues(DbgValues, From);

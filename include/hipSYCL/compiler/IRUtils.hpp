@@ -92,7 +92,9 @@ llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 /// Arrayification of work item private values
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT);
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, size_t NumValues = hipsycl::compiler::NumArrayElements, llvm::MDTuple *MDAlloca = nullptr);
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx,
+                                size_t NumValues = hipsycl::compiler::NumArrayElements,
+                                llvm::MDTuple *MDAlloca = nullptr);
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
                                       size_t NumValues = hipsycl::compiler::NumArrayElements,
                                       llvm::MDTuple *MDAlloca = nullptr);
@@ -100,6 +102,9 @@ llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm:
                                const llvm::Twine &NamePrefix = "");
 
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst);
+
+std::array<size_t, 3> getReqdWgSize(const llvm::Function &F);
+size_t getReqdStackElements(const llvm::Function &F);
 
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())

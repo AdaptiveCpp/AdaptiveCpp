@@ -92,9 +92,9 @@ public:
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
 
   void arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                 llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP);
+                                 llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements);
   void fixSingleSubCfgValues(llvm::DominatorTree &DT,
-                             const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
+                             const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap, std::size_t ReqdArrayElements);
 
   void print() const;
 };
@@ -230,7 +230,8 @@ void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instructio
 }
 
 void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                       llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP) {
+                                       llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP,
+                                       size_t ReqdArrayElements) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> OtherCFGBlocks;
   for (auto &Cfg : SubCFGs) {
     if (&Cfg != this)
@@ -255,7 +256,7 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
             continue;
           }
 
-        InstAllocaMap.insert({&I, utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_)});
+        InstAllocaMap.insert({&I, utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, ReqdArrayElements)});
       }
     }
   }
@@ -296,7 +297,7 @@ void SubCFG::loadMultiSubCfgValues(const llvm::Loop *WILoop,
 }
 
 void SubCFG::fixSingleSubCfgValues(
-    llvm::DominatorTree &DT, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
+    llvm::DominatorTree &DT, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap, std::size_t ReqdArrayElements) {
 
   auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getFirstNonPHIOrDbgOrLifetime();
   auto *LoadIP = LoadBB_->getTerminator();
@@ -335,7 +336,7 @@ void SubCFG::fixSingleSubCfgValues(
           if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca)
-            Alloca = utils::arrayifyInstruction(AllocaIP, OPI, WIIndVar_);
+            Alloca = utils::arrayifyInstruction(AllocaIP, OPI, WIIndVar_, ReqdArrayElements);
 
           // in split loop, OPI might be used multiple times, get the user, dominating this user and insert load there
           llvm::Instruction *NewIP = &I;
@@ -451,7 +452,8 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
-void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std::vector<SubCFG> &SubCfgs) {
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std::vector<SubCFG> &SubCfgs,
+                     std::size_t ReqdArrayElements) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
 
@@ -483,7 +485,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std:
       }
     }
 
-    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(ReqdArrayElements),
                                               I->getName() + "_alloca");
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
@@ -508,6 +510,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   llvm::PHINode *WIIndVar = WILoop->getCanonicalInductionVariable();
   assert(WIIndVar && "Must have work item index");
+
+  const size_t ReqdArrayElements = utils::getReqdStackElements(F);
 
   auto *WIEntry = utils::getWorkItemLoopBodyEntry(WILoop);
   llvm::DenseMap<llvm::BasicBlock *, size_t> Barriers;
@@ -539,7 +543,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   }
 
   for (auto &Cfg : SubCFGs)
-    Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI());
+    Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI(), ReqdArrayElements);
 
   llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> RemappedInstAllocaMap;
   for (auto &Cfg : SubCFGs) {
@@ -553,10 +557,10 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   llvm::removeUnreachableBlocks(F);
 
   DT.recalculate(F);
-  arrayifyAllocas(&F.getEntryBlock(), DT, SubCFGs);
+  arrayifyAllocas(&F.getEntryBlock(), DT, SubCFGs, ReqdArrayElements);
 
   for (auto &Cfg : SubCFGs) {
-    Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap);
+    Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap, ReqdArrayElements);
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");

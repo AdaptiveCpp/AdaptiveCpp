@@ -106,6 +106,8 @@ private:
   llvm::BasicBlock *WILoopExit;
   llvm::Loop *WorkItemLoop;
 
+  std::size_t ContextArraySize;
+
 public:
   bool processFunction(llvm::Function &F);
 
@@ -520,6 +522,8 @@ bool WorkItemLoopCreator::processFunction(llvm::Function &F) {
   WILoopExit = WorkItemLoop->getExitBlock();
   auto *WIIndVar = WorkItemLoop->getCanonicalInductionVariable();
   assert(WIIndVar);
+
+  ContextArraySize = utils::getReqdStackElements(F);
 
   OriginalParallelRegions = getParallelRegions(*WorkItemLoop);
   fixMultiRegionAllocas(&F);
@@ -942,7 +946,7 @@ llvm::Instruction *WorkItemLoopCreator::getContextArray(llvm::Instruction *I, bo
   //    "tmp"); llvm::Value *NumberOfWorkItems =
   //        Builder.CreateBinOp(llvm::Instruction::Mul, LocalXTimesY, LocalSizeLoad[2], "num_wi");
 
-  Alloca = Builder.CreateAlloca(AllocType, Builder.getInt32(hipsycl::compiler::NumArrayElements), VarName);
+  Alloca = Builder.CreateAlloca(AllocType, Builder.getInt32(ContextArraySize), VarName);
 
   /* Align the context arrays to stack to enable wide vectors
      accesses to them. Also, LLVM 3.3 seems to produce illegal

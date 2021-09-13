@@ -149,8 +149,8 @@ struct static_property_wrapper_traits<static_property_wrapper<Args...>> {
 };
 }
 
-template <std::size_t Size0 = 1024, std::size_t Size1 = 0,
-          std::size_t Size2 = 0>
+template <std::size_t Size0 = 1024, std::size_t Size1 = 1,
+          std::size_t Size2 = 1>
 struct reqd_work_group_size : public detail::static_property {
   static constexpr detail::static_property_type property_type =
       detail::static_property_type::reqd_work_group_size;
@@ -169,9 +169,9 @@ struct reqd_work_group_size : public detail::static_property {
   static auto get_range() {
     // TODO This is a bit hacky - it might be cleaner
     // to have the sizes as variadic template pack
-    if constexpr(get<2>() != 0) {
+    if constexpr(get<2>() > 1) {
       return range<3>{get<0>(), get<1>(), get<2>()};
-    } else if constexpr(get<1>() != 0) {
+    } else if constexpr(get<1>() > 1) {
       return range<2>{get<0>(), get<1>()};
     } else {
       return range<1>{get<0>()};

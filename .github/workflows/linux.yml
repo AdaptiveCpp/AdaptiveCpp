@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, ${{ matrix.splitter_pipeline }}}
+    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, ${{ matrix.splitter_pipeline }}
     runs-on: ${{ matrix.os }}
     env:
       HIPSYCL_PIPELINE: ${{ matrix.splitter_pipeline }}

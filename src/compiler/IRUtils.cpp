@@ -474,10 +474,8 @@ std::array<size_t, 3> getReqdWgSize(const llvm::Function &F) {
 size_t getReqdStackElements(const llvm::Function &F) {
   auto ReqdWgSize = getReqdWgSize(F);
   std::size_t NumStackElements = std::accumulate(ReqdWgSize.cbegin(), ReqdWgSize.cend(), 1, std::multiplies{});
-  llvm::outs() << NumStackElements;
   if (NumStackElements == 0)
     NumStackElements = NumArrayElements;
-  llvm::outs() << " " << NumStackElements  << "\n";
   return NumStackElements;
 }
 

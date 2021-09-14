@@ -33,29 +33,30 @@ struct __hipsycl_unnamed_kernel {};
 namespace hipsycl {
 namespace glue {
 
-template<class KernelName> struct complete_kernel_name {};
+template <class KernelName, class PropertyList>
+struct complete_kernel_name {};
 
 // This can be used to turn incomplete types of kernel names into complete
 // types for backends which e.g. use typeid() to access the mangled name.
-template <class Name, class KernelBody> struct kernel_name {
-  using complete_type = complete_kernel_name<Name>;
+template <class Name, class KernelBody, class PropertyList>
+struct kernel_name {
+  using complete_type = complete_kernel_name<Name, PropertyList>;
   using effective_type = Name;
 };
-template <class KernelBody>
-struct kernel_name<__hipsycl_unnamed_kernel, KernelBody> {
+template <class KernelBody, class PropertyList>
+struct kernel_name<__hipsycl_unnamed_kernel, KernelBody, PropertyList> {
   using complete_type = __hipsycl_unnamed_kernel;
   using effective_type = KernelBody;
 };
 
-template <class Name, class KernelBody>
-using complete_kernel_name_t = 
-  typename kernel_name<Name, KernelBody>::complete_type;
+template <class Name, class KernelBody, class PropertyList>
+using complete_kernel_name_t =
+  typename kernel_name<Name, KernelBody, PropertyList>::complete_type;
 
-
-template <class Name, class KernelBody>
-using effective_kernel_name_t = 
-  typename kernel_name<Name, KernelBody>::effective_type;
-}
+template <class Name, class KernelBody, class PropertyList>
+using effective_kernel_name_t =
+  typename kernel_name<Name, KernelBody, PropertyList>::effective_type;
+} // namespace glue
 } // namespace hipsycl
 
 #endif

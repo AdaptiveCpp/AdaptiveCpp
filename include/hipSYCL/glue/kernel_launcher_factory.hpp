@@ -93,8 +93,8 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   // TODO: For named kernels, we need to include the property list in the kernel
   // name to ensure two kernel invocations that only differ in properties are
   // distinguishable
-  using complete_name = complete_kernel_name_t<KernelNameTag, Kernel>;
-  using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
+  using complete_name = complete_kernel_name_t<KernelNameTag, Kernel, static_property_list_t>;
+  using effective_name = effective_kernel_name_t<KernelNameTag, Kernel, static_property_list_t>;
   
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
@@ -119,7 +119,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 
 #ifdef __HIPSYCL_ENABLE_SPIRV_TARGET__
   {
-    using effective_name = effective_kernel_name_t<KernelNameTag, Kernel>;
+    using effective_name = effective_kernel_name_t<KernelNameTag, Kernel, static_property_list_t>;
 
     auto launcher = std::make_unique<ze_kernel_launcher>();
     launcher->bind<effective_name, Type, static_property_list_t>(

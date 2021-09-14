@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(kernel_name_mangling) {
 
 template<class AccessorT>
 struct KernelFunctor {
-  
+
   KernelFunctor(AccessorT acc) : acc(acc) {};
 
   void operator() (cl::sycl::item<1> item) const {
@@ -210,6 +210,48 @@ BOOST_AUTO_TEST_CASE(omit_kernel_name) {
     });
     auto acc = buf.get_access<cl::sycl::access::mode::read>();
     BOOST_REQUIRE(acc[0] == 301);
+  }
+}
+
+template<int Add, class AccessorT>
+struct KernelFunctorND {
+
+  KernelFunctorND(AccessorT acc) : acc(acc) {};
+
+  void operator() (cl::sycl::nd_item<1> item) const {
+    if(item.get_global_linear_id() == item.get_local_range(0) - 1)
+      acc[0] = Add + item.get_global_linear_id();
+  }
+
+  AccessorT acc;
+};
+class KernelFunctorNDName;
+
+// No collisions for different reqd_work_group_size attributes
+// note: using named kernels multiple times with different kernels, is most likely illegal
+// but enables testing the collision
+BOOST_AUTO_TEST_CASE(named_kernel_property_list_mangling) {
+  cl::sycl::queue queue;
+  cl::sycl::buffer<size_t, 1> buf(1);
+
+  {
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for<KernelFunctorNDName>(cl::sycl::nd_range<1>(1, 1),
+        cl::sycl::attribute<cl::sycl::reqd_work_group_size<1>>(KernelFunctorND<300, decltype(acc)>(acc)));
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 300);
+  }
+
+  {
+    queue.submit([&](cl::sycl::handler& cgh) {
+      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
+      cgh.parallel_for<KernelFunctorNDName>(cl::sycl::nd_range<1>(2, 2),
+          cl::sycl::attribute<cl::sycl::reqd_work_group_size<2>>(KernelFunctorND<500, decltype(acc)>(acc)));
+    });
+    auto acc = buf.get_access<cl::sycl::access::mode::read>();
+    BOOST_REQUIRE(acc[0] == 501);
   }
 }
 
@@ -296,7 +338,7 @@ BOOST_AUTO_TEST_CASE(forward_declared_function) {
   q.submit([&](cl::sycl::handler& cgh){
     cgh.single_task<forward_declared_test_kernel<int>>([=](){
       forward_declared1<int>();
-    });  
+    });
   });
 
   q.wait_and_throw();
@@ -339,7 +381,7 @@ BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
         });
       };
   lambda();
-  
+
   q.wait_and_throw();
 }
 #endif

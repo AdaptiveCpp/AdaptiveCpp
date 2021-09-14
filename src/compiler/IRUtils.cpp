@@ -462,6 +462,7 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
 
 std::array<size_t, 3> getReqdWgSize(const llvm::Function &F) {
   auto FName = F.getName();
+  // todo: fix with MS mangling
   llvm::Regex Rgx("reqd_work_group_sizeILm([0-9]+)ELm([0-9]+)ELm([0-9]+)E");
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches)) {

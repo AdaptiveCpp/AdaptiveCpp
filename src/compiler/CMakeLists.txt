@@ -13,6 +13,7 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
+  GlobalsPruningPass.cpp
   LoopSplitter.cpp
   LoopSplitterInlining.cpp
   SplitterAnnotationAnalysis.cpp
@@ -39,7 +40,7 @@ target_include_directories(hipSYCL_clang PRIVATE
   ../../include
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-)
+  ${CMAKE_BINARY_DIR}/include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)

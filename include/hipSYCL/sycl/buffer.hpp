@@ -37,6 +37,7 @@
 #include <mutex>
 #include <type_traits>
 #include <algorithm>
+#include <utility>
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
@@ -674,13 +675,13 @@ public:
   }
 
   template<typename... Args>
-  auto get_access(Args... args) {
-    return accessor{*this, args...};
+  auto get_access(Args&&... args) {
+    return accessor{*this, std::forward<Args>(args)...};
   }
 
   template<typename... Args>
-  auto get_host_access(Args... args) {
-    return host_accessor{*this, args...};
+  auto get_host_access(Args&&... args) {
+    return host_accessor{*this, std::forward<Args>(args)...};
   }
 
   void set_final_data(std::shared_ptr<T> finalData)

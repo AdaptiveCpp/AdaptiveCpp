@@ -25,6 +25,10 @@ endif()
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
+if(WIN32)
+  add_definitions(-D_USE_MATH_DEFINES)
+endif()
+
 cmake_minimum_required (VERSION 3.5)
 
 include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR})

@@ -24,8 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "hipSYCL/common/config.hpp"
+
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
-#include "hipSYCL/compiler/IR.hpp"
+#include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
@@ -45,17 +47,17 @@ namespace compiler {
 static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> HipsyclFrontendPlugin{
     "hipsycl_frontend", "enable hipSYCL frontend action"};
 
-static void registerFunctionPruningIRPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  PM.add(new FunctionPruningIRPass{});
+static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+  PM.add(new GlobalsPruningPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
-    RegisterFunctionPruningIRPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                           registerFunctionPruningIRPass);
+    RegisterGlobalsPruningPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+                                           registerGlobalsPruningPass);
 
 static llvm::RegisterStandardPasses
-    RegisterFunctionPruningIRPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
-                                               registerFunctionPruningIRPass);
+    RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
+                                               registerGlobalsPruningPass);
 
 static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
@@ -90,10 +92,22 @@ static void registerMarkParallelPass(const llvm::PassManagerBuilder &, llvm::leg
 // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
 static llvm::RegisterStandardPasses RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
                                                                          registerMarkParallelPass);
+#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
+#define HIPSYCL_STRINGIFY(V) #V
+#define HIPSYCL_PLUGIN_VERSION_STRING                                                    \
+  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                    \
+      HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
-    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", "v0.9", [](llvm::PassBuilder &PB) {
+    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING, [](llvm::PassBuilder &PB) {
+      // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
+      // really used there anyways..
+      PB.registerOptimizerLastEPCallback(
+          [](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel) {
+            MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
+          });
+
       PB.registerAnalysisRegistrationCallback(
           [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
       PB.registerAnalysisRegistrationCallback(
@@ -124,6 +138,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
     }
   };
 }
+#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
 
 } // namespace compiler
 } // namespace hipsycl

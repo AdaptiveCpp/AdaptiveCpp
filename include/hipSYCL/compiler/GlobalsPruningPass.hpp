@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay and contributors
+ * Copyright (c) 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,50 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/hip/hip_target.hpp"
-#include "hipSYCL/runtime/hip/hip_instrumentation.hpp"
-#include "hipSYCL/runtime/hip/hip_event.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#ifndef HIPSYCL_IR_HPP
+#define HIPSYCL_IR_HPP
 
-#include <cassert>
-#include <memory>
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
+#include "CompilationState.hpp"
+
+#include "hipSYCL/common/debug.hpp"
+
+#include <unordered_set>
+#include <vector>
 
 namespace hipsycl {
-namespace rt {
+namespace compiler {
 
-profiler_clock::duration
-hip_event_time_delta::operator()(const dag_node_event& t0,
-                                 const dag_node_event& t1) const {
-  assert(t0.is_complete());
-  assert(t1.is_complete());
+struct GlobalsPruningPassLegacy : public llvm::ModulePass {
+  static char ID;
 
-  hipEvent_t t0_evt = cast<const hip_node_event>(&t0)->get_event();
-  hipEvent_t t1_evt = cast<const hip_node_event>(&t1)->get_event();
-  
-  float ms = 0.0f;
-  hipError_t err = hipEventElapsedTime(&ms, t0_evt, t1_evt);
+  GlobalsPruningPassLegacy() : llvm::ModulePass(ID) {}
 
-  if (err != hipSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_event_time_delta: hipEventElapsedTime() failed",
-                   error_code{"HIP", err}});
-  }
+  llvm::StringRef getPassName() const override { return "hipSYCL globals pruning pass"; }
 
-  return std::chrono::round<profiler_clock::duration>(
-      std::chrono::duration<float, std::milli>{ms});
-}
+  bool runOnModule(llvm::Module &M) override;
+};
 
-}
-}
+#if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
+class GlobalsPruningPass : public llvm::PassInfoMixin<GlobalsPruningPass> {
+public:
+  explicit GlobalsPruningPass() {}
 
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+  static bool isRequired() { return true; }
+};
+#endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
+
+} // namespace compiler
+} // namespace hipsycl
+
+#endif

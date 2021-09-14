@@ -293,6 +293,9 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
 
   s::range size{1024};
   s::buffer<int> buff{size};
+  s::accessor non_tagged_placeholder{buff};
+  BOOST_CHECK(get_access_mode(non_tagged_placeholder)
+    == s::access_mode::read_write);
 
   s::accessor placeholder{buff, s::read_only};
   BOOST_CHECK(placeholder.is_placeholder());
@@ -356,6 +359,10 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
                                 s::access_mode::write, s::target::host_task);
     validate_accessor_deduction(s::accessor{buff, cgh, s::write_only_host_task, s::no_init},
                                 s::access_mode::write, s::target::host_task);
+
+    // deduction guides without deduction tags
+    validate_accessor_deduction(s::accessor{buff, cgh, s::property_list{s::no_init}},
+                                s::access_mode::read_write, s::target::device);
 
     cgh.single_task([=](){});
   });

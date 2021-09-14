@@ -161,7 +161,7 @@ int main()
 
         for(size_t offset = 0; offset < num_particles; offset += local_size)
         {
-          if(global_id < num_particles)
+          if(offset + local_id < num_particles)
             scratch[local_id] = particles_access[offset + local_id];
           else
             scratch[local_id] = particle_type{0.0f};

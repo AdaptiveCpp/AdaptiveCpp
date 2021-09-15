@@ -28,7 +28,7 @@
 
 #if defined(__clang__) && (defined(__CUDACC__) || defined(__HIP__))
 
-#ifdef _WIN32
+#if defined(_WIN32) && __clang_major__ < 12
 #include <cmath>
 
 namespace std {

@@ -40,6 +40,7 @@ In order to successfully build and install hipSYCL, the following major requirem
 * python 3 (for the `syclcc` and `syclcc-clang` compiler wrappers)
 * `cmake`
 * the Boost C++ libraries (in particular `boost.fiber`, `boost.context` and for the unit tests `boost.test`)
+  * it may be helpful to set the `BOOST_ROOT` `cmake` variable to the path to the root directory of Boost you wish to use if `cmake` does not find it automatically
 
 If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
 * `LLVM_DIR` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**
@@ -59,5 +60,9 @@ $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <hipSYCL source directory>
 $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
+
+A `cmake` variable that maybe useful to set is
+* `CMAKE_CXX_COMPILER` which should be pointed to the C++ compiler to use. Note that this also sets the default C++ compiler for the CPU backend when using syclcc  once hipSYCL is installed, though this also be modified using `HIPSYCL_CPU_CXX`
+
 
 For experimental building on Windows see the corresponding [wiki](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).

@@ -1744,7 +1744,7 @@ private:
     : _addr{addr}, _num_elements{r}
   {}
 
-  const address _addr;
+  const address _addr{};
   const range<dimensions> _num_elements;
 };
 

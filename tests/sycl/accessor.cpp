@@ -387,4 +387,11 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.wait();
 }
 
+BOOST_AUTO_TEST_CASE(local_accessor_default_constructible) {
+  namespace s = cl::sycl;
+  s::local_accessor<int, 1> a1;
+  s::local_accessor<int, 2> a2;
+  s::local_accessor<int, 3> a3;
+}
+
 BOOST_AUTO_TEST_SUITE_END()

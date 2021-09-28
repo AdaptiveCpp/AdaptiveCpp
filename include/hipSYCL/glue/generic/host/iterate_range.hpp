@@ -100,20 +100,20 @@ void iterate_range_simd(const sycl::range<Dim> r, Function f) noexcept {
       f(sycl::id<Dim>{i});
     }
   } else if constexpr (Dim == 2) {
-    #ifdef _OPENMP
-#pragma omp simd collapse(2)
-#endif
     for (std::size_t i = 0; i < r.get(0); ++i) {
+#ifdef _OPENMP
+#pragma omp simd
+#endif
       for (std::size_t j = 0; j < r.get(1); ++j) {
         f(sycl::id<Dim>{i, j});
       }
     }
   } else if constexpr (Dim == 3) {
-#ifdef _OPENMP
-#pragma omp simd collapse(3)
-#endif
     for (std::size_t i = 0; i < r.get(0); ++i) {
       for (std::size_t j = 0; j < r.get(1); ++j) {
+#ifdef _OPENMP
+#pragma omp simd
+#endif
         for (std::size_t k = 0; k < r.get(2); ++k) {
           f(sycl::id<Dim>{i, j, k});
         }

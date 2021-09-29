@@ -30,8 +30,10 @@
 
 #include "../hardware.hpp"
 
-namespace hipsycl {
-namespace rt {
+namespace hipsycl
+{
+namespace rt
+{
 
 class omp_hardware_context : public hardware_context
 {
@@ -52,12 +54,34 @@ public:
   virtual bool has(device_support_aspect aspect) const override;
   virtual std::size_t get_property(device_uint_property prop) const override;
   virtual std::vector<std::size_t>
-  get_property(device_uint_list_property prop) const override;
+  get_property(device_uint_list_property prop) const override
+  { // todo: need in client code as mostly the -march= of the client application matters.
+    switch(prop)
+    {
+    case device_uint_list_property::sub_group_sizes:
+#ifdef HIPSYCL_HAS_RV
+#  if defined(__AVX512VL__)
+      return std::vector<std::size_t>{1, 2, 4, 8};
+#  elif defined(__AVX__)
+      return std::vector<std::size_t>{1, 2, 4};
+#  elif defined(__SSE__)
+      return std::vector<std::size_t>{1, 2};
+#  else
+      return std::vector<std::size_t>{1};
+#  endif
+#else
+      return std::vector<std::size_t>{1};
+#endif
+      break;
+    }
+    assert(false && "Invalid device property");
+    std::terminate();
+  }
 
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;
-  
-  virtual ~omp_hardware_context(){}
+
+  virtual ~omp_hardware_context() {}
 };
 
 class omp_hardware_manager : public backend_hardware_manager
@@ -72,7 +96,7 @@ private:
   omp_hardware_context _device;
 };
 
-}
-}
+} // namespace rt
+} // namespace hipsycl
 
 #endif

@@ -35,6 +35,10 @@
 #include "range.hpp"
 #include "memory.hpp"
 
+#ifdef HIPSYCL_HAS_RV
+#include "host/rv.hpp"
+#endif
+
 namespace hipsycl {
 namespace sycl {
 
@@ -206,6 +210,88 @@ public:
   bool leader() const {
     return true;
   }
+};
+#elif defined(HIPSYCL_HAS_RV)
+class sub_group
+{
+public:
+  using id_type = sycl::id<1>;
+  using range_type = sycl::range<1>;
+  using linear_id_type = uint32_t;
+  using linear_range_type = uint32_t;
+
+  static constexpr int dimensions = 1;
+  static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_local_id() const {
+    return id_type{rv_lane_id()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_local_linear_id() const {
+    return rv_lane_id();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_local_range() const {
+    return range_type{rv_num_lanes()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_local_linear_range() const {
+    return rv_num_lanes();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_max_local_range() const {
+    return range_type{rv_num_lanes()};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_group_id() const {
+    return id_type{_item_linear_id};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_group_linear_id() const {
+    return _item_linear_id;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_group_linear_range() const {
+    return _group_size;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_group_range() const {
+    // Because the sub group size is always 1 on host,
+    // the number of subgroups == work group size
+    return _group_size;
+  }
+
+  [[deprecated]]
+  HIPSYCL_KERNEL_TARGET
+    range_type get_max_group_range() const {
+    return _group_size;
+  }
+
+  template<class F>
+  HIPSYCL_KERNEL_TARGET
+  void single_item(F f){
+    if(rv_lane_id() == 0)
+      f();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return rv_lane_id() == 0;
+  }
+
+private:
+  std::size_t _item_linear_id;
+  std::size_t _group_size;
 };
 #else
 // On host, sub groups are always of size 1

@@ -239,9 +239,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP) || defined(HIPSYCL_HAS_RV)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+  const uint32_t subgroup_size = static_cast<uint32_t>(warpSize);
+#else
+  const uint32_t subgroup_size = static_cast<uint32_t>(4);
+#endif
+
   const size_t   elements_per_thread = 1;
   const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -260,7 +265,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
                                         size_t global_size) {
       for (size_t i = 0; i < global_size / local_size; ++i) {
         T    expected         = T{};
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
+        auto actual_warp_size = local_size < subgroup_size ? local_size : subgroup_size;
         for (size_t j = 0; j < actual_warp_size; ++j)
           expected = expected + vOrig[i * local_size + j];
 
@@ -290,7 +295,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
                                         size_t global_size) {
       for (size_t i = 0; i < global_size / local_size; ++i) {
         T    expected         = detail::initialize_type<T>(10);
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
+        auto actual_warp_size = local_size < subgroup_size ? local_size : subgroup_size;
         for (size_t j = 0; j < actual_warp_size; ++j)
           expected = expected + vOrig[i * local_size + j];
 

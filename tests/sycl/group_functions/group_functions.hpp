@@ -53,7 +53,8 @@ using test_types =
                      sycl::vec<int, 8>, sycl::vec<short, 16>, sycl::vec<long, 3>,
                      sycl::vec<unsigned int, 3>>;
 #else
-using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
+//using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
+using test_types = boost::mpl::list<unsigned int, float>;
 #endif
 
 namespace detail {
@@ -208,7 +209,7 @@ elementType<T> local_value(size_t id, size_t offsetBase) {
 inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
                                   size_t global_size) {
   BOOST_REQUIRE(global_size == 4 * local_size);
-  BOOST_REQUIRE(local_size + 10 < 2 * local_size);
+  BOOST_REQUIRE(local_size + 2 < 2 * local_size);
 
   // create host_buf 4 different possible configurations:
   // 1: everything except one false
@@ -221,17 +222,17 @@ inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
   for (size_t i = 2 * local_size; i < 4 * local_size; ++i)
     buffer[i] = true;
 
-  buffer[10]                  = true;
-  buffer[2 * local_size + 10] = false;
+  buffer[2]                  = true;
+  buffer[2 * local_size + 2] = false;
 
   BOOST_REQUIRE(buffer[0] == false);
-  BOOST_REQUIRE(buffer[10] == true);
+  BOOST_REQUIRE(buffer[2] == true);
   BOOST_REQUIRE(buffer[local_size] == false);
-  BOOST_REQUIRE(buffer[10 + local_size] == false);
+  BOOST_REQUIRE(buffer[2 + local_size] == false);
   BOOST_REQUIRE(buffer[local_size * 2] == true);
-  BOOST_REQUIRE(buffer[10 + local_size * 2] == false);
+  BOOST_REQUIRE(buffer[2 + local_size * 2] == false);
   BOOST_REQUIRE(buffer[local_size * 3] == true);
-  BOOST_REQUIRE(buffer[10 + local_size * 3] == true);
+  BOOST_REQUIRE(buffer[2 + local_size * 3] == true);
 }
 
 template<typename T, int Line>

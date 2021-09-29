@@ -69,6 +69,8 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup);
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI);
 
+llvm::SmallVector<llvm::Loop *, 4> getLoopsInPreorder(const llvm::LoopInfo &LI);
+
 /*!
  * In _too simple_ loops, we might not have a dedicated latch.. so make one!
  * Only simple / canonical loops supported.

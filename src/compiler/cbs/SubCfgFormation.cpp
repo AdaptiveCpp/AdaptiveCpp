@@ -393,8 +393,9 @@ void purgeLifetime(SubCFG &Cfg) {
   for (auto *BB : Cfg.getNewBlocks())
     for (auto &I : *BB)
       if (auto *CI = llvm::dyn_cast<llvm::CallInst>(&I))
-        if (CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_start ||
-            CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_end)
+        if(CI->getCalledFunction())
+          if (CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_start ||
+              CI->getCalledFunction()->getIntrinsicID() == llvm::Intrinsic::lifetime_end)
           ToDelete.push_back(CI);
 
   for (auto *I : ToDelete)

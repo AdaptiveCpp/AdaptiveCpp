@@ -238,12 +238,11 @@ void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
 
 llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet;
-  for (auto *L : LI.getTopLevelLoops())
-    for (auto *WIL : L->getLoopsInPreorder())
-      if (isWorkItemLoop(*WIL))
-        for (auto *BB : WIL->blocks())
-          if (BB != WIL->getLoopLatch() && BB != WIL->getHeader() && BB != WIL->getExitBlock())
-            BBSet.insert(BB);
+  for (auto *WIL : utils::getLoopsInPreorder(LI))
+    if (isWorkItemLoop(*WIL))
+      for (auto *BB : WIL->blocks())
+        if (BB != WIL->getLoopLatch() && BB != WIL->getHeader() && BB != WIL->getExitBlock())
+          BBSet.insert(BB);
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(HIPSYCL_DEBUG_INFO << "WorkItemLoop BBs:\n";
                                 for (auto *BB
                                      : BBSet) { HIPSYCL_DEBUG_INFO << "  " << BB->getName() << "\n"; })
@@ -271,11 +270,9 @@ bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI) {
 }
 
 llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI) {
-  for (auto *OL : LI) {
-    for (auto *L : *OL) {
-      if (isWorkItemLoop(*L))
-        return L;
-    }
+  for (auto *L : LI) {
+    if (isWorkItemLoop(*L))
+      return L;
   }
   return nullptr;
 }
@@ -289,6 +286,10 @@ llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
     }
   }
   return Entry;
+}
+
+llvm::SmallVector<llvm::Loop *, 4> getLoopsInPreorder(const llvm::LoopInfo &LI) {
+  return const_cast<llvm::LoopInfo&>(LI).getLoopsInPreorder();
 }
 
 llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,

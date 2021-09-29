@@ -40,18 +40,15 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
   bool Changed = false;
   auto *MDWorkItemLoop =
       llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), hipsycl::compiler::MDKind::WorkItemLoop)});
-  for (auto *L : LI.getTopLevelLoops()) {
-    for (auto *SL : L->getSubLoopsVector()) {
-      assert(SL->getLoopDepth() == 2);
+  for (auto *L : utils::getLoopsInPreorder(LI)) {
+    assert(L->getLoopDepth() == 1);
 
-      // only second-level loop have to be considered as work-item loops at this phase
-      // -> must be using collapse on multi-dim kernels
-      if (!llvm::findOptionMDForLoop(SL, hipsycl::compiler::MDKind::WorkItemLoop)) {
-        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDWorkItemLoop});
-        SL->setLoopID(LoopID);
-        HIPSYCL_DEBUG_INFO << "Marked work-item loop: " << SL->getHeader()->getName() << " in " << F.getName() << "\n";
-        Changed = true;
-      }
+    // must be using collapse on multi-dim kernels to get a single work-item loop
+    if (!llvm::findOptionMDForLoop(L, hipsycl::compiler::MDKind::WorkItemLoop)) {
+      auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), L->getLoopID(), {}, {MDWorkItemLoop});
+      L->setLoopID(LoopID);
+      HIPSYCL_DEBUG_INFO << "Marked work-item loop: " << L->getHeader()->getName() << " in " << F.getName() << "\n";
+      Changed = true;
     }
   }
 

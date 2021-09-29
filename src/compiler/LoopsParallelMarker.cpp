@@ -40,54 +40,57 @@ using namespace hipsycl::compiler;
 bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
   bool Changed = false;
 
-  for (auto *L : LI.getTopLevelLoops()) {
-    for (auto *SL : L->getLoopsInPreorder()) {
-      if (utils::isWorkItemLoop(*SL)) {
-        Changed = true;
-        HIPSYCL_DEBUG_INFO << "[ParallelMarker] Mark loop: " << SL->getName() << "\n";
+  for (auto *SL : utils::getLoopsInPreorder(LI)) {
+    if (utils::isWorkItemLoop(*SL)) {
+      Changed = true;
+      HIPSYCL_DEBUG_INFO << "[ParallelMarker] Mark loop: " << SL->getName() << "\n";
 
-        // Mark memory accesses with access group
-        auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
-        for (auto *BB : SL->blocks()) {
-          for (auto &I : *BB) {
-            if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
-              utils::addAccessGroupMD(&I, MDAccessGroup);
-            }
+      // Mark memory accesses with access group
+      auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
+      for (auto *BB : SL->blocks()) {
+        for (auto &I : *BB) {
+          if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
+            utils::addAccessGroupMD(&I, MDAccessGroup);
           }
         }
+      }
 
-        // make the access group parallel w.r.t the WI loop
-        utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
+      // make the access group parallel w.r.t the WI loop
+      utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
 
-        // work-item loops should be vectorizable, so emit metadata to suggest so
-        if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.enable")) {
-          auto *MDVectorize =
-              llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
-                                                 llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
-                                                     llvm::IntegerType::get(F.getContext(), 1)))});
-          auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorize});
-          SL->setLoopID(LoopID);
-        }
+      // work-item loops should be vectorizable, so emit metadata to suggest so
+      if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.enable")) {
+        auto *MDVectorize =
+            llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
+                                               llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
+                                                   llvm::IntegerType::get(F.getContext(), 1)))});
+        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorize});
+        SL->setLoopID(LoopID);
+      }
 
-        if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
-          if (utils::isAnnotatedParallel(SL)) {
-            HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << SL->getHeader()->getName() << "\n";
-          } else if (SL->getLoopID()) {
-            assert(SL->getLoopID());
-            const llvm::Module *M = F.getParent();
-            HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << SL->getHeader()->getName();
-            SL->getLoopID()->print(llvm::outs(), M);
-            for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
-              MDOp->print(llvm::outs(), M);
-            }
-            llvm::outs() << "\n";
+      if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
+        if (utils::isAnnotatedParallel(SL)) {
+          HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << SL->getHeader()->getName() << "\n";
+        } else if (SL->getLoopID()) {
+          assert(SL->getLoopID());
+          const llvm::Module *M = F.getParent();
+          HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << SL->getHeader()->getName();
+          SL->getLoopID()->print(llvm::outs(), M);
+          for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
+            MDOp->print(llvm::outs(), M);
           }
+          llvm::outs() << "\n";
         }
       }
     }
   }
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
 
+  if(!Changed){
+    HIPSYCL_DEBUG_INFO << "[ParallelMarker] no wi loop found..?\n";
+    HIPSYCL_DEBUG_EXECUTE_INFO(F.viewCFG();)
+  } else {
+    HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
+  }
   return Changed;
 }
 } // namespace

@@ -161,11 +161,8 @@ bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 bool inlineSplitter(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
                     hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed = false;
-  for (auto *L : LI.getTopLevelLoops()) {
-    for (auto *SL : L->getSubLoops()) {
-      Changed |= inlineSplitter(SL, LI, DT, SAA);
-    }
-  }
+
+  Changed |= inlineSplitter(hipsycl::compiler::utils::getSingleWorkItemLoop(LI), LI, DT, SAA);
 
   return Changed;
 }

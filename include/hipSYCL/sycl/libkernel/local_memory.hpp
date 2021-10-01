@@ -44,11 +44,13 @@ public:
 
   template<class t = scalar_type, 
           std::enable_if_t<std::is_array<T>::value>* = nullptr>
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET
   scalar_type& operator[](std::size_t index) noexcept{
     return _var[index];
   }
 
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET
   T& operator()() noexcept{
     return _var;

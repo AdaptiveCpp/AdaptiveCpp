@@ -168,6 +168,23 @@ There are two ways of synchronizing:
 
 `distribute_items()`, `distribute_groups()`, `single_item()` do not synchronize.
 
+## Memory placement rules
+
+In the scoped parallelism model, the following memory placement rules apply:
+* Variables declared inside a `distribute_items()` call will be allocated in private memory of the logical work item.
+* Variables declared outside of `distribute_items()` calls will be allocated in the private memory of the executing physical work item.
+* Variables can be explicitly but into either local memory or the private memory of logical work items using `sycl::memory_environment()`
+
+### Explicit allocation of local and private memory
+
+`sycl::memory_environment()` can be used to explicitly allocate either local or private memory. To this end, an arbitrary number of memory allocation requests can be passed to `memory_environment()`. For each provided memory allocation request, a reference to the requested memory will then be passed into the last argument of `memory_environment`: A callable that accepts references to the memory.
+
+Memory allocation requests of type T can be formulated using `sycl::require_local_mem<T>()` and `sycl::require_private_mem<T>()`. Optionally, these functions can accept an argument that will be used to initialize the memory content of the allocation. See the API reference for more details.
+Note that while for `sycl::require_local_mem<T>()` the allocation will be passed into the callable as type `T&`, for `sycl::require_private_mem<T>()` a reference to a wrapper object will be passed into the callable instead. The private memory allocation can then be accessed by passing the `sycl::s_item` object to its `operator()`.
+This is necessary because `sycl::require_private_mem<T>()` is a request to allocate in the private memory of the *logical* work item, which however may not exist outside of `distribute_items()`.
+
+See the example code below for an illustration on how `memory_environment()` can be used.
+
 ## Example code
 
 ```c++
@@ -197,50 +214,59 @@ int main(){
       // Information about the position in the physical iteration space can be obtained
       // using grp.get_physical_local_id() and grp.get_physical_local_range().
 
-      // Local memory scope must be allocated explicitly as such. Of course, local
-      // accessors can also be used.
-      sycl::local_memory<int [Group_size], decltype(grp)> scratch{grp};
-      // Same goes for s_private_memory, if required (here only dummy example)
-      // This will allocate memory in the private memory of the _logical_ work item.
-      // See the existing SYCL documentation on private_memory for more information.
-      sycl::s_private_memory<int, decltype(grp)> dummy{grp};
-      
-      // Variables not explicitly marked as either will be allocated in private
-      // memory of the _physical_ work item (see the for loop below)
+      // sycl::memory_environment() can be used to allocate local memory 
+      // (of compile-time size) as well as private memory that is persistent across
+      // multiple distribute_items() calls.
+      // Of course, local accessors can also be used.
+      sycl::memory_environment(grp, 
+        sycl::require_local_mem<int[Group_size]>(),
+        // the requested private memory is not used in this example,
+        // and only here to showcase how to request private memory.
+        sycl::require_private_mem<int>(),
+        [&](auto& scratch, auto& private_mem){
+        // the arguments passed to the lambda function corresponds to the require arguments before.
+        // private_mem is allocated in private memory of the _logical_ work item
+        // and of type sycl::s_private_memory<T, decltype(grp)>&.
+        // scratch is a reference to the requested int[Group_size] array.
 
-      // `distribute_items` distributes the logical, user-provided iteration space across the physical one. 
-      sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
-          scratch[idx.get_local_id(grp, 0)] = data_accessor[idx.get_global_id(0)]; 
-      });
-      // Instead of an explicit group_barrier, we could also use the
-      // blocking distribute_items_and_wait()
-      sycl::group_barrier(grp);
+        // Variables not explicitly requested as local or private memory 
+        // will be allocated in private memory of the _physical_ work item
+        // (see the for loop below)
 
-      // Can execute code e.g. for a single item of a subgroup:
-      sycl::distribute_groups(grp, [&](auto subgroup){
-        sycl::single_item(subgroup, [&](){
-          // ...
+        // `distribute_items` distributes the logical, user-provided iteration space across the physical one. 
+        sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
+            scratch[idx.get_local_id(grp, 0)] = data_accessor[idx.get_global_id(0)]; 
         });
-      });
+        // Instead of an explicit group_barrier, we could also use the
+        // blocking distribute_items_and_wait()
+        sycl::group_barrier(grp);
 
-      // Variables inside the parallel scope that are not explicitly local or private memory
-      // are allowed, if they are not modified from inside `distribute_items()` scope.
-      // The SYCL implementation will allocate those in private memory of the physical item,
-      // so they will always be efficient. This implies that the user should not attempt to assign values
-      // per logical work item, since they are allocated per physical item.
-      for(int i = Group_size / 2; i > 0; i /= 2){
-        // The *_and_wait variants of distribute_groups and distribute_items
-        // invoke a group_barrier at the end.
-        sycl::distribute_items_and_wait(grp, 
-          [&](sycl::sub_group sg, sycl::logical_item<1> idx){
-          size_t lid = idx.get_innermost_local_id(0);
-          if(lid < i)
-            scratch[lid] += scratch[lid+i];
+        // Can execute code e.g. for a single item of a subgroup:
+        sycl::distribute_groups(grp, [&](auto subgroup){
+          sycl::single_item(subgroup, [&](){
+            // ...
+          });
         });
-      }
-      
-      sycl::single_item(grp, [&](){
-        data_accessor[grp.get_group_id(0)*Group_size] = scratch[0];
+
+        // Variables inside the parallel scope that are not explicitly local or private memory
+        // are allowed, if they are not modified from inside `distribute_items()` scope.
+        // The SYCL implementation will allocate those in private memory of the physical item,
+        // so they will always be efficient. This implies that the user should not attempt to assign values
+        // per logical work item, since they are allocated per physical item.
+        for(int i = Group_size / 2; i > 0; i /= 2){
+          // The *_and_wait variants of distribute_groups and distribute_items
+          // invoke a group_barrier at the end.
+          sycl::distribute_items_and_wait(grp, 
+            [&](sycl::sub_group sg, sycl::logical_item<1> idx){
+            size_t lid = idx.get_innermost_local_id(0);
+            if(lid < i)
+              scratch[lid] += scratch[lid+i];
+          });
+        }
+        
+        sycl::single_item(grp, [&](){
+          data_accessor[grp.get_group_id(0)*Group_size] = scratch[0];
+        });
       });
     });
   });
@@ -330,6 +356,72 @@ void single_item(const SpGroup &g, F f) noexcept;
 /// Equivalent to single_item(g, f); group_barrier(g);
 template <class SpGroup, class F>
 void single_item_and_wait(const SpGroup &g, F f) noexcept;
+
+/// Only available if SpGroup is a scoped parallelism group type
+///
+/// Constructs a memory environment for the given group. Currently,
+/// Only top-level work groups are supported. 
+///
+/// Args is a collection of memory allocation requests (return values of 
+/// sycl::require_local_memory() and sycl::require_private_memory()) and, in
+/// the last argument, a callable.
+///
+/// This callable will be invoked once the required memory has been allocated.
+/// The callable will be provided with a references to the memory allocations, 
+/// in the order they were requested.
+///
+/// If private memory was requested, a wrapper type will be passed into the callable
+/// instead of the raw memory reference. The wrapper type has a member function 
+/// T& operator()(const s_item<Dim>&) that can be used to obtain the actual memory.
+/// Local memory allocations will be passed directly as reference into the callable.
+template <class SpGroup, typename... Args>
+void memory_environment(const Group &g, Args&&... args) noexcept;
+
+/// Synonym for memory_environment(g, require_local_mem<T>(), f)
+template<class T, class Group, class Function>
+void local_memory_environment(const Group& g, Function&& f);
+
+/// Synonym for memory_environment(g, require_private_mem<T>(), f)
+template<class T, class Group, class Function>
+void private_memory_environment(const Group& g, Function&& f) noexcept;
+
+/// Construct a request for memory_environment() to allocate local memory
+/// of the provided type T. The memory will not be initialized.
+template <class T>
+__unspecified__ require_local_mem() noexcept;
+
+/// Construct a request for memory_environment() to allocate local memory
+/// of the provided type T.
+///
+/// If T is of a C-array type with up to 3 dimensions, i.e. can be represented
+/// as ScalarT [N], ScalarT [N][M] or ScalarT [N][M][K], the argument x must be of
+/// type ScalarT. Each array element will be initialized with the value of x.
+///
+/// Otherwise, InitType must be the same as T, and the allocation will be initialized
+/// with the value of x.
+template <class T, class InitType>
+__unspecified__ require_local_mem(const InitType& x) noexcept;
+
+/// Construct a request for memory_environment() to allocate private memory
+/// of the provided type T. The memory will not be initialized.
+///
+/// The callable passed to memory_environment() will not be provided with
+/// the requested private memory allocation directly, but with a wrapper object.
+/// A reference to the actual allocation can be obtained by passing an s_item object
+/// to the operator() of the wrapper object.
+template <class T>
+__unspecified__ require_private_mem() noexcept;
+
+/// Construct a request for memory_environment() to allocate private memory
+/// of the provided type T. The memory will be initialized using the value of
+/// x.
+///
+/// The callable passed to memory_environment() will not be provided with
+/// the requested private memory allocation directly, but with a wrapper object.
+/// A reference to the actual allocation can be obtained by passing an s_item object
+/// to the operator() of the wrapper object.
+template <class T>
+__unspecified__ require_private_mem(const T& x) noexcept;
 
 }
 
@@ -532,7 +624,9 @@ The following group algorithms are supported for scoped parallelism groups:
 
 Group algorithms must be invoked outside of a `distribute_items()` call.
 
-## New class `s_private_memory`
+## class `s_private_memory`
+
+This class was part of earlier versions of scoped parallelism. It is now deprecated and will be removed in the future. Use `sycl::memory_environment()` instead.
 
 ```c++
 namespace sycl {
@@ -540,7 +634,8 @@ namespace sycl {
 /// Allows for sharing allocations in private memory of logical work
 /// items between multiple distribute_items() invocations.
 ///
-/// Must not be constructed inside distribute_items.
+/// Must not be constructed inside distribute_items. Not user-constructible,
+/// objects can be obtained using sycl::memory_environment().
 ///
 /// Only available if SpGroup is a scoped parallelism group.
 template<typename T, class SpGroup>
@@ -548,6 +643,7 @@ class s_private_memory
 {
 public:
   /// Construct object
+  [[deprecated("Use sycl::memory_environment() instead")]]
   explicit s_private_memory(const SpGroup& grp);
 
   /// s_private_memory is not copyable
@@ -555,6 +651,7 @@ public:
   s_private_memory& operator=(const s_private_memory&) = delete;
 
   /// Access allocation for specified logical work item.
+  [[deprecated("Use sycl::memory_environment() instead")]]
   T& operator()(const s_item<SpGroup::dimensions>& idx) noexcept;
 };
 
@@ -562,7 +659,9 @@ public:
 
 ```
 
-## New class `local_memory<T, Group>`
+## class `local_memory<T, Group>` (deprecated)
+
+This class was part of earlier versions of scoped parallelism. It is now deprecated and will be removed in the future. Use `sycl::memory_environment()` instead.
 
 ```c++
 namespace sycl {
@@ -576,9 +675,11 @@ public:
 
   // Only available if T is array. Returns reference to a single 
   // element of the array.
+  [[deprecated("Use sycl::memory_environment() instead")]]
   scalar_type& operator[](std::size_t index) noexcept;
 
   // Return managed data in local memory
+  [[deprecated("Use sycl::memory_environment() instead")]]
   T& operator()() noexcept;
 };
 

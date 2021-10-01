@@ -268,28 +268,32 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     cgh.parallel<class ScopedReductionKernel>(
         s::range<1>{input_size / Group_size}, s::range<1>{Group_size},
         [=](auto grp) {
-          s::local_memory<int[Group_size], decltype(grp)> scratch;
-          s::s_private_memory<int, decltype(grp)> load{grp};
-
-          s::distribute_items(grp, [&](s::s_item<1> idx) {
-            load(idx) = data_accessor[idx.get_global_id(0)];
-          });
-          s::distribute_items(grp, [&](s::s_item<1> idx) {
-            scratch[idx.get_innermost_local_id(0)] = load(idx);
-          });
-
-          s::group_barrier(grp);
-
-          for (int i = Group_size / 2; i > 0; i /= 2) {
-            s::distribute_items_and_wait(grp, [&](s::s_item<1> idx) {
-              size_t lid = idx.get_innermost_local_id(0);
-              if (lid < i)
-                scratch[lid] += scratch[lid + i];
+          
+          s::memory_environment(grp, 
+            s::require_local_mem<int[Group_size]>(),
+            s::require_private_mem<int>(),
+            [&](auto &scratch, auto &load) {
+            
+            s::distribute_items(grp, [&](s::s_item<1> idx) {
+              load(idx) = data_accessor[idx.get_global_id(0)];
             });
-          }
+            s::distribute_items(grp, [&](s::s_item<1> idx) {
+              scratch[idx.get_innermost_local_id(0)] = load(idx);
+            });
 
-          s::single_item(grp, [&]() {
-            data_accessor[grp.get_group_id(0) * Group_size] = scratch[0];
+            s::group_barrier(grp);
+
+            for (int i = Group_size / 2; i > 0; i /= 2) {
+              s::distribute_items_and_wait(grp, [&](s::s_item<1> idx) {
+                size_t lid = idx.get_innermost_local_id(0);
+                if (lid < i)
+                  scratch[lid] += scratch[lid + i];
+              });
+            }
+
+            s::single_item(grp, [&]() {
+              data_accessor[grp.get_group_id(0) * Group_size] = scratch[0];
+            });
           });
         });
   });
@@ -303,6 +307,90 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     
     BOOST_TEST(host_result == host_acc[grp * Group_size]);
   }
+}
+BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
+  namespace s = cl::sycl;
+
+  s::queue q;
+  std::size_t input_size = 1024;
+  s::buffer<int> buff{input_size};
+  constexpr std::size_t Group_size = 256;
+
+  q.submit([&](s::handler& cgh){
+    s::accessor acc{buff, cgh, s::no_init};
+    cgh.parallel<class ScopedReductionMemEnv>(
+      s::range{input_size / Group_size},
+      s::range{Group_size}, [=](auto grp){
+      
+      s::memory_environment(grp,
+        s::require_local_mem<int[16][16]>(3),
+        s::require_private_mem<int>(4),
+        [&](auto& local, auto& private_mem){
+        
+        if(grp.get_group_id(0) == 0) {
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            int* local_ptr = &local[0][0];
+            acc[idx.get_global_linear_id()] =
+                local_ptr[idx.get_innermost_local_linear_id()];
+          });
+        }
+        if(grp.get_group_id(0) == 1) {
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            acc[idx.get_global_linear_id()] =
+                private_mem(idx);
+          });
+        }
+      });
+      s::local_memory_environment<int [Group_size]>(grp, 
+        [&](auto& local){
+
+        if(grp.get_group_id(0) == 2) {
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            local[idx.get_innermost_local_linear_id()] =
+                idx.get_innermost_local_linear_id();
+            acc[idx.get_global_linear_id()] =
+                local[idx.get_innermost_local_linear_id()];
+          });
+        }
+      });
+      const s::vec<int,8> init_val{0,1,2,3,4,5,6,7};
+      s::memory_environment(grp, 
+        s::require_private_mem<s::vec<int,8>>(init_val),
+        [&](auto& priv_mem){
+
+        if(grp.get_group_id(0) == 3) {
+          s::distribute_items(grp, [&](s::s_item<1> idx) {
+            int res = 0;
+            auto v = priv_mem(idx) + init_val;
+            for(int i = 0; i < init_val.get_count(); ++i) {
+              res += v[i];
+            }
+            acc[idx.get_global_linear_id()] = res;
+          });
+        }
+      });
+    });
+  });
+  s::host_accessor hacc{buff};
+  for(int grp = 0; grp < 4; ++grp) {
+    for(int lid = 0; lid < Group_size; ++lid){
+      const int gid = grp * Group_size + lid;
+      if(grp == 0){
+        BOOST_CHECK(hacc[gid] == 3);
+      } else if(grp == 1) {
+        BOOST_CHECK(hacc[gid] == 4);
+      } else if(grp == 2) {
+        BOOST_CHECK(hacc[gid] == lid);
+      } else if(grp == 4) {
+        const s::vec<int,8> expected_v{0,2,4,6,8,10,12,14};
+        int expected = 0; 
+        for (int i = 0; i < expected_v.get_count(); ++i)
+          expected += expected_v[i];
+        BOOST_CHECK(hacc[gid] == expected);
+      }
+    }
+  }
+
 }
 #ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
 BOOST_AUTO_TEST_CASE(custom_enqueue) {

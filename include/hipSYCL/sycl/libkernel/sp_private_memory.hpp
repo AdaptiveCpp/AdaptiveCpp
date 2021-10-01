@@ -36,6 +36,41 @@
 namespace hipsycl {
 namespace sycl {
 
+namespace detail {
+
+template<typename T, class SpGroup>
+class private_memory_access
+{
+  static constexpr int dimensions = SpGroup::dimensions;
+public:
+  template <class SG = SpGroup,
+            std::enable_if_t<detail::is_sp_group_v<std::decay_t<SG>>, int> = 0>
+  HIPSYCL_KERNEL_TARGET explicit private_memory_access(const SpGroup &grp,
+                                                       T *data)
+      : _data{data}, _grp{grp} {}
+
+  private_memory_access(const private_memory_access&) = delete;
+  private_memory_access& operator=(const private_memory_access&) = delete;
+
+  HIPSYCL_KERNEL_TARGET
+  T& operator()(const detail::sp_item<dimensions>& idx) noexcept
+  {
+    return get(idx.get_local_id(_grp), idx.get_local_range(_grp));
+  }
+
+private:
+  const SpGroup& _grp;
+  T* _data;
+
+  HIPSYCL_KERNEL_TARGET
+  T &get(const sycl::id<dimensions> &id,
+         const sycl::range<dimensions> &local_range) noexcept {
+    return _data[detail::linear_id<dimensions>::get(id, local_range)];
+  }
+};
+
+}
+
 #ifdef SYCL_DEVICE_ONLY
 
 template<typename T, class SpGroup>
@@ -45,12 +80,14 @@ class s_private_memory
 public:
   template <class SG = SpGroup,
             std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET explicit s_private_memory(const SpGroup & grp)
   {}
 
   s_private_memory(const s_private_memory&) = delete;
   s_private_memory& operator=(const s_private_memory&) = delete;
 
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET
   T& operator()(const detail::sp_item<dimensions>&) noexcept
   {
@@ -70,6 +107,7 @@ class s_private_memory
 public:
   template <class SG = SpGroup,
             std::enable_if_t<detail::is_sp_group_v<SG>, int> = 0>
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET
   explicit s_private_memory(const SpGroup& grp)
   : _data{new T [grp.get_logical_local_linear_range()]}, _grp{grp}
@@ -78,6 +116,7 @@ public:
   s_private_memory(const s_private_memory&) = delete;
   s_private_memory& operator=(const s_private_memory&) = delete;
 
+  [[deprecated("Use sycl::memory_environment() instead")]]
   HIPSYCL_KERNEL_TARGET
   T& operator()(const detail::sp_item<dimensions>& idx) noexcept
   {

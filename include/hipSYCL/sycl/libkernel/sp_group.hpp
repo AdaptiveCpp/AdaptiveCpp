@@ -1209,14 +1209,14 @@ group_barrier(const detail::sp_scalar_group<PropertyDescriptor> &g,
 #endif
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void distribute_items(const Group &g,
                                                    Func f) noexcept {
   detail::distribute_items(g, f);
 }
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void distribute_items_and_wait(const Group &g,
                                                             Func f) noexcept {
   detail::distribute_items(g, f);
@@ -1224,14 +1224,14 @@ HIPSYCL_KERNEL_TARGET inline void distribute_items_and_wait(const Group &g,
 }
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void distribute_groups(const Group &g,
                                                     Func f) noexcept {
   detail::subdivide_group(g, f);
 }
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void distribute_groups_and_wait(const Group &g,
                                                              Func f) noexcept {
   detail::subdivide_group(g, f);
@@ -1239,14 +1239,14 @@ HIPSYCL_KERNEL_TARGET inline void distribute_groups_and_wait(const Group &g,
 }
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void single_item(const Group &g, Func f) noexcept {
   if (g.leader())
     f();
 }
 
 template <class Group, class Func,
-          std::enable_if_t<detail::is_sp_group_v<Group>, int> = 0>
+          std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>
 HIPSYCL_KERNEL_TARGET inline void single_item_and_wait(const Group &g,
                                                        Func f) noexcept {
   if (g.leader())

@@ -35,6 +35,7 @@
 #include "hipSYCL/sycl/queue.hpp"
 
 #include "sycl_test_suite.hpp"
+#include <boost/test/tools/old/interface.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(extension_tests, reset_device_fixture)
 
@@ -392,6 +393,32 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
   }
 
 }
+BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
+  using namespace cl;
+  sycl::queue q;
+  const size_t test_size = 1000;
+  sycl::buffer<int> buff{sycl::range{test_size}};
+
+  q.submit([&](sycl::handler& cgh){
+    sycl::accessor acc {buff, cgh, sycl::no_init};
+    cgh.parallel<class ScopedOddGroupSize>(sycl::range{10}, sycl::range{100}, 
+      [=](auto grp){
+      sycl::distribute_groups(grp, [&](auto subgroup){
+        sycl::distribute_groups(subgroup, [&](auto subsubgroup){
+          sycl::distribute_items(subsubgroup, [&](sycl::s_item<1> idx){
+            acc[idx.get_global_linear_id()] = static_cast<int>(idx.get_global_linear_id());
+          });
+        });
+      });
+    });
+  });
+  {
+    sycl::host_accessor hacc{buff};
+    for (int i = 0; i < test_size; ++i)
+      BOOST_CHECK(hacc[i] == i);
+  }
+}
+#endif
 #ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
 BOOST_AUTO_TEST_CASE(custom_enqueue) {
   using namespace cl;
@@ -454,9 +481,6 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
     }
   }
 }
-#endif
-
-
 #endif
 #ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET
 BOOST_AUTO_TEST_CASE(cg_property_retarget) {

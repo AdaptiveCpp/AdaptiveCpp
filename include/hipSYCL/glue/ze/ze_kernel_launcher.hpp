@@ -190,11 +190,13 @@ public:
     _queue = static_cast<rt::ze_queue*>(q);
   }
 
-  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k, Reductions... reductions) {
+
+    using kernel_name_t = typename KernelNameTraits::suggested_mangling_name;
 
     this->_type = type;
     
@@ -234,8 +236,8 @@ public:
       if constexpr(type == rt::kernel_type::single_task){
         rt::range<3> single_item{1,1,1};
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<KernelName>,
-                                KernelName, Kernel, single_item, single_item, 0,
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<kernel_name_t>,
+                                kernel_name_t, Kernel, single_item, single_item, 0,
                                 ze_dispatch::packed_kernel{k});
 
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
@@ -268,8 +270,8 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
-                                KernelName, Kernel,
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+                                kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
                                 dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});
@@ -295,8 +297,8 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
-                                KernelName, Kernel,
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+                                kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
                                 dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});
@@ -318,8 +320,20 @@ public:
             sycl::detail::get_local_size<Dim>(),
             sycl::detail::get_grid_size<Dim>()};
 #endif
-          using group_properties =
-            sycl::detail::sp_property_descriptor<Dim, 0>;
+          // TODO: We should actually query the subgroup size of the device
+          // and then multiversion the kernel based on this. Currently,
+          // scoped parallelism on SPIR-V just uses scalar subgroups.
+          auto determine_group_properties = [](){
+            if constexpr(Dim == 1) {
+              return sycl::detail::sp_property_descriptor<Dim, 0, 1>{};
+            } else if constexpr(Dim == 2){
+              return sycl::detail::sp_property_descriptor<Dim, 0, 1, 1>{};
+            } else {
+              return sycl::detail::sp_property_descriptor<Dim, 0, 1, 1, 1>{};
+            }
+          };
+
+          using group_properties = std::decay_t<decltype(determine_group_properties())>;
 
           k(sycl::detail::sp_group<group_properties>{this_group});
 #else
@@ -327,8 +341,8 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<KernelName>,
-                                KernelName, Kernel,
+        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+                                kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
                                 dynamic_local_memory, ze_dispatch::packed_kernel{kernel_wrapper});

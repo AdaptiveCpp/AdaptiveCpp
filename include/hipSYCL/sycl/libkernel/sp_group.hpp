@@ -43,56 +43,95 @@ namespace sycl {
 namespace detail {
 
 
-template<int Dim, int Level, int... StaticLocalSizes>
+template<int Dim, int Level, int... KnownGroupSizeDivisors>
 struct sp_property_descriptor{
   static constexpr int dimensions = Dim;
   static constexpr int level = Level;
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
   static constexpr auto make_next_level_descriptor(){
-    // If we are subdividing a full group, return subgroup tiles
     if constexpr(Level == 0) {
-      if constexpr(dimensions == 1) {
-        return sp_property_descriptor<Dim, Level+1, 16>{};
-      } else if constexpr(dimensions == 2) {
-        return sp_property_descriptor<Dim, Level+1, 4, 4>{};
+      using desired_next_level_type_1d = sp_property_descriptor<Dim, Level+1, 16>;
+      using desired_next_level_type_2d = sp_property_descriptor<Dim, Level+1, 4,4>;
+      using desired_next_level_type_3d = sp_property_descriptor<Dim, Level+1, 2,2,2>;
+
+      if constexpr(Dim == 1) {
+        return construct_next_level_or_scalar_fallback<16>();
+      } else if constexpr(Dim == 2) {
+        return construct_next_level_or_scalar_fallback<4,4>();
       } else {
-        return sp_property_descriptor<Dim, Level+1, 2, 2, 2>{};
+        return construct_next_level_or_scalar_fallback<2,2,2>();
       }
-    // Otherwise just return scalar elements
-    } else  {
-      if constexpr(dimensions == 1) {
-        return sp_property_descriptor<Dim, Level+1, 1>{};
-      } else if constexpr(dimensions == 2) {
-        return sp_property_descriptor<Dim, Level+1, 1, 1>{};
-      } else {
-        return sp_property_descriptor<Dim, Level+1, 1, 1, 1>{};
-      }
+    } else {
+      return construct_scalar_next_level();
+    }
+  }
+
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+  static constexpr auto make_next_level_descriptor(){
+    if constexpr(Level == 0 && Dim == 1) {
+      return construct_next_level_or_scalar_fallback<warpSize>();
+    } else {
+      return construct_scalar_next_level();
     }
   }
 #else
   static constexpr auto make_next_level_descriptor(){
-    return sp_property_descriptor<Dim, Level+1>{};
+    return construct_scalar_next_level();
   }
 #endif
 
-  static constexpr bool has_static_local_size(){
-    return sizeof...(StaticLocalSizes) > 0;
+  static constexpr bool has_known_group_size_divisors(){
+    return sizeof...(KnownGroupSizeDivisors) > 0;
   }
 
-  static constexpr bool has_scalar_static_local_size(){
-    if constexpr(!has_static_local_size()) {
-      return false;
+  static constexpr bool has_scalar_fixed_group_size(){
+    if constexpr(!has_known_group_size_divisors()) {
+      return true;
     } else {
-      return (StaticLocalSizes * ...) == 1;
+      return (KnownGroupSizeDivisors * ...) == 1;
     }
   }
 
-  static auto get_static_local_size(){
-    if constexpr(has_static_local_size()) {
-      return sycl::range{StaticLocalSizes...};
+  static auto get_fixed_group_size(){
+    if constexpr(Level > 0 && has_known_group_size_divisors()) {
+      return sycl::range{KnownGroupSizeDivisors...};
     } else {
       return sycl::range<dimensions>{};
+    }
+  }
+
+  static_assert(
+      has_known_group_size_divisors(),
+      "No information about the group size was made available. This makes it "
+      "impossible to reason about how to decompose work groups");
+
+private:
+  template<int... SubgroupSizes>
+  static constexpr bool is_subgroup_guaranteed_supported() {
+    return ((KnownGroupSizeDivisors % SubgroupSizes == 0 ) && ...);
+  }
+
+  template<int... SubgroupSizes>
+  static constexpr auto construct_next_level_or_scalar_fallback() {
+    if constexpr(is_subgroup_guaranteed_supported<SubgroupSizes...>()){
+      return sp_property_descriptor<Dim, Level+1, SubgroupSizes...>{};
+    } else {
+      return construct_scalar_next_level();
+    }
+  }
+
+  static constexpr auto construct_scalar_next_level() {
+    using type_1d = sp_property_descriptor<Dim, Level+1, 1>;
+    using type_2d = sp_property_descriptor<Dim, Level+1, 1,1>;
+    using type_3d = sp_property_descriptor<Dim, Level+1, 1,1,1>;
+
+    if constexpr(Dim==1) {
+      return type_1d{};
+    } else if constexpr (Dim==2) {
+      return type_2d{};
+    } else {
+      return type_3d{};
     }
   }
 };
@@ -668,7 +707,7 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   sycl::range<dimensions> get_logical_local_range() const noexcept {
-    return PropertyDescriptor::get_static_local_size();
+    return PropertyDescriptor::get_fixed_group_size();
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -994,19 +1033,25 @@ inline  void subdivide_group(
   // of the new "groups" is just the global id of the work item
   // which can always be obtained from the global offset
   // and local id.
-  static_assert(!PropertyDescriptor::has_static_local_size(),
-                "Cannot handle static local size on GPU");
+
+  static_assert(next_property_descriptor::has_scalar_fixed_group_size(),
+    "Non-scalar sub-subgroups are currently unimplemented.");
 
   sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_physical_local_id();
+  
   sp_scalar_group<next_property_descriptor> subgroup{
       g.get_physical_local_id(), g.get_physical_local_range(),
       subgroup_global_offset};
+  
   f(subgroup);
 #else
+  static_assert(next_property_descriptor::has_scalar_fixed_group_size(),
+    "Non-scalar sub-subgroups are currently unsupported.");
+
   // On CPU, we need to iterate now across all elements of this subgroup
   // to construct scalar groups.
-  if constexpr(next_property_descriptor::has_scalar_static_local_size()){
+  if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
     glue::host::iterate_range_simd(
         g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
           sp_scalar_group<next_property_descriptor> subgroup{
@@ -1016,7 +1061,7 @@ inline  void subdivide_group(
         });
   } else {
     glue::host::iterate_range_tiles(g.get_logical_local_range(), 
-      next_property_descriptor::get_static_local_size(), [&](sycl::id<dim>& idx){
+      next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
         // TODO: Multi-Level static tiling on CPU
         //sp_sub_group<next_property_descriptor> subgroup{};
       });
@@ -1039,9 +1084,11 @@ inline  void subdivide_group(
     g.get_group_range() * g.get_logical_local_range());
   
 #ifdef SYCL_DEVICE_ONLY
-  // Only expose subgroup in 1D case to make sure
+  // This if statement makes sure that we only expose subgroups
+  // when we can actually decompose the work group into subgroups.
+  // Currently, this only exposes subgroups in the 1D case to make sure
   // all range and id queries are well defined
-  if constexpr(dim == 1) {
+  if constexpr(!next_property_descriptor::has_scalar_fixed_group_size()) {
     const size_t global_offset = get_group_global_id_offset(g)[0] +
                                  g.get_physical_local_linear_id() -
                                  sycl::sub_group{}.get_local_linear_id();
@@ -1050,8 +1097,6 @@ inline  void subdivide_group(
     f(subgroup);
 
   } else {
-    // TODO This is incorrect; using subgroups for dim > 1 is currently
-    // not supported on device.
     sycl::id<dim> subgroup_global_offset =
       get_group_global_id_offset(g) + g.get_physical_local_id();
     
@@ -1061,10 +1106,7 @@ inline  void subdivide_group(
   }
 #else
 
-  static_assert(next_property_descriptor::has_static_local_size(),
-    "No compile-time subgroup size available on CPU");
-
-  const auto subgroup_size = next_property_descriptor::get_static_local_size();
+  const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
   const auto num_groups = g.get_logical_local_range() / subgroup_size;
   glue::host::iterate_range_tiles(
       g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {

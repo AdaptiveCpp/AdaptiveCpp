@@ -729,20 +729,27 @@ public:
               assert(global_range[i] % effective_local_range[i] == 0);
 
             auto invoke_scoped_kernel = [&](auto multiversioning_props) {
+              using multiversioned_parameters = decltype(multiversioning_props);
+
               using multiversioned_name_t =
                   typename KernelNameTraits::template multiversioned_name<
-                      decltype(multiversioning_props)>;
+                      multiversioned_parameters>;
+              
+              auto multiversioned_kernel_body =
+                  KernelNameTraits::template make_multiversioned_kernel_body<
+                      multiversioned_parameters>(k);
+              
               using sp_properties_t = decltype(multiversioning_props);
 
               __hipsycl_invoke_kernel(
                   hiplike_dispatch::parallel_region<multiversioned_name_t>,
-                  multiversioned_name_t, Kernel,
+                  multiversioned_name_t, decltype(multiversioned_kernel_body),
                   hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                   hiplike_dispatch::make_kernel_launch_range<Dim>(
                       effective_local_range),
-                  required_dynamic_local_mem, _queue->get_native_type(), k,
-                  multiversioning_props, grid_range, effective_local_range,
-                  reduction_descriptors...);
+                  required_dynamic_local_mem, _queue->get_native_type(),
+                  multiversioned_kernel_body, multiversioning_props, grid_range,
+                  effective_local_range, reduction_descriptors...);
             };
 
             if constexpr(Dim == 1) {

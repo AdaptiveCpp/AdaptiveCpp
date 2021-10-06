@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_GLUE_KERNEL_NAMES_HPP
 #define HIPSYCL_GLUE_KERNEL_NAMES_HPP
 
+#include <utility>
 struct __hipsycl_unnamed_kernel {};
 
 namespace hipsycl {
@@ -39,6 +40,16 @@ template<class KernelName> struct complete_kernel_name {};
 
 template<class KernelName, typename... MultiversionParamaters>
 struct multiversioned_kernel_name {};
+
+template<class KernelBodyT, typename... MultiversionParameters>
+struct multiversioned_kernel_wrapper {
+  template<typename... Args>
+  void operator()(Args&&... args) const noexcept {
+    kernel(std::forward<Args>(args)...);
+  }
+
+  KernelBodyT kernel;
+};
 
 template<class KernelNameTag, class KernelBodyT>
 struct kernel_name_traits {
@@ -58,6 +69,13 @@ struct kernel_name_traits {
   using multiversioned_suggested_mangling_name =
       multiversioned_kernel_name<suggested_mangling_name, MultiversionParameters...>;
 
+  template <typename... MultiversionParameters>
+  static auto
+  make_multiversioned_kernel_body(const KernelBodyT &body) noexcept {
+    return multiversioned_kernel_wrapper<KernelBodyT,
+                                         MultiversionParameters...>{body};
+  }
+
   static constexpr bool is_unnamed = false;
 };
 
@@ -72,7 +90,14 @@ struct kernel_name_traits<__hipsycl_unnamed_kernel, KernelBodyT> {
 
   template <typename... MultiversionParameters>
   using multiversioned_suggested_mangling_name =
-      multiversioned_kernel_name<suggested_mangling_name, MultiversionParameters...>;
+      multiversioned_kernel_wrapper<KernelBodyT, MultiversionParameters...>;
+
+  template <typename... MultiversionParameters>
+  static auto
+  make_multiversioned_kernel_body(const KernelBodyT &body) noexcept {
+    return multiversioned_kernel_wrapper<KernelBodyT,
+                                         MultiversionParameters...>{body};
+  }
 
   static constexpr bool is_unnamed = true;
 };

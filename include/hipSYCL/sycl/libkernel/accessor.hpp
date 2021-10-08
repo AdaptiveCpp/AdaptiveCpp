@@ -1462,9 +1462,18 @@ public:
                                     access_mode::read_write> &other)
       : _impl{other._impl} {}
 
-  /* -- common interface members -- */
+  friend bool operator==(const host_accessor &lhs, const host_accessor &rhs) {
+    return lhs._impl == rhs._impl;
+  }
 
-  //void swap(host_accessor &other);
+  friend bool operator!=(const host_accessor &lhs, const host_accessor &rhs) {
+    return lhs._impl != rhs._impl;
+  }
+
+  void swap(host_accessor &other) {
+    using std::swap;
+    swap(_impl, other._impl);
+  }
 
   size_type byte_size() const noexcept {
     return _impl.get_size();
@@ -1623,8 +1632,15 @@ public:
       _num_elements{allocationSize}
   {}
 
+  accessor(const accessor &) = default;
+  accessor &operator=(const accessor &) = default;
 
-  /* -- common interface members -- */
+  void swap(accessor &other)
+  {
+    using std::swap;
+    swap(_addr, other._addr);
+    swap(_num_elements, other._num_elements);
+  }
 
   friend bool operator==(const accessor& lhs, const accessor& rhs)
   {
@@ -1636,19 +1652,39 @@ public:
     return !(lhs == rhs);
   }
 
+  [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
   HIPSYCL_KERNEL_TARGET
   size_t get_size() const
   {
     return get_count() * sizeof(dataT);
   }
 
+  [[deprecated("get_count() was removed for SYCL 2020, use size() instead")]]
   HIPSYCL_KERNEL_TARGET
   size_t get_count() const
   {
     return _num_elements.size();
   }
 
-  
+  HIPSYCL_KERNEL_TARGET
+  size_t byte_size() const noexcept
+  {
+    return size() * sizeof(dataT);
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t size() const noexcept
+  {
+    return _num_elements.size();
+  }
+
+  // size_type max_size() const noexcept;
+
+  range<dimensions> get_range() const
+  {
+    return _num_elements;
+  }
+
   template<int D = dimensions,
            access_mode M = accessmode,
            std::enable_if_t<(D == 0) && (M != access_mode::atomic), bool> = false>
@@ -1744,8 +1780,8 @@ private:
     : _addr{addr}, _num_elements{r}
   {}
 
-  const address _addr{};
-  const range<dimensions> _num_elements;
+  address _addr{};
+  range<dimensions> _num_elements;
 };
 
 template <typename dataT, int dimensions = 1>

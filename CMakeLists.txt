@@ -202,7 +202,7 @@ else()
   set(DEFAULT_LINK_PREFIX "-l")
 endif()
 
-if(Boost_CONTEXT_LIBRARY_DEBUG)
+if(Boost_CONTEXT_LIBRARY_DEBUG OR Boost_CONTEXT_LIBRARY_RELEASE)
   if(CMAKE_BUILD_TYPE MATCHES Debug)
     get_filename_component(Boost_CONTEXT_LIBRARY_NAME ${Boost_CONTEXT_LIBRARY_DEBUG} NAME)
     get_filename_component(Boost_FIBER_LIBRARY_NAME ${Boost_FIBER_LIBRARY_DEBUG} NAME)

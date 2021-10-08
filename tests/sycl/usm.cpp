@@ -81,8 +81,12 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
     verify_allocation_type(aligned_device_mem_ptr, sycl::usm::alloc::device);
     verify_allocation_type(host_ptr, sycl::usm::alloc::host);
     verify_allocation_type(aligned_host_ptr, sycl::usm::alloc::host);
-    verify_allocation_type(shared_ptr, sycl::usm::alloc::shared);
-    verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::shared);
+    // As of yet, ROCm does not have proper shared allocations
+    // and gives us device-accessible host memory instead.
+    if(q.get_device().get_backend() != sycl::backend::hip) {
+      verify_allocation_type(shared_ptr, sycl::usm::alloc::shared);
+      verify_allocation_type(aligned_shared_ptr, sycl::usm::alloc::shared);
+    }
     verify_allocation_type(unregistered_data.data(), sycl::usm::alloc::unknown);
   }
 

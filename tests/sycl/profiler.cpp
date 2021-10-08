@@ -148,6 +148,7 @@ BOOST_AUTO_TEST_CASE(queue_profiling)
   auto evt6 = queue.submit([&](cl::sycl::handler &cgh) {
     cgh.memset(src, 0, sizeof src);
   });
+
   auto t61 = evt6.get_profiling_info<cl::sycl::info::event_profiling::command_submit>();
   auto t62 = evt6.get_profiling_info<cl::sycl::info::event_profiling::command_start>();
   auto t63 = evt6.get_profiling_info<cl::sycl::info::event_profiling::command_end>();

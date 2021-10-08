@@ -118,7 +118,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
       // fixme: investigate where the invalid decls come from..
       if(!D)
         return true;
-
+      
       clang::Decl* DefinitionDecl = D;
       clang::FunctionDecl* FD = clang::dyn_cast<clang::FunctionDecl>(D);
 
@@ -246,20 +246,16 @@ public:
     if(!F) return true;
     if(!CustomAttributes::SyclKernel.isAttachedTo(F)) return true;
 
+    // Store user kernel for it to be marked as device code later on. We store
+    // the kernel invoke itself instead of user lambda since the user lambda()
+    // will not have an operator() that we can inspect for further outlining if
+    // it is generic (i.e., has auto parameter).
+    UserKernels.insert(F);
+
     auto KernelFunctorType = llvm::dyn_cast<clang::RecordType>(Call->getArg(0)
       ->getType()->getCanonicalTypeUnqualified());
-
-    // Store user kernel for it to be marked as device code later on
-    if(KernelFunctorType)
-    {
-      auto Methods = llvm::dyn_cast<clang::CXXRecordDecl>(
-        KernelFunctorType->getDecl())->methods();
-      for(auto&& M : Methods)
-      {
-        if(M->getNameAsString() == "operator()")
-          UserKernels.insert(M);
-      }
-    }
+    if(!KernelFunctorType)
+      return true;
 
     // Determine unique kernel name to be used for symbol name in device IR
     clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
@@ -392,7 +388,8 @@ public:
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
                            << RD->getQualifiedNameAsString() << std::endl;
         markAsHostDevice(RD);
-        if (!RD->hasAttr<clang::CUDAHostAttr>() && !RD->hasAttr<clang::CUDADeviceAttr>())
+        if (!RD->hasAttr<clang::CUDAHostAttr>() && !RD->hasAttr<clang::CUDADeviceAttr>()
+            && !CustomAttributes::SyclKernel.isAttachedTo(RD))
         {
           RD->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
           RD->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));

@@ -79,10 +79,10 @@ T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
   size_t i = 1;
 
   if(lid < rv_num_lanes() && rv_num_lanes() <= local_range) {
-    x = group_reduce(sg, scratch[rv_lane_id()], binary_op);
     for(i = rv_num_lanes(); i + rv_num_lanes() <= local_range; i += rv_num_lanes()) {
-      x = binary_op(x, group_reduce(sg, scratch[i + rv_lane_id()], binary_op));
+      x = binary_op(x, scratch[i + rv_lane_id()]);
     }
+    x = group_reduce(sg, x, binary_op);
   }
   if(g.leader()){
     for(; i < local_range; ++i)

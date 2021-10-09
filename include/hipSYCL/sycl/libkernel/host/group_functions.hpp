@@ -48,7 +48,7 @@ HIPSYCL_KERNEL_TARGET
 T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
 #ifdef HIPSYCL_HAS_RV
   const size_t       lid        = g.get_local_linear_id();
-  const unsigned int activemask = rv_mask();
+  const unsigned int activemask = rv_ballot(rv_mask());
 
   auto local_x = x;
 

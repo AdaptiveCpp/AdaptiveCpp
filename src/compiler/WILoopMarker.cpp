@@ -40,7 +40,7 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
   bool Changed = false;
   auto *MDWorkItemLoop =
       llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), hipsycl::compiler::MDKind::WorkItemLoop)});
-  for (auto *L : utils::getLoopsInPreorder(LI)) {
+  for (auto *L : LI.getTopLevelLoops()) {
     assert(L->getLoopDepth() == 1);
 
     // must be using collapse on multi-dim kernels to get a single work-item loop

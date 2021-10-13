@@ -36,7 +36,9 @@ int main()
 
           scratch[lid] = acc[item.get_global_id()];
           item.barrier();
-          scratch[lid] += scratch[(lid + 1) % group_size];
+          const auto load = scratch[(lid + 1) % group_size];
+          item.barrier();
+          scratch[lid] += load;
 
           if(lid == 0)
             acc[item.get_global_id()] = scratch[lid];

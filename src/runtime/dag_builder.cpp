@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/dag_builder.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
+#include "hipSYCL/sycl/access.hpp"
 
 #include <mutex>
 
@@ -44,6 +45,7 @@ namespace rt {
 
 namespace {
 
+
 // Add this node to the data users of the memory region of the specified
 // requirement
 void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
@@ -53,6 +55,40 @@ void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
     auto &data_users = cast<buffer_memory_requirement>(mem_req)
                            ->get_data_region()
                            ->get_users();
+    // This lambda is used to check whether an existing user
+    // should be overwritten by the new user. This is an important
+    // optimization: We KNOW that the new user is going to have
+    // dependencies on conflicting accesses, so we can just
+    // replace the tracking of those older accesses with the new one.
+    auto replaces_user = [&](const data_user& user) -> bool {
+      // Check if accessed range of new user is larger or equal.
+      // If its range does not encompass all the range of the existing
+      // user, we cannot remove the existing user.
+      for(int i = 0; i < 3; ++i) {
+        auto offset = mem_req->get_access_offset3d();
+        auto range = mem_req->get_access_range3d();
+
+        if (offset[i] > user.offset[i])
+          return false;
+        if (offset[i] + range[i] < user.offset[i] + user.range[i])
+          return false;
+      }
+
+      bool new_user_writes = mem_req->get_access_mode() != sycl::access_mode::read;
+      bool old_user_writes = user.mode != sycl::access_mode::read;
+
+      // Write accesses always create strong dependencies, so we can
+      // safely replace the old user in any case
+      if(new_user_writes)
+        return true;
+      // A read-only access is weaker than a write-access, so we can
+      // only replace if the other user is also a read-only access.
+      else if(!old_user_writes){
+        return true;
+      }
+
+      return false;
+    };
 
     // We need to add the user unconditionally, whether the user
     // is already registered or not. This is to cover the case
@@ -63,7 +99,8 @@ void add_to_data_users(dag_node_ptr node, memory_requirement *mem_req) {
     // that are not listed yet as requirement. 
     data_users.add_user(
         node, mem_req->get_access_mode(), mem_req->get_access_target(),
-        mem_req->get_access_offset3d(), mem_req->get_access_range3d());
+        mem_req->get_access_offset3d(), mem_req->get_access_range3d(),
+        replaces_user);
   
   } else
     assert(false && "dag: Image requirements are not yet implemented");

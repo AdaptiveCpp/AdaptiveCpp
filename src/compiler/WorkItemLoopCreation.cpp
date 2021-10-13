@@ -205,17 +205,18 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(llvm::errs() << "cfg for OldExit: " << OldExit->getName() << "\n"; F->viewCFG();)
   llvm::ValueToValueMapTy VMap;
-  auto *WIPreHeader = WorkItemLoop->getLoopPreheader();
+  auto *WIHeader = WorkItemLoop->getHeader();
+  auto *WIPreHeader = utils::splitEdge(WorkItemLoop->getLoopPreheader(), WIHeader, &LI, &DT);
   auto *WILatch = WorkItemLoop->getLoopLatch();
   auto *PreHeader = llvm::CloneBasicBlock(WIPreHeader, VMap, ".pregion_for_init", F, nullptr, nullptr);
-  auto *Header = llvm::CloneBasicBlock(WorkItemLoop->getHeader(), VMap, ".pregion_for_cond", F, nullptr, nullptr);
+  auto *Header = llvm::CloneBasicBlock(WIHeader, VMap, ".pregion_for_cond", F, nullptr, nullptr);
   auto *Latch = llvm::CloneBasicBlock(WILatch, VMap, ".pregion_for_inc", F, nullptr, nullptr);
 
   if (WIPreHeader) {
     HIPSYCL_DEBUG_INFO << "PreHeader: " << WIPreHeader->getName() << " clone: " << PreHeader->getName() << "\n";
   }
-  if (WorkItemLoop->getHeader()) {
-    HIPSYCL_DEBUG_INFO << "Header: " << WorkItemLoop->getHeader()->getName() << " clone: " << Header->getName() << "\n";
+  if (WIHeader) {
+    HIPSYCL_DEBUG_INFO << "Header: " << WIHeader->getName() << " clone: " << Header->getName() << "\n";
   }
   if (WILatch) {
     HIPSYCL_DEBUG_INFO << "Latch: " << WILatch->getName() << " clone: " << Latch->getName() << "\n";
@@ -223,7 +224,7 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
   llvm::outs().flush();
 
   HIPSYCL_DEBUG_INFO << "loop header:";
-  HIPSYCL_DEBUG_EXECUTE_INFO(Header->print(llvm::outs()); WorkItemLoop->getHeader()->print(llvm::outs());)
+  HIPSYCL_DEBUG_EXECUTE_INFO(Header->print(llvm::outs()); WIHeader->print(llvm::outs());)
 
   VMap[WIPreHeader] = PreHeader;
   VMap[WILatch] = Latch;
@@ -244,7 +245,7 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
                          PHI.getType(), llvm::APInt::getOneBitSet(PHI.getType()->getIntegerBitWidth(), 0)));
 
     NewBlocks.push_back(Header);
-    VMap[WorkItemLoop->getHeader()] = Header;
+    VMap[WIHeader] = Header;
   } else {
     PreHeader->getTerminator()->setSuccessor(0, LoopBodyEntryBb);
 
@@ -264,7 +265,7 @@ std::pair<llvm::BasicBlock *, llvm::BasicBlock *> WorkItemLoopCreator::createLoo
         // Move PHI from Header to for body
         Phi->moveBefore(&*LoopBodyEntryBb->begin());
         Phi->replaceIncomingBlockWith(Latch, Header);
-        VMap[WorkItemLoop->getHeader()] = LoopBodyEntryBb;
+        VMap[WIHeader] = LoopBodyEntryBb;
         break;
       }
     }

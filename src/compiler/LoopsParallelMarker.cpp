@@ -68,6 +68,18 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
         SL->setLoopID(LoopID);
       }
 
+      if(!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.width")) {
+        auto SgSize = utils::getReqdSgSize(F);
+        if(SgSize != 0) {
+          auto *MDVectorizeWidth = llvm::MDNode::get(
+              F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.width"),
+                               llvm::ConstantAsMetadata::get(llvm::Constant::getIntegerValue(
+                                   llvm::IntegerType::get(F.getContext(), 32), llvm::APInt(32, SgSize, false)))});
+          auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorizeWidth});
+          SL->setLoopID(LoopID);
+        }
+      }
+
       if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
         if (utils::isAnnotatedParallel(SL)) {
           HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << SL->getHeader()->getName() << "\n";

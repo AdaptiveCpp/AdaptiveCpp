@@ -240,6 +240,8 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
 
   for (auto *BB : Blocks_) {
     for (auto &I : *BB) {
+      if(&I == WIIndVar_)
+        continue;
       if (InstAllocaMap.lookup(&I))
         continue;
       if (utils::anyOfUsers<llvm::Instruction>(&I, [&OtherCFGBlocks, this, &I](auto *UI) {

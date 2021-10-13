@@ -28,6 +28,14 @@
 #include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 namespace {
+bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
+  if (auto *GV = M->getGlobalVariable(VarName)) {
+    HIPSYCL_DEBUG_INFO << "Clean-up global variable " << *GV << "\n";
+    GV->eraseFromParent();
+    return true;
+  }
+  return false;
+}
 bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!SAA.isKernelFunc(&F))
     return false;
@@ -58,7 +66,14 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
       HIPSYCL_DEBUG_INFO << "Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName << "\n";
     }
   }
-  return !BarriersToRemove.empty();
+
+  bool Changed = !BarriersToRemove.empty();
+
+  Changed |= deleteGlobalVariable(M, hipsycl::compiler::LocalIdGlobalNameX);
+  Changed |= deleteGlobalVariable(M, hipsycl::compiler::LocalIdGlobalNameY);
+  Changed |= deleteGlobalVariable(M, hipsycl::compiler::LocalIdGlobalNameZ);
+
+  return Changed;
 }
 
 } // namespace

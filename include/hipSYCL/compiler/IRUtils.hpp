@@ -24,6 +24,10 @@ struct MDKind {
 };
 
 static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
+static constexpr const char LocalIdGlobalNameX[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_xE";
+static constexpr const char LocalIdGlobalNameY[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_yE";
+static constexpr const char LocalIdGlobalNameZ[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_zE";
+static const std::array<const char*, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY, LocalIdGlobalNameZ};
 
 class SplitterAnnotationInfo;
 

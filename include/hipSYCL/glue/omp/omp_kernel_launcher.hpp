@@ -182,6 +182,7 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
 }
 
 #ifndef HIPSYCL_HAS_FIBERS
+#ifndef HIPSYCL_MANUALLY_CREATED_LOOPS
 template <class StaticPropertyList, int Dim, class Function, class ...Reducers>
 [[clang::annotate("hipsycl_nd_kernel")]] __attribute__((noinline))
 inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
@@ -214,7 +215,7 @@ inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, con
         }
       }
     } else if constexpr (Dim == 3) {
-#  pragma omp simd collapse(3)
+#pragma omp simd collapse(3)
       for(size_t l_x = 0; l_x < reqd_wg_size.template get<0>(); ++l_x)
       {
         for(size_t l_y = 0; l_y < reqd_wg_size.template get<1>(); ++l_y)
@@ -267,6 +268,63 @@ inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, con
     }
   }
 }
+#else
+extern size_t __hipsycl_local_id_x;
+extern size_t __hipsycl_local_id_y;
+extern size_t __hipsycl_local_id_z;
+
+template <class StaticPropertyList, int Dim, class Function, class ...Reducers>
+[[clang::annotate("hipsycl_nd_kernel")]] __attribute__((noinline))
+inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
+  const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
+  size_t num_local_mem_bytes, void* group_shared_memory_ptr,
+  std::function<void()> &barrier_impl,
+  Reducers& ... reducers) noexcept {
+  if constexpr (StaticPropertyList::template has_property<
+                 sycl::reqd_work_group_size>()) {
+    constexpr auto reqd_wg_size = StaticPropertyList::template get_property<sycl::reqd_work_group_size>();
+    if constexpr (Dim == 1) {
+      constexpr size_t n_local = reqd_wg_size.template get<0>();
+      sycl::id<Dim> local_id{__hipsycl_local_id_x};
+      sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+        sycl::range<Dim>{n_local}, num_groups, &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    } else if constexpr (Dim == 2) {
+      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y};
+      sycl::nd_item<Dim> this_item{&offset,    group_id, local_id,
+                    sycl::range<Dim>{reqd_wg_size.template get<0>(),
+                    reqd_wg_size.template get<1>()}, num_groups,
+        &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    } else if constexpr (Dim == 3) {
+      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y, __hipsycl_local_id_z};
+      sycl::nd_item<Dim> this_item{&offset, group_id,
+        local_id, sycl::range<Dim>{reqd_wg_size.template get<0>(), reqd_wg_size.template get<1>(), reqd_wg_size.template get<1>()},
+        num_groups, &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    }
+  } else {
+    if constexpr (Dim == 1) {
+      sycl::id<Dim> local_id{__hipsycl_local_id_x};
+      sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+        local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    } else if constexpr (Dim == 2) {
+      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y};
+      sycl::nd_item<Dim> this_item{&offset, group_id,
+        local_id, local_size, num_groups,
+        &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    } else if constexpr (Dim == 3) {
+      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y, __hipsycl_local_id_z};
+      sycl::nd_item<Dim> this_item{&offset,    group_id,
+        local_id,   local_size,
+        num_groups, &barrier_impl, group_shared_memory_ptr};
+      f(this_item, reducers...);
+    }
+  }
+}
+#endif
 #endif
 
 template<class Function>
@@ -319,6 +377,9 @@ inline void parallel_for_ndrange_kernel(
   static_assert(Dim > 0 && Dim <= 3, "Only dimensions 1 - 3 are supported.");
 
   reducible_parallel_invocation([&, f](auto& ... reducers){
+    if(num_groups.size() == 0 || local_size.size() == 0)
+      return;
+
     sycl::detail::host_local_memory::request_from_threadprivate_pool(
         num_local_mem_bytes);
 

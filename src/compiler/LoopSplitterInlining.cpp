@@ -58,7 +58,8 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
               break;
           } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
                      CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
-            HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: " << CallI->getCalledFunction()->getName() << "\n";
+            HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: "
+                               << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);
             CallI->eraseFromParent();
             LastChanged = true;
@@ -100,6 +101,46 @@ bool inlineCallsInLoop(llvm::Loop *&L, const llvm::SmallPtrSet<llvm::Function *,
   return Changed;
 }
 
+//! \pre all contained functions are non recursive!
+// todo: have a recursive-ness termination
+bool inlineCallsInFunction(llvm::Function &F, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
+                           hipsycl::compiler::SplitterAnnotationInfo &SAA, llvm::LoopInfo &LI,
+                           llvm::DominatorTree &DT) {
+  bool Changed = false;
+  bool LastChanged;
+
+  do {
+    LastChanged = false;
+    for (auto &BB : F) {
+      LastChanged = inlineCallsInBasicBlock(BB, SplitterCallers, SAA);
+      Changed |= LastChanged;
+      if (LastChanged)
+        break;
+    }
+  } while (LastChanged);
+
+  return Changed;
+}
+
+// todo: have a recursive-ness termination
+bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+                                   llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter);
+bool fillTransitiveSplitterCallers(llvm::ArrayRef<llvm::BasicBlock *> Blocks,
+                                   const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+                                   llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
+  bool Found = false;
+  for (auto *BB : Blocks) {
+    for (auto &I : *BB) {
+      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CallI->getCalledFunction() &&
+            fillTransitiveSplitterCallers(*CallI->getCalledFunction(), SAA, FuncsWSplitter))
+          Found = true;
+      }
+    }
+  }
+  return Found;
+}
+
 //! \pre \a F is not recursive!
 // todo: have a recursive-ness termination
 bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
@@ -113,34 +154,19 @@ bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::S
   } else if (FuncsWSplitter.find(&F) != FuncsWSplitter.end())
     return true;
 
-  bool Found = false;
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (CallI->getCalledFunction() &&
-            fillTransitiveSplitterCallers(*CallI->getCalledFunction(), SAA, FuncsWSplitter)) {
-          FuncsWSplitter.insert(&F);
-          Found = true;
-        }
-      }
-    }
+  llvm::SmallVector<llvm::BasicBlock *, 8> Blocks;
+  std::transform(F.begin(), F.end(), std::back_inserter(Blocks), [](auto &BB) { return &BB; });
+
+  if (fillTransitiveSplitterCallers(Blocks, SAA, FuncsWSplitter)) {
+    FuncsWSplitter.insert(&F);
+    return true;
   }
-  return Found;
+  return false;
 }
 
 bool fillTransitiveSplitterCallers(llvm::Loop &L, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
-  bool Found = false;
-  for (auto *BB : L.getBlocks()) {
-    for (auto &I : *BB) {
-      if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
-        if (CallI->getCalledFunction() &&
-            fillTransitiveSplitterCallers(*CallI->getCalledFunction(), SAA, FuncsWSplitter))
-          Found = true;
-      }
-    }
-  }
-  return Found;
+  return fillTransitiveSplitterCallers(L.getBlocks(), SAA, FuncsWSplitter);
 }
 
 bool inlineSplitter(llvm::Loop *L, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
@@ -162,7 +188,16 @@ bool inlineSplitter(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &
                     hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed = false;
 
-  Changed |= inlineSplitter(hipsycl::compiler::utils::getSingleWorkItemLoop(LI), LI, DT, SAA);
+  if (auto *L = hipsycl::compiler::utils::getSingleWorkItemLoop(LI))
+    Changed |= inlineSplitter(L, LI, DT, SAA);
+  else {
+    llvm::SmallPtrSet<llvm::Function *, 8> SplitterCallers;
+    if (!fillTransitiveSplitterCallers(F, SAA, SplitterCallers)) {
+      HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] transitively no splitter found in kernel." << F.getName() << "\n";
+      return Changed;
+    }
+    Changed |= inlineCallsInFunction(F, SplitterCallers, SAA, LI, DT);
+  }
 
   return Changed;
 }

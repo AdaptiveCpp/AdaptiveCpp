@@ -102,9 +102,11 @@ bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformit
 
   auto &BBsInWI = F.getBasicBlockList();
 
-  auto *L = hipsycl::compiler::utils::getSingleWorkItemLoop(LI);
-  auto *WIInd = L->getCanonicalInductionVariable();
-  assert(WIInd);
+  llvm::PHINode *WIInd = nullptr;
+  if (auto *L = hipsycl::compiler::utils::getSingleWorkItemLoop(LI)) {
+    WIInd = L->getCanonicalInductionVariable();
+    assert(WIInd);
+  }
   for (auto &BB : BBsInWI)
     for (auto &I : BB)
       if (auto *PHI = llvm::dyn_cast<llvm::PHINode>(&I))

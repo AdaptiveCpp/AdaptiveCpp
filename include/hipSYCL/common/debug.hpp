@@ -122,7 +122,7 @@ private:
 #define HIPSYCL_DEBUG_EXECUTE(level, content) \
   if(level <= ::hipsycl::common::output_stream::get().get_debug_level()) \
   {\
-    content\
+    content;\
   }
 
 #define HIPSYCL_DEBUG_EXECUTE_VERBOSE(content) HIPSYCL_DEBUG_EXECUTE(HIPSYCL_DEBUG_LEVEL_VERBOSE, content)

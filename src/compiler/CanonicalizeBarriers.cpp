@@ -37,9 +37,15 @@
 namespace {
 using namespace hipsycl::compiler;
 
-bool canonicalizeExitBarriers(llvm::BasicBlock *WILatch, llvm::LoopInfo &LI, SplitterAnnotationInfo &SAA) {
+bool canonicalizeExitBarriers(llvm::Function &F, llvm::BasicBlock *WILatch, llvm::LoopInfo &LI, SplitterAnnotationInfo &SAA) {
   bool Changed;
-  llvm::SmallVector<llvm::BasicBlock *, 4> Exits{llvm::pred_begin(WILatch), llvm::pred_end(WILatch)};
+  llvm::SmallVector<llvm::BasicBlock *, 4> Exits;
+  if(WILatch)
+    Exits.insert(Exits.begin(), llvm::pred_begin(WILatch), llvm::pred_end(WILatch));
+  else
+    for(auto &BB : F)
+      if(BB.getTerminator()->getNumSuccessors() == 0)
+        Exits.push_back(&BB);
 
   for (auto *BB : Exits) {
     auto *T = BB->getTerminator();
@@ -85,7 +91,7 @@ bool canonicalizeExitBarriers(llvm::BasicBlock *WILatch, llvm::LoopInfo &LI, Spl
  * @param SAA The SplitterAnnotationInfo
  * @return \b true if changed, \b false else.
  */
-bool readBarrierAtInnerLatches(const llvm::Loop *WILoop, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool reAadBarrierAtInnerLatches(const llvm::Loop *WILoop, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed;
   for (auto *L : WILoop->getSubLoops()) {
     auto *Latch = L->getLoopLatch();
@@ -164,22 +170,27 @@ llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, ll
 // predecessor. This allows us to use those BBs as markers only,
 // they will not be replicated.
 bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, SplitterAnnotationInfo &SAA) {
-  auto *WILoop = utils::getSingleWorkItemLoop(LI);
-  assert(WILoop && "No WI Loop found!");
+  bool Changed = false;
 
-  llvm::BasicBlock *Entry = utils::getWorkItemLoopBodyEntry(WILoop);
-  assert(Entry && "No WI Loop Entry found!");
+  llvm::BasicBlock *Entry = &F.getEntryBlock();
+  llvm::BasicBlock* WILatch = nullptr;
 
-  auto *WILatch = WILoop->getLoopLatch();
-  assert(WILatch && "No WI Latch found!");
+  if (auto *WILoop = utils::getSingleWorkItemLoop(LI)) {
+    assert(WILoop && "No WI Loop found!");
 
-  WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
+    Entry = utils::getWorkItemLoopBodyEntry(WILoop);
+    assert(Entry && "No WI Loop Entry found!");
 
-  bool Changed = canonicalizeEntry(Entry, SAA);
+    WILatch = WILoop->getLoopLatch();
+    assert(WILatch && "No WI Latch found!");
 
-  Changed |= canonicalizeExitBarriers(WILatch, LI, SAA);
+    WILatch = simplifyLatch(WILoop, WILatch, LI, DT);
 
-  Changed |= readBarrierAtInnerLatches(WILoop, SAA);
+    Changed |= reAadBarrierAtInnerLatches(WILoop, SAA);
+  }
+
+  Changed |= canonicalizeEntry(Entry, SAA);
+  Changed |= canonicalizeExitBarriers(F, WILatch, LI, SAA);
 
   llvm::SmallPtrSet<llvm::Instruction *, 8> Barriers;
 

@@ -147,7 +147,7 @@ class SubCFG {
 public:
   SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
          const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
-         const SplitterAnnotationInfo &SAA, int Dim);
+         const SplitterAnnotationInfo &SAA, llvm::Value *IndVar);
 
   SubCFG(const SubCFG &) = delete;
   SubCFG &operator=(const SubCFG &) = delete;
@@ -203,17 +203,10 @@ llvm::BasicBlock *SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::Basi
 
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
-               const SplitterAnnotationInfo &SAA, int Dim)
+               const SplitterAnnotationInfo &SAA, llvm::Value *IndVar)
     : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr) {
+      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), WIIndVar_(IndVar) {
   const auto *WILatch = WILoop ? WILoop->getLoopLatch() : nullptr;
-  if (WILoop) {
-    WIIndVar_ = WILoop->getCanonicalInductionVariable();
-  } else {
-    llvm::IRBuilder Builder{EntryBarrier->getParent()->getEntryBlock().getTerminator()};
-    WIIndVar_ = Builder.CreateLoad(llvm::UndefValue::get(llvm::PointerType::get(
-        getLoadForGlobalVariable(*EntryBarrier->getParent(), LocalIdGlobalNames[Dim - 1])->getType(), 0)));
-  }
 
   assert(WIIndVar_ && "Must have found either IndVar or __hipsycl_local_id_{x,y,z}");
 
@@ -767,6 +760,16 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   auto *LastBarrierIdStorage =
       Builder.CreateAlloca(DL.getLargestLegalIntType(F.getContext()), nullptr, "LastBarrierId");
 
+  // get a common (pseudo) index value to be replaced by the actual index later
+  llvm::Instruction *IndVar = nullptr;
+  if (WILoop) {
+    IndVar = WILoop->getCanonicalInductionVariable();
+  } else {
+    Builder.SetInsertPoint(F.getEntryBlock().getTerminator());
+    IndVar = Builder.CreateLoad(llvm::UndefValue::get(
+        llvm::PointerType::get(getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType(), 0)));
+  }
+
   // create subcfgs
   std::vector<SubCFG> SubCFGs;
   llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> InstAllocaMap;
@@ -774,7 +777,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     HIPSYCL_DEBUG_INFO << "Create SubCFG from " << BIt.first->getName() << "(" << BIt.first << ") id: " << BIt.second
                        << "\n";
     if (BIt.second != ExitBarrierId)
-      SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA, Dim);
+      SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA, IndVar);
   }
 
   for (auto &Cfg : SubCFGs)
@@ -811,6 +814,9 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs) {
     Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap, ReqdArrayElements);
   }
+
+  IndVar->eraseFromParent();
+
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");
 

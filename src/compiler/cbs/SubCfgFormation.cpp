@@ -815,7 +815,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     Cfg.fixSingleSubCfgValues(DT, RemappedInstAllocaMap, ReqdArrayElements);
   }
 
-  IndVar->eraseFromParent();
+  if (!WILoop)
+    IndVar->eraseFromParent();
 
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
   assert(!llvm::verifyFunction(F, &llvm::errs()) && "Function verification failed");

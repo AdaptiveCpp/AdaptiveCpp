@@ -79,6 +79,25 @@ bool inlineCallsInLoop(llvm::Loop *&L, llvm::LoopInfo &LI, llvm::DominatorTree &
 
   return Changed;
 }
+
+//! \pre all contained functions are non recursive!
+// todo: have a recursive-ness termination
+bool inlineCallsInFunction(llvm::Function &F) {
+  bool Changed = false;
+  bool LastChanged;
+
+  do {
+    LastChanged = false;
+    for (auto &BB : F) {
+      LastChanged = inlineCallsInBasicBlock(BB);
+      Changed |= LastChanged;
+      if (LastChanged)
+        break;
+    }
+  } while (LastChanged);
+
+  return Changed;
+}
 } // namespace
 
 void hipsycl::compiler::KernelFlatteningPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
@@ -99,10 +118,15 @@ bool hipsycl::compiler::KernelFlatteningPassLegacy::runOnFunction(llvm::Function
     return false;
 
   const auto TLL = LI.getTopLevelLoops();
-
   bool Changed = false;
-  for (auto *L : TLL) {
-    Changed |= inlineCallsInLoop(L, LI, DT);
+
+  if (auto *WILoop = utils::getSingleWorkItemLoop(LI)) {
+    for (auto *L : TLL) {
+      Changed |= inlineCallsInLoop(L, LI, DT);
+    }
+  } else {
+    Changed |= inlineCallsInFunction(F);
+    hipsycl::compiler::utils::updateDtAndLi(LI, DT, nullptr, F);
   }
   return Changed;
 }
@@ -123,11 +147,18 @@ llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Funct
   const auto TLL = LI.getTopLevelLoops();
 
   bool Changed = false;
-  for (auto *L : TLL) {
-    Changed |= inlineCallsInLoop(L, LI, DT);
+
+  auto *WILoop = utils::getSingleWorkItemLoop(LI);
+  if (WILoop) {
+    for (auto *L : TLL) {
+      Changed |= inlineCallsInLoop(L, LI, DT);
+    }
+  } else {
+    Changed |= inlineCallsInFunction(F);
+    hipsycl::compiler::utils::updateDtAndLi(LI, DT, nullptr, F);
   }
 
-  if(!Changed)
+  if (!Changed)
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;

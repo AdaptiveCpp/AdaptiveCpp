@@ -415,8 +415,6 @@ void SubCFG::replicate(llvm::Function &F, const llvm::DenseMap<llvm::Instruction
   EntryBB_ = LastHeader;
   ExitBB_ = Latches[0];
   WIIndVar_ = Idx;
-
-  F.viewCFG();
 }
 
 void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
@@ -804,7 +802,6 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   else
     WhileHeader = generateWhileSwitchAround(&F.getEntryBlock(), F.getEntryBlock().getSingleSuccessor(), ExitFuncBB,
                                             LastBarrierIdStorage, SubCFGs);
-  //  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
 
   llvm::removeUnreachableBlocks(F);
 

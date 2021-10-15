@@ -103,8 +103,8 @@ dimensions==3 */
   HIPSYCL_UNIVERSAL_TARGET
   size_t size() const {
     size_t result = 1;
-    for(const auto x : _data)
-      result *= x;
+    for(int i = 0; i < dimensions; ++i)
+      result *= _data[i];
     return result;
   }
 

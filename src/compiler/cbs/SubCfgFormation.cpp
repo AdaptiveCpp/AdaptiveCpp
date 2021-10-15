@@ -123,6 +123,72 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
   return LocalSize;
 }
 
+void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB, const llvm::ArrayRef<llvm::Value *> &LocalSize,
+                       int EntryId, llvm::ValueToValueMapTy &VMap, llvm::SmallVector<llvm::BasicBlock *, 3> &Latches,
+                       llvm::BasicBlock *&LastHeader, llvm::Value *&ContiguousIdx) {
+  const auto &DL = F.getParent()->getDataLayout();
+  auto *LoadBB = LastHeader;
+  llvm::IRBuilder Builder{LoadBB, LoadBB->getFirstInsertionPt()};
+
+  const size_t Dim = LocalSize.size();
+  llvm::SmallVector<llvm::PHINode *, 3> IndVars;
+  for (int D = Dim - 1; D >= 0; --D) {
+    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+
+    auto *Header = llvm::BasicBlock::Create(LastHeader->getContext(), "header." + Suffix + "b", LastHeader->getParent(),
+                                            LastHeader);
+
+    Builder.SetInsertPoint(Header, Header->getFirstInsertionPt());
+
+    auto *WIIndVar = Builder.CreatePHI(DL.getLargestLegalIntType(F.getContext()), 2, "indvar." + Suffix);
+    WIIndVar->addIncoming(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), 0), &F.getEntryBlock());
+    IndVars.push_back(WIIndVar);
+    Builder.CreateBr(LastHeader);
+
+    auto *Latch = llvm::BasicBlock::Create(F.getContext(), "latch." + Suffix + "b", &F);
+    Builder.SetInsertPoint(Latch, Latch->getFirstInsertionPt());
+    auto *IncIndVar = Builder.CreateAdd(WIIndVar, Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), 1),
+                                        "addInd." + Suffix, true, false);
+    WIIndVar->addIncoming(IncIndVar, Latch);
+
+    HIPSYCL_DEBUG_INFO << "[SubCFG] LocalSize size " << LocalSize.size() << " " << D << "\n";
+
+    auto *LoopCond = Builder.CreateICmpULT(IncIndVar, LocalSize[D], "exit.cond." + Suffix);
+    Builder.CreateCondBr(LoopCond, Header, AfterBB);
+    Latches.push_back(Latch);
+    LastHeader = Header;
+  }
+
+  std::reverse(Latches.begin(), Latches.end());
+  std::reverse(IndVars.begin(), IndVars.end());
+
+  for (size_t D = 1; D < Dim; ++D) {
+    Latches[D]->getTerminator()->replaceSuccessorWith(AfterBB, Latches[D - 1]);
+    IndVars[D]->replaceIncomingBlockWith(&F.getEntryBlock(), IndVars[D - 1]->getParent());
+  }
+
+  auto *MDWorkItemLoop = llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), MDKind::WorkItemLoop)});
+  auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), nullptr, {}, {MDWorkItemLoop});
+  Latches[Dim - 1]->getTerminator()->setMetadata("llvm.loop", LoopID);
+  VMap[AfterBB] = Latches[Dim - 1];
+
+  Builder.SetInsertPoint(IndVars[Dim - 1]->getParent(), ++IndVars[Dim - 1]->getIterator());
+  llvm::Value *Idx = IndVars[0];
+  for (size_t D = 1; D < Dim; ++D) {
+    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
+
+    Idx = Builder.CreateMul(Idx, LocalSize[D], "idx.mul." + Suffix, true);
+    Idx = Builder.CreateAdd(IndVars[D], Idx, "idx.add." + Suffix, true);
+
+    VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[D])] = IndVars[D];
+  }
+
+  VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[0])] = IndVars[0];
+
+  VMap[ContiguousIdx] = Idx;
+  ContiguousIdx = Idx;
+}
+
 class SubCFG {
 
   using BlockVector = llvm::SmallVector<llvm::BasicBlock *, 8>;
@@ -336,71 +402,11 @@ void SubCFG::replicate(llvm::Function &F, const llvm::DenseMap<llvm::Instruction
 
   LoadBB_ = createLoadBB(VMap);
 
-  llvm::IRBuilder Builder{LoadBB_, LoadBB_->getFirstInsertionPt()};
-
-  const size_t Dim = LocalSize.size();
-  HIPSYCL_DEBUG_INFO << "[SubCFG] My Dim " << Dim << "\n";
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
-  llvm::SmallVector<llvm::PHINode *, 3> IndVars;
   llvm::BasicBlock *LastHeader = LoadBB_;
-  llvm::BasicBlock *LastLatch = AfterBB;
+  llvm::Value *Idx = WIIndVar_;
 
-  for (int D = Dim - 1; D >= 0; --D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId_}).str();
-
-    auto *Header = llvm::BasicBlock::Create(LastHeader->getContext(), "header." + Suffix + "b", LastHeader->getParent(),
-                                            LastHeader);
-
-    Builder.SetInsertPoint(Header, Header->getFirstInsertionPt());
-
-    auto *WIIndVar = Builder.CreatePHI(DL.getLargestLegalIntType(F.getContext()), 2, "indvar." + Suffix);
-    WIIndVar->addIncoming(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), 0), &F.getEntryBlock());
-    IndVars.push_back(WIIndVar);
-    Builder.CreateBr(LastHeader);
-
-    auto *Latch = llvm::BasicBlock::Create(F.getContext(), "latch." + Suffix + "b", &F);
-    Builder.SetInsertPoint(Latch, Latch->getFirstInsertionPt());
-    auto *IncIndVar = Builder.CreateAdd(WIIndVar, Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), 1),
-                                        "addInd." + Suffix, true, false);
-    WIIndVar->addIncoming(IncIndVar, Latch);
-
-    HIPSYCL_DEBUG_INFO << "[SubCFG] LocalSize size " << LocalSize.size() << " " << D << "\n";
-
-    auto *LoopCond = Builder.CreateICmpULT(IncIndVar, LocalSize[D], "exit.cond." + Suffix);
-    Builder.CreateCondBr(LoopCond, Header, LastLatch);
-    Latches.push_back(Latch);
-    //    LastLatch = Latch;
-    LastHeader = Header;
-  }
-
-  std::reverse(Latches.begin(), Latches.end());
-  std::reverse(IndVars.begin(), IndVars.end());
-
-  for (size_t D = 1; D < Dim; ++D) {
-    Latches[D]->getTerminator()->replaceSuccessorWith(AfterBB, Latches[D - 1]);
-    IndVars[D]->replaceIncomingBlockWith(&F.getEntryBlock(), IndVars[D - 1]->getParent());
-  }
-
-  auto *MDWorkItemLoop =
-      llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), hipsycl::compiler::MDKind::WorkItemLoop)});
-  auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), nullptr, {}, {MDWorkItemLoop});
-  Latches[Dim - 1]->getTerminator()->setMetadata("llvm.loop", LoopID);
-  VMap[AfterBB] = Latches[Dim - 1];
-
-  llvm::Value *Idx = IndVars[0];
-  Builder.SetInsertPoint(IndVars[Dim - 1]->getParent(), ++IndVars[Dim - 1]->getIterator());
-  for (size_t D = 1; D < Dim; ++D) {
-    const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId_}).str();
-
-    auto *Accumulator = Builder.CreateMul(Idx, LocalSize[D], "idx.mul." + Suffix, true);
-    Idx = Builder.CreateAdd(IndVars[D], Accumulator, "idx.add." + Suffix, true);
-
-    VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[D])] = IndVars[D];
-  }
-
-  VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[0])] = IndVars[0];
-
-  VMap[WIIndVar_] = Idx;
+  createLoopsAround(F, AfterBB, LocalSize, EntryId_, VMap, Latches, LastHeader, Idx);
 
   print();
 
@@ -696,6 +702,19 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std:
   }
 }
 
+void moveAllocasToEntry(llvm::Function &F, llvm::ArrayRef<llvm::BasicBlock *> Blocks) {
+  llvm::SmallVector<llvm::AllocaInst *, 4> AllocaWL;
+  for (auto *BB : Blocks)
+    for (auto &I : *BB)
+      if (auto *AllocaInst = llvm::dyn_cast<llvm::AllocaInst>(&I))
+        AllocaWL.push_back(AllocaInst);
+  for (auto *I : AllocaWL)
+    if (F.getEntryBlock().size() == 1)
+      I->moveBefore(F.getEntryBlock().getFirstNonPHI());
+    else
+      I->moveAfter(F.getEntryBlock().getFirstNonPHI());
+}
+
 void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT, const SplitterAnnotationInfo &SAA) {
   auto *WILoop = utils::getSingleWorkItemLoop(LI);
   //  assert(WILoop && "Must have work item loop in kernel");
@@ -740,13 +759,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   }
 
   // non-entry block Allocas are considered broken, move to entry.
-  llvm::SmallVector<llvm::AllocaInst *, 4> AllocaWL;
-  for (auto *BB : Blocks)
-    for (auto &I : *BB)
-      if (auto *AllocaInst = llvm::dyn_cast<llvm::AllocaInst>(&I))
-        AllocaWL.push_back(AllocaInst);
-  for (auto *I : AllocaWL)
-    I->moveAfter(F.getEntryBlock().getFirstNonPHI());
+  moveAllocasToEntry(F, Blocks);
 
   // store all other barrier blocks with a unique id:
   for (auto *BB : Blocks)
@@ -822,6 +835,57 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   auto *WhileLoop = utils::updateDtAndLi(LI, DT, WhileHeader, F);
   llvm::simplifyLoop(WhileLoop, &DT, &LI, nullptr, nullptr, nullptr, false);
 }
+
+void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT) {
+  auto *Body =
+      llvm::SplitBlock(&F.getEntryBlock(), &*F.getEntryBlock().getFirstInsertionPt(), &DT, nullptr, nullptr, "wibody"
+#if LLVM_VERSION_MAJOR >= 13
+                       ,
+                       true
+#endif
+      );
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG());
+#if LLVM_VERSION_MAJOR >= 13
+  Body = Body->getSingleSuccessor();
+#endif
+
+  llvm::BasicBlock *ExitBB = nullptr;
+  for (auto &BB : F) {
+    if (BB.getTerminator()->getNumSuccessors() == 0) {
+      ExitBB = llvm::SplitBlock(&BB, BB.getTerminator(), &DT, nullptr, nullptr, "exit"
+#if LLVM_VERSION_MAJOR >= 13
+                                ,
+                                true
+#endif
+      );
+#if LLVM_VERSION_MAJOR >= 13
+      if (Body == &BB)
+        std::swap(Body, ExitBB);
+      ExitBB = &BB;
+#endif
+      break;
+    }
+  }
+  llvm::SmallVector<llvm::BasicBlock *, 8> Blocks{};
+  Blocks.reserve(std::distance(F.begin(), F.end()));
+  std::transform(F.begin(), F.end(), std::back_inserter(Blocks), [](auto &BB) { return &BB; });
+
+  moveAllocasToEntry(F, Blocks);
+
+  const auto Dim = getRangeDim(F);
+  auto LocalSize = getLocalSizeValues(F, Dim);
+  llvm::ValueToValueMapTy VMap;
+  llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
+  auto *LastHeader = Body;
+  auto *LoadIdx = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]);
+  auto *Idx = LoadIdx;
+  createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx);
+
+  F.getEntryBlock().getTerminator()->setSuccessor(0, LastHeader);
+  llvm::remapInstructionsInBlocks(Blocks, VMap);
+  llvm::cast<llvm::LoadInst>(LoadIdx)->eraseFromParent();
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG())
+}
 } // namespace
 
 namespace hipsycl::compiler {
@@ -835,13 +899,17 @@ void SubCfgFormationPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const 
 bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
-  if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
+  if (!SAA.isKernelFunc(&F))
     return false;
 
-  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
 
-  formSubCfgs(F, LI, DT, SAA);
+  if (utils::hasBarriers(F, SAA)) {
+    auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+    formSubCfgs(F, LI, DT, SAA);
+  } else
+    createLoopsAroundKernel(F, DT);
+
   return false;
 }
 
@@ -850,12 +918,15 @@ char SubCfgFormationPassLegacy::ID = 0;
 llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAM.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
-  if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA))
+  if (!SAA || !SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
 
-  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
-  formSubCfgs(F, LI, DT, *SAA);
+  if (utils::hasBarriers(F, *SAA)) {
+    auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+    formSubCfgs(F, LI, DT, *SAA);
+  } else
+    createLoopsAroundKernel(F, DT);
 
   llvm::PreservedAnalyses PA;
   PA.preserve<SplitterAnnotationAnalysis>();

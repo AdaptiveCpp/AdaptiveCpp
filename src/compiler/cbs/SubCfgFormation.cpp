@@ -62,7 +62,7 @@ llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName
 std::size_t getRangeDim(llvm::Function &F) {
   auto FName = F.getName();
   // todo: fix with MS mangling
-  llvm::Regex Rgx("_7nd_itemILi([1-3])EEEE_");
+  llvm::Regex Rgx("7nd_itemILi([1-3])E");
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));

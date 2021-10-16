@@ -14,7 +14,7 @@ jobs:
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04]
         cuda: [11.0]
-        splitter_pipeline: ["cbs", "pocl"]
+        splitter_pipeline: ["cbs", "pocl", "cbs-manual-loops"]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -83,8 +83,11 @@ jobs:
             export CC=clang-13
             export CXX=clang++-13
           fi
+          if [[ "${{matrix.splitter_pipeline}}" == "cbs-manual-loops" ]]; then
+            export CXXFLAGS="$CXXFLAGS -DHIPSYCL_MANUALLY_CREATED_LOOPS"
+          fi
           if [[ "${{matrix.clang_version}}" != "11" ]]; then
-          if [[ "${{matrix.splitter_pipeline}}" == "cbs" ]]; then
+          if [[ "${{matrix.splitter_pipeline}}" == "cbs" || "${{matrix.splitter_pipeline}}" == "cbs-manual-loops" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/libhipSYCL_clang.so"
           else
             export OMP_CXX_FLAGS="$CXXFLAGS -fno-experimental-new-pass-manager"
@@ -117,7 +120,7 @@ jobs:
       - name: run LIT tests on CPU
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make -j2 check
+          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make check
       - name: run CPU tests
         continue-on-error: true
         run: |

@@ -902,12 +902,14 @@ bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   if (!SAA.isKernelFunc(&F))
     return false;
 
-  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";
 
-  if (utils::hasBarriers(F, SAA)) {
-    auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+
+  if (utils::hasBarriers(F, SAA))
     formSubCfgs(F, LI, DT, SAA);
-  } else
+  else if (!utils::getSingleWorkItemLoop(LI))
     createLoopsAroundKernel(F, DT);
 
   return false;
@@ -921,11 +923,13 @@ llvm::PreservedAnalyses SubCfgFormationPass::run(llvm::Function &F, llvm::Functi
   if (!SAA || !SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
 
+  HIPSYCL_DEBUG_INFO << "[SubCFG] Form SubCFGs in " << F.getName() << "\n";
+
   auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
-  if (utils::hasBarriers(F, *SAA)) {
-    auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
+  if (utils::hasBarriers(F, *SAA))
     formSubCfgs(F, LI, DT, *SAA);
-  } else
+  else if(!utils::getSingleWorkItemLoop(LI))
     createLoopsAroundKernel(F, DT);
 
   llvm::PreservedAnalyses PA;

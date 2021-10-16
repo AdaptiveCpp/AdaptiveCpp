@@ -30,9 +30,11 @@
 namespace {
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
   if (auto *GV = M->getGlobalVariable(VarName)) {
-    HIPSYCL_DEBUG_INFO << "Clean-up global variable " << *GV << "\n";
-    GV->eraseFromParent();
-    return true;
+    if(GV->getNumUses() == 0) {
+      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up global variable " << *GV << "\n";
+      GV->eraseFromParent();
+      return true;
+    }
   }
   return false;
 }
@@ -53,7 +55,7 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
   }
 
   for (auto *B : BarriersToRemove) {
-    HIPSYCL_DEBUG_INFO << "Remove barrier ";
+    HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Remove barrier ";
     HIPSYCL_DEBUG_EXECUTE_INFO(B->print(llvm::outs()); llvm::outs() << " from " << B->getParent()->getName() << "\n";)
     B->eraseFromParent();
   }
@@ -63,7 +65,8 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
     if (B->getNumUses() == 0) {
       B->eraseFromParent();
       SAA.removeSplitter(B);
-      HIPSYCL_DEBUG_INFO << "Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName << "\n";
+      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName
+                         << "\n";
     }
   }
 

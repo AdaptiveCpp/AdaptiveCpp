@@ -62,7 +62,8 @@ llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName
 std::size_t getRangeDim(llvm::Function &F) {
   auto FName = F.getName();
   // todo: fix with MS mangling
-  llvm::Regex Rgx("7nd_itemILi([1-3])E");
+  //  llvm::Regex Rgx("7nd_itemILi([1-3])E");
+  llvm::Regex Rgx("EELi([1-3])E");
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
@@ -150,8 +151,6 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB, const llvm:
     auto *IncIndVar = Builder.CreateAdd(WIIndVar, Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), 1),
                                         "addInd." + Suffix, true, false);
     WIIndVar->addIncoming(IncIndVar, Latch);
-
-    HIPSYCL_DEBUG_INFO << "[SubCFG] LocalSize size " << LocalSize.size() << " " << D << "\n";
 
     auto *LoopCond = Builder.CreateICmpULT(IncIndVar, LocalSize[D], "exit.cond." + Suffix);
     Builder.CreateCondBr(LoopCond, Header, AfterBB);
@@ -877,13 +876,14 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT) {
   llvm::ValueToValueMapTy VMap;
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
   auto *LastHeader = Body;
-  auto *LoadIdx = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]);
-  auto *Idx = LoadIdx;
+  auto *Idx = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]);
   createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx);
 
   F.getEntryBlock().getTerminator()->setSuccessor(0, LastHeader);
   llvm::remapInstructionsInBlocks(Blocks, VMap);
-  llvm::cast<llvm::LoadInst>(LoadIdx)->eraseFromParent();
+  for (int D = 0; D < Dim; ++D)
+    if (auto *Load = llvm::cast_or_null<llvm::LoadInst>(getLoadForGlobalVariable(F, LocalIdGlobalNames[D])))
+      Load->eraseFromParent();
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG())
 }
 } // namespace

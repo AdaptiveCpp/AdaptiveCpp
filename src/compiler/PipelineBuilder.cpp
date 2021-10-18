@@ -136,7 +136,7 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
 
-void registerOriginalPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+void registerOriginalPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -150,15 +150,15 @@ void registerOriginalPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::O
 
   FPM.addPass(RemoveBarrierCallsPass{});
 
-  if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
+  if (Opt == OptLevel::O3)
     FPM.addPass(KernelFlatteningPass{});
-  if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
+  if (Opt != OptLevel::O0)
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 
-void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
-  if (Opt == llvm::PassBuilder::OptimizationLevel::O0) {
+void registerPoclPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
+  if (Opt == OptLevel::O0) {
     HIPSYCL_DEBUG_ERROR << "POCL pipeline is currently not fully supported with -O0 on the new PM\n";
   }
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
@@ -186,14 +186,14 @@ void registerPoclPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optim
 
   FPM.addPass(llvm::LoopSimplifyPass{});
 
-  if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
+  if (Opt == OptLevel::O3)
     FPM.addPass(KernelFlatteningPass{});
-  if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
+  if (Opt != OptLevel::O0)
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }
 
-void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
@@ -220,9 +220,9 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, llvm::PassBuilder::Optimi
 
   FPM.addPass(RemoveBarrierCallsPass{});
 
-  if (Opt == llvm::PassBuilder::OptimizationLevel::O3)
+  if (Opt == OptLevel::O3)
     FPM.addPass(KernelFlatteningPass{});
-  if (Opt != llvm::PassBuilder::OptimizationLevel::O0)
+  if (Opt != OptLevel::O0)
     FPM.addPass(LoopsParallelMarkerPass{});
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
 }

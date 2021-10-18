@@ -89,6 +89,7 @@ llvm::PreservedAnalyses hipsycl::compiler::SimplifyKernelPass::run(llvm::Functio
 
   llvm::PreservedAnalyses PA;
   PA.preserveSet<llvm::CFGAnalyses>();
+  PA.preserve<SplitterAnnotationAnalysis>();
   return PA;
 }
 

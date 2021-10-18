@@ -104,7 +104,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
       // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
       // really used there anyways..
       PB.registerOptimizerLastEPCallback(
-          [](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel) {
+          [](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
 
@@ -114,9 +114,9 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           [](llvm::FunctionAnalysisManager &FAM) { FAM.registerPass([] { return VariableUniformityAnalysis{}; }); });
 #if LLVM_VERSION_MAJOR < 12
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
-        llvm::PassBuilder::OptimizationLevel Opt = llvm::PassBuilder::OptimizationLevel::O3;
+        OptLevel Opt = OptLevel::O3;
 #else
-      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel Opt) {
+      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
         switch (hipsycl::compiler::selectPipeline()) {
         case LoopSplittingPipeline::Original:
@@ -132,7 +132,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
       });
       // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
       // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
-      PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager& FPM, llvm::PassBuilder::OptimizationLevel) {
+      PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager& FPM, OptLevel) {
         FPM.addPass(LoopsParallelMarkerPass{});
       });
     }

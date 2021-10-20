@@ -17,7 +17,7 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Value.h>
 
-namespace rv {
+namespace hipsycl::compiler {
 using SmallValVec = llvm::SmallVector<const llvm::Value *, 2>;
 class VectorizationInfo;
 class PlatformInfo;
@@ -50,6 +50,6 @@ public:
   // shape using ABI knowledge, fp mode, ..
   VectorShape computeShape(const llvm::Instruction &I, SmallValVec &taintedOps) const;
 };
-} // namespace rv
+} // namespace hipsycl::compiler
 
 #endif // RV_SHAPE_VECTORSHAPETRANSFORMER_H

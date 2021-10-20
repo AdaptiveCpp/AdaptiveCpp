@@ -14,7 +14,7 @@
 
 using namespace llvm;
 
-namespace rv {
+namespace hipsycl::compiler {
 
 Region::Region(RegionImpl &Impl) : mImpl(Impl) {}
 
@@ -82,4 +82,4 @@ void FunctionRegion::getEndingBlocks(llvm::SmallPtrSet<BasicBlock *, 2> &endingB
 
 std::string FunctionRegion::str() const { return ("FunctionRegion (" + F.getName() + ")").str(); }
 
-} // namespace rv
+} // namespace hipsycl::compiler

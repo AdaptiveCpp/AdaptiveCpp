@@ -126,27 +126,27 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
   return LocalSize;
 }
 
-std::unique_ptr<rv::RegionImpl> getRegion(llvm::Function &F, const llvm::LoopInfo &LI,
+std::unique_ptr<hipsycl::compiler::RegionImpl> getRegion(llvm::Function &F, const llvm::LoopInfo &LI,
                                           llvm::ArrayRef<llvm::BasicBlock *> Blocks) {
   if (auto *WILoop = utils::getSingleWorkItemLoop(LI))
-    return std::unique_ptr<rv::RegionImpl>{new rv::LoopRegion(*WILoop)};
+    return std::unique_ptr<hipsycl::compiler::RegionImpl>{new hipsycl::compiler::LoopRegion(*WILoop)};
   else
-    return std::unique_ptr<rv::RegionImpl>{new rv::FunctionRegion(F, Blocks)};
+    return std::unique_ptr<hipsycl::compiler::RegionImpl>{new hipsycl::compiler::FunctionRegion(F, Blocks)};
 }
-rv::VectorizationInfo getVectorizationInfo(llvm::Function &F, rv::Region &R, llvm::LoopInfo &LI,
+hipsycl::compiler::VectorizationInfo getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R, llvm::LoopInfo &LI,
                                            llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT, size_t Dim) {
-  rv::VectorizationInfo VecInfo{F, R};
+  hipsycl::compiler::VectorizationInfo VecInfo{F, R};
   // seed varyingness
   if (auto *WILoop = utils::getSingleWorkItemLoop(LI)) {
-    VecInfo.setPinnedShape(*WILoop->getCanonicalInductionVariable(), rv::VectorShape::cont());
+    VecInfo.setPinnedShape(*WILoop->getCanonicalInductionVariable(), hipsycl::compiler::VectorShape::cont());
   } else {
     for (size_t D = 0; D < Dim - 1; ++D) {
-      VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]), rv::VectorShape::uni());
+      VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]), hipsycl::compiler::VectorShape::uni());
     }
-    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]), rv::VectorShape::cont());
+    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]), hipsycl::compiler::VectorShape::cont());
   }
 
-  rv::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
+  hipsycl::compiler::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
   VecAna.analyze();
   return VecInfo;
 }
@@ -281,10 +281,10 @@ public:
       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
       llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
       llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
-      rv::VectorizationInfo &VecInfo);
+      hipsycl::compiler::VectorizationInfo &VecInfo);
   void fixSingleSubCfgValues(llvm::DominatorTree &DT,
                              const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-                             std::size_t ReqdArrayElements, rv::VectorizationInfo &VecInfo);
+                             std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo);
 
   void print() const;
 };
@@ -478,7 +478,7 @@ void SubCFG::replicate(
 bool dontArrayifyContiguousValues(
     llvm::Instruction &I, llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
-    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar, rv::VectorizationInfo &VecInfo) {
+    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar, hipsycl::compiler::VectorizationInfo &VecInfo) {
   if (VecInfo.isPinned(I))
     return true;
 
@@ -511,7 +511,7 @@ bool dontArrayifyContiguousValues(
     HIPSYCL_DEBUG_INFO << "[SubCFG] Store required uniform value to single element alloca " << I << "\n";
     auto *Alloca = utils::arrayifyInstruction(AllocaIP, UI, IndVar, 1);
     BaseInstAllocaMap.insert({UI, Alloca});
-    VecInfo.setVectorShape(*Alloca, rv::VectorShape::uni());
+    VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
   }
   ContInstReplicaMap.insert({&I, ContiguousInsts});
   return true;
@@ -522,7 +522,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
     llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
-    rv::VectorizationInfo &VecInfo) {
+    hipsycl::compiler::VectorizationInfo &VecInfo) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> OtherCFGBlocks;
   for (auto &Cfg : SubCFGs) {
     if (&Cfg != this)
@@ -554,7 +554,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
         //     HIPSYCL_DEBUG_INFO << "[SubCFG] Value uniform, store to single element alloca " << I << "\n";
         //     auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, 1);
         //     InstAllocaMap.insert({&I, Alloca});
-        //     VecInfo.setVectorShape(*Alloca, rv::VectorShape::uni());
+        //     VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
         //     continue;
         // }
         if (Shape.isContiguous()) {
@@ -680,7 +680,7 @@ llvm::BasicBlock *SubCFG::createLoadBB(llvm::ValueToValueMapTy &VMap) {
 
 void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
                                    const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-                                   std::size_t ReqdArrayElements, rv::VectorizationInfo &VecInfo) {
+                                   std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo) {
 
   auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getFirstNonPHIOrDbgOrLifetime();
   auto *LoadIP = LoadBB_->getTerminator();
@@ -844,7 +844,7 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
 }
 
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std::vector<SubCFG> &SubCfgs,
-                     std::size_t ReqdArrayElements, rv::VectorizationInfo &VecInfo) {
+                     std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo) {
   auto *MDAlloca =
       llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
 
@@ -961,7 +961,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   moveAllocasToEntry(F, Blocks);
 
   auto RImpl = getRegion(F, LI, Blocks);
-  rv::Region R{*RImpl};
+  hipsycl::compiler::Region R{*RImpl};
   auto VecInfo = getVectorizationInfo(F, R, LI, DT, PDT, Dim);
 
   // store all other barrier blocks with a unique id:
@@ -982,7 +982,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     Builder.SetInsertPoint(F.getEntryBlock().getTerminator());
     IndVar = Builder.CreateLoad(llvm::UndefValue::get(
         llvm::PointerType::get(getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType(), 0)));
-    VecInfo.setPinnedShape(*IndVar, rv::VectorShape::cont());
+    VecInfo.setPinnedShape(*IndVar, hipsycl::compiler::VectorShape::cont());
   }
 
   // create subcfgs
@@ -1088,7 +1088,7 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   const auto Dim = getRangeDim(F);
   //
   //  auto RImpl = getRegion(F, LI, Blocks);
-  //  rv::Region R{*RImpl};
+  //  hipsycl::compiler::Region R{*RImpl};
   //  auto VecInfo = getVectorizationInfo(F, R, LI, DT, PDT, Dim);
 
   auto LocalSize = getLocalSizeValues(F, Dim);

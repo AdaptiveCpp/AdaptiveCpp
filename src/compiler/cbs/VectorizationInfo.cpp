@@ -19,7 +19,7 @@ using namespace llvm;
 
 static bool IsLCSSA = true;
 
-namespace rv {
+namespace hipsycl::compiler {
 
 bool VectorizationInfo::inRegion(const BasicBlock &block) const { return region.contains(&block); }
 
@@ -352,4 +352,4 @@ bool VectorizationInfo::isTemporalDivergent(const LoopInfo &LI, const BasicBlock
   return false;
 }
 
-} // namespace rv
+} // namespace hipsycl::compiler

@@ -20,7 +20,7 @@
 
 #include <map>
 
-namespace rv {
+namespace hipsycl::compiler {
 
 using AllocSet = llvm::SmallPtrSet<const llvm::AllocaInst*, 2>;
 
@@ -218,6 +218,6 @@ public:
   ~AllocaSSA();
 };
 
-} // namespace rv
+} // namespace hipsycl::compiler
 
 #endif // RV_ANALYSIS_ALLOCASSA_H

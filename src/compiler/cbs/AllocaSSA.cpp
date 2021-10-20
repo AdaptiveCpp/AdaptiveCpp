@@ -21,7 +21,7 @@ using namespace llvm;
 #define IF_DEBUG_LN if (true)
 #endif
 
-namespace rv {
+namespace hipsycl::compiler {
 
 // static
 PtrProvenance AllocaSSA::emptyProvSingle;
@@ -398,4 +398,4 @@ AllocaSSA::~AllocaSSA() {
   instMap.clear();
 }
 
-} // namespace rv
+} // namespace hipsycl::compiler

@@ -25,7 +25,7 @@ class Constant;
 using align_t = unsigned;
 using stride_t = int64_t;
 
-namespace rv {
+namespace hipsycl::compiler {
 
 // describes how the contents of a vector vary with the vectorized dimension
 class VectorShape {

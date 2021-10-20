@@ -17,18 +17,18 @@
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Operator.h>
 
-using namespace rv;
+using namespace hipsycl::compiler;
 using namespace llvm;
 
-rv::VectorShape GenericTransfer(rv::VectorShape a) {
+hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())
     return a;
-  return a.isUniform() ? rv::VectorShape::uni() : rv::VectorShape::varying();
+  return a.isUniform() ? hipsycl::compiler::VectorShape::uni() : hipsycl::compiler::VectorShape::varying();
 }
 
-template <class... Shapes> rv::VectorShape GenericTransfer(rv::VectorShape a, Shapes... nextShapes) {
+template <class... Shapes> hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a, Shapes... nextShapes) {
   if (a.isDefined() && !a.isUniform())
-    return a.isDefined() ? rv::VectorShape::varying() : VectorShape::undef();
+    return a.isDefined() ? hipsycl::compiler::VectorShape::varying() : VectorShape::undef();
   else
     return GenericTransfer(nextShapes...);
 }

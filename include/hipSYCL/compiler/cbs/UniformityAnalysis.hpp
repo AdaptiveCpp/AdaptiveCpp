@@ -40,7 +40,7 @@ namespace llvm {
 class LoopInfo;
 }
 
-namespace rv {
+namespace hipsycl::compiler {
 using InstVec = const std::vector<const llvm::Instruction *>;
 
 class VectorizationAnalysis {
@@ -147,6 +147,6 @@ private:
   void promoteUndefShapesToUniform(const llvm::Function &F);
 };
 
-} // namespace rv
+} // namespace hipsycl::compiler
 
 #endif

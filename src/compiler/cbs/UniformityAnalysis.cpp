@@ -33,7 +33,7 @@ const bool IsLCSSAForm = true;
 
 using namespace llvm;
 
-namespace rv {
+namespace hipsycl::compiler {
 
 VectorizationAnalysis::VectorizationAnalysis(VectorizationInfo &VecInfo, LoopInfo &LI, DominatorTree &DT,
                                              PostDominatorTree &PDT)
@@ -555,4 +555,4 @@ VectorShape VectorizationAnalysis::getShape(const Value &V) const {
   return vecInfo.hasKnownShape(V) ? vecInfo.getVectorShape(V) : VectorShape::undef();
 }
 
-} // namespace rv
+} // namespace hipsycl::compiler

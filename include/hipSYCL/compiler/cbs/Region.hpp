@@ -22,7 +22,7 @@ class BasicBlock;
 class raw_ostream;
 } // namespace llvm
 
-namespace rv {
+namespace hipsycl::compiler {
 
 class RegionImpl {
 public:
@@ -146,6 +146,6 @@ public:
   bool isVectorLoop() const override { return true; }
 };
 
-} // namespace rv
+} // namespace hipsycl::compiler
 
 #endif // RV_REGION_H

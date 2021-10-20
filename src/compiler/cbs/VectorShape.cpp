@@ -67,7 +67,7 @@ align_t getAlignment(const Constant *c) {
 
 } // namespace
 
-namespace rv {
+namespace hipsycl::compiler {
 
 // undef shape
 VectorShape::VectorShape() : stride(0), hasConstantStride(false), alignment(0), defined(false) {}
@@ -303,4 +303,4 @@ VectorShape VectorShape::parse(StringRef text, int &nextPos) {
   }
 }
 
-} // namespace rv
+} // namespace hipsycl::compiler

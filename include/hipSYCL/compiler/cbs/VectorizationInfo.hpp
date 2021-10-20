@@ -28,7 +28,7 @@ class Value;
 #include <set>
 #include <unordered_map>
 
-namespace rv {
+namespace hipsycl::compiler {
 
 // provides vectorization information (vector shapes, block predicates) for a
 // function
@@ -151,6 +151,6 @@ public:
 //  llvm::Function &getVectorFunction() { return *mapping.vectorFn; }
 };
 
-} // namespace rv
+} // namespace hipsycl::compiler
 
 #endif /* INCLUDE_RV_VECTORIZATIONINFO_H_ */

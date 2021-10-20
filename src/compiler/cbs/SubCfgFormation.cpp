@@ -641,7 +641,8 @@ void SubCFG::loadMultiSubCfgValues(
     IClone->insertBefore(LoadTerm);
     InstsToRemap.insert(IClone);
     UniVMap[InstContInstsPair.first] = IClone;
-    VMap[InstContInstsPair.first] = IClone;
+    if(VMap.count(InstContInstsPair.first) == 0)
+      VMap[InstContInstsPair.first] = IClone;
     HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
     for (auto *Inst : InstContInstsPair.second) {
       if (UniVMap.count(Inst))
@@ -650,7 +651,8 @@ void SubCFG::loadMultiSubCfgValues(
       IClone->insertBefore(LoadTerm);
       InstsToRemap.insert(IClone);
       UniVMap[Inst] = IClone;
-      VMap[Inst] = IClone;
+      if(VMap.count(Inst) == 0)
+        VMap[Inst] = IClone;
       HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
     }
   }

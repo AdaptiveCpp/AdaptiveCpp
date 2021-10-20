@@ -96,6 +96,7 @@ struct id {
 
   HIPSYCL_UNIVERSAL_TARGET
   id(const range<dimensions> &range) {
+    this->_data[0] = range[0];
     for(std::size_t i = 0; i < dimensions; ++i)
       this->_data[i] = range[i];
   }
@@ -103,7 +104,8 @@ struct id {
   template<bool with_offset>
   HIPSYCL_UNIVERSAL_TARGET
   id(const item<dimensions, with_offset> &item) {
-    for(std::size_t i = 0; i < dimensions; ++i)
+    this->_data[0] = item.get_id(0);
+    for(std::size_t i = 1; i < dimensions; ++i)
       this->_data[i] = item.get_id(i);
   }
 
@@ -134,7 +136,8 @@ struct id {
   HIPSYCL_UNIVERSAL_TARGET  \
   friend id<dimensions> operator op(const id<dimensions> &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result; \
-    for(std::size_t i = 0; i < dimensions; ++i) \
+    result._data[0] = static_cast<std::size_t>(lhs._data[0] op rhs._data[0]); \
+    for(std::size_t i = 1; i < dimensions; ++i) \
       result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs._data[i]); \
     return result; \
   }
@@ -161,7 +164,8 @@ struct id {
   friend id<dimensions> operator op(const id<dimensions> &lhs, \
                              const std::size_t &rhs){ \
     id<dimensions> result; \
-    for(std::size_t i = 0; i < dimensions; ++i) \
+    result._data[0] = static_cast<std::size_t>(lhs._data[0] op rhs); \
+    for(std::size_t i = 1; i < dimensions; ++i) \
       result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs); \
     return result; \
   }
@@ -189,7 +193,8 @@ struct id {
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET \
   friend id<dimensions>& operator op(id<dimensions> &lhs, const id<dimensions> &rhs) { \
-    for(std::size_t i = 0; i < dimensions; ++i) \
+    lhs._data[0] op rhs._data[0]; \
+    for(std::size_t i = 1; i < dimensions; ++i) \
       lhs._data[i] op rhs._data[i]; \
     return lhs; \
   }
@@ -208,7 +213,8 @@ struct id {
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op) \
   HIPSYCL_UNIVERSAL_TARGET \
   friend id<dimensions>& operator op(id<dimensions> &lhs, const std::size_t &rhs) { \
-    for(std::size_t i = 0; i < dimensions; ++i) \
+    lhs._data[0] op rhs; \
+    for(std::size_t i = 1; i < dimensions; ++i) \
       lhs._data[i] op rhs; \
     return lhs; \
   }
@@ -228,7 +234,8 @@ struct id {
   HIPSYCL_UNIVERSAL_TARGET \
   friend id<dimensions> operator op(const size_t &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result; \
-    for(std::size_t i = 0; i < dimensions; ++i) \
+    result[0] = lhs op rhs[0]; \
+    for(std::size_t i = 1; i < dimensions; ++i) \
       result[i] = lhs op rhs[i]; \
     return result; \
   }

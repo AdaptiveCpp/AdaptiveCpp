@@ -8,7 +8,6 @@
 //
 
 #include <cmath>
-#include <gmpxx.h>
 #include <iostream>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>

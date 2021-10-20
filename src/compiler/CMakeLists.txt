@@ -34,6 +34,12 @@ add_library(hipSYCL_clang SHARED
   LoopSimplify.cpp
   PipelineBuilder.cpp
   cbs/SubCfgFormation.cpp
+  cbs/UniformityAnalysis.cpp
+  cbs/VectorShape.cpp
+  cbs/VectorizationInfo.cpp
+  cbs/AllocaSSA.cpp
+  cbs/VectorShapeTransformer.cpp
+  cbs/Region.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

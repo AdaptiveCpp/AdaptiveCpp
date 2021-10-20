@@ -228,20 +228,24 @@ class SubCFG {
   llvm::BasicBlock *ExitBB_;
   llvm::BasicBlock *LoadBB_;
   llvm::BasicBlock *PreHeader_;
+  size_t Dim;
 
   //  void addBlock(llvm::BasicBlock *BB) { Blocks_.push_back(BB); }
   llvm::BasicBlock *createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, unsigned long> BarrierPair,
                                      llvm::BasicBlock *After, llvm::BasicBlock *WILatch);
 
-  void loadMultiSubCfgValues(const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                             llvm::BasicBlock *UniformLoadBB, llvm::ValueToValueMapTy &VMap);
+  void loadMultiSubCfgValues(
+      const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+      llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+      llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+      llvm::BasicBlock *UniformLoadBB, llvm::ValueToValueMapTy &VMap);
   llvm::BasicBlock *createLoadBB(llvm::ValueToValueMapTy &VMap);
   llvm::BasicBlock *createUniformLoadBB(llvm::BasicBlock *OuterMostHeader);
 
 public:
   SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
          const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
-         const SplitterAnnotationInfo &SAA, llvm::Value *IndVar);
+         const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim);
 
   SubCFG(const SubCFG &) = delete;
   SubCFG &operator=(const SubCFG &) = delete;
@@ -263,14 +267,21 @@ public:
   llvm::Value *getWIIndVar() noexcept { return WIIndVar_; }
 
   void replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                 llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+                 llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap);
   void replicate(llvm::Function &WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+                 llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+                 llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
                  llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize);
 
-  void arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                 llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
-                                 rv::VectorizationInfo &VecInfo);
+  void arrayifyMultiSubCfgValues(
+      llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+      llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+      llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+      llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
+      rv::VectorizationInfo &VecInfo);
   void fixSingleSubCfgValues(llvm::DominatorTree &DT,
                              const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
                              std::size_t ReqdArrayElements, rv::VectorizationInfo &VecInfo);
@@ -298,9 +309,9 @@ llvm::BasicBlock *SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::Basi
 
 SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdStorage,
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
-               const SplitterAnnotationInfo &SAA, llvm::Value *IndVar)
+               const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim)
     : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), WIIndVar_(IndVar), PreHeader_(nullptr) {
+      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), WIIndVar_(IndVar), PreHeader_(nullptr), Dim(Dim) {
   const auto *WILatch = WILoop ? WILoop->getLoopLatch() : nullptr;
 
   assert(WIIndVar_ && "Must have found either IndVar or __hipsycl_local_id_{x,y,z}");
@@ -351,8 +362,11 @@ void addRemappedDenseMapKeys(const llvm::DenseMap<llvm::Instruction *, llvm::All
   }
 }
 
-void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
+void SubCFG::replicate(
+    llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
   llvm::ValueToValueMapTy VMap;
   auto *WIHeader = llvm::CloneBasicBlock(WILoop->getHeader(), VMap, ".subcfg." + llvm::Twine{EntryId_} + "b",
                                          WILoop->getHeader()->getParent());
@@ -378,7 +392,7 @@ void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instructio
   PreHeader_ = createUniformLoadBB(LoadBB_);
   WIHeader->replacePhiUsesWith(WILoop->getLoopPreheader(), PreHeader_);
 
-  loadMultiSubCfgValues(InstAllocaMap, PreHeader_, VMap);
+  loadMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, ContInstReplicaMap, PreHeader_, VMap);
   VMap[utils::getWorkItemLoopBodyEntry(WILoop)] = LoadBB_;
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BlocksToRemap{NewBlocks_.begin(), NewBlocks_.end()};
@@ -415,9 +429,12 @@ void SubCFG::replicate(llvm::Loop *WILoop, const llvm::DenseMap<llvm::Instructio
   WIIndVar_ = VMap[WIIndVar_];
 }
 
-void SubCFG::replicate(llvm::Function &F, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-                       llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize) {
+void SubCFG::replicate(
+    llvm::Function &F, const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap, llvm::BasicBlock *AfterBB,
+    llvm::ArrayRef<llvm::Value *> LocalSize) {
   auto &DL = F.getParent()->getDataLayout();
   llvm::ValueToValueMapTy VMap;
 
@@ -446,7 +463,7 @@ void SubCFG::replicate(llvm::Function &F, const llvm::DenseMap<llvm::Instruction
   print();
 
   addRemappedDenseMapKeys(InstAllocaMap, VMap, RemappedInstAllocaMap);
-  loadMultiSubCfgValues(InstAllocaMap, PreHeader_, VMap);
+  loadMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, ContInstReplicaMap, PreHeader_, VMap);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> BlocksToRemap{NewBlocks_.begin(), NewBlocks_.end()};
   llvm::remapInstructionsInBlocks(BlocksToRemap, VMap);
@@ -458,14 +475,16 @@ void SubCFG::replicate(llvm::Function &F, const llvm::DenseMap<llvm::Instruction
   WIIndVar_ = Idx;
 }
 
-bool dontArrayifyContiguousValues(llvm::Instruction &I,
-                                  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                  llvm::Value *IndVar, rv::VectorizationInfo &VecInfo) {
+bool dontArrayifyContiguousValues(
+    llvm::Instruction &I, llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar, rv::VectorizationInfo &VecInfo) {
   if (VecInfo.isPinned(I))
     return true;
 
-  llvm::SmallVector<llvm::Value *, 8> WL;
-  llvm::SmallPtrSet<llvm::Value *, 8> UniformValues;
+  llvm::SmallVector<llvm::Instruction *, 4> WL;
+  llvm::SmallPtrSet<llvm::Instruction *, 8> UniformValues;
+  llvm::SmallVector<llvm::Instruction *, 8> ContiguousInsts;
   HIPSYCL_DEBUG_INFO << "[SubCFG] IndVar: " << *IndVar << "\n";
   WL.push_back(&I);
   while (!WL.empty()) {
@@ -476,21 +495,34 @@ bool dontArrayifyContiguousValues(llvm::Instruction &I,
 
         if (V == IndVar || VecInfo.isPinned(*V))
           continue;
-        if (VecInfo.getVectorShape(*V).isContiguous())
-          WL.push_back(V);
-        else if (!UniformValues.contains(V))
-          UniformValues.insert(V);
+        if (auto *OpI = llvm::dyn_cast<llvm::Instruction>(V)) {
+          if (VecInfo.getVectorShape(*OpI).isContiguous()) {
+            WL.push_back(OpI);
+            ContiguousInsts.push_back(OpI);
+          } else if (!UniformValues.contains(OpI))
+            UniformValues.insert(OpI);
+        }
       }
   }
-  for (auto *V : UniformValues) {
-    HIPSYCL_DEBUG_INFO << "[SubCFG] UniValue to store: " << *V << "\n";
+  for (auto *UI : UniformValues) {
+    HIPSYCL_DEBUG_INFO << "[SubCFG] UniValue to store: " << *UI << "\n";
+    if (BaseInstAllocaMap.lookup(UI))
+      continue;
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Store required uniform value to single element alloca " << I << "\n";
+    auto *Alloca = utils::arrayifyInstruction(AllocaIP, UI, IndVar, 1);
+    BaseInstAllocaMap.insert({UI, Alloca});
+    VecInfo.setVectorShape(*Alloca, rv::VectorShape::uni());
   }
-  return false;
+  ContInstReplicaMap.insert({&I, ContiguousInsts});
+  return true;
 }
 
-void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                       llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP,
-                                       size_t ReqdArrayElements, rv::VectorizationInfo &VecInfo) {
+void SubCFG::arrayifyMultiSubCfgValues(
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+    llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
+    rv::VectorizationInfo &VecInfo) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> OtherCFGBlocks;
   for (auto &Cfg : SubCFGs) {
     if (&Cfg != this)
@@ -525,10 +557,12 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
         //     VecInfo.setVectorShape(*Alloca, rv::VectorShape::uni());
         //     continue;
         // }
-        //        if (Shape.isContiguous()) {
-        //          if(dontArrayifyContiguousValues(I, InstAllocaMap, WIIndVar_, VecInfo))
-        //            continue;
-        //        }
+        if (Shape.isContiguous()) {
+          if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP, ReqdArrayElements,
+                                           WIIndVar_, VecInfo)){
+                                           HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying "<<I<<"\n";
+            continue;}
+        }
         auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, ReqdArrayElements);
         InstAllocaMap.insert({&I, Alloca});
         VecInfo.setVectorShape(*Alloca, Shape);
@@ -537,8 +571,20 @@ void SubCFG::arrayifyMultiSubCfgValues(llvm::DenseMap<llvm::Instruction *, llvm:
   }
 }
 
-void SubCFG::loadMultiSubCfgValues(const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
-                                   llvm::BasicBlock *UniformLoadBB, llvm::ValueToValueMapTy &VMap) {
+void remapInstruction(llvm::Instruction *I, llvm::ValueToValueMapTy &VMap) {
+  llvm::SmallVector<llvm::Value *, 8> WL{I->value_op_begin(), I->value_op_end()};
+  for (auto *V : WL) {
+    if (VMap.count(V))
+      I->replaceUsesOfWith(V, VMap[V]);
+  }
+  HIPSYCL_DEBUG_INFO << "[SubCFG] remapped Inst " << *I << "\n";
+}
+
+void SubCFG::loadMultiSubCfgValues(
+    const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &InstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
+    llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
+    llvm::BasicBlock *UniformLoadBB, llvm::ValueToValueMapTy &VMap) {
   llvm::Value *NewWIIndVar = VMap[WIIndVar_];
   auto *LoadTerm = LoadBB_->getTerminator();
   auto *UniformLoadTerm = UniformLoadBB->getTerminator();
@@ -568,6 +614,48 @@ void SubCFG::loadMultiSubCfgValues(const llvm::DenseMap<llvm::Instruction *, llv
       }
     }
   }
+
+  llvm::ValueToValueMapTy UniVMap;
+  UniVMap[WIIndVar_] = NewWIIndVar;
+  for(size_t D = 0; D < Dim; ++D) {
+    auto *Load = getLoadForGlobalVariable(*LoadBB_->getParent(), LocalIdGlobalNames[D]);
+    UniVMap[Load] = VMap[Load];
+  }
+  for (auto &InstAllocaPair : BaseInstAllocaMap) {
+    auto *IP = UniformLoadTerm;
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Load base value from Alloca " << *InstAllocaPair.second << " in "
+                       << IP->getParent()->getName() << "\n";
+    auto *Load = utils::loadFromAlloca(InstAllocaPair.second, NewWIIndVar, IP, InstAllocaPair.first->getName());
+    utils::copyDgbValues(InstAllocaPair.first, Load, IP);
+    UniVMap[InstAllocaPair.first] = Load;
+  }
+
+  llvm::SmallPtrSet<llvm::Instruction *, 16> InstsToRemap;
+
+  for (auto &InstContInstsPair : ContInstReplicaMap) {
+    if (UniVMap.count(InstContInstsPair.first))
+      continue;
+
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and users of: " << *InstContInstsPair.first << " to " << LoadTerm->getParent()->getName() << "\n";
+    auto *IClone = InstContInstsPair.first->clone();
+    IClone->insertBefore(LoadTerm);
+    InstsToRemap.insert(IClone);
+    UniVMap[InstContInstsPair.first] = IClone;
+    VMap[InstContInstsPair.first] = IClone;
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
+    for (auto *Inst : InstContInstsPair.second) {
+      if (UniVMap.count(Inst))
+        continue;
+      IClone = Inst->clone();
+      IClone->insertBefore(LoadTerm);
+      InstsToRemap.insert(IClone);
+      UniVMap[Inst] = IClone;
+      VMap[Inst] = IClone;
+      HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
+    }
+  }
+  for (auto *IToRemap : InstsToRemap)
+    remapInstruction(IToRemap, UniVMap);
 }
 
 llvm::BasicBlock *SubCFG::createUniformLoadBB(llvm::BasicBlock *OuterMostHeader) {
@@ -644,7 +732,7 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
               NewIP = UI;
             }
           }
-          //          auto *NewIP = LoadIP;
+          // auto *NewIP = LoadIP;
           // if (!Alloca->isArrayAllocation())
           //  NewIP = UniLoadIP;
 
@@ -897,17 +985,20 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   // create subcfgs
   std::vector<SubCFG> SubCFGs;
-  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> InstAllocaMap;
   for (auto &BIt : Barriers) {
     HIPSYCL_DEBUG_INFO << "Create SubCFG from " << BIt.first->getName() << "(" << BIt.first << ") id: " << BIt.second
                        << "\n";
     if (BIt.second != ExitBarrierId)
-      SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA, IndVar);
+      SubCFGs.emplace_back(BIt.first, LastBarrierIdStorage, Barriers, WILoop, SAA, IndVar, Dim);
   }
 
+  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> InstAllocaMap;
+  llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> BaseInstAllocaMap;
+  llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> InstContReplicaMap;
+
   for (auto &Cfg : SubCFGs)
-    Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, SubCFGs, F.getEntryBlock().getFirstNonPHI(), ReqdArrayElements,
-                                  VecInfo);
+    Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, SubCFGs,
+                                  F.getEntryBlock().getFirstNonPHI(), ReqdArrayElements, VecInfo);
 
   llvm::BasicBlock *ExitFuncBB = nullptr;
   if (!WILoop)
@@ -917,9 +1008,10 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   for (auto &Cfg : SubCFGs) {
     Cfg.print();
     if (WILoop)
-      Cfg.replicate(WILoop, InstAllocaMap, RemappedInstAllocaMap);
+      Cfg.replicate(WILoop, InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, RemappedInstAllocaMap);
     else
-      Cfg.replicate(F, InstAllocaMap, RemappedInstAllocaMap, ExitFuncBB, LocalSize);
+      Cfg.replicate(F, InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, RemappedInstAllocaMap, ExitFuncBB,
+                    LocalSize);
     purgeLifetime(Cfg);
   }
 

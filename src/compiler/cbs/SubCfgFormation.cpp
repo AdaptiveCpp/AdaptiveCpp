@@ -127,23 +127,26 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
 }
 
 std::unique_ptr<hipsycl::compiler::RegionImpl> getRegion(llvm::Function &F, const llvm::LoopInfo &LI,
-                                          llvm::ArrayRef<llvm::BasicBlock *> Blocks) {
+                                                         llvm::ArrayRef<llvm::BasicBlock *> Blocks) {
   if (auto *WILoop = utils::getSingleWorkItemLoop(LI))
     return std::unique_ptr<hipsycl::compiler::RegionImpl>{new hipsycl::compiler::LoopRegion(*WILoop)};
   else
     return std::unique_ptr<hipsycl::compiler::RegionImpl>{new hipsycl::compiler::FunctionRegion(F, Blocks)};
 }
-hipsycl::compiler::VectorizationInfo getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R, llvm::LoopInfo &LI,
-                                           llvm::DominatorTree &DT, llvm::PostDominatorTree &PDT, size_t Dim) {
+hipsycl::compiler::VectorizationInfo getVectorizationInfo(llvm::Function &F, hipsycl::compiler::Region &R,
+                                                          llvm::LoopInfo &LI, llvm::DominatorTree &DT,
+                                                          llvm::PostDominatorTree &PDT, size_t Dim) {
   hipsycl::compiler::VectorizationInfo VecInfo{F, R};
   // seed varyingness
   if (auto *WILoop = utils::getSingleWorkItemLoop(LI)) {
     VecInfo.setPinnedShape(*WILoop->getCanonicalInductionVariable(), hipsycl::compiler::VectorShape::cont());
   } else {
     for (size_t D = 0; D < Dim - 1; ++D) {
-      VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]), hipsycl::compiler::VectorShape::uni());
+      VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]),
+                             hipsycl::compiler::VectorShape::uni());
     }
-    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]), hipsycl::compiler::VectorShape::cont());
+    VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]),
+                           hipsycl::compiler::VectorShape::cont());
   }
 
   hipsycl::compiler::VectorizationAnalysis VecAna{VecInfo, LI, DT, PDT};
@@ -368,10 +371,13 @@ void SubCFG::replicate(
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap) {
   llvm::ValueToValueMapTy VMap;
+  auto *OrgWIPreHeader = WILoop->getLoopPreheader();
+
   auto *WIHeader = llvm::CloneBasicBlock(WILoop->getHeader(), VMap, ".subcfg." + llvm::Twine{EntryId_} + "b",
                                          WILoop->getHeader()->getParent());
   auto *WILatch = llvm::CloneBasicBlock(WILoop->getLoopLatch(), VMap, ".subcfg." + llvm::Twine{EntryId_} + "b",
                                         WIHeader->getParent());
+
   VMap[WILoop->getHeader()] = WIHeader;
   VMap[WILoop->getLoopLatch()] = WILatch;
 
@@ -390,7 +396,7 @@ void SubCFG::replicate(
   addRemappedDenseMapKeys(InstAllocaMap, VMap, RemappedInstAllocaMap);
   LoadBB_ = createLoadBB(VMap);
   PreHeader_ = createUniformLoadBB(LoadBB_);
-  WIHeader->replacePhiUsesWith(WILoop->getLoopPreheader(), PreHeader_);
+  WIHeader->replacePhiUsesWith(OrgWIPreHeader, PreHeader_);
 
   loadMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, ContInstReplicaMap, PreHeader_, VMap);
   VMap[utils::getWorkItemLoopBodyEntry(WILoop)] = LoadBB_;
@@ -478,7 +484,8 @@ void SubCFG::replicate(
 bool dontArrayifyContiguousValues(
     llvm::Instruction &I, llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>> &ContInstReplicaMap,
-    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar, hipsycl::compiler::VectorizationInfo &VecInfo) {
+    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar,
+    hipsycl::compiler::VectorizationInfo &VecInfo) {
   if (VecInfo.isPinned(I))
     return true;
 
@@ -559,9 +566,10 @@ void SubCFG::arrayifyMultiSubCfgValues(
         // }
         if (Shape.isContiguous()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP, ReqdArrayElements,
-                                           WIIndVar_, VecInfo)){
-                                           HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying "<<I<<"\n";
-            continue;}
+                                           WIIndVar_, VecInfo)) {
+            HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying " << I << "\n";
+            continue;
+          }
         }
         auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, ReqdArrayElements);
         InstAllocaMap.insert({&I, Alloca});
@@ -617,7 +625,7 @@ void SubCFG::loadMultiSubCfgValues(
 
   llvm::ValueToValueMapTy UniVMap;
   UniVMap[WIIndVar_] = NewWIIndVar;
-  for(size_t D = 0; D < Dim; ++D) {
+  for (size_t D = 0; D < Dim; ++D) {
     auto *Load = getLoadForGlobalVariable(*LoadBB_->getParent(), LocalIdGlobalNames[D]);
     UniVMap[Load] = VMap[Load];
   }
@@ -636,12 +644,13 @@ void SubCFG::loadMultiSubCfgValues(
     if (UniVMap.count(InstContInstsPair.first))
       continue;
 
-    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and users of: " << *InstContInstsPair.first << " to " << LoadTerm->getParent()->getName() << "\n";
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and users of: " << *InstContInstsPair.first << " to "
+                       << LoadTerm->getParent()->getName() << "\n";
     auto *IClone = InstContInstsPair.first->clone();
     IClone->insertBefore(LoadTerm);
     InstsToRemap.insert(IClone);
     UniVMap[InstContInstsPair.first] = IClone;
-    if(VMap.count(InstContInstsPair.first) == 0)
+    if (VMap.count(InstContInstsPair.first) == 0)
       VMap[InstContInstsPair.first] = IClone;
     HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
     for (auto *Inst : InstContInstsPair.second) {
@@ -651,7 +660,7 @@ void SubCFG::loadMultiSubCfgValues(
       IClone->insertBefore(LoadTerm);
       InstsToRemap.insert(IClone);
       UniVMap[Inst] = IClone;
-      if(VMap.count(Inst) == 0)
+      if (VMap.count(Inst) == 0)
         VMap[Inst] = IClone;
       HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
     }

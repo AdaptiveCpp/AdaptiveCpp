@@ -40,6 +40,7 @@ add_library(hipSYCL_clang SHARED
   cbs/AllocaSSA.cpp
   cbs/VectorShapeTransformer.cpp
   cbs/Region.cpp
+  cbs/SyncDependenceAnalysis.cpp
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

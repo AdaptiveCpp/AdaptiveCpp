@@ -17,7 +17,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/SyncDependenceAnalysis.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -31,6 +30,12 @@
 #include "llvm/Support/GenericDomTree.h"
 #include "llvm/Support/raw_ostream.h"
 
+#if LLVM_VERSION_MAJOR < 12
+#include "SyncDependenceAnalysis.hpp"
+#else
+#include "llvm/Analysis/SyncDependenceAnalysis.h"
+#endif
+
 #include <map>
 #include <queue>
 #include <string>
@@ -41,6 +46,11 @@ class LoopInfo;
 }
 
 namespace hipsycl::compiler {
+#if LLVM_VERSION_MAJOR < 12
+using SDAnalysis = SyncDependenceAnalysis;
+#else
+using SDAnalysis = llvm::SyncDependenceAnalysis;
+#endif
 using InstVec = const std::vector<const llvm::Instruction *>;
 
 class VectorizationAnalysis {
@@ -56,7 +66,7 @@ class VectorizationAnalysis {
   const llvm::DominatorTree &DT;
 
   // Divergence computation:
-  llvm::SyncDependenceAnalysis SDA;
+  SDAnalysis SDA;
   //  PredicateAnalysis PredA;
 
   Region region;

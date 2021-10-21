@@ -211,7 +211,9 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   FPM.addPass(llvm::SimplifyCFGPass{});
 
   FPM.addPass(SimplifyKernelPass{});
+#ifdef HIPSYCL_NO_PHIS_IN_SPLIT
   FPM.addPass(PHIsToAllocasPass{});
+#endif
   FPM.addPass(llvm::LoopSimplifyPass{});
 
   FPM.addPass(CanonicalizeBarriersPass{});

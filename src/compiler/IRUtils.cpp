@@ -429,6 +429,8 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
                                       size_t NumElements, llvm::MDTuple *MDAlloca) {
   llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
+  if(llvm::isa<llvm::PHINode>(ToArrayify))
+    InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
 
   return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }

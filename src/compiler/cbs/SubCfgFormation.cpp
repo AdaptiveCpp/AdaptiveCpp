@@ -224,6 +224,7 @@ class SubCFG {
   BlockVector Blocks_;
   BlockVector NewBlocks_;
   size_t EntryId_;
+  llvm::BasicBlock *EntryBarrier_;
   llvm::SmallDenseMap<llvm::BasicBlock *, size_t> ExitIds_;
   llvm::AllocaInst *LastBarrierIdStorage_;
   llvm::Value *WIIndVar_;
@@ -290,6 +291,7 @@ public:
                              std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo);
 
   void print() const;
+  void removeDeadPhiBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> &BlocksToRemap) const;
 };
 
 llvm::BasicBlock *SubCFG::createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, size_t> BarrierPair,
@@ -314,7 +316,8 @@ SubCFG::SubCFG(llvm::BasicBlock *EntryBarrier, llvm::AllocaInst *LastBarrierIdSt
                const llvm::DenseMap<llvm::BasicBlock *, size_t> &BarrierIds, const llvm::Loop *WILoop,
                const SplitterAnnotationInfo &SAA, llvm::Value *IndVar, size_t Dim)
     : LastBarrierIdStorage_(LastBarrierIdStorage), EntryId_(BarrierIds.lookup(EntryBarrier)),
-      EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), WIIndVar_(IndVar), PreHeader_(nullptr), Dim(Dim) {
+      EntryBarrier_(EntryBarrier), EntryBB_(EntryBarrier->getSingleSuccessor()), LoadBB_(nullptr), WIIndVar_(IndVar),
+      PreHeader_(nullptr), Dim(Dim) {
   const auto *WILatch = WILoop ? WILoop->getLoopLatch() : nullptr;
 
   assert(WIIndVar_ && "Must have found either IndVar or __hipsycl_local_id_{x,y,z}");
@@ -395,6 +398,7 @@ void SubCFG::replicate(
 
   addRemappedDenseMapKeys(InstAllocaMap, VMap, RemappedInstAllocaMap);
   LoadBB_ = createLoadBB(VMap);
+  VMap[EntryBarrier_] = LoadBB_;
   PreHeader_ = createUniformLoadBB(LoadBB_);
   WIHeader->replacePhiUsesWith(OrgWIPreHeader, PreHeader_);
 
@@ -426,9 +430,12 @@ void SubCFG::replicate(
       break;
     }
   }
+
   // Header is now latch, so copy loop md over
   WIHeader->getTerminator()->setMetadata("llvm.loop", WILatch->getTerminator()->getMetadata("llvm.loop"));
   WILatch->getTerminator()->setMetadata("llvm.loop", nullptr);
+
+  removeDeadPhiBlocks(BlocksToRemap);
 
   EntryBB_ = PreHeader_;
   ExitBB_ = WIHeader;
@@ -457,6 +464,8 @@ void SubCFG::replicate(
 
   LoadBB_ = createLoadBB(VMap);
 
+  VMap[EntryBarrier_] = LoadBB_;
+
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
   llvm::BasicBlock *LastHeader = LoadBB_;
   llvm::Value *Idx = WIIndVar_;
@@ -474,11 +483,35 @@ void SubCFG::replicate(
   llvm::SmallVector<llvm::BasicBlock *, 8> BlocksToRemap{NewBlocks_.begin(), NewBlocks_.end()};
   llvm::remapInstructionsInBlocks(BlocksToRemap, VMap);
 
+  removeDeadPhiBlocks(BlocksToRemap);
+
   HIPSYCL_DEBUG_INFO << "[SubCFG] Idx " << *Idx << " dummy " << *WIIndVar_ << "\n";
 
   EntryBB_ = PreHeader_;
   ExitBB_ = Latches[0];
   WIIndVar_ = Idx;
+}
+void SubCFG::removeDeadPhiBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> &BlocksToRemap) const {
+  for (auto *BB : BlocksToRemap) {
+    llvm::SmallPtrSet<llvm::BasicBlock *, 4> Predecessors{llvm::pred_begin(BB), llvm::pred_end(BB)};
+    for (auto &I : *BB) {
+      if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(&I)) {
+        llvm::SmallVector<llvm::BasicBlock *, 4> IncomingBlocksToRemove;
+        for (int IncomingIdx = 0; IncomingIdx < Phi->getNumIncomingValues(); ++IncomingIdx) {
+          auto *IncomingBB = Phi->getIncomingBlock(IncomingIdx);
+          if (!Predecessors.contains(IncomingBB))
+            IncomingBlocksToRemove.push_back(IncomingBB);
+        }
+        for (auto *IncomingBB : IncomingBlocksToRemove) {
+          HIPSYCL_DEBUG_INFO << "[SubCFG] Remove incoming block " << IncomingBB->getName() << " from PHI " << *Phi
+                             << "\n";
+          Phi->removeIncomingValue(IncomingBB);
+          HIPSYCL_DEBUG_INFO << "[SubCFG] Removed incoming block " << IncomingBB->getName() << " from PHI " << *Phi
+                             << "\n";
+        }
+      }
+    }
+  }
 }
 
 bool dontArrayifyContiguousValues(
@@ -492,6 +525,7 @@ bool dontArrayifyContiguousValues(
   llvm::SmallVector<llvm::Instruction *, 4> WL;
   llvm::SmallPtrSet<llvm::Instruction *, 8> UniformValues;
   llvm::SmallVector<llvm::Instruction *, 8> ContiguousInsts;
+  llvm::SmallPtrSet<llvm::Value *, 8> LookedAt;
   HIPSYCL_DEBUG_INFO << "[SubCFG] IndVar: " << *IndVar << "\n";
   WL.push_back(&I);
   while (!WL.empty()) {
@@ -502,6 +536,10 @@ bool dontArrayifyContiguousValues(
 
         if (V == IndVar || VecInfo.isPinned(*V))
           continue;
+        // todo: fix PHIs
+        if (LookedAt.contains(V))
+          return false;
+        LookedAt.insert(V);
         if (auto *OpI = llvm::dyn_cast<llvm::Instruction>(V)) {
           if (VecInfo.getVectorShape(*OpI).isContiguous()) {
             WL.push_back(OpI);
@@ -644,7 +682,7 @@ void SubCFG::loadMultiSubCfgValues(
     if (UniVMap.count(InstContInstsPair.first))
       continue;
 
-    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and users of: " << *InstContInstsPair.first << " to "
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and operands of: " << *InstContInstsPair.first << " to "
                        << LoadTerm->getParent()->getName() << "\n";
     auto *IClone = InstContInstsPair.first->clone();
     IClone->insertBefore(LoadTerm);
@@ -698,13 +736,30 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
 
   llvm::DenseMap<llvm::Instruction *, llvm::Instruction *> InstLoadMap;
 
-  for (auto *BB : NewBlocks_)
-    for (auto &I : *BB)
-      for (auto *OPV : I.operand_values())
+  for (auto *BB : NewBlocks_) {
+    llvm::SmallVector<llvm::Instruction *, 16> Insts{};
+    std::transform(BB->begin(), BB->end(), std::back_inserter(Insts), [](auto &I) { return &I; });
+    for (auto *Inst : Insts) {
+      auto &I = *Inst;
+      //      if (llvm::isa<llvm::PHINode>(I))
+      //        continue;
+      for (auto *OPV : I.operand_values()) {
         if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV); OPI && !DT.dominates(OPI, &I)) {
-          HIPSYCL_DEBUG_WARNING << "Instruction not dominated ";
-          HIPSYCL_DEBUG_EXECUTE_WARNING(I.print(llvm::outs()); llvm::outs() << " operand: "; OPI->print(llvm::outs());
-                                        llvm::outs() << "\n";)
+          if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(Inst)) {
+            bool FoundIncoming = false;
+            for (auto &Incoming : Phi->incoming_values()) {
+              if (OPV == Incoming.get()) {
+                auto *IncomingBB = Phi->getIncomingBlock(Incoming);
+                if (DT.dominates(OPI, IncomingBB->getTerminator())) {
+                  FoundIncoming = true;
+                  break;
+                }
+              }
+            }
+            if (FoundIncoming)
+              continue;
+          }
+          HIPSYCL_DEBUG_WARNING << "Instruction not dominated " << I << " operand: " << *OPI << "\n";
 
           if (auto *Load = InstLoadMap.lookup(OPI))
             // if the already inserted Load does not dominate I, we must create another load.
@@ -736,6 +791,7 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
             VecInfo.setVectorShape(*Alloca, VecInfo.getVectorShape(I));
           }
 
+#ifdef HIPSYCL_NO_PHIS_IN_SPLIT
           // in split loop, OPI might be used multiple times, get the user, dominating this user and insert load there
           llvm::Instruction *NewIP = &I;
           for (auto *U : OPI->users()) {
@@ -743,15 +799,41 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
               NewIP = UI;
             }
           }
-          // auto *NewIP = LoadIP;
+#else
+          auto *NewIP = LoadIP;
+#endif
           // if (!Alloca->isArrayAllocation())
           //  NewIP = UniLoadIP;
 
           auto *Load = utils::loadFromAlloca(Alloca, WIIndVar_, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
+
+#ifdef HIPSYCL_NO_PHIS_IN_SPLIT
           I.replaceUsesOfWith(OPI, Load);
           InstLoadMap.insert({OPI, Load});
+#else
+          const auto NumPreds = std::distance(llvm::pred_begin(BB), llvm::pred_end(BB));
+          assert(NumPreds == 2 && "Only 2 preds allowed, otherwise must have been PHI already..");
+          if (NumPreds > 1 && std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
+            Builder.SetInsertPoint(BB, BB->getFirstInsertionPt());
+            auto *PHINode = Builder.CreatePHI(Load->getType(), NumPreds, I.getName());
+            for (auto *PredBB : llvm::predecessors(BB))
+              if (PredBB == LoadBB_)
+                PHINode->addIncoming(Load, PredBB);
+              else
+                PHINode->addIncoming(OPV, PredBB);
+
+            I.replaceUsesOfWith(OPI, PHINode);
+            InstLoadMap.insert({OPI, PHINode});
+          } else {
+            I.replaceUsesOfWith(OPI, Load);
+            InstLoadMap.insert({OPI, Load});
+          }
+#endif
         }
+      }
+    }
+  }
 }
 
 llvm::BasicBlock *createUnreachableBlock(llvm::Function &F) {
@@ -800,9 +882,9 @@ void purgeLifetime(SubCFG &Cfg) {
   for (auto *I : ToDelete)
     I->eraseFromParent();
 
-  // remove dead bitcasts
-  for (auto *BB : Cfg.getNewBlocks())
-    llvm::SimplifyInstructionsInBlock(BB);
+  //  // remove dead bitcasts
+  //  for (auto *BB : Cfg.getNewBlocks())
+  //    llvm::SimplifyInstructionsInBlock(BB);
 }
 
 void fillUserHull(llvm::AllocaInst *Alloca, llvm::SmallVectorImpl<llvm::Instruction *> &Hull) {
@@ -951,6 +1033,11 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
     for (auto &BB : F)
       if (BB.getTerminator()->getNumSuccessors() == 0)
         ExitingBlocks.push_back(&BB);
+
+  if (ExitingBlocks.empty()) {
+    HIPSYCL_DEBUG_ERROR << "[SubCFG] Invalid kernel! No kernel exits!\n";
+    llvm_unreachable("[SubCFG] Invalid kernel! No kernel exits!\n");
+  }
 
   // mark exit barrier with the corresponding id:
   for (auto *BB : ExitingBlocks)

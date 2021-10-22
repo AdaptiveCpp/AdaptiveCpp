@@ -374,8 +374,7 @@ static bool AllUniformOrUndefCall(const VectorizationInfo &VecInfo, const Instru
   const auto *C = dyn_cast<CallInst>(&I);
   if (!C)
     return false;
-  for (unsigned i = 0; i < C->getNumArgOperands(); ++i) {
-    const auto *Op = C->getArgOperand(i);
+  for (const llvm::Value* Op : C->args()) {
     if (!VecInfo.hasKnownShape(*Op))
       continue;
     auto OpShape = VecInfo.getVectorShape(*Op);
@@ -454,7 +453,7 @@ void VectorizationAnalysis::init(const Function &F) {
       } else if (isa<AllocaInst>(&I)) {
         updateShape(I, VectorShape::uni(vecInfo.getVectorWidth()));
       } else if (const CallInst *call = dyn_cast<CallInst>(&I)) {
-        if (call->getNumArgOperands() != 0)
+        if (call->arg_empty() != 0)
           continue;
 
         putOnWorklist(I);

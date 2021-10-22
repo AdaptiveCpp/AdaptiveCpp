@@ -229,8 +229,8 @@ GetWrittenPointers(const Instruction & inst, SmallVector<const Value*, 1> & writ
     // scan through modified ptrs
     IntSet unwrittenArgIndices = GetUnwrittenArguments(*callInst);
 
-    for (int i = 0; i < (int) callInst->getNumArgOperands(); ++i) {
-      const auto * callArg = callInst->getArgOperand(i);
+    int i = 0;
+    for (const llvm::Value *callArg : callInst->args()) {
       // can only write to pointers (well...)
       if (!callArg->getType()->isPointerTy()) continue;
 
@@ -238,6 +238,7 @@ GetWrittenPointers(const Instruction & inst, SmallVector<const Value*, 1> & writ
       if (unwrittenArgIndices.count(i)) continue;
 
       writtenPtrs.push_back(callArg);
+      ++i;
     }
 
     return !writtenPtrs.empty();

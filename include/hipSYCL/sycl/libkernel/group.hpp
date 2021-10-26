@@ -65,9 +65,9 @@ struct barrier
   HIPSYCL_KERNEL_TARGET
   static void run()
   {
-#ifdef SYCL_DEVICE_ONLY
-    detail::local_device_barrier(Fence_space);
-#endif
+    __hipsycl_if_target_device(
+      detail::local_device_barrier(Fence_space);
+    );
   }
 };
 

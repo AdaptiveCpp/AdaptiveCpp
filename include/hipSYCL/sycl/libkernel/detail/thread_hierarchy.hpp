@@ -44,7 +44,7 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#ifndef SYCL_DEVICE_ONLY
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 // Define dummy values in case we are not in a device
 // compilation pass. This makes it easier to use the
 // functions from this file as we can call them
@@ -121,7 +121,7 @@ namespace detail {
 #define __hipsycl_ngroups_z __spirv_BuiltInNumWorkgroups.z
 
 #endif
-#endif // SYCL_DEVICE_ONLY
+#endif // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 
 
 // The get_global_id_* and get_global_size_* functions 

@@ -48,6 +48,10 @@
  #define HIPSYCL_PLATFORM_SPIRV
 #endif
 
+#ifndef HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+ #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
+#endif
+
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
@@ -61,7 +65,18 @@
 #endif
 
 #ifdef HIPSYCL_LIBKERNEL_DEVICE_PASS
+ #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS 1
+#else
+ #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS 0
+#endif
+
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS &&                                        \
+    !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define SYCL_DEVICE_ONLY
+#endif
+
+#if !defined(HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
+ #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
 #ifdef __clang__
@@ -71,5 +86,22 @@
  #define HIPSYCL_FORCE_INLINE inline
 #endif
 #define HIPSYCL_BUILTIN HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
+
+#ifndef __hipsycl_if_target_host
+ #if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+  #define __hipsycl_if_target_host(...) __VA_ARGS__
+ #else
+  #define __hipsycl_if_target_host(...)
+ #endif
+#endif
+
+#ifndef __hipsycl_if_target_device
+ #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+  #define __hipsycl_if_target_device(...) __VA_ARGS__
+ #else
+  #define __hipsycl_if_target_device(...)
+ #endif
+#endif
+
 
 #endif

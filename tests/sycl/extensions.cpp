@@ -330,11 +330,12 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
     defined(HIPSYCL_PLATFORM_SPIRV)
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
-#ifdef SYCL_DEVICE_ONLY
-  return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-#else
-  return 0;
-#endif
+  __hipsycl_if_target_device(
+    return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+  );
+  __hipsycl_if_target_host(
+    return 0;
+  );
 }
 #endif
 
@@ -359,15 +360,20 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                group_size1d}},
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size1>(
-                 sycl::range{1000}, [=](sycl::id<1> idx) {
-                   if (idx[0] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
-                     gsize[0] = get_total_group_size();
+                sycl::range{1000}, [=](sycl::id<1> idx) {
+                  if (idx[0] == 0) {
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
+                      gsize[0] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                      gsize[0] = 1;
+                    );
 #else
-                     gsize[0] = 1;
+                    gsize[0] = 1;
 #endif
-                   }
-                 });
+                  }
+                });
            });
 
   q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
@@ -376,8 +382,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size2>(
                  sycl::range{30,30}, [=](sycl::id<2> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
-                     gsize[1] = get_total_group_size();
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
+                      gsize[1] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                      gsize[1] = 2;
+                    );
 #else
                      gsize[1] = 2;
 #endif
@@ -392,8 +403,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size3>(
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
                      gsize[2] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                     gsize[2] = 3;
+                    );
 #else
                      gsize[2] = 3;
 #endif

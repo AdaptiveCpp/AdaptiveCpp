@@ -65,10 +65,12 @@ HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
   }
   __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
                            flags);
-#else
-  #warning device barrier called on CPU, this should not happen
 #endif
+  __hipsycl_if_target_host(
+    #warning device barrier called on CPU, this should not happen
+  );
 }
+
 }
 }
 }

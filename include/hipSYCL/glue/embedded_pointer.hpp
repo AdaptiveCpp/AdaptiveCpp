@@ -57,27 +57,27 @@ struct unique_id {
 
   HIPSYCL_UNIVERSAL_TARGET
   unique_id() {
-#ifndef SYCL_DEVICE_ONLY
-    uint64_t ns =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch())
-            .count();
+    __hipsycl_if_target_host(
+      uint64_t ns =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::high_resolution_clock::now().time_since_epoch())
+              .count();
 
-    static std::random_device rd;
-    static std::mt19937 gen{rd()};
-    static std::uniform_int_distribution<uint64_t> distribution{0};
+      static std::random_device rd;
+      static std::mt19937 gen{rd()};
+      static std::uniform_int_distribution<uint64_t> distribution{0};
 
-    uint64_t random_number = distribution(gen);
+      uint64_t random_number = distribution(gen);
 
-    char* ns_bytes = reinterpret_cast<char*>(&ns);
-    char* rnd_bytes = reinterpret_cast<char*>(&random_number);
+      char* ns_bytes = reinterpret_cast<char*>(&ns);
+      char* rnd_bytes = reinterpret_cast<char*>(&random_number);
 
-    for(int i = 0; i < sizeof(uint64_t); ++i) {
-      char *id_bytes = reinterpret_cast<char*>(&id[0]);
-      id_bytes[2 * i    ] = ns_bytes[i];
-      id_bytes[2 * i + 1] = rnd_bytes[i];
-    }
-#endif
+      for(int i = 0; i < sizeof(uint64_t); ++i) {
+        char *id_bytes = reinterpret_cast<char*>(&id[0]);
+        id_bytes[2 * i    ] = ns_bytes[i];
+        id_bytes[2 * i + 1] = rnd_bytes[i];
+      }
+    );
   }
 
   HIPSYCL_UNIVERSAL_TARGET

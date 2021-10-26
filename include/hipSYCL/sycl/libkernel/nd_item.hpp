@@ -284,11 +284,12 @@ struct nd_item
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    detail::local_device_barrier(space);
-#else
-    (*_group_barrier)();
-#endif
+    __hipsycl_if_target_device(
+      detail::local_device_barrier(space);
+    );
+    __hipsycl_if_target_host(
+      (*_group_barrier)(); 
+    );
   }
 
   template <access::mode accessMode = access::mode::read_write>
@@ -360,9 +361,9 @@ struct nd_item
       _global_id{group_id * local_range + local_id},
       _local_memory_ptr(local_memory_ptr)
   {
-#ifndef SYCL_DEVICE_ONLY
-    _group_barrier = host_group_barrier;
-#endif
+    __hipsycl_if_target_host(
+      _group_barrier = host_group_barrier;
+    );
   }
 #endif
 

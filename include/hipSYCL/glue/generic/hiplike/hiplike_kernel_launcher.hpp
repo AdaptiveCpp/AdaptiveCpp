@@ -142,16 +142,17 @@ template <class F, typename... Reductions>
 __host__ __device__ void
 device_invocation_with_local_reducers(F&& f, Reductions... reductions) {
 
-#ifdef SYCL_DEVICE_ONLY
-  auto invoker = [&, f] __host__ __device__ (auto... reducers) {
+  __hipsycl_if_target_device(
+    auto invoker = [&, f] __host__ __device__ (auto... reducers) {
 
-    f(reducers...);
-    (reducers.finalize_result(), ...);
-  };
-  invoker(reductions.construct_reducer()...);
-#else
-  assert(false && "Attempted to execute device code path on host!");
-#endif
+      f(reducers...);
+      (reducers.finalize_result(), ...);
+    };
+    invoker(reductions.construct_reducer()...);
+  );
+  __hipsycl_if_target_host(
+    assert(false && "Attempted to execute device code path on host!");
+  );
 }
 
 template<class F, typename... Reductions>
@@ -167,21 +168,21 @@ template <typename KernelName, class Function, typename... Reductions>
 __sycl_kernel void
 primitive_parallel_for_with_local_reducers(Function f,
                                            Reductions... reductions) {
-#ifdef SYCL_DEVICE_ONLY
-  device_invocation_with_local_reducers(
-      [&] __host__ __device__(auto &...local_reducers) {
-        int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
-        f(gid, local_reducers...);
-      },
-      reductions...);
-#endif
+  __hipsycl_if_target_device(
+    device_invocation_with_local_reducers(
+        [&] __host__ __device__(auto &...local_reducers) {
+          int gid = __hipsycl_lid_x + __hipsycl_gid_x * __hipsycl_lsize_x;
+          f(gid, local_reducers...);
+        },
+        reductions...);
+  );
 }
 
 template <typename KernelName, class Function>
 __sycl_kernel void single_task_kernel(Function f) {
-#ifdef SYCL_DEVICE_ONLY
-  device_invocation(f);
-#endif
+  __hipsycl_if_target_device(
+    device_invocation(f);
+  );
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -190,28 +191,28 @@ __sycl_kernel void
 parallel_for_kernel(Function f, sycl::range<dimensions> execution_range,
                     sycl::id<dimensions> offset, bool with_offset,
                     Reductions... reductions) {
-#ifdef SYCL_DEVICE_ONLY
-  // Note: We currently cannot have with_offset as template parameter
-  // because this might cause clang to emit two kernels with the same
-  // mangled name (variants with and without offset) if an explicit kernel
-  // name is provided.
-  if(with_offset) {
-    device_invocation([&] __host__ __device__(auto... reducers) {
-      auto this_item = sycl::detail::make_item<dimensions>(
-          sycl::detail::get_global_id<dimensions>() + offset, execution_range,
-          offset);
-      if (item_is_in_range(this_item, execution_range, offset))
-        f(this_item, reducers...);
-    }, reductions...);
-  } else {
-    device_invocation([&] __host__ __device__(auto... reducers) {
-      auto this_item = sycl::detail::make_item<dimensions>(
-          sycl::detail::get_global_id<dimensions>(), execution_range);
-      if (item_is_in_range(this_item, execution_range))
-        f(this_item, reducers...);
-    }, reductions...);
-  }
-#endif
+  __hipsycl_if_target_device(
+    // Note: We currently cannot have with_offset as template parameter
+    // because this might cause clang to emit two kernels with the same
+    // mangled name (variants with and without offset) if an explicit kernel
+    // name is provided.
+    if(with_offset) {
+      device_invocation([&] __host__ __device__(auto... reducers) {
+        auto this_item = sycl::detail::make_item<dimensions>(
+            sycl::detail::get_global_id<dimensions>() + offset, execution_range,
+            offset);
+        if (item_is_in_range(this_item, execution_range, offset))
+          f(this_item, reducers...);
+      }, reductions...);
+    } else {
+      device_invocation([&] __host__ __device__(auto... reducers) {
+        auto this_item = sycl::detail::make_item<dimensions>(
+            sycl::detail::get_global_id<dimensions>(), execution_range);
+        if (item_is_in_range(this_item, execution_range))
+          f(this_item, reducers...);
+      }, reductions...);
+    }
+  );
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -219,8 +220,8 @@ template <typename KernelName, class Function, int dimensions,
 __sycl_kernel void parallel_for_ndrange_kernel(Function f,
                                                sycl::id<dimensions> offset,
                                                Reductions... reductions) {
-#ifdef SYCL_DEVICE_ONLY
-  device_invocation(
+  __hipsycl_if_target_device(
+    device_invocation(
       [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         sycl::nd_item<dimensions> this_item{&offset};
@@ -234,7 +235,7 @@ __sycl_kernel void parallel_for_ndrange_kernel(Function f,
         f(this_item, reducers...);
       },
       reductions...);
-#endif
+  );
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -246,21 +247,21 @@ parallel_for_workgroup(Function f,
                        // since it allows the compiler to infer 'dimensions'
                        sycl::range<dimensions> logical_group_size,
                        Reductions... reductions) {
-#ifdef SYCL_DEVICE_ONLY
-  device_invocation(
-      [&] __host__ __device__(auto... reducers) {
+  __hipsycl_if_target_device(
+    device_invocation(
+        [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-        sycl::group<dimensions> this_group;
+          sycl::group<dimensions> this_group;
 #else
-        sycl::group<dimensions> this_group{
-            sycl::detail::get_group_id<dimensions>(),
-            sycl::detail::get_local_size<dimensions>(),
-            sycl::detail::get_grid_size<dimensions>()};
+          sycl::group<dimensions> this_group{
+              sycl::detail::get_group_id<dimensions>(),
+              sycl::detail::get_local_size<dimensions>(),
+              sycl::detail::get_grid_size<dimensions>()};
 #endif
-        f(this_group, reducers...);
-      },
-      reductions...);
-#endif
+          f(this_group, reducers...);
+        },
+        reductions...);
+  );
 }
 
 template <typename KernelName, class Function, int dimensions,
@@ -268,8 +269,8 @@ template <typename KernelName, class Function, int dimensions,
 __sycl_kernel void
 parallel_region(Function f, sycl::range<dimensions> num_groups,
                 sycl::range<dimensions> group_size, Reductions... reductions) {
-#ifdef SYCL_DEVICE_ONLY
-  device_invocation(
+  __hipsycl_if_target_device(
+    device_invocation(
       [&] __host__ __device__(auto... reducers) {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         sycl::group<dimensions> this_group;
@@ -288,7 +289,7 @@ parallel_region(Function f, sycl::range<dimensions> num_groups,
         f(this_group, phys_idx, reducers...);
       },
       reductions...);
-#endif
+  );
 }
 
 /// Flips dimensions such that the range is consistent with the mapping
@@ -448,46 +449,53 @@ public:
   // Must be __host__ __device__ in order to be able to call
   // hiplike_dynamic_local_memory()
   __host__ __device__ void *get_local_scratch_mem() const {
-#ifdef SYCL_DEVICE_ONLY
-    return static_cast<void *>(
-        static_cast<char *>(sycl::detail::hiplike_dynamic_local_memory()) +
-        _local_memory_offset);
-#else
-    return nullptr;
-#endif
+    __hipsycl_if_target_device(
+        return static_cast<void *>(
+                   static_cast<char *>(
+                       sycl::detail::hiplike_dynamic_local_memory()) +
+                   _local_memory_offset);
+    );
+    __hipsycl_if_target_host(
+      return nullptr;
+    );
   }
 
   __host__ __device__ 
   void* get_reduction_output_buffer() const {
-#ifdef SYCL_DEVICE_ONLY
-    if(!_is_final)
-      return _scratch_memory_out;
-    else
-      return _descriptor.get_pointer();
-#else
-    return nullptr;
-#endif
+    __hipsycl_if_target_device(
+      if(!_is_final)
+        return _scratch_memory_out;
+      else
+        return _descriptor.get_pointer();
+    );
+    __hipsycl_if_target_host(
+      return nullptr;
+    );
   }
 
-#ifdef SYCL_DEVICE_ONLY
+
   __device__ hiplike::local_reducer<ReductionDescriptor>
   construct_reducer() const {
-    int my_local_id = __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
-                      __hipsycl_lid_y * __hipsycl_lsize_x + __hipsycl_lid_x;
-    int my_group_id =
-        __hipsycl_gid_z * __hipsycl_ngroups_y * __hipsycl_ngroups_x +
-        __hipsycl_gid_y * __hipsycl_ngroups_x + __hipsycl_gid_x;
+    __hipsycl_if_target_device(
+        int my_local_id =
+            __hipsycl_lid_z * __hipsycl_lsize_y * __hipsycl_lsize_x +
+            __hipsycl_lid_y * __hipsycl_lsize_x + __hipsycl_lid_x;
+        int my_group_id =
+            __hipsycl_gid_z * __hipsycl_ngroups_y * __hipsycl_ngroups_x +
+            __hipsycl_gid_y * __hipsycl_ngroups_x + __hipsycl_gid_x;
 
-    value_type *group_output_ptr =
-        static_cast<value_type *>(get_reduction_output_buffer()) + my_group_id;
+        value_type *group_output_ptr =
+            static_cast<value_type *>(get_reduction_output_buffer()) +
+            my_group_id;
 
-    value_type* global_input_ptr =
-        static_cast<value_type*>(get_reduction_input_buffer());
+        value_type *global_input_ptr =
+            static_cast<value_type *>(get_reduction_input_buffer());
 
-    return hiplike::local_reducer<ReductionDescriptor>{
-        _descriptor, my_local_id,
-        static_cast<value_type *>(get_local_scratch_mem()), group_output_ptr,
-        global_input_ptr};
+        return hiplike::local_reducer<ReductionDescriptor>{
+            _descriptor, my_local_id,
+            static_cast<value_type *>(get_local_scratch_mem()),
+            group_output_ptr, global_input_ptr};
+    );
   }
 #endif
   

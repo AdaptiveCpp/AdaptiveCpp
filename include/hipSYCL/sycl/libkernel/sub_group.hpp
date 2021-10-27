@@ -107,12 +107,6 @@ public:
     return get_group_range();
   }
 
-  template<class F>
-  HIPSYCL_KERNEL_TARGET
-  void single_item(F f){
-    if(get_local_id() == 0) f();
-  }
-
   HIPSYCL_KERNEL_TARGET
   bool leader() const {
     return get_local_linear_id() == 0;
@@ -196,12 +190,6 @@ public:
     return __spirv_BuiltInNumSubgroups;
   }
 
-  template<class F>
-  HIPSYCL_KERNEL_TARGET
-  void single_item(F f){
-    if(get_local_linear_id() == 0) f();
-  }
-
   HIPSYCL_KERNEL_TARGET
   bool leader() const {
     return true;
@@ -272,12 +260,6 @@ public:
   HIPSYCL_KERNEL_TARGET
   range_type get_max_group_range() const {
     return _group_size;
-  }
-
-  template<class F>
-  HIPSYCL_KERNEL_TARGET
-  void single_item(F f){
-    f();
   }
 
   HIPSYCL_KERNEL_TARGET

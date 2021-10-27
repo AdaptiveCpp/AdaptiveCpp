@@ -46,6 +46,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
@@ -305,8 +306,27 @@ inline void parallel_for_workgroup(Function f,
       reductions...);
 }
 
+template<int Dim, int KnownGroupSizeDivisor>
+struct sp_property_descriptor_type_generator {};
 
-template <class Function, int dimensions, typename... Reductions>
+template<int KnownGroupSizeDivisor>
+struct sp_property_descriptor_type_generator<1, KnownGroupSizeDivisor> {
+  using type = sycl::detail::sp_property_descriptor<1, 0, KnownGroupSizeDivisor>;
+};
+template <int KnownGroupSizeDivisor>
+struct sp_property_descriptor_type_generator<2, KnownGroupSizeDivisor> {
+  using type = sycl::detail::sp_property_descriptor<2, 0, KnownGroupSizeDivisor,
+                                                    KnownGroupSizeDivisor>;
+};
+template <int KnownGroupSizeDivisor>
+struct sp_property_descriptor_type_generator<3, KnownGroupSizeDivisor> {
+  using type = sycl::detail::sp_property_descriptor<3, 0, KnownGroupSizeDivisor,
+                                                    KnownGroupSizeDivisor,
+                                                    KnownGroupSizeDivisor>;
+};
+
+template <int KnownGroupSizeDivisor,
+          class Function, int dimensions, typename... Reductions>
 inline void parallel_region(Function f,
                             const sycl::range<dimensions> num_groups,
                             const sycl::range<dimensions> group_size,
@@ -323,14 +343,15 @@ inline void parallel_region(Function f,
             num_local_mem_bytes);
 
         iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
-          sycl::group<dimensions> this_group{group_id, group_size,
-                                              num_groups};
+          
+          using group_properties =
+              typename sp_property_descriptor_type_generator<
+                  dimensions, KnownGroupSizeDivisor>::type;
 
-          auto phys_item = sycl::detail::make_sp_item(
-              sycl::id<dimensions>{}, group_id, group_size, num_groups);
+          sycl::detail::sp_group<group_properties> this_group {
+                  sycl::group<dimensions>{group_id, group_size, num_groups}};
 
-          f(this_group, phys_item, reducers...);
-            
+          f(this_group, reducers...);
         });
 
         sycl::detail::host_local_memory::release();
@@ -350,7 +371,7 @@ public:
 
   virtual void set_params(void*) override {}
 
-  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
@@ -422,9 +443,31 @@ public:
         omp_dispatch::parallel_for_workgroup(k, get_grid_range(), local_range,
                                              dynamic_local_memory, reductions...);
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+        
+        auto local_range_is_divisible_by = [&](int x) -> bool {
+          for(int i = 0; i < Dim; ++i) {
+            if(local_range[i] % x != 0)
+              return false;
+          }
+          return true;
+        };
 
-        omp_dispatch::parallel_region(k, get_grid_range(), local_range,
-                                      dynamic_local_memory, reductions...);
+        if(local_range_is_divisible_by(64)) {
+          omp_dispatch::parallel_region<64>(k, get_grid_range(), local_range,
+                                          dynamic_local_memory, reductions...);
+        } else if(local_range_is_divisible_by(32)) {
+          omp_dispatch::parallel_region<32>(k, get_grid_range(), local_range,
+                                          dynamic_local_memory, reductions...);
+        } else if(local_range_is_divisible_by(16)) {
+          omp_dispatch::parallel_region<16>(k, get_grid_range(), local_range,
+                                          dynamic_local_memory, reductions...);
+        } else if(local_range_is_divisible_by(8)) {
+          omp_dispatch::parallel_region<8>(k, get_grid_range(), local_range,
+                                          dynamic_local_memory, reductions...);
+        } else {
+          omp_dispatch::parallel_region<1>(k, get_grid_range(), local_range,
+                                          dynamic_local_memory, reductions...);
+        } 
       } else if constexpr (type == rt::kernel_type::custom) {
         sycl::interop_handle handle{
             rt::device_id{rt::backend_descriptor{rt::hardware_platform::cpu,

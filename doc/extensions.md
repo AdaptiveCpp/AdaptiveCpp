@@ -5,7 +5,7 @@ hipSYCL implements several extensions that are not defined by the specification.
 ## Supported extensions
 
 
-### `HIPSYCL_EXT_SCOPED_PARALLELISM`
+### `HIPSYCL_EXT_SCOPED_PARALLELISM_V2`
 This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
 See [here](scoped-parallelism.md) for more details. **Scoped parallelism is the recommended way in hipSYCL to write programs that are performance portable between CPU and GPU backends.**
 

@@ -52,28 +52,31 @@ namespace sycl {
 
 // any_of
 template<typename Group, typename T, typename Predicate,
-         typename std::enable_if_t<!std::is_same_v<T, Predicate>, int> = 0>
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool any_of_group(Group g, T x, Predicate pred) {
   return any_of_group(g, pred(x));
 }
 
 // all_of
-template<typename Group, typename T, typename Predicate>
+template<typename Group, typename T, typename Predicate,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool all_of_group(Group g, T x, Predicate pred) {
   return all_of_group(g, pred(x));
 }
 
 // none_of
-template<typename Group, typename T, typename Predicate>
+template<typename Group, typename T, typename Predicate,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 bool none_of_group(Group g, T x, Predicate pred) {
   return none_of_group(g, pred(x));
 }
 
 // reduce
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T reduce_over_group(Group g, V x, T init, BinaryOperation binary_op) {
   T reduction = reduce_over_group(g, T{x}, binary_op);
@@ -81,14 +84,16 @@ T reduce_over_group(Group g, V x, T init, BinaryOperation binary_op) {
 }
 
 // exclusive_scan
-template<typename Group, typename T, typename BinaryOperation>
+template<typename Group, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
   return exclusive_scan_over_group(g, x, T{}, binary_op);
 }
 
 // inclusive_scan
-template<typename Group, typename V, typename T, typename BinaryOperation>
+template<typename Group, typename V, typename T, typename BinaryOperation,
+          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
 T inclusive_scan_over_group(Group g, V x, T init, BinaryOperation binary_op) {
   T scan = inclusive_scan_over_group(g, T{x}, binary_op);

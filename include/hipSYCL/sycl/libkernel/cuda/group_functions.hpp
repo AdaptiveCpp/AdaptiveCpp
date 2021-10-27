@@ -41,25 +41,21 @@
 namespace hipsycl {
 namespace sycl {
 
-// broadcast
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x,
-                  typename sub_group::linear_id_type local_linear_id = 0) {
-  return detail::shuffle_impl(x, local_linear_id);
-}
-
 // barrier
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
+inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   }
   __syncthreads();
 }
+template<int Dim>
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(group<Dim> g) {
+  __syncthreads();
+}
 
-template<>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(sub_group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
@@ -69,23 +65,24 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   }
   __syncwarp(); // not necessarily needed, but might improve performance
 }
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(sub_group g) {
+  __syncwarp(); // not necessarily needed, but might improve performance
+}
 
 // any_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool any_of_group(sub_group g, bool pred) {
   return __any_sync(detail::AllMask, pred);
 }
 
 // all_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool all_of_group(sub_group g, bool pred) {
   return __all_sync(detail::AllMask, pred);
 }
 
 // none_of
-template<>
 HIPSYCL_KERNEL_TARGET
 inline bool none_of_group(sub_group g, bool pred) {
   return !__any_sync(detail::AllMask, pred);
@@ -168,6 +165,5 @@ T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
 } // namespace hipsycl
 
 #endif // HIPSYCL_LIBKERNEL_CUDA_GROUP_FUNCTIONS_HPP
-
 #endif // HIPSYCL_PLATFORM_CUDA
 #endif // SYCL_DEVICE_ONLY

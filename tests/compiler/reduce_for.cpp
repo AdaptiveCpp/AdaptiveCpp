@@ -29,7 +29,6 @@ int main()
 
       cgh.parallel_for<class dynamic_local_memory_reduction>(
         cl::sycl::nd_range<1>{global_size, local_size},
-        cl::sycl::attribute<cl::sycl::reqd_work_group_size<local_size>>(
           [=](cl::sycl::nd_item<1> item) noexcept {
             const auto lid = item.get_local_id(0);
             const auto group_size = item.get_local_range(0);
@@ -44,7 +43,7 @@ int main()
 
             if(lid == 0)
               acc[item.get_global_id()] = scratch[lid];
-          }));
+          });
     });
   }
   for(size_t i = 0; i < global_size / local_size; ++i)

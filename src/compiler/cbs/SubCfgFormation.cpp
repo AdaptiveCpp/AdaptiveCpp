@@ -143,7 +143,7 @@ hipsycl::compiler::VectorizationInfo getVectorizationInfo(llvm::Function &F, hip
   } else {
     for (size_t D = 0; D < Dim - 1; ++D) {
       VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[D]),
-                             hipsycl::compiler::VectorShape::uni());
+                             hipsycl::compiler::VectorShape::cont());
     }
     VecInfo.setPinnedShape(*getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]),
                            hipsycl::compiler::VectorShape::cont());
@@ -211,6 +211,8 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB, const llvm:
 
     VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[D])] = IndVars[D];
   }
+
+  // todo: replace `ret` with branch to innermost latch
 
   VMap[getLoadForGlobalVariable(F, LocalIdGlobalNames[0])] = IndVars[0];
 
@@ -410,25 +412,20 @@ void SubCFG::replicate(
   BlocksToRemap.push_back(WILatch);
   llvm::remapInstructionsInBlocks(BlocksToRemap, VMap);
 
-  auto *BrCmpI = utils::getBrCmp(*WIHeader);
-  assert(BrCmpI && "WI Header must have cmp.");
-  for (auto *BrOp : BrCmpI->operand_values()) {
-    if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(BrOp)) {
-      auto *LatchV = Phi->getIncomingValueForBlock(WILatch);
+  if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(VMap[WIIndVar_])) {
+    auto *LatchV = Phi->getIncomingValueForBlock(WILatch);
 
-      for (auto *U : Phi->users()) {
-        if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
-          if (UI->getParent() == WIHeader)
-            UI->replaceUsesOfWith(Phi, LatchV);
-        }
+    for (auto *U : Phi->users()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (UI->getParent() == WIHeader)
+          UI->replaceUsesOfWith(Phi, LatchV);
       }
-
-      // Move PHI from Header to for body
-      Phi->moveBefore(&*LoadBB_->begin());
-      Phi->replaceIncomingBlockWith(WILatch, WIHeader);
-      VMap[WILoop->getHeader()] = LoadBB_;
-      break;
     }
+
+    // Move PHI from Header to for body
+    Phi->moveBefore(&*LoadBB_->begin());
+    Phi->replaceIncomingBlockWith(WILatch, WIHeader);
+    VMap[WILoop->getHeader()] = LoadBB_;
   }
 
   // Header is now latch, so copy loop md over
@@ -484,8 +481,6 @@ void SubCFG::replicate(
   llvm::remapInstructionsInBlocks(BlocksToRemap, VMap);
 
   removeDeadPhiBlocks(BlocksToRemap);
-
-  HIPSYCL_DEBUG_INFO << "[SubCFG] Idx " << *Idx << " dummy " << *WIIndVar_ << "\n";
 
   EntryBB_ = PreHeader_;
   ExitBB_ = Latches[0];
@@ -602,6 +597,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
         //     VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
         //     continue;
         // }
+#ifndef HIPSYCL_NO_CONTIGUOUS_VALUES
         if (Shape.isContiguous()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP, ReqdArrayElements,
                                            WIIndVar_, VecInfo)) {
@@ -609,6 +605,7 @@ void SubCFG::arrayifyMultiSubCfgValues(
             continue;
           }
         }
+#endif
         auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, ReqdArrayElements);
         InstAllocaMap.insert({&I, Alloca});
         VecInfo.setVectorShape(*Alloca, Shape);
@@ -678,6 +675,7 @@ void SubCFG::loadMultiSubCfgValues(
 
   llvm::SmallPtrSet<llvm::Instruction *, 16> InstsToRemap;
 
+  // todo: topo sort on instructions to get order right
   for (auto &InstContInstsPair : ContInstReplicaMap) {
     if (UniVMap.count(InstContInstsPair.first))
       continue;
@@ -784,6 +782,7 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
           if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
+            HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
             //            if (VecInfo.getVectorShape(I).isUniform())
             //              Alloca = utils::arrayifyInstruction(AllocaIP, OPI, WIIndVar_, 1);
             //            else

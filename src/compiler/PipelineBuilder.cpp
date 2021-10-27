@@ -47,8 +47,8 @@
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
 #include <llvm/ADT/StringRef.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/IRPrintingPasses.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/SCCP.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar/SROA.h>
@@ -200,15 +200,17 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   FPM.addPass(WILoopMarkerPass{});
   FPM.addPass(LoopSplitterInliningPass{});
 
-  FPM.addPass(KernelFlatteningPass{});
-  FPM.addPass(SimplifyKernelPass{});
+  if (Opt != OptLevel::O0) {
+    FPM.addPass(KernelFlatteningPass{});
+    FPM.addPass(SimplifyKernelPass{});
 
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
-  MPM.addPass(llvm::IPSCCPPass{});
-  FPM.addPass(llvm::InstCombinePass{});
-  FPM.addPass(llvm::SROA{});
+    MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+    MPM.addPass(llvm::IPSCCPPass{});
+    FPM.addPass(llvm::InstCombinePass{});
+    FPM.addPass(llvm::SROA{});
 
-  FPM.addPass(llvm::SimplifyCFGPass{});
+    FPM.addPass(llvm::SimplifyCFGPass{});
+  }
 
   FPM.addPass(SimplifyKernelPass{});
 #ifdef HIPSYCL_NO_PHIS_IN_SPLIT

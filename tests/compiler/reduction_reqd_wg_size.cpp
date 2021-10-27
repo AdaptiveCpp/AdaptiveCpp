@@ -29,21 +29,22 @@ int main()
 
       cgh.parallel_for<class dynamic_local_memory_reduction>(
         cl::sycl::nd_range<1>{global_size, local_size},
-        [=](cl::sycl::nd_item<1> item) noexcept {
-          const auto lid = item.get_local_id(0);
-          const auto group_size = item.get_local_range(0);
+        cl::sycl::attribute<cl::sycl::reqd_work_group_size<local_size>>(
+          [=](cl::sycl::nd_item<1> item) noexcept {
+            const auto lid = item.get_local_id(0);
+            const auto group_size = item.get_local_range(0);
 
-          scratch[lid] = acc[item.get_global_id()];
-          for(size_t i = group_size / 2; i > 0; i /= 2)
-          {
-            item.barrier();
-            if(lid < i)
-              scratch[lid] += scratch[lid + i];
-          }
+            scratch[lid] = acc[item.get_global_id()];
+            for(size_t i = group_size / 2; i > 0; i /= 2)
+            {
+              item.barrier();
+              if(lid < i)
+                scratch[lid] += scratch[lid + i];
+            }
 
-          if(lid == 0)
-            acc[item.get_global_id()] = scratch[lid];
-        });
+            if(lid == 0)
+              acc[item.get_global_id()] = scratch[lid];
+          }));
     });
   }
   for(size_t i = 0; i < global_size / local_size; ++i)

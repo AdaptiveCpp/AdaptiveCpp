@@ -409,7 +409,8 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   llvm::IRBuilder AllocaBuilder{IPAllocas};
   auto *Alloca = AllocaBuilder.CreateAlloca(T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
                                             ToArrayify->getName() + "_alloca");
-  Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
+  if(NumElements > 1)
+    Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
   const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();

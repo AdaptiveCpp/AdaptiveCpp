@@ -590,13 +590,15 @@ void SubCFG::arrayifyMultiSubCfgValues(
           }
 
         auto Shape = VecInfo.getVectorShape(I);
-        // if (Shape.isUniform()) {
-        //     HIPSYCL_DEBUG_INFO << "[SubCFG] Value uniform, store to single element alloca " << I << "\n";
-        //     auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, 1);
-        //     InstAllocaMap.insert({&I, Alloca});
-        //     VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
-        //     continue;
-        // }
+#ifndef HIPSYCL_NO_PHIS_IN_SPLIT
+        if (Shape.isUniform()) {
+          HIPSYCL_DEBUG_INFO << "[SubCFG] Value uniform, store to single element alloca " << I << "\n";
+          auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, WIIndVar_, 1);
+          InstAllocaMap.insert({&I, Alloca});
+          VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
+          continue;
+        }
+#endif
 #ifndef HIPSYCL_NO_CONTIGUOUS_VALUES
         if (Shape.isContiguous()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP, ReqdArrayElements,
@@ -739,8 +741,6 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
     std::transform(BB->begin(), BB->end(), std::back_inserter(Insts), [](auto &I) { return &I; });
     for (auto *Inst : Insts) {
       auto &I = *Inst;
-      //      if (llvm::isa<llvm::PHINode>(I))
-      //        continue;
       for (auto *OPV : I.operand_values()) {
         if (auto *OPI = llvm::dyn_cast<llvm::Instruction>(OPV); OPI && !DT.dominates(OPI, &I)) {
           if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(Inst)) {
@@ -800,9 +800,9 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
           }
 #else
           auto *NewIP = LoadIP;
+          if (!Alloca->isArrayAllocation())
+            NewIP = UniLoadIP;
 #endif
-          // if (!Alloca->isArrayAllocation())
-          //  NewIP = UniLoadIP;
 
           auto *Load = utils::loadFromAlloca(Alloca, WIIndVar_, NewIP, OPI->getName());
           utils::copyDgbValues(OPI, Load, NewIP);
@@ -812,8 +812,7 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
           InstLoadMap.insert({OPI, Load});
 #else
           const auto NumPreds = std::distance(llvm::pred_begin(BB), llvm::pred_end(BB));
-          assert(NumPreds == 2 && "Only 2 preds allowed, otherwise must have been PHI already..");
-          if (NumPreds > 1 && std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
+          if (!llvm::isa<llvm::PHINode>(I) && NumPreds > 1 && std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
             Builder.SetInsertPoint(BB, BB->getFirstInsertionPt());
             auto *PHINode = Builder.CreatePHI(Load->getType(), NumPreds, I.getName());
             for (auto *PredBB : llvm::predecessors(BB))

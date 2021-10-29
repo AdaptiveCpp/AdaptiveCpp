@@ -33,11 +33,12 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/IR/Dominators.h>
 
 namespace {
 using namespace hipsycl::compiler;
-bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
+bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::TargetTransformInfo &TTI) {
   bool Changed = false;
 
   for (auto *SL : utils::getLoopsInPreorder(LI)) {
@@ -58,15 +59,26 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
       // make the access group parallel w.r.t the WI loop
       utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
 
+      llvm::SmallVector<llvm::MDNode*, 3> PostTransformMD;
       // work-item loops should be vectorizable, so emit metadata to suggest so
       if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.enable")) {
         auto *MDVectorize =
             llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
                                                llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
                                                    llvm::IntegerType::get(F.getContext(), 1)))});
-        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorize});
-        SL->setLoopID(LoopID);
+        PostTransformMD.push_back(MDVectorize);
       }
+#if LLVM_VERSION_MAJOR >= 12
+      if(TTI.supportsScalableVectors()) {
+        if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.scalable.enable")) {
+          auto *MDVectorize =
+              llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.scalable.enable"),
+                                                 llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
+                                                     llvm::IntegerType::get(F.getContext(), 1)))});
+          PostTransformMD.push_back(MDVectorize);
+        }
+      }
+#endif
 
       if(!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.width")) {
         auto SgSize = utils::getReqdSgSize(F);
@@ -75,9 +87,13 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI) {
               F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.width"),
                                llvm::ConstantAsMetadata::get(llvm::Constant::getIntegerValue(
                                    llvm::IntegerType::get(F.getContext(), 32), llvm::APInt(32, SgSize, false)))});
-          auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, {MDVectorizeWidth});
-          SL->setLoopID(LoopID);
+          PostTransformMD.push_back(MDVectorizeWidth);
         }
+      }
+
+      if(!PostTransformMD.empty()) {
+        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, PostTransformMD);
+        SL->setLoopID(LoopID);
       }
 
       if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
@@ -116,6 +132,8 @@ void hipsycl::compiler::LoopsParallelMarkerPassLegacy::getAnalysisUsage(llvm::An
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
+  AU.addRequired<llvm::TargetTransformInfoWrapperPass>();
+  AU.addPreserved<llvm::TargetTransformInfoWrapperPass>();
 }
 bool hipsycl::compiler::LoopsParallelMarkerPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
@@ -123,7 +141,9 @@ bool hipsycl::compiler::LoopsParallelMarkerPassLegacy::runOnFunction(llvm::Funct
     return false;
 
   const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  return markLoopsWorkItem(F, LI);
+  const auto &TTI = getAnalysis<llvm::TargetTransformInfoWrapperPass>().getTTI(F);
+
+  return markLoopsWorkItem(F, LI, TTI);
 }
 
 llvm::PreservedAnalyses hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Function &F,
@@ -131,12 +151,13 @@ llvm::PreservedAnalyses hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Fu
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
+  const auto &TTI = AM.getResult<llvm::TargetIRAnalysis>(F);
   if (!SAA) {
     llvm::errs() << "SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();
   }
   if (SAA->isKernelFunc(&F))
-    markLoopsWorkItem(F, LI);
+    markLoopsWorkItem(F, LI, TTI);
 
   return llvm::PreservedAnalyses::all();
 }

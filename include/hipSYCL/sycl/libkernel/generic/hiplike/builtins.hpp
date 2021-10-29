@@ -218,6 +218,12 @@ HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tan, tanf, tan)
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_tanpi(T x) noexcept {
+  return __hipsycl_tan(M_PI * x);
+}
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tanh, tanhf, tanh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_trunc, truncf, trunc)
 
@@ -274,6 +280,12 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_rsqrt, __frsqrt_rn,
                                            __hipsycl_rsqrt)
 HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_sin, __sinf,
                                            __hipsycl_sin)
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_sincos(T x, T* cos) noexcept {
+  *cos = __hipsycl_cos(x);
+  return __hipsycl_sin(*cos);
+}
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_sqrt(T x) noexcept {

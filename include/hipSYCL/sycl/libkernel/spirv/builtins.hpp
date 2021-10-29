@@ -190,11 +190,24 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN(sqrt)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sin)
 
 template<class T>
+HIPSYCL_BUILTIN T __hipsycl_sincos(T x, T* cos) noexcept {
+  *cos = __hipsycl_cos(x);
+  return __hipsycl_sin(*cos);
+}
+
+
+template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
   return __hipsycl_sin(x * M_PI);
 }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(tan)
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_tanpi(T x) noexcept {
+  return __hipsycl_tan(M_PI * x);
+}
+
 HIPSYCL_DEFINE_SPIRV_BUILTIN(tanh)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(trunc)
 

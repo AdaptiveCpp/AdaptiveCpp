@@ -326,6 +326,12 @@ HIPSYCL_BUILTIN T __hipsycl_sin(T x) noexcept {
 }
 
 template<class T>
+HIPSYCL_BUILTIN T __hipsycl_sincos(T x, T* cos) noexcept {
+  *cos = __hipsycl_cos(x);
+  return __hipsycl_sin(*cos);
+}
+
+template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
   return std::sin(x * M_PI);
 }
@@ -343,6 +349,11 @@ HIPSYCL_BUILTIN T __hipsycl_tan(T x) noexcept {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_tanh(T x) noexcept {
   return std::tanh(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_tanpi(T x) noexcept {
+  return std::tan(M_PI * x);
 }
 
 template<class T>

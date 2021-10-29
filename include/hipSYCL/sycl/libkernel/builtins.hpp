@@ -473,6 +473,22 @@ using ulonglong16 = vec<unsigned long long, 16>;
     }                                                                          \
   }
 
+#define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_TPTR(T, name, impl_name)            \
+  template <access::address_space A>                                           \
+  HIPSYCL_BUILTIN T name(T a, const multi_ptr<T, A> &b) noexcept {             \
+    if constexpr (std::is_arithmetic_v<T>) {                                   \
+      return impl_name(detail::data_element(a, 0), b.get());                   \
+    } else {                                                                   \
+      T result;                                                                \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
+        auto a_i = detail::data_element(a, i);                                 \
+        auto b_i_ptr = &(detail::data_element(*b, i));                         \
+        detail::data_element(result, i) = impl_name(a_i, b_i_ptr);             \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+  }
+
 #define HIPSYCL_BUILTIN_GENERATOR_UNARY_T(T, name, impl_name)                  \
   HIPSYCL_BUILTIN T name(T a) noexcept {                                       \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
@@ -658,14 +674,15 @@ HIPSYCL_DEFINE_BUILTIN(rsqrt, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(sin, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
-
-// TODO sincos
-
+HIPSYCL_DEFINE_BUILTIN(sincos, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                      HIPSYCL_BUILTIN_GENERATOR_BINARY_T_TPTR)
 HIPSYCL_DEFINE_BUILTIN(sinpi, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(sqrt, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(tan, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
+HIPSYCL_DEFINE_BUILTIN(tanpi, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(tanh, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)

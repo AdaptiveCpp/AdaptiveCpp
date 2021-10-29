@@ -80,23 +80,26 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
     auto *LocalSizeArg =
         std::find_if(F.arg_begin(), F.arg_end(), [](llvm::Argument &Arg) { return Arg.getName() == "local_size"; });
     if (LocalSizeArg == F.arg_end()) {
+      LocalSizeArg = std::find_if(F.arg_begin(), F.arg_end(),
+                                  [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce"; });
       if (Dim == 1) {
-        LocalSizeArg = std::find_if(F.arg_begin(), F.arg_end(),
-                                    [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce"; });
         if (LocalSizeArg == F.arg_end())
           llvm_unreachable("[SubCFG] Kernel has no local_size or local_size.coerce argument!");
         else
           return {LocalSizeArg};
       } else if (Dim == 2) {
-        auto *LocalSizeArgX = std::find_if(F.arg_begin(), F.arg_end(),
-                                           [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce0"; });
-        auto *LocalSizeArgY = std::find_if(F.arg_begin(), F.arg_end(),
-                                           [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce1"; });
-        if (LocalSizeArgX == F.arg_end() || LocalSizeArgY == F.arg_end())
-          llvm_unreachable("[SubCFG] Kernel has no local_size or local_size.coerce{0,1} argument!");
-        else
-          return {LocalSizeArgX, LocalSizeArgY};
-      } else
+        if(LocalSizeArg == F.arg_end()) {
+          auto *LocalSizeArgX = std::find_if(F.arg_begin(), F.arg_end(),
+                                             [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce0"; });
+          auto *LocalSizeArgY = std::find_if(F.arg_begin(), F.arg_end(),
+                                             [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce1"; });
+
+          if (LocalSizeArgX == F.arg_end() || LocalSizeArgY == F.arg_end())
+            llvm_unreachable("[SubCFG] Kernel has no local_size or local_size.coerce{0,1} argument!");
+          else
+            return {LocalSizeArgX, LocalSizeArgY};
+        }
+      } else if (LocalSizeArg == F.arg_end())
         llvm_unreachable("[SubCFG] Kernel has no local_size argument!");
     }
 
@@ -104,15 +107,22 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
     auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
 
     llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
-    auto *LocalSizeBC = Builder.CreatePointerCast(
+    llvm::Value *LocalSizePtr = nullptr;
+    if(!LocalSizeArg->getType()->isArrayTy())
+      LocalSizePtr = Builder.CreatePointerCast(
         LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
         "local_size.cast");
 
     llvm::SmallVector<llvm::Value *, 3> LocalSize;
-    for (int I = 0; I < Dim; ++I) {
-      auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizeBC, {Builder.getIntN(SizeTSize, I)},
-                                                     "local_size.gep." + llvm::Twine{DimName[I]});
-      LocalSize.push_back(Builder.CreateLoad(LocalSizeGep, "local_size." + llvm::Twine{DimName[I]}));
+    for (unsigned int I = 0; I < Dim; ++I) {
+      if(LocalSizeArg->getType()->isArrayTy()){
+        LocalSize.push_back(Builder.CreateExtractValue(LocalSizeArg, {I},
+                                                       "local_size." + llvm::Twine{DimName[I]}));
+      } else {
+        auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizePtr, {Builder.getIntN(SizeTSize, I)},
+                                                       "local_size.gep." + llvm::Twine{DimName[I]});
+        LocalSize.push_back(Builder.CreateLoad(LocalSizeGep, "local_size." + llvm::Twine{DimName[I]}));
+      }
     }
     return LocalSize;
   }

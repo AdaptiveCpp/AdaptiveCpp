@@ -103,5 +103,8 @@
  #endif
 #endif
 
+#define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \
+  ((HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_##backend) &&                             \
+   !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)
 
 #endif

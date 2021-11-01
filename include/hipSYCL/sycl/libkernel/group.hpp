@@ -41,10 +41,8 @@
 #include "sp_item.hpp"
 #include "memory.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
 #include "detail/device_barrier.hpp"
-#endif
 
 namespace hipsycl {
 namespace sycl {
@@ -290,16 +288,17 @@ struct group
   HIPSYCL_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
-#ifdef SYCL_DEVICE_ONLY
+    __hipsycl_if_target_device(
   #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
+      h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
   #else
-    h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
+      h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
   #endif
-    func(idx);
-#else
-    iterate_over_work_items(_local_range, func);
-#endif
+      func(idx);
+    );
+    __hipsycl_if_target_host(
+      iterate_over_work_items(_local_range, func);
+    );
     Finalizer::run();
   }
 
@@ -317,11 +316,12 @@ struct group
   void parallel_for_work_item(range<Dimensions> flexibleRange,
                               workItemFunctionT func) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    parallelize_over_work_items(flexibleRange, func);
-#else
-    iterate_over_work_items(flexibleRange, func);
-#endif
+    __hipsycl_if_target_device(
+      parallelize_over_work_items(flexibleRange, func);
+    );
+    __hipsycl_if_target_host(
+      iterate_over_work_items(flexibleRange, func);
+    );
     Finalizer::run();
   }
 

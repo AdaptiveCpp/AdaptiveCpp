@@ -34,17 +34,12 @@
 #include "../range.hpp"
 #include "data_layout.hpp"
 
-#if !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP &&                                \
-    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                               \
-    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
-#error "This file requires a device compiler"
-#endif
 
 namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+#if HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(HOST)
 // Define dummy values in case we are not in a device
 // compilation pass. This makes it easier to use the
 // functions from this file as we can call them

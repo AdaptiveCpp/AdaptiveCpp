@@ -39,8 +39,8 @@
 #include "device_event.hpp"
 #include "detail/mem_fence.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
+#ifdef SYCL_DEVICE_ONLY
 #include "detail/device_barrier.hpp"
 #endif
 

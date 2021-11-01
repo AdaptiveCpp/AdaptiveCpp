@@ -43,7 +43,9 @@ struct mem_fence_impl
   {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-    __threadfence();
+    __hipsycl_if_target_device(
+      __threadfence();
+    );
 #elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
     __spirv_MemoryBarrier(__spv::Scope::Device,
                           __spv::MemorySemanticsMask::SequentiallyConsistent |
@@ -64,7 +66,9 @@ struct mem_fence_impl<access::fence_space::local_space, M>
   {
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-    __threadfence_block();
+    __hipsycl_if_target_device(
+      __threadfence_block();
+    );
 #elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
     __spirv_MemoryBarrier(
         __spv::Scope::Workgroup,

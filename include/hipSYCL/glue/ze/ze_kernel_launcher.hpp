@@ -48,9 +48,8 @@
 #include "hipSYCL/sycl/interop_handle.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
-#endif
+
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"

@@ -52,7 +52,12 @@ template<class T>
 class mobile_shared_ptr
 {
 public:
-  mobile_shared_ptr() = default;
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr() {
+    __hipsycl_if_target_host(
+      new (&_data) std::shared_ptr<T>{nullptr};
+    );
+  }
 
   // Argument is ignored on device
   HIPSYCL_UNIVERSAL_TARGET
@@ -63,14 +68,14 @@ public:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  mobile_shared_ptr(const std::shared_ptr<T>& other){
+  mobile_shared_ptr(const mobile_shared_ptr& other){
     __hipsycl_if_target_host(
       new (&_data) std::shared_ptr<T>{other._data};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  mobile_shared_ptr(std::shared_ptr<T>&& other){
+  mobile_shared_ptr(mobile_shared_ptr&& other){
     __hipsycl_if_target_host(
       new (&_data) std::shared_ptr<T>{other._data};
     );
@@ -79,14 +84,14 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   ~mobile_shared_ptr() {
     __hipsycl_if_target_host(
-      _data.~shared_ptr<T>();
+      _data.~shared_ptr();
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
     __hipsycl_if_target_host(
-      _data = other;
+      _data = other._data;
     );
 
     return *this;
@@ -95,7 +100,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
     __hipsycl_if_target_host(
-      _data = other;
+      _data = other.data;
     );
 
     return *this;

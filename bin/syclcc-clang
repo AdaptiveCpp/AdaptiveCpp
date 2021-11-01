@@ -138,6 +138,10 @@ class syclcc_config:
     (Note: *must* be compatible with the clang version that the 
      hipSYCL clang plugin was compiled against!)"""),
 
+      'nvcxx': option("--hipsycl-nvcxx", "HIPSYCL_NVCXX", "default-nvcxx",
+"""  The path to the nvc++ executable that should be used for compilation
+    with the cuda-nvcxx backend."""),
+
       'cuda-path': option("--hipsycl-cuda-path", "HIPSYCL_CUDA_PATH", "default-cuda-path",
 """  The path to the CUDA toolkit installation directry"""),
 
@@ -190,6 +194,8 @@ class syclcc_config:
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
+      * cuda-nvcxx - CUDA backend with nvc++. Requires same target
+               specification as CUDA backend.
       * hip  - HIP backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
@@ -469,6 +475,10 @@ class syclcc_config:
   @property
   def clang_path(self):
     return self._retrieve_option("clang")
+
+  @property
+  def nvcxx_path(self):
+    return self._retrieve_option("nvcxx")
 
   @property
   def pure_cpu_compiler(self):
@@ -820,6 +830,38 @@ class cuda_invocation:
   def get_linker_flags(self):
     return self._linker_args
 
+class cuda_nvcxx_invocation:
+  def __init__(self, config):
+    if not "cuda-nvcxx" in config.targets:
+      raise RuntimeError("cuda-nvcxx not among targets")
+    if len(config.targets["cuda-nvcxx"]) == 0:
+      raise OptionNotSet("No CUDA nvc++ targets specified")
+
+    self._cuda_targets = config.targets["cuda-nvcxx"]
+    self._cuda_path = config.cuda_path
+    self._nvcxx = config.nvcxx_path
+    self._linker_args = config.cuda_link_line
+    self._cxx_flags = config.cuda_cxx_flags
+
+  def get_compiler_preference(self):
+    return (self._nvcxx, 200)
+
+  def get_cxx_flags(self):
+
+    flags = [
+        "-cuda",
+        "--cuda-path=" + self._cuda_path,
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+      ]
+
+    flags += self._cxx_flags
+    for t in self._cuda_targets:
+      flags += ["--cuda-gpu-arch=" + t]
+      
+    return flags
+
+  def get_linker_flags(self):
+    return self._linker_args
 
 class hip_invocation:
   def __init__(self, config):
@@ -938,6 +980,8 @@ class compiler:
             cuda_multipass_invocation(config))
         else:
           self._backends.append(cuda_invocation(config))
+      elif backend == "cuda-nvcxx":
+        self._backends.append(cuda_nvcxx_invocation(config))
       elif backend == "hip":
         self._backends.append(hip_invocation(config))
       elif backend == 'spirv':

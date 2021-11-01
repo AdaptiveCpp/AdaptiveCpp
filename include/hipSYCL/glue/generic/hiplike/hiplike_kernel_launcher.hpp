@@ -47,6 +47,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
@@ -264,10 +265,30 @@ parallel_for_workgroup(Function f,
   );
 }
 
-template <typename KernelName, class Function, int dimensions,
-          typename... Reductions>
+template<int DivisorX, int DivisorY, int DivisorZ>
+struct sp_multiversioning_properties {
+  static constexpr int group_divisor_x = DivisorX;
+  static constexpr int group_divisor_y = DivisorY;
+  static constexpr int group_divisor_z = DivisorZ;
+
+  template<int Dim>
+  static constexpr auto get_sp_property_descriptor() {
+    if constexpr(Dim == 1) {
+      return sycl::detail::sp_property_descriptor<Dim, 0, group_divisor_z>{};
+    } else if constexpr(Dim == 2) {
+      return sycl::detail::sp_property_descriptor<Dim, 0, group_divisor_y, group_divisor_z>{};
+    } else {
+      return sycl::detail::sp_property_descriptor<
+          Dim, 0, group_divisor_x, group_divisor_y, group_divisor_z>{};
+    }
+  }
+};
+
+template <typename KernelName, class Function, class MultiversioningProps,
+          int dimensions, typename... Reductions>
 __sycl_kernel void
-parallel_region(Function f, sycl::range<dimensions> num_groups,
+parallel_region(Function f, MultiversioningProps props,
+                sycl::range<dimensions> num_groups,
                 sycl::range<dimensions> group_size, Reductions... reductions) {
   __hipsycl_if_target_device(
     device_invocation(
@@ -280,13 +301,10 @@ parallel_region(Function f, sycl::range<dimensions> num_groups,
             sycl::detail::get_local_size<dimensions>(),
             sycl::detail::get_grid_size<dimensions>()};
 #endif
-        sycl::physical_item<dimensions> phys_idx = sycl::detail::make_sp_item(
-            sycl::detail::get_local_id<dimensions>(),
-            sycl::detail::get_group_id<dimensions>(),
-            sycl::detail::get_local_size<dimensions>(),
-            sycl::detail::get_grid_size<dimensions>());
-
-        f(this_group, phys_idx, reducers...);
+        using group_properties = std::decay_t<
+            decltype(MultiversioningProps::template get_sp_property_descriptor<
+                     dimensions>())>;
+        f(sycl::detail::sp_group<group_properties>{this_group}, reducers...);
       },
       reductions...);
   );
@@ -585,13 +603,15 @@ public:
     return _queue;
   }
 
-  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k, Reductions... reductions) {
     
     this->_type = type;
+
+    using kernel_name_t = typename KernelNameTraits::name;
 
     sycl::range<Dim> effective_local_range = local_range;
     if constexpr (type == rt::kernel_type::basic_parallel_for) {
@@ -621,7 +641,7 @@ public:
       if constexpr (type == rt::kernel_type::single_task) {
 
         __hipsycl_invoke_kernel(
-            hiplike_dispatch::single_task_kernel<KernelName>, KernelName,
+            hiplike_dispatch::single_task_kernel<kernel_name_t>, kernel_name_t,
             Kernel, dim3(1, 1, 1), dim3(1, 1, 1), dynamic_local_memory,
             _queue->get_native_type(), k);
 
@@ -674,7 +694,7 @@ public:
           if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
             __hipsycl_invoke_kernel(
-                hiplike_dispatch::parallel_for_kernel<KernelName>, KernelName,
+                hiplike_dispatch::parallel_for_kernel<kernel_name_t>, kernel_name_t,
                 Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
@@ -688,8 +708,8 @@ public:
               assert(global_range[i] % effective_local_range[i] == 0);
 
             __hipsycl_invoke_kernel(
-                hiplike_dispatch::parallel_for_ndrange_kernel<KernelName>,
-                KernelName, Kernel,
+                hiplike_dispatch::parallel_for_ndrange_kernel<kernel_name_t>,
+                kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -703,8 +723,8 @@ public:
               assert(global_range[i] % effective_local_range[i] == 0);
 
             __hipsycl_invoke_kernel(
-                hiplike_dispatch::parallel_for_workgroup<KernelName>,
-                KernelName, Kernel,
+                hiplike_dispatch::parallel_for_workgroup<kernel_name_t>,
+                kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
                 hiplike_dispatch::make_kernel_launch_range<Dim>(
                     effective_local_range),
@@ -716,14 +736,49 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_invoke_kernel(
-                hiplike_dispatch::parallel_region<KernelName>, KernelName,
-                Kernel,
-                hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
-                hiplike_dispatch::make_kernel_launch_range<Dim>(
-                    effective_local_range),
-                required_dynamic_local_mem, _queue->get_native_type(), k, grid_range,
-                effective_local_range, reduction_descriptors...);
+            auto invoke_scoped_kernel = [&](auto multiversioning_props) {
+              using multiversioned_parameters = decltype(multiversioning_props);
+
+              using multiversioned_name_t =
+                  typename KernelNameTraits::template multiversioned_name<
+                      multiversioned_parameters>;
+              
+              auto multiversioned_kernel_body =
+                  KernelNameTraits::template make_multiversioned_kernel_body<
+                      multiversioned_parameters>(k);
+              
+              using sp_properties_t = decltype(multiversioning_props);
+
+              __hipsycl_invoke_kernel(
+                  hiplike_dispatch::parallel_region<multiversioned_name_t>,
+                  multiversioned_name_t, decltype(multiversioned_kernel_body),
+                  hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
+                  hiplike_dispatch::make_kernel_launch_range<Dim>(
+                      effective_local_range),
+                  required_dynamic_local_mem, _queue->get_native_type(),
+                  multiversioned_kernel_body, multiversioning_props, grid_range,
+                  effective_local_range, reduction_descriptors...);
+            };
+
+            if constexpr(Dim == 1) {
+              if(effective_local_range[0] % 64 == 0) {
+                using sp_properties_t =
+                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 64>;
+                invoke_scoped_kernel(sp_properties_t{});
+              } else if(effective_local_range[0] % 32 == 0) {
+                using sp_properties_t =
+                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 32>;
+                invoke_scoped_kernel(sp_properties_t{});
+              } else {
+                using sp_properties_t =
+                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 1>;
+                invoke_scoped_kernel(sp_properties_t{});
+              }
+            } else {
+              using sp_properties_t =
+                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 1>;
+                invoke_scoped_kernel(sp_properties_t{});
+            }
 
           } else {
             assert(false && "Unsupported kernel type");
@@ -776,7 +831,6 @@ public:
             _managed_reduction_scratch, reductions...);
       }
     };
-    
   }
 
   virtual rt::backend_id get_backend() const final override {

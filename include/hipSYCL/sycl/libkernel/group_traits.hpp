@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018 Aksel Alpay
+ * Copyright (c) 2018-2020 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,66 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PRIVATE_MEMORY_HPP
-#define HIPSYCL_PRIVATE_MEMORY_HPP
-
-#include <memory>
+#ifndef HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP
+#define HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP
 
 #include "group.hpp"
-#include "h_item.hpp"
+#include "sub_group.hpp"
+#include <type_traits>
 
 namespace hipsycl {
 namespace sycl {
 
-#ifdef SYCL_DEVICE_ONLY
+template<class T>
+struct is_group : public std::false_type {};
 
-template<typename T, int Dimensions = 1>
-class private_memory
-{
-public:
-  HIPSYCL_KERNEL_TARGET
-  private_memory(const group<Dimensions>&)
-  {}
+template<int Dim>
+struct is_group<group<Dim>> : public std::true_type {};
 
-  HIPSYCL_KERNEL_TARGET
-  T& operator()(const h_item<Dimensions>&) noexcept
-  {
-    return _data;
-  }
+template<>
+struct is_group<sub_group> : public std::true_type {};
 
-private:
-  T _data;
-};
+template<class T>
+inline constexpr bool is_group_v = is_group<T>::value;
 
-#else
+} // namespace sycl
+} // namespace hipsycl
 
-template<typename T, int Dimensions = 1>
-class private_memory
-{
-public:
-  HIPSYCL_KERNEL_TARGET
-  private_memory(const group<Dimensions>& grp)
-  : _data{new T [grp.get_local_range().size()]}
-  {}
-
-  HIPSYCL_KERNEL_TARGET
-  T& operator()(const h_item<Dimensions>& idx) noexcept
-  {
-    return get(idx.get_local_id(), idx.get_local_range());
-  }
-
-private:
-  std::unique_ptr<T []> _data;
-
-  HIPSYCL_KERNEL_TARGET
-  T& get(id<Dimensions> id, range<Dimensions> local_range) noexcept
-  {
-    return _data.get()[detail::linear_id<Dimensions>::get(id, local_range)];
-  }
-};
-#endif
-
-}
-}
-
-#endif
+#endif // HIPSYCL_LIBKERNEL_GROUP_TRAITS_HPP

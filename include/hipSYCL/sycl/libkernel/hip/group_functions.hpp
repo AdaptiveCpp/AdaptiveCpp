@@ -41,25 +41,22 @@
 namespace hipsycl {
 namespace sycl {
 
-// broadcast
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-T group_broadcast(sub_group g, T x,
-                  typename sub_group::linear_id_type local_linear_id = 0) {
-  return detail::shuffle_impl(x, static_cast<int>(local_linear_id));
-}
-
 // barrier
-template<typename Group>
+template<int Dim>
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(Group g, memory_scope fence_scope = Group::fence_scope) {
+inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   }
   __syncthreads();
 }
 
-template<>
+template<int Dim>
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(group<Dim> g) {
+  __syncthreads();
+}
+
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(sub_group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
@@ -69,32 +66,32 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   }
   // threads run in lock-step no sync needed
 }
+HIPSYCL_KERNEL_TARGET
+inline void group_barrier(sub_group g) {
+}
 
 // any_of
-template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_any_of(sub_group g, bool pred) {
+inline bool any_of_group(sub_group g, bool pred) {
   return __any(pred);
 }
 
 // all_of
-template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_all_of(sub_group g, bool pred) {
+inline bool all_of_group(sub_group g, bool pred) {
   return __all(pred);
 }
 
 // none_of
-template<>
 HIPSYCL_KERNEL_TARGET
-inline bool group_none_of(sub_group g, bool pred) {
+inline bool none_of_group(sub_group g, bool pred) {
   return !__any(pred);
 }
 
 // reduce
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
+T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
   auto     local_x = x;
   uint64_t activemask;
   asm("s_mov_b64 %0, exec" : "=r"(activemask));
@@ -118,7 +115,7 @@ T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
 // inclusive_scan
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
+T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
   auto         local_x = x;
   const size_t lid     = g.get_local_linear_id();
 
@@ -143,7 +140,7 @@ T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
 // exclusive_scan
 template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
+T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op) {
   const size_t lid     = g.get_local_linear_id();
   auto         local_x = x;
 

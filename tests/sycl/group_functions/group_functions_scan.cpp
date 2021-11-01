@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_mul, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_exclusive_scan(
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(
           g, local_value, detail::initialize_type<T>(10), std::multiplies<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_exclusive_scan(g, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(g, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_exclusive_scan(
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(
           g, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -180,7 +180,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
       auto out   = acc.get_pointer() + 2 * 4 * local_size +
                  (global_linear_id / local_size) * local_size * 2;
 
-      sycl::detail::exclusive_scan(g, start.get(), end.get(), out.get(), std::plus<T>());
+      sycl::joint_exclusive_scan(g, start.get(), end.get(), out.get(), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
       auto out   = acc.get_pointer() + 2 * 4 * local_size +
                  (global_linear_id / local_size) * local_size * 2;
 
-      sycl::detail::exclusive_scan(g, start.get(), end.get(), out.get(),
+      sycl::joint_exclusive_scan(g, start.get(), end.get(), out.get(),
                                    detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -272,7 +272,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_exclusive_scan(sg, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(sg, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_exclusive_scan(
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(
           sg, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -353,7 +353,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_mul, T, test_types) {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
       acc[global_linear_id] =
-          sycl::group_inclusive_scan(g, local_value, std::multiplies<T>());
+          sycl::inclusive_scan_over_group(g, local_value, std::multiplies<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -399,7 +399,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_inclusive_scan(g, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::inclusive_scan_over_group(g, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -435,7 +435,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_inclusive_scan(
+      acc[global_linear_id] = sycl::inclusive_scan_over_group(
           g, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -488,7 +488,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
       auto out   = acc.get_pointer() + 2 * 4 * local_size +
                  (global_linear_id / local_size) * local_size * 2;
 
-      sycl::detail::inclusive_scan(g, start.get(), end.get(), out.get(), std::plus<T>());
+      sycl::joint_inclusive_scan(g, start.get(), end.get(), out.get(), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -530,8 +530,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
       auto out   = acc.get_pointer() + 2 * 4 * local_size +
                  (global_linear_id / local_size) * local_size * 2;
 
-      sycl::detail::inclusive_scan(g, start.get(), end.get(), out.get(),
-                                   detail::initialize_type<T>(10), std::plus<T>());
+      sycl::joint_inclusive_scan(g, start.get(), end.get(), out.get(),
+                                   std::plus<T>(), detail::initialize_type<T>(10));
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -580,7 +580,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_inclusive_scan(sg, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::inclusive_scan_over_group(sg, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -614,7 +614,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_inclusive_scan(
+      acc[global_linear_id] = sycl::inclusive_scan_over_group(
           sg, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,

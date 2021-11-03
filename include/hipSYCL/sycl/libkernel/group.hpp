@@ -592,7 +592,7 @@ private:
 #endif
     for(size_t i = 0; i < iteration_range.get(0); ++i)
     {
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
       h_item<1> idx{
         id<1>{i}, 
         iteration_range, _group_id, _num_groups
@@ -614,7 +614,7 @@ private:
 #endif
       for(size_t j = 0; j < iteration_range.get(1); ++j)
       {
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{
           id<2>{i,j}, 
           iteration_range, _group_id, _num_groups
@@ -637,7 +637,7 @@ private:
   #endif
         for(size_t k = 0; k < iteration_range.get(2); ++k)
         {
-#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{
             id<3>{i,j,k}, 
             iteration_range, _group_id, _num_groups

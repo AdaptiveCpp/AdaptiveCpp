@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_DEVICE_BARRIER_HPP
 #define HIPSYCL_DEVICE_BARRIER_HPP
 
+#include <cassert>
+
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/access.hpp"
 
@@ -65,7 +67,7 @@ HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
   );
 #endif
   __hipsycl_if_target_host(
-    #warning device barrier called on CPU, this should not happen
+    assert(false && "device barrier called on CPU, this should not happen");
   );
 }
 

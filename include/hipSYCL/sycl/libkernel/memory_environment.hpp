@@ -139,7 +139,7 @@ void memory_environment_host(const Group &g, FirstArg &&first,
   if constexpr(sizeof...(RestArgs) == 0) {
     first();
   } else {
-    using request_type = FirstArg;
+    using request_type = std::decay_t<FirstArg>;
     using value_type = typename request_type::value_type;
     using scalar_type = array_scalar_t<value_type>;
     constexpr size_t num_elements =
@@ -200,7 +200,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
   if constexpr(sizeof...(RestArgs) == 0) {
     first();
   } else {
-    using request_type = FirstArg;
+    using request_type = std::decay_t<FirstArg>;
     using value_type = typename request_type::value_type;
     using scalar_type = array_scalar_t<value_type>;
     constexpr size_t num_elements =

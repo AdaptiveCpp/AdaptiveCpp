@@ -329,7 +329,9 @@ inline void parallel_region(Function f,
               sycl::detail::sp_property_descriptor<dimensions, 0,
                                                    HierarchicalDecomposition>;
 
-          sycl::detail::sp_group<group_properties> this_group {
+          sycl::detail::sp_group<
+              sycl::detail::host_sp_property_descriptor<group_properties>>
+              this_group{
                   sycl::group<dimensions>{group_id, group_size, num_groups}};
 
           f(this_group, reducers...);

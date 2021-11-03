@@ -322,17 +322,12 @@ public:
           // TODO: We should actually query the subgroup size of the device
           // and then multiversion the kernel based on this. Currently,
           // scoped parallelism on SPIR-V just uses scalar subgroups.
-          auto determine_group_properties = [](){
-            if constexpr(Dim == 1) {
-              return sycl::detail::sp_property_descriptor<Dim, 0, 1>{};
-            } else if constexpr(Dim == 2){
-              return sycl::detail::sp_property_descriptor<Dim, 0, 1, 1>{};
-            } else {
-              return sycl::detail::sp_property_descriptor<Dim, 0, 1, 1, 1>{};
-            }
-          };
+          using namespace sycl::detail;
+          using fallback_decomposition =
+            nested_range<unknown_static_range, nested_range<static_range<1>>>;
 
-          using group_properties = std::decay_t<decltype(determine_group_properties())>;
+          using group_properties =
+              sp_property_descriptor<Dim, 0, fallback_decomposition>;
 
           k(sycl::detail::sp_group<group_properties>{this_group});
 #else

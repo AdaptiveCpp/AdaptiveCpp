@@ -306,26 +306,7 @@ inline void parallel_for_workgroup(Function f,
       reductions...);
 }
 
-template<int Dim, int KnownGroupSizeDivisor>
-struct sp_property_descriptor_type_generator {};
-
-template<int KnownGroupSizeDivisor>
-struct sp_property_descriptor_type_generator<1, KnownGroupSizeDivisor> {
-  using type = sycl::detail::sp_property_descriptor<1, 0, KnownGroupSizeDivisor>;
-};
-template <int KnownGroupSizeDivisor>
-struct sp_property_descriptor_type_generator<2, KnownGroupSizeDivisor> {
-  using type = sycl::detail::sp_property_descriptor<2, 0, KnownGroupSizeDivisor,
-                                                    KnownGroupSizeDivisor>;
-};
-template <int KnownGroupSizeDivisor>
-struct sp_property_descriptor_type_generator<3, KnownGroupSizeDivisor> {
-  using type = sycl::detail::sp_property_descriptor<3, 0, KnownGroupSizeDivisor,
-                                                    KnownGroupSizeDivisor,
-                                                    KnownGroupSizeDivisor>;
-};
-
-template <int KnownGroupSizeDivisor,
+template <class HierarchicalDecomposition,
           class Function, int dimensions, typename... Reductions>
 inline void parallel_region(Function f,
                             const sycl::range<dimensions> num_groups,
@@ -343,10 +324,10 @@ inline void parallel_region(Function f,
             num_local_mem_bytes);
 
         iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
-          
+
           using group_properties =
-              typename sp_property_descriptor_type_generator<
-                  dimensions, KnownGroupSizeDivisor>::type;
+              sycl::detail::sp_property_descriptor<dimensions, 0,
+                                                   HierarchicalDecomposition>;
 
           sycl::detail::sp_group<group_properties> this_group {
                   sycl::group<dimensions>{group_id, group_size, num_groups}};
@@ -358,6 +339,48 @@ inline void parallel_region(Function f,
         
       },
       reductions...);
+}
+
+template<int Dim, int MaxGuaranteedWorkgroupSize>
+constexpr auto determine_hierarchical_decomposition() {
+  using namespace sycl::detail;
+  using fallback_decomposition =
+      nested_range<unknown_static_range, nested_range<static_range<1>>>;
+
+  if constexpr(Dim == 1) {
+    if constexpr(MaxGuaranteedWorkgroupSize % 16 == 0) {
+      return nested_range<
+        unknown_static_range, 
+        nested_range<
+          static_range<16>
+        >
+      >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  } else if constexpr(Dim == 2){
+    if constexpr(MaxGuaranteedWorkgroupSize % 4 == 0) {
+      return nested_range<
+          unknown_static_range, 
+          nested_range<
+            static_range<4,4>
+          >
+        >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  } else {
+    if constexpr(MaxGuaranteedWorkgroupSize % 2 == 0) {
+      return nested_range<
+          unknown_static_range, 
+          nested_range<
+            static_range<2,2,2>
+          >
+        >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  }
 }
 
 }
@@ -453,20 +476,45 @@ public:
         };
 
         if(local_range_is_divisible_by(64)) {
-          omp_dispatch::parallel_region<64>(k, get_grid_range(), local_range,
-                                          dynamic_local_memory, reductions...);
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 64>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
         } else if(local_range_is_divisible_by(32)) {
-          omp_dispatch::parallel_region<32>(k, get_grid_range(), local_range,
-                                          dynamic_local_memory, reductions...);
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 32>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
         } else if(local_range_is_divisible_by(16)) {
-          omp_dispatch::parallel_region<16>(k, get_grid_range(), local_range,
-                                          dynamic_local_memory, reductions...);
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 16>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
         } else if(local_range_is_divisible_by(8)) {
-          omp_dispatch::parallel_region<8>(k, get_grid_range(), local_range,
-                                          dynamic_local_memory, reductions...);
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<Dim,
+                                                                          8>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
         } else {
-          omp_dispatch::parallel_region<1>(k, get_grid_range(), local_range,
-                                          dynamic_local_memory, reductions...);
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<Dim,
+                                                                          1>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
         } 
       } else if constexpr (type == rt::kernel_type::custom) {
         sycl::interop_handle handle{

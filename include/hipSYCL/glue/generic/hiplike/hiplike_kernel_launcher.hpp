@@ -65,8 +65,13 @@
 #include "hipSYCL/glue/generic/module.hpp"
 
 
-#ifdef HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE
+#if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
+
+#if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
  #include "clang.hpp"
+#else
+ #include "nvcxx.hpp"
+#endif
  #include "hiplike_reducer.hpp"
  #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
  
@@ -265,7 +270,7 @@ parallel_for_workgroup(Function f,
   );
 }
 
-template<int DivisorX, int DivisorY, int DivisorZ>
+template<int DivisorX = 1, int DivisorY = 1, int DivisorZ = 1>
 struct sp_multiversioning_properties {
   static constexpr int group_divisor_x = DivisorX;
   static constexpr int group_divisor_y = DivisorY;
@@ -273,13 +278,29 @@ struct sp_multiversioning_properties {
 
   template<int Dim>
   static constexpr auto get_sp_property_descriptor() {
+    return sycl::detail::sp_property_descriptor<
+        Dim, 0, decltype(get_hierarchical_decomposition<Dim>())>{};
+  }
+
+private:
+  template<int Dim>
+  static constexpr auto get_hierarchical_decomposition() {
+    using namespace sycl::detail;
+    using fallback_decomposition =
+      nested_range<unknown_static_range, nested_range<static_range<1>>>;
+
     if constexpr(Dim == 1) {
-      return sycl::detail::sp_property_descriptor<Dim, 0, group_divisor_z>{};
+      if constexpr(DivisorX % warpSize == 0) {
+        using decomposition =
+            nested_range<unknown_static_range,
+                         nested_range<static_range<warpSize>>>;
+
+        return sp_property_descriptor<Dim, 0, decomposition>{};
+      }
     } else if constexpr(Dim == 2) {
-      return sycl::detail::sp_property_descriptor<Dim, 0, group_divisor_y, group_divisor_z>{};
+      return sp_property_descriptor<Dim, 0, fallback_decomposition>{};
     } else {
-      return sycl::detail::sp_property_descriptor<
-          Dim, 0, group_divisor_x, group_divisor_y, group_divisor_z>{};
+      return sp_property_descriptor<Dim, 0, fallback_decomposition>{};
     }
   }
 };
@@ -763,15 +784,15 @@ public:
             if constexpr(Dim == 1) {
               if(effective_local_range[0] % 64 == 0) {
                 using sp_properties_t =
-                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 64>;
+                    hiplike_dispatch::sp_multiversioning_properties<64>;
                 invoke_scoped_kernel(sp_properties_t{});
               } else if(effective_local_range[0] % 32 == 0) {
                 using sp_properties_t =
-                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 32>;
+                    hiplike_dispatch::sp_multiversioning_properties<32>;
                 invoke_scoped_kernel(sp_properties_t{});
               } else {
                 using sp_properties_t =
-                    hiplike_dispatch::sp_multiversioning_properties<1, 1, 1>;
+                    hiplike_dispatch::sp_multiversioning_properties<1>;
                 invoke_scoped_kernel(sp_properties_t{});
               }
             } else {

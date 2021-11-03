@@ -129,6 +129,140 @@ T* aligned_alloca_offset(void* allocation) {
   T *alloc_name =                                                              \
       aligned_alloca_offset<T>(__hipsycl_alloca_allocation##alloc_name);
 
+
+
+template <class Group, class FirstArg, typename... RestArgs>
+HIPSYCL_KERNEL_TARGET
+void memory_environment_host(const Group &g, FirstArg &&first,
+                        RestArgs &&...rest) noexcept {
+
+  if constexpr(sizeof...(RestArgs) == 0) {
+    first();
+  } else {
+    using request_type = FirstArg;
+    using value_type = typename request_type::value_type;
+    using scalar_type = array_scalar_t<value_type>;
+    constexpr size_t num_elements =
+            sizeof(value_type) / sizeof(scalar_type);
+
+    auto function = get_last(rest...);
+    auto replace_arg = [](auto&& x, auto&& arg, auto&& replacement) {
+      if constexpr(std::is_same_v<decltype(x), decltype(arg)>){
+        return replacement;
+      } else {
+        return x;
+      }
+    };
+    
+    if constexpr(request_type::alloc_type == 
+        allocation_type::local_mem){
+
+      value_type memory_declaration;
+      if constexpr(request_type::is_initialized) {
+
+        scalar_type* array = reinterpret_cast<scalar_type*>(&memory_declaration);
+
+        for(int i = 0; i < num_elements; ++i)
+          array[i] = first.init_value;
+      }
+
+      memory_environment_host(g,
+                              replace_arg(rest, function, [&](auto &&...args) {
+                                function(memory_declaration, args...);
+                              })...);
+
+    } else if constexpr(request_type::alloc_type ==
+        allocation_type::private_mem){
+
+      HIPSYCL_MAKE_ALIGNED_ALLOCA(value_type, 
+        g.get_logical_local_linear_range(), memory_declaration_ptr);
+
+      if constexpr(request_type::is_initialized) {
+        for(int i = 0; i < g.get_logical_local_linear_range(); ++i)
+          memory_declaration_ptr[i] = first.init_value;
+      }
+
+      detail::private_memory_access<value_type, std::decay_t<decltype(g)>>
+          mem_access{g, memory_declaration_ptr};
+      memory_environment_host(g,
+                              replace_arg(rest, function, [&](auto &&...args) {
+                                function(mem_access, args...);
+                              })...);
+    }
+  }
+}
+
+template <class Group, class FirstArg, typename... RestArgs>
+HIPSYCL_KERNEL_TARGET
+void memory_environment_device(const Group &g, FirstArg &&first,
+                              RestArgs &&...rest) noexcept {
+
+  if constexpr(sizeof...(RestArgs) == 0) {
+    first();
+  } else {
+    using request_type = FirstArg;
+    using value_type = typename request_type::value_type;
+    using scalar_type = array_scalar_t<value_type>;
+    constexpr size_t num_elements =
+            sizeof(value_type) / sizeof(scalar_type);
+
+    auto function = get_last(rest...);
+    auto replace_arg = [](auto&& x, auto&& arg, auto&& replacement) {
+      if constexpr(std::is_same_v<decltype(x), decltype(arg)>){
+        return replacement;
+      } else {
+        return x;
+      }
+    };
+    
+    if constexpr(request_type::alloc_type == 
+        allocation_type::local_mem){
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+      __shared__ value_type memory_declaration;
+#else // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+      // TODO
+      value_type memory_declaration;
+#endif
+      if constexpr(request_type::is_initialized) {
+
+        scalar_type* array = reinterpret_cast<scalar_type*>(&memory_declaration);
+
+        const size_t tid = g.get_physical_local_linear_id();
+        const size_t lrange = g.get_physical_local_linear_range();
+        for(size_t elem = tid; elem < num_elements; elem += lrange) {
+          array[elem] = first.init_value;
+        }
+        group_barrier(g);
+        
+      }
+
+      memory_environment_device(
+          g, replace_arg(rest, function, [&](auto &&...args) {
+            function(memory_declaration, args...);
+          })...);
+
+    } else if constexpr(request_type::alloc_type ==
+        allocation_type::private_mem){
+
+      value_type memory_declaration;
+
+      if constexpr(request_type::is_initialized) {
+        // TODO arrays are not yet supported
+        *memory_declaration = first.init_value;
+      }
+
+      detail::private_memory_access<value_type, std::decay_t<decltype(g)>>
+          mem_access{g, &memory_declaration};
+
+      memory_environment_device(
+          g, replace_arg(rest, function, [&](auto &&...args) {
+            function(mem_access, args...);
+          })...);
+    }
+  }
+}
+
+
 } // memory_environment
 } // detail
 
@@ -168,85 +302,10 @@ template <class Group, class FirstArg, typename... RestArgs>
 HIPSYCL_KERNEL_TARGET
 void memory_environment(const Group &g, FirstArg &&first,
                         RestArgs &&...rest) noexcept {
-
-  using namespace detail::memory_environment;
-
-  if constexpr(sizeof...(RestArgs) == 0) {
-    first();
-  } else {
-    using request_type = FirstArg;
-    using value_type = typename request_type::value_type;
-    using scalar_type = array_scalar_t<value_type>;
-    constexpr size_t num_elements =
-            sizeof(value_type) / sizeof(scalar_type);
-
-    auto function = get_last(rest...);
-    auto replace_arg = [](auto&& x, auto&& arg, auto&& replacement) {
-      if constexpr(std::is_same_v<decltype(x), decltype(arg)>){
-        return replacement;
-      } else {
-        return x;
-      }
-    };
-    
-    if constexpr(request_type::alloc_type == 
-        allocation_type::local_mem){
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-      __shared__ value_type memory_declaration;
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-      // TODO
-      value_type memory_declaration;
-#else
-      value_type memory_declaration;
-#endif
-      if constexpr(request_type::is_initialized) {
-
-        scalar_type* array = reinterpret_cast<scalar_type*>(&memory_declaration);
-
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-        for(int i = 0; i < num_elements; ++i)
-          array[i] = first.init_value;
-#else
-        const size_t tid = g.get_physical_local_linear_id();
-        const size_t lrange = g.get_physical_local_linear_range();
-        for(size_t elem = tid; elem < num_elements; elem += lrange) {
-          array[elem] = first.init_value;
-        }
-        group_barrier(g);
-#endif
-      }
-    
-      memory_environment(g, replace_arg(rest, function, [&](auto&&... args){
-        function(memory_declaration, args...);
-      })...);
-      
-    } else if constexpr(request_type::alloc_type ==
-        allocation_type::private_mem){
-
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-      HIPSYCL_MAKE_ALIGNED_ALLOCA(value_type, 
-        g.get_logical_local_linear_range(), memory_declaration_ptr);
-#else
-      value_type memory_declaration;
-      value_type* memory_declaration_ptr = &memory_declaration;
-#endif
-      if constexpr(request_type::is_initialized) {
-        // TODO arrays are not yet supported
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-        for(int i = 0; i < g.get_logical_local_linear_range(); ++i)
-          memory_declaration_ptr[i] = first.init_value;
-#else
-        *memory_declaration_ptr = first.init_value;
-#endif
-      }
-
-      detail::private_memory_access<value_type, std::decay_t<decltype(g)>>
-          mem_access{g, memory_declaration_ptr};
-      memory_environment(g, replace_arg(rest, function, [&](auto&&... args){
-        function(mem_access, args...);
-      })...);
-    }
-  }
+  __hipsycl_if_target_device(
+      detail::memory_environment::memory_environment_device(g, first, rest...));
+  __hipsycl_if_target_host(
+      detail::memory_environment::memory_environment_host(g, first, rest...));
 }
 
 template<class T, class Group, class Function>

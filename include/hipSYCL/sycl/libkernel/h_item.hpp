@@ -31,9 +31,8 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "item.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
-#endif
+
 
 namespace hipsycl {
 namespace sycl {

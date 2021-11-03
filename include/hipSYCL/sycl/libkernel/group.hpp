@@ -100,12 +100,48 @@ using global_and_local_mem_fence = mem_fence<
 template <int Dimensions = 1>
 struct group
 {
-
   using id_type = id<Dimensions>;
   using range_type = range<Dimensions>;
   using linear_id_type = size_t;
   static constexpr int dimensions = Dimensions;
   static constexpr memory_scope fence_scope = memory_scope::work_group;
+
+#if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
+    using host_barrier_type = std::function<void()>;
+private:
+  const id<Dimensions> _group_id;
+  const range<Dimensions> _local_range;
+  const range<Dimensions> _num_groups;
+  const host_barrier_type* _group_barrier;
+  const id_type _local_id;
+  void *_local_memory_ptr;
+public:
+
+  group(id<Dimensions> group_id,
+        range<Dimensions> local_range,
+        range<Dimensions> num_groups,
+        host_barrier_type* group_barrier = nullptr,
+        id_type local_id = {},
+        void *local_memory_ptr = nullptr)
+  : _group_id{group_id}, 
+    _local_range{local_range}, 
+    _num_groups{num_groups},
+    _group_barrier{group_barrier},
+    _local_id{local_id},
+    _local_memory_ptr(local_memory_ptr)
+  {}
+
+  HIPSYCL_KERNEL_TARGET
+  void *get_local_memory_ptr() const
+  {
+    return _local_memory_ptr;
+  }
+#endif
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const {
+    return get_local_linear_id() == 0;
+  }
 
   HIPSYCL_KERNEL_TARGET
   id<Dimensions> get_group_id() const
@@ -255,19 +291,55 @@ struct group
     return get_group_linear_id();
   }
 
-#ifdef SYCL_DEVICE_ONLY
+
   HIPSYCL_KERNEL_TARGET
   id_type get_local_id() const
   {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>();
+#else
+    return _local_id;
+#endif
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_local_id(int dimension) const
   {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return detail::get_local_id<Dimensions>(dimension);
-  }
+#else
+    return _local_id[dimension];
 #endif
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_local_linear_id() const
+  {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
+                                              detail::get_local_size<Dimensions>());
+#else
+    return detail::linear_id<Dimensions>::get(_local_id,
+                                              _local_range);
+#endif
+  }
+
+  [[deprecated]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_linear_local_id() const
+  {
+    return get_local_linear_id();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  void barrier() {
+    __hipsycl_if_target_host(
+      (*_group_barrier)();
+    );
+    __hipsycl_if_target_device(
+      detail::local_device_barrier();
+    );
+  }
 
   HIPSYCL_KERNEL_TARGET
   range<Dimensions> get_max_local_range() const{
@@ -288,14 +360,17 @@ struct group
   HIPSYCL_KERNEL_TARGET
   void parallel_for_work_item(workItemFunctionT func) const
   {
-    __hipsycl_if_target_device(
-  #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
+    __hipsycl_if_target_device(  
       h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
-  #else
-      h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
-  #endif
       func(idx);
     );
+#else
+    __hipsycl_if_target_device(
+      h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), _local_range, _group_id, _num_groups};
+      func(idx);
+    );
+#endif
     __hipsycl_if_target_host(
       iterate_over_work_items(_local_range, func);
     );
@@ -363,22 +438,25 @@ struct group
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    const size_t physical_local_size = get_local_range().size();
-    
-    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
-      dest[i] = src[i];
-    detail::local_device_barrier(access::fence_space::global_and_local);
-
-#else
-
+    __hipsycl_if_target_device(
+      const size_t physical_local_size = get_local_range().size();
+      
+      for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
+        dest[i] = src[i];
+      detail::local_device_barrier(access::fence_space::global_and_local);
+    );
 #ifdef _OPENMP
-    #pragma omp simd
+    __hipsycl_if_target_host(
+      #pragma omp simd
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i] = src[i];
+    );
+#else
+    __hipsycl_if_target_host(
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i] = src[i];
+    );
 #endif
-    for(size_t i = 0; i < numElements; ++i)
-      dest[i] = src[i];
-#endif
-
     return device_event{};
   }
 
@@ -387,21 +465,25 @@ struct group
   device_event async_work_group_copy(local_ptr<dataT> dest,
                                      global_ptr<dataT> src, size_t numElements, size_t srcStride) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    const size_t physical_local_size = get_local_range().size();
-    
-    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
-      dest[i] = src[i * srcStride];
-    detail::local_device_barrier(access::fence_space::global_and_local);
-
-#else
+    __hipsycl_if_target_device(
+      const size_t physical_local_size = get_local_range().size();
+      
+      for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
+        dest[i] = src[i * srcStride];
+      detail::local_device_barrier(access::fence_space::global_and_local);
+    );
 #ifdef _OPENMP
-    #pragma omp simd
+    __hipsycl_if_target_host(
+      #pragma omp simd
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i] = src[i * srcStride];
+    );
+#else
+    __hipsycl_if_target_host(
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i] = src[i * srcStride];
+    );
 #endif
-    for(size_t i = 0; i < numElements; ++i)
-      dest[i] = src[i * srcStride];
-#endif
-
     return device_event{};
   }
 
@@ -410,21 +492,25 @@ struct group
   device_event async_work_group_copy(global_ptr<dataT> dest,
                                      local_ptr<dataT> src, size_t numElements, size_t destStride) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    const size_t physical_local_size = get_local_range().size();
-    
-    for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
-      dest[i * destStride] = src[i];
-    detail::local_device_barrier(access::fence_space::global_and_local);
-
-#else
+    __hipsycl_if_target_device(
+      const size_t physical_local_size = get_local_range().size();
+      
+      for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
+        dest[i * destStride] = src[i];
+      detail::local_device_barrier(access::fence_space::global_and_local);
+    );
 #ifdef _OPENMP
-  #pragma omp simd
+    __hipsycl_if_target_host(
+      #pragma omp simd
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i * destStride] = src[i];
+    );
+#else
+    __hipsycl_if_target_host(
+      for(size_t i = 0; i < numElements; ++i)
+        dest[i * destStride] = src[i];
+    );
 #endif
-   for(size_t i = 0; i < numElements; ++i)
-      dest[i * destStride] = src[i];
-#endif
-
     return device_event{};
   }
 
@@ -432,85 +518,11 @@ struct group
   HIPSYCL_KERNEL_TARGET
   void wait_for(eventTN...) const {}
 
-#if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-
-  using host_barrier_type = std::function<void()>;
-
-  group(id<Dimensions> group_id,
-        range<Dimensions> local_range,
-        range<Dimensions> num_groups,
-        host_barrier_type* group_barrier = nullptr,
-        id_type local_id = {},
-        void *local_memory_ptr = nullptr)
-  : _group_id{group_id}, 
-    _local_range{local_range}, 
-    _num_groups{num_groups},
-    _group_barrier{group_barrier},
-    _local_id{local_id},
-    _local_memory_ptr(local_memory_ptr)
-  {}
-
-  HIPSYCL_KERNEL_TARGET
-  void barrier() {
-    (*_group_barrier)();
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  id_type get_local_id() const
-  {
-    return _local_id;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_local_id(int dimension) const
-  {
-    return _local_id[dimension];
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  linear_id_type get_local_linear_id() const
-  {
-    return detail::linear_id<Dimensions>::get(_local_id,
-                                              _local_range);
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  void *get_local_memory_ptr() const
-  {
-    return _local_memory_ptr;
-  }
-
 private:
-  const id<Dimensions> _group_id;
-  const range<Dimensions> _local_range;
-  const range<Dimensions> _num_groups;
-  const host_barrier_type* _group_barrier;
-  const id_type _local_id;
-  void *_local_memory_ptr;
-public:
-#endif
 
-  HIPSYCL_KERNEL_TARGET
-  bool leader() const {
-    return get_local_linear_id() == 0;
-  }
-
-#ifdef SYCL_DEVICE_ONLY
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_local_linear_id() const
-  {
-    return detail::linear_id<Dimensions>::get(detail::get_local_id<Dimensions>(),
-                                              detail::get_local_size<Dimensions>());
-  }
-
-  [[deprecated]]
-  HIPSYCL_KERNEL_TARGET
-  size_t get_linear_local_id() const
-  {
-    return get_local_linear_id();
-  }
-
+  // The parallelize_over_* functions assume that the code is executed
+  // a number of times in parallel equal to the physical group size.
+  // This is not supported on host.
   template<typename workItemFunctionT>
   HIPSYCL_KERNEL_TARGET
   void parallelize_over_work_items(const range<1> flexibleRange,
@@ -568,22 +580,25 @@ public:
         }
   }
 
-#else
+  /// The iteratate_over functions are intended for use on host,
+  /// without support for ondemand iteration space info
+  /// Ondemand iteration space info is unsupported.
   template<typename workItemFunctionT>
   void iterate_over_work_items(const range<1> iteration_range,
                               workItemFunctionT&& func) const
   {
-    #ifdef _OPENMP
-      #pragma omp simd 
-    #endif
+#ifdef _OPENMP
+    #pragma omp simd 
+#endif
     for(size_t i = 0; i < iteration_range.get(0); ++i)
     {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
       h_item<1> idx{
         id<1>{i}, 
         iteration_range, _group_id, _num_groups
       };
-
       func(idx);
+#endif
     }
   // No memfence is needed here, because on CPU we only have one physical thread per work group.
   }
@@ -594,17 +609,19 @@ public:
                               workItemFunctionT&& func) const
   {
     for(size_t i = 0; i < iteration_range.get(0); ++i)
-    #ifdef _OPENMP
+#ifdef _OPENMP
       #pragma omp simd 
-    #endif
+#endif
       for(size_t j = 0; j < iteration_range.get(1); ++j)
       {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{
           id<2>{i,j}, 
           iteration_range, _group_id, _num_groups
         };
 
         func(idx);
+#endif
       }
   // No memfence is needed here, because on CPU we only have one physical thread per work group.
   }
@@ -620,17 +637,17 @@ public:
   #endif
         for(size_t k = 0; k < iteration_range.get(2); ++k)
         {
+#ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{
             id<3>{i,j,k}, 
             iteration_range, _group_id, _num_groups
           };
 
           func(idx);
+#endif
         }
     // No memfence is needed here, because on CPU we only have one physical thread per work group.
   }
-
-#endif // SYCL_DEVICE_ONLY
 
 };
 

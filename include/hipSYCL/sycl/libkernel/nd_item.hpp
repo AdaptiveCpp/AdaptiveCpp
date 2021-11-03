@@ -40,9 +40,7 @@
 #include "detail/mem_fence.hpp"
 
 #include "detail/thread_hierarchy.hpp"
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/device_barrier.hpp"
-#endif
 
 namespace hipsycl {
 namespace sycl {

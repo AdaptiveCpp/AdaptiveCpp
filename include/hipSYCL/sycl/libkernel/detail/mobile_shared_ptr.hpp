@@ -122,8 +122,8 @@ public:
   T* get()
   { 
     __hipsycl_if_target_device(
-      // Use sizeof(_buff) to make sure it doesn't get optimized away
-      return reinterpret_cast<T*>(sizeof(_buff.data));
+      // Use sizeof(_data) to make sure it doesn't get optimized away
+      return reinterpret_cast<T*>(sizeof(_data));
     );
     __hipsycl_if_target_host(
       return _data.get(); 

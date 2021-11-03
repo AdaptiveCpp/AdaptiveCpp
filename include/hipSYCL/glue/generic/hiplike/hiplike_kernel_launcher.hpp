@@ -67,11 +67,11 @@
 
 #if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
 
-#if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
- #include "clang.hpp"
-#else
- #include "nvcxx.hpp"
-#endif
+ #if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+  #include "clang.hpp"
+ #else
+  #include "nvcxx.hpp"
+ #endif
  #include "hiplike_reducer.hpp"
  #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
  
@@ -103,7 +103,6 @@ struct dim3 {
 };
 
 #endif
-
 #endif
 
 namespace hipsycl {
@@ -295,12 +294,14 @@ private:
             nested_range<unknown_static_range,
                          nested_range<static_range<warpSize>>>;
 
-        return sp_property_descriptor<Dim, 0, decomposition>{};
+        return decomposition{};
+      } else {
+        return fallback_decomposition{};
       }
     } else if constexpr(Dim == 2) {
-      return sp_property_descriptor<Dim, 0, fallback_decomposition>{};
+      return fallback_decomposition{};
     } else {
-      return sp_property_descriptor<Dim, 0, fallback_decomposition>{};
+      return fallback_decomposition{};
     }
   }
 };
@@ -536,7 +537,6 @@ public:
             group_output_ptr, global_input_ptr};
     );
   }
-#endif
   
   __device__ void *get_reduction_input_buffer() const {
     return _scratch_memory_in;

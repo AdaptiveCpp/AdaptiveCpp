@@ -248,7 +248,7 @@ void memory_environment_device(const Group &g, FirstArg &&first,
 
       if constexpr(request_type::is_initialized) {
         // TODO arrays are not yet supported
-        *memory_declaration = first.init_value;
+        memory_declaration = first.init_value;
       }
 
       detail::private_memory_access<value_type, std::decay_t<decltype(g)>>

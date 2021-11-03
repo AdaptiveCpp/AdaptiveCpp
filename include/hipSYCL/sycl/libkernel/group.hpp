@@ -445,18 +445,11 @@ public:
         dest[i] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-#ifdef _OPENMP
-    __hipsycl_if_target_host(
-      #pragma omp simd
-      for(size_t i = 0; i < numElements; ++i)
-        dest[i] = src[i];
-    );
-#else
     __hipsycl_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i] = src[i];
     );
-#endif
+
     return device_event{};
   }
 
@@ -472,18 +465,11 @@ public:
         dest[i] = src[i * srcStride];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-#ifdef _OPENMP
-    __hipsycl_if_target_host(
-      #pragma omp simd
-      for(size_t i = 0; i < numElements; ++i)
-        dest[i] = src[i * srcStride];
-    );
-#else
     __hipsycl_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i] = src[i * srcStride];
     );
-#endif
+
     return device_event{};
   }
 
@@ -499,18 +485,11 @@ public:
         dest[i * destStride] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
     );
-#ifdef _OPENMP
-    __hipsycl_if_target_host(
-      #pragma omp simd
-      for(size_t i = 0; i < numElements; ++i)
-        dest[i * destStride] = src[i];
-    );
-#else
     __hipsycl_if_target_host(
       for(size_t i = 0; i < numElements; ++i)
         dest[i * destStride] = src[i];
     );
-#endif
+
     return device_event{};
   }
 

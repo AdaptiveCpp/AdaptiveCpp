@@ -103,6 +103,29 @@
  #endif
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+ #define __hipsycl_if_target_cuda(...) __hipsycl_if_target_device(__VA_ARGS__)
+#else
+ #define __hipsycl_if_target_cuda(...)
+#endif
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+ #define __hipsycl_if_target_hip(...) __hipsycl_if_target_device(__VA_ARGS__)
+#else
+ #define __hipsycl_if_target_hip(...)
+#endif
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+ #define __hipsycl_if_target_hiplike(...)                                       \
+  __hipsycl_if_target_device(__VA_ARGS__)
+#else
+ #define __hipsycl_if_target_hiplike(...)
+#endif
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+ #define __hipsycl_if_target_spirv(...) __hipsycl_if_target_device(__VA_ARGS__)
+#else
+ #define __hipsycl_if_target_spirv(...)
+#endif
+
 #define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \
   ((HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_##backend) &&                             \
    !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)

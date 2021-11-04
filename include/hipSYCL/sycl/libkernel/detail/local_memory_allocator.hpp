@@ -170,14 +170,12 @@ private:
 
 HIPSYCL_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
-  __hipsycl_if_target_device(
-#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+  __hipsycl_if_target_cuda(
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
-#endif
-#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+  );
+  __hipsycl_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
-#endif
   );
   __hipsycl_if_target_host(
     assert(false && "this function should only be called on device");

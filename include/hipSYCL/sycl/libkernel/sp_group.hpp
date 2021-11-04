@@ -1255,14 +1255,13 @@ HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_group<PropertyDescriptor> &g,
               memory_scope fence_scope =
                   detail::sp_group<PropertyDescriptor>::fence_scope) {
-  #if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-  __hipsycl_if_target_device(
+  __hipsycl_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     }
     __syncthreads();
   );
-  #endif
+  __hipsycl_if_target_spirv(/* todo */);
   __hipsycl_if_target_host(/* todo */);
 }
 
@@ -1271,20 +1270,18 @@ HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_sub_group<PropertyDescriptor> &g,
               memory_scope fence_scope =
                   detail::sp_sub_group<PropertyDescriptor>::fence_scope) {
-#if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-  __hipsycl_if_target_device(
+
+  __hipsycl_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     } else if (fence_scope == memory_scope::work_group) {
       __threadfence_block();
     }
   );
-  #endif
-  #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
-  __hipsycl_if_target_device(
+  __hipsycl_if_target_cuda(
     __syncwarp();
   );
-  #endif
+  __hipsycl_if_target_spirv(/* todo */);
   __hipsycl_if_target_host(/* todo */);
 }
 
@@ -1298,15 +1295,14 @@ template <class PropertyDescriptor>
 HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_scalar_group<PropertyDescriptor> &g,
               memory_scope fence_scope) {
-#if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-  __hipsycl_if_target_device(
+
+  __hipsycl_if_target_hiplike(
     if (fence_scope == memory_scope::device) {
       __threadfence_system();
     } else if (fence_scope == memory_scope::work_group) {
       __threadfence_block();
     }
   );
-#endif
 }
 
 

@@ -40,13 +40,11 @@ namespace detail {
 HIPSYCL_KERNEL_TARGET
 inline void local_device_barrier(
     access::fence_space space = access::fence_space::global_and_local) {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
-HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-  __hipsycl_if_target_device(
+
+  __hipsycl_if_target_hiplike(
     __syncthreads();
   );
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-  __hipsycl__if_target_device(
+  __hipsycl_if_target_spirv(
     uint32_t flags =  0;
     
     if (space == access::fence_space::global_space) {
@@ -65,7 +63,6 @@ HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
     __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
                             flags);
   );
-#endif
   __hipsycl_if_target_host(
     assert(false && "device barrier called on CPU, this should not happen");
   );

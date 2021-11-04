@@ -40,7 +40,7 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
+namespace detail::hiplike_builtins {
 
 // ********************** math builtins *********************
 

@@ -39,7 +39,7 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
+namespace detail::spirv_builtins {
 
 // ********************** math builtins *********************
 

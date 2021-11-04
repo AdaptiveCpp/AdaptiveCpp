@@ -29,6 +29,7 @@
 #define HIPSYCL_ATOMIC_BUILTINS_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/detail/builtin_dispatch.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/atomic_builtins.hpp"
@@ -39,14 +40,6 @@
 #include "spirv/atomic_builtins.hpp"
 #endif
 
-#define HIPSYCL_DISPATCH_BUILTIN(name, ...)                                    \
-  __hipsycl_if_target_hiplike(hiplike_builtins::name(__VA_ARGS__););           \
-  __hipsycl_if_target_spirv(spirv_builtins::name(__VA_ARGS__););               \
-  __hipsycl_if_target_host(host_builtins::name(__VA_ARGS__););
-#define HIPSYCL_RETURN_DISPATCH_BUILTIN(name, ...)                             \
-  __hipsycl_if_target_hiplike(return hiplike_builtins::name(__VA_ARGS__););    \
-  __hipsycl_if_target_spirv(return spirv_builtins::name(__VA_ARGS__););        \
-  __hipsycl_if_target_host(return host_builtins::name(__VA_ARGS__););
 
 
 namespace hipsycl {

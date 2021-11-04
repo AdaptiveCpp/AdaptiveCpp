@@ -39,7 +39,7 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
+namespace detail::hiplike_builtins {
 
 inline constexpr int builtin_memory_order(memory_order o) noexcept {
   switch(o){

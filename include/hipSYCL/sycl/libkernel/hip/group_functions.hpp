@@ -25,8 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef SYCL_DEVICE_ONLY
-#ifdef HIPSYCL_PLATFORM_HIP
 
 #ifndef HIPSYCL_LIBKERNEL_HIP_GROUP_FUNCTIONS_HPP
 #define HIPSYCL_LIBKERNEL_HIP_GROUP_FUNCTIONS_HPP
@@ -38,12 +36,14 @@
 #include "../vec.hpp"
 #include <type_traits>
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+
 namespace hipsycl {
-namespace sycl {
+namespace sycl::detail::hiplike_builtins {
 
 // barrier
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+__device__
 inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
@@ -52,12 +52,12 @@ inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+__device__
 inline void group_barrier(group<Dim> g) {
   __syncthreads();
 }
 
-HIPSYCL_KERNEL_TARGET
+__device__
 inline void group_barrier(sub_group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
@@ -66,31 +66,31 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   }
   // threads run in lock-step no sync needed
 }
-HIPSYCL_KERNEL_TARGET
+__device__
 inline void group_barrier(sub_group g) {
 }
 
 // any_of
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool any_of_group(sub_group g, bool pred) {
   return __any(pred);
 }
 
 // all_of
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool all_of_group(sub_group g, bool pred) {
   return __all(pred);
 }
 
 // none_of
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool none_of_group(sub_group g, bool pred) {
   return !__any(pred);
 }
 
 // reduce
 template<typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
   auto     local_x = x;
   uint64_t activemask;
@@ -114,7 +114,7 @@ T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
 
 // inclusive_scan
 template<typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
   auto         local_x = x;
   const size_t lid     = g.get_local_linear_id();
@@ -139,7 +139,7 @@ T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
 
 // exclusive_scan
 template<typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op) {
   const size_t lid     = g.get_local_linear_id();
   auto         local_x = x;
@@ -154,7 +154,6 @@ T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op)
 } // namespace sycl
 } // namespace hipsycl
 
+#endif 
 #endif // HIPSYCL_LIBKERNEL_HIP_GROUP_FUNCTIONS_HPP
 
-#endif // HIPSYCL_PLATFORM_HIP
-#endif // SYCL_DEVICE_ONLY

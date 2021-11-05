@@ -362,7 +362,7 @@ HIPSYCL_BUILTIN T __hipsycl_native_cos(T x) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_divide(T x, T y) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_divide, x);
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_native_divide, x, y);
 }
 
 template<class T>

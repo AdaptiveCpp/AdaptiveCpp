@@ -25,7 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SYCL_DEVICE_ONLY
 
 #ifndef HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
 #define HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
@@ -40,8 +39,10 @@
 #include "../vec.hpp"
 #include <type_traits>
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+
 namespace hipsycl {
-namespace sycl {
+namespace sycl::detail::host_builtins {
 
 namespace detail {
 // reduce implementation
@@ -93,7 +94,7 @@ template<int Dim, typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(group<Dim> g, T x, typename group<Dim>::id_type local_id) {
   const size_t target_lid =
-      detail::linear_id<g.dimensions>::get(local_id, g.get_local_range());
+      linear_id<g.dimensions>::get(local_id, g.get_local_range());
   return group_broadcast(g, x, target_lid);
 }
 
@@ -116,7 +117,7 @@ template<int Dim>
 HIPSYCL_KERNEL_TARGET
 inline void group_barrier(group<Dim> g, memory_scope fence_scope = group<Dim>::fence_scope) {
   if (fence_scope == memory_scope::device) {
-    detail::mem_fence<>();
+    mem_fence<>();
   }
   g.barrier();
 }
@@ -594,7 +595,7 @@ T select_from_group(group<Dim> g, T x, typename group<Dim>::id_type remote_local
 
   typename group<Dim>::linear_id_type lid = g.get_local_linear_id();
   typename group<Dim>::linear_id_type target_lid =
-      detail::linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
+      linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
 
   scratch[lid] = x;
   group_barrier(g);
@@ -618,6 +619,7 @@ T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_i
 } // namespace sycl
 } // namespace hipsycl
 
+#endif
+
 #endif // HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
 
-#endif // SYCL_DEVICE_ONLY

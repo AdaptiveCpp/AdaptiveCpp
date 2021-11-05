@@ -25,7 +25,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef SYCL_DEVICE_ONLY
 
 #ifndef HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
 #define HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
@@ -39,8 +38,11 @@
 #include "warp_shuffle.hpp"
 #include <type_traits>
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
+    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
+
 namespace hipsycl {
-namespace sycl {
+namespace sycl::detail::hiplike_builtins {
 
 namespace detail {
 
@@ -48,7 +50,7 @@ inline constexpr size_t max_group_size = 1024;
 
 // reduce implementation
 template<int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T group_reduce(group<Dim> g, T x, BinaryOperation binary_op, T *scratch) {
 
   const auto   lid    = g.get_local_linear_id();
@@ -89,7 +91,7 @@ T group_reduce(group<Dim> g, T x, BinaryOperation binary_op, T *scratch) {
 
 // broadcast
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T group_broadcast(group<Dim> g, T x, typename group<Dim>::linear_id_type local_linear_id = 0) {
   __shared__ std::aligned_storage_t<sizeof(T), alignof(T)> scratch_storage;
   T *          scratch = reinterpret_cast<T *>(&scratch_storage);
@@ -103,33 +105,33 @@ T group_broadcast(group<Dim> g, T x, typename group<Dim>::linear_id_type local_l
 }
 
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T group_broadcast(group<Dim> g, T x, typename group<Dim>::id_type local_id) {
-  const auto target_lid = detail::linear_id<g.dimensions>::get(
-      local_id, detail::get_local_size<g.dimensions>());
+  const auto target_lid = linear_id<g.dimensions>::get(
+      local_id, get_local_size<g.dimensions>());
   return group_broadcast(g, x, target_lid);
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T group_broadcast(sub_group sg, T x,
                   typename sub_group::linear_id_type local_linear_id = 0) {
   return detail::shuffle_impl(x, static_cast<int>(local_linear_id));
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T group_broadcast(sub_group sg, T x,
                   typename sub_group::id_type local_id) {
   const size_t target_lid =
-      detail::linear_id<1>::get(local_id, sg.get_local_range());
+      linear_id<1>::get(local_id, sg.get_local_range());
   return detail::shuffle_impl(x, target_lid);
 }
 
 // any_of
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 bool joint_any_of(Group g, Ptr first, Ptr last,
                                         Predicate pred) {
   const auto lrange    = g.get_local_range().size();
@@ -147,14 +149,14 @@ bool joint_any_of(Group g, Ptr first, Ptr last,
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename T, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 bool leader_any_of(Group g, T *first, T *last, Predicate pred) {
   return any_of(g, first, last, pred);
 }
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool any_of_group(group<Dim> g, bool pred) {
   return __syncthreads_or(pred);
 }
@@ -162,8 +164,8 @@ inline bool any_of_group(group<Dim> g, bool pred) {
 // all_of
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool joint_all_of(Group g, Ptr first, Ptr last,
-                                        Predicate pred) {
+__device__ bool joint_all_of(Group g, Ptr first, Ptr last,
+                            Predicate pred) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
   Ptr        start_ptr = first + lid;
@@ -179,14 +181,14 @@ HIPSYCL_KERNEL_TARGET bool joint_all_of(Group g, Ptr first, Ptr last,
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename T, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 bool leader_all_of(Group g, T *first, T *last, Predicate pred) {
   return all_of(g, first, last, pred);
 }
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool all_of_group(group<Dim> g, bool pred) {
   return __syncthreads_and(pred);
 }
@@ -194,8 +196,8 @@ inline bool all_of_group(group<Dim> g, bool pred) {
 // none_of
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool joint_none_of(Group g, Ptr first, Ptr last,
-                                         Predicate pred) {
+__device__ bool joint_none_of(Group g, Ptr first, Ptr last,
+                              Predicate pred) {
   const auto lrange    = g.get_local_range().size();
   const auto lid       = g.get_local_linear_id();
   Ptr        start_ptr = first + lid;
@@ -211,14 +213,14 @@ HIPSYCL_KERNEL_TARGET bool joint_none_of(Group g, Ptr first, Ptr last,
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename T, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 bool leader_none_of(Group g, T *first, T *last, Predicate pred) {
   return none_of(g, first, last, pred);
 }
 }
 
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
+__device__
 inline bool none_of_group(group<Dim> g, bool pred) {
   return !__syncthreads_or(pred);
 }
@@ -226,7 +228,7 @@ inline bool none_of_group(group<Dim> g, bool pred) {
 // reduce
 template <typename Group, typename Ptr, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 typename std::iterator_traits<Ptr>::value_type
 joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
   using T = std::remove_pointer_t<Ptr>;
@@ -294,7 +296,7 @@ joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
 
 template <typename Group, typename Ptr, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T joint_reduce(Group g, Ptr first, Ptr last, T init, BinaryOperation binary_op) {
   return binary_op(joint_reduce(g, first, last, binary_op), init);
 }
@@ -302,21 +304,21 @@ T joint_reduce(Group g, Ptr first, Ptr last, T init, BinaryOperation binary_op) 
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T leader_reduce(Group g, V *first, V *last, T init, BinaryOperation binary_op) {
   return joint_reduce(g, first, last, init, binary_op);
 }
 
 template<typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T leader_reduce(Group g, T *first, T *last, BinaryOperation binary_op) {
   return joint_reduce(g, first, last, binary_op);
 }
 }
 
 template<int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
@@ -330,7 +332,7 @@ T reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
 template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T init,
                        BinaryOperation binary_op) {
   auto lid = g.get_local_linear_id();
@@ -342,7 +344,7 @@ OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result, T i
 template <typename Group, typename InPtr, typename OutPtr,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                             BinaryOperation binary_op) {
   return joint_exclusive_scan(g, first, last, result, typename std::remove_pointer_t<OutPtr>{}, binary_op);
@@ -351,7 +353,7 @@ OutPtr joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
                          BinaryOperation binary_op) {
   return joint_exclusive_scan(g, first, last, result, init, binary_op);
@@ -359,7 +361,7 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
 
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T *leader_exclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op) {
   return joint_exclusive_scan(g, first, last, result, binary_op);
@@ -367,7 +369,7 @@ T *leader_exclusive_scan(Group g, V *first, V *last, T *result,
 }
 
 template<int Dim, typename T, typename V, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T exclusive_scan_over_group(group<Dim> g, T x, V init, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
@@ -408,7 +410,7 @@ T exclusive_scan_over_group(group<Dim> g, T x, V init, BinaryOperation binary_op
 template <typename Group, typename InPtr, typename OutPtr, typename T,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                        BinaryOperation binary_op, T init) {
   using OutT = std::remove_pointer_t<OutPtr>;
@@ -443,7 +445,7 @@ OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 template <typename Group, typename InPtr, typename OutPtr,
           typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
                             BinaryOperation binary_op) {
   using OutT = std::remove_pointer_t<OutPtr>;
@@ -478,7 +480,7 @@ OutPtr joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
 namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op, T init) {
   return joint_inclusive_scan(g, first, last, result, binary_op, init);
@@ -486,7 +488,7 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
 
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
+__device__
 T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
                          BinaryOperation binary_op) {
   return joint_inclusive_scan(g, first, last, result, binary_op);
@@ -494,7 +496,7 @@ T *leader_inclusive_scan(Group g, V *first, V *last, T *result,
 }
 
 template<int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
+__device__
 T inclusive_scan_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   __shared__
       std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
@@ -529,7 +531,7 @@ T inclusive_scan_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
 
 // shift_left
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T shift_group_left(group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
              scratch_storage;
@@ -548,14 +550,14 @@ T shift_group_left(group<Dim> g, T x, typename group<Dim>::linear_id_type delta 
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return detail::shuffle_down_impl(x, delta);
 }
 
 // shift_right
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T shift_group_right(group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
   __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
              scratch_storage;
@@ -575,14 +577,14 @@ T shift_group_right(group<Dim> g, T x, typename group<Dim>::linear_id_type delta
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return detail::shuffle_up_impl(x, delta);
 }
 
 // permute_group_by_xor
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T permute_group_by_xor(group<Dim> g, T x, typename group<Dim>::linear_id_type mask) {
   __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
              scratch_storage;
@@ -603,14 +605,14 @@ T permute_group_by_xor(group<Dim> g, T x, typename group<Dim>::linear_id_type ma
 
 // permute_group_by_xor
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
   return detail::shuffle_xor_impl(x, mask);
 }
 
 // select_from_group
 template<int Dim, typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T select_from_group(group<Dim> g, T x, typename group<Dim>::id_type remote_local_id) {
   __shared__ std::aligned_storage_t<sizeof(T) * detail::max_group_size, alignof(T)>
              scratch_storage;
@@ -618,7 +620,7 @@ T select_from_group(group<Dim> g, T x, typename group<Dim>::id_type remote_local
 
   typename group<Dim>::linear_id_type lid = g.get_local_linear_id();
   typename group<Dim>::linear_id_type target_lid =
-      detail::linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
+      linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
 
   scratch[lid] = x;
   group_barrier(g);
@@ -631,7 +633,7 @@ T select_from_group(group<Dim> g, T x, typename group<Dim>::id_type remote_local
 }
 
 template<typename T>
-HIPSYCL_KERNEL_TARGET
+__device__
 T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
   typename sub_group::linear_id_type target_lid = remote_local_id.get(0);
   return detail::shuffle_impl(x, target_lid);
@@ -640,6 +642,6 @@ T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_i
 } // namespace sycl
 } // namespace hipsycl
 
+#endif
 #endif // HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
 
-#endif // SYCL_DEVICE_ONLY

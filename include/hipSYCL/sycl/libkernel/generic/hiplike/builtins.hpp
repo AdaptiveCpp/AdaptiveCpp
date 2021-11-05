@@ -69,7 +69,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_acosh, acoshf, acosh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_acospi(T x) noexcept {
-  return __hipsycl_acos(x) / M_PI;
+  return hiplike_builtins::__hipsycl_acos(x) / M_PI;
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_asin, asinf, asin)
@@ -77,7 +77,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_asinh, asinhf, asinh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_asinpi(T x) noexcept {
-  return __hipsycl_asin(x) / M_PI;
+  return hiplike_builtins::__hipsycl_asin(x) / M_PI;
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_atan, atanf, atan)
@@ -87,12 +87,12 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_atanh, atanhf, atanh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_atanpi(T x) noexcept {
-  return __hipsycl_atan(x) / M_PI;
+  return hiplike_builtins::__hipsycl_atan(x) / M_PI;
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_atan2pi(T x, T y) noexcept {
-  return __hipsycl_atan2(x, y) / M_PI;
+  return hiplike_builtins::__hipsycl_atan2(x, y) / M_PI;
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cbrt, cbrtf, cbrt)
@@ -103,7 +103,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cosh, coshf, cosh)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_cospi(T x) noexcept {
-  return __hipsycl_cos(x * M_PI);
+  return hiplike_builtins::__hipsycl_cos(x * M_PI);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erf, erff, erf)
@@ -114,7 +114,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_pow, powf, pow)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_exp10(T x) noexcept {
-  return __hipsycl_pow(static_cast<T>(10), x);
+  return hiplike_builtins::__hipsycl_pow(static_cast<T>(10), x);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_expm1, expm1f, expm1)
@@ -141,8 +141,8 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tgamma, tgammaf, tgamma)
 
 template<class T, class IntPtr>
 HIPSYCL_BUILTIN T __hipsycl_lgamma_r(T x, IntPtr y) noexcept {
-  auto r = __hipsycl_lgamma(x);
-  auto g = __hipsycl_tgamma(x);
+  auto r = hiplike_builtins::__hipsycl_lgamma(x);
+  auto g = hiplike_builtins::__hipsycl_tgamma(x);
   *y = (g >= 0) ? 1 : -1;
   return r;
 }
@@ -155,14 +155,14 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_logb, logbf, logb)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_mad(T x, T y, T z) noexcept {
-  return __hipsycl_fma(x, y, z);
+  return hiplike_builtins::__hipsycl_fma(x, y, z);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_maxmag(T x, T y) noexcept {
   auto abs_x = (x < 0) ? -x : x;
   auto abs_y = (y < 0) ? -y : y;
-  if(abs_x == abs_y) return __hipsycl_fmax(x,y);
+  if(abs_x == abs_y) return hiplike_builtins::__hipsycl_fmax(x,y);
   return (abs_x > abs_y) ? x : y;
 }
 
@@ -170,7 +170,7 @@ template<class T>
 HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   auto abs_x = (x < 0) ? -x : x;
   auto abs_y = (y < 0) ? -y : y;
-  if(abs_x == abs_y) return __hipsycl_fmin(x,y);
+  if(abs_x == abs_y) return hiplike_builtins::__hipsycl_fmin(x,y);
   return (abs_x < abs_y) ? x : y;
 }
 
@@ -182,12 +182,12 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_nextafter, nextafterf, nextafter)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_powr(T x, T y) noexcept {
-  return __hipsycl_pow(x, y);
+  return hiplike_builtins::__hipsycl_pow(x, y);
 }
 
 template<class T, class IntType>
 HIPSYCL_BUILTIN T __hipsycl_pown(T x, IntType y) noexcept {
-  return __hipsycl_pow(x, static_cast<T>(y));
+  return hiplike_builtins::__hipsycl_pow(x, static_cast<T>(y));
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_remainder, remainderf, remainder)
@@ -195,7 +195,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_rint, rintf, rint)
 
 template<class T, class IntType>
 HIPSYCL_BUILTIN T __hipsycl_rootn(T x, IntType y) noexcept {
-  return __hipsycl_pow(x, T{1}/T{y});
+  return hiplike_builtins::__hipsycl_pow(x, T{1}/T{y});
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_round, roundf, round)
@@ -207,14 +207,14 @@ HIPSYCL_BUILTIN float __hipsycl_rsqrt(float x) noexcept {
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sqrt, sqrtf, sqrt)
 
 HIPSYCL_BUILTIN double __hipsycl_rsqrt(double x) noexcept {
-  return 1. / __hipsycl_sqrt(x);
+  return 1. / hiplike_builtins::__hipsycl_sqrt(x);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sin, sinf, sin)
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
-  return __hipsycl_sin(x * M_PI);
+  return hiplike_builtins::__hipsycl_sin(x * M_PI);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tan, tanf, tan)
@@ -248,12 +248,12 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_exp, __expf,
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_exp2(T x) noexcept {
-  return __hipsycl_exp2(x);
+  return hiplike_builtins::__hipsycl_exp2(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_exp10(T x) noexcept {
-  return __hipsycl_exp10(x);
+  return hiplike_builtins::__hipsycl_exp10(x);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_log, __logf,
@@ -267,7 +267,7 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN2(__hipsycl_native_powr, __powf,
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_recip(T x) noexcept {
-  return __hipsycl_native_divide(T{1}, x);
+  return hiplike_builtins::__hipsycl_native_divide(T{1}, x);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_rsqrt, __frsqrt_rn,
@@ -277,7 +277,7 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_sin, __sinf,
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_native_sqrt(T x) noexcept {
-  return __hipsycl_sqrt(x);
+  return hiplike_builtins::__hipsycl_sqrt(x);
 }
 
 HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_tan, __tanf,
@@ -288,7 +288,7 @@ HIPSYCL_DEFINE_HIPLIKE_NATIVE_MATH_BUILTIN(__hipsycl_native_tan, __tanf,
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_cos(T x) noexcept {
-  return __hipsycl_cos(x);
+  return hiplike_builtins::__hipsycl_cos(x);
 }
 
 template<class T>
@@ -298,62 +298,62 @@ HIPSYCL_BUILTIN T __hipsycl_half_divide(T x, T y) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_exp(T x) noexcept {
-  return __hipsycl_exp(x);
+  return hiplike_builtins::__hipsycl_exp(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_exp2(T x) noexcept {
-  return __hipsycl_exp2(x);
+  return hiplike_builtins::__hipsycl_exp2(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_exp10(T x) noexcept {
-  return __hipsycl_exp10(x);
+  return hiplike_builtins::__hipsycl_exp10(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_log(T x) noexcept {
-  return __hipsycl_log(x);
+  return hiplike_builtins::__hipsycl_log(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_log2(T x) noexcept {
-  return __hipsycl_log2(x);
+  return hiplike_builtins::__hipsycl_log2(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_log10(T x) noexcept {
-  return __hipsycl_log10(x);
+  return hiplike_builtins::__hipsycl_log10(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_powr(T x, T y) noexcept {
-  return __hipsycl_powr(x, y);
+  return hiplike_builtins::__hipsycl_powr(x, y);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_recip(T x) noexcept {
-  return __hipsycl_native_divide(T{1}, x);
+  return hiplike_builtins::__hipsycl_native_divide(T{1}, x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_rsqrt(T x) noexcept {
-  return __hipsycl_rsqrt(x);
+  return hiplike_builtins::__hipsycl_rsqrt(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_sin(T x) noexcept {
-  return __hipsycl_sin(x);
+  return hiplike_builtins::__hipsycl_sin(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_sqrt(T x) noexcept {
-  return __hipsycl_sqrt(x);
+  return hiplike_builtins::__hipsycl_sqrt(x);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_half_tan(T x) noexcept {
-  return __hipsycl_tan(x);
+  return hiplike_builtins::__hipsycl_tan(x);
 }
 
 // ***************** integer functions **************
@@ -380,7 +380,8 @@ HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
 
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  return __hipsycl_min(__hipsycl_max(x, minval), maxval);
+  return hiplike_builtins::__hipsycl_min(
+    hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
 template<class T>
@@ -392,7 +393,8 @@ HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
 
 template<class T, std::enable_if_t<!std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
-  return __hipsycl_fmin(__hipsycl_fmax(x, minval), maxval);
+  return hiplike_builtins::__hipsycl_fmin(
+    hiplike_builtins::__hipsycl_fmax(x, minval), maxval);
 }
 
 template<class T>
@@ -420,7 +422,8 @@ HIPSYCL_BUILTIN T __hipsycl_step(T edge, T x) noexcept {
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_smoothstep(T edge0, T edge1, T x) noexcept {
-  T t = __hipsycl_clamp((x - edge0) / (edge1 - edge0), T{0}, T{1});
+  T t = hiplike_builtins::__hipsycl_clamp((x - edge0) / (edge1 - edge0), T{0},
+                                          T{1});
   return t * t * (3 - 2 * t);
 }
 
@@ -471,19 +474,19 @@ HIPSYCL_BUILTIN T __hipsycl_length(T a) noexcept {
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_BUILTIN typename T::element_type __hipsycl_length(T a) noexcept {
-  auto d = __hipsycl_dot(a, a);
-  return __hipsycl_sqrt(d);
+  auto d = hiplike_builtins::__hipsycl_dot(a, a);
+  return hiplike_builtins::__hipsycl_sqrt(d);
 }
 
 template<class T>
 HIPSYCL_BUILTIN auto __hipsycl_distance(T a, T b) noexcept {
-  return __hipsycl_length(a - b);
+  return hiplike_builtins::__hipsycl_length(a - b);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_normalize(T a) noexcept {
   // TODO rsqrt might be more efficient
-  return a / __hipsycl_length(a);
+  return a / hiplike_builtins::__hipsycl_length(a);
 }
 
 template <class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
@@ -493,19 +496,19 @@ HIPSYCL_BUILTIN T __hipsycl_fast_length(T a) noexcept {
 
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_BUILTIN typename T::element_type __hipsycl_fast_length(T a) noexcept {
-  auto d = __hipsycl_dot(a, a);
-  return __hipsycl_half_sqrt(d);
+  auto d = hiplike_builtins::__hipsycl_dot(a, a);
+  return hiplike_builtins::__hipsycl_half_sqrt(d);
 }
 
 template<class T>
 HIPSYCL_BUILTIN auto __hipsycl_fast_distance(T a, T b) noexcept {
-  return __hipsycl_fast_length(a - b);
+  return hiplike_builtins::__hipsycl_fast_length(a - b);
 }
 
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   // TODO use rsqrt
-  return a / __hipsycl_fast_length(a);
+  return a / hiplike_builtins::__hipsycl_fast_length(a);
 }
 
 }

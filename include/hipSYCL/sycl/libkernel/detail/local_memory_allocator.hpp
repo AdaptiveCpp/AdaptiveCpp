@@ -159,7 +159,7 @@ private:
   static constexpr size_t _max_static_local_mem_size = 1024*32;
   inline static char* _local_mem;
   
-  alignas(alignof(std::max_align_t)) inline static char _static_local_mem
+  alignas(sizeof(double) * 16) inline static char _static_local_mem
       [_max_static_local_mem_size];
   
   inline static host_local_memory_origin _origin;

@@ -303,9 +303,11 @@ HIPSYCL_KERNEL_TARGET
 void memory_environment(const Group &g, FirstArg &&first,
                         RestArgs &&...rest) noexcept {
   __hipsycl_if_target_device(
-      detail::memory_environment::memory_environment_device(g, first, rest...));
+    detail::memory_environment::memory_environment_device(g, first, rest...);
+  );
   __hipsycl_if_target_host(
-      detail::memory_environment::memory_environment_host(g, first, rest...));
+    detail::memory_environment::memory_environment_host(g, first, rest...);
+  );
 }
 
 template<class T, class Group, class Function>

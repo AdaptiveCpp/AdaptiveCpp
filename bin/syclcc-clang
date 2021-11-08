@@ -834,8 +834,6 @@ class cuda_nvcxx_invocation:
   def __init__(self, config):
     if not "cuda-nvcxx" in config.targets:
       raise RuntimeError("cuda-nvcxx not among targets")
-    if len(config.targets["cuda-nvcxx"]) == 0:
-      raise OptionNotSet("No CUDA nvc++ targets specified")
 
     self._cuda_targets = config.targets["cuda-nvcxx"]
     self._cuda_path = config.cuda_path
@@ -850,13 +848,16 @@ class cuda_nvcxx_invocation:
 
     flags = [
         "-cuda",
-        "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
       ]
 
     flags += self._cxx_flags
-    for t in self._cuda_targets:
-      flags += ["--cuda-gpu-arch=" + t]
+    try:
+      for t in self._cuda_targets:
+        flags += ["-gpu=" + t]
+    except OptionNotSet:
+      # nvc++ can handle not setting targets explicitly
+      pass
       
     return flags
 

@@ -41,9 +41,7 @@
 
 #define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
                                            ...)                                \
-  __hipsycl_push_kernel_call(grid, block, shared_mem,                          \
-                             static_cast<hipStream_t>(stream));                \
-  f<<<grid, block, shared_mem, stream>>>(__VA_ARGS__);
+  f<<<grid, block, shared_mem, static_cast<CUstream_st*>(stream)>>>(__VA_ARGS__);
 
 
 #endif // HIPSYCL_HIPLIKE_GLUE_NVCXX_HPP

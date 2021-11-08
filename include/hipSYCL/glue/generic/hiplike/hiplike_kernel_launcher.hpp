@@ -651,6 +651,8 @@ public:
                          << effective_local_range.size() << std::endl;
     }
 
+    static constexpr bool has_reductions = sizeof...(Reductions) > 0;
+
     _invoker = [=](rt::dag_node* node) mutable {
       assert(_queue != nullptr);
       
@@ -680,7 +682,6 @@ public:
                 global_range, effective_local_range);
 
         std::vector<hiplike_dispatch::reduction_stage<Dim>> reduction_stages;
-        constexpr bool has_reductions = sizeof...(Reductions) > 0;
 
         if constexpr (has_reductions) {
           reduction_stages = hiplike_dispatch::determine_reduction_stages(

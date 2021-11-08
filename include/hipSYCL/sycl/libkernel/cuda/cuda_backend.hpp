@@ -40,6 +40,10 @@
  #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   #include <cuda_runtime_api.h>
  #endif
+
+ #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+  #include <nv/target>
+ #endif
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 0
 #endif

@@ -529,12 +529,11 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
     defined(HIPSYCL_PLATFORM_SPIRV)
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
+  int group_size = 0;
   __hipsycl_if_target_device(
-    return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+    group_size = __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
   );
-  __hipsycl_if_target_host(
-    return 0;
-  );
+  return group_size;
 }
 #endif
 

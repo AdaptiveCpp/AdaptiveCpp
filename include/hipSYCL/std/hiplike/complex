@@ -42,5 +42,5 @@ namespace std {
 #include_next <complex>
 #pragma pop_macro("__failed_assertion")
 #else
-#error This file requires clang CUDA/HIP
+#include_next <complex>
 #endif

@@ -862,7 +862,7 @@ class cuda_nvcxx_invocation:
     return flags
 
   def get_linker_flags(self):
-    return self._linker_args
+    return ["-cuda"]+self._linker_args
 
 class hip_invocation:
   def __init__(self, config):

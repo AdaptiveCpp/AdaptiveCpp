@@ -194,8 +194,8 @@ class syclcc_config:
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
-      * cuda-nvcxx - CUDA backend with nvc++. Requires same target
-               specification as CUDA backend.
+      * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
+               if given requires the format ccXY.
       * hip  - HIP backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10

@@ -288,11 +288,21 @@ private:
     using fallback_decomposition =
       nested_range<unknown_static_range, nested_range<static_range<1>>>;
 
+#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+    // warpSize is not constexpr with nvc++. Hardcode to 32
+    // for now; the better solution would be to accept it as
+    // template parameter and the instantiate the kernel for
+    // various warp sizes.
+    constexpr int warp_size = 32;
+#else
+    constexpr int warp_size = warpSize;
+#endif
+
     if constexpr(Dim == 1) {
-      if constexpr(DivisorX % warpSize == 0) {
+      if constexpr(DivisorX % warp_size == 0) {
         using decomposition =
             nested_range<unknown_static_range,
-                         nested_range<static_range<warpSize>>>;
+                         nested_range<static_range<warp_size>>>;
 
         return decomposition{};
       } else {

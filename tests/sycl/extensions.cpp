@@ -168,6 +168,12 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
 #endif
 #ifdef HIPSYCL_EXT_SCOPED_PARALLELISM_V2
 
+#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+ #define SP_LAMBDA(...) [=] (__VA_ARGS__)  mutable
+#else 
+ #define SP_LAMBDA [&]
+#endif
+
 template<class KernelName, int N>
 class enumerated_kernel_name;
 
@@ -197,10 +203,11 @@ void test_distribute_groups(){
     cgh.parallel<enumerated_kernel_name<KernelName,0>>(
         s::range{input_size / group_size}, s::range{group_size},
         [=](auto grp) {
-          s::distribute_groups(grp, [&](auto subgrp) {
-            s::distribute_groups(subgrp, [&](auto subsubgrp) {
-              s::distribute_items(subsubgrp, [&](s::s_item<Dim> idx) {
-                acc[idx.get_global_linear_id()] =
+          s::distribute_groups(grp, SP_LAMBDA(auto subgrp) {
+            s::distribute_groups(subgrp, SP_LAMBDA(auto subsubgrp) {
+              s::distribute_items(subsubgrp, SP_LAMBDA(s::s_item<Dim> idx) {
+                int* ptr = acc.get_pointer();
+                ptr[idx.get_global_linear_id()] =
                     idx.get_global_linear_id();
               });
             });
@@ -224,8 +231,8 @@ void test_distribute_groups(){
     s::accessor acc{output_buff, cgh, s::no_init};
     cgh.parallel<enumerated_kernel_name<KernelName, 1>>(
         s::range{input_size / group_size}, s::range{group_size}, [=](auto grp) {
-          s::distribute_groups(grp, [&](auto subgrp) {
-            s::distribute_items(subgrp, [&](s::s_item<Dim> idx) {
+          s::distribute_groups(grp, SP_LAMBDA(auto subgrp) {
+            s::distribute_items(subgrp, SP_LAMBDA(s::s_item<Dim> idx) {
               acc[idx.get_global_linear_id()] = idx.get_global_linear_id();
             });
           });
@@ -273,26 +280,26 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
           s::memory_environment(grp, 
             s::require_local_mem<int[Group_size]>(),
             s::require_private_mem<int>(),
-            [&](auto &scratch, auto &load) {
+            SP_LAMBDA(auto &scratch, auto &load) {
             
-            s::distribute_items(grp, [&](s::s_item<1> idx) {
+            s::distribute_items(grp, SP_LAMBDA(s::s_item<1> idx) {
               load(idx) = data_accessor[idx.get_global_id(0)];
             });
-            s::distribute_items(grp, [&](s::s_item<1> idx) {
+            s::distribute_items(grp, SP_LAMBDA(s::s_item<1> idx) {
               scratch[idx.get_innermost_local_id(0)] = load(idx);
             });
 
             s::group_barrier(grp);
 
             for (int i = Group_size / 2; i > 0; i /= 2) {
-              s::distribute_items_and_wait(grp, [&](s::s_item<1> idx) {
+              s::distribute_items_and_wait(grp, SP_LAMBDA(s::s_item<1> idx) {
                 size_t lid = idx.get_innermost_local_id(0);
                 if (lid < i)
                   scratch[lid] += scratch[lid + i];
               });
             }
 
-            s::single_item(grp, [&]() {
+            s::single_item(grp, SP_LAMBDA() {
               data_accessor[grp.get_group_id(0) * Group_size] = scratch[0];
             });
           });
@@ -308,7 +315,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     
     BOOST_TEST(host_result == host_acc[grp * Group_size]);
   }
-}
+} 
 BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
   namespace s = cl::sycl;
 
@@ -326,24 +333,24 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
       s::memory_environment(grp,
         s::require_local_mem<int[16][16]>(3),
         s::require_private_mem<int>(4),
-        [&](auto& local, auto& private_mem){
+        SP_LAMBDA(auto& local, auto& private_mem){
         
         if(grp.get_group_id(0) == 0) {
-          s::distribute_items(grp, [&](s::s_item<1> idx) {
+          s::distribute_items(grp, SP_LAMBDA(s::s_item<1> idx) {
             int* local_ptr = &local[0][0];
             acc[idx.get_global_linear_id()] =
                 local_ptr[idx.get_innermost_local_linear_id()];
           });
         }
         if(grp.get_group_id(0) == 1) {
-          s::distribute_items(grp, [&](s::s_item<1> idx) {
+          s::distribute_items(grp, SP_LAMBDA(s::s_item<1> idx) {
             acc[idx.get_global_linear_id()] =
                 private_mem(idx);
           });
         }
       });
       s::local_memory_environment<int [Group_size]>(grp, 
-        [&](auto& local){
+        SP_LAMBDA(auto& local){
 
         if(grp.get_group_id(0) == 2) {
           s::distribute_items(grp, [&](s::s_item<1> idx) {
@@ -357,10 +364,10 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
       const s::vec<int,8> init_val{0,1,2,3,4,5,6,7};
       s::memory_environment(grp, 
         s::require_private_mem<s::vec<int,8>>(init_val),
-        [&](auto& priv_mem){
+        SP_LAMBDA(auto& priv_mem){
 
         if(grp.get_group_id(0) == 3) {
-          s::distribute_items(grp, [&](s::s_item<1> idx) {
+          s::distribute_items(grp, SP_LAMBDA(s::s_item<1> idx) {
             int res = 0;
             auto v = priv_mem(idx) + init_val;
             for(int i = 0; i < init_val.get_count(); ++i) {
@@ -403,9 +410,9 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
     sycl::accessor acc {buff, cgh, sycl::no_init};
     cgh.parallel<class ScopedOddGroupSize>(sycl::range{10}, sycl::range{100}, 
       [=](auto grp){
-      sycl::distribute_groups(grp, [&](auto subgroup){
-        sycl::distribute_groups(subgroup, [&](auto subsubgroup){
-          sycl::distribute_items(subsubgroup, [&](sycl::s_item<1> idx){
+      sycl::distribute_groups(grp, SP_LAMBDA(auto subgroup){
+        sycl::distribute_groups(subgroup, SP_LAMBDA(auto subsubgroup){
+          sycl::distribute_items(subsubgroup, SP_LAMBDA(sycl::s_item<1> idx){
             acc[idx.get_global_linear_id()] = static_cast<int>(idx.get_global_linear_id());
           });
         });
@@ -524,9 +531,7 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 }
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || \
-    defined(HIPSYCL_PLATFORM_HIP) || \
-    defined(HIPSYCL_PLATFORM_SPIRV)
+
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
   int group_size = 0;
@@ -535,7 +540,7 @@ int get_total_group_size() {
   );
   return group_size;
 }
-#endif
+
 
 #ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
 BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {

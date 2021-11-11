@@ -123,6 +123,7 @@ struct specialized_sp_property_descriptor {
 };
 
 class host_specialization {};
+class no_specialization {};
 
 template <class SpPropertyDescriptor>
 using host_sp_property_descriptor =
@@ -133,7 +134,25 @@ template<class PropertyDescriptor>
 struct sp_property_descriptor_traits {
   using next_level_descriptor_t =
       decltype(PropertyDescriptor::make_next_level_descriptor());
+  using specialization = no_specialization;
 };
+
+template <class Specialization, class PropertyDescriptor>
+struct sp_property_descriptor_traits<
+    specialized_sp_property_descriptor<Specialization, PropertyDescriptor>> {
+  using next_level_descriptor_t =
+      decltype(specialized_sp_property_descriptor<
+               Specialization,
+               PropertyDescriptor>::make_next_level_descriptor());
+  using specialization = Specialization;
+};
+
+template<class PropertyDescriptor>
+constexpr bool is_host_property_descriptor() {
+  using spec = typename sp_property_descriptor_traits<
+      PropertyDescriptor>::specialization;
+  return std::is_same_v<spec, host_specialization>;
+}
 
 template <class PropertyDescriptor>
 using sp_next_level_descriptor_t = typename sp_property_descriptor_traits<
@@ -1101,40 +1120,42 @@ inline  void subdivide_group(
       "Non-scalar sub-subgroups are currently unsupported.");
 
   // TODO: On CPU we could introduce another tiling level
-  __hipsycl_if_target_device(
+  if constexpr(!is_host_property_descriptor<PropertyDescriptor>()) {
     // Since we are decaying to scalar groups, the global offset
     // of the new "groups" is just the global id of the work item
     // which can always be obtained from the global offset
     // and local id.
-
-    sycl::id<dim> subgroup_global_offset =
-        get_group_global_id_offset(g) + g.get_physical_local_id();
-    
-    sp_scalar_group<next_property_descriptor> subgroup{
-        g.get_physical_local_id(), g.get_physical_local_range(),
-        subgroup_global_offset};
-    
-    f(subgroup);
-  );
-  __hipsycl_if_target_host(
-    // On CPU, we need to iterate now across all elements of this subgroup
-    // to construct scalar groups.
-    if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
-      glue::host::iterate_range_simd(
-          g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
-            sp_scalar_group<next_property_descriptor> subgroup{
-                idx, g.get_logical_local_range(),
-                get_group_global_id_offset(g) + idx};
-            f(subgroup);
+    __hipsycl_if_target_device(
+      sycl::id<dim> subgroup_global_offset =
+          get_group_global_id_offset(g) + g.get_physical_local_id();
+      
+      sp_scalar_group<next_property_descriptor> subgroup{
+          g.get_physical_local_id(), g.get_physical_local_range(),
+          subgroup_global_offset};
+      
+      f(subgroup);
+    );
+  } else {
+    __hipsycl_if_target_host(
+      // On CPU, we need to iterate now across all elements of this subgroup
+      // to construct scalar groups.
+      if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
+        glue::host::iterate_range_simd(
+            g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
+              sp_scalar_group<next_property_descriptor> subgroup{
+                  idx, g.get_logical_local_range(),
+                  get_group_global_id_offset(g) + idx};
+              f(subgroup);
+            });
+      } else {
+        glue::host::iterate_range_tiles(g.get_logical_local_range(), 
+          next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
+            // TODO: Multi-Level static tiling on CPU
+            //sp_sub_group<next_property_descriptor> subgroup{};
           });
-    } else {
-      glue::host::iterate_range_tiles(g.get_logical_local_range(), 
-        next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
-          // TODO: Multi-Level static tiling on CPU
-          //sp_sub_group<next_property_descriptor> subgroup{};
-        });
-    }
-  );
+      }
+    );
+  }
 }
 
 /// Subdivide a work group into sub_group
@@ -1151,7 +1172,22 @@ inline  void subdivide_group(
   sp_global_kernel_state<PropertyDescriptor::dimensions>::configure_global_range(
     g.get_group_range() * g.get_logical_local_range());
   
-  __hipsycl_if_target_device(
+  if constexpr(is_host_property_descriptor<PropertyDescriptor>()){
+    static_assert(is_host_property_descriptor<next_property_descriptor>(),
+      "Host property descriptor cannot spawn device property descriptor");
+  
+    const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
+    const auto num_groups = g.get_logical_local_range() / subgroup_size;
+  
+    glue::host::iterate_range_tiles(
+        g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
+
+          sp_sub_group<next_property_descriptor> subgroup{
+              idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
+          
+          f(subgroup);
+        });
+  } else {
     // This if statement makes sure that we only expose subgroups
     // when we can actually decompose the work group into subgroups.
     // Currently, this only exposes subgroups in the 1D case to make sure
@@ -1172,20 +1208,8 @@ inline  void subdivide_group(
         g.get_physical_local_range(), subgroup_global_offset};
       f(subgroup);
     }
-  );
-  __hipsycl_if_target_host(
-    const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
-    const auto num_groups = g.get_logical_local_range() / subgroup_size;
-  
-    glue::host::iterate_range_tiles(
-        g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
-
-          sp_sub_group<next_property_descriptor> subgroup{
-              idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
-          
-          f(subgroup);
-        });
-  );
+    
+  }
 }
 
 template <class PropertyDescriptor, typename NestedF>

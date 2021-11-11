@@ -40,6 +40,7 @@ namespace sycl {
 namespace detail {
 namespace memory_environment {
 
+
 template<class First, typename... Rest>
 HIPSYCL_UNIVERSAL_TARGET
 First get_first(First&& f, Rest&&...) noexcept {

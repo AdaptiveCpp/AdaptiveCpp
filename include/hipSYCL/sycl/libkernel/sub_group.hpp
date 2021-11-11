@@ -31,6 +31,7 @@
 #include <cstdint>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "detail/thread_hierarchy.hpp"
 #include "id.hpp"
 #include "range.hpp"
 #include "memory.hpp"
@@ -79,7 +80,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
     __hipsycl_if_target_hiplike(
-      return warpSize;
+      return __hipsycl_warp_size;
     );
     __hipsycl_if_target_spirv(
       return __spirv_BuiltInSubgroupSize;
@@ -92,7 +93,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   range_type get_max_local_range() const {
     __hipsycl_if_target_hiplike(
-      return range_type{warpSize};
+      return range_type{__hipsycl_warp_size};
     );
     __hipsycl_if_target_spirv(
       return range_type{__spirv_BuiltInSubgroupMaxSize};
@@ -110,8 +111,8 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_group_linear_id() const {
     __hipsycl_if_target_hiplike(
-      // Assumes warpSize is power of two
-      return local_tid() >> __ffs(warpSize);
+      // Assumes __hipsycl_warp_size is power of two
+      return local_tid() >> __ffs(__hipsycl_warp_size);
     );
     __hipsycl_if_target_spirv(
       return __spirv_BuiltInSubgroupId;
@@ -125,9 +126,9 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_group_linear_range() const {
     __hipsycl_if_target_hiplike(
-      int local_range =
-          __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-      return (local_range + warpSize - 1) / warpSize;
+        int local_range =
+            __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+        return (local_range + __hipsycl_warp_size - 1) / __hipsycl_warp_size;
     );
     __hipsycl_if_target_spirv(
       return __spirv_BuiltInNumSubgroups;
@@ -169,9 +170,9 @@ private:
 
   HIPSYCL_KERNEL_TARGET
   int get_warp_mask() const {
-    // Assumes that warpSize is a power of two
+    // Assumes that __hipsycl_warp_size is a power of two
     __hipsycl_if_target_hiplike(
-      return warpSize - 1;
+      return __hipsycl_warp_size - 1;
     );
     return 0;
   }

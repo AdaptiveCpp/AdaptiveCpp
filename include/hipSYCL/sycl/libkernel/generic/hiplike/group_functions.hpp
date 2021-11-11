@@ -54,18 +54,18 @@ __device__ T __hipsycl_group_reduce(group<Dim> g, T x,
                                     BinaryOperation binary_op, T *scratch) {
 
   const auto   lid    = g.get_local_linear_id();
-  const size_t lrange = (g.get_local_range().size() + warpSize - 1) / warpSize;
+  const size_t lrange = (g.get_local_range().size() + __hipsycl_warp_size - 1) / __hipsycl_warp_size;
   sub_group    sg{};
 
   x = __hipsycl_reduce_over_group(sg, x, binary_op);
   if (sg.leader())
-    scratch[lid / warpSize] = x;
+    scratch[lid / __hipsycl_warp_size] = x;
   __hipsycl_group_barrier(g);
 
   if (lrange == 1)
     return scratch[0];
 
-  if (g.get_local_range().size() / warpSize != warpSize) {
+  if (g.get_local_range().size() / __hipsycl_warp_size != __hipsycl_warp_size) {
     size_t outputs = lrange;
     for (size_t i = (lrange + 1) / 2; i > 1; i = (i + 1) / 2) {
       if (lid < i && lid + i < outputs)
@@ -76,7 +76,7 @@ __device__ T __hipsycl_group_reduce(group<Dim> g, T x,
     __hipsycl_group_barrier(g);
     return binary_op(scratch[0], scratch[1]);
   } else {
-    if (lid < warpSize)
+    if (lid < __hipsycl_warp_size)
       x = __hipsycl_reduce_over_group(sg, scratch[lid], binary_op);
 
     if (lid == 0)
@@ -236,7 +236,7 @@ __hipsycl_joint_reduce(Group g, Ptr first, Ptr last,
   using T = std::remove_pointer_t<Ptr>;
 
   __shared__
-      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / __hipsycl_warp_size, alignof(T)>
           scratch_storage;
   Ptr     scratch = reinterpret_cast<Ptr>(&scratch_storage);
 
@@ -260,15 +260,15 @@ __hipsycl_joint_reduce(Group g, Ptr first, Ptr last,
 
     return detail::__hipsycl_group_reduce(g, local, binary_op, scratch);
   } else {
-    const size_t warp_id           = lid / warpSize;
-    const size_t num_warps         = num_elements / warpSize;
+    const size_t warp_id           = lid / __hipsycl_warp_size;
+    const size_t num_warps         = num_elements / __hipsycl_warp_size;
     const size_t elements_per_warp = (num_elements + num_warps - 1) / num_warps;
     size_t       outputs           = num_elements;
 
     if (num_warps == 0 && lid < num_elements) {
       scratch[lid] = first[lid];
     } else if (warp_id < num_warps) {
-      const size_t active_threads = num_warps * warpSize;
+      const size_t active_threads = num_warps * __hipsycl_warp_size;
 
       auto local = *start_ptr;
 
@@ -323,7 +323,7 @@ template<int Dim, typename T, typename BinaryOperation>
 __device__
 T __hipsycl_reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
   __shared__
-      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / __hipsycl_warp_size, alignof(T)>
           scratch_storage;
   T *     scratch = reinterpret_cast<T *>(&scratch_storage);
 
@@ -336,13 +336,13 @@ template <int Dim, typename T, typename BinaryOperation>
 __device__ T __hipsycl_inclusive_scan_over_group(group<Dim> g, T x,
                                                  BinaryOperation binary_op) {
   __shared__
-      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / __hipsycl_warp_size, alignof(T)>
                scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
-  size_t       wid      = lid / warpSize;
+  size_t       wid      = lid / __hipsycl_warp_size;
   size_t       lrange   = g.get_local_range().size();
-  size_t       last_wid = (wid + 1) * warpSize - 1;
+  size_t       last_wid = (wid + 1) * __hipsycl_warp_size - 1;
 
   sub_group sg{};
 
@@ -351,12 +351,12 @@ __device__ T __hipsycl_inclusive_scan_over_group(group<Dim> g, T x,
     scratch[wid] = local_x;
   __hipsycl_group_barrier(g);
 
-  if (lid < warpSize) {
-    size_t  scratch_index = (lid < (lrange + warpSize - 1) / warpSize) ? lid : 0;
+  if (lid < __hipsycl_warp_size) {
+    size_t  scratch_index = (lid < (lrange + __hipsycl_warp_size - 1) / __hipsycl_warp_size) ? lid : 0;
     const T tmp =
         __hipsycl_inclusive_scan_over_group(sg, scratch[scratch_index], binary_op);
 
-    if (lid < detail::max_group_size / warpSize) {
+    if (lid < detail::max_group_size / __hipsycl_warp_size) {
       scratch[lid] = tmp;
     }
   }
@@ -385,13 +385,13 @@ __device__ OutPtr __hipsycl_joint_inclusive_scan(Group g, InPtr first,
   using OutT = std::remove_pointer_t<OutPtr>;
 
   auto         lid          = g.get_local_linear_id();
-  auto         wid          = lid / warpSize;
+  auto         wid          = lid / __hipsycl_warp_size;
   size_t       lrange       = g.get_local_range().size();
   const size_t num_elements = last - first;
   const size_t iterations   = (num_elements + lrange - 1) / lrange;
 
   const size_t warp_size =
-      (wid == lrange / warpSize && lrange % warpSize != 0) ? lrange % warpSize : warpSize;
+      (wid == lrange / __hipsycl_warp_size && lrange % __hipsycl_warp_size != 0) ? lrange % __hipsycl_warp_size : __hipsycl_warp_size;
 
   size_t offset     = lid;
   OutT      carry_over = init;
@@ -421,7 +421,7 @@ __device__ OutPtr __hipsycl_joint_inclusive_scan(Group g, InPtr first,
   using OutT = std::remove_pointer_t<OutPtr>;
 
   auto         lid          = g.get_local_linear_id();
-  auto         wid          = lid / warpSize;
+  auto         wid          = lid / __hipsycl_warp_size;
   size_t       lrange       = g.get_local_range().size();
   const size_t num_elements = last - first;
   const size_t iterations   = (num_elements + lrange - 1) / lrange;
@@ -473,13 +473,13 @@ template <int Dim, typename T, typename V, typename BinaryOperation>
 __device__ T __hipsycl_exclusive_scan_over_group(group<Dim> g, T x, V init,
                                                  BinaryOperation binary_op) {
   __shared__
-      std::aligned_storage_t<sizeof(T) * detail::max_group_size / warpSize, alignof(T)>
+      std::aligned_storage_t<sizeof(T) * detail::max_group_size / __hipsycl_warp_size, alignof(T)>
                scratch_storage;
   T *          scratch  = reinterpret_cast<T *>(&scratch_storage);
   const size_t lid      = g.get_local_linear_id();
-  const size_t wid      = lid / warpSize;
+  const size_t wid      = lid / __hipsycl_warp_size;
   const size_t lrange   = g.get_local_range().size();
-  const size_t last_wid = (wid + 1) * warpSize - 1;
+  const size_t last_wid = (wid + 1) * __hipsycl_warp_size - 1;
   sub_group    sg{};
 
   auto local_x = __hipsycl_inclusive_scan_over_group(sg, x, binary_op);
@@ -487,12 +487,12 @@ __device__ T __hipsycl_exclusive_scan_over_group(group<Dim> g, T x, V init,
     scratch[wid] = local_x;
   __hipsycl_group_barrier(g);
 
-  if (lid < warpSize) {
-    const size_t scratch_index = (lid < detail::max_group_size / warpSize) ? lid : 0;
+  if (lid < __hipsycl_warp_size) {
+    const size_t scratch_index = (lid < detail::max_group_size / __hipsycl_warp_size) ? lid : 0;
     const T tmp =
         __hipsycl_inclusive_scan_over_group(sg, scratch[scratch_index], binary_op);
 
-    if (lid < (lrange + warpSize - 1) / warpSize)
+    if (lid < (lrange + __hipsycl_warp_size - 1) / __hipsycl_warp_size)
       scratch[lid] = tmp;
   }
   __hipsycl_group_barrier(g);
@@ -503,7 +503,7 @@ __device__ T __hipsycl_exclusive_scan_over_group(group<Dim> g, T x, V init,
   local_x = binary_op(prefix, local_x);
 
   local_x = detail::__hipsycl_shuffle_up_impl(local_x, 1);
-  if (lid % warpSize == 0)
+  if (lid % __hipsycl_warp_size == 0)
     return prefix;
   return local_x;
 }

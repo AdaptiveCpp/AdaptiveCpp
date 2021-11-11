@@ -59,6 +59,7 @@ namespace detail {
 #define __hipsycl_ngroups_x 0
 #define __hipsycl_ngroups_y 0
 #define __hipsycl_ngroups_z 0
+
 #else
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
@@ -79,6 +80,8 @@ namespace detail {
 #define __hipsycl_ngroups_y hipGridDim_y
 #define __hipsycl_ngroups_z hipGridDim_z
 
+#define __hipsycl_warp_size warpSize
+
 #elif HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
 
 #define __hipsycl_lid_x threadIdx.x
@@ -96,6 +99,14 @@ namespace detail {
 #define __hipsycl_ngroups_x gridDim.x
 #define __hipsycl_ngroups_y gridDim.y
 #define __hipsycl_ngroups_z gridDim.z
+
+#ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+  // warpSize is not constexpr with nvc++. Hardcode to 32
+  // for now
+  #define __hipsycl_warp_size 32
+#else
+  #define __hipsycl_warp_size warpSize
+#endif
 
 #elif HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
 

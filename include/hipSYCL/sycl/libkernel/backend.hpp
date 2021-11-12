@@ -79,6 +79,10 @@
  #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+ #define __SYCL_SINGLE_SOURCE__ 1
+#endif
+
 #ifdef __clang__
  #define HIPSYCL_FORCE_INLINE \
  __attribute__((always_inline)) __attribute__((flatten)) inline

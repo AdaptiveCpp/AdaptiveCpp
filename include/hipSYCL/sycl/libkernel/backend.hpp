@@ -73,6 +73,9 @@
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS &&                                        \
     !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define SYCL_DEVICE_ONLY
+ #ifndef __SYCL_DEVICE_ONLY__
+  #define __SYCL_DEVICE_ONLY__
+ #endif
 #endif
 
 #if !defined(HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)

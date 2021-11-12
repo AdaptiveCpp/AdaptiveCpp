@@ -62,6 +62,9 @@
 
 #ifdef HIPSYCL_LIBKERNEL_DEVICE_PASS
  #define SYCL_DEVICE_ONLY
+ #ifndef __SYCL_DEVICE_ONLY__
+  #define __SYCL_DEVICE_ONLY__
+ #endif
 #endif
 
 #ifdef __clang__

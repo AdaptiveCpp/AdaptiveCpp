@@ -74,7 +74,7 @@
     !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define SYCL_DEVICE_ONLY
  #ifndef __SYCL_DEVICE_ONLY__
-  #define __SYCL_DEVICE_ONLY__
+  #define __SYCL_DEVICE_ONLY__ 1
  #endif
 #endif
 

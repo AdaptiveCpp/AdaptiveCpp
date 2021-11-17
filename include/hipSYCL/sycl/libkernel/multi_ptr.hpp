@@ -173,6 +173,13 @@ public:
     return multi_ptr<void, Space>{reinterpret_cast<void*>(_ptr)};
   }
 
+  // Implicit conversion to multi_ptr<const value_type, Space>.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator multi_ptr<const ElementType, Space>() const
+  {
+    return multi_ptr<const ElementType, Space>{_ptr};
+  }
+
   // Arithmetic operators
   HIPSYCL_UNIVERSAL_TARGET
   friend multi_ptr& operator++(multi_ptr<ElementType, Space>& mp)

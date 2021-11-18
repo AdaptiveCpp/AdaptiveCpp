@@ -43,7 +43,18 @@
 
 namespace hipsycl {
 namespace glue {
+namespace detail {
 
+template<class T>
+inline T random_number() {
+  static std::random_device rd;
+  static std::mt19937 gen{rd()};
+  static std::uniform_int_distribution<T> distribution{0};
+
+  return distribution(gen);
+}
+
+}
 
 struct unique_id {
   static constexpr std::size_t num_components = 2;
@@ -63,11 +74,7 @@ struct unique_id {
               std::chrono::high_resolution_clock::now().time_since_epoch())
               .count();
 
-      static std::random_device rd;
-      static std::mt19937 gen{rd()};
-      static std::uniform_int_distribution<uint64_t> distribution{0};
-
-      uint64_t random_number = distribution(gen);
+      uint64_t random_number = detail::random_number<uint64_t>();
 
       char* ns_bytes = reinterpret_cast<char*>(&ns);
       char* rnd_bytes = reinterpret_cast<char*>(&random_number);

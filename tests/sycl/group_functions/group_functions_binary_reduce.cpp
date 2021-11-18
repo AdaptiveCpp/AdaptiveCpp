@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
+  const uint32_t subgroup_size = static_cast<uint32_t>(__hipsycl_warp_size);
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -342,7 +342,7 @@ BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
+  const uint32_t subgroup_size       = static_cast<uint32_t>(__hipsycl_warp_size);
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {

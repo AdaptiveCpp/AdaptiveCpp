@@ -35,6 +35,7 @@
 #include <cstring>
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
+
 namespace hipsycl {
 namespace sycl {
 namespace detail {
@@ -97,6 +98,7 @@ void separate_last_argument_and_apply(F&& f, Args&& ... args) {
 }
 
 template <class Tout, class Tin>
+HIPSYCL_UNIVERSAL_TARGET
 Tout bit_cast(Tin x) {
   static_assert(sizeof(Tout)==sizeof(Tin), "Types must match sizes");
 

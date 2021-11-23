@@ -1,6 +1,9 @@
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+find_package(Filesystem REQUIRED)
+list(POP_FRONT CMAKE_MODULE_PATH)
 
 add_library(hipSYCL-rt SHARED
   application.cpp
@@ -49,7 +52,7 @@ if(WIN32)
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   endif()
 else()
-  target_link_libraries(hipSYCL-rt PRIVATE dl)
+  target_link_libraries(hipSYCL-rt PRIVATE dl std::filesystem)
 
   # ensure actual output and expected are equivalent
   set_target_properties(hipSYCL-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})

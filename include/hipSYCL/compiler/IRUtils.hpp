@@ -9,10 +9,6 @@
 
 #include <llvm/Analysis/LoopInfo.h>
 
-#if LLVM_VERSION_MAJOR <= 12
-#define HIPSYCL_NO_PHIS_IN_SPLIT
-#endif
-
 namespace llvm {
 class Region;
 class AssumptionCache;

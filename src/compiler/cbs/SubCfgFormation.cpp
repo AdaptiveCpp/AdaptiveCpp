@@ -88,7 +88,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
         else
           return {LocalSizeArg};
       } else if (Dim == 2) {
-        if(LocalSizeArg == F.arg_end()) {
+        if (LocalSizeArg == F.arg_end()) {
           auto *LocalSizeArgX = std::find_if(F.arg_begin(), F.arg_end(),
                                              [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce0"; });
           auto *LocalSizeArgY = std::find_if(F.arg_begin(), F.arg_end(),
@@ -108,16 +108,15 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
 
     llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
     llvm::Value *LocalSizePtr = nullptr;
-    if(!LocalSizeArg->getType()->isArrayTy())
+    if (!LocalSizeArg->getType()->isArrayTy())
       LocalSizePtr = Builder.CreatePointerCast(
-        LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
-        "local_size.cast");
+          LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
+          "local_size.cast");
 
     llvm::SmallVector<llvm::Value *, 3> LocalSize;
     for (unsigned int I = 0; I < Dim; ++I) {
-      if(LocalSizeArg->getType()->isArrayTy()){
-        LocalSize.push_back(Builder.CreateExtractValue(LocalSizeArg, {I},
-                                                       "local_size." + llvm::Twine{DimName[I]}));
+      if (LocalSizeArg->getType()->isArrayTy()) {
+        LocalSize.push_back(Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]}));
       } else {
         auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizePtr, {Builder.getIntN(SizeTSize, I)},
                                                        "local_size.gep." + llvm::Twine{DimName[I]});
@@ -822,7 +821,8 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
           InstLoadMap.insert({OPI, Load});
 #else
           const auto NumPreds = std::distance(llvm::pred_begin(BB), llvm::pred_end(BB));
-          if (!llvm::isa<llvm::PHINode>(I) && NumPreds > 1 && std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
+          if (!llvm::isa<llvm::PHINode>(I) && NumPreds > 1 &&
+              std::find(llvm::pred_begin(BB), llvm::pred_end(BB), LoadBB_) != llvm::pred_end(BB)) {
             Builder.SetInsertPoint(BB, BB->getFirstInsertionPt());
             auto *PHINode = Builder.CreatePHI(Load->getType(), NumPreds, I.getName());
             for (auto *PredBB : llvm::predecessors(BB))
@@ -1180,8 +1180,6 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
       break;
     }
   }
-  // after splits need to recalc
-  //  PDT.recalculate(F);
 
   llvm::SmallVector<llvm::BasicBlock *, 8> Blocks{};
   Blocks.reserve(std::distance(F.begin(), F.end()));
@@ -1190,16 +1188,16 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   moveAllocasToEntry(F, Blocks);
 
   const auto Dim = getRangeDim(F);
-  //
-  //  auto RImpl = getRegion(F, LI, Blocks);
-  //  hipsycl::compiler::Region R{*RImpl};
-  //  auto VecInfo = getVectorizationInfo(F, R, LI, DT, PDT, Dim);
+
+  llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
+  llvm::Value *Idx = Builder.CreateLoad(llvm::UndefValue::get(
+      llvm::PointerType::get(getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType(), 0)));
 
   auto LocalSize = getLocalSizeValues(F, Dim);
   llvm::ValueToValueMapTy VMap;
   llvm::SmallVector<llvm::BasicBlock *, 3> Latches;
   auto *LastHeader = Body;
-  auto *Idx = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1]);
+
   createLoopsAround(F, ExitBB, LocalSize, 0, VMap, Latches, LastHeader, Idx);
 
   F.getEntryBlock().getTerminator()->setSuccessor(0, LastHeader);

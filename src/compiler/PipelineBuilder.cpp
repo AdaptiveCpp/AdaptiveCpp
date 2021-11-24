@@ -123,8 +123,10 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new SimplifyKernelPassLegacy{});
-
+#ifdef HIPSYCL_NO_PHIS_IN_SPLIT
   PM.add(new PHIsToAllocasPassLegacy{});
+#endif
+
   PM.add(new LoopSimplifyPassLegacy{});
 
   PM.add(new CanonicalizeBarriersPassLegacy{});
@@ -166,6 +168,7 @@ void registerPoclPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   llvm::FunctionPassManager FPM;
   FPM.addPass(WILoopMarkerPass{});
   FPM.addPass(LoopSplitterInliningPass{});
+
   FPM.addPass(SimplifyKernelPass{});
 
   FPM.addPass(PHIsToAllocasPass{});

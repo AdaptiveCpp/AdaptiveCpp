@@ -22,7 +22,7 @@
 
 #include <numeric>
 
-#if 0
+#if 1
 #define IF_DEBUG_VA if (false)
 #else
 #define IF_DEBUG_VA if (true)

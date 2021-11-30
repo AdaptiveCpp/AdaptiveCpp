@@ -122,7 +122,7 @@ inline void group_barrier(group<Dim> g, memory_scope fence_scope = group<Dim>::f
 }
 
 HIPSYCL_KERNEL_TARGET
-inline void group_barrier(sub_group g, memory_scope fence_scope) {
+inline void group_barrier(sub_group g, memory_scope fence_scope = sub_group::fence_scope) {
   // doesn't need sync
 }
 

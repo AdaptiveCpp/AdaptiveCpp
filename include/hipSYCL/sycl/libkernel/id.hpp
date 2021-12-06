@@ -30,6 +30,7 @@
 #define HIPSYCL_ID_HPP
 
 #include <cassert>
+#include <cstddef>
 #include <type_traits>
 
 #include "hipSYCL/runtime/util.hpp"
@@ -49,6 +50,19 @@ struct item;
 
 template <int dimensions = 1>
 struct id {
+private:
+  struct not_convertible_to_scalar {};
+
+  static constexpr auto get_scalar_conversion_type() {
+    if constexpr(dimensions == 1)
+      return std::size_t{};
+    else
+      return not_convertible_to_scalar {};
+  }
+
+  using scalar_conversion_type = decltype(get_scalar_conversion_type());
+
+public:
 
   HIPSYCL_UNIVERSAL_TARGET
   id()
@@ -121,14 +135,15 @@ struct id {
   size_t operator[](int dimension) const {
     return this->_data[dimension];
   }
-/*
-  template <int D = dimensions, typename = std::enable_if_t<D == 1>>
+
+  // We cannot use enable_if since the involved templates would
+  // prevent implicit type conversion to other integer types.
   HIPSYCL_UNIVERSAL_TARGET
-  operator size_t() const {
+  operator scalar_conversion_type () const {
     return this->_data[0];
   }
-  */
-  // Implementation of id<dimensions> operatorOP(const size_t &rhs) const;
+  
+  // Implementation of id<dimensions> operatorOP(const id &rhs) const;
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET  \
@@ -156,14 +171,22 @@ struct id {
   HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(<=)
   HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(>=)
 
-#define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(op) \
-  HIPSYCL_UNIVERSAL_TARGET \
-  friend id<dimensions> operator op(const id<dimensions> &lhs, \
-                             const std::size_t &rhs){ \
-    id<dimensions> result; \
-    for(std::size_t i = 0; i < dimensions; ++i) \
-      result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs); \
-    return result; \
+#define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(op)                           \
+  template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>          \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend id<dimensions> operator op(const id<dimensions> &lhs,                 \
+                                    const T &rhs) {                            \
+    id<dimensions> result;                                                     \
+    for (std::size_t i = 0; i < dimensions; ++i)                               \
+      result._data[i] = static_cast<T>(lhs._data[i] op rhs);                   \
+    return result;                                                             \
+  }                                                                            \
+  /* Dedicated overload for range to avoid operator ambiguity due to */        \
+  /* implicit conversion to size_t                                   */        \
+  template <int D = dimensions, std::enable_if_t<D == 1, int> = 0>             \
+  HIPSYCL_UNIVERSAL_TARGET friend id<dimensions> operator op(                  \
+      const id<dimensions> &lhs, const range<dimensions> &rhs) {               \
+    return lhs op rhs[0];                                                      \
   }
 
   HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(+)
@@ -205,12 +228,13 @@ struct id {
   HIPSYCL_ID_BINARY_OP_IN_PLACE(|=)
   HIPSYCL_ID_BINARY_OP_IN_PLACE(^=)
 
-#define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op) \
-  HIPSYCL_UNIVERSAL_TARGET \
-  friend id<dimensions>& operator op(id<dimensions> &lhs, const std::size_t &rhs) { \
-    for(std::size_t i = 0; i < dimensions; ++i) \
-      lhs._data[i] op rhs; \
-    return lhs; \
+#define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op)                          \
+  template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>     \
+  HIPSYCL_UNIVERSAL_TARGET                                                \
+  friend id<dimensions>& operator op(id<dimensions> &lhs, const T &rhs) { \
+    for(std::size_t i = 0; i < dimensions; ++i)                           \
+      lhs._data[i] op rhs;                                                \
+    return lhs;                                                           \
   }
 
   HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(+=)
@@ -224,13 +248,14 @@ struct id {
   HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(|=)
   HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(^=)
 
-#define HIPSYCL_ID_BINARY_OP_SIZE_T(op) \
-  HIPSYCL_UNIVERSAL_TARGET \
-  friend id<dimensions> operator op(const size_t &lhs, const id<dimensions> &rhs) { \
-    id<dimensions> result; \
-    for(std::size_t i = 0; i < dimensions; ++i) \
-      result[i] = lhs op rhs[i]; \
-    return result; \
+#define HIPSYCL_ID_BINARY_OP_SIZE_T(op)                                        \
+  template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>          \
+  HIPSYCL_UNIVERSAL_TARGET                                                     \
+  friend id<dimensions> operator op(const T &lhs, const id<dimensions> &rhs) { \
+    id<dimensions> result;                                                     \
+    for(std::size_t i = 0; i < dimensions; ++i)                                \
+      result[i] = lhs op rhs[i];                                               \
+    return result;                                                             \
   }
 
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ

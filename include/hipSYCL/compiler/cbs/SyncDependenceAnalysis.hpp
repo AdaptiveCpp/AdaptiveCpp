@@ -18,14 +18,16 @@
 #ifndef LLVM_ANALYSIS_SYNCDEPENDENCEANALYSIS_H
 #define LLVM_ANALYSIS_SYNCDEPENDENCEANALYSIS_H
 
+#include <llvm/Config/llvm-config.h>
+
+#if LLVM_VERSION_MAJOR < 12
+
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include <memory>
 #include <unordered_map>
-
-#if LLVM_VERSION_MAJOR < 12
 
 namespace llvm {
 

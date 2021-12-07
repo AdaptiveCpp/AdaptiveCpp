@@ -26,7 +26,6 @@
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
@@ -216,9 +215,7 @@ bool canonicalizeBarriers(llvm::Function &F, llvm::LoopInfo &LI, llvm::Dominator
     // loop handling.
     // CBS: looses conditional branches if in the same BB as a barrier
 
-    const bool SplitAfterBarrier =
-        T->getPrevNode() != Barrier ||
-        (selectPipeline() == LoopSplittingPipeline::ContinuationBasedSynchronization && T->getNumSuccessors() > 1);
+    const bool SplitAfterBarrier = T->getPrevNode() != Barrier || T->getNumSuccessors() > 1;
 
     if (SplitAfterBarrier) {
       HIPSYCL_DEBUG_INFO << "[Canonicalize] Splitting after barrier in: " << BB->getName() << "\n";
@@ -267,7 +264,6 @@ void CanonicalizeBarriersPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) c
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addRequiredTransitive<llvm::DominatorTreeWrapperPass>();
 
-  AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
@@ -294,7 +290,6 @@ llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::F
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;
-  PA.preserve<VariableUniformityAnalysis>();
   PA.preserve<SplitterAnnotationAnalysis>();
   return PA;
 }

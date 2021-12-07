@@ -25,7 +25,6 @@
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 namespace {
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
@@ -91,7 +90,6 @@ bool RemoveBarrierCallsPassLegacy::runOnFunction(llvm::Function &F) {
 }
 
 void RemoveBarrierCallsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-  AU.addPreserved<VariableUniformityAnalysisLegacy>();
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
@@ -106,7 +104,6 @@ llvm::PreservedAnalyses RemoveBarrierCallsPass::run(llvm::Function &F, llvm::Fun
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;
-  PA.preserve<VariableUniformityAnalysis>();
   PA.preserve<SplitterAnnotationAnalysis>();
   return PA;
 }

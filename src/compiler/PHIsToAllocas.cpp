@@ -25,12 +25,8 @@
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
-//#include "Workgroup.h"
-//#include "WorkitemHandlerChooser.h"
-//#include "WorkitemLoops.h"
-
+#include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Instructions.h>
 
@@ -50,18 +46,10 @@ namespace {
  * region entry (e.g. a B-Loop) adding new basic blocks before it would
  * break the assumption of single entry regions.
  */
-llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi, hipsycl::compiler::VariableUniformityInfo &VUA) {
-
-  // Loop iteration variables can be detected only when they are
-  // implemented using PHI nodes. Maintain information of the
-  // split PHI nodes in the VUA by first analyzing the function
-  // with the PHIs intact and propagating the uniformity info
-  // of the PHI nodes.
+llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
   std::string AllocaName{std::string(Phi->getName().str()) + ".ex_phi"};
 
   llvm::Function *Function = Phi->getParent()->getParent();
-
-  const bool OriginalPHIWasUniform = VUA.isUniform(Function, Phi);
 
   llvm::IRBuilder Builder(&*(Function->getEntryBlock().getFirstInsertionPt()));
 
@@ -72,32 +60,18 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi, hipsycl::compiler::Vari
     auto *IncomingBB = Phi->getIncomingBlock(Incoming);
     Builder.SetInsertPoint(IncomingBB->getTerminator());
     llvm::Instruction *Store = Builder.CreateStore(V, Alloca);
-    if (OriginalPHIWasUniform)
-      VUA.setUniform(Function, Store);
   }
   Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
 
   llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca);
   Phi->replaceAllUsesWith(LoadedValue);
 
-  if (OriginalPHIWasUniform) {
-#ifdef DEBUG_PHIS_TO_ALLOCAS
-    std::cout << "PHIsToAllocas: Original PHI was uniform" << std::endl << "original:";
-    phi->dump();
-    std::cout << "Alloca:";
-    Alloca->dump();
-    std::cout << "loadedValue:";
-    loadedValue->dump();
-#endif
-    VUA.setUniform(Function, Alloca);
-    VUA.setUniform(Function, LoadedValue);
-  }
   Phi->eraseFromParent();
 
   return LoadedValue;
 }
 
-bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformityInfo &VUA, const llvm::LoopInfo &LI) {
+bool demotePHIsToAllocas(llvm::Function &F, const llvm::LoopInfo &LI) {
   std::vector<llvm::PHINode *> PHIs;
 
   auto &BBsInWI = F.getBasicBlockList();
@@ -118,7 +92,7 @@ bool demotePHIsToAllocas(llvm::Function &F, hipsycl::compiler::VariableUniformit
   for (auto *I : PHIs) {
     HIPSYCL_DEBUG_INFO << "  ";
     HIPSYCL_DEBUG_EXECUTE_INFO(I->print(llvm::outs()); llvm::outs() << "\n";)
-    breakPHIToAllocas(I, VUA);
+    breakPHIToAllocas(I);
     Changed = true;
   }
   return Changed;
@@ -134,9 +108,6 @@ void PHIsToAllocasPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 
-  AU.addRequired<VariableUniformityAnalysisLegacy>();
-  AU.addPreserved<VariableUniformityAnalysisLegacy>();
-
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
@@ -150,9 +121,7 @@ bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {
 
   const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
 
-  auto &VUA = getAnalysis<VariableUniformityAnalysisLegacy>().getResult();
-
-  return demotePHIsToAllocas(F, VUA, LI);
+  return demotePHIsToAllocas(F, LI);
 }
 
 llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
@@ -162,14 +131,12 @@ llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::Function
     return llvm::PreservedAnalyses::all();
   }
 
-  auto &VUA = AM.getResult<VariableUniformityAnalysis>(F);
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
 
-  if (!demotePHIsToAllocas(F, VUA, LI))
+  if (!demotePHIsToAllocas(F, LI))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;
-  PA.preserve<VariableUniformityAnalysis>();
   PA.preserve<SplitterAnnotationAnalysis>();
   PA.preserve<llvm::LoopAnalysis>();
   PA.preserve<llvm::DominatorTreeAnalysis>();

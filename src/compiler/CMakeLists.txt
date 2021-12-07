@@ -14,22 +14,15 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
-  LoopSplitter.cpp
   LoopSplitterInlining.cpp
   SplitterAnnotationAnalysis.cpp
   IRUtils.cpp
   KernelFlattening.cpp
   LoopsParallelMarker.cpp
   WILoopMarker.cpp
-  BarrierTailReplication.cpp
-  VariableUniformityAnalysis.cpp
   PHIsToAllocas.cpp
-  IsolateRegions.cpp
-  ReqdLoopBarriers.cpp
   RemoveBarrierCalls.cpp
   CanonicalizeBarriers.cpp
-  WorkItemLoopCreation.cpp
-  ParallelRegion.cpp
   SimplifyKernel.cpp
   LoopSimplify.cpp
   PipelineBuilder.cpp

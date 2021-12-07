@@ -31,7 +31,6 @@
 #include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
@@ -63,22 +62,8 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
-static llvm::RegisterPass<VariableUniformityAnalysisLegacy>
-    varUniformityReg("var-uniformity", "hipSYCL variable uniformity analysis pass", true /* Only looks at CFG */,
-                     true /* Analysis Pass */);
-
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
-  switch (hipsycl::compiler::selectPipeline()) {
-  case LoopSplittingPipeline::Original:
-    registerOriginalPipelineLegacy(PM);
-    break;
-  case hipsycl::compiler::LoopSplittingPipeline::Pocl:
-    registerPoclPipelineLegacy(PM);
-    break;
-  case LoopSplittingPipeline::ContinuationBasedSynchronization:
-    registerCBSPipelineLegacy(PM);
-    break;
-  }
+  registerCBSPipelineLegacy(PM);
 }
 
 static llvm::RegisterStandardPasses
@@ -110,25 +95,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
       PB.registerAnalysisRegistrationCallback(
           [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
-      PB.registerAnalysisRegistrationCallback(
-          [](llvm::FunctionAnalysisManager &FAM) { FAM.registerPass([] { return VariableUniformityAnalysis{}; }); });
 #if LLVM_VERSION_MAJOR < 12
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
         OptLevel Opt = OptLevel::O3;
 #else
       PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
-        switch (hipsycl::compiler::selectPipeline()) {
-        case LoopSplittingPipeline::Original:
-          registerOriginalPipeline(MPM, Opt);
-          break;
-        case hipsycl::compiler::LoopSplittingPipeline::Pocl:
-          registerPoclPipeline(MPM, Opt);
-          break;
-        case LoopSplittingPipeline::ContinuationBasedSynchronization:
-          registerCBSPipeline(MPM, Opt);
-          break;
-        }
+        registerCBSPipeline(MPM, Opt);
       });
       // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
       // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254

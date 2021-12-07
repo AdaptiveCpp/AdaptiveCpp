@@ -29,7 +29,6 @@
 
 #include "hipSYCL/compiler/IRUtils.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/VariableUniformityAnalysis.hpp"
 
 #include <llvm/Analysis/ScalarEvolution.h>
 
@@ -46,7 +45,6 @@ void LoopSimplifyPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
 
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
-  AU.addPreserved<VariableUniformityAnalysisLegacy>();
 }
 
 bool LoopSimplifyPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {

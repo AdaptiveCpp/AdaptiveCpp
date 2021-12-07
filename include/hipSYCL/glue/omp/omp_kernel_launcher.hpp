@@ -182,93 +182,6 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
 }
 
 #ifndef HIPSYCL_HAS_FIBERS
-#ifndef HIPSYCL_MANUALLY_CREATED_LOOPS
-template <class StaticPropertyList, int Dim, class Function, class ...Reducers>
-[[clang::annotate("hipsycl_nd_kernel")]] __attribute__((noinline))
-inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
-                                 const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
-                                 size_t num_local_mem_bytes, void* group_shared_memory_ptr,
-                                 std::function<void()> &barrier_impl,
-                                 Reducers& ... reducers) noexcept {
-  if constexpr (StaticPropertyList::template has_property<
-                 sycl::reqd_work_group_size>()) {
-    constexpr auto reqd_wg_size = StaticPropertyList::template get_property<sycl::reqd_work_group_size>();
-    if constexpr (Dim == 1) {
-      constexpr size_t n_local = reqd_wg_size.template get<0>();
-#pragma omp simd
-      for (size_t l_x = 0; l_x < n_local; ++l_x) {
-        sycl::id<Dim> local_id{l_x};
-        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-                                     sycl::range<Dim>{n_local}, num_groups, &barrier_impl, group_shared_memory_ptr};
-        f(this_item, reducers...);
-      }
-    } else if constexpr (Dim == 2) {
-#pragma omp simd collapse(2)
-      for (size_t l_x = 0; l_x < reqd_wg_size.template get<0>(); ++l_x) {
-        for (size_t l_y = 0; l_y < reqd_wg_size.template get<1>(); ++l_y) {
-          sycl::id<Dim> local_id{l_x, l_y};
-          sycl::nd_item<Dim> this_item{&offset,    group_id,
-                                       local_id,   sycl::range<Dim>{reqd_wg_size.template get<0>(),
-                                       reqd_wg_size.template get<1>()}, num_groups,
-                                       &barrier_impl, group_shared_memory_ptr};
-          f(this_item, reducers...);
-        }
-      }
-    } else if constexpr (Dim == 3) {
-#pragma omp simd collapse(3)
-      for(size_t l_x = 0; l_x < reqd_wg_size.template get<0>(); ++l_x)
-      {
-        for(size_t l_y = 0; l_y < reqd_wg_size.template get<1>(); ++l_y)
-        {
-          for(size_t l_z = 0; l_z < reqd_wg_size.template get<2>(); ++l_z)
-          {
-            sycl::id<Dim> local_id{l_x, l_y, l_z};
-            sycl::nd_item<Dim> this_item{&offset, group_id,
-              local_id, sycl::range<Dim>{reqd_wg_size.template get<0>(), reqd_wg_size.template get<1>(), reqd_wg_size.template get<1>()},
-              num_groups, &barrier_impl, group_shared_memory_ptr};
-            f(this_item, reducers...);
-          }
-        }
-      }
-    }
-  } else {
-    if constexpr (Dim == 1) {
-      const size_t n_local = local_size[0];
-#pragma omp simd
-      for (size_t l_x = 0; l_x < n_local; ++l_x) {
-        sycl::id<Dim> local_id{l_x};
-        sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-          local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
-        f(this_item, reducers...);
-      }
-    } else if constexpr (Dim == 2) {
-#pragma omp simd collapse(2)
-      for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
-        for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
-          sycl::id<Dim> local_id{l_x, l_y};
-          sycl::nd_item<Dim> this_item{&offset, group_id,
-            local_id, local_size, num_groups,
-            &barrier_impl, group_shared_memory_ptr};
-          f(this_item, reducers...);
-        }
-      }
-    } else if constexpr (Dim == 3) {
-#pragma omp simd collapse(3)
-      for (size_t l_x = 0; l_x < local_size[0]; ++l_x) {
-        for (size_t l_y = 0; l_y < local_size[1]; ++l_y) {
-          for (size_t l_z = 0; l_z < local_size[2]; ++l_z) {
-            sycl::id<Dim> local_id{l_x, l_y, l_z};
-            sycl::nd_item<Dim> this_item{&offset,    group_id,
-              local_id,   local_size,
-              num_groups, &barrier_impl, group_shared_memory_ptr};
-            f(this_item, reducers...);
-          }
-        }
-      }
-    }
-  }
-}
-#else
 extern size_t __hipsycl_local_id_x;
 extern size_t __hipsycl_local_id_y;
 extern size_t __hipsycl_local_id_z;
@@ -324,7 +237,6 @@ inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, con
     }
   }
 }
-#endif
 #endif
 
 template<class Function>

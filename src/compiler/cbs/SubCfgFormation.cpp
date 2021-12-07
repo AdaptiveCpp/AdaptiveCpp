@@ -58,7 +58,8 @@ llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName
       }
     }
   }
-  return nullptr;
+  llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
+  return Builder.CreateLoad(F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext()), GV);
 }
 
 std::size_t getRangeDim(llvm::Function &F) {

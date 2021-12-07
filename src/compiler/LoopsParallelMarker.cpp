@@ -48,6 +48,8 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::
 
       // Mark memory accesses with access group
       auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
+#if LLVM_VERSION_MAJOR > 12 || (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
+      // LLVM < 12.0.1 might miscompile if conditionals in "parallel" loop (https://llvm.org/PR46666)
       for (auto *BB : SL->blocks()) {
         for (auto &I : *BB) {
           if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
@@ -55,6 +57,7 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::
           }
         }
       }
+#endif
 
       // make the access group parallel w.r.t the WI loop
       utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);

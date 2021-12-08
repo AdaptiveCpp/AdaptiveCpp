@@ -82,7 +82,7 @@ jobs:
           fi
           export CXXFLAGS="$CXXFLAGS"
           if [[ "${{matrix.clang_version}}" != "11" ]]; then
-            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager -fpass-plugin=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/libhipSYCL_clang.so"
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
           fi
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV

@@ -87,7 +87,7 @@ public:
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_group_linear_id() const {
     // Assumes warpSize is power of two
-    return local_tid() >> __ffs(warpSize);
+    return local_tid() >> (__ffs(warpSize) - 1);
   }
 
   HIPSYCL_KERNEL_TARGET

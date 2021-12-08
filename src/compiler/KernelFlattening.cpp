@@ -35,6 +35,7 @@
 #include <llvm/IR/Dominators.h>
 
 namespace {
+using namespace hipsycl::compiler;
 bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
   bool LastChanged = false, Changed = false;
 
@@ -51,30 +52,6 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
     }
     if (LastChanged)
       Changed = true;
-  } while (LastChanged);
-
-  return Changed;
-}
-
-//! \pre all contained functions are non recursive!
-// todo: have a recursive-ness termination
-bool inlineCallsInLoop(llvm::Loop *&L, llvm::LoopInfo &LI, llvm::DominatorTree &DT) {
-  bool LastChanged = false, Changed = false;
-
-  llvm::BasicBlock *B = L->getBlocks()[0];
-  llvm::Function &F = *B->getParent();
-
-  do {
-    LastChanged = false;
-    for (auto *BB : L->getBlocks()) {
-      LastChanged = inlineCallsInBasicBlock(*BB);
-      if (LastChanged)
-        break;
-    }
-    if (LastChanged) {
-      Changed = true;
-      L = hipsycl::compiler::utils::updateDtAndLi(LI, DT, B, F);
-    }
   } while (LastChanged);
 
   return Changed;
@@ -103,32 +80,15 @@ bool inlineCallsInFunction(llvm::Function &F) {
 void hipsycl::compiler::KernelFlatteningPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
-  AU.addRequired<llvm::LoopInfoWrapperPass>();
-  AU.addPreserved<llvm::LoopInfoWrapperPass>();
-  AU.addRequired<llvm::DominatorTreeWrapperPass>();
-  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
 }
 
 bool hipsycl::compiler::KernelFlatteningPassLegacy::runOnFunction(llvm::Function &F) {
-  auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
 
   if (!SAA.isKernelFunc(&F))
     return false;
 
-  const auto TLL = LI.getTopLevelLoops();
-  bool Changed = false;
-
-  if (auto *WILoop = utils::getSingleWorkItemLoop(LI)) {
-    for (auto *L : TLL) {
-      Changed |= inlineCallsInLoop(L, LI, DT);
-    }
-  } else {
-    Changed |= inlineCallsInFunction(F);
-    hipsycl::compiler::utils::updateDtAndLi(LI, DT, nullptr, F);
-  }
-  return Changed;
+  return inlineCallsInFunction(F);
 }
 
 llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Function &F,
@@ -142,28 +102,10 @@ llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Funct
   if (!SAA->isKernelFunc(&F))
     return llvm::PreservedAnalyses::all();
 
-  auto &DT = AM.getResult<llvm::DominatorTreeAnalysis>(F);
-  auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
-  const auto TLL = LI.getTopLevelLoops();
-
-  bool Changed = false;
-
-  auto *WILoop = utils::getSingleWorkItemLoop(LI);
-  if (WILoop) {
-    for (auto *L : TLL) {
-      Changed |= inlineCallsInLoop(L, LI, DT);
-    }
-  } else {
-    Changed |= inlineCallsInFunction(F);
-    hipsycl::compiler::utils::updateDtAndLi(LI, DT, nullptr, F);
-  }
-
-  if (!Changed)
+  if (!inlineCallsInFunction(F))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;
-  PA.preserve<llvm::LoopAnalysis>();
-  PA.preserve<llvm::DominatorTreeAnalysis>();
   PA.preserve<SplitterAnnotationAnalysis>();
   return PA;
 }

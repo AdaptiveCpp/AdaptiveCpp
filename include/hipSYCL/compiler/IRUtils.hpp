@@ -59,7 +59,7 @@ bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI);
  * @param LI The LoopInfo used to find the loop.
  * @return The single work item loop annotated with hipSYCL.loop.workitem.
  */
-llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI);
+llvm::Loop *getOneWorkItemLoop(const llvm::LoopInfo &LI);
 llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop);
 
 bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix);

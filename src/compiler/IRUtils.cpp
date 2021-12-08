@@ -269,7 +269,7 @@ bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI) {
   return false;
 }
 
-llvm::Loop *getSingleWorkItemLoop(const llvm::LoopInfo &LI) {
+llvm::Loop *getOneWorkItemLoop(const llvm::LoopInfo &LI) {
   for (auto *L : LI) {
     if (isWorkItemLoop(*L))
       return L;

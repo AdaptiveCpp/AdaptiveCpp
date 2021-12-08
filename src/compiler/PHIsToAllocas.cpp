@@ -71,21 +71,15 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
   return LoadedValue;
 }
 
-bool demotePHIsToAllocas(llvm::Function &F, const llvm::LoopInfo &LI) {
+bool demotePHIsToAllocas(llvm::Function &F) {
   std::vector<llvm::PHINode *> PHIs;
 
   auto &BBsInWI = F.getBasicBlockList();
 
-  llvm::PHINode *WIInd = nullptr;
-  if (auto *L = hipsycl::compiler::utils::getSingleWorkItemLoop(LI)) {
-    WIInd = L->getCanonicalInductionVariable();
-    assert(WIInd);
-  }
   for (auto &BB : BBsInWI)
     for (auto &I : BB)
       if (auto *PHI = llvm::dyn_cast<llvm::PHINode>(&I))
-        if (PHI != WIInd)
-          PHIs.push_back(PHI);
+        PHIs.push_back(PHI);
 
   bool Changed = false;
   HIPSYCL_DEBUG_INFO << "Break PHIs to alloca:\n";
@@ -108,7 +102,6 @@ void PHIsToAllocasPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 
-  AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
   AU.addPreserved<llvm::PostDominatorTreeWrapperPass>();
@@ -119,9 +112,7 @@ bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {
   if (!SAA.isKernelFunc(&F) || !utils::hasBarriers(F, SAA))
     return false;
 
-  const auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-
-  return demotePHIsToAllocas(F, LI);
+  return demotePHIsToAllocas(F);
 }
 
 llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
@@ -131,9 +122,7 @@ llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::Function
     return llvm::PreservedAnalyses::all();
   }
 
-  const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
-
-  if (!demotePHIsToAllocas(F, LI))
+  if (!demotePHIsToAllocas(F))
     return llvm::PreservedAnalyses::all();
 
   llvm::PreservedAnalyses PA;

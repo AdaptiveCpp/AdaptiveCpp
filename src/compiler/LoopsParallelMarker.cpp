@@ -38,6 +38,82 @@
 
 namespace {
 using namespace hipsycl::compiler;
+void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
+#if LLVM_VERSION_MAJOR > 12 || (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
+  // LLVM < 12.0.1 might miscompile if conditionals in "parallel" loop (https://llvm.org/PR46666)
+
+  // Mark memory accesses with access group
+  auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
+  for (auto *BB : L->blocks()) {
+    for (auto &I : *BB) {
+      if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
+        utils::addAccessGroupMD(&I, MDAccessGroup);
+      }
+    }
+  }
+
+  // make the access group parallel w.r.t the WI loop
+  utils::createParallelAccessesMdOrAddAccessGroup(&F, L, MDAccessGroup);
+
+  // debug, check whether loop is really marked parallel.
+  if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
+    if (utils::isAnnotatedParallel(L)) {
+      HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << L->getHeader()->getName() << "\n";
+    } else if (L->getLoopID()) {
+      assert(L->getLoopID());
+      const llvm::Module *M = F.getParent();
+      HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << L->getHeader()->getName();
+      L->getLoopID()->print(llvm::outs(), M);
+      for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
+        MDOp->print(llvm::outs(), M);
+      }
+      llvm::outs() << "\n";
+    }
+  }
+#endif
+}
+
+void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformInfo &TTI, const llvm::Loop *L) {
+  llvm::SmallVector<llvm::MDNode *, 3> PostTransformMD;
+  // work-item loops should be vectorizable, so emit metadata to suggest so
+  if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.enable")) {
+    auto *MDVectorize = llvm::MDNode::get(
+        F.getContext(),
+        {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
+         llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(llvm::IntegerType::get(F.getContext(), 1)))});
+    PostTransformMD.push_back(MDVectorize);
+  }
+#if LLVM_VERSION_MAJOR >= 12
+  // enable scalable vectorization
+  if (TTI.supportsScalableVectors()) {
+    if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.scalable.enable")) {
+      auto *MDVectorize = llvm::MDNode::get(
+          F.getContext(),
+          {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.scalable.enable"),
+           llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(llvm::IntegerType::get(F.getContext(), 1)))});
+      PostTransformMD.push_back(MDVectorize);
+    }
+  }
+#endif
+
+  // set vectorization width, if a sub_group size is specified
+  if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.width")) {
+    auto SgSize = utils::getReqdSgSize(F);
+    if (SgSize != 0) {
+      auto *MDVectorizeWidth = llvm::MDNode::get(
+          F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.width"),
+                           llvm::ConstantAsMetadata::get(llvm::Constant::getIntegerValue(
+                               llvm::IntegerType::get(F.getContext(), 32), llvm::APInt(32, SgSize, false)))});
+      PostTransformMD.push_back(MDVectorizeWidth);
+    }
+  }
+
+  if (!PostTransformMD.empty()) {
+    auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), L->getLoopID(), {}, PostTransformMD);
+    L->setLoopID(LoopID);
+  }
+}
+
 bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::TargetTransformInfo &TTI) {
   bool Changed = false;
 
@@ -46,80 +122,16 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::
       Changed = true;
       HIPSYCL_DEBUG_INFO << "[ParallelMarker] Mark loop: " << SL->getName() << "\n";
 
-      // Mark memory accesses with access group
-      auto *MDAccessGroup = llvm::MDNode::getDistinct(F.getContext(), {});
-#if LLVM_VERSION_MAJOR > 12 || (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
-      // LLVM < 12.0.1 might miscompile if conditionals in "parallel" loop (https://llvm.org/PR46666)
-      for (auto *BB : SL->blocks()) {
-        for (auto &I : *BB) {
-          if (I.mayReadOrWriteMemory() && !I.hasMetadata(llvm::LLVMContext::MD_access_group)) {
-            utils::addAccessGroupMD(&I, MDAccessGroup);
-          }
-        }
-      }
-#endif
+      markLoopParallel(F, SL);
 
-      // make the access group parallel w.r.t the WI loop
-      utils::createParallelAccessesMdOrAddAccessGroup(&F, SL, MDAccessGroup);
-
-      llvm::SmallVector<llvm::MDNode*, 3> PostTransformMD;
-      // work-item loops should be vectorizable, so emit metadata to suggest so
-      if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.enable")) {
-        auto *MDVectorize =
-            llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
-                                               llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
-                                                   llvm::IntegerType::get(F.getContext(), 1)))});
-        PostTransformMD.push_back(MDVectorize);
-      }
-#if LLVM_VERSION_MAJOR >= 12
-      if(TTI.supportsScalableVectors()) {
-        if (!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.scalable.enable")) {
-          auto *MDVectorize =
-              llvm::MDNode::get(F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.scalable.enable"),
-                                                 llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
-                                                     llvm::IntegerType::get(F.getContext(), 1)))});
-          PostTransformMD.push_back(MDVectorize);
-        }
-      }
-#endif
-
-      if(!llvm::findOptionMDForLoop(SL, "llvm.loop.vectorize.width")) {
-        auto SgSize = utils::getReqdSgSize(F);
-        if(SgSize != 0) {
-          auto *MDVectorizeWidth = llvm::MDNode::get(
-              F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.width"),
-                               llvm::ConstantAsMetadata::get(llvm::Constant::getIntegerValue(
-                                   llvm::IntegerType::get(F.getContext(), 32), llvm::APInt(32, SgSize, false)))});
-          PostTransformMD.push_back(MDVectorizeWidth);
-        }
-      }
-
-      if(!PostTransformMD.empty()) {
-        auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), SL->getLoopID(), {}, PostTransformMD);
-        SL->setLoopID(LoopID);
-      }
-
-      if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
-        if (utils::isAnnotatedParallel(SL)) {
-          HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << SL->getHeader()->getName() << "\n";
-        } else if (SL->getLoopID()) {
-          assert(SL->getLoopID());
-          const llvm::Module *M = F.getParent();
-          HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << SL->getHeader()->getName();
-          SL->getLoopID()->print(llvm::outs(), M);
-          for (auto &MDOp : llvm::drop_begin(SL->getLoopID()->operands(), 1)) {
-            MDOp->print(llvm::outs(), M);
-          }
-          llvm::outs() << "\n";
-        }
-      }
+      addVectorizationHints(F, TTI, SL);
     }
   }
 
-  if(F.hasFnAttribute(llvm::Attribute::NoInline) && !F.hasFnAttribute(llvm::Attribute::OptimizeNone))
+  if (F.hasFnAttribute(llvm::Attribute::NoInline) && !F.hasFnAttribute(llvm::Attribute::OptimizeNone))
     F.removeFnAttr(llvm::Attribute::NoInline);
 
-  if(!Changed){
+  if (!Changed) {
     HIPSYCL_DEBUG_INFO << "[ParallelMarker] no wi loop found..?\n";
     HIPSYCL_DEBUG_EXECUTE_INFO(F.viewCFG();)
   } else {

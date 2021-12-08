@@ -40,23 +40,27 @@ void LoopSimplifyPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
   AU.addPreserved<llvm::DominatorTreeWrapperPass>();
   AU.addRequired<llvm::LoopInfoWrapperPass>();
   AU.addPreserved<llvm::LoopInfoWrapperPass>();
-  AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
   AU.addPreserved<llvm::ScalarEvolutionWrapperPass>();
 
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
 
-bool LoopSimplifyPassLegacy::runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) {
+bool LoopSimplifyPassLegacy::runOnFunction(llvm::Function &F) {
   const auto &SAA = getAnalysis<SplitterAnnotationAnalysisLegacy>().getAnnotationInfo();
-  if (!SAA.isKernelFunc(L->getHeader()->getParent()))
+  if (!SAA.isKernelFunc(&F))
     return false;
 
   auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
   auto &LI = getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
-  auto &SE = getAnalysis<llvm::ScalarEvolutionWrapperPass>().getSE();
+  auto *SCEWP = getAnalysisIfAvailable<llvm::ScalarEvolutionWrapperPass>();
+  auto *SE = SCEWP ? &SCEWP->getSE() : nullptr;
 
-  HIPSYCL_DEBUG_INFO << "[LoopSimplify] Simplifying loop: " << L->getHeader()->getName() << "\n";
-  return llvm::simplifyLoop(L, &DT, &LI, &SE, nullptr, nullptr, false);
+  bool Changed = false;
+  for(auto *L : LI) {
+    HIPSYCL_DEBUG_INFO << "[LoopSimplify] Simplifying loop: " << L->getHeader()->getName() << "\n";
+    Changed |= llvm::simplifyLoop(L, &DT, &LI, SE, nullptr, nullptr, false);
+  }
+  return Changed;
 }
 } // namespace hipsycl::compiler

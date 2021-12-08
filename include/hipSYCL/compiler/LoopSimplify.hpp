@@ -36,17 +36,17 @@
 namespace hipsycl {
 namespace compiler {
 
-class LoopSimplifyPassLegacy : public llvm::LoopPass {
+class LoopSimplifyPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;
 
-  explicit LoopSimplifyPassLegacy() : llvm::LoopPass(ID) {}
+  explicit LoopSimplifyPassLegacy() : llvm::FunctionPass(ID) {}
 
   llvm::StringRef getPassName() const override { return "hipSYCL loop simplify pass"; }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
-  bool runOnLoop(llvm::Loop *L, llvm::LPPassManager &LPM) override;
+  bool runOnFunction(llvm::Function &F) override;
 };
 } // namespace compiler
 } // namespace hipsycl

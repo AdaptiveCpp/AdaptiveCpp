@@ -224,8 +224,8 @@ bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnFunction(llvm::Func
 char hipsycl::compiler::LoopSplitterInliningPassLegacy::ID = 0;
 llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Function &F,
                                                                          llvm::FunctionAnalysisManager &AM) {
-  const auto *MAMProxy = AM.getCachedResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
-  auto *SAA = MAMProxy->getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
+  const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
+  auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {
     llvm::errs() << "[LoopSplitterInlining] SplitterAnnotationAnalysis not cached.\n";
     return llvm::PreservedAnalyses::all();

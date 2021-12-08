@@ -19,7 +19,6 @@ add_library(hipSYCL_clang SHARED
   IRUtils.cpp
   KernelFlattening.cpp
   LoopsParallelMarker.cpp
-  WILoopMarker.cpp
   PHIsToAllocas.cpp
   RemoveBarrierCalls.cpp
   CanonicalizeBarriers.cpp

@@ -37,7 +37,6 @@
 #include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
 #include "hipSYCL/compiler/SimplifyKernel.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
-#include "hipSYCL/compiler/WILoopMarker.hpp"
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>
@@ -53,7 +52,6 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   llvm::outs().SetUnbuffered();
 
   HIPSYCL_DEBUG_WARNING << "CBS pipeline might not result in peak performance with old PM\n";
-  PM.add(new WILoopMarkerPassLegacy{});
   PM.add(new LoopSplitterInliningPassLegacy{});
 
   PM.add(new KernelFlatteningPassLegacy{});
@@ -80,7 +78,6 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;
-  FPM.addPass(WILoopMarkerPass{});
   FPM.addPass(LoopSplitterInliningPass{});
 
   if (Opt != OptLevel::O0) {

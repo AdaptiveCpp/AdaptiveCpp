@@ -102,9 +102,7 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   FPM.addPass(llvm::LoopSimplifyPass{});
 
   FPM.addPass(CanonicalizeBarriersPass{});
-
   FPM.addPass(SubCfgFormationPass{});
-
   FPM.addPass(RemoveBarrierCallsPass{});
 
   if (Opt == OptLevel::O3)

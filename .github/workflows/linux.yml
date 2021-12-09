@@ -127,5 +127,5 @@ jobs:
     - name: build tests
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-nvcxx
-        cmake -DHIPSYCL_TARGETS="cuda-nvcxx" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
         make -j2

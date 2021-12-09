@@ -104,8 +104,9 @@ public:
                                         max_num_sub_groups>) {
                                           
       auto subgroups = dev.get_info<info::device::sub_group_sizes>();
-      return uint32_t{dev.get_info<info::device::max_work_group_size>() /
-                      (*std::min_element(subgroups.begin(), subgroups.end()))};
+      return static_cast<uint32_t>(
+          dev.get_info<info::device::max_work_group_size>() /
+          (*std::min_element(subgroups.begin(), subgroups.end())));
 
     } else if constexpr (std::is_same_v<KernelDeviceSpecificT,
                                         compile_num_sub_groups>) {
@@ -115,8 +116,9 @@ public:
                                         max_sub_group_size>) {
 
       auto subgroups = dev.get_info<info::device::sub_group_sizes>();
-      return uint32_t{*std::max_element(subgroups.begin(), subgroups.end())};
-      
+      return static_cast<uint32_t>(
+          *std::max_element(subgroups.begin(), subgroups.end()));
+
     } else if constexpr (std::is_same_v<KernelDeviceSpecificT,
                                         compile_sub_group_size>) {
       return uint32_t{0};

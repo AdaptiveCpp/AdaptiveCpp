@@ -112,7 +112,7 @@ public:
   linear_id_type get_group_linear_id() const {
     __hipsycl_if_target_hiplike(
       // Assumes __hipsycl_warp_size is power of two
-      return local_tid() >> __ffs(__hipsycl_warp_size);
+      return local_tid() >> (__ffs(__hipsycl_warp_size) - 1);
     );
     __hipsycl_if_target_spirv(
       return __spirv_BuiltInSubgroupId;

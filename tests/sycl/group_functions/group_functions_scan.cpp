@@ -260,7 +260,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
 
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
-  const uint32_t subgroup_size       = static_cast<uint32_t>(__hipsycl_warp_size);
   const size_t   elements_per_thread = 1;
   const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -568,7 +567,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
 
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
-  const uint32_t subgroup_size       = static_cast<uint32_t>(__hipsycl_warp_size);
   const size_t   elements_per_thread = 1;
   const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {

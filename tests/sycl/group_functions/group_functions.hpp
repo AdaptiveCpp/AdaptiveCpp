@@ -167,9 +167,10 @@ T initialize_type(elementType<T> init) {
     return T{init,      init + 1,  init + 2,  init + 3, init + 4,  init + 5,
              init + 6,  init + 7,  init + 8,  init + 9, init + 10, init + 11,
              init + 12, init + 13, init + 14, init + 15};
+  } else {
+    return T{};
+    static_assert(true, "invalide vector type!");
   }
-
-  static_assert(true, "invalide vector type!");
 }
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>

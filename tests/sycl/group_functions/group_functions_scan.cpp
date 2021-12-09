@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_mul, T, test_types) {
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
     for (size_t i = 0; i < global_size; ++i)
-      v[i] = (i < 0) ? T{static_cast<T>(2)} : T{static_cast<T>(1)};
+      v[i] = (i < 1) ? T{static_cast<T>(2)} : T{static_cast<T>(1)};
   };
 
   {
@@ -345,7 +345,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_mul, T, test_types) {
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
     for (size_t i = 0; i < global_size; ++i)
-      v[i] = (i < 0) ? T{static_cast<T>(2)} : T{static_cast<T>(1)};
+      v[i] = (i < 1) ? T{static_cast<T>(2)} : T{static_cast<T>(1)};
   };
 
   {

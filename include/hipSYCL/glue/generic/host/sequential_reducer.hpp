@@ -31,6 +31,7 @@
 #include <new>
 #include <vector>
 
+#include "hipSYCL/glue/generic/reduction_accumulator.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 
@@ -51,7 +52,7 @@ constexpr std::size_t cache_line_size =
 #endif
 
 template <class T> struct cache_line_aligned {
-  alignas(cache_line_size) T value;
+  alignas(cache_line_size) T data;
 };
 
 template<class ReductionDescriptor>
@@ -59,37 +60,43 @@ class sequential_reducer {
 public:
   using value_type = typename ReductionDescriptor::value_type;
   using combiner_type = typename ReductionDescriptor::combiner_type;
+  using accumulator_type = sequential_reduction_accumulator<ReductionDescriptor>;
 
   sequential_reducer(int num_threads, ReductionDescriptor &desc)
-      : _desc{desc},
-        _per_thread_results(num_threads,
-                            cache_line_aligned<value_type>{identity()}) {}
-
-  value_type identity() const { return _desc.identity; }
+      : _desc{desc}, _per_thread_results(num_threads, {accumulator_type{desc}}) {}
 
   void combine(int my_thread_id, const value_type& v) {
     assert(my_thread_id < _per_thread_results.size());
-    _per_thread_results[my_thread_id].value =
-        _desc.combiner(_per_thread_results[my_thread_id].value, v);
+    _per_thread_results[my_thread_id].data.combine_with(_desc, v);
   }
 
   // This should be executed in a single threaded scope.
   // Sums up all the partial results and stores in the result data buffer
   void finalize_result() {
-    for (std::size_t i = 1; i < _per_thread_results.size(); ++i) {
-      _per_thread_results[0].value = _desc.combiner(
-          _per_thread_results[0].value, _per_thread_results[i].value);
+    bool initialize_from_dest = true;
+    if constexpr (ReductionDescriptor::has_identity) {
+      initialize_from_dest = !_desc.initialize_to_identity;
     }
-    
-    *(_desc.get_pointer()) = _per_thread_results[0].value;
+    accumulator_type accumulator(_desc);
+    if (initialize_from_dest) {
+      accumulator.combine_with(_desc, *_desc.get_pointer());
+    }
+    for (std::size_t i = 0; i < _per_thread_results.size(); ++i) {
+      accumulator.combine_with(_desc, _per_thread_results[i].data);
+    }
+    *(_desc.get_pointer()) = accumulator.value;
   }
+
+  value_type identity() const {
+    return _desc.identity;
+  }
+
 private:
   ReductionDescriptor &_desc;
   // TODO: new does not necessarily respect over-aligned alignas requirements.
   // Depending on the value of std::max_align_t and cache_line_size,
   // alignment may be off and not match cache lines.
-  std::vector<cache_line_aligned<value_type>> _per_thread_results;
-
+  std::vector<cache_line_aligned<accumulator_type>> _per_thread_results;
 };
 
 }

@@ -30,6 +30,7 @@
 
 #include <type_traits>
 #include "backend.hpp"
+#include "accessor.hpp"
 #include "functional.hpp"
 
 namespace hipsycl {
@@ -37,47 +38,107 @@ namespace sycl {
 
 namespace detail {
 
-template <class T, typename BinaryOperation>
-struct pointer_reduction_descriptor {
+template<typename T, typename BinaryOperation, bool KnownIdentity>
+struct reduction_descriptor_base;
+
+template<typename T, typename BinaryOperation>
+struct reduction_descriptor_base<T, BinaryOperation, false> {
   using value_type = T;
   using combiner_type = BinaryOperation;
 
-  HIPSYCL_UNIVERSAL_TARGET
-  pointer_reduction_descriptor(value_type *output_data, value_type op_identity,
-                               BinaryOperation op)
-      : data{output_data}, identity{op_identity}, combiner{op} {}
+  constexpr static bool has_identity = false;
 
-  value_type* data;
-  value_type identity;
   BinaryOperation combiner;
 
+  explicit reduction_descriptor_base(BinaryOperation combiner)
+      : combiner(combiner) {}
+};
+
+template<typename T, typename BinaryOperation>
+struct reduction_descriptor_base<T, BinaryOperation, true> {
+  using value_type = T;
+  using combiner_type = BinaryOperation;
+
+  constexpr static bool has_identity = true;
+
+  BinaryOperation combiner;
+  T identity;
+  bool initialize_to_identity;
+
+  explicit reduction_descriptor_base(BinaryOperation combiner, T identity, bool initialize_to_identity)
+      : combiner(combiner), identity(identity), initialize_to_identity(initialize_to_identity) {}
+};
+
+template <class T, typename BinaryOperation, bool KnownIdentity>
+struct pointer_reduction_descriptor
+    : public reduction_descriptor_base<T, BinaryOperation, KnownIdentity>
+{
   HIPSYCL_UNIVERSAL_TARGET
-  value_type *get_pointer() const {
+  pointer_reduction_descriptor(T *output_data, BinaryOperation op)
+      : reduction_descriptor_base<T, BinaryOperation, KnownIdentity>{op}
+      , data{output_data} {}
+
+  HIPSYCL_UNIVERSAL_TARGET
+  pointer_reduction_descriptor(T *output_data, T identity, BinaryOperation op, bool initialize_to_identity)
+      : reduction_descriptor_base<T, BinaryOperation, KnownIdentity>{op, identity, initialize_to_identity}
+      , data{output_data} {}
+
+  T *data;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  T *get_pointer() const {
     return data;
   }
 };
 
-template <class AccessorT, typename BinaryOperation>
-struct accessor_reduction_descriptor {
-  using value_type = typename AccessorT::value_type;
-  using combiner_type = BinaryOperation;
+template <class T, typename BinaryOperation>
+pointer_reduction_descriptor(T *, BinaryOperation) -> pointer_reduction_descriptor<T, BinaryOperation, false>;
+
+template <class T, typename BinaryOperation>
+pointer_reduction_descriptor(T *, T, BinaryOperation, bool) -> pointer_reduction_descriptor<T, BinaryOperation, true>;
+
+
+template <class AccessorT, typename BinaryOperation, bool KnownIdentity>
+struct accessor_reduction_descriptor
+    : public reduction_descriptor_base<typename AccessorT::value_type, BinaryOperation, KnownIdentity>
+{
+  HIPSYCL_UNIVERSAL_TARGET
+  accessor_reduction_descriptor(AccessorT output_data, BinaryOperation op)
+      : reduction_descriptor_base<typename AccessorT::value_type, BinaryOperation, KnownIdentity>{op}
+      , acc{output_data} {}
 
   HIPSYCL_UNIVERSAL_TARGET
-  accessor_reduction_descriptor(AccessorT output_data, value_type op_identity,
-                                BinaryOperation op)
-      : acc{output_data}, identity{op_identity}, combiner{op} {}
+  accessor_reduction_descriptor(AccessorT output_data, typename AccessorT::value_type identity, BinaryOperation op,
+          bool initialize_to_identity)
+      : reduction_descriptor_base<typename AccessorT::value_type, BinaryOperation, KnownIdentity>{op, identity,
+          initialize_to_identity}
+      , acc{output_data} {}
 
   AccessorT acc;
-  value_type identity;
-  BinaryOperation combiner;
 
   HIPSYCL_UNIVERSAL_TARGET
-  value_type *get_pointer() const {
+  typename AccessorT::value_type *get_pointer() const {
     return acc.get_pointer();
   }
 };
 
+template <class AccessorT, typename BinaryOperation>
+accessor_reduction_descriptor(AccessorT, BinaryOperation)
+    -> accessor_reduction_descriptor<AccessorT, BinaryOperation, false>;
+
+template <class AccessorT, typename BinaryOperation>
+accessor_reduction_descriptor(AccessorT, typename AccessorT::value_type, BinaryOperation, bool)
+    -> accessor_reduction_descriptor<AccessorT, BinaryOperation, true>;
+
 } // namespace detail
+
+namespace property {
+namespace reduction {
+
+class initialize_to_identity: public detail::property{};
+
+} // namespace reduction
+} // namespace property
 
 /// Reducer implementation, builds on \c BackendReducerImpl concept.
 /// \c BackendReducerImpl concept:
@@ -87,7 +148,7 @@ struct accessor_reduction_descriptor {
 ///   - defines void combine(const value_type&)
 template <class BackendReducerImpl> class reducer {
 public:
-  
+
   using value_type    = typename BackendReducerImpl::value_type;
   using combiner_type = typename BackendReducerImpl::combiner_type;
 
@@ -124,7 +185,7 @@ private:
 
 #define HIPSYCL_ENABLE_REDUCER_OP_IF_TYPE(T)                                   \
   class Op = typename reducer<BackendReducerImpl>::combiner_type,              \
-  std::enable_if_t<std::is_same_v<                                             \
+  std::enable_if_t<std::is_same_v<Op, T<void>> || std::is_same_v<              \
             Op, T<typename reducer<BackendReducerImpl>::value_type>>> * =      \
             nullptr
 
@@ -176,33 +237,65 @@ void operator++(reducer<BackendReducerImpl> &r) {
 }
 
 
-template <typename AccessorT, typename BinaryOperation>
-detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
-reduction(AccessorT vars, BinaryOperation combiner) {
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler &cgh, BinaryOperation combiner, property_list prop_list = {}) {
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
+  auto acc_prop_list = initialize_to_identity ? property_list{no_init} : property_list{};
+  if constexpr (has_known_identity_v<BinaryOperation, typename BufferT::value_type>) {
+    // TODO if initialize_to_identity is set, read_write introduces a false dependency
+    return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list},
+        known_identity_v<BinaryOperation, typename BufferT::value_type>, combiner, initialize_to_identity};
+  } else {
+    // Spec: "If the identity value of the reduction operator cannot be determined, the compiler must raise a
+    // diagnostic". This is impossible since we cannot inspect the prop_list at compile time, so we fail at runtime.
+    assert(!initialize_to_identity && "reduction constructed with initialize_to_identity, but identity is unknown");
+    return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list}, combiner};
+  }
+}
 
+template <typename BufferT, typename BinaryOperation>
+auto reduction(BufferT vars, handler &cgh, const typename BufferT::value_type &identity,
+          BinaryOperation combiner, property_list prop_list = {}) {
+  static_assert(!has_known_identity_v<BinaryOperation, typename BufferT::value_type>);
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
+  auto acc_prop_list = initialize_to_identity ? property_list{no_init} : property_list{};
+  // TODO if initialize_to_identity is set, read_write introduces a false dependency
+  return detail::accessor_reduction_descriptor{accessor{vars, cgh, read_write, acc_prop_list}, identity, combiner,
+      initialize_to_identity};
+}
+
+template <typename AccessorT, typename BinaryOperation>
+[[deprecated("Use the sycl::reduction() overload taking a buffer instead")]]
+auto reduction(AccessorT vars, BinaryOperation combiner) {
   auto identity = typename AccessorT::value_type{};
-  return detail::accessor_reduction_descriptor{vars, identity, combiner};
+  return detail::accessor_reduction_descriptor{vars, identity, combiner, true /* initialize_to_identity */};
 }
 
 template <typename AccessorT, typename BinaryOperation>
-detail::accessor_reduction_descriptor<AccessorT, BinaryOperation>
-reduction(AccessorT vars, const typename AccessorT::value_type &identity,
-          BinaryOperation combiner) {
-
-  return detail::accessor_reduction_descriptor{vars, identity, combiner};
+[[deprecated("Use the sycl::reduction() overload taking a buffer instead")]]
+auto reduction(AccessorT vars, const typename AccessorT::value_type &identity, BinaryOperation combiner) {
+  return detail::accessor_reduction_descriptor{vars, identity, combiner, true /* initialize_to_identity */};
 }
 
 template <typename T, typename BinaryOperation>
-detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, BinaryOperation combiner) {
-
-  return detail::pointer_reduction_descriptor{var, T{}, combiner};
+auto reduction(T *var, BinaryOperation combiner, property_list prop_list = {}) {
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
+  if constexpr (has_known_identity_v<BinaryOperation, T>) {
+    return detail::pointer_reduction_descriptor{var, known_identity_v<BinaryOperation, T>, combiner,
+        initialize_to_identity};
+  } else {
+    // Spec: "If the identity value of the reduction operator cannot be determined, the compiler must raise a
+    // diagnostic". This is impossible since we cannot inspect the prop_list at compile time, so we fail at runtime.
+    assert(!initialize_to_identity && "reduction constructed with initialize_to_identity, but identity is unknown");
+    return detail::pointer_reduction_descriptor{var, combiner};
+  }
 }
 
 template <typename T, typename BinaryOperation>
-detail::pointer_reduction_descriptor<T, BinaryOperation>
-reduction(T *var, const T &identity, BinaryOperation combiner) {
-  return detail::pointer_reduction_descriptor{var, identity, combiner};
+auto reduction(T *var, const T &identity, BinaryOperation combiner, property_list prop_list = {}) {
+  static_assert(!has_known_identity_v<BinaryOperation, T>);
+  bool initialize_to_identity = prop_list.has_property<property::reduction::initialize_to_identity>();
+  return detail::pointer_reduction_descriptor{var, identity, combiner, initialize_to_identity};
 }
 
 /* Unsupported until we have span

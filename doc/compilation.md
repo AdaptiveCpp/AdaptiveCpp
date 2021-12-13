@@ -17,6 +17,7 @@ Not all backends support all modes:
 |------------------|-------------------|------------------|------------------|
 | OpenMP | N/A | N/A | Does not require multipass compilation |
 | CUDA   | Yes | Yes |  |
+| CUDA (nvc++) | Yes | No | |
 | HIP   | Yes | No |  |
 | SPIR-V  | No | Yes | |
 

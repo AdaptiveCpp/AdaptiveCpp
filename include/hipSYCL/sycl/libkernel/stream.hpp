@@ -99,7 +99,8 @@ private:
   size_t _work_item_buff_size;
 };
 
-#if defined(HIPSYCL_PLATFORM_ROCM) && !defined(HIPSYCL_EXPERIMENTAL_ROCM_PRINTF)
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP &&                                    \
+    !defined(HIPSYCL_EXPERIMENTAL_ROCM_PRINTF)
 
 template<class T>
 [[deprecated("sycl::stream in hipSYCL requires backend printf() support, "

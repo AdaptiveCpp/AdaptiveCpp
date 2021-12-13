@@ -74,6 +74,11 @@ BOOST_AUTO_TEST_CASE(vec_api) {
         (float)v6.s4(), (float)v6.s5(), (float)v6.s6(), (float)v6.s7()});
 
       // Swizzles!
+
+      // nvc++ currently has a bug that causes it to
+      // fail with an LLVM backend error
+      // when compiling one of the swizzle tests
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
       const cl::sycl::vec<float, 4> v7 = v2.lo();
       store_results({v7.x(), v7.y(), v7.z(), v7.w()});
 
@@ -97,7 +102,7 @@ BOOST_AUTO_TEST_CASE(vec_api) {
       cl::sycl::vec<float, 4> v12(3.f);
       v12.zy() = v8.hi();
       store_results({ v12.x(), v12.y(), v12.z(), v12.w() });
-
+#endif
       cl::sycl::vec<float, 4> v13(12.f);
       v13.store(0, cl::sycl::make_ptr<float, cl::sycl::access::address_space::global_space>(&inAcc[0]));
 
@@ -121,12 +126,14 @@ BOOST_AUTO_TEST_CASE(vec_api) {
   verify_results({2.f, 6.f, 20.f, 2.f, 2.f, 2.f, 2.f, 72.f});   // v4
   verify_results({4.f, 12.f, 40.f, 4.f, 4.f, 4.f, 4.f, 144.f}); // v5
   verify_results({1.f, 1.f, 0.f, 1.f, 1.f, 1.f, 1.f, 1.f});     // v6
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
   verify_results({1.f, 2.f, 4.f, 1.f});                         // v7
   verify_results({1.f, 4.f, 2.f, 1.f});                         // v8
   verify_results({1.f, 2.f, 2.f, 1.f});                         // v9
   verify_results({2.f, 4.f, 2.f, 4.f});                         // v10
   verify_results({1.f, 3.f, 4.f, 4.f});                         // v11
   verify_results({3.f, 1.f, 2.f, 3.f});                         // v12
+#endif
   verify_results({12.f, 12.f, 12.f, 12.f});                     // v13
 }
 

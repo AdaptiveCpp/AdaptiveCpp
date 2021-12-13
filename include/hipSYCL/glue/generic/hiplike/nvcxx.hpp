@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,51 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DEVICE_BARRIER_HPP
-#define HIPSYCL_DEVICE_BARRIER_HPP
+#ifndef HIPSYCL_HIPLIKE_GLUE_NVCXX_HPP
+#define HIPSYCL_HIPLIKE_GLUE_NVCXX_HPP
 
 #include <cassert>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/access.hpp"
 
-namespace hipsycl {
-namespace sycl {
-namespace detail {
-
-HIPSYCL_KERNEL_TARGET
-inline void local_device_barrier(
-    access::fence_space space = access::fence_space::global_and_local) {
-
-  __hipsycl_if_target_hiplike(
-    __syncthreads();
-  );
-  __hipsycl_if_target_spirv(
-    uint32_t flags =  0;
-    
-    if (space == access::fence_space::global_space) {
-      flags = static_cast<uint32_t>(
-                    __spv::MemorySemanticsMask::SequentiallyConsistent |
-                    __spv::MemorySemanticsMask::CrossWorkgroupMemory);
-    } else if (space == access::fence_space::local_space){
-      flags = static_cast<uint32_t>(
-                          __spv::MemorySemanticsMask::SequentiallyConsistent |
-                          __spv::MemorySemanticsMask::WorkgroupMemory);
-    } else {
-      flags = static_cast<uint32_t>(__spv::MemorySemanticsMask::SequentiallyConsistent |
-                        __spv::MemorySemanticsMask::CrossWorkgroupMemory |
-                        __spv::MemorySemanticsMask::WorkgroupMemory);
-    }
-    __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
-                            flags);
-  );
-  __hipsycl_if_target_host(
-    assert(false && "device barrier called on CPU, this should not happen");
-  );
-}
-
-}
-}
-}
-
+#if !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
+ #error "This file needs nvc++"
 #endif
+
+
+#define __sycl_kernel __global__
+
+#define __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream, \
+                                           ...)                                \
+  f<<<grid, block, shared_mem, static_cast<CUstream_st*>(stream)>>>(__VA_ARGS__);
+
+
+#endif // HIPSYCL_HIPLIKE_GLUE_NVCXX_HPP

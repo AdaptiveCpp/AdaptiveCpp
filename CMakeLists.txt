@@ -78,6 +78,7 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 set(WITH_CPU_BACKEND true)
 
@@ -85,13 +86,24 @@ if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
   find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
   message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
+
+  find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)
   set(DEFAULT_PLATFORM "rocm")
 else()
   set(DEFAULT_PLATFORM "cpu")
 endif()
 
-if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND)
+if(WITH_CUDA_NVCXX_ONLY)
+  if(NVCXX_COMPILER MATCHES "-NOTFOUND")
+      message(SEND_ERROR "Could not find nvc++ executable, specifiy with -DNVCXX_COMPILER=")
+  endif()
+endif()
+
+if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
+if(WITH_ROCM_BACKEND)
   set(BUILD_CLANG_PLUGIN true)
 endif()
 
@@ -281,6 +293,7 @@ endif()
 
 set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
+  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",

@@ -42,118 +42,121 @@ namespace sycl {
 
 namespace detail {
 
+template<int V0 = 1, int V1 = 1, int V2 = 1>
+struct static_range {
+  static constexpr int v0 = V0;
+  static constexpr int v1 = V1;
+  static constexpr int v2 = V2;
 
-template<int Dim, int Level, int... KnownGroupSizeDivisors>
+  static constexpr int linear_range() {
+    return v0 * v1 * v2;
+  }
+
+  static constexpr bool is_known() {
+    return linear_range() != 0;
+  }
+};
+
+using unknown_static_range = static_range<-1, -1, -1>;
+
+struct unity_nested_range {
+  using range = static_range<1,1,1>;
+  using next = unity_nested_range;
+};
+
+template<class StaticRange, class NextRange = unity_nested_range>
+struct nested_range {
+  using range = StaticRange;
+  using next = NextRange;
+};
+
+
+template<int Dim, int Level, class NestedRangeT>
 struct sp_property_descriptor{
   static constexpr int dimensions = Dim;
   static constexpr int level = Level;
 
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
   static constexpr auto make_next_level_descriptor(){
-    if constexpr(Level == 0) {
-      using desired_next_level_type_1d = sp_property_descriptor<Dim, Level+1, 16>;
-      using desired_next_level_type_2d = sp_property_descriptor<Dim, Level+1, 4,4>;
-      using desired_next_level_type_3d = sp_property_descriptor<Dim, Level+1, 2,2,2>;
-
-      if constexpr(Dim == 1) {
-        return construct_next_level_or_scalar_fallback<16>();
-      } else if constexpr(Dim == 2) {
-        return construct_next_level_or_scalar_fallback<4,4>();
-      } else {
-        return construct_next_level_or_scalar_fallback<2,2,2>();
-      }
-    } else {
-      return construct_scalar_next_level();
-    }
-  }
-
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA || HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-  static constexpr auto make_next_level_descriptor(){
-    if constexpr(Level == 0 && Dim == 1) {
-      return construct_next_level_or_scalar_fallback<warpSize>();
-    } else {
-      return construct_scalar_next_level();
-    }
-  }
-#else
-  static constexpr auto make_next_level_descriptor(){
-    return construct_scalar_next_level();
-  }
-#endif
-
-  static constexpr bool has_known_group_size_divisors(){
-    return sizeof...(KnownGroupSizeDivisors) > 0;
+    return sp_property_descriptor<Dim, Level+1, typename NestedRangeT::next>{};
   }
 
   static constexpr bool has_scalar_fixed_group_size(){
-    if constexpr(!has_known_group_size_divisors()) {
-      return true;
-    } else {
-      return (KnownGroupSizeDivisors * ...) == 1;
-    }
+    return NestedRangeT::range::linear_range() == 1;
   }
 
   static auto get_fixed_group_size(){
-    if constexpr(Level > 0 && has_known_group_size_divisors()) {
-      return sycl::range{KnownGroupSizeDivisors...};
+    using range = typename NestedRangeT::range;
+    if constexpr(Level > 0 && range::is_known()) {
+      if constexpr(Dim == 1) {
+        return sycl::range{range::v0};
+      } else if constexpr(Dim == 2) {
+        return sycl::range{range::v0, range::v1};
+      } else {
+        return sycl::range{range::v0, range::v1, range::v2};
+      }
     } else {
       return sycl::range<dimensions>{};
     }
   }
+};
 
-  static_assert(
-      has_known_group_size_divisors(),
-      "No information about the group size was made available. This makes it "
-      "impossible to reason about how to decompose work groups");
 
-private:
-  template<int... SubgroupSizes>
-  static constexpr bool is_subgroup_guaranteed_supported() {
-    return ((KnownGroupSizeDivisors % SubgroupSizes == 0 ) && ...);
+/// Property descriptor wrapper that can be used to specialize groups
+/// based on additional information
+template<class Specialization, class SpPropertyDescriptor>
+struct specialized_sp_property_descriptor {
+  static constexpr int dimensions = SpPropertyDescriptor::dimensions;
+  static constexpr int level = SpPropertyDescriptor::dimensions;
+
+  static constexpr auto make_next_level_descriptor(){
+    using next_t = decltype(SpPropertyDescriptor::make_next_level_descriptor());
+    return specialized_sp_property_descriptor<Specialization, next_t>{};
   }
 
-  template<int... SubgroupSizes>
-  static constexpr auto construct_next_level_or_scalar_fallback() {
-    if constexpr(is_subgroup_guaranteed_supported<SubgroupSizes...>()){
-      return sp_property_descriptor<Dim, Level+1, SubgroupSizes...>{};
-    } else {
-      return construct_scalar_next_level();
-    }
+  static constexpr bool has_scalar_fixed_group_size(){
+    return SpPropertyDescriptor::has_scalar_fixed_group_size();
   }
 
-  static constexpr auto construct_scalar_next_level() {
-    using type_1d = sp_property_descriptor<Dim, Level+1, 1>;
-    using type_2d = sp_property_descriptor<Dim, Level+1, 1,1>;
-    using type_3d = sp_property_descriptor<Dim, Level+1, 1,1,1>;
-
-    if constexpr(Dim==1) {
-      return type_1d{};
-    } else if constexpr (Dim==2) {
-      return type_2d{};
-    } else {
-      return type_3d{};
-    }
+  static auto get_fixed_group_size(){
+    return SpPropertyDescriptor::get_fixed_group_size();
   }
 };
+
+class host_specialization {};
+class no_specialization {};
+
+template <class SpPropertyDescriptor>
+using host_sp_property_descriptor =
+    specialized_sp_property_descriptor<host_specialization,
+                                       SpPropertyDescriptor>;
 
 template<class PropertyDescriptor>
 struct sp_property_descriptor_traits {
   using next_level_descriptor_t =
       decltype(PropertyDescriptor::make_next_level_descriptor());
+  using specialization = no_specialization;
 };
+
+template <class Specialization, class PropertyDescriptor>
+struct sp_property_descriptor_traits<
+    specialized_sp_property_descriptor<Specialization, PropertyDescriptor>> {
+  using next_level_descriptor_t =
+      decltype(specialized_sp_property_descriptor<
+               Specialization,
+               PropertyDescriptor>::make_next_level_descriptor());
+  using specialization = Specialization;
+};
+
+template<class PropertyDescriptor>
+constexpr bool is_host_property_descriptor() {
+  using spec = typename sp_property_descriptor_traits<
+      PropertyDescriptor>::specialization;
+  return std::is_same_v<spec, host_specialization>;
+}
 
 template <class PropertyDescriptor>
 using sp_next_level_descriptor_t = typename sp_property_descriptor_traits<
     PropertyDescriptor>::next_level_descriptor_t;
-
-template<int... Sizes>
-struct sp_sub_group_host_descriptor {
-  static constexpr int dimensions = sizeof...(Sizes);
-
-  static sycl::range<dimensions> get_tile_size() {
-    return sycl::range<dimensions>{Sizes...};
-  }
-};
 
 template <class PropertyDescriptor>
 struct sp_group
@@ -214,11 +217,12 @@ struct sp_group
 
   id_type
   get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return idx.get_global_id() - get_group_id() * get_logical_local_range();
-#else
-    return _grp.get_local_id();
-#endif
+    __hipsycl_if_target_host(
+      return idx.get_global_id() - get_group_id() * get_logical_local_range();
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_id();
+    );
   }
 
   linear_id_type
@@ -229,12 +233,13 @@ struct sp_group
 
   size_t get_logical_local_id(const detail::sp_item<dimensions> &idx,
                               int dimension) const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return idx.get_global_id(dimension) -
-           get_group_id(dimension) * get_logical_local_range(dimension);
-#else
-    return _grp.get_local_id(dimension);
-#endif
+    __hipsycl_if_target_host(
+      return idx.get_global_id(dimension) -
+             get_group_id(dimension) * get_logical_local_range(dimension);
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_id(dimension);
+    );
   }
 
   id_type get_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
@@ -271,29 +276,32 @@ struct sp_group
 
   HIPSYCL_KERNEL_TARGET
   id_type get_physical_local_id() const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return id_type{};
-#else
-    return _grp.get_local_id();
-#endif
+    __hipsycl_if_target_host(
+      return id_type{};
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_id();
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return 0;
-#else
-    return _grp.get_local_id(dimension);
-#endif
+    __hipsycl_if_target_host(
+      return 0;
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_id(dimension);
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_linear_id() const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return 0;
-#else
-    return _grp.get_local_linear_id();
-#endif
+    __hipsycl_if_target_host(
+      return 0;
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_linear_id();
+    );
   }
 
   [[deprecated("Use get_logical_local_range()")]]
@@ -331,35 +339,38 @@ struct sp_group
 
   HIPSYCL_KERNEL_TARGET
   sycl::range<dimensions> get_physical_local_range() const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    if constexpr(dimensions == 1) {
-      return sycl::range{1};
-    } else if constexpr(dimensions == 2) {
-      return sycl::range{1,1};
-    } else {
-      return sycl::range{1,1,1};
-    }
-#else
-    return _grp.get_local_range();
-#endif
+    __hipsycl_if_target_host(
+      if constexpr(dimensions == 1) {
+        return sycl::range{1};
+      } else if constexpr(dimensions == 2) {
+        return sycl::range{1,1};
+      } else {
+        return sycl::range{1,1,1};
+      }
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_range();
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return 1;
-#else
-    _grp.get_local_range(dimension);
-#endif
+    __hipsycl_if_target_host(
+      return 1;
+    );
+    __hipsycl_if_target_device(
+      _grp.get_local_range(dimension);
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_linear_range() const noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return 1;
-#else
-    return _grp.get_local_linear_range();
-#endif
+    __hipsycl_if_target_host(
+      return 1;
+    );
+    __hipsycl_if_target_device(
+      return _grp.get_local_linear_range();
+    );
   }
 
   template <typename dataT>
@@ -600,6 +611,8 @@ private:
 ///   the local range mapped to one sub_group can not even be represented 
 ///   by a 2d/3d rectangle! It is therefore recommended to use this class
 ///   for 1D kernels only.
+
+// Device specialization for sp_sub_group
 template<class PropertyDescriptor>
 class sp_sub_group {
 public:
@@ -611,6 +624,9 @@ public:
   using linear_range_type = uint32_t;
   
   static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
+  sp_sub_group(const id_type& global_offset) noexcept
+  : _global_offset{global_offset} {}
 
   id_type get_global_group_offset() const noexcept {
     return _global_offset;
@@ -677,112 +693,6 @@ public:
   size_t get_local_linear_range() const noexcept {
     return get_logical_local_linear_range();
   }
-
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-
-  sp_sub_group(const id_type &group_id, const range_type &num_groups,
-               const id_type &global_offset) noexcept
-      : _group_id{group_id}, _num_groups{num_groups}, _global_offset{
-                                                          global_offset} {}
-
-  id_type
-  get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
-    return idx.get_global_id() - _global_offset;
-  }
-
-  size_t get_logical_local_id(const detail::sp_item<dimensions> &idx,
-                              int dimension) const noexcept {
-    return idx.get_global_id(dimension) - _global_offset[dimension];
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  id_type get_physical_local_id() const noexcept {
-    return id_type{};
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_physical_local_id(int dimension) const noexcept {
-    return 0;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  sycl::range<dimensions> get_logical_local_range() const noexcept {
-    return PropertyDescriptor::get_fixed_group_size();
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_logical_local_range(int dimension) const noexcept {
-    return get_logical_local_range()[dimension];
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_logical_local_linear_range() const noexcept {
-    return get_logical_local_range().size();
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  range_type get_physical_local_range() const noexcept {
-    return range_type{};
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_physical_local_range(int dimension) const noexcept {
-    return 1;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_physical_local_linear_range() const noexcept {
-    return 1;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  id_type get_group_id() const noexcept {
-    return _group_id;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_group_id(int dimension) const noexcept {
-    return _group_id[dimension];
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t operator[](int dimension) const noexcept {
-    return get_group_id(dimension);
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  linear_id_type get_group_linear_id() const noexcept {
-    return detail::linear_id<dimensions>::get(get_group_id(),
-                                              get_group_range());
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  linear_range_type get_group_linear_range() const noexcept {
-    return _num_groups.size();
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  range_type get_group_range() const noexcept {
-    return _num_groups;
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  size_t get_group_range(int dimension) const noexcept {
-    return _num_groups[dimension];
-  }
-
-  HIPSYCL_KERNEL_TARGET
-  bool leader() const noexcept {
-    return get_local_linear_id() == 0;
-  }
-private:
-  
-  const id_type _group_id;
-  const range_type _num_groups;
-#else
-
-  sp_sub_group(const id_type& global_offset) noexcept
-  : _global_offset{global_offset} {}
 
   id_type
   get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
@@ -920,8 +830,187 @@ private:
     return sycl::sub_group{}.leader();
   }
 
-#endif
 private:
+  const sycl::id<dimensions> _global_offset;
+};
+
+// Host specialization for sub group
+template<class PropertyDescriptor>
+class sp_sub_group<host_sp_property_descriptor<PropertyDescriptor>> {
+public:
+  static constexpr std::size_t dimensions = PropertyDescriptor::dimensions;
+
+  using id_type = sycl::id<dimensions>;
+  using range_type = sycl::range<dimensions>;
+  using linear_id_type = uint32_t;
+  using linear_range_type = uint32_t;
+  
+  static constexpr memory_scope fence_scope = memory_scope::sub_group;
+
+  sp_sub_group(const id_type &group_id, const range_type &num_groups,
+               const id_type &global_offset) noexcept
+      : _group_id{group_id}, _num_groups{num_groups}, _global_offset{
+                                                          global_offset} {}
+
+  id_type get_global_group_offset() const noexcept {
+    return _global_offset;
+  }
+
+  linear_id_type get_logical_local_linear_id(
+      const detail::sp_item<dimensions> &idx) const noexcept {
+    return detail::linear_id<dimensions>::get(get_logical_local_id(idx),
+                                              get_logical_local_range());
+  }
+
+  id_type get_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
+    return get_logical_local_id(idx);
+  }
+
+  linear_id_type
+  get_local_linear_id(const detail::sp_item<dimensions> &idx) const noexcept {
+    return get_logical_local_linear_id(idx);
+  }
+
+  size_t get_local_id(const detail::sp_item<dimensions> &idx,
+                      int dimension) const noexcept {
+    return get_logical_local_id(idx, dimension);
+  }
+
+  [[deprecated("Use get_physical_local_id()")]]
+  HIPSYCL_KERNEL_TARGET
+  id_type get_local_id() const noexcept {
+    return get_physical_local_id();
+  }
+
+  [[deprecated("Use get_physical_local_id()")]]
+  HIPSYCL_KERNEL_TARGET
+  id_type get_local_id(int dimension) const noexcept {
+    return get_physical_local_id(dimension);
+  }
+
+  [[deprecated("Use get_physical_local_linear_id()")]]
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_local_linear_id() const noexcept {
+    return get_physical_local_linear_id();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_physical_local_linear_id() const noexcept {
+    return detail::linear_id<dimensions>::get(get_physical_local_id(),
+                                              get_physical_local_range());
+  }
+
+  [[deprecated("Use get_logical_local_range()")]]
+  HIPSYCL_KERNEL_TARGET
+  sycl::range<dimensions> get_local_range() const noexcept {
+    return get_logical_local_range();
+  }
+
+  [[deprecated("Use get_logical_local_range()")]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_range(int dimension) const noexcept {
+    return get_logical_local_range(dimension);
+  }
+
+  [[deprecated("Use get_logical_local_linear_range()")]]
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_linear_range() const noexcept {
+    return get_logical_local_linear_range();
+  }
+
+  id_type
+  get_logical_local_id(const detail::sp_item<dimensions> &idx) const noexcept {
+    return idx.get_global_id() - _global_offset;
+  }
+
+  size_t get_logical_local_id(const detail::sp_item<dimensions> &idx,
+                              int dimension) const noexcept {
+    return idx.get_global_id(dimension) - _global_offset[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_physical_local_id() const noexcept {
+    return id_type{};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_physical_local_id(int dimension) const noexcept {
+    return 0;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  sycl::range<dimensions> get_logical_local_range() const noexcept {
+    return PropertyDescriptor::get_fixed_group_size();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_logical_local_range(int dimension) const noexcept {
+    return get_logical_local_range()[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_logical_local_linear_range() const noexcept {
+    return get_logical_local_range().size();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_physical_local_range() const noexcept {
+    return range_type{};
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_physical_local_range(int dimension) const noexcept {
+    return 1;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_physical_local_linear_range() const noexcept {
+    return 1;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  id_type get_group_id() const noexcept {
+    return _group_id;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_group_id(int dimension) const noexcept {
+    return _group_id[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t operator[](int dimension) const noexcept {
+    return get_group_id(dimension);
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_id_type get_group_linear_id() const noexcept {
+    return detail::linear_id<dimensions>::get(get_group_id(),
+                                              get_group_range());
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  linear_range_type get_group_linear_range() const noexcept {
+    return _num_groups.size();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  range_type get_group_range() const noexcept {
+    return _num_groups;
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_group_range(int dimension) const noexcept {
+    return _num_groups[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  bool leader() const noexcept {
+    return get_local_linear_id() == 0;
+  }
+private:
+  const id_type _group_id;
+  const range_type _num_groups;
   const sycl::id<dimensions> _global_offset;
 };
 
@@ -964,33 +1053,33 @@ auto get_group_global_id_offset(
 
 template<int Dim>
 class sp_global_kernel_state {
+private:
+  struct storage {
+    sycl::range<Dim> global_range;
+
+    static storage& get() {
+      static thread_local storage state;
+      return state;
+    }
+  };
+
 public:
   HIPSYCL_KERNEL_TARGET
   static sycl::range<Dim> get_global_range() noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    return get()._global_range;
-#else
-    return detail::get_global_size<Dim>();
-#endif
+    __hipsycl_if_target_host(
+      return storage::get().global_range;
+    );
+    __hipsycl_if_target_device(
+      return detail::get_global_size<Dim>();
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   static void configure_global_range(const sycl::range<Dim> &range) noexcept {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-    get()._global_range = range;
-#endif
+    __hipsycl_if_target_host(
+      storage::get().global_range = range;
+    );
   }
-
-private:
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-  HIPSYCL_KERNEL_TARGET
-  static sp_global_kernel_state& get() {
-    static thread_local sp_global_kernel_state state;
-    return state;
-  }
-
-  sycl::range<Dim> _global_range;
-#endif
 };
 
 /// Subdivide a scalar group - this will always result in another
@@ -1027,46 +1116,46 @@ inline  void subdivide_group(
   using next_property_descriptor =
       sp_next_level_descriptor_t<PropertyDescriptor>;
 
+  static_assert(next_property_descriptor::has_scalar_fixed_group_size(),
+      "Non-scalar sub-subgroups are currently unsupported.");
+
   // TODO: On CPU we could introduce another tiling level
-#ifdef SYCL_DEVICE_ONLY
-  // Since we are decaying to scalar groups, the global offset
-  // of the new "groups" is just the global id of the work item
-  // which can always be obtained from the global offset
-  // and local id.
-
-  static_assert(next_property_descriptor::has_scalar_fixed_group_size(),
-    "Non-scalar sub-subgroups are currently unimplemented.");
-
-  sycl::id<dim> subgroup_global_offset =
-      get_group_global_id_offset(g) + g.get_physical_local_id();
-  
-  sp_scalar_group<next_property_descriptor> subgroup{
-      g.get_physical_local_id(), g.get_physical_local_range(),
-      subgroup_global_offset};
-  
-  f(subgroup);
-#else
-  static_assert(next_property_descriptor::has_scalar_fixed_group_size(),
-    "Non-scalar sub-subgroups are currently unsupported.");
-
-  // On CPU, we need to iterate now across all elements of this subgroup
-  // to construct scalar groups.
-  if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
-    glue::host::iterate_range_simd(
-        g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
-          sp_scalar_group<next_property_descriptor> subgroup{
-              idx, g.get_logical_local_range(),
-              get_group_global_id_offset(g) + idx};
-          f(subgroup);
-        });
+  if constexpr(!is_host_property_descriptor<PropertyDescriptor>()) {
+    // Since we are decaying to scalar groups, the global offset
+    // of the new "groups" is just the global id of the work item
+    // which can always be obtained from the global offset
+    // and local id.
+    __hipsycl_if_target_device(
+      sycl::id<dim> subgroup_global_offset =
+          get_group_global_id_offset(g) + g.get_physical_local_id();
+      
+      sp_scalar_group<next_property_descriptor> subgroup{
+          g.get_physical_local_id(), g.get_physical_local_range(),
+          subgroup_global_offset};
+      
+      f(subgroup);
+    );
   } else {
-    glue::host::iterate_range_tiles(g.get_logical_local_range(), 
-      next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
-        // TODO: Multi-Level static tiling on CPU
-        //sp_sub_group<next_property_descriptor> subgroup{};
-      });
+    __hipsycl_if_target_host(
+      // On CPU, we need to iterate now across all elements of this subgroup
+      // to construct scalar groups.
+      if constexpr(next_property_descriptor::has_scalar_fixed_group_size()){
+        glue::host::iterate_range_simd(
+            g.get_logical_local_range(), [&](const sycl::id<dim> &idx) noexcept {
+              sp_scalar_group<next_property_descriptor> subgroup{
+                  idx, g.get_logical_local_range(),
+                  get_group_global_id_offset(g) + idx};
+              f(subgroup);
+            });
+      } else {
+        glue::host::iterate_range_tiles(g.get_logical_local_range(), 
+          next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
+            // TODO: Multi-Level static tiling on CPU
+            //sp_sub_group<next_property_descriptor> subgroup{};
+          });
+      }
+    );
   }
-#endif
 }
 
 /// Subdivide a work group into sub_group
@@ -1083,40 +1172,44 @@ inline  void subdivide_group(
   sp_global_kernel_state<PropertyDescriptor::dimensions>::configure_global_range(
     g.get_group_range() * g.get_logical_local_range());
   
-#ifdef SYCL_DEVICE_ONLY
-  // This if statement makes sure that we only expose subgroups
-  // when we can actually decompose the work group into subgroups.
-  // Currently, this only exposes subgroups in the 1D case to make sure
-  // all range and id queries are well defined
-  if constexpr(!next_property_descriptor::has_scalar_fixed_group_size()) {
-    const size_t global_offset = get_group_global_id_offset(g)[0] +
-                                 g.get_physical_local_linear_id() -
-                                 sycl::sub_group{}.get_local_linear_id();
+  if constexpr(is_host_property_descriptor<PropertyDescriptor>()){
+    static_assert(is_host_property_descriptor<next_property_descriptor>(),
+      "Host property descriptor cannot spawn device property descriptor");
+  
+    const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
+    const auto num_groups = g.get_logical_local_range() / subgroup_size;
+  
+    glue::host::iterate_range_tiles(
+        g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
 
-    sp_sub_group<next_property_descriptor> subgroup{sycl::id<1>{global_offset}};
-    f(subgroup);
-
+          sp_sub_group<next_property_descriptor> subgroup{
+              idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
+          
+          f(subgroup);
+        });
   } else {
-    sycl::id<dim> subgroup_global_offset =
-      get_group_global_id_offset(g) + g.get_physical_local_id();
+    // This if statement makes sure that we only expose subgroups
+    // when we can actually decompose the work group into subgroups.
+    // Currently, this only exposes subgroups in the 1D case to make sure
+    // all range and id queries are well defined
+    if constexpr(!next_property_descriptor::has_scalar_fixed_group_size()) {
+      const size_t global_offset = get_group_global_id_offset(g)[0] +
+                                  g.get_physical_local_linear_id() -
+                                  sycl::sub_group{}.get_local_linear_id();
+
+      sp_sub_group<next_property_descriptor> subgroup{sycl::id<1>{global_offset}};
+      f(subgroup);
+
+    } else {
+      sycl::id<dim> subgroup_global_offset =
+        get_group_global_id_offset(g) + g.get_physical_local_id();
+      
+      sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
+        g.get_physical_local_range(), subgroup_global_offset};
+      f(subgroup);
+    }
     
-    sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
-      g.get_physical_local_range(), subgroup_global_offset};
-    f(subgroup);
   }
-#else
-
-  const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
-  const auto num_groups = g.get_logical_local_range() / subgroup_size;
-  glue::host::iterate_range_tiles(
-      g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
-
-        sp_sub_group<next_property_descriptor> subgroup{
-            idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
-        
-        f(subgroup);
-      });
-#endif
 }
 
 template <class PropertyDescriptor, typename NestedF>
@@ -1132,21 +1225,22 @@ template <class PropertyDescriptor, typename NestedF>
 HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_sub_group<PropertyDescriptor> &g,
                       NestedF f) noexcept {
-#ifdef SYCL_DEVICE_ONLY
-  f(make_sp_item(g.get_physical_local_id(),
-                 get_group_global_id_offset(g) + g.get_physical_local_id(),
-                 g.get_logical_local_range(),
-    sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range()));
-#else
-  auto global_range = sp_global_kernel_state<
-          PropertyDescriptor::dimensions>::get_global_range();
+  __hipsycl_if_target_device(
+    f(make_sp_item(g.get_physical_local_id(),
+                  get_group_global_id_offset(g) + g.get_physical_local_id(),
+                  g.get_logical_local_range(),
+      sp_global_kernel_state<PropertyDescriptor::dimensions>::get_global_range()));
+  );
+  __hipsycl_if_target_host(
+    auto global_range = sp_global_kernel_state<
+            PropertyDescriptor::dimensions>::get_global_range();
 
-  glue::host::iterate_range_simd(
-      g.get_logical_local_range(), [&](auto local_idx) noexcept {
-        f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
-                       g.get_logical_local_range(), global_range));
-      });
-#endif
+    glue::host::iterate_range_simd(
+        g.get_logical_local_range(), [&](auto local_idx) noexcept {
+          f(make_sp_item(local_idx, get_group_global_id_offset(g) + local_idx,
+                        g.get_logical_local_range(), global_range));
+        });
+  );
 }
 
 template<class PropertyDescriptor, typename NestedF>
@@ -1154,20 +1248,21 @@ HIPSYCL_KERNEL_TARGET
 void distribute_items(const sp_group<PropertyDescriptor>& g, NestedF&& f) noexcept {
   auto global_range = g.get_logical_local_range() * g.get_group_range();
 
-#ifdef SYCL_DEVICE_ONLY
-  f(make_sp_item(g.get_physical_local_id(),
-                 get_group_global_id_offset(g) + g.get_physical_local_id(),
-                 g.get_logical_local_range(), global_range));
-#else
-  const auto group_offset = get_group_global_id_offset(g);
-  const auto local_range = g.get_logical_local_range();
+  __hipsycl_if_target_device(
+    f(make_sp_item(g.get_physical_local_id(),
+                  get_group_global_id_offset(g) + g.get_physical_local_id(),
+                  g.get_logical_local_range(), global_range));
+  );
+  __hipsycl_if_target_host(
+    const auto group_offset = get_group_global_id_offset(g);
+    const auto local_range = g.get_logical_local_range();
 
-  glue::host::iterate_range_simd(
-      local_range, [&] (const auto local_idx) noexcept {
-        f(make_sp_item(local_idx, group_offset + local_idx, local_range,
-                       global_range));
-      });
-#endif
+    glue::host::iterate_range_simd(
+        local_range, [&] (const auto local_idx) noexcept {
+          f(make_sp_item(local_idx, group_offset + local_idx, local_range,
+                        global_range));
+        });
+  );
 }
 
 
@@ -1179,32 +1274,39 @@ using s_group = detail::sp_group<PropertyDescriptor>;
 // Core group algorithms for scoped parallelism model
 
 // TODO: SPIR-V
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP ||                                    \
-    HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
 template <class PropertyDescriptor>
 HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_group<PropertyDescriptor> &g,
               memory_scope fence_scope =
                   detail::sp_group<PropertyDescriptor>::fence_scope) {
-  if (fence_scope == memory_scope::device) {
-    __threadfence_system();
-  }
-  __syncthreads();
+  __hipsycl_if_target_hiplike(
+    if (fence_scope == memory_scope::device) {
+      __threadfence_system();
+    }
+    __syncthreads();
+  );
+  __hipsycl_if_target_spirv(/* todo */);
+  __hipsycl_if_target_host(/* todo */);
 }
 
 template <class PropertyDescriptor>
 HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_sub_group<PropertyDescriptor> &g,
-              memory_scope fence_scope) {
+              memory_scope fence_scope =
+                  detail::sp_sub_group<PropertyDescriptor>::fence_scope) {
 
-  if (fence_scope == memory_scope::device) {
-    __threadfence_system();
-  } else if (fence_scope == memory_scope::work_group) {
-    __threadfence_block();
-  }
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
-  __syncwarp();
-#endif
+  __hipsycl_if_target_hiplike(
+    if (fence_scope == memory_scope::device) {
+      __threadfence_system();
+    } else if (fence_scope == memory_scope::work_group) {
+      __threadfence_block();
+    }
+  );
+  __hipsycl_if_target_cuda(
+    __syncwarp();
+  );
+  __hipsycl_if_target_spirv(/* todo */);
+  __hipsycl_if_target_host(/* todo */);
 }
 
 // Direct overload instead of default argument for memory fence
@@ -1218,37 +1320,15 @@ HIPSYCL_KERNEL_TARGET inline void
 group_barrier(const detail::sp_scalar_group<PropertyDescriptor> &g,
               memory_scope fence_scope) {
 
-  if (fence_scope == memory_scope::device) {
-    __threadfence_system();
-  } else if (fence_scope == memory_scope::work_group) {
-    __threadfence_block();
-  }
+  __hipsycl_if_target_hiplike(
+    if (fence_scope == memory_scope::device) {
+      __threadfence_system();
+    } else if (fence_scope == memory_scope::work_group) {
+      __threadfence_block();
+    }
+  );
 }
 
-#endif
-
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
-
-// TODO Handle system fence scope
-template <class PropertyDescriptor>
-HIPSYCL_KERNEL_TARGET inline void
-group_barrier(const detail::sp_group<PropertyDescriptor> &g,
-              memory_scope fence_scope =
-                  detail::sp_group<PropertyDescriptor>::fence_scope) {}
-
-template <class PropertyDescriptor>
-HIPSYCL_KERNEL_TARGET inline void
-group_barrier(const detail::sp_sub_group<PropertyDescriptor> &g,
-              memory_scope fence_scope =
-                  detail::sp_sub_group<PropertyDescriptor>::fence_scope) {}
-
-template <class PropertyDescriptor>
-HIPSYCL_KERNEL_TARGET inline void
-group_barrier(const detail::sp_scalar_group<PropertyDescriptor> &g,
-              memory_scope fence_scope =
-                  detail::sp_scalar_group<PropertyDescriptor>::fence_scope) {}
-
-#endif
 
 template <class Group, class Func,
           std::enable_if_t<detail::is_sp_group_v<std::decay_t<Group>>, int> = 0>

@@ -35,9 +35,7 @@
 #include <type_traits>
 #include <cstdlib>
 
-#include "host/builtins.hpp"
-#include "spirv/builtins.hpp"
-#include "generic/hiplike/builtins.hpp"
+#include "builtin_interface.hpp"
 
 namespace hipsycl::sycl::detail {
 

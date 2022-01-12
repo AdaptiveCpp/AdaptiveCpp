@@ -170,18 +170,17 @@ private:
 
 HIPSYCL_KERNEL_TARGET
 inline void* hiplike_dynamic_local_memory() {
-#ifdef SYCL_DEVICE_ONLY
-  #ifdef HIPSYCL_PLATFORM_CUDA
+  __hipsycl_if_target_cuda(
     extern __shared__ int local_mem [];
     return static_cast<void*>(local_mem);
-  #endif
-  #ifdef HIPSYCL_PLATFORM_ROCM
+  );
+  __hipsycl_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
-  #endif
-#else
-  assert(false && "this function should only be called on device");
-  return nullptr;
-#endif
+  );
+  __hipsycl_if_target_host(
+    assert(false && "this function should only be called on device");
+    return nullptr;
+  );
 }
 
 class local_memory
@@ -193,15 +192,13 @@ public:
   HIPSYCL_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
-#ifdef SYCL_DEVICE_ONLY
-    return reinterpret_cast<T *>(
+    __hipsycl_if_target_device(
+      return reinterpret_cast<T *>(
         reinterpret_cast<char *>(hiplike_dynamic_local_memory()) + addr);
-#elif defined(HIPSYCL_PLATFORM_CPU) 
-    return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr);
-#else
-    // The __host__ case without hipCPU is not yet supported
-    return nullptr;
-#endif
+    );
+    __hipsycl_if_target_host(
+      return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr);
+    );
   }
 };
 

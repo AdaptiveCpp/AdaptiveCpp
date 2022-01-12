@@ -5,6 +5,8 @@
 hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on leveraging existing toolchains such as CUDA or HIP. hipSYCL currently targets the following devices:
 * Any CPU via OpenMP
 * NVIDIA GPUs via CUDA
+   - using clang's CUDA toolchain
+   - as a library for NVIDIA's nvc++ compiler (experimental)
 * AMD GPUs via HIP/ROCm
 * Intel GPUs via oneAPI Level Zero and SPIR-V (*highly* experimental and WIP!)
 
@@ -89,6 +91,8 @@ When targeting a GPU, you will need to provide a target GPU architecture. The ex
 * `sm_70`: NVIDIA Volta GPUs
 * `gfx900`: AMD Vega 10 GPUs
 * `gfx906`: AMD Vega 20 GPUs
+
+When using the `cuda-nvcxx` compiler driver, specifying targets is optional. If they are defined, the need to follow the format `ccXY` where `XY` stands for the compute capability of the device.
 
 The full documentation of syclcc and hints for the CMake integration can be found in [using hipSYCL](doc/using-hipsycl.md).
 

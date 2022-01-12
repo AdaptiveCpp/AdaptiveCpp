@@ -1,28 +1,30 @@
-# Using CUDA/HIP specific features in hipSYCL
+# Using platform-specific features in hipSYCL
 
-Assume `kernel_function` is a function used in a SYCL kernel. Platform specific features can be used as follows:
+Platform specific features can be used as follows:
 ```cpp
-__host__ __device__
-void optimized_function()
+HIPSYCL_UNIVERSAL_TARGET
+void optimized_codepaths()
 {
-  // SYCL_DEVICE_ONLY checks if we are in the device compilation
-  // pass
-#ifdef SYCL_DEVICE_ONLY
-  #ifdef HIPSYCL_PLATFORM_CUDA
-  // CUDA specific device functions can be called here
-  #elif defined(HIPSYCL_PLATFORM_ROCM)
-  // ROCm specific device functions can be called here
-  #endif
-#endif
+  __hipsycl_if_target_cuda(
+    // Only executed on CUDA device. CUDA specific device functions can be called here
+  );
+  __hipsycl_if_target_hip(
+    // Only executed on HIP device. ROCm specific device functions can be called here
+  );
+  __hipsycl_if_target_spirv(
+    // Only executed on SPIR-V device. SPIR-V specific code here
+  );
+  __hipsycl_if_target_host(
+    // Host-specific code here. Since this runs exclusively on host, this can be any
+    // arbitrary C++ code, and the usual SYCL kernel restrictions don't apply.
+  );
 }
 
-void kernel_function()
-{
-#if defined(__HIPSYCL__) && defined(SYCL_DEVICE_ONLY)
-  optimized_function()
-#else
-  // Regular SYCL version here
-#endif
-}
+...
+
+q.parallel_for(range, [=](auto idx){
+  optimized_codepaths();
+});
+
 ```
-This construct may seem slightly complicated. The reason for this is that clang initially parses all SYCL code as host code, so only `__host__ __device__` functions can be called from kernels. Additionally, clang requires that host code must be present and correct even when compiling for device.
+Note that in general, CUDA or HIP `__device__` functions can only be called from functions that are marked as `__host__ __device__`, or the more portable `HIPSYCL_UNIVERSAL_TARGET`. The reason for this is that clang initially parses all SYCL code as host code, so only `__host__ __device__` functions can be called from kernels. Additionally, clang requires that host code must be present and correct even when compiling for device.

@@ -31,6 +31,7 @@
 #include <cassert>
 #include <utility>
 #include <cstdlib>
+#include <string>
 
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -78,6 +79,9 @@
 #ifndef __device__
  #define __device__
 #endif
+#ifndef __global__
+ #define __global__
+#endif
 #ifndef __sycl_kernel
  #define __sycl_kernel
 #endif
@@ -100,6 +104,18 @@ struct dim3 {
 #endif
 
 #endif
+
+// Dummy kernel that is used in conjunction with 
+// __builtin_get_device_side_stable_name() to extract kernel names
+template<class StartMarker, class KernelT, class EndMarker>
+__global__ void __hipsycl_hiplike_dummy_invoker(KernelT) {}
+
+// The mangled names in Itanium ABI is hardcoded in the explicit
+// multipass module invocation mechanism; don't rename those types
+// without changing the mangled names as well.
+struct __hipsycl_hiplike_mangling_start_marker {};
+struct __hipsycl_hiplike_mangling_end_marker {};
+
 
 namespace hipsycl {
 namespace glue {
@@ -847,15 +863,54 @@ private:
 #endif
   }
 
+  template<class KernelT>
+  std::string get_stable_kernel_name() const {
+#if defined(__clang__) && __clang_major__ == 11
+
+    return __builtin_unique_stable_name(KernelT);
+
+#elif __has_builtin(__builtin_get_device_side_mangled_name)
+    // The builtin unfortunately only works with __global__ or
+    // __device__ functions. Since our kernel launchers cannot be __global__
+    // when semantic analysis runs, we cannot apply the builtin
+    // directly to our kernel launchers.
+    // Instead, we instantiate a dummy __global__ kernel and then
+    // attempt to extract the mangled name of the lambda by putting
+    // it between special marker types in the template argument list.
+    // We can then find the marker types and extract the string in between
+    // to get the functor/lambda name, without requiring too much
+    // knowledge about ABI internals.
+    // This works with Itanium ABI, and might not work with other ABIs.
+    // Since Itanium ABI is used everywhere for device code (including Windows)
+    // this should not be an issue.
+    std::string raw_name = __builtin_get_device_side_mangled_name(
+      __hipsycl_hiplike_dummy_invoker<
+        __hipsycl_hiplike_mangling_start_marker,
+        KernelT,
+        __hipsycl_hiplike_mangling_end_marker>);
+    
+    // Use Itanium ABI hardcoded mangled names to make it work on Windows
+    // where the host side might be using MS-ABI instead, so typeid()
+    // won't work.
+    std::string begin_name = "39__hipsycl_hiplike_mangling_start_marker";
+    std::string end_name = "37__hipsycl_hiplike_mangling_end_marker";
+
+    raw_name.erase(0, raw_name.find(begin_name)+begin_name.length());
+    raw_name.erase(raw_name.find(end_name));
+    return raw_name;
+
+#else
+    return typeid(KernelT).name();
+#endif
+  }
+
   template <class KernelName, class KernelBodyT, typename... Args>
   void invoke_from_module(dim3 grid_size, dim3 block_size,
                           unsigned dynamic_shared_mem, Args... args) {
     
     if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-#if !defined(__clang_major__) || __clang_major__ < 11
-  #error Multipass compilation requires clang >= 11
-#endif
+
       if (this_module::get_num_objects<Backend_id>() == 0) {
         rt::register_error(
             __hipsycl_here(),
@@ -903,8 +958,8 @@ private:
         sizeof(Args)...
       };
 
-      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
-      std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
+      std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
+      std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
       rt::module_invoker *invoker = _queue->get_module_invoker();
 

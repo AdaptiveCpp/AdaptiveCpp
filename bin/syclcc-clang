@@ -609,8 +609,8 @@ def run_or_print(command, print_only):
 
 class cuda_multipass_invocation:
   @property
-  def name(self):
-    return "cuda"
+  def unique_name(self):
+    return "cuda.explicit-multipass"
 
   @property
   def is_integrated_multipass(self):
@@ -620,11 +620,10 @@ class cuda_multipass_invocation:
   def is_explicit_multipass(self):
     return not self.is_integrated_multipass
 
-  def __init__(self, config):
+  def __init__(self, config, target_list):
     self._config = config
     self._enable_cuda_host_pass = False
-
-
+    self._targets = target_list
     self.set_temp_dir("/tmp")
 
   def set_temp_dir(self, temp_dir):
@@ -633,7 +632,7 @@ class cuda_multipass_invocation:
       self._temp_dir,"__hipsycl_embedded_cuda_kernels.hpp")
 
   def get_requested_targets(self):
-    return self._config.targets["cuda"]
+    return self._targets
 
   def get_device_compiler(self):
     return self._config.clang_path
@@ -644,9 +643,29 @@ class cuda_multipass_invocation:
   def enable_extended_host_pass(self):
     self._enable_cuda_host_pass = True
 
-  def get_host_pass_requirements(self):
-    return { 
-      'requires-extended-host-pass' : ["cuda", "hip"]
+  @property
+  def is_extended_host_pass_enabled(self):
+    return self._enable_cuda_host_pass
+
+  def get_host_pass_requirements(self, host_compiler):
+    requires_extended_host_pass = True
+    caveats = []
+
+    if host_compiler != self._config.clang_path:
+      requires_extended_host_pass = False
+      caveats = [
+        'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
+        +host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
+        ]
+      
+
+    return {
+      'requires-extended-host-pass' : requires_extended_host_pass,
+      'extended-host-pass-providers' : [
+        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.integrated-multipass', 'hip.integrated-multipass'],
+      'conflicts' : [],
+      'caveats' : caveats
     }
 
   def get_flags(self, target):
@@ -730,7 +749,7 @@ static std::array __hipsycl_cuda_bundle {
 
 class spirv_multipass_invocation:
   @property
-  def name(self):
+  def unique_name(self):
     return "spirv"
 
   @property
@@ -761,6 +780,21 @@ class spirv_multipass_invocation:
 
   def get_compiler_preference(self):
     return (self._config.clang_path, 100)
+
+  def enable_extended_host_pass(self):
+    pass
+
+  @property
+  def is_extended_host_pass_enabled(self):
+    return False
+
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx'],
+      'caveats' : []
+    }
 
   def get_flags(self, target):
     flags = self._config.cuda_cxx_flags
@@ -840,8 +874,8 @@ static const unsigned long long __hipsycl_spirv_bundle_id={1}ull;
 class cuda_invocation:
 
   @property
-  def name(self):
-    return "cuda"
+  def unique_name(self):
+    return "cuda.integrated-multipass"
 
   @property
   def is_integrated_multipass(self):
@@ -852,13 +886,11 @@ class cuda_invocation:
     return not self.is_integrated_multipass
 
 
-  def __init__(self, config):
-    if not "cuda" in config.targets:
-      raise RuntimeError("CUDA not among targets")
-    if len(config.targets["cuda"]) == 0:
+  def __init__(self, config, target_list):
+    if len(target_list) == 0:
       raise OptionNotSet("No CUDA targets specified")
 
-    self._cuda_targets = config.targets["cuda"]
+    self._cuda_targets = target_list
     self._cuda_path = config.cuda_path
     self._clang = config.clang_path
     self._hipsycl_plugin_path = config.hipsycl_plugin_path
@@ -867,6 +899,14 @@ class cuda_invocation:
 
   def get_compiler_preference(self):
     return (self._clang, 100)
+
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['hip.integrated-multipass', 'cuda-nvcxx'],
+      'caveats' : []
+    }
 
   def get_cxx_flags(self):
 
@@ -891,11 +931,20 @@ class cuda_invocation:
     return self._linker_args
 
 class cuda_nvcxx_invocation:
-  def __init__(self, config):
-    if not "cuda-nvcxx" in config.targets:
-      raise RuntimeError("cuda-nvcxx not among targets")
+  @property
+  def unique_name(self):
+    return "cuda-nvcxx"
 
-    self._cuda_targets = config.targets["cuda-nvcxx"]
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._cuda_targets = target_list
     self._cuda_path = config.cuda_path
     self._nvcxx = config.nvcxx_path
     self._linker_args = config.cuda_link_line
@@ -903,6 +952,14 @@ class cuda_nvcxx_invocation:
 
   def get_compiler_preference(self):
     return (self._nvcxx, 200)
+
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['hip.integrated-multipass', 'cuda.integrated-multipass'],
+      'caveats' : []
+    }
 
   def get_cxx_flags(self):
 
@@ -927,8 +984,8 @@ class cuda_nvcxx_invocation:
 class hip_invocation:
 
   @property
-  def name(self):
-    return "hip"
+  def unique_name(self):
+    return "hip.integrated-multipass"
 
   @property
   def is_integrated_multipass(self):
@@ -938,13 +995,8 @@ class hip_invocation:
   def is_explicit_multipass(self):
     return not self.is_integrated_multipass
 
-  def __init__(self, config):
-    if not "hip" in config.targets:
-      raise RuntimeError("HIP not among targets")
-    if len(config.targets["hip"]) == 0:
-      raise OptionNotSet("No HIP targets specified")
-
-    self._hip_targets = config.targets["hip"]
+  def __init__(self, config, target_list):
+    self._hip_targets = target_list
     self._rocm_path = config.rocm_path
     self._clang = config.clang_path
     self._linker_args = config.rocm_link_line
@@ -954,6 +1006,14 @@ class hip_invocation:
 
   def get_compiler_preference(self):
     return (self._clang, 100)
+
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda.integrated-multipass', 'cuda-nvcxx'],
+      'caveats' : []
+    }
 
   def get_cxx_flags(self):
     flags = self._cxx_flags
@@ -978,7 +1038,7 @@ class hip_invocation:
 class omp_invocation:
 
   @property
-  def name(self):
+  def unique_name(self):
     return "omp"
 
   @property
@@ -1003,6 +1063,14 @@ class omp_invocation:
   def get_compiler_preference(self):
     return (self._cxx, 1)
 
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : [],
+      'caveats' : []
+    }
+
   def get_cxx_flags(self):
     flags =["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
@@ -1021,7 +1089,7 @@ class omp_invocation:
 class omp_sequential_invocation:
 
   @property
-  def name(self):
+  def unique_name(self):
     return "omp-sequential"
 
   @property
@@ -1039,6 +1107,14 @@ class omp_sequential_invocation:
 
   def get_compiler_preference(self):
     return (self._cxx, 1)
+
+  def get_host_pass_requirements(self, host_compiler):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : [],
+      'caveats' : []
+    }
 
   def get_cxx_flags(self):
     flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
@@ -1060,6 +1136,7 @@ class compiler:
     self._hipsycl_lib_path = os.path.join(self._hipsycl_path, "lib/")
     self._is_explicit_multipass = config.is_explicit_multipass
     self._save_temps = config.save_temps
+    self._host_compiler = ""
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1075,34 +1152,113 @@ class compiler:
       if backend == "omp":
         self._backends.append(omp_invocation(config))
       elif backend == "cuda":
+        targets = config.targets["cuda"]
         if self._is_explicit_multipass:
-          self._multipass_backends.append(
-            cuda_multipass_invocation(config))
+          self._multipass_backends.append(cuda_multipass_invocation(config, targets))
         else:
-          self._backends.append(cuda_invocation(config))
+          self._backends.append(cuda_invocation(config, targets))
+      elif backend == "cuda.integrated-multipass":
+        self._backends.append(
+          cuda_invocation(config, config.targets["cuda.integrated-multipass"]))
+      elif backend == "cuda.explicit-multipass":
+        self._multipass_backends.append(
+          cuda_multipass_invocation(config, config.targets["cuda.explicit-multipass"]))
       elif backend == "cuda-nvcxx":
-        self._backends.append(cuda_nvcxx_invocation(config))
+        self._backends.append(
+          cuda_nvcxx_invocation(config, config.targets["cuda-nvcxx"]))
       elif backend == "hip":
-        self._backends.append(hip_invocation(config))
+        self._backends.append(hip_invocation(config, config.targets["hip"]))
       elif backend == 'spirv':
         self._multipass_backends.append(
           spirv_multipass_invocation(config))
       else:
         raise RuntimeError("Unknown backend: " + backend)
 
-    for mb in self._multipass_backends:
-      reqs = mb.get_host_pass_requirements()['requires-extended-host-pass']
-      if 
-
-    self._backends += self._multipass_backends  
+    self._backends += self._multipass_backends
     
+    self._host_compiler = self._select_compiler()
+
     if not "omp" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))
 
+    self._verify_backend_combinations()
+
+    # Take into account extended host pass requirements for 
+    # explicit multipass. E.g., CUDA explicit multipass requires
+    # -x cuda or -x hip in the host pass.
+    # The "extended host pass" concept is an abstraction of the fact
+    # that some explicit multipass backends may need to enable language extensions
+    # in the host pass that could however also be satisfied by other backends.
+    #
+    # When a backend is selected as extended host pass provider,
+    # this backend's language extensions will be available in the host pass.
+    for mb in self._multipass_backends:
+      self._configure_multipass_extended_host_pass(mb)
+
     self._source_files = config.source_file_arguments
     self._multipass_user_args = self._construct_multipass_user_args()
+
+  def _verify_backend_combinations(self):
+    selected_backends = [b.unique_name for b in self._backends]
+
+    fatal_error = False
+    for b in self._backends:
+      if selected_backends.count(b) > 1:
+        print("Error: backend",b,
+          "appears multiple times in processed target specification")
+
+      reqs = b.get_host_pass_requirements(self._host_compiler)
+      
+      conflicts = reqs['conflicts']
+      caveats = reqs['caveats']
+      for c in caveats:
+        print("Warning: caveat in backend",b.unique_name,
+                  "detected:",c)
+
+      for c in conflicts:
+        if c in selected_backends:
+          print("Error: requested backends",b.unique_name,
+                "and",c,"are incompatible.")
+          fatal_error = True
+    
+    if fatal_error:
+      raise RuntimeError("Errors encountered while verifying combination of requested backends.")
+
+
+  # Detect extended host pass requirements for explicit multipass
+  # backends, and potentially enable them.
+  def _configure_multipass_extended_host_pass(self, backend):
+
+    host_pass_reqs = backend.get_host_pass_requirements(self._host_compiler)
+    active_backends = {b.unique_name:b for b in self._backends}
+
+    if host_pass_reqs['requires-extended-host-pass']:
+      extended_pass_providers = host_pass_reqs['extended-host-pass-providers']
+      
+      available_providers = []
+      for provider in extended_pass_providers:
+        if provider in active_backends:
+          available_providers.append(provider)
+      
+      # If there is already an integrated multipass backend running
+      # that already provides the flags, or if an explicit multipass
+      # provider is already enabled, there is nothing to do
+      for p in available_providers:
+        if active_backends[p].is_integrated_multipass:
+          return
+        elif active_backends[p].is_extended_host_pass_enabled:
+          return
+      
+      # Otherwise, we need to select and enable an explicit multipass
+      # provider. Currently we always select the backend we are configuring.
+      # TODO make this user configurable, especially if we add HIP explicit multipass
+      #  when this might actually change things.
+      if backend.unique_name in available_providers:
+        backend.enable_extended_host_pass()
+      else:
+        raise RuntimeError("Tried to select "+backend.unique_name+" as extended host pass provider, but it is not an active backend")
 
   def _construct_multipass_user_args(self):
     args = list(self._user_args)
@@ -1169,6 +1325,17 @@ class compiler:
     if not self._is_dry_run:
       multipass_backend.create_kernel_bundle(targets)
 
+  def _select_compiler(self):
+    compiler_executable, compiler_priority = ("", 0)
+
+    for backend in self._backends:
+      cxx, priority = backend.get_compiler_preference()
+      if priority > compiler_priority:
+        compiler_executable = cxx
+        compiler_priority = priority
+    
+    return compiler_executable
+
   def _run(self, temp_dir):
     if len(self._multipass_backends) > 0 and self._requires_compilation:
       for b in self._multipass_backends:
@@ -1176,14 +1343,9 @@ class compiler:
 
     cxx_flags = self.common_cxx_flags
     ld_flags = self.common_linker_flags
-    compiler_executable, compiler_priority = ("", 0)
+    compiler_executable = self._host_compiler
 
     for backend_args in self._backends:
-      cxx, priority = backend_args.get_compiler_preference()
-      if priority > compiler_priority:
-        compiler_executable = cxx
-        compiler_priority = priority
-
       cxx_flags += backend_args.get_cxx_flags()
       ld_flags += backend_args.get_linker_flags()
 
@@ -1247,6 +1409,5 @@ if __name__ == '__main__':
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    raise
     print("syclcc fatal error: "+str(e))
     sys.exit(-1)

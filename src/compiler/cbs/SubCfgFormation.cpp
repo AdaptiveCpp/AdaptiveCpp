@@ -635,8 +635,6 @@ void SubCFG::loadMultiSubCfgValues(
     UniVMap[InstAllocaPair.first] = Load;
   }
 
-  llvm::SmallPtrSet<llvm::Instruction *, 16> InstsToRemap;
-
   llvm::SmallPtrSet<llvm::Instruction *, 16> UniquifyInsts;
   for (auto &Pair : ContInstReplicaMap) {
     UniquifyInsts.insert(Pair.first);
@@ -644,7 +642,7 @@ void SubCFG::loadMultiSubCfgValues(
       UniquifyInsts.insert(Target);
   }
 
-  llvm::SmallVector<llvm::Instruction *> OrderedInsts(UniquifyInsts.size());
+  llvm::SmallVector<llvm::Instruction *, 16> OrderedInsts(UniquifyInsts.size());
   std::copy(UniquifyInsts.begin(), UniquifyInsts.end(), OrderedInsts.begin());
 
   auto IsUsedBy = [](llvm::Instruction *LHS, llvm::Instruction *RHS) {
@@ -672,6 +670,7 @@ void SubCFG::loadMultiSubCfgValues(
     }
   }
 
+  llvm::SmallPtrSet<llvm::Instruction *, 16> InstsToRemap;
   for (auto *I : OrderedInsts) {
     if (UniVMap.count(I))
       continue;

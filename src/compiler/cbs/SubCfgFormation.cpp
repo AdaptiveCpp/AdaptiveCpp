@@ -113,9 +113,8 @@ void fillStores(llvm::Value *V, int Idx, llvm::SmallVector<llvm::Value *, 3> &Lo
   }
 }
 
-void loadSizeValuesFromArgument(
-    llvm::Function &F, int Dim, llvm::Value *LocalSizeArg, const llvm::DataLayout &DL,
-    llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSizeArg, const llvm::DataLayout &DL,
+                                llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
   // local_size is just an array of size_t's..
   auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
 
@@ -197,6 +196,7 @@ void createLoopsAround(llvm::Function &F, llvm::BasicBlock *AfterBB, const llvm:
   llvm::IRBuilder Builder{LoadBB, LoadBB->getFirstInsertionPt()};
 
   const size_t Dim = LocalSize.size();
+
   llvm::SmallVector<llvm::PHINode *, 3> IndVars;
   for (int D = Dim - 1; D >= 0; --D) {
     const std::string Suffix = (llvm::Twine{DimName[D]} + ".subcfg." + llvm::Twine{EntryId}).str();
@@ -637,32 +637,56 @@ void SubCFG::loadMultiSubCfgValues(
 
   llvm::SmallPtrSet<llvm::Instruction *, 16> InstsToRemap;
 
-  // todo: topo sort on instructions to get order right
-  for (auto &InstContInstsPair : ContInstReplicaMap) {
-    if (UniVMap.count(InstContInstsPair.first))
-      continue;
+  llvm::SmallPtrSet<llvm::Instruction *, 16> UniquifyInsts;
+  for (auto &Pair : ContInstReplicaMap) {
+    UniquifyInsts.insert(Pair.first);
+    for (auto &Target : Pair.second)
+      UniquifyInsts.insert(Target);
+  }
 
-    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and operands of: " << *InstContInstsPair.first << " to "
-                       << LoadTerm->getParent()->getName() << "\n";
-    auto *IClone = InstContInstsPair.first->clone();
-    IClone->insertBefore(LoadTerm);
-    InstsToRemap.insert(IClone);
-    UniVMap[InstContInstsPair.first] = IClone;
-    if (VMap.count(InstContInstsPair.first) == 0)
-      VMap[InstContInstsPair.first] = IClone;
-    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
-    for (auto *Inst : InstContInstsPair.second) {
-      if (UniVMap.count(Inst))
-        continue;
-      IClone = Inst->clone();
-      IClone->insertBefore(LoadTerm);
-      InstsToRemap.insert(IClone);
-      UniVMap[Inst] = IClone;
-      if (VMap.count(Inst) == 0)
-        VMap[Inst] = IClone;
-      HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
+  llvm::SmallVector<llvm::Instruction *> OrderedInsts(UniquifyInsts.size());
+  std::copy(UniquifyInsts.begin(), UniquifyInsts.end(), OrderedInsts.begin());
+
+  auto IsUsedBy = [](llvm::Instruction *LHS, llvm::Instruction *RHS) {
+    for (auto *U : LHS->users()) {
+      if (U == RHS)
+        return true;
+    }
+    return false;
+  };
+  for (int I = 0; I < OrderedInsts.size(); ++I) {
+    int InsertAt = I;
+    for (int J = OrderedInsts.size() - 1; J > I; --J) {
+      if (IsUsedBy(OrderedInsts[J], OrderedInsts[I])) {
+        InsertAt = J;
+        break;
+      }
+    }
+    if (InsertAt != I) {
+      auto *Tmp = OrderedInsts[I];
+      for (int J = I + 1; J <= InsertAt; ++J) {
+        OrderedInsts[J - 1] = OrderedInsts[J];
+      }
+      OrderedInsts[InsertAt] = Tmp;
+      --I;
     }
   }
+
+  for (auto *I : OrderedInsts) {
+    if (UniVMap.count(I))
+      continue;
+
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and operands of: " << *I << " to "
+                       << LoadTerm->getParent()->getName() << "\n";
+    auto *IClone = I->clone();
+    IClone->insertBefore(LoadTerm);
+    InstsToRemap.insert(IClone);
+    UniVMap[I] = IClone;
+    if (VMap.count(I) == 0)
+      VMap[I] = IClone;
+    HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction: " << *IClone << "\n";
+  }
+
   for (auto *IToRemap : InstsToRemap)
     remapInstruction(IToRemap, UniVMap);
 }

@@ -73,57 +73,90 @@ std::size_t getRangeDim(llvm::Function &F) {
   llvm_unreachable("[SubCFG] Could not deduce kernel dimensionality!");
 }
 
+std::pair<llvm::Value *, llvm::Instruction *> getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
+  for (auto &BB : F)
+    for (auto &I : BB)
+      if (auto *UI = llvm::dyn_cast<llvm::CallInst>(&I))
+        if (UI->getCalledFunction()->getName().equals("llvm.var.annotation")) {
+          auto *CE = llvm::cast<llvm::ConstantExpr>(UI->getOperand(1));
+          if (CE->getOpcode() == llvm::Instruction::GetElementPtr)
+            if (auto *AnnoteStr = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0)))
+              if (auto *Data = llvm::dyn_cast<llvm::ConstantDataSequential>(AnnoteStr->getInitializer()))
+                if (Data->isString() && Data->getAsString().startswith("hipsycl_nd_kernel_local_size_arg")) {
+                  auto *BC = llvm::cast<llvm::BitCastInst>(UI->getOperand(0));
+                  return {BC->getOperand(0), UI};
+                }
+        }
+
+  assert(false && "Didn't find annotated argument!");
+  return {nullptr, nullptr};
+}
+
+void fillStores(llvm::Value *V, int Idx, llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+  if (auto *Store = llvm::dyn_cast<llvm::StoreInst>(V)) {
+    HIPSYCL_DEBUG_INFO << "  store " << *Store << "\n";
+    LocalSize[Idx] = Store->getOperand(0);
+  } else if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(V)) {
+    HIPSYCL_DEBUG_INFO << "  bc " << *BC << "\n";
+
+    for (auto *BCU : BC->users()) {
+      fillStores(BCU, Idx, LocalSize);
+    }
+  } else if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(V)) {
+    HIPSYCL_DEBUG_INFO << "  gep " << *GEP << "\n";
+
+    auto *IdxV = GEP->indices().begin() + (GEP->getNumIndices() - 1);
+    auto *IdxC = llvm::cast<llvm::ConstantInt>(IdxV);
+    for (auto *GU : GEP->users()) {
+      fillStores(GU, IdxC->getSExtValue(), LocalSize);
+    }
+  }
+}
+
+void loadSizeValuesFromArgument(
+    llvm::Function &F, int Dim, llvm::Value *LocalSizeArg, const llvm::DataLayout &DL,
+    llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
+  // local_size is just an array of size_t's..
+  auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
+
+  llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
+  llvm::Value *LocalSizePtr = nullptr;
+  if (!LocalSizeArg->getType()->isArrayTy())
+    LocalSizePtr = Builder.CreatePointerCast(
+        LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
+        "local_size.cast");
+  HIPSYCL_DEBUG_INFO << *LocalSizePtr << "\n";
+
+  for (unsigned int I = 0; I < Dim; ++I) {
+    if (LocalSizeArg->getType()->isArrayTy()) {
+      LocalSize[I] = Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]});
+    } else {
+      auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizePtr, {Builder.getIntN(SizeTSize, I)},
+                                                     "local_size.gep." + llvm::Twine{DimName[I]});
+      HIPSYCL_DEBUG_INFO << *LocalSizeGep << "\n";
+
+      LocalSize[I] = Builder.CreateLoad(LocalSizeGep, "local_size." + llvm::Twine{DimName[I]});
+    }
+  }
+}
+
 llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim) {
   auto &DL = F.getParent()->getDataLayout();
   const auto ReqdWgSize = utils::getReqdWgSize(F);
 
   if (ReqdWgSize[0] == 0) {
-    auto *LocalSizeArg =
-        std::find_if(F.arg_begin(), F.arg_end(), [](llvm::Argument &Arg) { return Arg.getName() == "local_size"; });
-    if (LocalSizeArg == F.arg_end()) {
-      LocalSizeArg = std::find_if(F.arg_begin(), F.arg_end(),
-                                  [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce"; });
-      if (Dim == 1) {
-        if (LocalSizeArg == F.arg_end())
-          llvm_unreachable("[SubCFG] Kernel has no local_size or local_size.coerce argument!");
-        else
-          return {LocalSizeArg};
-      } else if (Dim == 2) {
-        if (LocalSizeArg == F.arg_end()) {
-          auto *LocalSizeArgX = std::find_if(F.arg_begin(), F.arg_end(),
-                                             [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce0"; });
-          auto *LocalSizeArgY = std::find_if(F.arg_begin(), F.arg_end(),
-                                             [](llvm::Argument &Arg) { return Arg.getName() == "local_size.coerce1"; });
+    auto [LocalSizeArg, Annotation] = getLocalSizeArgumentFromAnnotation(F);
 
-          if (LocalSizeArgX == F.arg_end() || LocalSizeArgY == F.arg_end())
-            llvm_unreachable("[SubCFG] Kernel has no local_size or local_size.coerce{0,1} argument!");
-          else
-            return {LocalSizeArgX, LocalSizeArgY};
-        }
-      } else if (LocalSizeArg == F.arg_end())
-        llvm_unreachable("[SubCFG] Kernel has no local_size argument!");
-    }
+    llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
+    HIPSYCL_DEBUG_INFO << *LocalSizeArg << "\n";
 
-    // local_size is just an array of size_t's..
-    auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
+    if (!llvm::dyn_cast<llvm::Argument>(LocalSizeArg))
+      for (auto *U : LocalSizeArg->users())
+        fillStores(U, 0, LocalSize);
+    else
+      loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize);
 
-    llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
-    llvm::Value *LocalSizePtr = nullptr;
-    if (!LocalSizeArg->getType()->isArrayTy())
-      LocalSizePtr = Builder.CreatePointerCast(
-          LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
-          "local_size.cast");
-
-    llvm::SmallVector<llvm::Value *, 3> LocalSize;
-    for (unsigned int I = 0; I < Dim; ++I) {
-      if (LocalSizeArg->getType()->isArrayTy()) {
-        LocalSize.push_back(Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]}));
-      } else {
-        auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizePtr, {Builder.getIntN(SizeTSize, I)},
-                                                       "local_size.gep." + llvm::Twine{DimName[I]});
-        LocalSize.push_back(Builder.CreateLoad(LocalSizeGep, "local_size." + llvm::Twine{DimName[I]}));
-      }
-    }
+    Annotation->eraseFromParent();
     return LocalSize;
   }
 

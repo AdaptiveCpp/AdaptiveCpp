@@ -187,9 +187,9 @@ extern size_t __hipsycl_local_id_y;
 extern size_t __hipsycl_local_id_z;
 
 template <class StaticPropertyList, int Dim, class Function, class ...Reducers>
-[[clang::annotate("hipsycl_nd_kernel")]] __attribute__((noinline))
+HIPSYCL_ND_KERNEL __attribute__((noinline))
 inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
-  [[clang::annotate("hipsycl_nd_kernel_local_size_arg")]] const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
+  HIPSYCL_ND_KERNEL_LOCAL_SIZE_ARG const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
   size_t num_local_mem_bytes, void* group_shared_memory_ptr,
   std::function<void()> &barrier_impl,
   Reducers& ... reducers) noexcept {

@@ -36,7 +36,7 @@ namespace hipsycl {
 namespace compiler {
 
 class SplitterAnnotationInfo {
-  static constexpr const char *SplitterAnnotation = "hipsycl_splitter";
+  static constexpr const char *SplitterAnnotation = "hipsycl_barrier";
   static constexpr const char *KernelAnnotation = "hipsycl_nd_kernel";
   llvm::SmallPtrSet<llvm::Function *, 4> SplitterFuncs;
   llvm::SmallPtrSet<llvm::Function *, 8> NDKernels;

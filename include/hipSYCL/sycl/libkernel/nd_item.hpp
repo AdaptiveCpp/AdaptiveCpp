@@ -280,8 +280,7 @@ struct nd_item
 #endif
   }
 
-  [[clang::annotate("hipsycl_splitter")]]
-  HIPSYCL_KERNEL_TARGET
+  HIPSYCL_BARRIER HIPSYCL_KERNEL_TARGET
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {

@@ -38,29 +38,13 @@
 #include "../sub_group.hpp"
 #include "../vec.hpp"
 
-#include "rv_shuffle.hpp"
-
 namespace hipsycl {
 namespace sycl {
 
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(sub_group g, T x, BinaryOperation binary_op) {
-#ifdef HIPSYCL_HAS_RV
-  const size_t       lid        = g.get_local_linear_id();
-  const unsigned int activemask = rv_ballot(rv_mask());
-
-  auto local_x = x;
-
-  for (size_t i = rv_num_lanes() / 2; i > 0; i /= 2) {
-    auto other_x = detail::shuffle_down_impl(local_x, i);
-    if (activemask & (1 << (lid + i)))
-      local_x = binary_op(local_x, other_x);
-  }
-  return detail::extract_impl(local_x, 0);
-#else
   return x;
-#endif
 }
 
 namespace detail {
@@ -68,34 +52,6 @@ namespace detail {
 template<typename Group, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
-#ifdef HIPSYCL_HAS_RV
-  const auto   lid    = g.get_local_linear_id();
-  const std::size_t local_range = g.get_local_range().size();
-  sub_group    sg{};
-
-  scratch[lid] = x;
-  group_barrier(g);
-
-  size_t i = 1;
-
-  if(lid < rv_num_lanes() && rv_num_lanes() <= local_range) {
-    for(i = rv_num_lanes(); i + rv_num_lanes() <= local_range; i += rv_num_lanes()) {
-      x = binary_op(x, scratch[i + rv_lane_id()]);
-    }
-    x = group_reduce(sg, x, binary_op);
-  }
-  if(g.leader()){
-    for(; i < local_range; ++i)
-      x = binary_op(x, scratch[i]);
-    scratch[0] = x;
-  }
-
-  group_barrier(g);
-  x = scratch[0];
-  group_barrier(g);
-
-  return x;
-#else
   const size_t lid = g.get_local_linear_id();
 
   scratch[lid] = x;
@@ -115,7 +71,6 @@ T group_reduce(Group g, T x, BinaryOperation binary_op, T *scratch) {
   group_barrier(g);
 
   return tmp;
-#endif
 }
 
 // functions using pointers
@@ -422,11 +377,7 @@ template<typename T>
 HIPSYCL_KERNEL_TARGET
 T group_broadcast(sub_group g, T x,
                   typename sub_group::linear_id_type local_linear_id = 0) {
-#ifdef HIPSYCL_HAS_RV
-  return detail::extract_impl(x, local_linear_id);
-#else
   return x;
-#endif
 }
 
 // barrier
@@ -474,11 +425,7 @@ inline bool group_any_of(Group g, bool pred) {
 template<>
 HIPSYCL_KERNEL_TARGET
 inline bool group_any_of(sub_group, bool pred) {
-#ifdef HIPSYCL_HAS_RV
-  return rv_any(pred);
-#else
   return pred;
-#endif
 }
 
 // all_of
@@ -505,11 +452,7 @@ inline bool group_all_of(Group g, bool pred) {
 template<>
 HIPSYCL_KERNEL_TARGET
 inline bool group_all_of(sub_group, bool pred) {
-#ifdef HIPSYCL_HAS_RV
-  return rv_all(pred);
-#else
   return pred;
-#endif
 }
 
 // none_of
@@ -536,11 +479,7 @@ inline bool group_none_of(Group g, bool pred) {
 template<>
 HIPSYCL_KERNEL_TARGET
 inline bool group_none_of(sub_group, bool pred) {
-#ifdef HIPSYCL_HAS_RV
-  return rv_all(!pred);
-#else
   return pred;
-#endif
 }
 
 // reduce
@@ -556,37 +495,8 @@ T group_reduce(Group g, T x, BinaryOperation binary_op) {
 
 template<typename V, typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
-  T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
-#ifdef HIPSYCL_HAS_RV
-  const size_t       lid        = g.get_local_linear_id();
-  const size_t       lrange     = g.get_local_linear_range();
-  const unsigned int activemask = rv_mask();
-
-  auto local_x = x;
-
-  for (size_t i = 1; i < lrange; i *= 2) {
-    size_t next_id = lid - i;
-    if (i > lid)
-      next_id = 0;
-
-    auto other_x = detail::shuffle_impl(local_x, next_id);
-    if (activemask & (1 << (next_id)) && i <= lid && lid < lrange)
-      local_x = binary_op(local_x, other_x);
-  }
-
-  size_t next_id = lid - 1;
-  if (g.leader())
-    next_id = 0;
-
-  auto return_value = detail::shuffle_impl(local_x, next_id);
-
-  if (g.leader())
-    return init;
-
-  return binary_op(return_value, init);
-#else
+T group_exclusive_scan(sub_group g, V x, T init, BinaryOperation binary_op) {
   return binary_op(x, init);
-#endif
 }
 
 // exclusive_scan
@@ -638,27 +548,7 @@ T group_inclusive_scan(Group g, T x, BinaryOperation binary_op) {
 template<typename T, typename BinaryOperation>
 HIPSYCL_KERNEL_TARGET
 T group_inclusive_scan(sub_group g, T x, BinaryOperation binary_op) {
-#ifdef HIPSYCL_HAS_RV
-  const size_t       lid        = g.get_local_linear_id();
-  const size_t       lrange     = g.get_local_linear_range();
-  const unsigned int activemask = rv_mask();
-
-  auto local_x = x;
-
-  for (size_t i = 1; i < lrange; i *= 2) {
-    size_t next_id = lid - i;
-    if (i > lid)
-      next_id = 0;
-
-    auto other_x = detail::shuffle_impl(local_x, next_id);
-    if (activemask & (1 << (next_id)) && i <= lid && lid < lrange)
-      local_x = binary_op(local_x, other_x);
-  }
-
-  return local_x;
-#else
   return x;
-#endif
 }
 
 // shift_left
@@ -683,11 +573,7 @@ T shift_group_left(Group g, T x, typename Group::linear_id_type delta = 1) {
 
 template<typename T>
 T shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
-#ifdef HIPSYCL_HAS_RV
-  return detail::shuffle_down_impl(x, delta);
-#else
   return x;
-#endif
 }
 
 // shift_right
@@ -713,11 +599,7 @@ T shift_group_right(Group g, T x, typename Group::linear_id_type delta = 1) {
 
 template<typename T>
 T shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
-#ifdef HIPSYCL_HAS_RV
-  return detail::shuffle_up_impl(x, delta);
-#else
   return x;
-#endif
 }
 
 // permute_group_by_xor
@@ -744,11 +626,7 @@ T permute_group_by_xor(Group g, T x, typename Group::linear_id_type mask) {
 // permute_group_by_xor
 template<typename T>
 T permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
-#ifdef HIPSYCL_HAS_RV
-  return detail::shuffle_xor_impl(x, mask);
-#else
   return x;
-#endif
 }
 
 // select_from_group
@@ -775,12 +653,7 @@ T select_from_group(Group g, T x, typename Group::id_type remote_local_id) {
 
 template<typename T>
 T select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
-#ifdef HIPSYCL_HAS_RV
-  typename sub_group::linear_id_type target_lid = remote_local_id.get(0);
-  return detail::shuffle_impl(x, target_lid);
-#else
   return x;
-#endif
 }
 
 } // namespace sycl

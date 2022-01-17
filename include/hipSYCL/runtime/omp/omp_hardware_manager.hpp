@@ -59,20 +59,7 @@ public:
     switch(prop)
     {
     case device_uint_list_property::sub_group_sizes:
-#ifdef HIPSYCL_HAS_RV
-#  if defined(__AVX512VL__)
-      return std::vector<std::size_t>{1, 2, 4, 8};
-#  elif defined(__AVX__)
-      return std::vector<std::size_t>{1, 2, 4};
-#  elif defined(__SSE__)
-      return std::vector<std::size_t>{1, 2};
-#  else
       return std::vector<std::size_t>{1};
-#  endif
-#else
-      return std::vector<std::size_t>{1};
-#endif
-      break;
     }
     assert(false && "Invalid device property");
     std::terminate();

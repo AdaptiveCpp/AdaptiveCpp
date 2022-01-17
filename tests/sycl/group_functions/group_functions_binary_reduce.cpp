@@ -198,16 +198,12 @@ BOOST_AUTO_TEST_CASE(group_x_of_ptr) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP) || defined(HIPSYCL_HAS_RV)
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
   const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
-#else
-  const uint32_t subgroup_size       = static_cast<uint32_t>(4);
-#endif
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -432,16 +428,12 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP) || defined(HIPSYCL_HAS_RV)
+#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
-#else
-  const uint32_t subgroup_size       = static_cast<uint32_t>(4);
-#endif
+const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {

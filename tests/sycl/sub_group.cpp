@@ -83,8 +83,6 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   const uint32_t subgroup_size = static_cast<uint32_t>(warpSize);
 #elif defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
   const uint32_t subgroup_size = 32;
-#elif defined(HIPSYCL_HAS_RV)
-  const uint32_t subgroup_size = 4; // todo..?
 #else
   const uint32_t subgroup_size = 1;
 #endif

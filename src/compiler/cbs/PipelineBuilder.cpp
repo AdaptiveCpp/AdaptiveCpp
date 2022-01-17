@@ -25,18 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/PipelineBuilder.hpp"
+#include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
 
 #include "hipSYCL/common/debug.hpp"
-#include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
-#include "hipSYCL/compiler/KernelFlattening.hpp"
-#include "hipSYCL/compiler/LoopSimplify.hpp"
-#include "hipSYCL/compiler/LoopSplitterInlining.hpp"
-#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
-#include "hipSYCL/compiler/PHIsToAllocas.hpp"
-#include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
-#include "hipSYCL/compiler/SimplifyKernel.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/CanonicalizeBarriers.hpp"
+#include "hipSYCL/compiler/cbs/KernelFlattening.hpp"
+#include "hipSYCL/compiler/cbs/LoopSimplify.hpp"
+#include "hipSYCL/compiler/cbs/LoopSplitterInlining.hpp"
+#include "hipSYCL/compiler/cbs/LoopsParallelMarker.hpp"
+#include "hipSYCL/compiler/cbs/PHIsToAllocas.hpp"
+#include "hipSYCL/compiler/cbs/RemoveBarrierCalls.hpp"
+#include "hipSYCL/compiler/cbs/SimplifyKernel.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>

@@ -25,10 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/LoopSimplify.hpp"
+#include "hipSYCL/compiler/cbs/LoopSimplify.hpp"
 
-#include "hipSYCL/compiler/IRUtils.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
 #include <llvm/Analysis/ScalarEvolution.h>
 

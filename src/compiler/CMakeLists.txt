@@ -12,17 +12,17 @@ endif()
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
 if(WITH_ACCELERATED_CPU)
-  set(CBS_PLUGIN LoopSplitterInlining.cpp
-    SplitterAnnotationAnalysis.cpp
-    IRUtils.cpp
-    KernelFlattening.cpp
-    LoopsParallelMarker.cpp
-    PHIsToAllocas.cpp
-    RemoveBarrierCalls.cpp
-    CanonicalizeBarriers.cpp
-    SimplifyKernel.cpp
-    LoopSimplify.cpp
-    PipelineBuilder.cpp
+  set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
+    cbs/SplitterAnnotationAnalysis.cpp
+    cbs/IRUtils.cpp
+    cbs/KernelFlattening.cpp
+    cbs/LoopsParallelMarker.cpp
+    cbs/PHIsToAllocas.cpp
+    cbs/RemoveBarrierCalls.cpp
+    cbs/CanonicalizeBarriers.cpp
+    cbs/SimplifyKernel.cpp
+    cbs/LoopSimplify.cpp
+    cbs/PipelineBuilder.cpp
     cbs/SubCfgFormation.cpp
     cbs/UniformityAnalysis.cpp
     cbs/VectorShape.cpp

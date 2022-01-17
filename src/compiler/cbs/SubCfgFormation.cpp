@@ -28,8 +28,8 @@
 
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
-#include "hipSYCL/compiler/IRUtils.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 
 #include "hipSYCL/common/debug.hpp"

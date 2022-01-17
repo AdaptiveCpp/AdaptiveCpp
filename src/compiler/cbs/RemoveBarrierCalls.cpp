@@ -21,10 +21,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "hipSYCL/compiler/RemoveBarrierCalls.hpp"
+#include "hipSYCL/compiler/cbs/RemoveBarrierCalls.hpp"
 
-#include "hipSYCL/compiler/IRUtils.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
 namespace {
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {

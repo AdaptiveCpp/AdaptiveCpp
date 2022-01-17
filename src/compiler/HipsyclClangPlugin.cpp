@@ -28,11 +28,11 @@
 
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
-#include "hipSYCL/compiler/PipelineBuilder.hpp"
+#include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
 
 #ifdef HIPSYCL_USE_ACCELERATED_CPU
-#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/LoopsParallelMarker.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"

@@ -26,9 +26,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
-#include "hipSYCL/compiler/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 

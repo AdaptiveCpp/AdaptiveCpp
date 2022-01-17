@@ -22,10 +22,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "hipSYCL/compiler/CanonicalizeBarriers.hpp"
-#include "hipSYCL/compiler/IRUtils.hpp"
-#include "hipSYCL/compiler/PipelineBuilder.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/CanonicalizeBarriers.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"

@@ -21,10 +21,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include "hipSYCL/compiler/PHIsToAllocas.hpp"
+#include "hipSYCL/compiler/cbs/PHIsToAllocas.hpp"
 
-#include "hipSYCL/compiler/IRUtils.hpp"
-#include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/IRBuilder.h>

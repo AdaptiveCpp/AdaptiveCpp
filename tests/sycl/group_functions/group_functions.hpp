@@ -53,8 +53,7 @@ using test_types =
                      sycl::vec<int, 8>, sycl::vec<short, 16>, sycl::vec<long, 3>,
                      sycl::vec<unsigned int, 3>>;
 #else
-//using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
-using test_types = boost::mpl::list<unsigned int, float>;
+using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec<int, 2>>;
 #endif
 
 namespace detail {

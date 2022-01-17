@@ -275,6 +275,16 @@ std::string omp_hardware_context::get_driver_version() const { return "1.2"; }
 std::string omp_hardware_context::get_profile() const {
   return "FULL_PROFILE";
 }
+std::vector<std::size_t> omp_hardware_context::get_property(device_uint_list_property prop) const
+{
+  switch(prop) {
+    case device_uint_list_property::sub_group_sizes:
+      return std::vector<std::size_t>{1};
+      break;
+  }
+  assert(false && "Invalid device property");
+  std::terminate();
+}
 
 std::size_t omp_hardware_manager::get_num_devices() const { return 1; }
 

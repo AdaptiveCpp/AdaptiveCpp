@@ -54,16 +54,7 @@ public:
   virtual bool has(device_support_aspect aspect) const override;
   virtual std::size_t get_property(device_uint_property prop) const override;
   virtual std::vector<std::size_t>
-  get_property(device_uint_list_property prop) const override
-  { // todo: need in client code as mostly the -march= of the client application matters.
-    switch(prop)
-    {
-    case device_uint_list_property::sub_group_sizes:
-      return std::vector<std::size_t>{1};
-    }
-    assert(false && "Invalid device property");
-    std::terminate();
-  }
+    get_property(device_uint_list_property prop) const override;
 
   virtual std::string get_driver_version() const override;
   virtual std::string get_profile() const override;

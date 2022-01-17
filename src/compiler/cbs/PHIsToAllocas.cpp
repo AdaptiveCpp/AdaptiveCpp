@@ -53,7 +53,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
 
   llvm::IRBuilder Builder(&*(Function->getEntryBlock().getFirstInsertionPt()));
 
-  llvm::Instruction *Alloca = Builder.CreateAlloca(Phi->getType(), 0, AllocaName);
+  llvm::AllocaInst *Alloca = Builder.CreateAlloca(Phi->getType(), 0, AllocaName);
 
   for (unsigned Incoming = 0; Incoming < Phi->getNumIncomingValues(); ++Incoming) {
     auto *V = Phi->getIncomingValue(Incoming);
@@ -63,7 +63,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
   }
   Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
 
-  llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca);
+  llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca->getAllocatedType(), Alloca);
   Phi->replaceAllUsesWith(LoadedValue);
 
   Phi->eraseFromParent();

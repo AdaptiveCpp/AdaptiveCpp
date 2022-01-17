@@ -117,24 +117,22 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
                                 llvm::SmallVector<llvm::Value *, 3> &LocalSize) {
   // local_size is just an array of size_t's..
   auto SizeTSize = DL.getLargestLegalIntTypeSizeInBits();
+  auto *SizeT = DL.getLargestLegalIntType(F.getContext());
 
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   llvm::Value *LocalSizePtr = nullptr;
   if (!LocalSizeArg->getType()->isArrayTy())
-    LocalSizePtr = Builder.CreatePointerCast(
-        LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), DL.getLargestLegalIntTypeSizeInBits()),
-        "local_size.cast");
-  HIPSYCL_DEBUG_INFO << *LocalSizePtr << "\n";
+    LocalSizePtr = Builder.CreatePointerCast(LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), SizeTSize), "local_size.cast");
 
   for (unsigned int I = 0; I < Dim; ++I) {
     if (LocalSizeArg->getType()->isArrayTy()) {
       LocalSize[I] = Builder.CreateExtractValue(LocalSizeArg, {I}, "local_size." + llvm::Twine{DimName[I]});
     } else {
-      auto *LocalSizeGep = Builder.CreateInBoundsGEP(LocalSizePtr, {Builder.getIntN(SizeTSize, I)},
+      auto *LocalSizeGep = Builder.CreateInBoundsGEP(SizeT, LocalSizePtr, Builder.getIntN(SizeTSize, I),
                                                      "local_size.gep." + llvm::Twine{DimName[I]});
       HIPSYCL_DEBUG_INFO << *LocalSizeGep << "\n";
 
-      LocalSize[I] = Builder.CreateLoad(LocalSizeGep, "local_size." + llvm::Twine{DimName[I]});
+      LocalSize[I] = Builder.CreateLoad(SizeT, LocalSizeGep, "local_size." + llvm::Twine{DimName[I]});
     }
   }
 }
@@ -603,7 +601,7 @@ void SubCFG::loadMultiSubCfgValues(
         if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(InstAllocaPair.first))
           if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
             auto *NewGEP = llvm::cast<llvm::GetElementPtrInst>(
-                Builder.CreateInBoundsGEP(GEP->getPointerOperand(), {NewContIdx}, GEP->getName() + "c"));
+                Builder.CreateInBoundsGEP(GEP->getType(), GEP->getPointerOperand(), NewContIdx, GEP->getName() + "c"));
             NewGEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDArrayified);
             VMap[InstAllocaPair.first] = NewGEP;
             continue;
@@ -752,7 +750,7 @@ void SubCFG::fixSingleSubCfgValues(llvm::DominatorTree &DT,
           if (auto *GEP = llvm::dyn_cast<llvm::GetElementPtrInst>(OPI))
             if (auto *MDArrayified = GEP->getMetadata(hipsycl::compiler::MDKind::Arrayified)) {
               auto *NewGEP = llvm::cast<llvm::GetElementPtrInst>(
-                  Builder.CreateInBoundsGEP(GEP->getPointerOperand(), {ContIdx_}, GEP->getName() + "c"));
+                  Builder.CreateInBoundsGEP(GEP->getType(), GEP->getPointerOperand(), ContIdx_, GEP->getName() + "c"));
               NewGEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDArrayified);
               I.replaceUsesOfWith(OPI, NewGEP);
               InstLoadMap.insert({OPI, NewGEP});
@@ -835,7 +833,8 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::BasicBlock *PreHeader, llvm::B
   auto *WhileHeader =
       llvm::BasicBlock::Create(PreHeader->getContext(), "cbs.while.header", PreHeader->getParent(), OldEntry);
   llvm::IRBuilder Builder{WhileHeader, WhileHeader->getFirstInsertionPt()};
-  auto *LastID = Builder.CreateLoad(LastBarrierIdStorage, "cbs.while.last_barr.load");
+  auto *LastID =
+      Builder.CreateLoad(LastBarrierIdStorage->getAllocatedType(), LastBarrierIdStorage, "cbs.while.last_barr.load");
   auto *Switch = Builder.CreateSwitch(LastID, createUnreachableBlock(F), SubCFGs.size());
   for (auto &Cfg : SubCFGs) {
     Switch->addCase(Builder.getIntN(DL.getLargestLegalIntTypeSizeInBits(), Cfg.getEntryId()), Cfg.getEntry());
@@ -962,8 +961,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, std:
       auto *GepIp = SubCfg.getLoadBB()->getFirstNonPHIOrDbgOrLifetime();
 
       llvm::IRBuilder LoadBuilder{GepIp};
-      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
-          LoadBuilder.CreateInBoundsGEP(Alloca, {SubCfg.getContiguousIdx()}, I->getName() + "_gep"));
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
+          Alloca->getAllocatedType(), Alloca, SubCfg.getContiguousIdx(), I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
       llvm::replaceDominatedUsesWith(I, GEP, DT, SubCfg.getLoadBB());
@@ -1044,8 +1043,8 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   // get a common (pseudo) index value to be replaced by the actual index later
   Builder.SetInsertPoint(F.getEntryBlock().getTerminator());
-  llvm::Instruction *IndVar = Builder.CreateLoad(llvm::UndefValue::get(
-      llvm::PointerType::get(getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType(), 0)));
+  auto *IndVarT = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType();
+  llvm::Instruction *IndVar = Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
   VecInfo.setPinnedShape(*IndVar, hipsycl::compiler::VectorShape::cont());
 
   // create subcfgs
@@ -1134,8 +1133,8 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   const auto Dim = getRangeDim(F);
 
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
-  llvm::Value *Idx = Builder.CreateLoad(llvm::UndefValue::get(
-      llvm::PointerType::get(getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType(), 0)));
+  auto *IndVarT = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType();
+  llvm::Value *Idx = Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
 
   auto LocalSize = getLocalSizeValues(F, Dim);
   llvm::ValueToValueMapTy VMap;

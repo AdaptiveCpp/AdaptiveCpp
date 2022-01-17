@@ -11,28 +11,34 @@ endif()
 
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 
+if(WITH_ACCELERATED_CPU)
+  set(CBS_PLUGIN LoopSplitterInlining.cpp
+    SplitterAnnotationAnalysis.cpp
+    IRUtils.cpp
+    KernelFlattening.cpp
+    LoopsParallelMarker.cpp
+    PHIsToAllocas.cpp
+    RemoveBarrierCalls.cpp
+    CanonicalizeBarriers.cpp
+    SimplifyKernel.cpp
+    LoopSimplify.cpp
+    PipelineBuilder.cpp
+    cbs/SubCfgFormation.cpp
+    cbs/UniformityAnalysis.cpp
+    cbs/VectorShape.cpp
+    cbs/VectorizationInfo.cpp
+    cbs/AllocaSSA.cpp
+    cbs/VectorShapeTransformer.cpp
+    cbs/Region.cpp
+    cbs/SyncDependenceAnalysis.cpp)
+else()
+  set(CBS_PLUGIN "")
+endif()
+
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
-  LoopSplitterInlining.cpp
-  SplitterAnnotationAnalysis.cpp
-  IRUtils.cpp
-  KernelFlattening.cpp
-  LoopsParallelMarker.cpp
-  PHIsToAllocas.cpp
-  RemoveBarrierCalls.cpp
-  CanonicalizeBarriers.cpp
-  SimplifyKernel.cpp
-  LoopSimplify.cpp
-  PipelineBuilder.cpp
-  cbs/SubCfgFormation.cpp
-  cbs/UniformityAnalysis.cpp
-  cbs/VectorShape.cpp
-  cbs/VectorizationInfo.cpp
-  cbs/AllocaSSA.cpp
-  cbs/VectorShapeTransformer.cpp
-  cbs/Region.cpp
-  cbs/SyncDependenceAnalysis.cpp
+  ${CBS_PLUGIN}
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

@@ -28,16 +28,18 @@
 
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
-#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/PipelineBuilder.hpp"
+
+#ifdef HIPSYCL_USE_ACCELERATED_CPU
+#include "hipSYCL/compiler/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/SplitterAnnotationAnalysis.hpp"
+#endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
-#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 namespace hipsycl {
 namespace compiler {
@@ -58,6 +60,7 @@ static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
                                                registerGlobalsPruningPass);
 
+#if defined(HIPSYCL_USE_ACCELERATED_CPU) && !defined(_WIN32)
 static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
@@ -77,6 +80,7 @@ static void registerMarkParallelPass(const llvm::PassManagerBuilder &, llvm::leg
 // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
 static llvm::RegisterStandardPasses RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
                                                                          registerMarkParallelPass);
+#endif
 #if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 #define HIPSYCL_STRINGIFY(V) #V
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                    \
@@ -93,6 +97,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
 
+#ifdef HIPSYCL_USE_ACCELERATED_CPU
       PB.registerAnalysisRegistrationCallback(
           [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
 #if LLVM_VERSION_MAJOR < 12
@@ -108,6 +113,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
       PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager& FPM, OptLevel) {
         FPM.addPass(LoopsParallelMarkerPass{});
       });
+#endif
     }
   };
 }

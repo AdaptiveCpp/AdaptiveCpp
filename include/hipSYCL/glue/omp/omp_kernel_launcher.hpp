@@ -181,7 +181,7 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
   }
 }
 
-#ifndef HIPSYCL_HAS_FIBERS
+#ifdef HIPSYCL_USE_ACCELERATED_CPU
 extern size_t __hipsycl_local_id_x;
 extern size_t __hipsycl_local_id_y;
 extern size_t __hipsycl_local_id_z;
@@ -297,7 +297,7 @@ inline void parallel_for_ndrange_kernel(
 
     // 128 kiB as local memory for group algorithms
     std::aligned_storage_t<128*1024, sizeof(double) * 16> group_shared_memory_ptr{};
-#ifndef HIPSYCL_HAS_FIBERS
+#ifdef HIPSYCL_USE_ACCELERATED_CPU
     std::function<void()> barrier_impl = [] () noexcept {
       assert(false && "splitting seems to have failed");
       std::terminate();
@@ -333,7 +333,6 @@ inline void parallel_for_ndrange_kernel(
       }
     }
 #else
-
     host::static_range_decomposition<Dim> group_decomposition{
         num_groups, omp_get_num_threads()};
 

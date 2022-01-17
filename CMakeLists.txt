@@ -79,6 +79,7 @@ endif()
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 
+set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
@@ -91,10 +92,15 @@ else()
   set(DEFAULT_PLATFORM "cpu")
 endif()
 
-if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND)
-  set(BUILD_CLANG_PLUGIN true)
+if(WITH_ACCELERATED_CPU) # sanitize input
+  set(WITH_ACCELERATED_CPU true)
+else()
+  set(WITH_ACCELERATED_CPU false)
 endif()
 
+if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND OR WITH_ACCELERATED_CPU)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
 
 if(BUILD_CLANG_PLUGIN)
   find_package(LLVM CONFIG)
@@ -148,6 +154,9 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(WITH_ACCELERATED_CPU)
+  add_definitions(-DHIPSYCL_USE_ACCELERATED_CPU)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -288,6 +297,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
+  \"default-use-accelerated-cpu\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
   \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",

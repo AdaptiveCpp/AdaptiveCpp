@@ -229,7 +229,7 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
                 sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
                 [=](sycl::nd_item<1> idx, auto& add_reducer, auto& mul_reducer){
       add_reducer += input0[idx.get_global_linear_id()];
-#ifndef HIPSYCL_HAS_FIBERS
+#ifdef HIPSYCL_USE_ACCELERATED_CPU
       idx.barrier(); // workaround for omp simd failure as below.
 #endif
       mul_reducer *= input1[idx.get_global_linear_id()];

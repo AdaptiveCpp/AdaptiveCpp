@@ -1,6 +1,6 @@
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS
+// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu
 // RUN: %t | FileCheck %s
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp -DHIPSYCL_NO_FIBERS -O
+// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu -O
 // RUN: %t | FileCheck %s
 
 // adapted from https://github.com/UoB-HPC/sycl_dgemm/blob/main/dgemm.cpp

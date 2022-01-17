@@ -196,6 +196,13 @@ class syclcc_config:
       * spirv - use clang SYCL driver to generate spirv""")
     }
     self._flags = {
+      'use-accelerated-cpu': option("--hipsycl-use-accelerated-cpu", "HIPSYCL_USE_ACCELERATED_CPU",
+                                    "default-use-accelerated-cpu",
+"""If set and Clang is used for compilation, explicit compiler support
+  is enabled for accelerating the nd-range parallel for on CPU.
+  Uses continuation-based synchronization to execute all work-items
+  of a work-group in a single thread, eliminating scheduling overhead
+  and enabling enhanced vectorization opportunities compared to the fiber variant."""),
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
 """  If set, only shows compilation commands that would be executed, 
   but does not actually execute it. """),
@@ -540,6 +547,13 @@ class syclcc_config:
       return self._is_flag_set("is-dryrun")
     except OptionNotSet:
       return False
+
+  @property
+  def use_accelerated_cpu(self):
+    try:
+      return self._is_flag_set("use-accelerated-cpu")
+    except OptionNotSet:
+      return False
   
   @property
   def is_explicit_multipass(self):
@@ -623,8 +637,6 @@ class cuda_multipass_invocation:
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
         "-fplugin=" + self._config.hipsycl_plugin_path,
-        "-fpass-plugin=" + self._config.hipsycl_plugin_path,
-        "-fno-discard-value-names", # the pocl approach relies on value names :(
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
@@ -807,8 +819,6 @@ class cuda_invocation:
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
-        "-fpass-plugin=" + self._hipsycl_plugin_path,
-        "-fno-discard-value-names", # the pocl approach relies on value names :(
         "-D__HIPSYCL_CLANG__"
       ]
 
@@ -849,8 +859,6 @@ class hip_invocation:
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-fplugin=" + self._hipsycl_plugin_path,
-        "-fpass-plugin=" + self._hipsycl_plugin_path,
-        "-fno-discard-value-names", # the pocl approach relies on value names :(
         "-D__HIPSYCL_CLANG__"
       ]
     
@@ -875,15 +883,16 @@ class omp_invocation:
     if len(config.targets["omp"]) != 0:
       raise RuntimeError("OpenMP backend does not support specifiying target architecture")
 
-    self._clang = config.clang_path
+    self._cxx = config.pure_cpu_compiler
+    self._use_plugin = config.use_accelerated_cpu and self._cxx == config.clang_path
 
   def get_compiler_preference(self):
-    return (self._clang, 1)
+    return (self._cxx, 1)
 
   def get_cxx_flags(self):
-    flags = ["-fplugin=" + config.hipsycl_plugin_path, "-fpass-plugin=" + config.hipsycl_plugin_path,
-             "-fno-discard-value-names", # the pocl approach relies on value names :(
-             "-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    if self._use_plugin and not sys.platform.startswith("win32"):
+      flags += ["-fplugin=" + config.hipsycl_plugin_path, "-fpass-plugin=" + config.hipsycl_plugin_path, "-DHIPSYCL_USE_ACCELERATED_CPU"]
     flags += self._cxx_flags
       
     return flags

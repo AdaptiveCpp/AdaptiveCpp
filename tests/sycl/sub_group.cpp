@@ -116,7 +116,6 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   const std::vector<size_t> supported_subgroup_sizes =
       dev.get_info<cl::sycl::info::device::sub_group_sizes>();
   BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
-  for(auto v : supported_subgroup_sizes) {std::cout << v << std::endl;}
   BOOST_CHECK(std::find(supported_subgroup_sizes.cbegin(), supported_subgroup_sizes.cend(),
                 subgroup_size) != supported_subgroup_sizes.cend());
   const unsigned int max_num_subgroups =

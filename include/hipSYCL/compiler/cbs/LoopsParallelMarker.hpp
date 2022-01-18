@@ -35,6 +35,7 @@
 namespace hipsycl {
 namespace compiler {
 
+// marks the wi-loops as parallel (vectorizable) and enables vectorization.
 class LoopsParallelMarkerPassLegacy : public llvm::FunctionPass {
 
 public:

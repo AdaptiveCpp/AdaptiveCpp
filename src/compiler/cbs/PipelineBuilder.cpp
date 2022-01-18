@@ -48,9 +48,6 @@
 namespace hipsycl::compiler {
 
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
-  // todo: remove when done with debugging
-  llvm::outs().SetUnbuffered();
-
   HIPSYCL_DEBUG_WARNING << "CBS pipeline might not result in peak performance with old PM\n";
   PM.add(new LoopSplitterInliningPassLegacy{});
 
@@ -72,9 +69,6 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 }
 
 void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
-  // todo: remove when done with debugging
-  llvm::outs().SetUnbuffered();
-
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
   llvm::FunctionPassManager FPM;

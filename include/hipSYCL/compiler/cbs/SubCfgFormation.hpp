@@ -43,6 +43,7 @@ namespace compiler {
 constexpr size_t EntryBarrierId = 0;
 constexpr size_t ExitBarrierId = -1;
 
+// performs the main CBS transformation
 class SubCfgFormationPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;

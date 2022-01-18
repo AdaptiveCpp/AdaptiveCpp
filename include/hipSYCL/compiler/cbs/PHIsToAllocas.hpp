@@ -38,6 +38,7 @@
 namespace hipsycl {
 namespace compiler {
 
+// demotes non-wi-loop phis to allocas - only used if HIPSYCL_NO_PHIS_IN_SPLIT is set.
 class PHIsToAllocasPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;

@@ -35,6 +35,7 @@
 namespace hipsycl {
 namespace compiler {
 
+// wrapper pass for llvm::PromoteMemToReg that only runs on nd-range kernels
 class SimplifyKernelPassLegacy : public llvm::FunctionPass {
 
 public:

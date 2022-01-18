@@ -36,6 +36,7 @@
 namespace hipsycl {
 namespace compiler {
 
+// prunes barrier calls at the end of the pipeline
 class RemoveBarrierCallsPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;

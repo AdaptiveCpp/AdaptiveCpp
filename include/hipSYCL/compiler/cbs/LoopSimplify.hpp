@@ -36,6 +36,7 @@
 namespace hipsycl {
 namespace compiler {
 
+// Wrapper pass for llvm::simplifyLoop that is only run on nd-range kernels.
 class LoopSimplifyPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;

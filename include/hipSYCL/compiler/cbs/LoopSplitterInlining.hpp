@@ -34,6 +34,8 @@
 
 namespace hipsycl {
 namespace compiler {
+
+// inlines the call trees of the barriers and replaces them by a builtin
 class LoopSplitterInliningPassLegacy : public llvm::FunctionPass {
 public:
   static char ID;

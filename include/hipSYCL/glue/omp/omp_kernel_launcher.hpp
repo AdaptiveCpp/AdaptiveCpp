@@ -308,7 +308,7 @@ inline void parallel_for_ndrange_kernel(
         }
       }
     }
-#else
+#elif defined(HIPSYCL_HAS_FIBERS)
     host::static_range_decomposition<Dim> group_decomposition{
         num_groups, omp_get_num_threads()};
 
@@ -463,6 +463,26 @@ public:
             Kernel k, Reductions... reductions) {
 
     this->_type = type;
+#if !defined(HIPSYCL_HAS_FIBERS) && !defined(HIPSYCL_USE_ACCELERATED_CPU)
+    if (type == rt::kernel_type::ndrange_parallel_for) {
+      this->_invoker = [](rt::dag_node* node) {};
+
+      throw sycl::feature_not_supported{
+        "nd_range kernels on CPU are only supported if either compiler support (requires using Clang)\n"
+        "or fibers are enabled, as otherwise they cannot be efficiently implemented. It is recommended:\n"
+        " * to verify that you really need the features of nd_range parallel for.\n"
+        "   If you do not need local memory, use basic parallel for instead.\n"
+        " * users targeting SYCL 1.2.1 may use hierarchical parallel for, which\n"
+        "   can express the same algorithms, but may have functionality caveats in hipSYCL\n"
+        "   and/or other SYCL implementations.\n"
+        " * if you use hipSYCL exclusively, you are encouraged to use scoped parallelism:\n"
+        "   https://github.com/illuhad/hipSYCL/blob/develop/doc/scoped-parallelism.md\n"
+        " * if you can use Clang, enable the compiler support\n"
+        "   CMake: -DHIPSYCL_USE_ACCELERATED_CPU=ON, syclcc: --hipsycl-use-accelerated-cpu\n"
+        " * if you absolutely need nd_range parallel for and cannot use Clang, enable fiber support in hipSYCL."
+      };
+    }
+#endif
 
     this->_invoker = [=] (rt::dag_node* node) mutable {
 

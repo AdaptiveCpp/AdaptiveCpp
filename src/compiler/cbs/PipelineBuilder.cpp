@@ -81,7 +81,11 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
     MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
     MPM.addPass(llvm::IPSCCPPass{});
     FPM.addPass(llvm::InstCombinePass{});
+#if LLVM_VERSION_MAJOR <= 13
     FPM.addPass(llvm::SROA{});
+#else
+    FPM.addPass(llvm::SROAPass{});
+#endif
 
     FPM.addPass(llvm::SimplifyCFGPass{});
   }

@@ -96,18 +96,6 @@ void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformI
   }
 #endif
 
-  // set vectorization width, if a sub_group size is specified
-  if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.width")) {
-    auto SgSize = utils::getReqdSgSize(F);
-    if (SgSize != 0) {
-      auto *MDVectorizeWidth = llvm::MDNode::get(
-          F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.width"),
-                           llvm::ConstantAsMetadata::get(llvm::Constant::getIntegerValue(
-                               llvm::IntegerType::get(F.getContext(), 32), llvm::APInt(32, SgSize, false)))});
-      PostTransformMD.push_back(MDVectorizeWidth);
-    }
-  }
-
   if (!PostTransformMD.empty()) {
     auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), L->getLoopID(), {}, PostTransformMD);
     L->setLoopID(LoopID);

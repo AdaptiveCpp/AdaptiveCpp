@@ -132,10 +132,6 @@ llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm:
 
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst);
 
-std::array<size_t, 3> getReqdWgSize(const llvm::Function &F);
-size_t getReqdStackElements(const llvm::Function &F);
-size_t getReqdSgSize(const llvm::Function &F);
-
 template <class UserType, class Func> bool anyOfUsers(llvm::Value *V, Func &&L) {
   for (auto *U : V->users())
     if (UserType *UT = llvm::dyn_cast<UserType>(U))

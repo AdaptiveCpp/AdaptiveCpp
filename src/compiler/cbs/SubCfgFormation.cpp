@@ -65,8 +65,7 @@ llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName
 std::size_t getRangeDim(llvm::Function &F) {
   auto FName = F.getName();
   // todo: fix with MS mangling
-  //  llvm::Regex Rgx("7nd_itemILi([1-3])E");
-  llvm::Regex Rgx("EELi([1-3])E");
+  llvm::Regex Rgx("iterate_nd_range_ompILi([1-3])E");
   llvm::SmallVector<llvm::StringRef, 4> Matches;
   if (Rgx.match(FName, &Matches))
     return std::stoull(static_cast<std::string>(Matches[1]));
@@ -139,30 +138,18 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
 
 llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Dim) {
   auto &DL = F.getParent()->getDataLayout();
-  const auto ReqdWgSize = utils::getReqdWgSize(F);
+  auto [LocalSizeArg, Annotation] = getLocalSizeArgumentFromAnnotation(F);
 
-  if (ReqdWgSize[0] == 0) {
-    auto [LocalSizeArg, Annotation] = getLocalSizeArgumentFromAnnotation(F);
+  llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
+  HIPSYCL_DEBUG_INFO << *LocalSizeArg << "\n";
 
-    llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
-    HIPSYCL_DEBUG_INFO << *LocalSizeArg << "\n";
+  if (!llvm::dyn_cast<llvm::Argument>(LocalSizeArg))
+    for (auto *U : LocalSizeArg->users())
+      fillStores(U, 0, LocalSize);
+  else
+    loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize);
 
-    if (!llvm::dyn_cast<llvm::Argument>(LocalSizeArg))
-      for (auto *U : LocalSizeArg->users())
-        fillStores(U, 0, LocalSize);
-    else
-      loadSizeValuesFromArgument(F, Dim, LocalSizeArg, DL, LocalSize);
-
-    Annotation->eraseFromParent();
-    return LocalSize;
-  }
-
-  HIPSYCL_DEBUG_INFO << "[SubCFG] Kernel with constant WG size: (" << ReqdWgSize[0] << "," << ReqdWgSize[1] << ","
-                     << ReqdWgSize[2] << ")\n";
-  auto *SizeT = DL.getLargestLegalIntType(F.getContext());
-  llvm::SmallVector<llvm::Value *, 3> LocalSize;
-  for (int I = 0; I < Dim; ++I)
-    LocalSize.push_back(llvm::ConstantInt::get(SizeT, ReqdWgSize[I], false));
+  Annotation->eraseFromParent();
   return LocalSize;
 }
 
@@ -1011,7 +998,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   const auto LocalSize = getLocalSizeValues(F, Dim);
 
-  const size_t ReqdArrayElements = utils::getReqdStackElements(F);
+  const size_t ReqdArrayElements = hipsycl::compiler::NumArrayElements;
 
   auto *Entry = &F.getEntryBlock();
 

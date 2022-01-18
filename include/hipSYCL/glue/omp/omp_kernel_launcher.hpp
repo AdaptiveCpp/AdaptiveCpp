@@ -186,55 +186,30 @@ extern size_t __hipsycl_local_id_x;
 extern size_t __hipsycl_local_id_y;
 extern size_t __hipsycl_local_id_z;
 
-template <class StaticPropertyList, int Dim, class Function, class ...Reducers>
+template <int Dim, class Function, class ...Reducers>
 HIPSYCL_ND_KERNEL __attribute__((noinline))
 inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
   HIPSYCL_ND_KERNEL_LOCAL_SIZE_ARG const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
   size_t num_local_mem_bytes, void* group_shared_memory_ptr,
   std::function<void()> &barrier_impl,
   Reducers& ... reducers) noexcept {
-  if constexpr (StaticPropertyList::template has_property<
-                 sycl::reqd_work_group_size>()) {
-    constexpr auto reqd_wg_size = StaticPropertyList::template get_property<sycl::reqd_work_group_size>();
-    if constexpr (Dim == 1) {
-      constexpr size_t n_local = reqd_wg_size.template get<0>();
-      sycl::id<Dim> local_id{__hipsycl_local_id_x};
-      sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-        sycl::range<Dim>{n_local}, num_groups, &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    } else if constexpr (Dim == 2) {
-      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y};
-      sycl::nd_item<Dim> this_item{&offset,    group_id, local_id,
-                    sycl::range<Dim>{reqd_wg_size.template get<0>(),
-                    reqd_wg_size.template get<1>()}, num_groups,
-        &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    } else if constexpr (Dim == 3) {
-      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y, __hipsycl_local_id_z};
-      sycl::nd_item<Dim> this_item{&offset, group_id,
-        local_id, sycl::range<Dim>{reqd_wg_size.template get<0>(), reqd_wg_size.template get<1>(), reqd_wg_size.template get<1>()},
-        num_groups, &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    }
-  } else {
-    if constexpr (Dim == 1) {
-      sycl::id<Dim> local_id{__hipsycl_local_id_x};
-      sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
-        local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    } else if constexpr (Dim == 2) {
-      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y};
-      sycl::nd_item<Dim> this_item{&offset, group_id,
-        local_id, local_size, num_groups,
-        &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    } else if constexpr (Dim == 3) {
-      sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y, __hipsycl_local_id_z};
-      sycl::nd_item<Dim> this_item{&offset,    group_id,
-        local_id,   local_size,
-        num_groups, &barrier_impl, group_shared_memory_ptr};
-      f(this_item, reducers...);
-    }
+  if constexpr (Dim == 1) {
+    sycl::id<Dim> local_id{__hipsycl_local_id_x};
+    sycl::nd_item<Dim> this_item{&offset,    group_id,   local_id,
+      local_size, num_groups, &barrier_impl, group_shared_memory_ptr};
+    f(this_item, reducers...);
+  } else if constexpr (Dim == 2) {
+    sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y};
+    sycl::nd_item<Dim> this_item{&offset, group_id,
+      local_id, local_size, num_groups,
+      &barrier_impl, group_shared_memory_ptr};
+    f(this_item, reducers...);
+  } else if constexpr (Dim == 3) {
+    sycl::id<Dim> local_id{__hipsycl_local_id_x, __hipsycl_local_id_y, __hipsycl_local_id_z};
+    sycl::nd_item<Dim> this_item{&offset,    group_id,
+      local_id,   local_size,
+      num_groups, &barrier_impl, group_shared_memory_ptr};
+    f(this_item, reducers...);
   }
 }
 #endif
@@ -280,7 +255,7 @@ inline void parallel_for_kernel_offset(Function f,
   }, reductions...);
 }
 
-template <class StaticPropertyList, int Dim, class Function, typename... Reductions>
+template <int Dim, class Function, typename... Reductions>
 inline void parallel_for_ndrange_kernel(
     Function f, const sycl::range<Dim> num_groups,
     const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
@@ -308,7 +283,7 @@ inline void parallel_for_ndrange_kernel(
       #pragma omp for
       for (size_t g_x = 0; g_x < n_groups; ++g_x) {
         const sycl::id<Dim> group_id{g_x};
-        iterate_nd_range_omp<StaticPropertyList>(f, std::move(group_id), num_groups, local_size, offset,
+        iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
                 num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
         }
     } else if constexpr(Dim == 2) {
@@ -316,7 +291,7 @@ inline void parallel_for_ndrange_kernel(
       for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
         for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
           const sycl::id<Dim> group_id{g_x, g_y};
-          iterate_nd_range_omp<StaticPropertyList>(f, std::move(group_id), num_groups, local_size, offset,
+          iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
             num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
         }
       }
@@ -326,7 +301,7 @@ inline void parallel_for_ndrange_kernel(
         for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
           for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
             const sycl::id<Dim> group_id{g_x, g_y, g_z};
-            iterate_nd_range_omp<StaticPropertyList>(f, std::move(group_id), num_groups, local_size, offset,
+            iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
               num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
           }
         }
@@ -435,8 +410,8 @@ public:
 
   virtual void set_params(void*) override {}
 
-  template <class KernelName, rt::kernel_type type, class StaticPropertyList,
-            int Dim, class Kernel, typename... Reductions>
+  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
+            typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k, Reductions... reductions) {
@@ -479,7 +454,7 @@ public:
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
-        omp_dispatch::parallel_for_ndrange_kernel<StaticPropertyList>(
+        omp_dispatch::parallel_for_ndrange_kernel(
             k, get_grid_range(), local_range, offset, dynamic_local_memory,
             reductions...);
 

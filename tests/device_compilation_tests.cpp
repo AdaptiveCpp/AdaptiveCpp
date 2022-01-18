@@ -225,35 +225,6 @@ struct KernelFunctorND {
 
   AccessorT acc;
 };
-class KernelFunctorNDName;
-
-// No collisions for different reqd_work_group_size attributes
-// note: using named kernels multiple times with different kernels, is most likely illegal
-// but enables testing the collision
-BOOST_AUTO_TEST_CASE(named_kernel_property_list_mangling) {
-  cl::sycl::queue queue;
-  cl::sycl::buffer<size_t, 1> buf(1);
-
-  {
-    queue.submit([&](cl::sycl::handler& cgh) {
-      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
-      cgh.parallel_for<KernelFunctorNDName>(cl::sycl::nd_range<1>(1, 1),
-        cl::sycl::attribute<cl::sycl::reqd_work_group_size<1>>(KernelFunctorND<300, decltype(acc)>(acc)));
-    });
-    auto acc = buf.get_access<cl::sycl::access::mode::read>();
-    BOOST_REQUIRE(acc[0] == 300);
-  }
-
-  {
-    queue.submit([&](cl::sycl::handler& cgh) {
-      auto acc = buf.get_access<cl::sycl::access::mode::discard_write>(cgh);
-      cgh.parallel_for<KernelFunctorNDName>(cl::sycl::nd_range<1>(2, 2),
-          cl::sycl::attribute<cl::sycl::reqd_work_group_size<2>>(KernelFunctorND<500, decltype(acc)>(acc)));
-    });
-    auto acc = buf.get_access<cl::sycl::access::mode::read>();
-    BOOST_REQUIRE(acc[0] == 501);
-  }
-}
 
 BOOST_AUTO_TEST_CASE(hierarchical_invoke_shared_memory) {
   cl::sycl::queue queue;

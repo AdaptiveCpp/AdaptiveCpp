@@ -13,13 +13,32 @@ hipSYCL distinguishes two modes of compilation:
 Not all backends support all modes:
 
 
-| Backend | Integrated multipass? | Explicit multipass? | Comment |
-|------------------|-------------------|------------------|------------------|
-| OpenMP | N/A | N/A | Does not require multipass compilation |
-| CUDA   | Yes | Yes |  |
-| CUDA (nvc++) | Yes | No | |
-| HIP   | Yes | No |  |
-| SPIR-V  | No | Yes | |
+| Backend      | Integrated multipass? | Explicit multipass? | Comment                                  |
+|--------------|-----------------------|---------------------|------------------------------------------|
+| OpenMP       | N/A                   | N/A                 | Does not require multipass compilation   |
+| CUDA         | Yes                   | Yes                 |                                          |
+| CUDA (nvc++) | Yes                   | No                  | No support for CPU nd-range acceleration |
+| HIP          | Yes                   | No                  |                                          |
+| SPIR-V       | No                    | Yes                 |                                          |
 
 **Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` as described in the [installation documentation](installing.md).
 
+
+## Compiler support to accelerate nd_range parallel_for on CPUs
+While hipSYCL usually strives to reuse as much compiler infrastructure as possible,
+the nd_range parallel_for is not efficiently implementable without explicit compiler support.
+
+Therefore, the hipSYCL Clang plugin implements a set of passes to perform deep loop fission
+on nd_range parallel_for kernels that contain barriers. The continuation-based synchronization
+approach is employed to achieve good performance and functional correctness (_Karrenberg, Ralf, and Sebastian Hack. "Improving performance of OpenCL on CPUs." International Conference on Compiler Construction. Springer, Berlin, Heidelberg, 2012. [https://link.springer.com/content/pdf/10.1007/978-3-642-28652-0_1.pdf](https://link.springer.com/content/pdf/10.1007/978-3-642-28652-0_1.pdf)_).
+A deep dive into how the implementation works and why this approach was chosen
+can be found in Joachim Meyer's [master thesis](https://joameyer.de/hipsycl/Thesis_JoachimMeyer.pdf).
+
+As Clang plugins are only officially supported on Linux, this functionality is currently
+supported by hipSYCL on Linux only as well.
+By default, this compiler support is used, as long as Clang is used as host compiler as well.
+It can be explicitly disabled, by setting `-DWITH_ACCELERATED_CPU=OFF` at hipSYCL build time.
+If hipSYCL was built with the compiler support enabled, it can be explicitly en-/disabled
+by adding `--hipsycl-use-accelerated-cpu`/`--hipsycl-use-accelerated-cpu=false` to the 
+syclcc command line. When using CMake, set `-DHIPSYCL_USE_ACCELERATED_CPU=` to override
+the default behavior.

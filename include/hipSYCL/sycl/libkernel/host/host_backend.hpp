@@ -33,14 +33,26 @@
 #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST 1
 
 // We are in the "device pass" for the host target
-// if we are not in an actual device pass
-#ifndef HIPSYCL_LIBKERNEL_DEVICE_PASS
- #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST 1
+// if we are not in an actual device pass OR we
+// are using a compiler that has a unified pass for
+// host and device.
+#if !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS) ||                                 \
+    HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+#define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST 1
 
- // TODO: Do we need those still?
- #define HIPSYCL_UNIVERSAL_TARGET
- #define HIPSYCL_KERNEL_TARGET
- #define HIPSYCL_HOST_TARGET
+// TODO: Do we need those still?
+#ifndef HIPSYCL_UNIVERSAL_TARGET
+#define HIPSYCL_UNIVERSAL_TARGET
+#endif
+
+#ifndef HIPSYCL_KERNEL_TARGET
+#define HIPSYCL_KERNEL_TARGET
+#endif
+
+#ifndef HIPSYCL_HOST_TARGET
+#define HIPSYCL_HOST_TARGET
+#endif
+
 #else
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST 0
 #endif

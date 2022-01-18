@@ -43,20 +43,6 @@ template<typename dataT, int dimensions,
          access::placeholder isPlaceholder>
 class accessor;
 
-namespace detail {
-namespace accessor {
-
-template<typename dataT, int dimensions,
-         access::mode accessmode,
-         access::target accessTarget,
-         access::placeholder isPlaceholder>
-HIPSYCL_UNIVERSAL_TARGET
-static
-dataT* get_accessor_ptr(const sycl::accessor<dataT,dimensions,accessmode,accessTarget,isPlaceholder>&);
-
-}
-}
-
 template <typename ElementType, access::address_space Space>
 class multi_ptr
 {
@@ -141,7 +127,7 @@ public:
             typename std::enable_if_t<S==access::address_space::global_space>* = nullptr>
   HIPSYCL_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::global_buffer, isPlaceholder> a)
-    : _ptr{detail::accessor::get_accessor_ptr(a)}
+    : _ptr{a.get_pointer()}
   {}
 
   // Only if Space == local_space
@@ -152,7 +138,7 @@ public:
             typename std::enable_if_t<S==access::address_space::local_space>* = nullptr>
   HIPSYCL_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::local, isPlaceholder> a)
-    : _ptr{detail::accessor::get_accessor_ptr(a)}
+    : _ptr{a.get_pointer()}
   {}
 
   // Only if Space == constant_space
@@ -163,7 +149,7 @@ public:
             typename std::enable_if_t<S==access::address_space::constant_space>* = nullptr>
   HIPSYCL_KERNEL_TARGET
   multi_ptr(accessor<ElementType, dimensions, Mode, access::target::constant_buffer, isPlaceholder> a)
-    : _ptr{detail::accessor::get_accessor_ptr(a)}
+    : _ptr{a.get_pointer()}
   {}
 
   // Returns the underlying OpenCL C pointer
@@ -185,6 +171,13 @@ public:
   explicit operator multi_ptr<void, Space>() const
   {
     return multi_ptr<void, Space>{reinterpret_cast<void*>(_ptr)};
+  }
+
+  // Implicit conversion to multi_ptr<const value_type, Space>.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator multi_ptr<const ElementType, Space>() const
+  {
+    return multi_ptr<const ElementType, Space>{_ptr};
   }
 
   // Arithmetic operators
@@ -423,7 +416,7 @@ public:
                      Mode,
                      access::target::global_buffer,
                      access::placeholder::false_t> a)
-    : _ptr{reinterpret_cast<void*>(detail::accessor::get_accessor_ptr(a))}
+    : _ptr{reinterpret_cast<void*>(a.get_pointer())}
   {}
 
   // Only if Space == local_space
@@ -438,7 +431,7 @@ public:
                      Mode,
                      access::target::local,
                      access::placeholder::false_t> a)
-    : _ptr{reinterpret_cast<void*>(detail::accessor::get_accessor_ptr(a))}
+    : _ptr{reinterpret_cast<void*>(a.get_pointer())}
   {}
 
   // Only if Space == constant_space
@@ -453,7 +446,7 @@ public:
                      Mode,
                      access::target::constant_buffer,
                      access::placeholder::false_t> a)
-    : _ptr{reinterpret_cast<void*>(detail::accessor::get_accessor_ptr(a))}
+    : _ptr{reinterpret_cast<void*>(a.get_pointer())}
   {}
 
   // Returns the underlying OpenCL C pointer

@@ -54,7 +54,7 @@ void worker_thread::wait()
   if(!_enqueued_operations.empty())
   {
     // Before going to sleep, wake up the other thread to avoid deadlocks
-    _condition_wait.notify_one();
+    _condition_wait.notify_all();
     // Wait until no operation is pending
     _condition_wait.wait(lock, [this]{return _enqueued_operations.empty();});
   }
@@ -69,7 +69,7 @@ void worker_thread::halt()
   {
     std::unique_lock<std::mutex> lock(_mutex);
     _continue = false;
-    _condition_wait.notify_one();
+    _condition_wait.notify_all();
   }
   if(_worker_thread.joinable())
     _worker_thread.join();
@@ -88,7 +88,7 @@ void worker_thread::work()
 
       // Before going to sleep, wake up the other thread in case it is is waiting
       // for the queue to get empty
-      _condition_wait.notify_one();
+      _condition_wait.notify_all();
       // Wait until we have work, or until _continue becomes false
       _condition_wait.wait(lock,
                            [this](){
@@ -119,7 +119,7 @@ void worker_thread::work()
         _enqueued_operations.pop();
     }
 
-    _condition_wait.notify_one();
+    _condition_wait.notify_all();
 
   }
 }
@@ -131,7 +131,7 @@ void worker_thread::operator()(worker_thread::async_function f)
   _enqueued_operations.push(f);
 
   lock.unlock();
-  _condition_wait.notify_one();
+  _condition_wait.notify_all();
 }
 
 std::size_t worker_thread::queue_size() const

@@ -91,6 +91,8 @@ if(WITH_CUDA_BACKEND)
 endif()
 
 if(WITH_ROCM_BACKEND)
+  set(ENABLE_ROCM_UNIFIED_MEMORY_API ON CACHE BOOL "Utilize unified memory API in ROCm. Older ROCm versions may not support this.")
+
   add_library(rt-backend-hip SHARED
     hip/hip_event.cpp
     hip/hip_queue.cpp
@@ -101,6 +103,9 @@ if(WITH_ROCM_BACKEND)
     hip/hip_backend.cpp)
 
   target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_TARGET_ROCM=1)
+  if(ENABLE_ROCM_UNIFIED_MEMORY_API)
+    target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY=1)
+  endif()
   target_include_directories(rt-backend-hip PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   if(NOT HIP_FOUND)
     target_include_directories(rt-backend-hip PRIVATE ${ROCM_PATH}/include)

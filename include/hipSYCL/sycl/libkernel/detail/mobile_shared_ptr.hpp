@@ -29,11 +29,13 @@
 #define HIPSYCL_MOBILE_SHARED_PTR_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #include "hipSYCL/sycl/types.hpp"
 
 namespace hipsycl {
 namespace sycl {
 namespace detail {
+
 
 /// A regular std::shared_ptr cannot be captured in kernels,
 /// since it will in general depend on code that is not available
@@ -50,55 +52,101 @@ template<class T>
 class mobile_shared_ptr
 {
 public:
-  mobile_shared_ptr() = default;
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr() {
+    __hipsycl_if_target_host(
+      new (&_data) std::shared_ptr<T>{nullptr};
+    );
+  }
 
-  // Not available on device
-#ifndef SYCL_DEVICE_ONLY
-  mobile_shared_ptr(shared_ptr_class<T> ptr)
-  : _ptr{ptr}
-  {}
-#endif
+  // Argument is ignored on device
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr(std::shared_ptr<T> ptr){
+    __hipsycl_if_target_host(
+      new (&_data) std::shared_ptr<T>{ptr};
+    );
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr(const mobile_shared_ptr& other){
+    __hipsycl_if_target_host(
+      new (&_data) std::shared_ptr<T>{other._data};
+    );
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr(mobile_shared_ptr&& other){
+    __hipsycl_if_target_host(
+      new (&_data) std::shared_ptr<T>{other._data};
+    );
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  ~mobile_shared_ptr() {
+    __hipsycl_if_target_host(
+      _data.~shared_ptr();
+    );
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
+    __hipsycl_if_target_host(
+      _data = other._data;
+    );
+
+    return *this;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
+    __hipsycl_if_target_host(
+      _data = other.data;
+    );
+
+    return *this;
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   const T* get() const
   { 
-#ifdef SYCL_DEVICE_ONLY
-    // Use sizeof(_buff) to make sure it doesn't get optimized away
-    return reinterpret_cast<T*>(sizeof(_buff));
-#else
-    return _ptr.get(); 
-#endif
+    __hipsycl_if_target_device(
+      // Use sizeof(_data) to make sure it doesn't get optimized away
+      return reinterpret_cast<T*>(sizeof(_data));
+    );
+    __hipsycl_if_target_host(
+      return _data.get(); 
+    );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   T* get()
   { 
-#ifdef SYCL_DEVICE_ONLY
-    // Use sizeof(_buff) to make sure it doesn't get optimized away
-    return reinterpret_cast<T*>(sizeof(_buff));
-#else
-    return _ptr.get(); 
-#endif
+    __hipsycl_if_target_device(
+      // Use sizeof(_data) to make sure it doesn't get optimized away
+      return reinterpret_cast<T*>(sizeof(_data));
+    );
+    __hipsycl_if_target_host(
+      return _data.get(); 
+    );
   }
 
   // We cannot make this function available on device, since
   // it would pull shared_ptr_class<T> into device code.
   HIPSYCL_HOST_TARGET
   shared_ptr_class<T> get_shared_ptr() const {
-#ifndef SYCL_DEVICE_ONLY
-    return _ptr;
-#else
-    return nullptr;
-#endif
+    __hipsycl_if_target_host(
+      return _data;
+    );
+    __hipsycl_if_target_device(
+      return nullptr;
+    );
   }
 
 
 private:
-#ifdef SYCL_DEVICE_ONLY
-  char _buff[sizeof(shared_ptr_class<T>)];
-#else
-  shared_ptr_class<T> _ptr;
-#endif
+  union {
+    std::shared_ptr<T> _data;
+  };
 };
 
 }

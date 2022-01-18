@@ -92,21 +92,6 @@ void data_user_tracker::release_dead_users()
                _users.end());
 }
 
-void data_user_tracker::add_user(
-  dag_node_ptr user, 
-  sycl::access::mode mode, 
-  sycl::access::target target, 
-  id<3> offset, 
-  range<3> range)
-{
-  std::lock_guard<std::mutex> lock{_lock};
-
-  _users.push_back(
-      data_user{std::weak_ptr<dag_node>(user), mode, target, offset, range});
-}
-
-
-
 range_store::range_store(range<3> size)
 : _size{size}, _contained_data(size.size())
 {}

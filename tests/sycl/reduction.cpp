@@ -151,9 +151,8 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
         q.parallel<reduction_kernel<T,BinaryOp,__LINE__>>(
                       sycl::range{num_groups}, sycl::range{local_size}, 
                       sycl::reduction(output, identity, op), 
-                      [=](sycl::group<1> grp, sycl::physical_item<1> pidx, 
-                          auto& reducer){
-          grp.distribute_for([&](sycl::sub_group, sycl::logical_item<1> idx){
+                      [=](auto grp, auto& reducer){
+          sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
             reducer.combine(input[idx.get_global_linear_id()]);
           });
         });
@@ -261,21 +260,20 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
 
     verify();
 
-    q.parallel<reduction_kernel<T,class MultiOp,__LINE__>>(
-                sycl::range{num_groups}, sycl::range{local_size},
-                sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-                sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
-                [=](sycl::group<1> grp, sycl::physical_item<1> pidx,
-                    auto& add_reducer, auto& mul_reducer){
-      
-      grp.distribute_for([&](sycl::sub_group, sycl::logical_item<1> idx){
-        mul_reducer *= input1[idx.get_global_linear_id()];
-      });
+    q.parallel<reduction_kernel<T, class MultiOp, __LINE__>>(
+        sycl::range{num_groups}, sycl::range{local_size},
+        sycl::reduction(output0, T{0}, sycl::plus<T>{}),
+        sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
+        [=](auto grp, auto &add_reducer, auto &mul_reducer) {
+          sycl::distribute_items(grp, [&](sycl::s_item<1> idx) {
+            mul_reducer *= input1[idx.get_global_linear_id()];
+          });
 
-      grp.distribute_for([&](sycl::sub_group, sycl::logical_item<1> idx){
-        add_reducer += input0[idx.get_global_linear_id()];
-      });
-    });
+          sycl::distribute_items(
+              grp, [&](sycl::s_item<1> idx) {
+                add_reducer += input0[idx.get_global_linear_id()];
+              });
+        });
 
     verify();
   }

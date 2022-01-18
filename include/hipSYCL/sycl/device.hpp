@@ -36,7 +36,7 @@
 #include "types.hpp"
 #include "aspect.hpp"
 #include "info/info.hpp"
-#include "libkernel/backend.hpp"
+#include "backend.hpp"
 #include "exception.hpp"
 #include "version.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
@@ -257,6 +257,9 @@ public:
   friend bool operator!=(const device& lhs, const device &rhs)
   { return !(lhs == rhs); }
   
+  backend get_backend() const noexcept {
+    return _device_id.get_backend();
+  }
 private:
   rt::device_id _device_id;
 

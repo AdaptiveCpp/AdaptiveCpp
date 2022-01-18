@@ -297,9 +297,12 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 }
 
 result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
+  // Need to enable instrumentation even if we cannot enable actual
+  // prefetches so that the user will be able to access instrumentation
+  // properties of the event.
+  hip_instrumentation_guard instrumentation{this, op, node};
 #ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
   
-  hip_instrumentation_guard instrumentation{this, op, node};
   hipError_t err = hipSuccess;
   
   if (op.get_target().is_host()) {

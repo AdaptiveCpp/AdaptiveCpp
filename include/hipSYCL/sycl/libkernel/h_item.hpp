@@ -28,11 +28,11 @@
 #ifndef HIPSYCL_H_ITEM_HPP
 #define HIPSYCL_H_ITEM_HPP
 
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "item.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
-#endif
+
 
 namespace hipsycl {
 namespace sycl {
@@ -191,47 +191,48 @@ public:
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_physical_local_range() const
   {
-#ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_size<dimensions>();
-#else
-    range<dimensions> size;
-    for(int i = 0; i < dimensions; ++i)
-      size[i] = 1; 
-    return size;
-#endif
+    __hipsycl_if_target_device(
+      return detail::get_local_size<dimensions>();
+    );
+    __hipsycl_if_target_host(
+      range<dimensions> size;
+      for(int i = 0; i < dimensions; ++i)
+        size[i] = 1; 
+      return size;
+    );
+
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_range(int dimension) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_size<dimensions>(dimension);
-#else
-    return 1;
-#endif
+    __hipsycl_if_target_device(
+      return detail::get_local_size<dimensions>(dimension);
+    );
+    __hipsycl_if_target_host(return 1;);
   }
 
   HIPSYCL_KERNEL_TARGET
   id<dimensions> get_physical_local_id() const
   {
-#ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_id<dimensions>();
-#else
-    id<dimensions> local_id;
-    for(int i = 0; i < dimensions; ++i)
-      local_id[i] = 0; 
-    return local_id;
-#endif
+    __hipsycl_if_target_device(
+      return detail::get_local_id<dimensions>();
+    );
+    __hipsycl_if_target_host(
+      id<dimensions> local_id;
+      for(int i = 0; i < dimensions; ++i)
+        local_id[i] = 0; 
+      return local_id;
+    );
   }
 
   HIPSYCL_KERNEL_TARGET
   size_t get_physical_local_id(int dimension) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    return detail::get_local_id<dimensions>(dimension);
-#else
-    return 0;
-#endif
+    __hipsycl_if_target_device(
+      return detail::get_local_id<dimensions>(dimension);
+    );
+    __hipsycl_if_target_host(return 0;);
   }
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)

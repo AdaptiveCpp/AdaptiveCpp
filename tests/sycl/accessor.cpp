@@ -153,6 +153,26 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
     return buf.template get_access<s::access::mode::read>(args...);
   });
 
+  // host_accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
+  s::host_accessor<int, 1> ha1;
+  s::host_accessor<int, 2> ha2;
+  s::host_accessor<int, 3> ha3;
+  s::host_accessor<int, 1> ha1_copy = ha1;
+  s::host_accessor<int, 2> ha2_copy = ha2;
+  s::host_accessor<int, 3> ha3_copy = ha3;
+  ha1 = ha1_copy;
+  ha2 = ha2_copy;
+  ha3 = ha3_copy;
+  (void) (ha1 == ha1_copy);
+  (void) (ha2 == ha2_copy);
+  (void) (ha3 == ha3_copy);
+  (void) (ha1 != ha1_copy);
+  (void) (ha2 != ha2_copy);
+  (void) (ha3 != ha3_copy);
+  ha1.swap(ha1_copy);
+  ha2.swap(ha2_copy);
+  ha3.swap(ha3_copy);
+
   // Test device accessors
   s::queue queue;
   queue.submit([&](s::handler& cgh) {
@@ -193,6 +213,26 @@ BOOST_AUTO_TEST_CASE(accessor_api) {
 
     cgh.parallel_for<class accessor_api_local_accessors>(s::nd_range<1>(1, 1), [](s::nd_item<1>){});
   });
+
+  // local_accessor is default-constructible, copy-constructible, copy-assignable, equality-comparable, swappable
+  s::local_accessor<int, 1> la1;
+  s::local_accessor<int, 2> la2;
+  s::local_accessor<int, 3> la3;
+  s::local_accessor<int, 1> la1_copy = la1;
+  s::local_accessor<int, 2> la2_copy = la2;
+  s::local_accessor<int, 3> la3_copy = la3;
+  la1 = la1_copy;
+  la2 = la2_copy;
+  la2 = la2_copy;
+  (void) (la1 == la1_copy);
+  (void) (la2 == la2_copy);
+  (void) (la3 == la3_copy);
+  (void) (la1 != la1_copy);
+  (void) (la2 != la2_copy);
+  (void) (la3 != la3_copy);
+  la1.swap(la1_copy);
+  la2.swap(la2_copy);
+  la3.swap(la3_copy);
 }
 
 BOOST_AUTO_TEST_CASE(nested_subscript) {

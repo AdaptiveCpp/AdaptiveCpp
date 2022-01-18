@@ -254,11 +254,23 @@ public:
   bool has_user(dag_node_ptr user) const;
 
   void release_dead_users();
+
+  template<class Predicate>
   void add_user(dag_node_ptr user, 
                 sycl::access::mode mode, 
                 sycl::access::target target, 
-                id<3> offset, 
-                range<3> range);
+                id<3> offset,
+                range<3> range,
+                Predicate replaces_user) {
+    std::lock_guard<std::mutex> lock{_lock};
+
+    _users.erase(std::remove_if(_users.begin(), _users.end(), replaces_user), 
+      _users.end());
+
+    _users.push_back(
+      data_user{std::weak_ptr<dag_node>(user), mode, target, offset, range});
+  }
+
 private:
   std::vector<data_user> _users;
   mutable std::mutex _lock;

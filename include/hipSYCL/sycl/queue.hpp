@@ -411,7 +411,7 @@ public:
     if(is_in_order()) {
       std::lock_guard<std::mutex> lock{*_lock};
 
-      if(auto prev = this->_previous_submission.lock()){
+      if(auto prev = this->_previous_submission->lock()){
         if(!prev->is_complete()) {
           return std::vector<event>{event{prev, _handler}};
         }
@@ -864,7 +864,7 @@ private:
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
     if (is_in_order()) {
-      auto previous = _previous_submission.lock();
+      auto previous = _previous_submission->lock();
       if(previous)
         cgh.depends_on(event{previous, _handler});
     }
@@ -873,7 +873,7 @@ private:
 
     rt::dag_node_ptr node = this->extract_dag_node(cgh);
     if (is_in_order()) {
-      _previous_submission = node;
+      *_previous_submission = node;
     }
     return node;
   }
@@ -934,6 +934,7 @@ private:
 
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
+    _previous_submission = std::make_shared<std::weak_ptr<rt::dag_node>>();
 
     this->_hooks = detail::queue_submission_hooks_ptr{
           new detail::queue_submission_hooks{}};
@@ -952,7 +953,7 @@ private:
   async_handler _handler;
   bool _is_in_order;
 
-  std::weak_ptr<rt::dag_node> _previous_submission;
+  std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
 };

@@ -8,7 +8,7 @@ For example, compiling a SYCL source `example.cpp` to an executable, while targe
 
 The full excerpt from `syclcc --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/hipsycl/install/path/etc/hipSYCL/syclcc.json`.
 ```
-syclcc [hipSYCL compilation driver], Copyright (C) 2018-2020 Aksel Alpay
+syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay
 Usage: syclcc <options>
 
 Options are:
@@ -23,7 +23,7 @@ Options are:
 
 --hipsycl-clang=<value>
   [can also be set with environment variable: HIPSYCL_CLANG=<value>]
-  [default value provided by field 'default-clang' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-clang' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The path to the clang executable that should be used for compilation
     (Note: *must* be compatible with the clang version that the 
@@ -31,19 +31,19 @@ Options are:
 
 --hipsycl-cuda-path=<value>
   [can also be set with environment variable: HIPSYCL_CUDA_PATH=<value>]
-  [default value provided by field 'default-cuda-path' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-cuda-path' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The path to the CUDA toolkit installation directry
 
 --hipsycl-rocm-path=<value>
   [can also be set with environment variable: HIPSYCL_ROCM_PATH=<value>]
-  [default value provided by field 'default-rocm-path' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-rocm-path' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The path to the ROCm installation directory
 
 --hipsycl-gpu-arch=<value>
   [can also be set with environment variable: HIPSYCL_GPU_ARCH=<value>]
-  [default value provided by field 'default-gpu-arch' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-gpu-arch' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
@@ -51,74 +51,74 @@ Options are:
 
 --hipsycl-cpu-cxx=<value>
   [can also be set with environment variable: HIPSYCL_CPU_CXX=<value>]
-  [default value provided by field 'default-cpu-cxx' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-cpu-cxx' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The compiler that should be used when targeting only CPUs.
 
 --hipsycl-clang-include-path=<value>
   [can also be set with environment variable: HIPSYCL_CLANG_INCLUDE_PATH=<value>]
-  [default value provided by field 'default-clang-include-path' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-clang-include-path' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm.
 
 --hipsycl-squential-link-line=<value>
   [can also be set with environment variable: HIPSYCL_SEQUENTIAL_LINK_LINE=<value>]
-  [default value provided by field 'default-sequential-link-line' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-sequential-link-line' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the linker for the sequential backend
 
 --hipsycl-squential-cxx-flags=<value>
   [can also be set with environment variable: HIPSYCL_SEQUENTIAL_CXX_FLAGS=<value>]
-  [default value provided by field 'default-sequential-cxx-flags' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-sequential-cxx-flags' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the compiler to compile for the sequential backend
 
 --hipsycl-omp-link-line=<value>
   [can also be set with environment variable: HIPSYCL_OMP_LINK_LINE=<value>]
-  [default value provided by field 'default-omp-link-line' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-omp-link-line' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the linker for the OpenMP backend.
 
 --hipsycl-omp-cxx-flags=<value>
   [can also be set with environment variable: HIPSYCL_OMP_CXX_FLAGS=<value>]
-  [default value provided by field 'default-omp-cxx-flags' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-omp-cxx-flags' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the compiler to compile for the OpenMP backend
 
 --hipsycl-rocm-link-line=<value>
   [can also be set with environment variable: HIPSYCL_ROCM_LINK_LINE=<value>]
-  [default value provided by field 'default-rocm-link-line' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-rocm-link-line' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the linker for the ROCm backend.
 
 --hipsycl-rocm-cxx-flags=<value>
   [can also be set with environment variable: HIPSYCL_ROCM_CXX_FLAGS=<value>]
-  [default value provided by field 'default-rocm-cxx-flags' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-rocm-cxx-flags' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the compiler to compile for the ROCm backend
 
 --hipsycl-cuda-link-line=<value>
   [can also be set with environment variable: HIPSYCL_CUDA_LINK_LINE=<value>]
-  [default value provided by field 'default-cuda-link-line' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-cuda-link-line' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the linker for the CUDA backend.
 
 --hipsycl-cuda-cxx-flags=<value>
   [can also be set with environment variable: HIPSYCL_CUDA_CXX_FLAGS=<value>]
-  [default value provided by field 'default-cuda-cxx-flags' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-cuda-cxx-flags' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
  The arguments passed to the compiler to compile for the CUDA backend
 
 --hipsycl-config-file=<value>
   [can also be set with environment variable: HIPSYCL_CONFIG_FILE=<value>]
-  [default value provided by field 'default-config-file' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-config-file' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting. 
 
 --hipsycl-targets=<value>
   [can also be set with environment variable: HIPSYCL_TARGETS=<value>]
-  [default value provided by field 'default-targets' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-targets' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   Specify backends and targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'
     Available backends:
@@ -126,21 +126,33 @@ Options are:
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
+      * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
+               if given requires the format ccXY.
       * hip  - HIP backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
       * spirv - use clang SYCL driver to generate spirv
 
+--hipsycl-use-accelerated-cpu
+  [can also be set by setting environment variable HIPSYCL_USE_ACCELERATED_CPU to any value other than false|off|0 ]
+  [default value provided by field 'default-use-accelerated-cpu' in /install/path/etc/hipSYCL/syclcc.json.]
+  [current value: Not Set]
+  If set and Clang is used for compilation, explicit compiler support
+  is enabled for accelerating the nd-range parallel_for on CPU.
+  Uses continuation-based synchronization to execute all work-items
+  of a work-group in a single thread, eliminating scheduling overhead
+  and enabling enhanced vectorization opportunities compared to the fiber variant.
+
 --hipsycl-dryrun
   [can also be set by setting environment variable HIPSYCL_DRYRUN to any value other than false|off|0 ]
-  [default value provided by field 'default-is-dryrun' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-is-dryrun' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   If set, only shows compilation commands that would be executed, 
   but does not actually execute it. 
 
 --hipsycl-explicit-multipass
   [can also be set by setting environment variable HIPSYCL_EXPLICIT_MULTIPASS to any value other than false|off|0 ]
-  [default value provided by field 'default-is-explicit-multipass' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-is-explicit-multipass' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   If set, executes device passes as separate compiler invocation and lets hipSYCL control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
@@ -149,7 +161,7 @@ Options are:
 
 --hipsycl-save-temps
   [can also be set by setting environment variable HIPSYCL_SAVE_TEMPS to any value other than false|off|0 ]
-  [default value provided by field 'default-save-temps' in /install/path//etc/hipSYCL/syclcc.json.]
+  [default value provided by field 'default-save-temps' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   If set, do not delete temporary files created during compilation.
 

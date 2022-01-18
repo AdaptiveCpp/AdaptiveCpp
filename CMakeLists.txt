@@ -79,7 +79,11 @@ endif()
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 
+if(APPLE OR WIN32)
+set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+else()
 set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+endif()
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
@@ -281,11 +285,11 @@ if(NOT CUDA_CXX_FLAGS)
 endif()
 
 if(NOT OMP_CXX_FLAGS) 
-  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG}" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
+  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
 
 if(NOT SEQUENTIAL_CXX_FLAGS) 
-  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR}" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
 
 set(SYCLCC_CONFIG_FILE "{

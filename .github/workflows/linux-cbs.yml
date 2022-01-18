@@ -48,14 +48,14 @@ jobs:
           mkdir build && cd build
           echo ${CXXFLAGS}
           
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake ..
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
           make -j2 install
       - name: setup CPU tests with loop splitting
         run: |
           mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           
-          cmake -DHIPSYCL_PLATFORM=cpu -DHIPSYCL_USE_ACCELERATED_CPU=true -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
+          cmake -DHIPSYCL_PLATFORM=cpu -DHIPSYCL_USE_ACCELERATED_CPU=true -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
       - name: build CPU tests with loop splitting
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu

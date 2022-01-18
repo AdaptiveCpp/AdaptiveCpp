@@ -6,7 +6,6 @@ jobs:
   test:
     name: clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}
-    if: false
     strategy:
       matrix:
         clang_version: [11]

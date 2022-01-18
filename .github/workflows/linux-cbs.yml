@@ -65,7 +65,6 @@ jobs:
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make check
       - name: run CPU tests
-        continue-on-error: true
         run: |
           cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
           LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests

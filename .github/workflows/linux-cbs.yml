@@ -1,0 +1,71 @@
+name: Linux build and test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang_version: [11, 12, 13]
+        os: [ubuntu-20.04]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: install LLVM
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang_version}}
+          sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev llvm-${{matrix.clang_version}}-dev
+          sudo python -m pip install lit
+          sudo ln -s /usr/bin/FileCheck-${{matrix.clang_version}} /usr/bin/FileCheck
+      - name: install boost (from apt)
+        if: matrix.os == 'ubuntu-20.04'
+        run: |
+          sudo apt install libboost-all-dev
+      - name: setup build env
+        run: |
+          
+          if [[ "${{matrix.clang_version}}" == "12" ]]; then
+            export CC=clang-12
+            export CXX=clang++-12
+          elif [[ "${{matrix.clang_version}}" == "13" ]]; then
+            export CC=clang-13
+            export CXX=clang++-13
+          fi
+          export CXXFLAGS="$CXXFLAGS"
+          if [[ "${{matrix.clang_version}}" != "11" ]]; then
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
+          fi
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
+      - name: build hipSYCL
+        run: |
+          mkdir build && cd build
+          echo ${CXXFLAGS}
+          
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake ..
+          make -j2 install
+      - name: setup CPU tests with loop splitting
+        run: |
+          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          
+          cmake -DHIPSYCL_PLATFORM=cpu -DHIPSYCL_USE_ACCELERATED_CPU=true -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
+      - name: build CPU tests with loop splitting
+        run: |
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          make -j2
+      - name: run LIT tests on CPU
+        run: |
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make check
+      - name: run CPU tests
+        continue-on-error: true
+        run: |
+          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests

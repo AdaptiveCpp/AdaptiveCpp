@@ -296,8 +296,11 @@ class syclcc_config:
 
   def _is_flag_set(self, flag_name):
     flag = self._flags[flag_name]
-    if flag.commandline in self._hipsycl_args:
-      return True
+    for arg in self._hipsycl_args:
+      if arg == flag.commandline:
+        return True
+      if arg.startswith(flag.commandline + "="):
+        return self._interpret_flag(arg.split("=")[1])
 
     if flag.environment in os.environ:
       env_value = os.environ[flag.environment]

@@ -676,8 +676,6 @@ private:
     std::string KernelName = detail::getDeviceSideName(
         SuggestionIt->second, Instance.getASTContext(), KernelNameMangler.get(),
         DeviceKernelNameMangler.get());
-    //llvm::raw_string_ostream SS(KernelName);
-    //KernelNameMangler->mangleName(SuggestionIt->second, SS);
 
     std::string TemplateMarker = "_Z30__hipsycl_kernel_name_template";
     std::string Replacement = "_Z16__hipsycl_kernel";

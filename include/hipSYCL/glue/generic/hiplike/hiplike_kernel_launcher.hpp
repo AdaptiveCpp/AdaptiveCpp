@@ -893,11 +893,19 @@ private:
 
   template<class KernelT>
   std::string get_stable_kernel_name() const {
+    // On clang 11, rely on __builtin_unique_stable_name()
 #if defined(__clang__) && __clang_major__ == 11
 
     return __builtin_unique_stable_name(KernelT);
 
-#elif __has_builtin(__builtin_get_device_side_mangled_name)
+    // If we have builtin_get_device_side_mangled_name, rely on
+    // __hipsycl_kernel_name_template unless we are in split compiler mode -
+    // here we follow the traditional mangling based on the type.
+    // In thas case, unnamed kernel lambdas are unsupported which is enforced
+    // by the clang plugin in the device compilation pass.
+#elif __has_builtin(__builtin_get_device_side_mangled_name) &&                 \
+    !defined(__HIPSYCL_SPLIT_COMPILER__)
+    
     // The builtin unfortunately only works with __global__ or
     // __device__ functions. Since our kernel launchers cannot be __global__
     // when semantic analysis runs, we cannot apply the builtin

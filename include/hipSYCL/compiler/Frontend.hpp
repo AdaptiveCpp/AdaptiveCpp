@@ -221,10 +221,10 @@ public:
 #ifdef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
     // Construct unique name mangler if supported
     NameMangler = clang::ItaniumMangleContext::create(
-      instance.getASTContext(), instance.getASTContext().getDiagnostics(), true));
+      instance.getASTContext(), instance.getASTContext().getDiagnostics(), true);
 #elif  LLVM_VERSION_MAJOR < 13
     NameMangler = clang::ItaniumMangleContext::create(
-      instance.getASTContext(), instance.getASTContext().getDiagnostics()));
+      instance.getASTContext(), instance.getASTContext().getDiagnostics());
 #else
     // On clang 13+, we rely on kernel name mangling powered by CUDA/HIP
     // support in clang and __builtin_get_device_side_mangled_name() in client code.

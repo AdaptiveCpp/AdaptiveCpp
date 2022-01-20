@@ -624,6 +624,7 @@ class cuda_multipass_invocation:
     self._config = config
     self._enable_cuda_host_pass = False
     self._targets = target_list
+    self._host_compiler = self._config.clang_path
     self.set_temp_dir("/tmp")
 
   def set_temp_dir(self, temp_dir):
@@ -647,15 +648,18 @@ class cuda_multipass_invocation:
   def is_extended_host_pass_enabled(self):
     return self._enable_cuda_host_pass
 
-  def get_host_pass_requirements(self, host_compiler):
+  def set_host_compiler(self, host_compiler):
+    self._host_compiler = host_compiler
+
+  def get_host_pass_requirements(self):
     requires_extended_host_pass = True
     caveats = []
 
-    if host_compiler != self._config.clang_path:
+    if self._host_compiler != self._config.clang_path:
       requires_extended_host_pass = False
       caveats = [
         'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
-        +host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
+        +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
         ]
       
 
@@ -681,6 +685,9 @@ class cuda_multipass_invocation:
         "-S",
         "-o",self._explicit_pass_output_file(target)
       ]
+
+    if self._host_compiler != self._config.clang_path:
+      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
 
     if not sys.platform.startswith("win32"):
       flags += ["-fpass-plugin=" + self._config.hipsycl_plugin_path]
@@ -781,6 +788,9 @@ class spirv_multipass_invocation:
   def get_compiler_preference(self):
     return (self._config.clang_path, 100)
 
+  def set_host_compiler(self, host_compiler):
+    pass
+
   def enable_extended_host_pass(self):
     pass
 
@@ -788,7 +798,7 @@ class spirv_multipass_invocation:
   def is_extended_host_pass_enabled(self):
     return False
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -900,7 +910,7 @@ class cuda_invocation:
   def get_compiler_preference(self):
     return (self._clang, 100)
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -953,7 +963,7 @@ class cuda_nvcxx_invocation:
   def get_compiler_preference(self):
     return (self._nvcxx, 200)
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -1007,7 +1017,7 @@ class hip_invocation:
   def get_compiler_preference(self):
     return (self._clang, 100)
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -1063,7 +1073,7 @@ class omp_invocation:
   def get_compiler_preference(self):
     return (self._cxx, 1)
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -1108,7 +1118,7 @@ class omp_sequential_invocation:
   def get_compiler_preference(self):
     return (self._cxx, 1)
 
-  def get_host_pass_requirements(self, host_compiler):
+  def get_host_pass_requirements(self):
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
@@ -1177,6 +1187,8 @@ class compiler:
     self._backends += self._multipass_backends
     
     self._host_compiler = self._select_compiler()
+    for mb in self._multipass_backends:
+      mb.set_host_compiler(self._host_compiler)
 
     if not "omp" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
@@ -1209,7 +1221,7 @@ class compiler:
         print("Error: backend",b,
           "appears multiple times in processed target specification")
 
-      reqs = b.get_host_pass_requirements(self._host_compiler)
+      reqs = b.get_host_pass_requirements()
       
       conflicts = reqs['conflicts']
       caveats = reqs['caveats']
@@ -1231,7 +1243,7 @@ class compiler:
   # backends, and potentially enable them.
   def _configure_multipass_extended_host_pass(self, backend):
 
-    host_pass_reqs = backend.get_host_pass_requirements(self._host_compiler)
+    host_pass_reqs = backend.get_host_pass_requirements()
     active_backends = {b.unique_name:b for b in self._backends}
 
     if host_pass_reqs['requires-extended-host-pass']:

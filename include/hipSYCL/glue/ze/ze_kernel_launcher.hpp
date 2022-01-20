@@ -382,6 +382,17 @@ private:
     }
   }
 
+  template<class KernelT>
+  std::string get_stable_kernel_name() const {
+  #if __has_builtin(__builtin_unique_stable_name)
+    return __builtin_unique_stable_name(KernelT);
+  #elif __has_builtin(__builtin_sycl_unique_stable_name)
+    return __builtin_sycl_unique_stable_name(KernelT);
+  #else
+    #error Cannot invoke L0/SPIR-V kernel because compiler does not support required builtins
+  #endif
+  }
+
   template <class KernelName, class KernelBodyT,
             class WrappedLambdaT>
   void invoke_from_module(rt::range<3> num_groups, rt::range<3> group_size,
@@ -414,8 +425,8 @@ private:
       kernel_args[i] = static_cast<void*>(kernel.get_components() + i);
     }
 
-    std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
-    std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
+    std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
+    std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
     rt::module_invoker *invoker = _queue->get_module_invoker();
 

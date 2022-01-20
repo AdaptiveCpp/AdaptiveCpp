@@ -34,6 +34,7 @@
 #include <regex>
 #include <sstream>
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
@@ -50,6 +51,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Lex/PreprocessorOptions.h"
 
 #include "CompilationState.hpp"
 #include "Attributes.hpp"
@@ -160,37 +162,91 @@ inline std::string buildKernelNameFromRecordType(const clang::QualType &RecordTy
   return KernelName;
 }
 
-inline std::string buildKernelName(clang::TemplateArgument SyclTagTypeTA, clang::MangleContext *Mangler) {
-  assert(SyclTagTypeTA.getKind() == clang::TemplateArgument::ArgKind::Type);
-  auto SyclTagType = SyclTagTypeTA.getAsType();
-  auto RecordType = llvm::dyn_cast<clang::RecordType>(SyclTagType.getTypePtr());
-  if(RecordType == nullptr || !llvm::isa<clang::RecordDecl>(RecordType->getDecl()))
-  {
-    // We only support structs/classes as kernel names
-    return "";
-  }
-  auto DeclName = buildKernelNameFromRecordType(SyclTagType, Mangler);
+inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *Mangler) {
+  assert(D);
+  assert(Mangler);
+  auto DeclName = buildKernelNameFromRecordType(
+      Mangler->getASTContext().getTypeDeclType(D), Mangler);
   return "__hipsycl_kernel_" + DeclName;
 }
 
+// Partially taken from CGCUDANV.cpp
+inline std::string
+getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
+                  clang::MangleContext *RegularMangleContext,
+                  clang::MangleContext *DeviceMangleContext) {
+  clang::GlobalDecl GD;
+  // D could be either a kernel or a variable.
+  if (auto *FD = clang::dyn_cast<clang::FunctionDecl>(ND))
+    GD = clang::GlobalDecl(FD, clang::KernelReferenceKind::Kernel);
+  else
+    GD = clang::GlobalDecl(ND);
+
+  std::string DeviceSideName;
+  static clang::MangleContext *MC = nullptr;
+  if(!MC) {
+    if (Ctx.getLangOpts().CUDAIsDevice){
+      assert(RegularMangleContext);
+      MC = RegularMangleContext;
+    }
+    else {
+      assert(DeviceMangleContext);
+      MC = DeviceMangleContext;
+    }
+  }
+  if (MC->shouldMangleDeclName(ND)) {
+    llvm::SmallString<256> Buffer;
+    llvm::raw_svector_ostream Out(Buffer);
+    MC->mangleName(GD, Out);
+    DeviceSideName = std::string(Out.str());
+  } else
+    DeviceSideName = std::string(ND->getIdentifier()->getName());
+
+  return DeviceSideName;
+}
 }
 
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
   
+  
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
-      : Instance{instance},
+      : Instance{instance} {
+    
+    clang::MangleContext* NameMangler = nullptr;
+    clang::MangleContext* DeviceNameMangler = nullptr;
+
 #ifdef HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING
-        // Construct unique name mangler if supported
-      KernelNameMangler(clang::ItaniumMangleContext::create(
-          instance.getASTContext(), instance.getASTContext().getDiagnostics(), true))
+    // Construct unique name mangler if supported
+    NameMangler = clang::ItaniumMangleContext::create(
+      instance.getASTContext(), instance.getASTContext().getDiagnostics(), true));
+#elif  LLVM_VERSION_MAJOR < 13
+    NameMangler = clang::ItaniumMangleContext::create(
+      instance.getASTContext(), instance.getASTContext().getDiagnostics()));
 #else
-      KernelNameMangler(clang::ItaniumMangleContext::create(
-          instance.getASTContext(), instance.getASTContext().getDiagnostics()))
+    // On clang 13+, we rely on kernel name mangling powered by CUDA/HIP
+    // support in clang and __builtin_get_device_side_mangled_name() in client code.
+    // For this, we need to have a regular mangling context in the device pass,
+    // and an explicit device mangler in the host pass.
+    if(instance.getLangOpts().CUDAIsDevice)
+      NameMangler = instance.getASTContext().createMangleContext();
+    else
+      // For legacy mangling (e.g. -D__HIPSYCL_SPLIT_COMPILER__) force Itanium ABI
+      // also in the host pass. Non-legacy mangling would use the DeviceNameMangler
+      // anyway in the host pass.
+      NameMangler = clang::ItaniumMangleContext::create(
+        instance.getASTContext(), instance.getASTContext().getDiagnostics());
+    
+    // Only used during the host pass
+    if(instance.getAuxTarget())
+      DeviceNameMangler = instance.getASTContext().createDeviceMangleContext(
+          *instance.getAuxTarget());
 #endif
-  {
+
+    KernelNameMangler.reset(NameMangler);
+    DeviceKernelNameMangler.reset(DeviceNameMangler);
 #ifdef _WIN32
     // necessary, to rely on device mangling. API introduced in 
     // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
@@ -243,111 +299,17 @@ public:
 
   bool VisitCallExpr(clang::CallExpr *Call) {
     auto F = llvm::dyn_cast_or_null<clang::FunctionDecl>(Call->getDirectCallee());
-    if(!F) return true;
-    if(!CustomAttributes::SyclKernel.isAttachedTo(F)) return true;
-
-    // Store user kernel for it to be marked as device code later on. We store
-    // the kernel invoke itself instead of user lambda since the user lambda()
-    // will not have an operator() that we can inspect for further outlining if
-    // it is generic (i.e., has auto parameter).
-    UserKernels.insert(F);
-
-    auto KernelFunctorType = llvm::dyn_cast<clang::RecordType>(Call->getArg(0)
-      ->getType()->getCanonicalTypeUnqualified());
-    if(!KernelFunctorType)
+    if(!F)
       return true;
 
-    // Determine unique kernel name to be used for symbol name in device IR
-    clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
+    if(F->getQualifiedNameAsString() == "__hipsycl_kernel_name_template") {
+      return handleKernelStub(F);
+    } else if (CustomAttributes::SyclKernel.isAttachedTo(F)){
 
-    // Check whether a unique kernel name is required.
-    //
-    // There are two different ways of handling unnamed kernels:
-    // 1) If no name is provided and the functor is not a lambda, we allow it
-    // and simply do nothing. This requires at least LLVM 10 to work
-    // reliably, and is enabled up to LLVM 11.
-    // 2) Starting with LLVM 11, our kernel name mangler is a unique mangler
-    // and can reliably mangle lambdas into a unique name that can be queried
-    // from client code using __builtin_unique_stable_name(). If we have this
-    // available (i.e. LLVM>=11), we always rename kernels so that the explicit
-    // multipass implementation can query kernel names using
-    // __builtin_unique_stable_name().
-    bool NameRequired = true;
-
-    const auto KernelNameArgument = Info->TemplateArguments->get(0);
-    if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
-      if (auto RecordType = llvm::dyn_cast<clang::RecordType>(KernelNameArgument.getAsType().getTypePtr())) {
-        const auto RecordDecl = RecordType->getDecl();
-        auto KernelName = RecordDecl->getNameAsString();
-        if (KernelName == "__hipsycl_unnamed_kernel") {
-          // If no name is provided, rely on clang name mangling
-
-          // Earlier clang versions suffer from potentially inconsistent
-          // lambda numbering across host and device passes
-#if LLVM_VERSION_MAJOR < 10
-          const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-          
-          if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl() &&
-               KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()->isLambda())
-          {
-            auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
-                KernelFunctorType->getDecl())->getSourceRange().getBegin();
-            auto ID = Instance.getASTContext().getDiagnostics()
-              .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
-                  "Optional kernel lambda naming requires clang >= 10");
-            Instance.getASTContext().getDiagnostics().Report(SL, ID);
-          }
-#endif
-
-          NameRequired = false;
-        }
-      }
-    }
-
-    bool ForceCustomNameMangling = LLVM_VERSION_MAJOR >= 11;
-    
-    if (NameRequired || ForceCustomNameMangling)
-    {
-      std::string KernelName;
-
-      // If we are dealing with a named kernel, construct the name
-      // based on the kernel name argument
-      if(NameRequired) {
-        KernelName = detail::buildKernelName(KernelNameArgument,
-                                             KernelNameMangler.get());
-      } else {
-        // Otherwise (for unnamed kernels or non-lambda kernels)
-        // construct name based on kernel functor type.
-        const auto KernelFunctorArgument = Info->TemplateArguments->get(1);
-        if (KernelFunctorArgument.getAsType().getTypePtr()->getAsCXXRecordDecl()) {
-          KernelName = detail::buildKernelName(KernelFunctorArgument,
-                                               KernelNameMangler.get());
-        }
-      }
-
-      // Abort with error diagnostic if no kernel name could be built
-      if(KernelName.empty())
-      {
-        // Since we cannot easily get the source location of the template
-        // specialization where the name is passed by the user (e.g. a
-        // parallel_for call), we attach the diagnostic to the kernel
-        // functor instead.
-        // TODO: Improve on this.
-        auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
-            KernelFunctorType->getDecl())->getSourceRange().getBegin();
-        auto ID = Instance.getASTContext().getDiagnostics()
-          .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
-              "Not a valid kernel name: %0");
-        Instance.getASTContext().getDiagnostics().Report(SL, ID) <<
-          Info->TemplateArguments->get(0);
-      }
-
-      // Add the AsmLabel attribute which, if present,
-      // is used by Clang instead of the function's mangled name.
-      F->addAttr(clang::AsmLabelAttr::CreateImplicit(Instance.getASTContext(),
-            KernelName));
-      HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
-        << KernelName << "\n";
+      auto KernelFunctorType = llvm::dyn_cast<clang::RecordType>(Call->getArg(0)
+        ->getType()->getCanonicalTypeUnqualified());
+      
+      return handleKernel(F, KernelFunctorType);
     }
 
     return true;
@@ -379,8 +341,6 @@ public:
 
     for(auto F : UserKernels)
     {
-      std::unordered_set<clang::FunctionDecl*> UserKernels;
-
       // Mark all functions called by user kernels as host / device.
       detail::CompleteCallSet CCS(F);
       for (auto&& RD : CCS.getReachableDecls())
@@ -395,6 +355,9 @@ public:
           RD->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));
         }
       }
+
+      // Rename kernel according to kernel name tag and body
+      nameKernel(F);
     }
 
     for(auto* Kernel : HierarchicalKernels){
@@ -437,8 +400,19 @@ private:
   std::unordered_set<clang::FunctionDecl*> MarkedHostDeviceFunctions;
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
   std::unordered_set<clang::FunctionDecl*> HierarchicalKernels;
+
   std::unordered_set<clang::FunctionDecl*> UserKernels;
+  // Maps a Kernel name tag or kernel body type to the mangled name
+  // of a kernel stub function
+  std::unordered_map<const clang::RecordType*, clang::FunctionDecl*> KernelManglingNameTemplates;
+  // Maps the declaration/instantiation of a kernel to the kernel body
+  // (kernel lambda or function object)
+  std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
+  
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
+  // Only used on clang 13+. Name mangler that takes into account
+  // the device numbering of kernel lambdas.
+  std::unique_ptr<clang::MangleContext> DeviceKernelNameMangler;
 
   void markAsHostDevice(clang::FunctionDecl* F)
   {
@@ -531,6 +505,265 @@ private:
           Instance.getASTContext()));
       V->setStorageClass(clang::SC_Static);
     }
+  }
+
+
+  const clang::RecordType* getTemplateTypeArgument(clang::FunctionDecl* F, int TemplateArg) {
+    clang::FunctionTemplateSpecializationInfo* Info = F->getTemplateSpecializationInfo();
+
+    if(Info) {
+      if(TemplateArg >= Info->TemplateArguments->size())
+        return nullptr;
+      
+      const auto KernelNameArgument = Info->TemplateArguments->get(TemplateArg);
+
+      if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
+        if (auto RecordType = llvm::dyn_cast<clang::RecordType>(
+                KernelNameArgument.getAsType().getTypePtr())) {
+          return RecordType;
+        }
+      }
+    }
+    return nullptr;
+  }
+
+  const clang::RecordType* getKernelNameTag(clang::FunctionDecl* F) {
+    return getTemplateTypeArgument(F, 0);
+  }
+
+  bool isKernelUnnamed(clang::FunctionDecl* F) {
+    if(!F)
+      return false;
+    
+    const clang::RecordType* NameTag = getKernelNameTag(F);
+
+    if(!NameTag)
+      // If name tag is invalid, assume unnamed
+      return true;
+
+    if(NameTag->getDecl()) {
+      return NameTag->getDecl()->getQualifiedNameAsString() ==
+             "__hipsycl_unnamed_kernel";
+    }
+    
+    return true;
+  }
+
+  // Returns either kernel name tag or kernel body, depending on whether
+  // the kernel is named or unnamed
+  const clang::RecordType* getRelevantKernelNamingComponent(clang::FunctionDecl* F) {
+    if(isKernelUnnamed(F)) {
+      auto BodyIterator = KernelBodies.find(F);
+      
+      if(BodyIterator == KernelBodies.end()) {
+        HIPSYCL_DEBUG_ERROR
+            << "Kernel did not have body registered, this should never happen"
+            << std::endl;
+        return nullptr;
+      }
+
+      return BodyIterator->second;
+    } else {
+      return getKernelNameTag(F);
+    }
+  }
+
+  // Should be invoked whenever a call to __hipsycl_hiplike_kernel stub is encountered.
+  // These functions are only used to borrow demangleable kernel names in the form
+  // __hipsycl_hiplike_kernel<KernelName>
+  //
+  // The kernel stubs are only used to generate mangled names
+  // that can then be copied to the actual kernels.
+  //
+  // This is mainly used on clang 13+ where __builtin_get_device_side_mangled_name()
+  // is available, but requires an actual __global__ function on which to operate.
+  bool handleKernelStub(clang::FunctionDecl* F) {
+
+    if(!isKernelUnnamed(F)) {
+      const clang::RecordType* KernelNameTag = getKernelNameTag(F);
+
+      if(KernelNameTag) {
+        KernelManglingNameTemplates[KernelNameTag] = F;
+      }
+    }
+
+    return true;
+  }
+
+  bool handleKernel(clang::FunctionDecl* F, const clang::RecordType* KernelBody) {
+    UserKernels.insert(F);
+    KernelBodies[F] = KernelBody;
+    return true;
+  }
+
+  void setKernelName(clang::FunctionDecl* F, const std::string& name) {
+
+    // Abort with error diagnostic if no kernel name could be built
+    if(name.empty())
+    {
+      // Try to get the declaration of the kernel functor for error
+      // diagnostics
+      auto B = KernelBodies.find(F);
+      clang::Decl* ErrorDecl = F;
+
+      if(B != KernelBodies.end()) {
+        ErrorDecl = B->second->getDecl();
+      }
+
+      auto SL = ErrorDecl->getSourceRange().getBegin();
+      auto ID = Instance.getASTContext().getDiagnostics()
+        .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
+            "No valid kernel name for kernel submission");
+      Instance.getASTContext().getDiagnostics().Report(SL, ID);
+    }
+
+    // Add the AsmLabel attribute which, if present,
+    // is used by Clang instead of the function's mangled name.
+    if(!F->hasAttr<clang::AsmLabelAttr>()) {
+      F->addAttr(
+          clang::AsmLabelAttr::CreateImplicit(Instance.getASTContext(), name));
+      HIPSYCL_DEBUG_INFO << "AST processing: Adding ASM label attribute with kernel name "
+        << name << "\n";
+    }
+  }
+
+  void nameKernelUsingTypes(clang::FunctionDecl* F, bool RenameUnnamedKernels) {
+    std::string KernelName;
+
+    // If we are dealing with a named kernel, construct the name
+    // based on the kernel name argument
+    if(!isKernelUnnamed(F)) {
+      KernelName = detail::buildKernelName(getKernelNameTag(F)->getAsRecordDecl(),
+                                            KernelNameMangler.get());
+    } else {
+      // In certain configurations, we can just let clang handle the naming
+      // of unnamed kernels
+      if(RenameUnnamedKernels) {
+        // Otherwise (for unnamed kernels or non-lambda kernels)
+        // construct name based on kernel functor type.
+        
+        const auto KernelFunctorArgument = getTemplateTypeArgument(F, 1);
+
+        if (KernelFunctorArgument) {
+          KernelName = detail::buildKernelName(KernelFunctorArgument->getAsRecordDecl(),
+                                                KernelNameMangler.get());
+        }
+      }
+    }
+
+    setKernelName(F, KernelName);
+  }
+
+  // LLVM 11 supports __builtin_unique_stable_name() and unique
+  // name manglers. Rely on those to support all mangling
+  void nameKernelUsingUniqueMangler(clang::FunctionDecl* F) {
+    // We just need to enforce that all names (even kernels without explicit names)
+    // are mangled with our unique mangler, so pass "true" to force renaming all
+    // kernels.
+    nameKernelUsingTypes(F, true);
+  }
+
+  void nameKernelUsingKernelManglingStub(clang::FunctionDecl* F) {
+    const clang::RecordType* NamingComponent = getRelevantKernelNamingComponent(F);
+    auto SuggestionIt = KernelManglingNameTemplates.find(NamingComponent);
+    
+    if(SuggestionIt == KernelManglingNameTemplates.end()) {
+      HIPSYCL_DEBUG_ERROR << "Did not find kernel mangling suggestion for "
+                             "encountered kernel, this should never happen."
+                          << std::endl;
+    }
+
+    std::string KernelName = detail::getDeviceSideName(
+        SuggestionIt->second, Instance.getASTContext(), KernelNameMangler.get(),
+        DeviceKernelNameMangler.get());
+    //llvm::raw_string_ostream SS(KernelName);
+    //KernelNameMangler->mangleName(SuggestionIt->second, SS);
+
+    std::string TemplateMarker = "_Z30__hipsycl_kernel_name_template";
+    std::string Replacement = "_Z16__hipsycl_kernel";
+    assert(KernelName.size() > TemplateMarker.size());
+    KernelName.erase(0, TemplateMarker.size());
+    KernelName = Replacement + KernelName;
+    
+    setKernelName(F, KernelName);
+  }
+
+
+  void nameKernel(clang::FunctionDecl* F) {
+
+    auto KernelFunctorType = KernelBodies[F];
+
+#if LLVM_VERSION_MAJOR < 10
+    // LLVM < 10 cannot support unnamed kernel lambdas due to inconsistend
+    // lambda numbering across host and device
+
+    if (KernelFunctorType->getAsCXXRecordDecl() &&
+          KernelFunctorType->getAsCXXRecordDecl()->isLambda())
+    {
+      auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+          KernelFunctorType->getDecl())->getSourceRange().getBegin();
+      auto ID = Instance.getASTContext().getDiagnostics()
+        .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
+            "Optional kernel lambda naming requires clang >= 10");
+      Instance.getASTContext().getDiagnostics().Report(SL, ID);
+    }
+#elif LLVM_VERSION_MAJOR == 10
+    // The "false" indicates that unnamed lambdas do not need to be
+    // renamed - on clang 10, we let clang handle this by itself
+    nameKernelUsingTypes(F, false);
+#elif LLVM_VERSION_MAJOR == 11
+    nameKernelUsingUniqueMangler(F);
+#elif LLVM_VERSION_MAJOR == 12
+    // Starting with clang 12, we rename all kernels
+    nameKernelUsingTypes(F, true);
+#else
+    // Starting with clang 13, we rely on mangling by borrowing
+    // the name from a mangling stub in the glue code, which
+    // has the advantage that it
+    // a) is demangleable
+    // b) can be queried from client code using __builtin_get_device_side_mangled_name()
+    //
+    // However, this only makes sense if the client code has access to this builtin.
+    // In a split compilation scenario, where clang is not the host compiler, this will
+    // not be the case. In this situation we need to again mangle using the types of name tag
+    // and kernel body so that client code will at least be able to use typeid().
+    // In such a split compilation scenario, unnamed kernel lambdas are unsupported.
+    bool IsSplitCompilerConfiguration = false;
+    for(auto V : Instance.getPreprocessor().getPreprocessorOpts().Macros) {
+      if(V.first == "__HIPSYCL_SPLIT_COMPILER__")
+        IsSplitCompilerConfiguration = true;
+    }
+    if(IsSplitCompilerConfiguration) {
+      // Unnamed kernel lambdas are unsupported in split compiler configuration, emit
+      // error if this happens
+      if(isKernelUnnamed(F)) {
+        if(clang::CXXRecordDecl* KernelBody = KernelFunctorType->getAsCXXRecordDecl()) {
+        
+          if(KernelBody->isLambda()) {
+            if (KernelFunctorType->getAsCXXRecordDecl() &&
+                KernelFunctorType->getAsCXXRecordDecl()->isLambda()) {
+              auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
+                            KernelFunctorType->getDecl())
+                            ->getSourceRange()
+                            .getBegin();
+              auto ID =
+                  Instance.getASTContext().getDiagnostics().getCustomDiagID(
+                      clang::DiagnosticsEngine::Level::Error,
+                      "Unnamed kernel lambdas are unsupported in a split "
+                      "compilation configuration where the host compiler is "
+                      "not clang.");
+              Instance.getASTContext().getDiagnostics().Report(SL, ID);
+            }
+          }
+        
+        }
+      }
+      nameKernelUsingTypes(F, true);
+    }
+    else {
+      nameKernelUsingKernelManglingStub(F);
+    }
+#endif
   }
 
 };

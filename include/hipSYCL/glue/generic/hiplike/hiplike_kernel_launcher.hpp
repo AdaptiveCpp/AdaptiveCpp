@@ -111,15 +111,8 @@ struct dim3 {
 
 // Dummy kernel that is used in conjunction with 
 // __builtin_get_device_side_stable_name() to extract kernel names
-template<class StartMarker, class KernelT, class EndMarker>
-__global__ void __hipsycl_hiplike_dummy_invoker(KernelT) {}
-
-// The mangled names in Itanium ABI is hardcoded in the explicit
-// multipass module invocation mechanism; don't rename those types
-// without changing the mangled names as well.
-struct __hipsycl_hiplike_mangling_start_marker {};
-struct __hipsycl_hiplike_mangling_end_marker {};
-
+template<class KernelT>
+__global__ void __hipsycl_kernel_name_template () {}
 
 namespace hipsycl {
 namespace glue {
@@ -604,8 +597,13 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
+
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, grid, block,      \
-                                shared_mem, stream, ...)                       \
+                                shared_mem, stream, ...)               \
+  if(false) {                                                                  \
+    __hipsycl_kernel_name_template<KernelNameT><<<1,1>>>();                    \
+    __hipsycl_kernel_name_template<KernelBodyT><<<1,1>>>();              \
+  }                                                                            \
   if constexpr (is_launch_from_module()) {                                     \
     invoke_from_module<KernelNameT, KernelBodyT>(grid, block, shared_mem,      \
                                                  __VA_ARGS__);                 \
@@ -903,32 +901,13 @@ private:
     // The builtin unfortunately only works with __global__ or
     // __device__ functions. Since our kernel launchers cannot be __global__
     // when semantic analysis runs, we cannot apply the builtin
-    // directly to our kernel launchers.
-    // Instead, we instantiate a dummy __global__ kernel and then
-    // attempt to extract the mangled name of the lambda by putting
-    // it between special marker types in the template argument list.
-    // We can then find the marker types and extract the string in between
-    // to get the functor/lambda name, without requiring too much
-    // knowledge about ABI internals.
-    // This works with Itanium ABI, and might not work with other ABIs.
-    // Since Itanium ABI is used everywhere for device code (including Windows)
-    // this should not be an issue.
-    std::string raw_name = __builtin_get_device_side_mangled_name(
-      __hipsycl_hiplike_dummy_invoker<
-        __hipsycl_hiplike_mangling_start_marker,
-        KernelT,
-        __hipsycl_hiplike_mangling_end_marker>);
-    
-    // Use Itanium ABI hardcoded mangled names to make it work on Windows
-    // where the host side might be using MS-ABI instead, so typeid()
-    // won't work.
-    std::string begin_name = "39__hipsycl_hiplike_mangling_start_marker";
-    std::string end_name = "37__hipsycl_hiplike_mangling_end_marker";
-
-    raw_name.erase(0, raw_name.find(begin_name)+begin_name.length());
-    raw_name.erase(raw_name.find(end_name));
-    return raw_name;
-
+    // directly to our kernel launchers. Use dummy __global__ instead
+    std::string name_template = __builtin_get_device_side_mangled_name(
+      __hipsycl_kernel_name_template<KernelT>);
+    std::string template_marker = "_Z30__hipsycl_kernel_name_template";
+    std::string replacement = "_Z16__hipsycl_kernel";
+    name_template.erase(0, template_marker.size());
+    return replacement + name_template;
 #else
     return typeid(KernelT).name();
 #endif

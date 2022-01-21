@@ -194,6 +194,11 @@ class syclcc_config:
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
+               Backend Flavors:
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+                                          (see --hipsycl-explicit-multipass)
+               - cuda.integrated-multipass: Force CUDA backend to operate in integrated
+                                           multipass mode.
       * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
                if given requires the format ccXY.
       * hip  - HIP backend

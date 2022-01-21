@@ -21,5 +21,5 @@ Not all backends support all modes:
 | HIP   | Yes | No |  |
 | SPIR-V  | No | Yes | |
 
-**Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` as described in the [installation documentation](installing.md).
+**Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md).
 

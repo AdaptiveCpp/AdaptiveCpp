@@ -101,6 +101,10 @@ struct unique_id {
     return !(a == b);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return id[0] ^ id[1];
+  }
+
   unique_id(const unique_id&) = default;
   unique_id& operator=(const unique_id&) = default;
 

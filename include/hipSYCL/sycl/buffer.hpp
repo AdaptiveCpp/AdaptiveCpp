@@ -754,6 +754,10 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
+  }
+
   // --- The following methods are part the hipSYCL buffer introspection API
   // which is part of the hipSYCL buffer-USM interoperability framework.
 
@@ -1181,5 +1185,19 @@ extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename T, int dimensions,
+          typename AllocatorT>
+struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
+{
+  std::size_t
+  operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
+    return b.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

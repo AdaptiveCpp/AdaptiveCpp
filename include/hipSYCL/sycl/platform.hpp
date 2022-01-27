@@ -131,6 +131,10 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<rt::platform_id>{}(_platform);
+  }
+
 private:
   rt::platform_id _platform;
 };
@@ -169,5 +173,18 @@ inline platform device::get_platform() const  {
 
 }// namespace sycl
 }// namespace hipsycl
+
+namespace std {
+
+template <>
+struct hash<hipsycl::sycl::platform>
+{
+  std::size_t operator()(const hipsycl::sycl::platform& p) const
+  {
+    return p.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

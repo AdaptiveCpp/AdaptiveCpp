@@ -613,14 +613,24 @@ public:
     return _range;
   }
 
-  std::size_t get_count() const
+  std::size_t size() const noexcept
   {
     return _range.size();
   }
 
+  std::size_t byte_size() const noexcept
+  {
+    return size() * sizeof(T);
+  }
+
   std::size_t get_size() const
   {
-    return get_count() * sizeof(T);
+    return byte_size();
+  }
+
+  std::size_t get_count() const
+  {
+    return size();
   }
 
   AllocatorT get_allocator() const

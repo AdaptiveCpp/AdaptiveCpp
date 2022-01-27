@@ -68,7 +68,13 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
             // really used there anyways..
             PB.registerOptimizerLastEPCallback(
-                [](llvm::ModulePassManager &MPM, llvm::PassBuilder::OptimizationLevel) {
+                [](llvm::ModulePassManager &MPM,
+#if LLVM_VERSION_MAJOR >= 14
+                   llvm::OptimizationLevel
+#else
+                   llvm::PassBuilder::OptimizationLevel
+#endif
+                  ) {
                   MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
                 });
           }};

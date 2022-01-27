@@ -57,6 +57,97 @@ void trim_right_space_and_parenthesis(std::string &s) {
     }).base(), s.end());
 }
 
+class cuda_module_cache {
+public:
+  static cuda_module_cache& get() {
+    static cuda_module_cache instance;
+    return instance;
+  }
+
+  ~cuda_module_cache() {
+    for (std::size_t device = 0; device < _loaded_modules.size(); ++device) {
+      auto& per_device_cache = _loaded_modules[device];
+      for (auto mod : per_device_cache) {
+        CUmod_st* cuda_mod = mod.second;
+        if(cuda_mod) {
+          cuda_device_manager::get().activate_device(device);
+
+          auto err = cuModuleUnload(cuda_mod);
+
+          if (err != CUDA_SUCCESS) {
+            register_error(__hipsycl_here(),
+                          error_info{"cuda_module_cache: could not unload module",
+                                    error_code{"CU", static_cast<int>(err)}});
+          }
+          _loaded_modules[device][mod.first] = nullptr;
+        }
+      }
+    }
+  }
+
+  template <class Generator>
+  result create_or_retrieve_module(cuda_module_id_t module_id,
+                                   const std::string &target, cuda_module *&out,
+                                   Generator gen) {
+    for(auto& mod : _source_modules) {
+      if(mod.get_id() == module_id && mod.get_target() == target) {
+        out = &mod;
+        return make_success();
+      }
+    }
+
+    _source_modules.emplace_back(gen(module_id, target));
+
+    out = &(_source_modules.back());
+    return make_success();
+  }
+
+  template <class Generator>
+  result create_or_retrieve_backend_module(rt::device_id dev,
+                                           const cuda_module &module,
+                                           CUmod_st *&out, Generator gen) {
+    assert(dev.get_id() < _loaded_modules.size());
+
+    auto& per_device_cache = _loaded_modules[dev.get_id()];
+    auto it = per_device_cache.find(module.get_id());
+
+    if(it != per_device_cache.end()) {
+      out = it->second;
+      return make_success();
+    } else {
+      CUmod_st* mod = nullptr;
+      result err = gen(dev, module, mod);
+      
+      if(!err.is_success())
+        return err;
+      
+      per_device_cache[module.get_id()] = mod;
+      out = mod;
+      
+      return make_success();
+    }
+  }
+
+private:
+
+  cuda_module_cache() {
+    int num_devices = 0;
+    auto err = cudaGetDeviceCount(&num_devices);
+
+    if(err != cudaSuccess) {
+      print_warning(__hipsycl_here(),
+        error_info{"cuda_module_cache: could not obtain number of devices",
+          error_code{"CU", static_cast<int>(err)}});
+    }
+
+    if(num_devices > 0)
+      _loaded_modules.resize(num_devices);
+  }
+  
+
+  std::vector<cuda_module> _source_modules;
+  std::vector<std::unordered_map<cuda_module_id_t, CUmod_st*>> _loaded_modules;
+};
 
 }
 
@@ -94,7 +185,6 @@ std::string cuda_module::get_content() const {
 bool cuda_module::guess_kernel_name(const std::string &kernel_group_name,
                                     const std::string &kernel_component_name,
                                     std::string &guessed_name) const {
-  
   bool found = false;
   for (auto candidate : get_kernel_names()) {
     if (candidate.find(kernel_group_name) != std::string::npos &&
@@ -121,89 +211,53 @@ cuda_module_id_t cuda_module::get_id() const { return _id; }
 
 const std::string &cuda_module::get_target() const { return _target; }
 
-cuda_module_manager::cuda_module_manager(std::size_t num_devices)
-    : _cuda_modules(num_devices, nullptr), _active_modules(num_devices, 0) {}
+cuda_module_manager::cuda_module_manager(std::size_t num_devices){}
 
-cuda_module_manager::~cuda_module_manager() {
-  for (std::size_t i = 0; i < _cuda_modules.size(); ++i) {
-    if (_cuda_modules[i]) {
-      cuda_device_manager::get().activate_device(i);
-      auto err = cuModuleUnload(_cuda_modules[i]);
-
-      if (err != CUDA_SUCCESS) {
-        register_error(__hipsycl_here(),
-                      error_info{"cuda_module_manager: could not unload module",
-                                 error_code{"CU", static_cast<int>(err)}});
-      }
-      _cuda_modules[i] = nullptr;
-    }
-  }
-}
+cuda_module_manager::~cuda_module_manager() {}
 
 const cuda_module &
 cuda_module_manager::obtain_module(cuda_module_id_t id,
                                    const std::string &target,
                                    const std::string &content) {
-  for (const cuda_module &mod : _modules) {
-    if (mod.get_id() == id && mod.get_target() == target) {
-      return mod;
-    }
-  }
-
-  _modules.emplace_back(cuda_module(id, target, content));
-  return _modules.back();
+  cuda_module* mod = nullptr;
+  cuda_module_cache::get().create_or_retrieve_module(
+      id, target, mod, [&content](cuda_module_id_t id, const std::string &target) {
+        return cuda_module{id, target, content};
+      });
+  assert(mod);
+  return *mod;
 }
 
 result cuda_module_manager::load(rt::device_id dev, const cuda_module &module,
                                  CUmod_st *&out) {
   
   assert(dev.get_backend() == backend_id::cuda);
-
-  int dev_id = dev.get_id();
-  assert(dev_id < _cuda_modules.size());
-  assert(dev_id < _active_modules.size());
   
-  if (_cuda_modules[dev_id]) {
-    if (_active_modules[dev_id] == module.get_id()) {
-      // The right module is already loaded in this device context
-      out = _cuda_modules[dev_id];
-      return make_success();
-    }
-  }
-
-  // Replace module with new one
-  cuda_device_manager::get().activate_device(dev_id);
-  // This guarantees that the CUDA runtime API initializes the CUDA
-  // context on that device. This is important for the subsequent driver
-  // API calls which assume that CUDA context has been created.
-  cudaFree(0);
-
-  if (_cuda_modules[dev_id]) {
-    auto err = cuModuleUnload(_cuda_modules[dev_id]);
-    _cuda_modules[dev_id] = nullptr;
+  result err = cuda_module_cache::get().create_or_retrieve_backend_module(dev, module, out,
+    [](rt::device_id dev, const cuda_module& mod, CUmod_st*& out){
+    
+    cuda_device_manager::get().activate_device(dev.get_id());
+    // This guarantees that the CUDA runtime API initializes the CUDA
+    // context on that device. This is important for the subsequent driver
+    // API calls which assume that CUDA context has been created.
+    cudaFree(0);
+    CUmod_st* m = nullptr;
+    auto err = cuModuleLoadDataEx(
+        &m, static_cast<void *>(const_cast<char *>(mod.get_content().c_str())),
+        0, nullptr, nullptr);
 
     if (err != CUDA_SUCCESS) {
       return make_error(__hipsycl_here(),
-                    error_info{"cuda_module_manager: could not unload module",
-                                error_code{"CU", static_cast<int>(err)}});
+                        error_info{"cuda_module_manager: could not load module",
+                                  error_code{"CU", static_cast<int>(err)}});
     }
-  }
+    
+    out = m;
 
-  auto err = cuModuleLoadDataEx(
-      &(_cuda_modules[dev_id]),
-      static_cast<void *>(const_cast<char *>(module.get_content().c_str())),
-      0, nullptr,
-      nullptr);
-
-  if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
-                      error_info{"cuda_module_manager: could not load module",
-                                 error_code{"CU", static_cast<int>(err)}});
-  }
-  _active_modules[dev_id] = module.get_id();
-  out = _cuda_modules[dev_id];
-
-  return make_success();
+    return make_success();
+  });
+  
+  return err;
 }
 
 

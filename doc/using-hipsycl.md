@@ -137,7 +137,7 @@ Options are:
   [can also be set by setting environment variable HIPSYCL_USE_ACCELERATED_CPU to any value other than false|off|0 ]
   [default value provided by field 'default-use-accelerated-cpu' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: Not Set]
-  If set and Clang is used for compilation, explicit compiler support
+  If set, Clang is used for host compilation and explicit compiler support
   is enabled for accelerating the nd-range parallel_for on CPU.
   Uses continuation-based synchronization to execute all work-items
   of a work-group in a single thread, eliminating scheduling overhead

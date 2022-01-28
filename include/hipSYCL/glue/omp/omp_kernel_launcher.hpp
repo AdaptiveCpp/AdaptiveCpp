@@ -279,35 +279,10 @@ inline void parallel_for_ndrange_kernel(
       std::terminate();
     };
 
-    if constexpr(Dim == 1) {
-      const size_t n_groups = num_groups[0];
-      #pragma omp for
-      for (size_t g_x = 0; g_x < n_groups; ++g_x) {
-        const sycl::id<Dim> group_id{g_x};
-        iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
-                num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
-        }
-    } else if constexpr(Dim == 2) {
-#pragma omp for collapse(2)
-      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
-        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
-          const sycl::id<Dim> group_id{g_x, g_y};
-          iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
-            num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
-        }
-      }
-    } else if constexpr (Dim == 3) {
-#pragma omp for collapse(3)
-      for (size_t g_x = 0; g_x < num_groups[0]; ++g_x) {
-        for (size_t g_y = 0; g_y < num_groups[1]; ++g_y) {
-          for (size_t g_z = 0; g_z < num_groups[2]; ++g_z) {
-            const sycl::id<Dim> group_id{g_x, g_y, g_z};
-            iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
-              num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
-          }
-        }
-      }
-    }
+    iterate_range_omp_for(num_groups, [&](sycl::id<Dim> &&group_id) {
+      iterate_nd_range_omp(f, std::move(group_id), num_groups, local_size, offset,
+        num_local_mem_bytes, &group_shared_memory_ptr, barrier_impl, reducers...);
+    });
 #elif defined(HIPSYCL_HAS_FIBERS)
     host::static_range_decomposition<Dim> group_decomposition{
         num_groups, omp_get_num_threads()};

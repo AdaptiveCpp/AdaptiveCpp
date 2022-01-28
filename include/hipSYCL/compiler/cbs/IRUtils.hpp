@@ -47,12 +47,9 @@ struct MDKind {
 };
 
 static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
-static constexpr const char LocalIdGlobalNameX[] =
-    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_xE";
-static constexpr const char LocalIdGlobalNameY[] =
-    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_yE";
-static constexpr const char LocalIdGlobalNameZ[] =
-    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_zE";
+static constexpr const char LocalIdGlobalNameX[] = "__hipsycl_local_id_x";
+static constexpr const char LocalIdGlobalNameY[] = "__hipsycl_local_id_y";
+static constexpr const char LocalIdGlobalNameZ[] = "__hipsycl_local_id_z";
 static const std::array<const char *, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY,
                                                             LocalIdGlobalNameZ};
 

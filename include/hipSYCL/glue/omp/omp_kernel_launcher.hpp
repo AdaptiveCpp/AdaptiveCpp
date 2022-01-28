@@ -183,9 +183,9 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
 }
 
 #ifdef __HIPSYCL_USE_ACCELERATED_CPU__
-extern size_t __hipsycl_local_id_x;
-extern size_t __hipsycl_local_id_y;
-extern size_t __hipsycl_local_id_z;
+extern "C" size_t __hipsycl_local_id_x;
+extern "C" size_t __hipsycl_local_id_y;
+extern "C" size_t __hipsycl_local_id_z;
 
 template <int Dim, class Function, class ...Reducers>
 HIPSYCL_LOOP_SPLIT_ND_KERNEL __attribute__((noinline))

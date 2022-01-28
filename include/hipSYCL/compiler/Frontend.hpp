@@ -420,7 +420,7 @@ public:
       }
     }
 
-    for(auto* F : NDKernels) {
+    for(auto* F : HostNDKernels) {
       detail::CompleteCallSet CCS(F);
       for (auto &D : CCS.getReachableDecls()) {
         if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
@@ -447,7 +447,9 @@ private:
   std::unordered_set<clang::FunctionDecl*> MarkedKernels;
   std::unordered_set<clang::FunctionDecl*> HierarchicalKernels;
   std::unordered_set<clang::FunctionDecl*> UserKernels;
-  std::unordered_set<clang::FunctionDecl*> NDKernels;
+
+  std::unordered_set<clang::FunctionDecl*> HostNDKernels;
+
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
 
   void markAsHostDevice(clang::FunctionDecl* F)
@@ -462,7 +464,7 @@ private:
 
   void markAsNDKernel(clang::FunctionDecl* F)
   {
-    this->NDKernels.insert(F);
+    this->HostNDKernels.insert(F);
   }
 
   void processFunctionDecl(clang::FunctionDecl* f)

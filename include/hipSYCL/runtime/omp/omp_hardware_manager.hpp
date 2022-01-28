@@ -30,10 +30,8 @@
 
 #include "../hardware.hpp"
 
-namespace hipsycl
-{
-namespace rt
-{
+namespace hipsycl {
+namespace rt {
 
 class omp_hardware_context : public hardware_context
 {

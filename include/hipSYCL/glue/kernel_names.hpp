@@ -92,11 +92,11 @@ struct kernel_name_traits<__hipsycl_unnamed_kernel, KernelBodyT> {
   using multiversioned_suggested_mangling_name =
       multiversioned_kernel_wrapper<KernelBodyT, MultiversionParameters...>;
 
-template <typename... MultiversionParameters>
+  template <typename... MultiversionParameters>
   static auto
   make_multiversioned_kernel_body(const KernelBodyT &body) noexcept {
     return multiversioned_kernel_wrapper<KernelBodyT,
-  MultiversionParameters...>{body};
+                                         MultiversionParameters...>{body};
   }
 
   static constexpr bool is_unnamed = true;

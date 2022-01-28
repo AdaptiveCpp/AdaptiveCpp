@@ -483,7 +483,8 @@ void VectorizationAnalysis::init(const Function &F) {
 bool VectorizationAnalysis::updateShape(const Value &V, VectorShape AT) {
   VectorShape Old = getShape(V);
   VectorShape New = VectorShape::join(Old, AT);
-  HIPSYCL_DEBUG_INFO "input shapes for " << V << " " << Old << " " << New << "\n";
+
+  IF_DEBUG_VA { errs() << "input shapes for " << V << " " << Old << " " << New << "\n"; }
 
   // if the value has an initialized shape identical to the new one stop here
   if (vecInfo.hasKnownShape(V) && (Old == New)) {

@@ -213,19 +213,6 @@ BOOST_AUTO_TEST_CASE(omit_kernel_name) {
   }
 }
 
-template<int Add, class AccessorT>
-struct KernelFunctorND {
-
-  KernelFunctorND(AccessorT acc) : acc(acc) {};
-
-  void operator() (cl::sycl::nd_item<1> item) const {
-    if(item.get_global_linear_id() == item.get_local_range(0) - 1)
-      acc[0] = Add + item.get_global_linear_id();
-  }
-
-  AccessorT acc;
-};
-
 BOOST_AUTO_TEST_CASE(hierarchical_invoke_shared_memory) {
   cl::sycl::queue queue;
 

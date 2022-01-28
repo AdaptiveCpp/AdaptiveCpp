@@ -182,15 +182,15 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
   }
 }
 
-#ifdef HIPSYCL_USE_ACCELERATED_CPU
+#ifdef __HIPSYCL_USE_ACCELERATED_CPU__
 extern size_t __hipsycl_local_id_x;
 extern size_t __hipsycl_local_id_y;
 extern size_t __hipsycl_local_id_z;
 
 template <int Dim, class Function, class ...Reducers>
-HIPSYCL_ND_KERNEL __attribute__((noinline))
+HIPSYCL_LOOP_SPLIT_ND_KERNEL __attribute__((noinline))
 inline void iterate_nd_range_omp(Function f, const sycl::id<Dim> &&group_id, const sycl::range<Dim> num_groups,
-  HIPSYCL_ND_KERNEL_LOCAL_SIZE_ARG const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
+  HIPSYCL_LOOP_SPLIT_ND_KERNEL_LOCAL_SIZE_ARG const sycl::range<Dim> local_size, const sycl::id<Dim> offset,
   size_t num_local_mem_bytes, void* group_shared_memory_ptr,
   std::function<void()> &barrier_impl,
   Reducers& ... reducers) noexcept {
@@ -273,7 +273,7 @@ inline void parallel_for_ndrange_kernel(
 
     // 128 kiB as local memory for group algorithms
     std::aligned_storage_t<128*1024, sizeof(double) * 16> group_shared_memory_ptr{};
-#ifdef HIPSYCL_USE_ACCELERATED_CPU
+#ifdef __HIPSYCL_USE_ACCELERATED_CPU__
     std::function<void()> barrier_impl = [] () noexcept {
       assert(false && "splitting seems to have failed");
       std::terminate();
@@ -438,7 +438,7 @@ public:
             Kernel k, Reductions... reductions) {
 
     this->_type = type;
-#if !defined(HIPSYCL_HAS_FIBERS) && !defined(HIPSYCL_USE_ACCELERATED_CPU)
+#if !defined(HIPSYCL_HAS_FIBERS) && !defined(__HIPSYCL_USE_ACCELERATED_CPU__)
     if (type == rt::kernel_type::ndrange_parallel_for) {
       this->_invoker = [](rt::dag_node* node) {};
 

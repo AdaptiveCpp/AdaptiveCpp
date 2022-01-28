@@ -142,11 +142,7 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::max_group_size:
-#ifndef HIPSYCL_USE_ACCELERATED_CPU
-    return std::numeric_limits<std::size_t>::max();
-#else
     return 1024;
-#endif
     break;
   case device_uint_property::max_num_sub_groups:
     return std::numeric_limits<std::size_t>::max();

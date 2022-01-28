@@ -89,14 +89,14 @@
 #ifdef __clang__
  #define HIPSYCL_FORCE_INLINE \
  __attribute__((always_inline)) __attribute__((flatten)) inline
- #define HIPSYCL_ND_KERNEL [[clang::annotate("hipsycl_nd_kernel")]]
- #define HIPSYCL_ND_KERNEL_LOCAL_SIZE_ARG [[clang::annotate("hipsycl_nd_kernel_local_size_arg")]]
- #define HIPSYCL_BARRIER [[clang::annotate("hipsycl_barrier")]]
+ #define HIPSYCL_LOOP_SPLIT_ND_KERNEL [[clang::annotate("hipsycl_nd_kernel")]]
+ #define HIPSYCL_LOOP_SPLIT_ND_KERNEL_LOCAL_SIZE_ARG [[clang::annotate("hipsycl_nd_kernel_local_size_arg")]]
+ #define HIPSYCL_LOOP_SPLIT_BARRIER [[clang::annotate("hipsycl_barrier")]]
 #else
  #define HIPSYCL_FORCE_INLINE inline
- #define HIPSYCL_ND_KERNEL
- #define HIPSYCL_BARRIER
- #define HIPSYCL_ND_KERNEL_LOCAL_SIZE_ARG
+ #define HIPSYCL_LOOP_SPLIT_ND_KERNEL
+ #define HIPSYCL_LOOP_SPLIT_BARRIER
+ #define HIPSYCL_LOOP_SPLIT_ND_KERNEL_LOCAL_SIZE_ARG
 #endif
 #define HIPSYCL_BUILTIN HIPSYCL_UNIVERSAL_TARGET HIPSYCL_FORCE_INLINE
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \

@@ -278,7 +278,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_BARRIER HIPSYCL_KERNEL_TARGET
+  HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {

@@ -30,7 +30,7 @@
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 #include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
 
-#ifdef HIPSYCL_USE_ACCELERATED_CPU
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
 #include "hipSYCL/compiler/cbs/LoopsParallelMarker.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #endif
@@ -61,7 +61,7 @@ static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
                                             registerGlobalsPruningPass);
 
-#if defined(HIPSYCL_USE_ACCELERATED_CPU) && !defined(_WIN32)
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
 static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
@@ -101,7 +101,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
 
-#ifdef HIPSYCL_USE_ACCELERATED_CPU
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
           PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
             MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
           });

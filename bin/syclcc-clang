@@ -938,7 +938,7 @@ class omp_invocation:
   def get_cxx_flags(self):
     flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     if self._use_plugin and not sys.platform.startswith("win32"):
-      flags += ["-fplugin=" + config.hipsycl_plugin_path, "-fpass-plugin=" + config.hipsycl_plugin_path, "-DHIPSYCL_USE_ACCELERATED_CPU"]
+      flags += ["-fplugin=" + config.hipsycl_plugin_path, "-fpass-plugin=" + config.hipsycl_plugin_path, "-D__HIPSYCL_USE_ACCELERATED_CPU__"]
     flags += self._cxx_flags
       
     return flags

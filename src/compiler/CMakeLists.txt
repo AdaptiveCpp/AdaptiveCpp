@@ -10,6 +10,9 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
 endif()
 
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(WITH_ACCELERATED_CPU)
+  add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
+endif()
 
 if(WITH_ACCELERATED_CPU)
   set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp

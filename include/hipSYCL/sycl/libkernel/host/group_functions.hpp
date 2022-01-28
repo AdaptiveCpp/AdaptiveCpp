@@ -47,7 +47,7 @@ namespace sycl::detail::host_builtins {
 
 // barrier
 template <int Dim>
-HIPSYCL_BARRIER HIPSYCL_KERNEL_TARGET inline void
+HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET inline void
 __hipsycl_group_barrier(group<Dim> g,
                         memory_scope fence_scope = group<Dim>::fence_scope) {
   if (fence_scope == memory_scope::device) {

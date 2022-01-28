@@ -931,7 +931,8 @@ class omp_invocation:
 
     self._cxx = config.pure_cpu_compiler
     self._use_plugin = config.use_accelerated_cpu
-    self._clang_path = config.clang_path
+    if self._use_plugin:
+      self._clang_path = config.clang_path
 
   def get_compiler_preference(self):
     if self._use_plugin:

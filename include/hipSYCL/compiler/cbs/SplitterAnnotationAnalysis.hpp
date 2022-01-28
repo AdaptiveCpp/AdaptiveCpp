@@ -52,9 +52,10 @@ public:
   inline void removeSplitter(llvm::Function *F) { SplitterFuncs.erase(F); }
   inline void addSplitter(llvm::Function *F) { SplitterFuncs.insert(F); }
 
-  void print(llvm::raw_ostream& Stream);
+  void print(llvm::raw_ostream &Stream);
 
-  bool invalidate(llvm::Module &, const llvm::PreservedAnalyses &, llvm::ModuleAnalysisManager::Invalidator &) {
+  bool invalidate(llvm::Module &, const llvm::PreservedAnalyses &,
+                  llvm::ModuleAnalysisManager::Invalidator &) {
     return false;
   }
 };
@@ -98,9 +99,11 @@ public:
 };
 
 /*!
- * \brief Requires the SplitterAnnotationAnalysis once, so it is actually performed and thus cached by the MAM.
+ * \brief Requires the SplitterAnnotationAnalysis once, so it is actually performed and thus cached
+ * by the MAM.
  */
-class SplitterAnnotationAnalysisCacher : public llvm::PassInfoMixin<SplitterAnnotationAnalysisCacher> {
+class SplitterAnnotationAnalysisCacher
+    : public llvm::PassInfoMixin<SplitterAnnotationAnalysisCacher> {
 public:
   explicit SplitterAnnotationAnalysisCacher() {}
 

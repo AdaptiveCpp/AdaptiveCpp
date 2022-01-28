@@ -111,10 +111,11 @@ public:
 class FunctionRegion final : public RegionImpl {
 private:
   llvm::Function &F;
-  llvm::SmallPtrSet<llvm::BasicBlock*, 16> BBs;
+  llvm::SmallPtrSet<llvm::BasicBlock *, 16> BBs;
 
 public:
-  FunctionRegion(llvm::Function &_F, llvm::ArrayRef<llvm::BasicBlock*> BBs) : F(_F), BBs(BBs.begin(),  BBs.end()) {};
+  FunctionRegion(llvm::Function &_F, llvm::ArrayRef<llvm::BasicBlock *> BBs)
+      : F(_F), BBs(BBs.begin(), BBs.end()){};
   ~FunctionRegion() {}
 
   bool contains(const llvm::BasicBlock *BB) const override { return BBs.contains(BB); }

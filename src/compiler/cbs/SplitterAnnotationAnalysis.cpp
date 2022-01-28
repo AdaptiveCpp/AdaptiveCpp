@@ -39,7 +39,7 @@ std::basic_ostream<char> &operator<<(std::basic_ostream<char> &Ost, const llvm::
 }
 
 bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
-  if(auto* BarrIntrinsic = M.getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
+  if (auto *BarrIntrinsic = M.getFunction(hipsycl::compiler::BarrierIntrinsicName)) {
     SplitterFuncs.insert(BarrIntrinsic);
     HIPSYCL_DEBUG_INFO << "Found splitter intrinsic " << BarrIntrinsic->getName() << "\n";
   }
@@ -66,15 +66,17 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
   return false;
 }
 
-hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) { analyzeModule(Module); }
+hipsycl::compiler::SplitterAnnotationInfo::SplitterAnnotationInfo(llvm::Module &Module) {
+  analyzeModule(Module);
+}
 
 void hipsycl::compiler::SplitterAnnotationInfo::print(llvm::raw_ostream &Stream) {
   Stream << "Splitters:\n";
-  for(auto* F : SplitterFuncs){
+  for (auto *F : SplitterFuncs) {
     Stream << F->getName() << "\n";
   }
   Stream << "NDRange Kernels:\n";
-  for(auto* F : NDKernels){
+  for (auto *F : NDKernels) {
     Stream << F->getName() << "\n";
   }
 }
@@ -94,8 +96,9 @@ hipsycl::compiler::SplitterAnnotationAnalysis::run(llvm::Module &M, llvm::Module
 char hipsycl::compiler::SplitterAnnotationAnalysisLegacy::ID = 0;
 llvm::AnalysisKey hipsycl::compiler::SplitterAnnotationAnalysis::Key;
 
-llvm::PreservedAnalyses hipsycl::compiler::SplitterAnnotationAnalysisCacher::run(llvm::Module &M,
-                                                                                 llvm::ModuleAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::SplitterAnnotationAnalysisCacher::run(llvm::Module &M,
+                                                         llvm::ModuleAnalysisManager &AM) {
   AM.getResult<SplitterAnnotationAnalysis>(M);
   return llvm::PreservedAnalyses::all();
 }

@@ -23,7 +23,9 @@ namespace hipsycl::compiler {
 
 bool VectorizationInfo::inRegion(const BasicBlock &block) const { return region.contains(&block); }
 
-bool VectorizationInfo::inRegion(const Instruction &inst) const { return region.contains(inst.getParent()); }
+bool VectorizationInfo::inRegion(const Instruction &inst) const {
+  return region.contains(inst.getParent());
+}
 
 void VectorizationInfo::remapPredicate(Value &dest, Value &old) {
   for (auto it : predicates) {
@@ -65,7 +67,9 @@ void VectorizationInfo::print(const Value *val, llvm::raw_ostream &out) const {
   }
 }
 
-void VectorizationInfo::dumpBlockInfo(const BasicBlock &block) const { printBlockInfo(block, errs()); }
+void VectorizationInfo::dumpBlockInfo(const BasicBlock &block) const {
+  printBlockInfo(block, errs());
+}
 
 void VectorizationInfo::printBlockInfo(const BasicBlock &block, llvm::raw_ostream &out) const {
   const Value *predicate = getPredicate(block);
@@ -248,10 +252,13 @@ void VectorizationInfo::dropVectorShape(const Value &val) {
   shapes.erase(it);
 }
 
-void VectorizationInfo::setVectorShape(const llvm::Value &val, VectorShape shape) { shapes[&val] = shape; }
+void VectorizationInfo::setVectorShape(const llvm::Value &val, VectorShape shape) {
+  shapes[&val] = shape;
+}
 
 // tenative predicate handling
-bool VectorizationInfo::getVaryingPredicateFlag(const llvm::BasicBlock &BB, bool &oIsVarying) const {
+bool VectorizationInfo::getVaryingPredicateFlag(const llvm::BasicBlock &BB,
+                                                bool &oIsVarying) const {
   auto it = VaryingPredicateBlocks.find(&BB);
   if (it == VaryingPredicateBlocks.end())
     return false;
@@ -263,7 +270,9 @@ void VectorizationInfo::setVaryingPredicateFlag(const llvm::BasicBlock &BB, bool
   VaryingPredicateBlocks[&BB] = toVarying;
 }
 
-void VectorizationInfo::removeVaryingPredicateFlag(const llvm::BasicBlock &BB) { VaryingPredicateBlocks.erase(&BB); }
+void VectorizationInfo::removeVaryingPredicateFlag(const llvm::BasicBlock &BB) {
+  VaryingPredicateBlocks.erase(&BB);
+}
 
 // predicate handling
 void VectorizationInfo::dropPredicate(const BasicBlock &block) {
@@ -287,7 +296,9 @@ void VectorizationInfo::setPredicate(const llvm::BasicBlock &block, llvm::Value 
 }
 
 // loop divergence
-bool VectorizationInfo::addDivergentLoop(const Loop &loop) { return mDivergentLoops.insert(&loop).second; }
+bool VectorizationInfo::addDivergentLoop(const Loop &loop) {
+  return mDivergentLoops.insert(&loop).second;
+}
 
 void VectorizationInfo::removeDivergentLoop(const Loop &loop) { mDivergentLoops.erase(&loop); }
 
@@ -310,7 +321,9 @@ bool VectorizationInfo::addDivergentLoopExit(const BasicBlock &block) {
   return DivergentLoopExits.insert(&block).second;
 }
 
-void VectorizationInfo::removeDivergentLoopExit(const BasicBlock &block) { DivergentLoopExits.erase(&block); }
+void VectorizationInfo::removeDivergentLoopExit(const BasicBlock &block) {
+  DivergentLoopExits.erase(&block);
+}
 
 // pinned shape handling
 bool VectorizationInfo::isPinned(const Value &V) const { return pinned.count(&V) != 0; }
@@ -336,7 +349,8 @@ bool VectorizationInfo::isTemporalDivergent(const LoopInfo &LI, const BasicBlock
   if (!IsLCSSA) {
     // check whether any divergent loop carrying Val terminates before control
     // proceeds to ObservingBlock
-    for (const auto *Loop = DefLoop; Loop && inRegion(*Loop->getHeader()) && !Loop->contains(&ObservingBlock);
+    for (const auto *Loop = DefLoop;
+         Loop && inRegion(*Loop->getHeader()) && !Loop->contains(&ObservingBlock);
          Loop = Loop->getParentLoop()) {
       if (isDivergentLoop(*Loop)) {
         return true;

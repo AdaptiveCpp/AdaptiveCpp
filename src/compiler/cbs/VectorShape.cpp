@@ -79,7 +79,9 @@ VectorShape::VectorShape(align_t _alignment)
 VectorShape::VectorShape(stride_t _stride, align_t _alignment)
     : stride(_stride), hasConstantStride(true), alignment(_alignment), defined(true) {}
 
-VectorShape VectorShape::fromConstant(const Constant *C) { return VectorShape::uni(getAlignment(C)); }
+VectorShape VectorShape::fromConstant(const Constant *C) {
+  return VectorShape::uni(getAlignment(C));
+}
 
 align_t VectorShape::getAlignmentGeneral() const {
   if (hasConstantStride) {
@@ -130,7 +132,8 @@ bool VectorShape::morePreciseThan(const VectorShape &a) const {
   // it comes down to having a coarser alignment
   return (alignment == 0 && a.alignment > 0) || // @this is the zero shape whereas @a is not
          (a.alignment > 0 &&
-          (alignment % a.alignment == 0)); // the alignment of @this shape is divisible by the alignment of @a
+          (alignment % a.alignment ==
+           0)); // the alignment of @this shape is divisible by the alignment of @a
 
   // either incompatible alignments or @a is zero shape and @this is not
   return false;

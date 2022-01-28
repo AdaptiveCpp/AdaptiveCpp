@@ -41,7 +41,8 @@
 #include <llvm/Transforms/Utils/PromoteMemToReg.h>
 
 namespace hipsycl::compiler::utils {
-llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F) {
+llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
+                          llvm::Function &F) {
   DT.reset();
   DT.recalculate(F);
   LI.releaseMemory();
@@ -55,25 +56,29 @@ bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA) {
   return false;
 }
 
-bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool blockHasBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   return std::any_of(BB->begin(), BB->end(), [&SAA](const auto &I) { return isBarrier(&I, SAA); });
 }
 
 // Returns true in case the given basic block starts with a barrier,
 // that is, contains a branch instruction after possible PHI nodes.
-bool startsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool startsWithBarrier(const llvm::BasicBlock *BB,
+                       const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   return isBarrier(BB->getFirstNonPHI(), SAA);
 }
 
 // Returns true in case the given basic block ends with a barrier,
 // that is, contains only a branch instruction after a barrier call.
-bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool endsWithBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   const llvm::Instruction *T = BB->getTerminator();
   assert(T);
   return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode(), SAA);
 }
 
-bool hasOnlyBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+bool hasOnlyBarrier(const llvm::BasicBlock *BB,
+                    const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   return endsWithBarrier(BB, SAA) && BB->size() == 2;
 }
 
@@ -99,10 +104,12 @@ bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnot
 llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotationInfo &SAA) {
   llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
 
-  if (InsertBefore != &InsertBefore->getParent()->front() && isBarrier(InsertBefore->getPrevNode(), SAA))
+  if (InsertBefore != &InsertBefore->getParent()->front() &&
+      isBarrier(InsertBefore->getPrevNode(), SAA))
     return llvm::cast<llvm::CallInst>(InsertBefore->getPrevNode());
   llvm::Function *F = llvm::cast<llvm::Function>(
-      M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext())).getCallee());
+      M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext()))
+          .getCallee());
 
   F->addFnAttr(llvm::Attribute::NoDuplicate);
   F->setLinkage(llvm::GlobalValue::LinkOnceAnyLinkage);
@@ -112,7 +119,8 @@ llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotatio
 }
 
 bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
-  if (CI->getCalledFunction()->isIntrinsic() || CI->getCalledFunction()->getName() == BarrierIntrinsicName)
+  if (CI->getCalledFunction()->isIntrinsic() ||
+      CI->getCalledFunction()->getName() == BarrierIntrinsicName)
     return false;
 
   // needed to be valid for success log
@@ -122,8 +130,8 @@ bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
 #if LLVM_VERSION_MAJOR <= 10
   llvm::InlineResult ILR = llvm::InlineFunction(CI, IFI, nullptr);
   if (!static_cast<bool>(ILR)) {
-    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << calleeName << ">: '" << ILR.message
-                          << "'\n";
+    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << calleeName << ">: '"
+                          << ILR.message << "'\n";
 #else
   llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
   if (!ILR.isSuccess()) {
@@ -143,7 +151,8 @@ bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging.
   if (!DesiredLoopIdMetadata)
     return false;
 
-  llvm::MDNode *ParallelAccesses = llvm::findOptionMDForLoop(TheLoop, "llvm.loop.parallel_accesses");
+  llvm::MDNode *ParallelAccesses =
+      llvm::findOptionMDForLoop(TheLoop, "llvm.loop.parallel_accesses");
   llvm::SmallPtrSet<llvm::MDNode *, 4> ParallelAccessGroups; // For scalable 'contains' check.
   if (ParallelAccesses) {
     for (const llvm::MDOperand &MD : llvm::drop_begin(ParallelAccesses->operands(), 1)) {
@@ -183,7 +192,8 @@ bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging.
           continue;
       }
       auto ReturnFalse = [&I]() {
-        HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs() << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
+        HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs()
+                                          << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
                                       I.print(llvm::outs()); llvm::outs() << "\n";)
         return false;
       };
@@ -206,19 +216,23 @@ bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging.
 void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loop *const &L,
                                               llvm::MDNode *MDAccessGroup) {
   // findOptionMDForLoopID also checks if there's a loop id, so this is fine
-  if (auto *ParAccesses = llvm::findOptionMDForLoopID(L->getLoopID(), "llvm.loop.parallel_accesses")) {
-    llvm::SmallVector<llvm::Metadata *, 4> AccessGroups{ParAccesses->op_begin(),
-                                                        ParAccesses->op_end()}; // contains .parallel_accesses
+  if (auto *ParAccesses =
+          llvm::findOptionMDForLoopID(L->getLoopID(), "llvm.loop.parallel_accesses")) {
+    llvm::SmallVector<llvm::Metadata *, 4> AccessGroups{
+        ParAccesses->op_begin(), ParAccesses->op_end()}; // contains .parallel_accesses
     AccessGroups.push_back(MDAccessGroup);
     auto *NewParAccesses = llvm::MDNode::get(F->getContext(), AccessGroups);
 
-    const auto *const PIt = std::find(L->getLoopID()->op_begin(), L->getLoopID()->op_end(), ParAccesses);
+    const auto *const PIt =
+        std::find(L->getLoopID()->op_begin(), L->getLoopID()->op_end(), ParAccesses);
     auto PIdx = std::distance(L->getLoopID()->op_begin(), PIt);
     L->getLoopID()->replaceOperandWith(PIdx, NewParAccesses);
   } else {
     auto *NewParAccesses = llvm::MDNode::get(
-        F->getContext(), {llvm::MDString::get(F->getContext(), "llvm.loop.parallel_accesses"), MDAccessGroup});
-    L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {}, {NewParAccesses}));
+        F->getContext(),
+        {llvm::MDString::get(F->getContext(), "llvm.loop.parallel_accesses"), MDAccessGroup});
+    L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {},
+                                                      {NewParAccesses}));
   }
 }
 
@@ -243,9 +257,10 @@ llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llv
       for (auto *BB : WIL->blocks())
         if (BB != WIL->getLoopLatch() && BB != WIL->getHeader() && BB != WIL->getExitBlock())
           BBSet.insert(BB);
-  HIPSYCL_DEBUG_EXECUTE_VERBOSE(HIPSYCL_DEBUG_INFO << "WorkItemLoop BBs:\n";
-                                for (auto *BB
-                                     : BBSet) { HIPSYCL_DEBUG_INFO << "  " << BB->getName() << "\n"; })
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(HIPSYCL_DEBUG_INFO << "WorkItemLoop BBs:\n"; for (auto *BB
+                                                                                  : BBSet) {
+    HIPSYCL_DEBUG_INFO << "  " << BB->getName() << "\n";
+  })
   return BBSet;
 }
 
@@ -309,11 +324,13 @@ llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, l
   if (NewBlockAtEdge->getTerminator()->getSuccessor(0) != Target)
     std::swap(NewBlockAtEdge, Target);
 #endif
-  assert(NewBlockAtEdge->getTerminator()->getSuccessor(0) == Target && "NewBlockAtEdge must be predecessor to Target");
+  assert(NewBlockAtEdge->getTerminator()->getSuccessor(0) == Target &&
+         "NewBlockAtEdge must be predecessor to Target");
   return NewBlockAtEdge;
 }
 
-void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC) {
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
+                    llvm::AssumptionCache &AC) {
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
   while (true) {
     WL.clear();
@@ -340,11 +357,13 @@ llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
   return nullptr;
 }
 
-void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT) {
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx,
+                     const llvm::DominatorTree &DT) {
   assert(Idx && "Valid WI-Index required");
 
   auto *MDAlloca =
-      llvm::MDNode::get(EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+      llvm::MDNode::get(EntryBlock->getContext(),
+                        {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
 
   auto &LoopBlocks = L.getBlocksSet();
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
@@ -372,8 +391,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
       }
     }
 
-    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements),
-                                              I->getName() + "_alloca");
+    auto *Alloca = AllocaBuilder.CreateAlloca(
+        T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements), I->getName() + "_alloca");
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
@@ -386,8 +405,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
     }
     if (GepIp) {
       llvm::IRBuilder LoadBuilder{GepIp};
-      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
-          LoadBuilder.CreateInBoundsGEP(Alloca->getAllocatedType(), Alloca, Idx, I->getName() + "_gep"));
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
+          Alloca->getAllocatedType(), Alloca, Idx, I->getName() + "_gep"));
       GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
       I->replaceAllUsesWith(GEP);
@@ -397,29 +416,32 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
 }
 
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
-                                llvm::Instruction *InsertionPoint, llvm::Value *Idx, size_t NumElements,
-                                llvm::MDTuple *MDAlloca) {
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx,
+                                size_t NumElements, llvm::MDTuple *MDAlloca) {
   assert(Idx && "Valid WI-Index required");
 
   if (!MDAlloca)
     MDAlloca =
-        llvm::MDNode::get(IPAllocas->getContext(), {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+        llvm::MDNode::get(IPAllocas->getContext(),
+                          {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
 
   auto *T = ToArrayify->getType();
   llvm::IRBuilder AllocaBuilder{IPAllocas};
-  auto *Alloca = AllocaBuilder.CreateAlloca(T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
-                                            ToArrayify->getName() + "_alloca");
+  auto *Alloca = AllocaBuilder.CreateAlloca(
+      T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
+      ToArrayify->getName() + "_alloca");
   if (NumElements > 1)
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
-  const llvm::DataLayout &Layout = InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
+  const llvm::DataLayout &Layout =
+      InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
 
   llvm::IRBuilder WriteBuilder{InsertionPoint};
   llvm::Value *StoreTarget = Alloca;
   if (NumElements != 1) {
-    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
-        WriteBuilder.CreateInBoundsGEP(Alloca->getAllocatedType(), Alloca, Idx, ToArrayify->getName() + "_gep"));
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(WriteBuilder.CreateInBoundsGEP(
+        Alloca->getAllocatedType(), Alloca, Idx, ToArrayify->getName() + "_gep"));
     GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
     StoreTarget = GEP;
   }
@@ -427,8 +449,9 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   return Alloca;
 }
 
-llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
-                                      size_t NumElements, llvm::MDTuple *MDAlloca) {
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
+                                      llvm::Value *Idx, size_t NumElements,
+                                      llvm::MDTuple *MDAlloca) {
   llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
   if (llvm::isa<llvm::PHINode>(ToArrayify))
     InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
@@ -436,16 +459,16 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
   return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }
 
-llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
-                               const llvm::Twine &NamePrefix) {
+llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
+                               llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix) {
   assert(Idx && "Valid WI-Index required");
   auto *MDAlloca = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified);
 
   llvm::IRBuilder LoadBuilder{InsertBefore};
   llvm::Value *LoadFrom = Alloca;
   if (Alloca->isArrayAllocation()) {
-    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(
-        LoadBuilder.CreateInBoundsGEP(Alloca->getAllocatedType(), Alloca, Idx, NamePrefix + "_lgep"));
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
+        Alloca->getAllocatedType(), Alloca, Idx, NamePrefix + "_lgep"));
     GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
     LoadFrom = GEP;
   }
@@ -471,8 +494,8 @@ void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *Insert
   if (!DbgValues.empty()) {
     auto *DbgValue = DbgValues.back();
     llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
-    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(), DbgValue->getDebugLoc(),
-                                       InsertBefore);
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(),
+                                       DbgValue->getDebugLoc(), InsertBefore);
   }
 }
 void dropDebugLocation(llvm::Instruction &I) {

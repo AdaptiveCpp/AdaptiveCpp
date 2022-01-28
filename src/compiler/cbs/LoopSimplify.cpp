@@ -57,7 +57,7 @@ bool LoopSimplifyPassLegacy::runOnFunction(llvm::Function &F) {
   auto *SE = SCEWP ? &SCEWP->getSE() : nullptr;
 
   bool Changed = false;
-  for(auto *L : LI) {
+  for (auto *L : LI) {
     HIPSYCL_DEBUG_INFO << "[LoopSimplify] Simplifying loop: " << L->getHeader()->getName() << "\n";
     Changed |= llvm::simplifyLoop(L, &DT, &LI, SE, nullptr, nullptr, false);
   }

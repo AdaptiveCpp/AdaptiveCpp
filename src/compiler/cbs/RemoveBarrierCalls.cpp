@@ -29,7 +29,7 @@
 namespace {
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
   if (auto *GV = M->getGlobalVariable(VarName)) {
-    if(GV->getNumUses() == 0) {
+    if (GV->getNumUses() == 0) {
       HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up global variable " << *GV << "\n";
       GV->eraseFromParent();
       return true;
@@ -55,7 +55,8 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
 
   for (auto *B : BarriersToRemove) {
     HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Remove barrier ";
-    HIPSYCL_DEBUG_EXECUTE_INFO(B->print(llvm::outs()); llvm::outs() << " from " << B->getParent()->getName() << "\n";)
+    HIPSYCL_DEBUG_EXECUTE_INFO(B->print(llvm::outs());
+                               llvm::outs() << " from " << B->getParent()->getName() << "\n";)
     B->eraseFromParent();
   }
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG();)
@@ -64,8 +65,8 @@ bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotation
     if (B->getNumUses() == 0) {
       B->eraseFromParent();
       SAA.removeSplitter(B);
-      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up helper barrier: " << hipsycl::compiler::BarrierIntrinsicName
-                         << "\n";
+      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up helper barrier: "
+                         << hipsycl::compiler::BarrierIntrinsicName << "\n";
     }
   }
 
@@ -94,7 +95,8 @@ void RemoveBarrierCallsPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) con
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
 
-llvm::PreservedAnalyses RemoveBarrierCallsPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses RemoveBarrierCallsPass::run(llvm::Function &F,
+                                                    llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA)

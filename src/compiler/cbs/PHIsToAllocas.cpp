@@ -115,9 +115,11 @@ bool PHIsToAllocasPassLegacy::runOnFunction(llvm::Function &F) {
   return demotePHIsToAllocas(F);
 }
 
-llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses PHIsToAllocasPass::run(llvm::Function &F,
+                                               llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
-  const auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
+  const auto *SAA =
+      MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA)) {
     return llvm::PreservedAnalyses::all();
   }

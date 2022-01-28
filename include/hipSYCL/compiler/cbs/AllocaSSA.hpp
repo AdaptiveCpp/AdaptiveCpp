@@ -6,12 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #ifndef RV_ANALYSIS_ALLOCASSA_H
 #define RV_ANALYSIS_ALLOCASSA_H
 
-#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/raw_ostream.h>
@@ -22,47 +21,38 @@
 
 namespace hipsycl::compiler {
 
-using AllocSet = llvm::SmallPtrSet<const llvm::AllocaInst*, 2>;
+using AllocSet = llvm::SmallPtrSet<const llvm::AllocaInst *, 2>;
 
-llvm::raw_ostream &
-Print(const AllocSet & allocs, llvm::raw_ostream & out);
+llvm::raw_ostream &Print(const AllocSet &allocs, llvm::raw_ostream &out);
 
 // ptr provenance lattice
 enum class ProvType : int32_t {
-  Tracked = 0, // only aliases with @trackedAllocs (bottom, if @trackedAllocs = \emptyset)
+  Tracked = 0,  // only aliases with @trackedAllocs (bottom, if @trackedAllocs = \emptyset)
   External = 1, // aliases only with @trackedAllocs AND other ptr that do not alias with any allocas
-  Wildcard = 2 // alises with everything (top)
+  Wildcard = 2  // alises with everything (top)
 };
 
 struct PtrProvenance {
   ProvType provType; //
-  AllocSet allocs; // alias allocaInsts
+  AllocSet allocs;   // alias allocaInsts
 
-  PtrProvenance()
-      : provType(ProvType::Tracked)
-        , allocs()
-  {}
+  PtrProvenance() : provType(ProvType::Tracked), allocs() {}
 
-  PtrProvenance(ProvType _provType)
-      : provType(_provType)
-        , allocs()
-  {}
+  PtrProvenance(ProvType _provType) : provType(_provType), allocs() {}
 
   // single allocation ctor
-  PtrProvenance(const llvm::AllocaInst * allocInst)
-      : provType(ProvType::Tracked)
-        , allocs()
-  { allocs.insert(allocInst); }
+  PtrProvenance(const llvm::AllocaInst *allocInst) : provType(ProvType::Tracked), allocs() {
+    allocs.insert(allocInst);
+  }
 
   // provenance lattice join
-  bool
-  merge(const PtrProvenance & O) {
+  bool merge(const PtrProvenance &O) {
     bool changed = (provType != O.provType);
     provType = std::max<ProvType>(provType, O.provType);
     if (provType == ProvType::Wildcard) {
       allocs.clear(); // explicit tracking no longed necessary
     } else {
-      for (const auto * alloc : O.allocs) {
+      for (const auto *alloc : O.allocs) {
         changed |= allocs.insert(alloc).second;
       }
     }
@@ -72,8 +62,7 @@ struct PtrProvenance {
   bool isBottom() const { return provType == ProvType::Tracked && allocs.empty(); }
   bool isTop() const { return provType == ProvType::Wildcard; }
 
-  llvm::raw_ostream&
-  print(llvm::raw_ostream & out) const {
+  llvm::raw_ostream &print(llvm::raw_ostream &out) const {
     if (provType == ProvType::Wildcard) {
       out << "*";
       return out;
@@ -87,75 +76,59 @@ struct PtrProvenance {
   }
 };
 
-
-enum DescType : int32_t {
-  JoinDesc = 0,
-  EffectDesc = 1
-};
+enum DescType : int32_t { JoinDesc = 0, EffectDesc = 1 };
 
 struct Desc {
   DescType descType;
-  const llvm::BasicBlock * place;
+  const llvm::BasicBlock *place;
 
-  Desc(DescType _descType, const llvm::BasicBlock* _place)
-      : descType(_descType)
-        , place(_place)
-  {}
+  Desc(DescType _descType, const llvm::BasicBlock *_place) : descType(_descType), place(_place) {}
 };
 
 struct Join : public Desc {
   PtrProvenance provSet; // affected allocations if this is a join of divergent, disjoint paths
 
-  Join(const llvm::BasicBlock * _place)
-      : Desc(DescType::JoinDesc, _place)
-  {}
+  Join(const llvm::BasicBlock *_place) : Desc(DescType::JoinDesc, _place) {}
 };
 
 struct Effect : public Desc {
-  const llvm::Instruction * inst;
+  const llvm::Instruction *inst;
 
-  Effect(const llvm::Instruction * _inst)
-      : Desc(DescType::EffectDesc, _inst ? _inst->getParent() : nullptr)
-        , inst(_inst)
-  {}
+  Effect(const llvm::Instruction *_inst)
+      : Desc(DescType::EffectDesc, _inst ? _inst->getParent() : nullptr), inst(_inst) {}
 };
-
-
-
 
 // constructs SSA form for allocas
 // associates every pointer value with the set of allocas it originates from
-// the results of this analysis are used by the VectorizationAnalysis to track which allocas may remain uniform.
-// this is crucial for stack allocated objects, such as stacks in data structure traversal codes.
+// the results of this analysis are used by the VectorizationAnalysis to track which allocas may
+// remain uniform. this is crucial for stack allocated objects, such as stacks in data structure
+// traversal codes.
 class AllocaSSA {
-  Region & region;
-  std::map<const llvm::Instruction*, PtrProvenance> provMap;
-  static PtrProvenance emptyProvSingle; // bottom element
+  Region &region;
+  std::map<const llvm::Instruction *, PtrProvenance> provMap;
+  static PtrProvenance emptyProvSingle;    // bottom element
   static PtrProvenance externalProvSingle; // provenance object pointing to external source
 
-  using DefMap = std::map<const llvm::AllocaInst*, Desc*>;
+  using DefMap = std::map<const llvm::AllocaInst *, Desc *>;
   struct BlockSummary {
     AllocSet liveAllocas; // computed during computeLiveness
-    const llvm::BasicBlock & BB;
+    const llvm::BasicBlock &BB;
     Join allocJoin;
-    const PtrProvenance & getJoinSet() const { return allocJoin.provSet; }
+    const PtrProvenance &getJoinSet() const { return allocJoin.provSet; }
 
     DefMap lastDef; // live out definitions
 
-    BlockSummary(const llvm::BasicBlock & _bb)
-        : BB(_bb)
-          , allocJoin(&_bb)
-    {}
+    BlockSummary(const llvm::BasicBlock &_bb) : BB(_bb), allocJoin(&_bb) {}
   };
 
-  std::map<const llvm::BasicBlock*, BlockSummary*> summaries;
+  std::map<const llvm::BasicBlock *, BlockSummary *> summaries;
 
-  std::map<const llvm::Instruction*, Effect*> instMap; // owns the Effect objects
+  std::map<const llvm::Instruction *, Effect *> instMap; // owns the Effect objects
 
   // returns the last defining effect on @allocInst
-  Desc * getLastDef(const llvm::BasicBlock & BB, const llvm::AllocaInst & allocInst) const;
+  Desc *getLastDef(const llvm::BasicBlock &BB, const llvm::AllocaInst &allocInst) const;
 
-  const BlockSummary* getBlockSummary(const llvm::BasicBlock & BB) const {
+  const BlockSummary *getBlockSummary(const llvm::BasicBlock &BB) const {
     auto it = summaries.find(&BB);
     if (it != summaries.end()) {
       return it->second;
@@ -163,9 +136,9 @@ class AllocaSSA {
     return nullptr;
   }
 
-  BlockSummary & requestBlockSummary(const llvm::BasicBlock & BB) {
+  BlockSummary &requestBlockSummary(const llvm::BasicBlock &BB) {
     auto it = summaries.find(&BB);
-    BlockSummary * summary = nullptr;
+    BlockSummary *summary = nullptr;
     if (it != summaries.end()) {
       summary = it->second;
     } else {
@@ -181,37 +154,38 @@ class AllocaSSA {
   // compute liveness per alloca
   void computeLiveness();
 
-  bool isLive(const llvm::AllocaInst & alloca, const llvm::BasicBlock & BB) const {
-    const auto * summary = getBlockSummary(BB);
-    if (!summary) return false;
+  bool isLive(const llvm::AllocaInst &alloca, const llvm::BasicBlock &BB) const {
+    const auto *summary = getBlockSummary(BB);
+    if (!summary)
+      return false;
     return summary->liveAllocas.count(&alloca);
   }
 
 public:
   // pointer provenance
-  const auto & getProvenance(const llvm::Value& val) const {
-    const auto * inst = llvm::dyn_cast<const llvm::Instruction>(&val);
-    if (!inst) return externalProvSingle;
+  const auto &getProvenance(const llvm::Value &val) const {
+    const auto *inst = llvm::dyn_cast<const llvm::Instruction>(&val);
+    if (!inst)
+      return externalProvSingle;
 
     auto it = provMap.find(inst);
-    if (it == provMap.end()) return emptyProvSingle;
-    else return it->second;
+    if (it == provMap.end())
+      return emptyProvSingle;
+    else
+      return it->second;
   }
 
-  const Join *
-  getJoinNode(const llvm::BasicBlock & BB) const {
-    const auto * summary = getBlockSummary(BB);
-    if (!summary) return nullptr;
+  const Join *getJoinNode(const llvm::BasicBlock &BB) const {
+    const auto *summary = getBlockSummary(BB);
+    if (!summary)
+      return nullptr;
     return &summary->allocJoin;
   }
 
-  AllocaSSA(Region & _region)
-      : region(_region)
-  {}
+  AllocaSSA(Region &_region) : region(_region) {}
 
 public:
-
-  llvm::raw_ostream & print(llvm::raw_ostream & out) const;
+  llvm::raw_ostream &print(llvm::raw_ostream &out) const;
 
   void compute();
 

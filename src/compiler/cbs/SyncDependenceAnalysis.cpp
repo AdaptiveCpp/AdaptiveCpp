@@ -141,7 +141,8 @@ using BlockStack = std::vector<const BasicBlock *>;
 static void computeLoopPO(const LoopInfo &LI, Loop &Loop, POCB CallBack, VisitedSet &Finalized);
 
 // for a nested region (top-level loop or nested loop)
-static void computeStackPO(BlockStack &Stack, const LoopInfo &LI, Loop *Loop, POCB CallBack, VisitedSet &Finalized) {
+static void computeStackPO(BlockStack &Stack, const LoopInfo &LI, Loop *Loop, POCB CallBack,
+                           VisitedSet &Finalized) {
   const auto *LoopHeader = Loop ? Loop->getHeader() : nullptr;
   while (!Stack.empty()) {
     const auto *NextBB = Stack.back();
@@ -231,10 +232,11 @@ using namespace llvm;
 
 ControlDivergenceDesc SyncDependenceAnalysis::EmptyDivergenceDesc;
 
-SyncDependenceAnalysis::SyncDependenceAnalysis(const DominatorTree &DT, const PostDominatorTree &PDT,
-                                               const LoopInfo &LI)
+SyncDependenceAnalysis::SyncDependenceAnalysis(const DominatorTree &DT,
+                                               const PostDominatorTree &PDT, const LoopInfo &LI)
     : DT(DT), PDT(PDT), LI(LI) {
-  computeTopLevelPO(*DT.getRoot()->getParent(), LI, [&](const BasicBlock &BB) { LoopPO.appendBlock(BB); });
+  computeTopLevelPO(*DT.getRoot()->getParent(), LI,
+                    [&](const BasicBlock &BB) { LoopPO.appendBlock(BB); });
 }
 
 SyncDependenceAnalysis::~SyncDependenceAnalysis() {}
@@ -257,10 +259,11 @@ struct DivergencePropagator {
   // divergent join and loop exit descriptor.
   std::unique_ptr<ControlDivergenceDesc> DivDesc;
 
-  DivergencePropagator(const ModifiedPO &LoopPOT, const DominatorTree &DT, const PostDominatorTree &PDT,
-                       const LoopInfo &LI, const BasicBlock &DivTermBlock)
-      : LoopPOT(LoopPOT), DT(DT), PDT(PDT), LI(LI), DivTermBlock(DivTermBlock), BlockLabels(LoopPOT.size(), nullptr),
-        DivDesc(new ControlDivergenceDesc) {}
+  DivergencePropagator(const ModifiedPO &LoopPOT, const DominatorTree &DT,
+                       const PostDominatorTree &PDT, const LoopInfo &LI,
+                       const BasicBlock &DivTermBlock)
+      : LoopPOT(LoopPOT), DT(DT), PDT(PDT), LI(LI), DivTermBlock(DivTermBlock),
+        BlockLabels(LoopPOT.size(), nullptr), DivDesc(new ControlDivergenceDesc) {}
 
   void printDefs(raw_ostream &Out) {
     Out << "Propagator::BlockLabels {\n";
@@ -295,7 +298,8 @@ struct DivergencePropagator {
 
   // visiting a virtual loop exit edge from the loop header --> temporal
   // divergence on join
-  bool visitLoopExitEdge(const BasicBlock &ExitBlock, const BasicBlock &DefBlock, bool FromParentLoop) {
+  bool visitLoopExitEdge(const BasicBlock &ExitBlock, const BasicBlock &DefBlock,
+                         bool FromParentLoop) {
     // Pushing from a non-parent loop cannot cause temporal divergence.
     if (!FromParentLoop)
       return visitEdge(ExitBlock, DefBlock);
@@ -433,9 +437,10 @@ const ControlDivergenceDesc &SyncDependenceAnalysis::getJoinBlocks(const Instruc
   DivergencePropagator Propagator(LoopPO, DT, PDT, LI, TermBlock);
   auto DivDesc = Propagator.computeJoinPoints();
 
-  LLVM_DEBUG(dbgs() << "Result (" << Term.getParent()->getName() << "):\n"; dbgs() << "JoinDivBlocks: ";
-             printBlockSet(DivDesc->JoinDivBlocks, dbgs()); dbgs() << "\nLoopDivBlocks: ";
-             printBlockSet(DivDesc->LoopDivBlocks, dbgs()); dbgs() << "\n";);
+  LLVM_DEBUG(dbgs() << "Result (" << Term.getParent()->getName() << "):\n";
+             dbgs() << "JoinDivBlocks: "; printBlockSet(DivDesc->JoinDivBlocks, dbgs());
+             dbgs() << "\nLoopDivBlocks: "; printBlockSet(DivDesc->LoopDivBlocks, dbgs());
+             dbgs() << "\n";);
 
   auto ItInserted = CachedControlDivDescs.emplace(&Term, std::move(DivDesc));
   assert(ItInserted.second);

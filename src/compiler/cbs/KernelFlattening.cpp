@@ -44,7 +44,8 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB) {
     for (auto &I : BB) {
       if (auto *CallI = llvm::dyn_cast<llvm::CallBase>(&I)) {
         if (CallI->getCalledFunction()) {
-          LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI, "[KernelFlattening]");
+          LastChanged =
+              hipsycl::compiler::utils::checkedInlineFunction(CallI, "[KernelFlattening]");
           if (LastChanged)
             break;
         }
@@ -77,7 +78,8 @@ bool inlineCallsInFunction(llvm::Function &F) {
 }
 } // namespace
 
-void hipsycl::compiler::KernelFlatteningPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+void hipsycl::compiler::KernelFlatteningPassLegacy::getAnalysisUsage(
+    llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
@@ -91,8 +93,8 @@ bool hipsycl::compiler::KernelFlatteningPassLegacy::runOnFunction(llvm::Function
   return inlineCallsInFunction(F);
 }
 
-llvm::PreservedAnalyses hipsycl::compiler::KernelFlatteningPass::run(llvm::Function &F,
-                                                                     llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::KernelFlatteningPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {

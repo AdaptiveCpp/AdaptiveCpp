@@ -47,10 +47,14 @@ struct MDKind {
 };
 
 static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
-static constexpr const char LocalIdGlobalNameX[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_xE";
-static constexpr const char LocalIdGlobalNameY[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_yE";
-static constexpr const char LocalIdGlobalNameZ[] = "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_zE";
-static const std::array<const char*, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY, LocalIdGlobalNameZ};
+static constexpr const char LocalIdGlobalNameX[] =
+    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_xE";
+static constexpr const char LocalIdGlobalNameY[] =
+    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_yE";
+static constexpr const char LocalIdGlobalNameZ[] =
+    "_ZN7hipsycl4glue12omp_dispatch20__hipsycl_local_id_zE";
+static const std::array<const char *, 3> LocalIdGlobalNames{LocalIdGlobalNameX, LocalIdGlobalNameY,
+                                                            LocalIdGlobalNameZ};
 
 class SplitterAnnotationInfo;
 
@@ -61,18 +65,26 @@ template <class PtrSet> struct PtrSetWrapper {
   PtrSet &Set;
   using iterator = typename PtrSet::iterator;
   using value_type = typename PtrSet::value_type;
-  template <class IT, class ValueT> IT insert(IT, const ValueT &Value) { return Set.insert(Value).first; }
+  template <class IT, class ValueT> IT insert(IT, const ValueT &Value) {
+    return Set.insert(Value).first;
+  }
 };
 
-llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B, llvm::Function &F);
+llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
+                          llvm::Function &F);
 
 bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA);
-bool blockHasBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+bool blockHasBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA);
 bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
-bool hasOnlyBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
-bool startsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
-bool endsWithBarrier(const llvm::BasicBlock *BB, const hipsycl::compiler::SplitterAnnotationInfo &SAA);
-llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, hipsycl::compiler::SplitterAnnotationInfo &SAA);
+bool hasOnlyBarrier(const llvm::BasicBlock *BB,
+                    const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+bool startsWithBarrier(const llvm::BasicBlock *BB,
+                       const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+bool endsWithBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA);
+llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore,
+                              hipsycl::compiler::SplitterAnnotationInfo &SAA);
 
 bool isWorkItemLoop(const llvm::Loop &L);
 bool isInWorkItemLoop(const llvm::Loop &L);
@@ -113,22 +125,25 @@ llvm::SmallVector<llvm::Loop *, 4> getLoopsInPreorder(const llvm::LoopInfo &LI);
 llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
                                 llvm::DominatorTree &DT);
 
-llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI = nullptr,
-                            llvm::DominatorTree *DT = nullptr);
-void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT, llvm::AssumptionCache &AC);
+llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target,
+                            llvm::LoopInfo *LI = nullptr, llvm::DominatorTree *DT = nullptr);
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
+                    llvm::AssumptionCache &AC);
 llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB);
 
 /// Arrayification of work item private values
-void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx, const llvm::DominatorTree &DT);
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx,
+                     const llvm::DominatorTree &DT);
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
                                 llvm::Instruction *InsertionPoint, llvm::Value *Idx,
                                 size_t NumValues = hipsycl::compiler::NumArrayElements,
                                 llvm::MDTuple *MDAlloca = nullptr);
-llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify, llvm::Value *Idx,
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
+                                      llvm::Value *Idx,
                                       size_t NumValues = hipsycl::compiler::NumArrayElements,
                                       llvm::MDTuple *MDAlloca = nullptr);
-llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx, llvm::Instruction *InsertBefore,
-                               const llvm::Twine &NamePrefix = "");
+llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
+                               llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix = "");
 
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst);
 

@@ -35,10 +35,10 @@ using namespace llvm;
 
 namespace hipsycl::compiler {
 
-VectorizationAnalysis::VectorizationAnalysis(VectorizationInfo &VecInfo, LoopInfo &LI, DominatorTree &DT,
-                                             PostDominatorTree &PDT)
-    : vecInfo(VecInfo), layout(VecInfo.getScalarFunction().getParent()->getDataLayout()), LI(LI), DT(DT),
-      SDA(DT, PDT, LI), region(VecInfo.getRegion()), allocaSSA(region) {
+VectorizationAnalysis::VectorizationAnalysis(VectorizationInfo &VecInfo, LoopInfo &LI,
+                                             DominatorTree &DT, PostDominatorTree &PDT)
+    : vecInfo(VecInfo), layout(VecInfo.getScalarFunction().getParent()->getDataLayout()), LI(LI),
+      DT(DT), SDA(DT, PDT, LI), region(VecInfo.getRegion()), allocaSSA(region) {
 
   // compute pointer provenance
   allocaSSA.compute();
@@ -167,12 +167,14 @@ void VectorizationAnalysis::pushPHINodes(const BasicBlock &Block) {
 
 /// \p returns whether divergence in \p JoinBlock causes loop divergence in \p
 /// BranchLoop.
-bool VectorizationAnalysis::propagateJoinDivergence(const BasicBlock &JoinBlock, const Loop *BranchLoop) {
+bool VectorizationAnalysis::propagateJoinDivergence(const BasicBlock &JoinBlock,
+                                                    const Loop *BranchLoop) {
   IF_DEBUG_VA { errs() << "\tVA: propJoinDiv " << JoinBlock.getName() << "\n"; }
 
   // ignore divergence outside the region
   if (!vecInfo.inRegion(JoinBlock)) {
-    HIPSYCL_DEBUG_INFO << "VA: detected divergent join outside the region in block " << JoinBlock.getName() << "!\n";
+    HIPSYCL_DEBUG_INFO << "VA: detected divergent join outside the region in block "
+                       << JoinBlock.getName() << "!\n";
     return false;
   }
 
@@ -210,12 +212,13 @@ SmallConstBlockVec GetUniqueSuccessors(const Instruction &Term) {
   return termSuccs;
 }
 
-void VectorizationAnalysis::propagateControlDivergence(const Loop *BranchLoop,
-                                                       llvm::ArrayRef<const BasicBlock *> UniqueSuccessors,
-                                                       const Instruction &rootNode, const BasicBlock &domBoundBlock) {
+void VectorizationAnalysis::propagateControlDivergence(
+    const Loop *BranchLoop, llvm::ArrayRef<const BasicBlock *> UniqueSuccessors,
+    const Instruction &rootNode, const BasicBlock &domBoundBlock) {
   // Block predicates may turn varying due to the divergence of this branch
   //  PredA.addDivergentBranch(domBoundBlock, UniqueSuccessors,
-  //                           [&](const BasicBlock &varPredBlock) { pushPredicatedInsts(varPredBlock); });
+  //                           [&](const BasicBlock &varPredBlock) {
+  //                           pushPredicatedInsts(varPredBlock); });
 
   // Iterates over the following:
   // a) Blocks that are reachable by disjoint paths from \p rootNode.
@@ -374,7 +377,7 @@ static bool AllUniformOrUndefCall(const VectorizationInfo &VecInfo, const Instru
   const auto *C = dyn_cast<CallInst>(&I);
   if (!C)
     return false;
-  for (const llvm::Value* Op : C->args()) {
+  for (const llvm::Value *Op : C->args()) {
     if (!VecInfo.hasKnownShape(*Op))
       continue;
     auto OpShape = VecInfo.getVectorShape(*Op);

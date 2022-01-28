@@ -73,8 +73,8 @@ bool hipsycl::compiler::SimplifyKernelPassLegacy::runOnFunction(llvm::Function &
   return simplifyKernel(F, DT, AC);
 }
 
-llvm::PreservedAnalyses hipsycl::compiler::SimplifyKernelPass::run(llvm::Function &F,
-                                                                   llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::SimplifyKernelPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   assert(SAA && "Must have SplitterAnnotationAnalysis cached!");

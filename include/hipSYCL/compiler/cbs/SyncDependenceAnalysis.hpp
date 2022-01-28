@@ -66,7 +66,8 @@ struct ModifiedPO {
 class SyncDependenceAnalysis {
 public:
   ~SyncDependenceAnalysis();
-  SyncDependenceAnalysis(const llvm::DominatorTree &DT, const llvm::PostDominatorTree &PDT, const llvm::LoopInfo &LI);
+  SyncDependenceAnalysis(const llvm::DominatorTree &DT, const llvm::PostDominatorTree &PDT,
+                         const llvm::LoopInfo &LI);
 
   /// \brief Computes divergent join points and loop exits caused by branch
   /// divergence in \p Term.

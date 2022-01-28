@@ -23,10 +23,13 @@ using namespace llvm;
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())
     return a;
-  return a.isUniform() ? hipsycl::compiler::VectorShape::uni() : hipsycl::compiler::VectorShape::varying();
+  return a.isUniform() ? hipsycl::compiler::VectorShape::uni()
+                       : hipsycl::compiler::VectorShape::varying();
 }
 
-template <class... Shapes> hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a, Shapes... nextShapes) {
+template <class... Shapes>
+hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a,
+                                               Shapes... nextShapes) {
   if (a.isDefined() && !a.isUniform())
     return a.isDefined() ? hipsycl::compiler::VectorShape::varying() : VectorShape::undef();
   else
@@ -41,7 +44,8 @@ static bool HasSideEffects(const Function &func) {
   return true;
 }
 
-VectorShape VectorShapeTransformer::getObservedShape(const BasicBlock &observerBlock, const Value &val) const {
+VectorShape VectorShapeTransformer::getObservedShape(const BasicBlock &observerBlock,
+                                                     const Value &val) const {
   return vecInfo.getObservedShape(LI, observerBlock, val);
 }
 
@@ -58,7 +62,8 @@ static Type *getElementType(Type *Ty) {
   return nullptr;
 }
 
-VectorShape VectorShapeTransformer::computeShape(const Instruction &I, SmallValVec &taintedOps) const {
+VectorShape VectorShapeTransformer::computeShape(const Instruction &I,
+                                                 SmallValVec &taintedOps) const {
   const auto *Phi = dyn_cast<const PHINode>(&I);
   if (Phi)
     return computeShapeForPHINode(*Phi);
@@ -81,7 +86,8 @@ VectorShape VectorShapeTransformer::computeShape(const Instruction &I, SmallValV
   return NewShape;
 }
 
-VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &I, SmallValVec &taintedOps) const {
+VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &I,
+                                                             SmallValVec &taintedOps) const {
   // always default to the naive transformer (only top or bottom)
   if (I.isBinaryOp())
     return computeShapeForBinaryInst(cast<const BinaryOperator>(I));
@@ -257,7 +263,8 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
     }
 
     // todo: do we need this in hipSYCL? should be inlined already anyways
-    //    auto resolver = platInfo.getResolver(callee->getName(), *callee->getFunctionType(), callArgShapes,
+    //    auto resolver = platInfo.getResolver(callee->getName(), *callee->getFunctionType(),
+    //    callArgShapes,
     //                                         vecInfo.getVectorWidth(), hasVaryingBlockPredicate);
     //    if (resolver) {
     //      return resolver->requestResultShape();
@@ -282,7 +289,8 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
     auto ptrShape = getObservedShape(BB, *storeInst.getPointerOperand());
     if (valShape.isDefined() && !valShape.isUniform())
       taintedOps.push_back(storeInst.getPointerOperand());
-    return VectorShape::join(ptrShape, (valShape.greaterThanUniform() ? VectorShape::varying() : valShape));
+    return VectorShape::join(ptrShape,
+                             (valShape.greaterThanUniform() ? VectorShape::varying() : valShape));
   }
 
   case Instruction::Select: {
@@ -315,7 +323,8 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
 VectorShape VectorShapeTransformer::computeGenericArithmeticTransfer(const Instruction &I) const {
   const auto &BB = *I.getParent();
 
-  assert(I.getNumOperands() > 0 && "can not compute arithmetic transfer for instructions w/o operands");
+  assert(I.getNumOperands() > 0 &&
+         "can not compute arithmetic transfer for instructions w/o operands");
 
   // interpret as a cascade of generic binary operators
   VectorShape AccuShape = VectorShape::undef();

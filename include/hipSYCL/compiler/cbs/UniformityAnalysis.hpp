@@ -143,7 +143,8 @@ private:
   // \p domBoundBlock    Immediate dominator of all UniqueSuccessors
   void propagateControlDivergence(const llvm::Loop *BranchLoop,
                                   llvm::ArrayRef<const llvm::BasicBlock *> UniqueSuccessors,
-                                  const llvm::Instruction &rootNode, const llvm::BasicBlock &domBoundBlock);
+                                  const llvm::Instruction &rootNode,
+                                  const llvm::BasicBlock &domBoundBlock);
 
   // front-ends to propagateControlDivergence..
   // .. for divergent branches (really any degree > 1 terminator)

@@ -45,76 +45,81 @@ namespace hipsycl {
 namespace compiler {
 // Register and activate passes
 
-static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction> HipsyclFrontendPlugin{
-    "hipsycl_frontend", "enable hipSYCL frontend action"};
+static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction>
+    HipsyclFrontendPlugin{"hipsycl_frontend", "enable hipSYCL frontend action"};
 
-static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &,
+                                       llvm::legacy::PassManagerBase &PM) {
   PM.add(new GlobalsPruningPassLegacy{});
 }
 
 static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptLevel0(llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
-                                           registerGlobalsPruningPass);
+                                        registerGlobalsPruningPass);
 
 static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
-                                               registerGlobalsPruningPass);
+                                            registerGlobalsPruningPass);
 
 #if defined(HIPSYCL_USE_ACCELERATED_CPU) && !defined(_WIN32)
 static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
     splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
                           true /* Only looks at CFG */, true /* Analysis Pass */);
 
-static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &,
+                                             llvm::legacy::PassManagerBase &PM) {
   registerCBSPipelineLegacy(PM);
 }
 
 static llvm::RegisterStandardPasses
     RegisterLoopSplitAtBarrierPassOptimizerFirst(llvm::PassManagerBuilder::EP_EarlyAsPossible,
-                                                registerLoopSplitAtBarrierPasses);
+                                                 registerLoopSplitAtBarrierPasses);
 
-static void registerMarkParallelPass(const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
+static void registerMarkParallelPass(const llvm::PassManagerBuilder &,
+                                     llvm::legacy::PassManagerBase &PM) {
   PM.add(new LoopsParallelMarkerPassLegacy());
 }
 
 // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
-static llvm::RegisterStandardPasses RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
-                                                                         registerMarkParallelPass);
+static llvm::RegisterStandardPasses
+    RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
+                                         registerMarkParallelPass);
 #endif
 #if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 #define HIPSYCL_STRINGIFY(V) #V
-#define HIPSYCL_PLUGIN_VERSION_STRING                                                    \
-  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                    \
+#define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
+  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
       HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
-    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING, [](llvm::PassBuilder &PB) {
-      // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
-      // really used there anyways..
-      PB.registerOptimizerLastEPCallback(
-          [](llvm::ModulePassManager &MPM, OptLevel) {
+    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
+        [](llvm::PassBuilder &PB) {
+          // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
+          // really used there anyways..
+          PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
 
 #ifdef HIPSYCL_USE_ACCELERATED_CPU
-      PB.registerAnalysisRegistrationCallback(
-          [](llvm::ModuleAnalysisManager &MAM) { MAM.registerPass([] { return SplitterAnnotationAnalysis{}; }); });
+          PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+            MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+          });
 #if LLVM_VERSION_MAJOR < 12
-      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
-        OptLevel Opt = OptLevel::O3;
+          PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
+            OptLevel Opt = OptLevel::O3;
 #else
-      PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
+          PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
-        registerCBSPipeline(MPM, Opt);
-      });
-      // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
-      // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
-      PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager& FPM, OptLevel) {
-        FPM.addPass(LoopsParallelMarkerPass{});
-      });
+            registerCBSPipeline(MPM, Opt);
+          });
+          // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
+          // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
+          PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager &FPM, OptLevel) {
+            FPM.addPass(LoopsParallelMarkerPass{});
+          });
 #endif
-    }
+        }
   };
 }
 #endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11

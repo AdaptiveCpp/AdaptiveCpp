@@ -39,8 +39,8 @@ using namespace hipsycl::compiler;
 bool canonicalizeExitBarriers(llvm::Function &F, SplitterAnnotationInfo &SAA) {
   bool Changed;
   llvm::SmallVector<llvm::BasicBlock *, 4> Exits;
-  for(auto &BB : F)
-    if(BB.getTerminator()->getNumSuccessors() == 0)
+  for (auto &BB : F)
+    if (BB.getTerminator()->getNumSuccessors() == 0)
       Exits.push_back(&BB);
 
   for (auto *BB : Exits) {
@@ -191,7 +191,8 @@ bool CanonicalizeBarriersPassLegacy::runOnFunction(llvm::Function &F) {
   return canonicalizeBarriers(F, SAA);
 }
 
-llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses CanonicalizeBarriersPass::run(llvm::Function &F,
+                                                      llvm::FunctionAnalysisManager &AM) {
   auto &MAM = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAM.getCachedResult<hipsycl::compiler::SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA || !SAA->isKernelFunc(&F) || !utils::hasBarriers(F, *SAA))

@@ -39,7 +39,8 @@
 namespace {
 using namespace hipsycl::compiler;
 void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
-#if LLVM_VERSION_MAJOR > 12 || (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
+#if LLVM_VERSION_MAJOR > 12 ||                                                                     \
+    (LLVM_VERSION_MAJOR == 12 && LLVM_VERSION_MINOR == 0 && LLVM_VERSION_PATCH == 1)
   // LLVM < 12.0.1 might miscompile if conditionals in "parallel" loop (https://llvm.org/PR46666)
 
   // Mark memory accesses with access group
@@ -58,7 +59,8 @@ void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
   // debug, check whether loop is really marked parallel.
   if (HIPSYCL_DEBUG_LEVEL_INFO <= hipsycl::common::output_stream::get().get_debug_level()) {
     if (utils::isAnnotatedParallel(L)) {
-      HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << L->getHeader()->getName() << "\n";
+      HIPSYCL_DEBUG_INFO << "[ParallelMarker] loop is parallel: " << L->getHeader()->getName()
+                         << "\n";
     } else if (L->getLoopID()) {
       assert(L->getLoopID());
       const llvm::Module *M = F.getParent();
@@ -73,14 +75,15 @@ void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
 #endif
 }
 
-void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformInfo &TTI, const llvm::Loop *L) {
+void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformInfo &TTI,
+                           const llvm::Loop *L) {
   llvm::SmallVector<llvm::MDNode *, 3> PostTransformMD;
   // work-item loops should be vectorizable, so emit metadata to suggest so
   if (!llvm::findOptionMDForLoop(L, "llvm.loop.vectorize.enable")) {
     auto *MDVectorize = llvm::MDNode::get(
-        F.getContext(),
-        {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
-         llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(llvm::IntegerType::get(F.getContext(), 1)))});
+        F.getContext(), {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.enable"),
+                         llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(
+                             llvm::IntegerType::get(F.getContext(), 1)))});
     PostTransformMD.push_back(MDVectorize);
   }
 #if LLVM_VERSION_MAJOR >= 12
@@ -90,19 +93,22 @@ void addVectorizationHints(const llvm::Function &F, const llvm::TargetTransformI
       auto *MDVectorize = llvm::MDNode::get(
           F.getContext(),
           {llvm::MDString::get(F.getContext(), "llvm.loop.vectorize.scalable.enable"),
-           llvm::ConstantAsMetadata::get(llvm::Constant::getAllOnesValue(llvm::IntegerType::get(F.getContext(), 1)))});
+           llvm::ConstantAsMetadata::get(
+               llvm::Constant::getAllOnesValue(llvm::IntegerType::get(F.getContext(), 1)))});
       PostTransformMD.push_back(MDVectorize);
     }
   }
 #endif
 
   if (!PostTransformMD.empty()) {
-    auto *LoopID = llvm::makePostTransformationMetadata(F.getContext(), L->getLoopID(), {}, PostTransformMD);
+    auto *LoopID =
+        llvm::makePostTransformationMetadata(F.getContext(), L->getLoopID(), {}, PostTransformMD);
     L->setLoopID(LoopID);
   }
 }
 
-bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::TargetTransformInfo &TTI) {
+bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI,
+                       const llvm::TargetTransformInfo &TTI) {
   bool Changed = false;
 
   for (auto *SL : utils::getLoopsInPreorder(LI)) {
@@ -116,7 +122,8 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::
     }
   }
 
-  if (F.hasFnAttribute(llvm::Attribute::NoInline) && !F.hasFnAttribute(llvm::Attribute::OptimizeNone))
+  if (F.hasFnAttribute(llvm::Attribute::NoInline) &&
+      !F.hasFnAttribute(llvm::Attribute::OptimizeNone))
     F.removeFnAttr(llvm::Attribute::NoInline);
 
   if (!Changed) {
@@ -127,7 +134,8 @@ bool markLoopsWorkItem(llvm::Function &F, const llvm::LoopInfo &LI, const llvm::
 }
 } // namespace
 
-void hipsycl::compiler::LoopsParallelMarkerPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+void hipsycl::compiler::LoopsParallelMarkerPassLegacy::getAnalysisUsage(
+    llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
   AU.addRequired<llvm::LoopInfoWrapperPass>();
@@ -147,8 +155,9 @@ bool hipsycl::compiler::LoopsParallelMarkerPassLegacy::runOnFunction(llvm::Funct
   return markLoopsWorkItem(F, LI, TTI);
 }
 
-llvm::PreservedAnalyses hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Function &F,
-                                                                        llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::LoopsParallelMarkerPass::run(llvm::Function &F,
+                                                llvm::FunctionAnalysisManager &AM) {
   const auto &LI = AM.getResult<llvm::LoopAnalysis>(F);
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   const auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());

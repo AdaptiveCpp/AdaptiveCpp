@@ -11,9 +11,9 @@
 #define INCLUDE_RV_VECTORSHAPE_H_
 
 #include <map>
+#include <stdint.h>
 #include <string>
 #include <vector>
-#include <stdint.h>
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/raw_ostream.h>
@@ -34,7 +34,7 @@ class VectorShape {
   align_t alignment; // NOTE: General alignment if not hasConstantStride, else alignment of first
   bool defined;
 
-  VectorShape(align_t _alignment);              // varying
+  VectorShape(align_t _alignment);                   // varying
   VectorShape(stride_t _stride, align_t _alignment); // strided
 
 public:
@@ -48,8 +48,14 @@ public:
   align_t getAlignmentGeneral() const;
 
   void setAlignment(align_t newAlignment) { alignment = newAlignment; }
-  void setStride(stride_t newStride) { hasConstantStride = true; stride = newStride; }
-  void setVarying(align_t newAlignment) { hasConstantStride = false; alignment = newAlignment; }
+  void setStride(stride_t newStride) {
+    hasConstantStride = true;
+    stride = newStride;
+  }
+  void setVarying(align_t newAlignment) {
+    hasConstantStride = false;
+    alignment = newAlignment;
+  }
 
   bool isVarying() const { return defined && !hasConstantStride; }
   bool hasStridedShape() const { return defined && hasConstantStride; }
@@ -60,12 +66,14 @@ public:
   inline bool isContiguous() const { return isStrided(1); }
 
   static VectorShape varying(align_t aligned = 1) { return VectorShape(aligned); }
-  static VectorShape strided(stride_t stride, align_t aligned = 1) { return VectorShape(stride, aligned); }
+  static VectorShape strided(stride_t stride, align_t aligned = 1) {
+    return VectorShape(stride, aligned);
+  }
   static inline VectorShape uni(align_t aligned = 1) { return strided(0, aligned); }
   static inline VectorShape cont(align_t aligned = 1) { return strided(1, aligned); }
   static VectorShape undef() { return VectorShape(); } // bot
 
-  static VectorShape fromConstant(const llvm::Constant* C);
+  static VectorShape fromConstant(const llvm::Constant *C);
 
   static VectorShape join(VectorShape a, VectorShape b);
 
@@ -74,32 +82,31 @@ public:
   VectorShape operator/(int64_t D) const;
 
   // lattice order
-  bool morePreciseThan(const VectorShape & a) const; // whether @this is less than @a according to lattice order
-  bool contains(const VectorShape & b) const; // whether join(@this, @b) == @this
+  bool morePreciseThan(
+      const VectorShape &a) const; // whether @this is less than @a according to lattice order
+  bool contains(const VectorShape &b) const; // whether join(@this, @b) == @this
 
-  friend VectorShape operator-(const VectorShape& a);
-  friend VectorShape operator+(const VectorShape& a, const VectorShape& b);
-  friend VectorShape operator-(const VectorShape& a, const VectorShape& b);
-  friend VectorShape operator*(int64_t m, const VectorShape& a);
+  friend VectorShape operator-(const VectorShape &a);
+  friend VectorShape operator+(const VectorShape &a, const VectorShape &b);
+  friend VectorShape operator-(const VectorShape &a, const VectorShape &b);
+  friend VectorShape operator*(int64_t m, const VectorShape &a);
   friend VectorShape truncateToTypeSize(const VectorShape &a, unsigned typeSize);
 
   std::string str() const;
 
-  static VectorShape truncateToTypeSize(const VectorShape &a,
-                                        unsigned typeSize);
+  static VectorShape truncateToTypeSize(const VectorShape &a, unsigned typeSize);
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &O,
-                                       const VectorShape &shape) {
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &O, const VectorShape &shape) {
     return O << shape.str();
   }
 
   std::string serialize() const;
   // parse the next shape in @text (starting from nextPos) and return the parsed shape
   // (setting @nextPos on the next position after the last used character)
-  static VectorShape parse(llvm::StringRef text, int & nextPos);
+  static VectorShape parse(llvm::StringRef text, int &nextPos);
 };
 
 typedef std::vector<VectorShape> VectorShapeVec;
-}
+} // namespace hipsycl::compiler
 
 #endif /* INCLUDE_RV_VECTORSHAPE_H_ */

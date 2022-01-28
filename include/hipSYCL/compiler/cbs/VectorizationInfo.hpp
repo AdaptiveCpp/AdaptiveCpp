@@ -17,8 +17,8 @@ class Instruction;
 class Value;
 } // namespace llvm
 
-#include "VectorShape.hpp"
 #include "Region.hpp"
+#include "VectorShape.hpp"
 
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/DataLayout.h"
@@ -74,7 +74,9 @@ public:
   llvm::BasicBlock &getEntry() const;
 
   // disjoin path divergence
-  bool isJoinDivergent(const llvm::BasicBlock &JoinBlock) const { return JoinDivergentBlocks.count(&JoinBlock); }
+  bool isJoinDivergent(const llvm::BasicBlock &JoinBlock) const {
+    return JoinDivergentBlocks.count(&JoinBlock);
+  }
   bool addJoinDivergentBlock(const llvm::BasicBlock &JoinBlock) {
     return JoinDivergentBlocks.insert(&JoinBlock).second;
   }
@@ -123,8 +125,8 @@ public:
 
   // tentative block predicate shapes (whether the basic block predicate will be
   // varying or uniform)
-  // state can be unknown <returns false>, varying (returns true, oIsVarying is true or uniform (returns true,
-  // oIsVarying is false)
+  // state can be unknown <returns false>, varying (returns true, oIsVarying is true or uniform
+  // (returns true, oIsVarying is false)
   bool getVaryingPredicateFlag(const llvm::BasicBlock &BB, bool &oIsVarying) const;
   void setVaryingPredicateFlag(const llvm::BasicBlock &, bool toVarying);
   void removeVaryingPredicateFlag(const llvm::BasicBlock &);
@@ -148,7 +150,7 @@ public:
   llvm::LLVMContext &getContext() const;
   llvm::Function &getScalarFunction() { return scalarFn; }
   const llvm::Function &getScalarFunction() const { return scalarFn; }
-//  llvm::Function &getVectorFunction() { return *mapping.vectorFn; }
+  //  llvm::Function &getVectorFunction() { return *mapping.vectorFn; }
 };
 
 } // namespace hipsycl::compiler

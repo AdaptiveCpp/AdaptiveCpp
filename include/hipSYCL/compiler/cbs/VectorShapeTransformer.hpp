@@ -43,7 +43,8 @@ struct VectorShapeTransformer {
   VectorShape computeShapeForPHINode(const llvm::PHINode &Phi) const;
 
 public:
-  VectorShapeTransformer(const llvm::DataLayout &DL, const llvm::LoopInfo &_LI, const VectorizationInfo &_vecInfo)
+  VectorShapeTransformer(const llvm::DataLayout &DL, const llvm::LoopInfo &_LI,
+                         const VectorizationInfo &_vecInfo)
       : DL(DL), LI(_LI), vecInfo(_vecInfo) {}
 
   // This calls computeIdealShapeForInst internally and adjusts the result

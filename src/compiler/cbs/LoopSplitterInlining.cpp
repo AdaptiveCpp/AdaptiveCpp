@@ -37,7 +37,8 @@
 
 namespace {
 
-bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
+bool inlineCallsInBasicBlock(llvm::BasicBlock &BB,
+                             const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
                              hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed = false;
   bool LastChanged;
@@ -49,11 +50,13 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
         if (CallI->getCalledFunction()) {
           if (SplitterCallers.find(CallI->getCalledFunction()) != SplitterCallers.end() &&
               !SAA.isSplitterFunc(CallI->getCalledFunction())) {
-            LastChanged = hipsycl::compiler::utils::checkedInlineFunction(CallI, "[LoopSplitterInlining]");
+            LastChanged =
+                hipsycl::compiler::utils::checkedInlineFunction(CallI, "[LoopSplitterInlining]");
             if (LastChanged)
               break;
           } else if (SAA.isSplitterFunc(CallI->getCalledFunction()) &&
-                     CallI->getCalledFunction()->getName() != hipsycl::compiler::BarrierIntrinsicName) {
+                     CallI->getCalledFunction()->getName() !=
+                         hipsycl::compiler::BarrierIntrinsicName) {
             HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] Replace barrier with intrinsic: "
                                << CallI->getCalledFunction()->getName() << "\n";
             hipsycl::compiler::utils::createBarrier(CallI, SAA);
@@ -73,7 +76,8 @@ bool inlineCallsInBasicBlock(llvm::BasicBlock &BB, const llvm::SmallPtrSet<llvm:
 
 //! \pre all contained functions are non recursive!
 // todo: have a recursive-ness termination
-bool inlineCallsInFunction(llvm::Function &F, const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
+bool inlineCallsInFunction(llvm::Function &F,
+                           const llvm::SmallPtrSet<llvm::Function *, 8> &SplitterCallers,
                            hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   bool Changed = false;
   bool LastChanged;
@@ -92,7 +96,8 @@ bool inlineCallsInFunction(llvm::Function &F, const llvm::SmallPtrSet<llvm::Func
 }
 
 // todo: have a recursive-ness termination
-bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+bool fillTransitiveSplitterCallers(llvm::Function &F,
+                                   const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter);
 bool fillTransitiveSplitterCallers(llvm::ArrayRef<llvm::BasicBlock *> Blocks,
                                    const hipsycl::compiler::SplitterAnnotationInfo &SAA,
@@ -112,7 +117,8 @@ bool fillTransitiveSplitterCallers(llvm::ArrayRef<llvm::BasicBlock *> Blocks,
 
 //! \pre \a F is not recursive!
 // todo: have a recursive-ness termination
-bool fillTransitiveSplitterCallers(llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA,
+bool fillTransitiveSplitterCallers(llvm::Function &F,
+                                   const hipsycl::compiler::SplitterAnnotationInfo &SAA,
                                    llvm::SmallPtrSet<llvm::Function *, 8> &FuncsWSplitter) {
   if (F.isDeclaration() && !F.isIntrinsic()) {
     HIPSYCL_DEBUG_WARNING << "[LoopSplitterInlining] " << F.getName() << " is not defined!\n";
@@ -138,7 +144,8 @@ bool inlineSplitter(llvm::Function &F, hipsycl::compiler::SplitterAnnotationInfo
 
   llvm::SmallPtrSet<llvm::Function *, 8> SplitterCallers;
   if (!fillTransitiveSplitterCallers(F, SAA, SplitterCallers)) {
-    HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] transitively no splitter found in kernel." << F.getName() << "\n";
+    HIPSYCL_DEBUG_INFO << "[LoopSplitterInlining] transitively no splitter found in kernel."
+                       << F.getName() << "\n";
     return Changed;
   }
   Changed |= inlineCallsInFunction(F, SplitterCallers, SAA);
@@ -147,7 +154,8 @@ bool inlineSplitter(llvm::Function &F, hipsycl::compiler::SplitterAnnotationInfo
 }
 } // namespace
 
-void hipsycl::compiler::LoopSplitterInliningPassLegacy::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+void hipsycl::compiler::LoopSplitterInliningPassLegacy::getAnalysisUsage(
+    llvm::AnalysisUsage &AU) const {
   AU.addRequired<SplitterAnnotationAnalysisLegacy>();
   AU.addPreserved<SplitterAnnotationAnalysisLegacy>();
 }
@@ -162,8 +170,9 @@ bool hipsycl::compiler::LoopSplitterInliningPassLegacy::runOnFunction(llvm::Func
 }
 
 char hipsycl::compiler::LoopSplitterInliningPassLegacy::ID = 0;
-llvm::PreservedAnalyses hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Function &F,
-                                                                         llvm::FunctionAnalysisManager &AM) {
+llvm::PreservedAnalyses
+hipsycl::compiler::LoopSplitterInliningPass::run(llvm::Function &F,
+                                                 llvm::FunctionAnalysisManager &AM) {
   const auto &MAMProxy = AM.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(F);
   auto *SAA = MAMProxy.getCachedResult<SplitterAnnotationAnalysis>(*F.getParent());
   if (!SAA) {

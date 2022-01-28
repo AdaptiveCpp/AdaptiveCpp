@@ -227,7 +227,7 @@ static void computeLoopPO(const LoopInfo &LI, Loop &Loop, POCB CallBack, Visited
 
 } // namespace
 
-namespace hipsycl::compiler {
+namespace hipsycl::compiler::pre_llvm12_compat {
 using namespace llvm;
 
 ControlDivergenceDesc SyncDependenceAnalysis::EmptyDivergenceDesc;
@@ -447,5 +447,5 @@ const ControlDivergenceDesc &SyncDependenceAnalysis::getJoinBlocks(const Instruc
   return *ItInserted.first->second;
 }
 
-} // namespace hipsycl::compiler
+} // namespace hipsycl::compiler::pre_llvm12_compat
 #endif

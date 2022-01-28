@@ -47,7 +47,7 @@ class LoopInfo;
 
 namespace hipsycl::compiler {
 #if LLVM_VERSION_MAJOR < 12
-using SDAnalysis = SyncDependenceAnalysis;
+using SDAnalysis = pre_llvm12_compat::SyncDependenceAnalysis;
 #else
 using SDAnalysis = llvm::SyncDependenceAnalysis;
 #endif

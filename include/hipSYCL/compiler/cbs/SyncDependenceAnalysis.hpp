@@ -37,7 +37,7 @@ class Loop;
 class PostDominatorTree;
 } // namespace llvm
 
-namespace hipsycl::compiler {
+namespace hipsycl::compiler::pre_llvm12_compat {
 using ConstBlockSet = llvm::SmallPtrSet<const llvm::BasicBlock *, 4>;
 struct ControlDivergenceDesc {
   // Join points of divergent disjoint paths.
@@ -92,7 +92,7 @@ private:
   std::map<const llvm::Instruction *, std::unique_ptr<ControlDivergenceDesc>> CachedControlDivDescs;
 };
 
-} // namespace hipsycl::compiler
+} // namespace hipsycl::compiler::pre_llvm12_compat
 
 #endif
 #endif // LLVM_ANALYSIS_SYNCDEPENDENCEANALYSIS_H

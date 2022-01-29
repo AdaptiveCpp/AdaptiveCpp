@@ -815,7 +815,6 @@ class spirv_multipass_invocation:
     flags = self._config.cuda_cxx_flags
     
     flags += [
-        "-fsycl",
         "-fsycl-device-only",
         "-fsycl-unnamed-lambda",
         "-fno-sycl-use-bitcode",
@@ -829,6 +828,7 @@ class spirv_multipass_invocation:
   # CXX flags for main pass
   def get_cxx_flags(self):
     return [
+      "-Xclang", "-fsycl-is-host",
       "-D__HIPSYCL_MULTIPASS_SPIRV_HEADER__=\"{}\"".format(
             self._integration_header),
       "-D__HIPSYCL_ENABLE_SPIRV_TARGET__"

@@ -30,6 +30,7 @@
 #include <string>
 #include <limits>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -505,7 +506,10 @@ result ze_hardware_context::obtain_module(module_id_t id,
                                           ze_module* &out) {
   for(auto mod : _modules) {
     if(mod->get_id() == id && mod->get_variant() == variant) {
+      HIPSYCL_DEBUG_INFO << "ze_hardware_context: Found module " << id
+                         << " in cache" << std::endl;
       out = mod.get();
+      return make_success();
     }
   }
 

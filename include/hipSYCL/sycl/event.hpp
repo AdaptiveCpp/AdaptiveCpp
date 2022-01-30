@@ -40,6 +40,7 @@
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/instrumentation.hpp"
+#include <cstddef>
 
 namespace hipsycl {
 namespace sycl {
@@ -212,6 +213,10 @@ public:
   friend bool operator !=(const event& lhs, const event& rhs)
   { return !(lhs == rhs); }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_node.get());
+  }
+
 private:
 
   rt::dag_node_ptr _node;
@@ -237,5 +242,18 @@ HIPSYCL_SPECIALIZE_GET_INFO(event, reference_count)
 
 } // namespace sycl
 } // namespace hipsycl
+
+namespace std {
+
+template <>
+struct hash<hipsycl::sycl::event>
+{
+  std::size_t operator()(const hipsycl::sycl::event& e) const
+  {
+    return e.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

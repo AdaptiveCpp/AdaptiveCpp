@@ -30,6 +30,7 @@
 #define HIPSYCL_ACCESSOR_HPP
 
 #include <exception>
+#include <memory>
 #include <type_traits>
 #include <cassert>
 
@@ -425,6 +426,29 @@ inline access_mode get_effective_access_mode(access_mode accessmode,
   return mode;
 }
 
+template <class T, int Dim>
+rt::range<3> get_effective_range(const std::shared_ptr<rt::buffer_data_region> &mem_region,
+                                  const rt::range<Dim> range, const rt::range<Dim> buffer_shape,
+                                  const bool has_access_range) {
+  // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
+  if(!has_access_range || sizeof(T) != mem_region->get_element_size() 
+      || rt::embed_in_range3(buffer_shape) != mem_region->get_num_elements())
+    return mem_region->get_num_elements();
+
+  return rt::embed_in_range3(range);
+}
+
+template <class T, int Dim>
+rt::id<3> get_effective_offset(const std::shared_ptr<rt::buffer_data_region> &mem_region,
+                                  const rt::id<Dim> offset, const rt::range<Dim> buffer_shape, 
+                                  const bool has_access_range) {
+  // todo: optimize range / offset (would have to calculate a bounding box for reshaped buffers..)
+  if(!has_access_range || sizeof(T) != mem_region->get_element_size()
+      || rt::embed_in_range3(buffer_shape) != mem_region->get_num_elements())
+    return {};
+  return rt::embed_in_id3(offset);
+}
+
 /// The accessor base allows us to retrieve the associated buffer
 /// for the accessor.
 template<class T>
@@ -791,6 +815,14 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    // TODO: This only really guarantees unique hash codes
+    // outside of kernels, on the host side.
+    // Once on device, the UID will contain the device pointer
+    // which might be aliased by multiple accessors.
+    return get_uid().hipSYCL_hash_code();
+  }
+
   HIPSYCL_UNIVERSAL_TARGET
   bool is_placeholder() const noexcept
   {
@@ -1087,12 +1119,13 @@ private:
   void bind_to_buffer(BufferType &buff,
                       sycl::id<dimensions> accessOffset,
                       sycl::range<dimensions> accessRange) {
-#ifndef SYCL_DEVICE_ONLY
-    auto buffer_region = detail::extract_buffer_data_region(buff);
-    this->detail::accessor::
-        conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
-            detail::mobile_shared_ptr{buffer_region});
-#endif
+    __hipsycl_if_target_host(
+      auto buffer_region = detail::extract_buffer_data_region(buff);
+      this->detail::accessor::
+          conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
+              detail::mobile_shared_ptr{buffer_region});
+    );
+
     this->detail::accessor::conditional_access_range_storage<
         has_access_range,
         dimensions>::attempt_set(detail::accessor::access_range<dimensions>{
@@ -1113,19 +1146,20 @@ private:
     auto data = data_mobile_ptr.get_shared_ptr();
     assert(data);
 
-    if(sizeof(dataT) != data->get_element_size())
-      assert(false && "Accessors with different element size than original "
-                      "buffer are not yet supported");
-
     rt::dag_node_ptr node;
     {
       rt::dag_build_guard build{rt::application::dag()};
-
-      auto explicit_requirement =
-          rt::make_operation<rt::buffer_memory_requirement>(
-              data, rt::make_id(get_offset()), rt::make_range(get_range()),
-              detail::get_effective_access_mode(accessmode, is_no_init),
-              accessTarget);
+      
+      const rt::range<dimensions> buffer_shape = rt::make_range(get_buffer_shape());
+      auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
+        data,
+        detail::get_effective_offset<dataT>(data, rt::make_id(get_offset()),
+                                            buffer_shape, has_access_range),
+        detail::get_effective_range<dataT>(data, rt::make_range(get_range()),
+                                            buffer_shape, has_access_range),
+        detail::get_effective_access_mode(accessmode, is_no_init),
+        accessTarget
+      );
 
       rt::cast<rt::buffer_memory_requirement>(explicit_requirement.get())
           ->bind(this->get_uid());
@@ -1544,6 +1578,10 @@ public:
   // const_reverse_iterator crbegin() const noexcept;
   // const_reverse_iterator crend() const noexcept;
 
+  std::size_t hipSYCL_hash_code() const {
+    return _impl.hipSYCL_hash_code();
+  }
+
 private:
   accessor_type _impl;
 };
@@ -1650,6 +1688,10 @@ public:
   friend bool operator!=(const accessor& lhs, const accessor& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return _addr;
   }
 
   [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
@@ -1799,5 +1841,31 @@ glue::unique_id get_unique_id(const AccessorType& acc) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename dataT, int dimensions, hipsycl::sycl::access_mode accessmode,
+          hipsycl::sycl::target accessTarget,
+          hipsycl::sycl::accessor_variant AccessorVariant>
+struct hash<hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant>> {
+  std::size_t
+  operator()(const hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+// accessor also covers the local_accessor specialization
+
+template<typename dataT, int dimensions, hipsycl::sycl::access_mode A>
+struct hash<hipsycl::sycl::host_accessor<dataT, dimensions, A>> {
+
+  std::size_t operator()(
+      const hipsycl::sycl::host_accessor<dataT, dimensions, A> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

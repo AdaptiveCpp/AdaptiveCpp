@@ -260,6 +260,10 @@ public:
   backend get_backend() const noexcept {
     return _device_id.get_backend();
   }
+
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<hipsycl::rt::device_id>{}(_device_id);
+  }
 private:
   rt::device_id _device_id;
 
@@ -724,6 +728,17 @@ inline rt::device_id extract_rt_device(const device &d) {
 } // namespace sycl
 } // namespace hipsycl
 
+namespace std {
 
+template <>
+struct hash<hipsycl::sycl::device>
+{
+  std::size_t operator()(const hipsycl::sycl::device& d) const
+  {
+    return d.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

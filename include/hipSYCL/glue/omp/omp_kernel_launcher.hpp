@@ -46,6 +46,7 @@
 #include "hipSYCL/sycl/libkernel/item.hpp"
 #include "hipSYCL/sycl/libkernel/nd_item.hpp"
 #include "hipSYCL/sycl/libkernel/sp_item.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
 #include "hipSYCL/sycl/libkernel/group.hpp"
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
@@ -305,8 +306,8 @@ inline void parallel_for_workgroup(Function f,
       reductions...);
 }
 
-
-template <class Function, int dimensions, typename... Reductions>
+template <class HierarchicalDecomposition,
+          class Function, int dimensions, typename... Reductions>
 inline void parallel_region(Function f,
                             const sycl::range<dimensions> num_groups,
                             const sycl::range<dimensions> group_size,
@@ -323,20 +324,65 @@ inline void parallel_region(Function f,
             num_local_mem_bytes);
 
         iterate_range_omp_for(num_groups, [&](sycl::id<dimensions> group_id) {
-          sycl::group<dimensions> this_group{group_id, group_size,
-                                              num_groups};
 
-          auto phys_item = sycl::detail::make_sp_item(
-              sycl::id<dimensions>{}, group_id, group_size, num_groups);
+          using group_properties =
+              sycl::detail::sp_property_descriptor<dimensions, 0,
+                                                   HierarchicalDecomposition>;
 
-          f(this_group, phys_item, reducers...);
-            
+          sycl::detail::sp_group<
+              sycl::detail::host_sp_property_descriptor<group_properties>>
+              this_group{
+                  sycl::group<dimensions>{group_id, group_size, num_groups}};
+
+          f(this_group, reducers...);
         });
 
         sycl::detail::host_local_memory::release();
         
       },
       reductions...);
+}
+
+template<int Dim, int MaxGuaranteedWorkgroupSize>
+constexpr auto determine_hierarchical_decomposition() {
+  using namespace sycl::detail;
+  using fallback_decomposition =
+      nested_range<unknown_static_range, nested_range<static_range<1>>>;
+
+  if constexpr(Dim == 1) {
+    if constexpr(MaxGuaranteedWorkgroupSize % 16 == 0) {
+      return nested_range<
+        unknown_static_range, 
+        nested_range<
+          static_range<16>
+        >
+      >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  } else if constexpr(Dim == 2){
+    if constexpr(MaxGuaranteedWorkgroupSize % 4 == 0) {
+      return nested_range<
+          unknown_static_range, 
+          nested_range<
+            static_range<4,4>
+          >
+        >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  } else {
+    if constexpr(MaxGuaranteedWorkgroupSize % 2 == 0) {
+      return nested_range<
+          unknown_static_range, 
+          nested_range<
+            static_range<2,2,2>
+          >
+        >{};
+    } else {
+      return fallback_decomposition{};
+    }
+  }
 }
 
 }
@@ -350,7 +396,7 @@ public:
 
   virtual void set_params(void*) override {}
 
-  template <class KernelName, rt::kernel_type type, int Dim, class Kernel,
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
@@ -422,9 +468,56 @@ public:
         omp_dispatch::parallel_for_workgroup(k, get_grid_range(), local_range,
                                              dynamic_local_memory, reductions...);
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+        
+        auto local_range_is_divisible_by = [&](int x) -> bool {
+          for(int i = 0; i < Dim; ++i) {
+            if(local_range[i] % x != 0)
+              return false;
+          }
+          return true;
+        };
 
-        omp_dispatch::parallel_region(k, get_grid_range(), local_range,
-                                      dynamic_local_memory, reductions...);
+        if(local_range_is_divisible_by(64)) {
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 64>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
+        } else if(local_range_is_divisible_by(32)) {
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 32>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
+        } else if(local_range_is_divisible_by(16)) {
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<
+                       Dim, 16>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
+        } else if(local_range_is_divisible_by(8)) {
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<Dim,
+                                                                          8>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
+        } else {
+          using decomposition_type =
+              decltype(omp_dispatch::determine_hierarchical_decomposition<Dim,
+                                                                          1>());
+
+          omp_dispatch::parallel_region<decomposition_type>(
+              k, get_grid_range(), local_range, dynamic_local_memory,
+              reductions...);
+        } 
       } else if constexpr (type == rt::kernel_type::custom) {
         sycl::interop_handle handle{
             rt::device_id{rt::backend_descriptor{rt::hardware_platform::cpu,

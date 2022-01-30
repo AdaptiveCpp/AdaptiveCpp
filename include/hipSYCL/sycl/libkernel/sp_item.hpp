@@ -39,91 +39,145 @@ namespace detail {
 template<int Dim>
 class sp_item
 {
-  template<int D>
-  HIPSYCL_KERNEL_TARGET
-  friend sp_item<D> make_sp_item(
-    sycl::id<D> local_id, sycl::id<D> group_id,
-    sycl::range<D> local_range, sycl::range<D> num_groups);
+  template <int D>
+  HIPSYCL_KERNEL_TARGET friend sp_item<D>
+  make_sp_item(sycl::id<D> local_id, sycl::id<D> global_id,
+               sycl::range<D> local_range,
+               sycl::range<D> global_range) noexcept;
+
 public:
+
   HIPSYCL_KERNEL_TARGET
-  sycl::range<Dim> get_global_range() const {
-    return _num_groups * _local_range;
+  sycl::range<Dim> get_global_range() const noexcept {
+    return _global_range;
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_global_range(int dimension) const {
-    return _num_groups[dimension] * _local_range[dimension];
+  size_t get_global_range(int dimension) const noexcept {
+    return _global_range[dimension];
   }
 
   HIPSYCL_KERNEL_TARGET
-  sycl::id<Dim> get_global_id() const {
-    return _local_id + _group_id * _local_range;
+  size_t get_global_linear_range() const noexcept {
+    return _global_range.size();
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_global_id(int dimension) const {
-    return _local_id[dimension] + 
-      _group_id[dimension] * _local_range[dimension];
+  sycl::id<Dim> get_global_id() const noexcept {
+    return _global_id;
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_global_linear_id() const {
+  size_t get_global_id(int dimension) const noexcept {
+    return _global_id[dimension];
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  size_t get_global_linear_id() const noexcept {
     return detail::linear_id<Dim>::get(get_global_id(), get_global_range());
   }
 
   HIPSYCL_KERNEL_TARGET
-  sycl::range<Dim> get_local_range() const {
+  sycl::range<Dim> get_innermost_local_range() const noexcept {
     return _local_range;
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_local_range(int dimension) const {
+  size_t get_innermost_local_range(int dimension) const noexcept {
     return _local_range[dimension];
   }
 
   HIPSYCL_KERNEL_TARGET
-  sycl::id<Dim> get_local_id() const {
+  size_t get_innermost_local_linear_range() const noexcept {
+    return _local_range.size();
+  }
+
+  HIPSYCL_KERNEL_TARGET
+  sycl::id<Dim> get_innermost_local_id() const noexcept {
     return _local_id;
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_local_id(int dimension) const {
-    return _local_id[dimension];
+  size_t get_innermost_local_id(int dimensions) const noexcept {
+    return _local_id[dimensions];
   }
 
   HIPSYCL_KERNEL_TARGET
-  size_t get_local_linear_id() const {
-    return detail::linear_id<Dim>::get(_local_id, _local_range);
+  size_t get_innermost_local_linear_id() const noexcept {
+    return detail::linear_id<Dim>::get(get_innermost_local_id(),
+                                       get_innermost_local_range());
   }
-private:
-  sp_item(sycl::id<Dim> local_id, sycl::id<Dim> group_id,
-          sycl::range<Dim> local_range, sycl::range<Dim> num_groups)
-    : _local_id{local_id}, _group_id{group_id}, 
-      _local_range{local_range}, _num_groups{num_groups}
-  {}
-  
-  sycl::id<Dim> _local_id;
-  sycl::id<Dim> _group_id;
 
-  sycl::range<Dim> _local_range;
-  sycl::range<Dim> _num_groups;
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  sycl::id<Dim> get_local_id(const Group& g) const noexcept {
+    return g.get_local_id(*this);
+  }
+
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_id(const Group& g, int dimension) const noexcept {
+    return g.get_local_id(*this, dimension);
+  }
+
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_linear_id(const Group& g) const noexcept {
+    return g.get_local_linear_id(*this);
+  }
+
+
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  sycl::range<Dim> get_local_range(const Group& grp) const noexcept {
+    return grp.get_logical_local_range();
+  }
+
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_range(const Group& grp, int dimension) const noexcept {
+    return grp.get_logical_local_range(dimension);
+  }
+
+  template<class Group>
+  HIPSYCL_KERNEL_TARGET
+  size_t get_local_linear_range(const Group& grp) const noexcept {
+    return grp.get_logical_local_linear_range();
+  }
+
+private:
+  sp_item(sycl::id<Dim> local_id, sycl::id<Dim> global_id,
+          sycl::range<Dim> local_range, sycl::range<Dim> global_range) noexcept
+      : _local_id{local_id}, _global_id{global_id}, _local_range{local_range},
+        _global_range{global_range} {}
+
+  const sycl::id<Dim> _local_id;
+  const sycl::id<Dim> _global_id;
+
+  const sycl::range<Dim> _local_range;
+  const sycl::range<Dim> _global_range;
 };
 
-template<int Dim>
-HIPSYCL_KERNEL_TARGET
-sp_item<Dim> make_sp_item(sycl::id<Dim> local_id, sycl::id<Dim> group_id,
-                          sycl::range<Dim> local_range, sycl::range<Dim> num_groups){
+template <int Dim>
+HIPSYCL_KERNEL_TARGET sp_item<Dim>
+make_sp_item(sycl::id<Dim> local_id, sycl::id<Dim> global_id,
+             sycl::range<Dim> local_range,
+             sycl::range<Dim> global_range) noexcept {
 
-  return sp_item<Dim>{local_id, group_id, local_range, num_groups};
+  return sp_item<Dim>{local_id, global_id, local_range, global_range};
 }
+} // namespace detail
 
-}
-
+// deprecated
 template<int Dim>
 using logical_item=detail::sp_item<Dim>;
 
+// deprecated
 template<int Dim>
 using physical_item=detail::sp_item<Dim>;
+
+template<int Dim>
+using s_item=detail::sp_item<Dim>;
 
 }
 }

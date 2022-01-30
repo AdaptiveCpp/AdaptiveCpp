@@ -43,7 +43,18 @@
 
 namespace hipsycl {
 namespace glue {
+namespace detail {
 
+template<class T>
+inline T random_number() {
+  static std::random_device rd;
+  static std::mt19937 gen{rd()};
+  static std::uniform_int_distribution<T> distribution{0};
+
+  return distribution(gen);
+}
+
+}
 
 struct unique_id {
   static constexpr std::size_t num_components = 2;
@@ -57,27 +68,23 @@ struct unique_id {
 
   HIPSYCL_UNIVERSAL_TARGET
   unique_id() {
-#ifndef SYCL_DEVICE_ONLY
-    uint64_t ns =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch())
-            .count();
+    __hipsycl_if_target_host(
+      uint64_t ns =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::high_resolution_clock::now().time_since_epoch())
+              .count();
 
-    static std::random_device rd;
-    static std::mt19937 gen{rd()};
-    static std::uniform_int_distribution<uint64_t> distribution{0};
+      uint64_t random_number = detail::random_number<uint64_t>();
 
-    uint64_t random_number = distribution(gen);
+      char* ns_bytes = reinterpret_cast<char*>(&ns);
+      char* rnd_bytes = reinterpret_cast<char*>(&random_number);
 
-    char* ns_bytes = reinterpret_cast<char*>(&ns);
-    char* rnd_bytes = reinterpret_cast<char*>(&random_number);
-
-    for(int i = 0; i < sizeof(uint64_t); ++i) {
-      char *id_bytes = reinterpret_cast<char*>(&id[0]);
-      id_bytes[2 * i    ] = ns_bytes[i];
-      id_bytes[2 * i + 1] = rnd_bytes[i];
-    }
-#endif
+      for(int i = 0; i < sizeof(uint64_t); ++i) {
+        char *id_bytes = reinterpret_cast<char*>(&id[0]);
+        id_bytes[2 * i    ] = ns_bytes[i];
+        id_bytes[2 * i + 1] = rnd_bytes[i];
+      }
+    );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -92,6 +99,10 @@ struct unique_id {
   HIPSYCL_UNIVERSAL_TARGET
   friend bool operator!=(const unique_id& a, const unique_id& b) {
     return !(a == b);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return id[0] ^ id[1];
   }
 
   unique_id(const unique_id&) = default;

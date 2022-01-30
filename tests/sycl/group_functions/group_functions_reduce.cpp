@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_mul, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_reduce(g, local_value, std::multiplies<T>());
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, std::multiplies<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_reduce(g, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_reduce(
+      acc[global_linear_id] = sycl::reduce_over_group(
           g, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
       auto start = acc.get_pointer() + (global_linear_id / local_size) * local_size * 2;
       auto end   = start + local_size * 2;
 
-      T local = sycl::detail::reduce(g, start.get(), end.get(), std::plus<T>());
+      T local = sycl::joint_reduce(g, start.get(), end.get(), std::plus<T>());
       sycl::group_barrier(g);
       acc[global_linear_id + 2 * global_size] = local;
     };
@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
       auto start = acc.get_pointer() + (global_linear_id / local_size) * local_size * 2;
       auto end   = start + local_size * 2;
 
-      T local = sycl::detail::reduce(g, start.get(), end.get(),
+      T local = sycl::joint_reduce(g, start.get(), end.get(),
                                      detail::initialize_type<T>(10), std::plus<T>());
       sycl::group_barrier(g);
       acc[global_linear_id + 2 * global_size] = local;
@@ -241,7 +241,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
 
 #if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
   const size_t   elements_per_thread = 1;
   const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -253,14 +252,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_reduce(sg, local_value, std::plus<T>());
+      acc[global_linear_id] = sycl::reduce_over_group(sg, local_value, std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
       for (size_t i = 0; i < global_size / local_size; ++i) {
         T    expected         = T{};
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
+        auto actual_warp_size = local_size < __hipsycl_warp_size ? local_size : __hipsycl_warp_size;
         for (size_t j = 0; j < actual_warp_size; ++j)
           expected = expected + vOrig[i * local_size + j];
 
@@ -282,7 +281,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
   {
     const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                     auto g, T local_value) {
-      acc[global_linear_id] = sycl::group_reduce(
+      acc[global_linear_id] = sycl::reduce_over_group(
           sg, local_value, detail::initialize_type<T>(10), std::plus<T>());
     };
     const auto validation_function = [](const std::vector<T> &vIn,
@@ -290,7 +289,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
                                         size_t global_size) {
       for (size_t i = 0; i < global_size / local_size; ++i) {
         T    expected         = detail::initialize_type<T>(10);
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
+        auto actual_warp_size = local_size < __hipsycl_warp_size ? local_size : __hipsycl_warp_size;
         for (size_t j = 0; j < actual_warp_size; ++j)
           expected = expected + vOrig[i * local_size + j];
 

@@ -28,33 +28,80 @@
 #ifndef HIPSYCL_GLUE_KERNEL_NAMES_HPP
 #define HIPSYCL_GLUE_KERNEL_NAMES_HPP
 
+#include <utility>
 struct __hipsycl_unnamed_kernel {};
 
 namespace hipsycl {
 namespace glue {
 
-template<class KernelName> struct complete_kernel_name {};
-
 // This can be used to turn incomplete types of kernel names into complete
 // types for backends which e.g. use typeid() to access the mangled name.
-template <class Name, class KernelBody> struct kernel_name {
-  using complete_type = complete_kernel_name<Name>;
-  using effective_type = Name;
+template<class KernelName> struct complete_kernel_name {};
+
+template<class KernelName, typename... MultiversionParamaters>
+struct multiversioned_kernel_name {};
+
+template<class KernelBodyT, typename... MultiversionParameters>
+struct multiversioned_kernel_wrapper {
+  template<typename... Args>
+  void operator()(Args&&... args) const noexcept {
+    kernel(std::forward<Args>(args)...);
+  }
+
+  KernelBodyT kernel;
 };
-template <class KernelBody>
-struct kernel_name<__hipsycl_unnamed_kernel, KernelBody> {
-  using complete_type = __hipsycl_unnamed_kernel;
-  using effective_type = KernelBody;
+
+template<class KernelNameTag, class KernelBodyT>
+struct kernel_name_traits {
+  using tag = KernelNameTag;
+  // The name that the kernel should have. __hipsycl_unnamed_kernel if
+  // unnamed, a type based on the name tag if named.
+  using name = complete_kernel_name<tag>;
+  // The name that is suggested to be used for name mangling. If unnamed,
+  // the kernel body type. Otherwise a type based on the tag.
+  using suggested_mangling_name = name;
+
+  template <typename... MultiversionParameters>
+  using multiversioned_name =
+      multiversioned_kernel_name<name, MultiversionParameters...>;
+
+  template <typename... MultiversionParameters>
+  using multiversioned_suggested_mangling_name =
+      multiversioned_kernel_name<suggested_mangling_name, MultiversionParameters...>;
+
+  template <typename... MultiversionParameters>
+  static auto
+  make_multiversioned_kernel_body(const KernelBodyT &body) noexcept {
+    return multiversioned_kernel_wrapper<KernelBodyT,
+                                         MultiversionParameters...>{body};
+  }
+
+  static constexpr bool is_unnamed = false;
 };
 
-template <class Name, class KernelBody>
-using complete_kernel_name_t = 
-  typename kernel_name<Name, KernelBody>::complete_type;
+template<class KernelBodyT>
+struct kernel_name_traits<__hipsycl_unnamed_kernel, KernelBodyT> {
+  using tag = __hipsycl_unnamed_kernel;
+  using name = __hipsycl_unnamed_kernel;
+  using suggested_mangling_name = KernelBodyT;
 
+  template <typename... MultiversionParameters>
+  using multiversioned_name = __hipsycl_unnamed_kernel;
 
-template <class Name, class KernelBody>
-using effective_kernel_name_t = 
-  typename kernel_name<Name, KernelBody>::effective_type;
+  template <typename... MultiversionParameters>
+  using multiversioned_suggested_mangling_name =
+      multiversioned_kernel_wrapper<KernelBodyT, MultiversionParameters...>;
+
+  template <typename... MultiversionParameters>
+  static auto
+  make_multiversioned_kernel_body(const KernelBodyT &body) noexcept {
+    return multiversioned_kernel_wrapper<KernelBodyT,
+                                         MultiversionParameters...>{body};
+  }
+
+  static constexpr bool is_unnamed = true;
+};
+
 }
 } // namespace hipsycl
 

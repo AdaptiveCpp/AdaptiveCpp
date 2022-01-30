@@ -613,14 +613,24 @@ public:
     return _range;
   }
 
-  std::size_t get_count() const
+  std::size_t size() const noexcept
   {
     return _range.size();
   }
 
+  std::size_t byte_size() const noexcept
+  {
+    return size() * sizeof(T);
+  }
+
   std::size_t get_size() const
   {
-    return get_count() * sizeof(T);
+    return byte_size();
+  }
+
+  std::size_t get_count() const
+  {
+    return size();
   }
 
   AllocatorT get_allocator() const
@@ -711,14 +721,37 @@ public:
   { return false; }
 
   template <typename ReinterpretT, int ReinterpretDim>
-  buffer<ReinterpretT, ReinterpretDim, AllocatorT>
+  buffer<ReinterpretT, ReinterpretDim,
+        typename std::allocator_traits<AllocatorT>
+                 ::template rebind_alloc<ReinterpretT>>
   reinterpret(range<ReinterpretDim> reinterpretRange) const {
+    if(_range.size() * sizeof(T) != reinterpretRange.size() * sizeof(ReinterpretT))
+      throw invalid_parameter_error{"reinterpret must preserve the byte count of the buffer"};
 
-    buffer<ReinterpretT, ReinterpretDim, AllocatorT> new_buffer;
-    new_buffer.init_from(*this);
+    buffer<ReinterpretT, ReinterpretDim,
+            typename std::allocator_traits<AllocatorT>::template rebind_alloc<
+            ReinterpretT>> new_buffer;
+    static_cast<detail::property_carrying_object&>(new_buffer) = *this;
+    new_buffer._alloc = _alloc;
+    new_buffer._impl = _impl;
     new_buffer._range = reinterpretRange;
     
     return new_buffer;
+  }
+
+  template <typename ReinterpretT, int ReinterpretDim = dimensions,
+    std::enable_if_t<ReinterpretDim == 1 ||
+      (ReinterpretDim == dimensions && sizeof(ReinterpretT) == sizeof(T)), int> = 0>
+  buffer<ReinterpretT, ReinterpretDim,
+        typename std::allocator_traits<AllocatorT>
+                 ::template rebind_alloc<ReinterpretT>>
+  reinterpret() const {
+    if constexpr (ReinterpretDim == 1) {
+      return reinterpret<ReinterpretT, 1>(range<1>{
+        (_range.size() * sizeof(T)) / sizeof(ReinterpretT)});
+    } else {
+      return reinterpret<ReinterpretT, ReinterpretDim>(_range);
+    }
   }
 
   friend bool operator==(const buffer& lhs, const buffer& rhs)
@@ -729,6 +762,10 @@ public:
   friend bool operator!=(const buffer& lhs, const buffer& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
   }
 
   // --- The following methods are part the hipSYCL buffer introspection API
@@ -990,14 +1027,6 @@ private:
   buffer()
   : detail::property_carrying_object {property_list {}}
   {}
-
-  template <class OtherT, int OtherDim, class OtherAllocatorT>
-  void init_from(const buffer<OtherT, OtherDim, OtherAllocatorT> &other) {
-    detail::property_carrying_object::operator=(other);
-    this->_alloc = other._alloc;
-    this->_range = other._range;
-    this->_impl = other._impl;
-  }
   
   void init_data_backend(const range<dimensions>& range)
   {
@@ -1166,5 +1195,19 @@ extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename T, int dimensions,
+          typename AllocatorT>
+struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
+{
+  std::size_t
+  operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
+    return b.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

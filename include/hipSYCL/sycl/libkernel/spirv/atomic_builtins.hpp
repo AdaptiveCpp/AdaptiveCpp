@@ -36,7 +36,7 @@
 
 namespace hipsycl {
 namespace sycl {
-namespace detail {
+namespace detail::spirv_builtins {
 
 // TODO - Map the hipSYCL atomic interface to SPIR-V atomics.
 // This seems to require mapping generic pointers to ones with

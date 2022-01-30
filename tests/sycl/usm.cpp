@@ -200,10 +200,13 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
   });
 
   q.parallel_for<class usm_alloc_pf>(sycl::range<1>{test_size},
-                                     [=](sycl::id<1> idx) {
-                                       shared_allocation[idx.get(0)] += 1;
-                                       explicit_allocation[idx.get(0)] += 1;
-                                       mapped_host_allocation[idx.get(0)] += 1;
+                                     [=] (sycl::id<1> idx) {
+                                       // Use idx directly to also make sure
+                                       // that implicit conversion to size_t
+                                       // works
+                                       shared_allocation[idx] += 1;
+                                       explicit_allocation[idx] += 1;
+                                       mapped_host_allocation[idx] += 1;
                                      });
 
   q.parallel_for<class usm_alloc_ndrange_pf>(

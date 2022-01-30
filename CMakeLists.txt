@@ -78,6 +78,7 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 set(WITH_CPU_BACKEND true)
 
@@ -85,13 +86,24 @@ if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
   find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
   message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
+
+  find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)
   set(DEFAULT_PLATFORM "rocm")
 else()
   set(DEFAULT_PLATFORM "cpu")
 endif()
 
-if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND)
+if(WITH_CUDA_NVCXX_ONLY)
+  if(NVCXX_COMPILER MATCHES "-NOTFOUND")
+      message(SEND_ERROR "Could not find nvc++ executable, specifiy with -DNVCXX_COMPILER=")
+  endif()
+endif()
+
+if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
+if(WITH_ROCM_BACKEND)
   set(BUILD_CLANG_PLUGIN true)
 endif()
 
@@ -117,8 +129,8 @@ if(BUILD_CLANG_PLUGIN)
   endif()
   message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
 
-  get_filename_component(LLVM_BIN_DIR ${CLANG_EXECUTABLE_PATH} DIRECTORY)
-  get_filename_component(LLVM_PREFIX_DIR ${LLVM_BIN_DIR} DIRECTORY)
+  get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
+  get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
   # to let syclcc-clang fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
@@ -166,9 +178,9 @@ else()
 endif()
 
 if(Boost_FIBER_LIBRARY_DEBUG)
-  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_DEBUG}" DIRECTORY)
 elseif(Boost_FIBER_LIBRARY_RELEASE)
-  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
+  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_RELEASE}" DIRECTORY)
 else()
   get_target_property(FIBER_IMPORT_LIBRARY Boost::fiber IMPORTED_LOCATION_DEBUG)
   if(NOT FIBER_IMPORT_LIBRARY)
@@ -203,11 +215,11 @@ else()
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME ${Boost_CONTEXT_LIBRARY_DEBUG} NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME ${Boost_FIBER_LIBRARY_DEBUG} NAME)
+  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_DEBUG}" NAME)
+  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_DEBUG}" NAME)
 else()
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME ${Boost_CONTEXT_LIBRARY_RELEASE} NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME ${Boost_FIBER_LIBRARY_RELEASE} NAME)
+  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_RELEASE}" NAME)
+  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_RELEASE}" NAME)
 endif()
 set(DEFAULT_WIN32_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} ${DEFAULT_OMP_FLAG}")
 set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} -llibomp")
@@ -281,6 +293,7 @@ endif()
 
 set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
+  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",

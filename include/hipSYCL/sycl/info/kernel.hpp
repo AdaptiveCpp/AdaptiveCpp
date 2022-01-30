@@ -49,12 +49,45 @@ enum class kernel : int {
   attributes
 };
 
+namespace kernel_device_specific {
+
+struct global_work_size {
+  using return_type = range<3>;
+};
+struct work_group_size {
+  using return_type = std::size_t;
+};
+struct compile_work_group_size {
+  using return_type = range<3>;
+};
+struct preferred_work_group_size_multiple {
+  using return_type = std::size_t;
+};
+struct private_mem_size {
+  using return_type = std::size_t;
+};
+struct max_num_sub_groups {
+  using return_type = uint32_t;
+};
+struct compile_num_sub_groups {
+  using return_type = uint32_t;
+};
+struct max_sub_group_size {
+  using return_type = uint32_t;
+};
+struct compile_sub_group_size {
+  using return_type = uint32_t;
+};
+
+}  // namespace kernel_device_specific
+
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::function_name, string_class);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::num_args, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::context, sycl::context);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::program, sycl::program);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::reference_count, detail::u_int);
 HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::attributes, string_class);
+
 
 enum class kernel_work_group : int
 {

@@ -620,7 +620,7 @@ class ScopedGroup {
 The following group algorithms are supported for scoped parallelism groups:
 * `group_barrier()`
 * `joint_*` functions (not yet implemented)
-* `*_over_group` functions for arguments of type `const s_private_memory<T>&` (not yet implemented)
+* `*_over_group` functions for arguments of private memory wrapper type obtained from `sycl::memory_environment()` (not yet implemented)
 
 Group algorithms must be invoked outside of a `distribute_items()` call.
 

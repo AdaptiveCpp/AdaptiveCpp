@@ -115,7 +115,9 @@ struct device_array<T, 0>
   }
 };
 
-#if !HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
+// Use HIPSYCL_LIBKERNEL_IS_DEVICE_PASS to make sure that this is also
+// enabled for backends with unified host-device pass
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
 
 template<class T>
 struct device_array<T, 1>

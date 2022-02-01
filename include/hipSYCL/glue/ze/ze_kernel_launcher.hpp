@@ -63,8 +63,8 @@ namespace ze_dispatch {
 
 
 
-#ifdef SYCL_DEVICE_ONLY
-#define __sycl_kernel __attribute__((sycl_kernel))
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
+#define __sycl_kernel [[clang::sycl_kernel]]
 #else
 #define __sycl_kernel
 #endif
@@ -178,7 +178,7 @@ public:
 #else
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
                                 group_size, local_mem, ...)                    \
-  invoke_from_module<KernelName, KernelBodyT>(num_groups, group_size,          \
+  invoke_from_module<KernelNameT, KernelBodyT>(num_groups, group_size,          \
                                               local_mem, __VA_ARGS__);
 #endif
 
@@ -417,6 +417,10 @@ private:
         this_module::get_code_object<rt::backend_id::level_zero>("spirv");
     assert(kernel_image && "Invalid kernel image object");
 
+    // Earlier versions of LLVM SYCL/DPC++ would pass the packed
+    // kernel as individual array elements, while newer versions
+    // pass it as a single argument.
+#ifdef HIPSYCL_SPIRV_LEGACY_KERNEL_ARG_PASSING
     std::array<void *, kernel.get_num_components()> kernel_args;
     std::array<std::size_t, kernel.get_num_components()> arg_sizes;
 
@@ -424,6 +428,12 @@ private:
       arg_sizes[i] = kernel.get_component_size();
       kernel_args[i] = static_cast<void*>(kernel.get_components() + i);
     }
+#else
+    std::array<void *, 1> kernel_args{
+        static_cast<void *>(kernel.get_components())};
+    std::array<std::size_t, 1> arg_sizes{kernel.get_num_components() *
+                                         kernel.get_component_size()};
+#endif
 
     std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();

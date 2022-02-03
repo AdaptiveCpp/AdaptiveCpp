@@ -101,7 +101,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04]
-        cuda_version: ['11.4']
+        cuda_version: ['11.5']
     steps:
     - uses: actions/checkout@v2
       with:
@@ -112,13 +112,13 @@ jobs:
         sudo apt install cmake libboost-all-dev wget
     - name: install nvcxx
       run: |
-        wget https://developer.download.nvidia.com/hpc-sdk/21.9/nvhpc-21-9_21.9_amd64.deb
-        wget https://developer.download.nvidia.com/hpc-sdk/21.9/nvhpc-2021_21.9_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/22.1/nvhpc-22-1_22.1_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/22.1/nvhpc-2022_22.1_amd64.deb
         sudo apt install ./nvhpc-*
     - name: build hipSYCL
       run: |
         mkdir build && cd build
-        export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/21.9
+        export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/22.1
         export NV_HPC_CUDA_ROOT=${NV_HPC_SDK_ROOT}/cuda/${{matrix.cuda_version}}
         cmake -DNVCXX_COMPILER=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ -DWITH_CUDA_BACKEND=ON -DWITH_CUDA_NVCXX_ONLY=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=${NV_HPC_CUDA_ROOT} ..
         make -j2 install

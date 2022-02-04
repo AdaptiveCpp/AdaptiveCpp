@@ -110,6 +110,7 @@ public:
 
   HIPSYCL_UNIVERSAL_TARGET
   id(const range<dimensions> &range) {
+    /* loop peel to help uniformity analysis */ \
     this->_data[0] = range[0];
     for(std::size_t i = 1; i < dimensions; ++i)
       this->_data[i] = range[i];
@@ -118,6 +119,7 @@ public:
   template<bool with_offset>
   HIPSYCL_UNIVERSAL_TARGET
   id(const item<dimensions, with_offset> &item) {
+    /* loop peel to help uniformity analysis */ \
     this->_data[0] = item.get_id(0);
     for(std::size_t i = 1; i < dimensions; ++i)
       this->_data[i] = item.get_id(i);
@@ -151,6 +153,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET  \
   friend id<dimensions> operator op(const id<dimensions> &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result; \
+    /* loop peel to help uniformity analysis */ \
     result._data[0] = static_cast<std::size_t>(lhs._data[0] op rhs._data[0]); \
     for(std::size_t i = 1; i < dimensions; ++i) \
       result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs._data[i]); \
@@ -180,6 +183,7 @@ public:
   friend id<dimensions> operator op(const id<dimensions> &lhs,                 \
                                     const T &rhs) {                            \
     id<dimensions> result;                                                     \
+    /* loop peel to help uniformity analysis */ \
     result._data[0] = static_cast<T>(lhs._data[0] op rhs);                                                                           \
     for (std::size_t i = 1; i < dimensions; ++i)                               \
       result._data[i] = static_cast<T>(lhs._data[i] op rhs);                   \
@@ -216,6 +220,7 @@ public:
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET \
   friend id<dimensions>& operator op(id<dimensions> &lhs, const id<dimensions> &rhs) { \
+    /* loop peel to help uniformity analysis */ \
     lhs._data[0] op rhs._data[0]; \
     for(std::size_t i = 1; i < dimensions; ++i) \
       lhs._data[i] op rhs._data[i]; \
@@ -237,6 +242,7 @@ public:
   template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>     \
   HIPSYCL_UNIVERSAL_TARGET                                                \
   friend id<dimensions>& operator op(id<dimensions> &lhs, const T &rhs) { \
+    /* loop peel to help uniformity analysis */ \
     lhs._data[0] op rhs;                                                  \
     for(std::size_t i = 1; i < dimensions; ++i)                           \
       lhs._data[i] op rhs;                                                \
@@ -259,6 +265,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET                                                     \
   friend id<dimensions> operator op(const T &lhs, const id<dimensions> &rhs) { \
     id<dimensions> result;                                                     \
+    /* loop peel to help uniformity analysis */ \
     result[0] = lhs op rhs[0];                                                 \
     for(std::size_t i = 1; i < dimensions; ++i)                                \
       result[i] = lhs op rhs[i];                                               \

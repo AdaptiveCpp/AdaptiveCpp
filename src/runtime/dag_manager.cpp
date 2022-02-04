@@ -71,9 +71,8 @@ void dag_manager::flush_async()
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: Submitting asynchronous flush..."
                      << std::endl;
-
-  _worker([this](){
-    if(_builder->get_current_dag_size() > 0){
+  if(_builder->get_current_dag_size() > 0){
+    _worker([this](){
       // Construct new DAG
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
 
@@ -121,10 +120,11 @@ void dag_manager::flush_async()
       }
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
                          << std::endl;
-    } else {
-      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
-    }
-  });
+    
+    });
+  } else {
+    HIPSYCL_DEBUG_INFO << "dag_manager: Nothing to do" << std::endl;
+  }
 }
 
 void dag_manager::flush_sync()

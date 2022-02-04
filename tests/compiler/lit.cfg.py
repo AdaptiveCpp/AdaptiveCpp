@@ -11,9 +11,6 @@ config.test_exec_root = os.path.join(config.my_obj_root, 'test')
 
 config.substitutions.append(('%syclcc', config.hipsycl_syclcc))
 
-hipsycl_pipeline = "cbs"
-if "HIPSYCL_PIPELINE" in os.environ:
-  hipsycl_pipeline = os.environ["HIPSYCL_PIPELINE"]
-config.environment["HIPSYCL_PIPELINE"] = hipsycl_pipeline
-
-config.available_features.add(hipsycl_pipeline)
+if "HIPSYCL_DEBUG_LEVEL" in os.environ:
+  config.environment["HIPSYCL_DEBUG_LEVEL"] = os.environ["HIPSYCL_DEBUG_LEVEL"]
+  

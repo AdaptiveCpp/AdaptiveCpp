@@ -148,6 +148,15 @@ public:
     throw unimplemented{"context::get_info() is unimplemented"};
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
+  }
+
+  friend bool operator ==(const context& lhs, const context& rhs)
+  { return lhs._impl == rhs._impl; }
+
+  friend bool operator!=(const context& lhs, const context &rhs)
+  { return !(lhs == rhs); }
 private:
   void init(async_handler handler) {
     _impl = std::make_shared<context_impl>();
@@ -198,6 +207,17 @@ inline const rt::unique_device_list &extract_context_devices(const context &ctx)
 } // namespace sycl
 } // namespace hipsycl
 
+namespace std {
 
+template <>
+struct hash<hipsycl::sycl::context>
+{
+  std::size_t operator()(const hipsycl::sycl::context& c) const
+  {
+    return c.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

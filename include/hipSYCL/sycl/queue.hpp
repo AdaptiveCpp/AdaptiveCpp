@@ -48,6 +48,7 @@
 #include "info/info.hpp"
 #include "detail/function_set.hpp"
 
+#include <cstddef>
 #include <exception>
 #include <memory>
 #include <mutex>
@@ -847,7 +848,9 @@ public:
     });  
   }
 
-
+  std::size_t hipSYCL_hash_code() const {
+    return _node_group_id;
+  }
 private:
   template<int Dim>
   void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
@@ -1099,6 +1102,16 @@ inline auto automatic_require(queue &q,
 }// namespace sycl
 }// namespace hipsycl
 
+namespace std {
+template <>
+struct hash<hipsycl::sycl::queue>
+{
+  std::size_t operator()(const hipsycl::sycl::queue& q) const
+  {
+    return q.hipSYCL_hash_code();
+  }
+};
 
+}
 
 #endif

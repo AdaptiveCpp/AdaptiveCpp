@@ -62,7 +62,12 @@ private:
   HIPSYCL_KERNEL_TARGET
   T &get(const sycl::id<dimensions> &id,
          const sycl::range<dimensions> &local_range) const noexcept {
-    return _data[detail::linear_id<dimensions>::get(id, local_range)];
+    __hipsycl_if_target_host(
+      return _data[detail::linear_id<dimensions>::get(id, local_range)];
+    );
+    __hipsycl_if_target_device(
+      return *_data;
+    );
   }
 };
 

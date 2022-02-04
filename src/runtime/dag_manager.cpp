@@ -72,11 +72,11 @@ void dag_manager::flush_async()
   HIPSYCL_DEBUG_INFO << "dag_manager: Submitting asynchronous flush..."
                      << std::endl;
   if(_builder->get_current_dag_size() > 0){
-    _worker([this](){
+    dag new_dag = _builder->finish_and_reset();
+
+    _worker([this, new_dag](){
       // Construct new DAG
       HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
-
-      dag new_dag = _builder->finish_and_reset();
       
       // Release any old users of memory buffers used in this dag
       for(dag_node_ptr req : new_dag.get_memory_requirements()){

@@ -1,3 +1,14 @@
+//===- hipsycl/compiler/cbs/MathUtils.hpp - Math helpers --*- C++ -*-===//
+//
+// Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Adaptations: Includes / Namespace, formatting
+//
+//===----------------------------------------------------------------------===//
+
+
 #ifndef RV_UTILS_MATHUTILS_H_
 #define RV_UTILS_MATHUTILS_H_
 

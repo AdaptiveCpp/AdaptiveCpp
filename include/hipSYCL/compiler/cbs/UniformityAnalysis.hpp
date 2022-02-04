@@ -1,8 +1,11 @@
-//===- rv/analysis/VectorizationAnalysis.h - divergence analysis --*- C++ -*-===//
+//===- hipSYCL/compiler/cbs/UniformityAnalysis.hpp - divergence analysis --*- C++ -*-===//
 //
 // Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Adaptations: Use local or LLVM SDA depending on the LLVM version
+// Remove dependency on VectorMapping and having a dedicated FunctionAnalysisManager
 //
 //===----------------------------------------------------------------------===//
 

@@ -1,8 +1,12 @@
-//===- src/analysis/VectorizationAnalysis.cpp - analyze divergence -*- C++ -*-===//
+//===- src/compiler/cbs/UniformityAnalysis.cpp - analyze divergence -*- C++ -*-===//
 //
 // Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Main Adaptations: compitability with LLVM 14 (e.g. getNumArgOperands() -> args())
+// Don't use FAM for analyses, but pass them in directly.
+// Small fix and cleanups.
 //
 //===----------------------------------------------------------------------===//
 

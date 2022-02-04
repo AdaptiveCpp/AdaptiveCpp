@@ -1,8 +1,10 @@
-//===- src/analysis/AllocaSSA.cpp - state monads for allocas --*- C++ -*-===//
+//===- src/compiler/cbs/AllocaSSA.cpp - state monads for allocas --*- C++ -*-===//
 //
-// Part of the RV Project, under the Apache License v2.0 with LLVM Exceptions.
+// Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Adaptations: Includes, formatting
 //
 //===----------------------------------------------------------------------===//
 

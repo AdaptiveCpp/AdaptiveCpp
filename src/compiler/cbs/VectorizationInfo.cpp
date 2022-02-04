@@ -1,9 +1,11 @@
-//===- rv/vectorizationInfo.cpp - vectorizer IR using an overlay object --*- C++ -*-===//
+//===- src/compiler/cbs/VectorizationInfo.cpp - vectorizer IR using an overlay object --*- C++ -*-===//
 //
-// Part of the RV Project, under the Apache License v2.0 with LLVM Exceptions.
+// Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+// Adaptations: Get rid of unnecessary dependencies (VectorMapping)
+// 
 //===----------------------------------------------------------------------===//
 //
 

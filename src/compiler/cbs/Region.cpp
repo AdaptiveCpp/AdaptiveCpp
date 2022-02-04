@@ -1,8 +1,10 @@
-//===- src/region/Region.cpp - abstract CFG region --*- C++ -*-===//
+//===- src/compiler/cbs/Region.cpp - abstract CFG region --*- C++ -*-===//
 //
-// Part of the RV Project, under the Apache License v2.0 with LLVM Exceptions.
+// Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Adaptiations: Merged Region definitions in a single file.
 //
 //===----------------------------------------------------------------------===//
 //

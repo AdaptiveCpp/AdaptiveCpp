@@ -1,8 +1,10 @@
-//===- rv/shape/vectorShapeTransformer.h - (s,a)-lattice abstract transformers --*- C++ -*-===//
+//===- hipSYCL/compiler/cbs/vectorShapeTransformer.h - (s,a)-lattice abstract transformers --*- C++ -*-===//
 //
-// Part of the RV Project, under the Apache License v2.0 with LLVM Exceptions.
+// Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+// Adaptations: Namespace & formatting
 //
 //===----------------------------------------------------------------------===//
 //

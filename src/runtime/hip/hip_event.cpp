@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_event.hpp"
+#include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {

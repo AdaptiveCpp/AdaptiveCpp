@@ -107,12 +107,13 @@ BOOST_AUTO_TEST_CASE(group_x_of_local) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-  const uint32_t subgroup_size = static_cast<uint32_t>(__hipsycl_warp_size);
+  const uint32_t subgroup_size = detail::get_subgroup_size(sycl::queue{});
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {
@@ -337,12 +338,13 @@ BOOST_AUTO_TEST_CASE(group_x_of_function) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET)
 BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
   using T = char;
 
   const size_t   elements_per_thread = 1;
-  const uint32_t subgroup_size       = static_cast<uint32_t>(__hipsycl_warp_size);
+  const uint32_t subgroup_size = detail::get_subgroup_size(sycl::queue{});
 
   const auto data_generator = [](std::vector<T> &v, size_t local_size,
                                  size_t global_size) {

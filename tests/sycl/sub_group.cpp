@@ -26,6 +26,7 @@
  */
 
 
+#include "hipSYCL/sycl/info/device.hpp"
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
@@ -79,13 +80,15 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   auto host_acc2 = buff2d.get_access<s::access::mode::read>();
   auto host_acc3 = buff3d.get_access<s::access::mode::read>();
 
-#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
-  const uint32_t subgroup_size = static_cast<uint32_t>(__hipsycl_warp_size);
-#elif defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
-  const uint32_t subgroup_size = 32;
-#else
-  const uint32_t subgroup_size = 1;
-#endif
+  const s::device dev = q.get_device();
+  const std::vector<size_t> supported_subgroup_sizes =
+      dev.get_info<cl::sycl::info::device::sub_group_sizes>();
+  BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
+  const unsigned int max_num_subgroups =
+      dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
+  BOOST_CHECK(max_num_subgroups >= 1U);
+
+  uint32_t subgroup_size = supported_subgroup_sizes[0];
 
   for (size_t i = 0; i < size1d[0]; ++i) {
     size_t lid = i % local_size1d[0];
@@ -110,15 +113,6 @@ BOOST_AUTO_TEST_CASE(sub_group) {
       }
     }
   }
-
-  const s::device dev = q.get_device();
-  const std::vector<size_t> supported_subgroup_sizes =
-      dev.get_info<cl::sycl::info::device::sub_group_sizes>();
-  BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
-  BOOST_CHECK(supported_subgroup_sizes[0] == subgroup_size);
-  const unsigned int max_num_subgroups =
-      dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
-  BOOST_CHECK(max_num_subgroups >= 1U);
 }
 
 

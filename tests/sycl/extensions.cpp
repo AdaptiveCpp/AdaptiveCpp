@@ -27,9 +27,12 @@
 
 
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/backend.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/event.hpp"
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
+#include "hipSYCL/sycl/libkernel/cuda/cuda_backend.hpp"
+#include "hipSYCL/sycl/libkernel/hip/hip_backend.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/handler.hpp"
 #include "hipSYCL/sycl/queue.hpp"
@@ -427,20 +430,11 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
 }
 #endif
 #ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
-BOOST_AUTO_TEST_CASE(custom_enqueue) {
+
+template<cl::sycl::backend B>
+void test_interop(cl::sycl::queue& q) {
   using namespace cl;
 
-#ifdef HIPSYCL_PLATFORM_CUDA
-  constexpr sycl::backend target_be = sycl::backend::cuda;
-#elif defined(HIPSYCL_PLATFORM_HIP)
-  constexpr sycl::backend target_be = sycl::backend::hip;
-#elif defined(HIPSYCL_PLATFORM_SPIRV)
-  constexpr sycl::backend target_be = sycl::backend::level_zero;
-#else
-  constexpr sycl::backend target_be = sycl::backend::omp;
-#endif
-
-  sycl::queue q;
   const std::size_t test_size = 1024;
 
   std::vector<int> initial_data(test_size, 14);
@@ -454,39 +448,65 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
     cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
       // All backends support obtaining native memory
-      void *native_mem = h.get_native_mem<target_be>(acc);
+      void *native_mem = h.get_native_mem<B>(acc);
 
       // OpenMP backend doesn't support extracting a native queue or device
-#ifdef HIPSYCL_PLATFORM_CUDA
-      auto stream = h.get_native_queue<target_be>();
-      // dev is not really used, just test that this function call works for now
-      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
-          h.get_native_device<target_be>();
-
-      cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
-                      cudaMemcpyDeviceToHost, stream);
-
-#elif defined(HIPSYCL_PLATFORM_HIP)
-      
-      auto stream = h.get_native_queue<target_be>();
-      // dev is not really used, just test that this function call works for now
-      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
-          h.get_native_device<target_be>();
-
-      hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
-                      hipMemcpyDeviceToHost, stream);
+      if constexpr(B == sycl::backend::cuda) {
+        auto stream = h.get_native_queue<B>();
+        // dev is not really used, just test that this function call works for now
+        typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
+            h.get_native_device<B>();
+        
+        // Even though we can target multiple backends simultaneously,
+        // the HIP headers cannot be included simultaneously with CUDA.
+        // We can therefore only directly call either CUDA or HIP runtime functions.
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+        cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                        cudaMemcpyDeviceToHost, stream);
 #endif
+      }
+      else if constexpr(B == sycl::backend::hip) {
+      
+        auto stream = h.get_native_queue<B>();
+        // dev is not really used, just test that this function call works for now
+        typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
+            h.get_native_device<B>();
+        
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+        hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                        hipMemcpyDeviceToHost, stream);
+#endif
+      }
     });
   });
 
   q.wait();
 
-  if constexpr (target_be == sycl::backend::cuda ||
-                target_be == sycl::backend::hip) {
+  constexpr bool has_hip_memcpy_test = (B == sycl::backend::hip) &&
+                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP;
+  constexpr bool has_cuda_memcpy_test = (B == sycl::backend::cuda) &&
+                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA;
+  if constexpr (has_hip_memcpy_test || has_cuda_memcpy_test) {
     for (std::size_t i = 0; i < test_size; ++i) {
       BOOST_TEST(initial_data[i] == target_data[i]);
     }
   }
+}
+
+BOOST_AUTO_TEST_CASE(custom_enqueue) {
+  using namespace cl;
+
+  sycl::queue q;
+  sycl::backend b = q.get_device().get_backend();
+  
+  if(b == sycl::backend::cuda)
+    test_interop<sycl::backend::cuda>(q);
+  else if(b == sycl::backend::hip)
+    test_interop<sycl::backend::hip>(q);
+  else if(b == sycl::backend::level_zero)
+    test_interop<sycl::backend::level_zero>(q);
+  else if(b == sycl::backend::omp)
+    test_interop<sycl::backend::omp>(q);
 }
 #endif
 #ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET

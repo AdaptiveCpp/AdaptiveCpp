@@ -37,6 +37,8 @@
 #ifndef HIPSYCL_GLUE_CUDA_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_CUDA_BACKEND_INTEROP_HPP
 
+struct CUstream_st;
+
 namespace hipsycl {
 namespace glue {
 

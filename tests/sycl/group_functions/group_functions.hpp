@@ -58,6 +58,16 @@ using test_types = boost::mpl::list<char, unsigned int, float, double, sycl::vec
 
 namespace detail {
 
+inline uint32_t get_subgroup_size(const sycl::queue& q) {
+  auto sizes = q.get_device().get_info<sycl::info::device::sub_group_sizes>();
+  assert(sizes.size() > 0);
+  return static_cast<uint32_t>(sizes[0]);
+}
+
+inline uint32_t get_subgroup_size() {
+  return get_subgroup_size(sycl::queue{});
+}
+
 template<typename T>
 using elementType = std::remove_reference_t<decltype(T{}.s0())>;
 
@@ -271,19 +281,19 @@ template<int CallingLine, typename T, typename DataGenerator, typename TestedFun
          typename ValidationFunction>
 void test_nd_group_function_1d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
-// currently only groupsizes between 128 and 256 are supportet for HIP
-#ifdef HIPSYCL_PLATFORM_ROCM
-  std::vector<size_t> local_sizes  = {256};
-  std::vector<size_t> global_sizes = {1024};
-#else
+  sycl::queue    queue;
   std::vector<size_t> local_sizes  = {25, 144, 256};
   std::vector<size_t> global_sizes = {100, 576, 1024};
-#endif
+  // currently only groupsizes between 128 and 256 are supported for HIP
+  if(queue.get_device().get_backend() == sycl::backend::hip) {
+    local_sizes = std::vector<size_t>{256};
+    global_sizes = std::vector<size_t>{1024};
+  }
+
   for (int i = 0; i < local_sizes.size(); ++i) {
     size_t local_size  = local_sizes[i];
     size_t global_size = global_sizes[i];
 
-    sycl::queue    queue;
     std::vector<T> host_buf(elements_per_thread * global_size, T{});
 
     dg(host_buf, local_size, global_size);
@@ -318,19 +328,21 @@ template<int CallingLine, typename T, typename DataGenerator, typename TestedFun
          typename ValidationFunction>
 void test_nd_group_function_2d(size_t elements_per_thread, DataGenerator dg,
                                TestedFunction f, ValidationFunction vf) {
-// currently only groupsizes between 128 and 256 are supportet for HIP
-#ifdef HIPSYCL_PLATFORM_ROCM
-  std::vector<size_t> local_sizes  = {16};
-  std::vector<size_t> global_sizes = {32};
-#else
+  sycl::queue    queue;
+
   std::vector<size_t> local_sizes  = {5, 12, 16};
   std::vector<size_t> global_sizes = {10, 24, 32};
-#endif
+
+  if(queue.get_device().get_backend() == sycl::backend::hip) {
+    // currently only groupsizes between 128 and 256 are supported for HIP
+    local_sizes = std::vector<size_t>{16};
+    global_sizes = std::vector<size_t>{32};
+  }
+
   for (int i = 0; i < local_sizes.size(); ++i) {
     size_t local_size  = local_sizes[i];
     size_t global_size = global_sizes[i];
 
-    sycl::queue    queue;
     std::vector<T> host_buf(elements_per_thread * global_size * global_size, T{});
 
     dg(host_buf, local_size * local_size, global_size * global_size);

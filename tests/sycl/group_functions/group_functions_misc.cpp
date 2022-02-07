@@ -188,7 +188,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_broadcast, T, test_types) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
   const size_t   elements_per_thread = 1;
 
@@ -206,9 +207,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < vIn.size(); ++i) {
         int expected_base = i % local_size;
-        expected_base     = ((int)expected_base / __hipsycl_warp_size) * __hipsycl_warp_size;
+        expected_base = ((int)expected_base / subgroup_size) *
+                        subgroup_size;
         expected_base += ((int)i / local_size) * local_size;
 
         T expected = detail::initialize_type<T>(expected_base) +
@@ -237,9 +240,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < vIn.size(); ++i) {
         int expected_base = i % local_size;
-        expected_base     = ((int)expected_base / __hipsycl_warp_size) * __hipsycl_warp_size;
+        expected_base     = ((int)expected_base / subgroup_size) * subgroup_size;
         expected_base += ((int)i / local_size) * local_size + 10;
 
         T expected = detail::initialize_type<T>(expected_base) +
@@ -268,9 +272,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < vIn.size(); ++i) {
         int expected_base = i % local_size;
-        expected_base     = ((int)expected_base / __hipsycl_warp_size) * __hipsycl_warp_size;
+        expected_base     = ((int)expected_base / subgroup_size) * subgroup_size;
         expected_base += ((int)i / local_size) * local_size + 10;
 
         T expected = detail::initialize_type<T>(expected_base) +
@@ -442,7 +447,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
+#if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -459,10 +465,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < global_size / local_size; ++i) {
-        for (size_t j = 0; j < (local_size + __hipsycl_warp_size - 1) / __hipsycl_warp_size; ++j) {
-          for (size_t k = 0; k < __hipsycl_warp_size; ++k) {
-            size_t local_index  = j * __hipsycl_warp_size + k;
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
             size_t global_index = i * local_size + local_index;
 
             if (local_index >= local_size) // keep to work group size
@@ -472,7 +479,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
                          detail::get_offset<T>(global_size, 1);
 
             if (local_index == local_size - 1 ||
-                k == __hipsycl_warp_size - 1) // not defined for last work item
+                k == subgroup_size - 1) // not defined for last work item
               continue;
 
             T computed = vIn[global_index];
@@ -503,10 +510,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < global_size / local_size; ++i) {
-        for (size_t j = 0; j < (local_size + __hipsycl_warp_size - 1) / __hipsycl_warp_size; ++j) {
-          for (size_t k = 0; k < __hipsycl_warp_size; ++k) {
-            size_t local_index  = j * __hipsycl_warp_size + k;
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
             size_t global_index = i * local_size + local_index;
 
             if (local_index >= local_size) // keep to work group size
@@ -546,10 +554,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
     const auto validation_function = [](const std::vector<T> &vIn,
                                         const std::vector<T> &vOrig, size_t local_size,
                                         size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < global_size / local_size; ++i) {
-        for (size_t j = 0; j < (local_size + __hipsycl_warp_size - 1) / __hipsycl_warp_size; ++j) {
-          for (size_t k = 0; k < __hipsycl_warp_size; ++k) {
-            size_t local_index  = j * __hipsycl_warp_size + k;
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
             size_t global_index = i * local_size + local_index;
 
             if (local_index >= local_size) // keep to work group size
@@ -559,7 +568,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
                          detail::get_offset<T>(global_size, 1);
 
             if ((local_index ^ 1) >= local_size ||
-                (k ^ 1) >= __hipsycl_warp_size) // only defined if target is in subgroup
+                (k ^ 1) >= subgroup_size) // only defined if target is in subgroup
               continue;
 
             T computed = vIn[global_index];
@@ -590,16 +599,17 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
   const auto validation_function = [](const std::vector<T> &vIn,
                                       const std::vector<T> &vOrig, size_t local_size,
                                       size_t global_size) {
+      auto subgroup_size = detail::get_subgroup_size();
       for (size_t i = 0; i < global_size / local_size; ++i) {
-        for (size_t j = 0; j < (local_size + __hipsycl_warp_size - 1) / __hipsycl_warp_size; ++j) {
-          for (size_t k = 0; k < __hipsycl_warp_size; ++k) {
-            size_t local_index  = j * __hipsycl_warp_size + k;
+        for (size_t j = 0; j < (local_size + subgroup_size - 1) / subgroup_size; ++j) {
+          for (size_t k = 0; k < subgroup_size; ++k) {
+            size_t local_index  = j * subgroup_size + k;
             size_t global_index = i * local_size + local_index;
 
             if (local_index >= local_size) // keep to work group size
               break;
 
-            T expected = detail::initialize_type<T>(i*local_size + j*__hipsycl_warp_size) +
+            T expected = detail::initialize_type<T>(i*local_size + j*subgroup_size) +
                          detail::get_offset<T>(global_size, 1);
 
             T computed = vIn[global_index];

@@ -640,15 +640,16 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
   q.wait();
 
-#ifdef HIPLIKE_MODEL
-  BOOST_TEST(gsize[0] == group_size1d.size());
-  BOOST_TEST(gsize[1] == group_size2d.size());
-  BOOST_TEST(gsize[2] == group_size3d.size());
-#else
-  BOOST_TEST(gsize[0] == 1);
-  BOOST_TEST(gsize[1] == 2);
-  BOOST_TEST(gsize[2] == 3);
-#endif
+  if(q.get_device().get_backend() == sycl::backend::cuda || 
+    q.get_device().get_backend() == sycl::backend::hip) {
+    BOOST_TEST(gsize[0] == group_size1d.size());
+    BOOST_TEST(gsize[1] == group_size2d.size());
+    BOOST_TEST(gsize[2] == group_size3d.size());
+  } else {
+    BOOST_TEST(gsize[0] == 1);
+    BOOST_TEST(gsize[1] == 2);
+    BOOST_TEST(gsize[2] == 3);
+  }
 
   sycl::free(gsize, q);
 }

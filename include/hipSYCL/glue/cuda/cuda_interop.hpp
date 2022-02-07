@@ -59,7 +59,6 @@ template <> struct backend_interop<sycl::backend::cuda> {
     return sycl::detail::extract_rt_device(d).get_id();
   }
 
-#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   static native_queue_type
   get_native_queue(void *launcher_params) {
 
@@ -94,7 +93,6 @@ template <> struct backend_interop<sycl::backend::cuda> {
 
     return static_cast<native_queue_type>(q->get_native_type());
   }
-#endif
       
   static sycl::device make_sycl_device(int device_id) {
     return sycl::device{

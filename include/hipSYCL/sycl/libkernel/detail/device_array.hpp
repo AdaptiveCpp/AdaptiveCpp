@@ -61,30 +61,6 @@ struct device_array
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  iterator begin() noexcept
-  {
-    return &(_data[0]);
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  const_iterator begin() const noexcept
-  {
-    return &(_data[0]);
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  iterator end() noexcept
-  {
-    return begin() + N;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  const_iterator end() const noexcept
-  {
-    return begin() + N;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
   bool operator== (const device_array& other) const noexcept
   {
     for(size_t i = 0; i < N; ++i)
@@ -137,32 +113,207 @@ struct device_array<T, 0>
   {
     return *reinterpret_cast<T*>(0);
   }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  iterator begin() noexcept
-  {
-    return nullptr;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  const_iterator begin() const noexcept
-  {
-    return nullptr;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  iterator end() noexcept
-  {
-    return nullptr;
-  }
-
-  HIPSYCL_UNIVERSAL_TARGET
-  const_iterator end() const noexcept
-  {
-    return nullptr;
-  }
 };
 
+// Use HIPSYCL_LIBKERNEL_IS_DEVICE_PASS to make sure that this is also
+// enabled for backends with unified host-device pass
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS
+
+template<class T>
+struct device_array<T, 1>
+{
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  size_t size() const noexcept
+  {
+    return 1;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator== (const device_array& other) const noexcept
+  {
+    return _x == other._x;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator!= (const device_array& other) const noexcept
+  {
+    return !(*this == other);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  T& operator[] (size_t) noexcept
+  {
+    return _x;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  const T& operator[] (size_t) const noexcept
+  {
+    return _x;
+  }
+
+  T _x;
+};
+
+template<class T>
+struct device_array<T, 2>
+{
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  size_t size() const noexcept
+  {
+    return 2;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator== (const device_array& other) const noexcept
+  {
+    return _x == other._x && _y == other._y;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator!= (const device_array& other) const noexcept
+  {
+    return !(*this == other);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  T& operator[] (size_t idx) noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else
+      return _y;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  const T& operator[] (size_t idx) const noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else
+      return _y;
+  }
+
+  T _x;
+  T _y;
+};
+
+
+template<class T>
+struct device_array<T, 3>
+{
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  size_t size() const noexcept
+  {
+    return 3;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator== (const device_array& other) const noexcept
+  {
+    return _x == other._x && _y == other._y && _z == other._z;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator!= (const device_array& other) const noexcept
+  {
+    return !(*this == other);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  T& operator[] (size_t idx) noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else if(idx == 1)
+      return _y;
+    else
+      return _z;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  const T& operator[] (size_t idx) const noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else if(idx == 1)
+      return _y;
+    else
+      return _z;
+  }
+
+  T _x;
+  T _y;
+  T _z;
+};
+
+
+template<class T>
+struct device_array<T, 4>
+{
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  HIPSYCL_UNIVERSAL_TARGET
+  size_t size() const noexcept
+  {
+    return 4;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator== (const device_array& other) const noexcept
+  {
+    return _x == other._x && _y == other._y && _z == other._z && _w == other._w;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  bool operator!= (const device_array& other) const noexcept
+  {
+    return !(*this == other);
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  T& operator[] (size_t idx) noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else if(idx == 1)
+      return _y;
+    else if(idx == 2)
+      return _z;
+    else
+      return _w;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  const T& operator[] (size_t idx) const noexcept
+  {
+    if(idx == 0)
+      return _x;
+    else if(idx == 1)
+      return _y;
+    else if(idx == 2)
+      return _z;
+    else
+      return _w;
+  }
+
+  T _x;
+  T _y;
+  T _z;
+  T _w;
+};
+
+#endif // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 
 }
 }

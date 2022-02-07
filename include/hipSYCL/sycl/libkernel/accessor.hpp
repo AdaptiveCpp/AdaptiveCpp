@@ -815,6 +815,14 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    // TODO: This only really guarantees unique hash codes
+    // outside of kernels, on the host side.
+    // Once on device, the UID will contain the device pointer
+    // which might be aliased by multiple accessors.
+    return get_uid().hipSYCL_hash_code();
+  }
+
   HIPSYCL_UNIVERSAL_TARGET
   bool is_placeholder() const noexcept
   {
@@ -1570,6 +1578,10 @@ public:
   // const_reverse_iterator crbegin() const noexcept;
   // const_reverse_iterator crend() const noexcept;
 
+  std::size_t hipSYCL_hash_code() const {
+    return _impl.hipSYCL_hash_code();
+  }
+
 private:
   accessor_type _impl;
 };
@@ -1676,6 +1688,10 @@ public:
   friend bool operator!=(const accessor& lhs, const accessor& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return _addr;
   }
 
   [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
@@ -1825,5 +1841,31 @@ glue::unique_id get_unique_id(const AccessorType& acc) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename dataT, int dimensions, hipsycl::sycl::access_mode accessmode,
+          hipsycl::sycl::target accessTarget,
+          hipsycl::sycl::accessor_variant AccessorVariant>
+struct hash<hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant>> {
+  std::size_t
+  operator()(const hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+// accessor also covers the local_accessor specialization
+
+template<typename dataT, int dimensions, hipsycl::sycl::access_mode A>
+struct hash<hipsycl::sycl::host_accessor<dataT, dimensions, A>> {
+
+  std::size_t operator()(
+      const hipsycl::sycl::host_accessor<dataT, dimensions, A> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

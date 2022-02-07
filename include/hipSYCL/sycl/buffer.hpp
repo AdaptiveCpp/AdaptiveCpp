@@ -613,14 +613,24 @@ public:
     return _range;
   }
 
-  std::size_t get_count() const
+  std::size_t size() const noexcept
   {
     return _range.size();
   }
 
+  std::size_t byte_size() const noexcept
+  {
+    return size() * sizeof(T);
+  }
+
   std::size_t get_size() const
   {
-    return get_count() * sizeof(T);
+    return byte_size();
+  }
+
+  std::size_t get_count() const
+  {
+    return size();
   }
 
   AllocatorT get_allocator() const
@@ -752,6 +762,10 @@ public:
   friend bool operator!=(const buffer& lhs, const buffer& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
   }
 
   // --- The following methods are part the hipSYCL buffer introspection API
@@ -1181,5 +1195,19 @@ extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename T, int dimensions,
+          typename AllocatorT>
+struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
+{
+  std::size_t
+  operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
+    return b.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

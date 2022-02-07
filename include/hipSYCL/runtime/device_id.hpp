@@ -156,7 +156,17 @@ struct hash<hipsycl::rt::device_id>
   std::size_t operator()(const hipsycl::rt::device_id& k) const
   {
     return hash<int>()(static_cast<int>(k.get_backend())) ^ 
-          (hash<int>()(k.get_id()) << 1);
+          (hash<int>()(k.get_id()) << 8);
+  }
+};
+
+template <>
+struct hash<hipsycl::rt::platform_id>
+{
+  std::size_t operator()(const hipsycl::rt::platform_id& p) const
+  {
+    return hash<int>()(static_cast<int>(p.get_backend())) ^ 
+          (hash<int>()(p.get_platform()) << 8);
   }
 };
 

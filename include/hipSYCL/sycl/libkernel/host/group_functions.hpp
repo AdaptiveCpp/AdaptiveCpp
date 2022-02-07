@@ -238,7 +238,7 @@ inline bool __hipsycl_all_of_group(group<Dim> g, bool pred) {
 
 HIPSYCL_KERNEL_TARGET
 inline bool __hipsycl_all_of_group(sub_group g, bool pred) {
-  return !pred;
+  return pred;
 }
 
 // none_of
@@ -293,7 +293,7 @@ inline bool __hipsycl_none_of_group(group<Dim> g, bool pred) {
 
 HIPSYCL_KERNEL_TARGET
 inline bool __hipsycl_none_of_group(sub_group g, bool pred) {
-  return pred;
+  return !pred;
 }
 
 // reduce

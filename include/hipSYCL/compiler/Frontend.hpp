@@ -171,6 +171,7 @@ inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *M
 }
 
 // Partially taken from CGCUDANV.cpp
+#if LLVM_VERSION_MAJOR >= 13
 inline std::string
 getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
                   clang::MangleContext *RegularMangleContext,
@@ -204,6 +205,7 @@ getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
 
   return DeviceSideName;
 }
+#endif
 }
 
 class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
@@ -663,6 +665,7 @@ private:
     nameKernelUsingTypes(F, true);
   }
 
+#if LLVM_VERSION_MAJOR >= 13
   void nameKernelUsingKernelManglingStub(clang::FunctionDecl* F) {
     const clang::RecordType* NamingComponent = getRelevantKernelNamingComponent(F);
     auto SuggestionIt = KernelManglingNameTemplates.find(NamingComponent);
@@ -685,7 +688,7 @@ private:
     
     setKernelName(F, KernelName);
   }
-
+#endif
 
   void nameKernel(clang::FunctionDecl* F) {
 
@@ -695,7 +698,7 @@ private:
     // LLVM < 10 cannot support unnamed kernel lambdas due to inconsistend
     // lambda numbering across host and device
 
-    if (KernelFunctorType->getAsCXXRecordDecl() &&
+    if (isKernelUnnamed(F) && KernelFunctorType->getAsCXXRecordDecl() &&
           KernelFunctorType->getAsCXXRecordDecl()->isLambda())
     {
       auto SL = llvm::dyn_cast<clang::CXXRecordDecl>(
@@ -704,6 +707,8 @@ private:
         .getCustomDiagID(clang::DiagnosticsEngine::Level::Error,
             "Optional kernel lambda naming requires clang >= 10");
       Instance.getASTContext().getDiagnostics().Report(SL, ID);
+    } else {
+      nameKernelUsingTypes(F, false);
     }
 #elif LLVM_VERSION_MAJOR == 10
     // The "false" indicates that unnamed lambdas do not need to be

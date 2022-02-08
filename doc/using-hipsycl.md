@@ -29,6 +29,13 @@ Options are:
     (Note: *must* be compatible with the clang version that the 
      hipSYCL clang plugin was compiled against!)
 
+--hipsycl-nvcxx=<value>
+  [can also be set with environment variable: HIPSYCL_NVCXX=<value>]
+  [default value provided by field 'default-nvcxx' in /install/path/etc/hipSYCL/syclcc.json.]
+  [current value: NOT SET]
+  The path to the nvc++ executable that should be used for compilation
+    with the cuda-nvcxx backend.
+
 --hipsycl-cuda-path=<value>
   [can also be set with environment variable: HIPSYCL_CUDA_PATH=<value>]
   [default value provided by field 'default-cuda-path' in /install/path/etc/hipSYCL/syclcc.json.]
@@ -123,9 +130,19 @@ Options are:
   Specify backends and targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'
     Available backends:
       * omp - OpenMP CPU backend
+               Backend Flavors:
+               - omp.library-only: Works with any OpenMP enabled CPU compiler.
+                                   Uses Boost.Fiber for nd_range parallel_for support.
+               - omp.accelerated: Uses clang as host compiler to enable compiler support
+                                  for nd_range parallel_for (see --hipsycl-use-accelerated-cpu).
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
+               Backend Flavors:
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+                                          (see --hipsycl-explicit-multipass)
+               - cuda.integrated-multipass: Force CUDA backend to operate in integrated
+                                           multipass mode.
       * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
                if given requires the format ccXY.
       * hip  - HIP backend
@@ -136,7 +153,7 @@ Options are:
 --hipsycl-use-accelerated-cpu
   [can also be set by setting environment variable HIPSYCL_USE_ACCELERATED_CPU to any value other than false|off|0 ]
   [default value provided by field 'default-use-accelerated-cpu' in /install/path/etc/hipSYCL/syclcc.json.]
-  [current value: Not Set]
+  [current value: NOT SET]
   If set, Clang is used for host compilation and explicit compiler support
   is enabled for accelerating the nd-range parallel_for on CPU.
   Uses continuation-based synchronization to execute all work-items

@@ -5,7 +5,7 @@ endif()
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
-set(HIPSYCL_VERSION_PATCH 1)
+set(HIPSYCL_VERSION_PATCH 2)
 
 project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
 
@@ -292,6 +292,9 @@ if(NOT SEQUENTIAL_CXX_FLAGS)
 endif()
 
 set(SYCLCC_CONFIG_FILE "{
+  \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
+  \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
+  \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",

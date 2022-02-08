@@ -63,6 +63,10 @@ class config_file:
   def location(self):
     return self._location
 
+  @property
+  def keys(self):
+    return self._data.keys()
+
   def contains_key(self, key):
     if not key in self._data:
       return False
@@ -434,6 +438,26 @@ class syclcc_config:
     return result
   
   @property
+  def version(self):
+  
+    if not self._config_file.contains_key("version-major"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+    if not self._config_file.contains_key("version-minor"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+    if not self._config_file.contains_key("version-patch"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+
+    return (
+      self._config_file.get("version-major"), 
+      self._config_file.get("version-minor"),
+      self._config_file.get("version-patch"))
+
+  @property
+  def runtime_backends(self):
+    backend_path = os.path.join(self.hipsycl_installation_path, "lib", "hipSYCL")
+    return os.listdir(backend_path)
+
+  @property
   def targets(self):
     
     if self._targets == None:
@@ -601,6 +625,10 @@ class syclcc_config:
           if arg.lower().endswith(ending):
             source_files.append(arg)
     return source_files
+
+  @property
+  def configfile(self):
+    return self._config_file
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0
@@ -1388,13 +1416,36 @@ class compiler:
       print("syclcc: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
+def print_config(config):
+  config_file = config.configfile
+  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
+  for k in config_file.keys:
+    v = "(unconfigured)"
+    try:
+      v = config_file.get(k)
+    except Exception as e:
+      pass
+    print("    {}: {}".format(k, v))
+
+
+def print_version(config):
+  version = config.version
+  print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project")
+  print("  hipSYCL version: {}.{}.{}".format(version[0],version[1],version[2]))
+  print("  Installation root:",os.path.abspath(config.hipsycl_installation_path))
+  print("  Available runtime backends:")
+  for b in config.runtime_backends:
+    print("    ",b)
+
 
 def print_usage(config):
-  print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2020 Aksel Alpay")
+  print_version(config)
   print("Usage: syclcc <options>\n")
   print("Options are:")
   config.print_options()
   config.print_flags()
+  print("--hipsycl-version\n  Print hipSYCL version and configuration\n")
+  print("--help\n  Print this help message\n")
   print("\nAny other options will be forwarded to the compiler.")
   print("\nNote: Command line arguments take precedence over environment variables.")
 
@@ -1415,6 +1466,10 @@ if __name__ == '__main__':
     for arg in args:
       if arg == "--help":
         print_usage(config)
+        sys.exit(0)
+      elif arg == "--hipsycl-version":
+        print_version(config)
+        print_config(config)
         sys.exit(0)
 
     if not config.is_pure_linking_stage():

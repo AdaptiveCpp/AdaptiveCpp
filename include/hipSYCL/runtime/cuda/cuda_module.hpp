@@ -80,15 +80,6 @@ public:
 
   result load(rt::device_id dev, const cuda_module &module, CUmod_st*& out);
 
-private:
-  std::size_t _num_devices;
-
-  // Cache constructed modules
-  std::vector<cuda_module> _modules;
-
-  // Store active CUDA module per device
-  std::vector<CUmod_st *> _cuda_modules;
-  std::vector<cuda_module_id_t> _active_modules;
 };
 
 }

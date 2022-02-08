@@ -30,24 +30,25 @@
 #include "hipSYCL/sycl/backend.hpp"
 #include "hipSYCL/sycl/device.hpp"
 
-#ifdef SYCL_EXT_HIPSYCL_BACKEND_SPIRV
 
 #include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/ze/ze_queue.hpp"
 
 #ifndef HIPSYCL_GLUE_ZE_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_ZE_BACKEND_INTEROP_HPP
+
+struct _ze_device_handle_t;
+struct _ze_command_list_handle_t;
 
 namespace hipsycl {
 namespace glue {
 
 template <> struct backend_interop<sycl::backend::level_zero> {
   
-  using error_type = ze_result_t;
+  using error_type = int;
 
   using native_mem_type = void *;
-  using native_device_type = ze_device_handle_t;
-  using native_queue_type = ze_command_list_handle_t;
+  using native_device_type = _ze_device_handle_t*;
+  using native_queue_type = _ze_command_list_handle_t*;
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {
@@ -84,5 +85,4 @@ template <> struct backend_interop<sycl::backend::level_zero> {
 }
 }
 
-#endif
 #endif

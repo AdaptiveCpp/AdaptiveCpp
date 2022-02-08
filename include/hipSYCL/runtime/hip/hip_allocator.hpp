@@ -29,7 +29,6 @@
 #define HIPSYCL_HIP_ALLOCATOR_HPP
 
 #include "../allocator.hpp"
-#include "hip_target.hpp"
 
 namespace hipsycl {
 namespace rt {

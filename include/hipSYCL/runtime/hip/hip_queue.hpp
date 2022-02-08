@@ -32,9 +32,10 @@
 #include "../inorder_queue.hpp"
 #include "../generic/host_timestamped_event.hpp"
 
-#include "hip_target.hpp"
 #include "hip_instrumentation.hpp"
 
+// Avoid including HIP headers to prevent conflicts with CUDA
+struct ihipStream_t;
 
 namespace hipsycl {
 namespace rt {
@@ -44,7 +45,7 @@ class hip_queue : public inorder_queue
 public:
   hip_queue(device_id dev);
 
-  hipStream_t get_stream() const;
+  ihipStream_t* get_stream() const;
 
   virtual ~hip_queue();
 
@@ -73,7 +74,7 @@ private:
   void activate_device() const;
 
   device_id _dev;
-  hipStream_t _stream;
+  ihipStream_t* _stream;
   host_timestamped_event _reference_event;
 };
 

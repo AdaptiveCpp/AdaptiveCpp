@@ -31,6 +31,7 @@
 #include <cassert>
 #include <utility>
 #include <cstdlib>
+#include <string>
 
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -83,6 +84,9 @@
 #ifndef __device__
  #define __device__
 #endif
+#ifndef __global__
+ #define __global__
+#endif
 #ifndef __sycl_kernel
  #define __sycl_kernel
 #endif
@@ -104,6 +108,11 @@ struct dim3 {
 
 #endif
 #endif
+
+// Dummy kernel that is used in conjunction with 
+// __builtin_get_device_side_stable_name() to extract kernel names
+template<class KernelT>
+__global__ void __hipsycl_kernel_name_template () {}
 
 namespace hipsycl {
 namespace glue {
@@ -588,8 +597,13 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
+
 #define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, grid, block,      \
-                                shared_mem, stream, ...)                       \
+                                shared_mem, stream, ...)               \
+  if(false) {                                                                  \
+    __hipsycl_kernel_name_template<KernelNameT><<<1,1>>>();                    \
+    __hipsycl_kernel_name_template<KernelBodyT><<<1,1>>>();              \
+  }                                                                            \
   if constexpr (is_launch_from_module()) {                                     \
     invoke_from_module<KernelNameT, KernelBodyT>(grid, block, shared_mem,      \
                                                  __VA_ARGS__);                 \
@@ -877,15 +891,43 @@ private:
 #endif
   }
 
+  template<class KernelT>
+  std::string get_stable_kernel_name() const {
+    // On clang 11, rely on __builtin_unique_stable_name()
+#if defined(__clang__) && __clang_major__ == 11
+
+    return __builtin_unique_stable_name(KernelT);
+
+    // If we have builtin_get_device_side_mangled_name, rely on
+    // __hipsycl_kernel_name_template unless we are in split compiler mode -
+    // here we follow the traditional mangling based on the type.
+    // In thas case, unnamed kernel lambdas are unsupported which is enforced
+    // by the clang plugin in the device compilation pass.
+#elif __has_builtin(__builtin_get_device_side_mangled_name) &&                 \
+    !defined(__HIPSYCL_SPLIT_COMPILER__)
+    
+    // The builtin unfortunately only works with __global__ or
+    // __device__ functions. Since our kernel launchers cannot be __global__
+    // when semantic analysis runs, we cannot apply the builtin
+    // directly to our kernel launchers. Use dummy __global__ instead
+    std::string name_template = __builtin_get_device_side_mangled_name(
+      __hipsycl_kernel_name_template<KernelT>);
+    std::string template_marker = "_Z30__hipsycl_kernel_name_template";
+    std::string replacement = "_Z16__hipsycl_kernel";
+    name_template.erase(0, template_marker.size());
+    return replacement + name_template;
+#else
+    return typeid(KernelT).name();
+#endif
+  }
+
   template <class KernelName, class KernelBodyT, typename... Args>
   void invoke_from_module(dim3 grid_size, dim3 block_size,
                           unsigned dynamic_shared_mem, Args... args) {
     
     if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-#if !defined(__clang_major__) || __clang_major__ < 11
-  #error Multipass compilation requires clang >= 11
-#endif
+
       if (this_module::get_num_objects<Backend_id>() == 0) {
         rt::register_error(
             __hipsycl_here(),
@@ -933,8 +975,8 @@ private:
         sizeof(Args)...
       };
 
-      std::string kernel_name_tag = __builtin_unique_stable_name(KernelName);
-      std::string kernel_body_name = __builtin_unique_stable_name(KernelBodyT);
+      std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
+      std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
       rt::module_invoker *invoker = _queue->get_module_invoker();
 

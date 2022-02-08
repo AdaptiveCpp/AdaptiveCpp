@@ -30,9 +30,12 @@
 #define HIPSYCL_HIP_HARDWARE_MANAGER_HPP
 
 #include <vector>
+#include <memory>
 
 #include "../hardware.hpp"
 #include "hip_target.hpp"
+
+struct hipDeviceProp_t;
 
 namespace hipsycl {
 namespace rt {
@@ -42,6 +45,7 @@ class hip_hardware_context : public hardware_context
 public:
   hip_hardware_context() = default;
   hip_hardware_context(int dev);
+  hip_hardware_context(hip_hardware_context&&) = default;
 
   virtual bool is_cpu() const override;
   virtual bool is_gpu() const override;
@@ -67,7 +71,7 @@ public:
   virtual ~hip_hardware_context() {}
 
 private:
-  hipDeviceProp_t _properties;
+  std::unique_ptr<hipDeviceProp_t> _properties;
   int _dev;
 };
 

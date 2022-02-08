@@ -35,17 +35,23 @@
 #ifndef HIPSYCL_GLUE_HIP_BACKEND_INTEROP_HPP
 #define HIPSYCL_GLUE_HIP_BACKEND_INTEROP_HPP
 
+// Forward declare so that we do not need to rely on including HIP headers.
+// This wouldn't work in certain explicit multipass configurations, e.g. in CUDA
+// passes where the HIP headers cannot be included.
+class ihipStream_t;
+
 namespace hipsycl {
 namespace glue {
 
 
 template <> struct backend_interop<sycl::backend::hip> {
-  
-  using error_type = hipError_t;
+  // Use int instead of hipError_t to avoid having to include HIP
+  // headers
+  using error_type = int;
 
   using native_mem_type = void *;
   using native_device_type = int;
-  using native_queue_type = hipStream_t;
+  using native_queue_type = ihipStream_t*;
 
   template <class Accessor_type>
   static native_mem_type get_native_mem(const Accessor_type &a) {
@@ -56,7 +62,6 @@ template <> struct backend_interop<sycl::backend::hip> {
     return sycl::detail::extract_rt_device(d).get_id();
   }
 
-#ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   static native_queue_type
   get_native_queue(void *launcher_params) {
 
@@ -91,7 +96,7 @@ template <> struct backend_interop<sycl::backend::hip> {
 
     return static_cast<native_queue_type>(q->get_native_type());
   }
-#endif
+
 
   static sycl::device make_sycl_device(int device_id) {
     return sycl::device{

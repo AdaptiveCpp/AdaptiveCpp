@@ -37,7 +37,7 @@ namespace sycl {
 
 using backend = hipsycl::rt::backend_id;
 
-#if defined(HIPSYCL_PLATFORM_CPU) && defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
+#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST) || defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_OMPHOST
 #endif
 // In explicit multipass mode, HIPSYCL_PLATFORM_* is not defined in the host
@@ -48,15 +48,15 @@ using backend = hipsycl::rt::backend_id;
 // Note: This might not be entirely correct. Those macros should be defined
 // if a backend is available for interop, which would correspond to whether
 // the runtime has been compiled with support for a backend.
-#if defined(HIPSYCL_PLATFORM_HIP) || defined(__HIPSYCL_ENABLE_HIP_TARGET__)
+#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP) || defined(__HIPSYCL_ENABLE_HIP_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_HIP
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
+#if defined(HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA) || defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_CUDA
 #endif
 
-#if defined(HIPSYCL_PLATFORM_SPIRV) || defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+#if defined(HIPSYCL_LIBKERNEL_COMPIER_SUPPORTS_SPIRV) || defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
  #define SYCL_EXT_HIPSYCL_BACKEND_SPIRV
 #endif
 

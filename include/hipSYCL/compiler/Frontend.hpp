@@ -637,6 +637,7 @@ private:
     if(!isKernelUnnamed(F)) {
       KernelName = detail::buildKernelName(getKernelNameTag(F)->getAsRecordDecl(),
                                             KernelNameMangler.get());
+      setKernelName(F, KernelName);
     } else {
       // In certain configurations, we can just let clang handle the naming
       // of unnamed kernels
@@ -649,11 +650,10 @@ private:
         if (KernelFunctorArgument) {
           KernelName = detail::buildKernelName(KernelFunctorArgument->getAsRecordDecl(),
                                                 KernelNameMangler.get());
+          setKernelName(F, KernelName);
         }
       }
     }
-
-    setKernelName(F, KernelName);
   }
 
   // LLVM 11 supports __builtin_unique_stable_name() and unique

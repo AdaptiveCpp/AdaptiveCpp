@@ -477,6 +477,22 @@ class syclcc_config:
       self._config_file.get("version-patch"))
 
   @property
+  def plugin_llvm_version(self):
+    if not self._config_file.contains_key("plugin-llvm-version-major"):
+      raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
+    return int(self._config_file.get("plugin-llvm-version-major"))
+
+  @property
+  def has_plugin(self):
+    return self.plugin_llvm_version != 0
+
+  @property
+  def has_plugin_cpu_acceleration(self):
+    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+      raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
+    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
+
+  @property
   def runtime_backends(self):
     backend_path = os.path.join(self.hipsycl_installation_path, "lib", "hipSYCL")
     return os.listdir(backend_path)
@@ -1178,6 +1194,8 @@ class omp_accelerated_invocation:
 
     if len(targets) != 0:
       raise RuntimeError("OpenMP backend does not support specifiying target architecture")
+    if not config.has_plugin_cpu_acceleration:
+      raise RuntimeError("Trying to use accelerated CPU variant, but plugin was built without support for it")
 
     self._clang_path = config.clang_path
 
@@ -1284,7 +1302,7 @@ class compiler:
           except OptionNotSet:
             return False
           return not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == clang_path\
-            and not sys.platform.startswith("win32") and not sys.platform.startswith("darwin")
+            and config.has_plugin_cpu_acceleration and int(config.plugin_llvm_version) >= 11
 
         if config.use_accelerated_cpu or default_to_accelerated(config):
           self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))
@@ -1557,6 +1575,8 @@ def print_version(config):
   print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project")
   print("  hipSYCL version: {}.{}.{}".format(version[0],version[1],version[2]))
   print("  Installation root:",os.path.abspath(config.hipsycl_installation_path))
+  if config.has_plugin:
+    print("  Plugin LLVM version: {}, can accelerate CPU: {}".format(config.plugin_llvm_version, config.has_plugin_cpu_acceleration))
   print("  Available runtime backends:")
   for b in config.runtime_backends:
     print("    ",b)

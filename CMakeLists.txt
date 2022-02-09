@@ -165,6 +165,10 @@ if(BUILD_CLANG_PLUGIN)
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
     message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
   endif()
+  if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
+    message(WARNING "clang version to old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
+    set(WITH_ACCELERATED_CPU false)
+  endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
 
@@ -304,10 +308,18 @@ if(NOT SEQUENTIAL_CXX_FLAGS)
   set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
 
+if(BUILD_CLANG_PLUGIN)
+  set(PLUGIN_LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
+else()
+  set(PLUGIN_LLVM_VERSION_MAJOR 0)
+endif()
+
 set(SYCLCC_CONFIG_FILE "{
   \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
   \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
   \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
+  \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
+  \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",

@@ -64,6 +64,7 @@ namespace detail::hiplike_builtins {
     return ::impl_name_dp(x, y, z);                                            \
   }
 
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_acos, acosf, acos)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_acosh, acoshf, acosh)
 
@@ -513,6 +514,11 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   // TODO use rsqrt
   return a / hiplike_builtins::__hipsycl_fast_length(a);
 }
+
+// ********************** relational functions *********************
+
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_isnan, isnan, isnan);
+
 
 }
 }

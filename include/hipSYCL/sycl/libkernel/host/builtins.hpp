@@ -653,6 +653,12 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   return a / host_builtins::__hipsycl_fast_length(a);
 }
 
+// ****************** relational functions ******************
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
+  return std::isnan(x);
+}
 }
 }
 }

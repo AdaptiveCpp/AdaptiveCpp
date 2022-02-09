@@ -68,11 +68,6 @@ static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
 
 static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &,
                                              llvm::legacy::PassManagerBase &PM) {
-  // FixMe: prevent adding flag twice in the first place
-  static bool isRegistered = false;
-  if (isRegistered)
-    return;
-  isRegistered = true;
   registerCBSPipelineLegacy(PM);
 }
 
@@ -100,12 +95,6 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
   return {
     LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
         [](llvm::PassBuilder &PB) {
-          // FixMe: prevent adding flag twice in the first place
-          static bool isRegistered = false;
-          if (isRegistered)
-            return;
-          isRegistered = true;
-
           // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
           // really used there anyways..
           PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {

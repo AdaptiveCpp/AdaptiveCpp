@@ -1249,9 +1249,16 @@ class compiler:
 
     for backend in self._targets:
       if backend == "omp":
-        if config.use_accelerated_cpu or \
-                (not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == config.clang_path
-                 and not sys.platform.startswith("win32") and not sys.platform.startswith("darwin")):
+        def default_to_accelerated(config):
+          clang_path = None
+          try:
+            clang_path = config.clang_path
+          except OptionNotSet:
+            return False
+          return not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == clang_path\
+            and not sys.platform.startswith("win32") and not sys.platform.startswith("darwin")
+
+        if config.use_accelerated_cpu or default_to_accelerated(config):
           self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))
         else:
           self._backends.append(omp_invocation(config, config.targets["omp"]))

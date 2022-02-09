@@ -38,6 +38,7 @@ import string
 import tempfile
 import uuid
 import binascii
+import shutil
 
 class OptionNotSet(Exception):
   def __init__(self, msg):
@@ -235,6 +236,8 @@ class syclcc_config:
     self._hipsycl_args = []
     self._forwarded_args = []
     self._targets = None
+    self._cxx_path = None
+    self._clang_path = None
     
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
@@ -448,6 +451,12 @@ class syclcc_config:
 
     return result
   
+  def _get_executable_path(self, path):
+    normalized_path = shutil.which(path)
+    if normalized_path:
+      return normalized_path
+    return path
+
   @property
   def targets(self):
     
@@ -494,7 +503,9 @@ class syclcc_config:
 
   @property
   def clang_path(self):
-    return self._retrieve_option("clang")
+    if self._clang_path is None:
+      self._clang_path = self._get_executable_path(self._retrieve_option("clang"))
+    return self._clang_path
 
   @property
   def nvcxx_path(self):
@@ -502,7 +513,9 @@ class syclcc_config:
 
   @property
   def pure_cpu_compiler(self):
-    return self._retrieve_option("cpu-compiler")
+    if self._cxx_path is None:
+      self._cxx_path = self._get_executable_path(self._retrieve_option("cpu-compiler"))
+    return self._cxx_path
 
   @property
   def clang_include_path(self):
@@ -1237,7 +1250,7 @@ class compiler:
     for backend in self._targets:
       if backend == "omp":
         if config.use_accelerated_cpu or \
-                (not "cuda-nvcxx" in config.targets
+                (not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == config.clang_path
                  and not sys.platform.startswith("win32") and not sys.platform.startswith("darwin")):
           self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))
         else:
@@ -1448,6 +1461,7 @@ class compiler:
       flag = flags[i]
       if self._flag_should_be_unique(flag):
         if flag in flag_counts:
+          del flags[i]
           n = n - 1
           i = i - 1
         else:

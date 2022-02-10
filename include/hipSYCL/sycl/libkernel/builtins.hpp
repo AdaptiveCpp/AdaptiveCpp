@@ -502,6 +502,24 @@ using ulonglong16 = vec<unsigned long long, 16>;
     }                                                                          \
   }
 
+#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64(T, name, impl_name)        \
+  HIPSYCL_BUILTIN                                                              \
+  typename detail::builtin_type_traits<T>::alternative_data_type<int64_t> name(\
+      T a) noexcept {                                                          \
+    if constexpr (std::is_arithmetic_v<T>) {                                   \
+      return impl_name(detail::data_element(a, 0));                            \
+    } else {                                                                   \
+      typename detail::builtin_type_traits<T>::alternative_data_type<int64_t>  \
+          result;                                                              \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
+        auto a_i = detail::data_element(a, i);                                 \
+        detail::data_element(result, i) = impl_name(a_i);                      \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+  }
+
+
 #define HIPSYCL_DEFINE_BUILTIN(builtin_name, OVERLOAD_SET_GENERATOR,           \
                                FUNCTION_GENERATOR)                             \
   OVERLOAD_SET_GENERATOR(                                                      \
@@ -943,7 +961,10 @@ HIPSYCL_DEFINE_BUILTIN(fast_normalize, HIPSYCL_BUILTIN_OVERLOAD_SET_GENGEODOUBLE
 
 
 // ********************** relational functions *******************
-// TODO
+HIPSYCL_DEFINE_BUILTIN(isnan, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
+HIPSYCL_DEFINE_BUILTIN(isnan, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
 
 }
 }

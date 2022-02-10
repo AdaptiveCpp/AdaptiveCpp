@@ -469,6 +469,14 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   return a / spirv_builtins::__hipsycl_fast_length(a);
 }
 
+// ****************** relational functions ******************
+#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(name)                            \
+  template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x) noexcept {    \
+    return __spirv_##name(x);                                              \
+  }
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(IsNan)
+
 }
 }
 }

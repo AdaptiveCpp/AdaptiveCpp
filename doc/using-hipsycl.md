@@ -8,7 +8,13 @@ For example, compiling a SYCL source `example.cpp` to an executable, while targe
 
 The full excerpt from `syclcc --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/hipsycl/install/path/etc/hipSYCL/syclcc.json`.
 ```
-syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay
+syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project
+  hipSYCL version: 0.9.2
+  Installation root: /install/path
+  Plugin LLVM version: <version>, can accelerate CPU: <bool>
+  Available runtime backends:
+     librt-backend-<name>.so
+     librt-backend-<name>.so
 Usage: syclcc <options>
 
 Options are:
@@ -181,6 +187,12 @@ Options are:
   [default value provided by field 'default-save-temps' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   If set, do not delete temporary files created during compilation.
+
+--hipsycl-version
+  Print hipSYCL version and configuration
+
+--help
+  Print this help message
 
 
 Any other options will be forwarded to the compiler.

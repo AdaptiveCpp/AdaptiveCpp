@@ -37,13 +37,13 @@ Follow [these](install-cuda.md) instructions
 
 Follow [these](install-rocm.md) instructions
 
-#### SPIR-V/Level Zero (skip of you don't need SPIR-V/Level Zero support)
+#### SPIR-V/Level Zero (skip if you don't need SPIR-V/Level Zero support)
 
 Follow [these](install-spirv.md) instructions.
 
 #### Building and installing 
 
-Once the software requirements mentioned above are met, clone the repository with all submodules:
+Once the software requirements mentioned above are met, clone the repository:
 ```
 $ git clone https://github.com/illuhad/hipSYCL
 ```
@@ -54,6 +54,7 @@ $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <more optional options, e.g
 $ make install
 ```
 The default installation prefix is `/usr/local`. Change this to your liking.
+**Note: hipSYCL needs to be installed to function correctly; don't replace "make install" with just "make"!**
 
 A `cmake` variable that maybe useful to set is `CMAKE_CXX_COMPILER` which should be pointed to the C++ compiler to compile hipSYCL with. Note that this also sets the default C++ compiler for the CPU backend when using syclcc once hipSYCL is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
 

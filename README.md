@@ -85,7 +85,9 @@ In order to compile software with hipSYCL, use `syclcc` which automatically adds
 
 `syclcc` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target platform CUDA/ROCm/CPU to compile for). See `syclcc --help` for a comprehensive list of options.
 
-When targeting a GPU, you will need to provide a target GPU architecture. The expected formats are defined by clang CUDA/HIP. Examples:
+When compiling with hipSYCL, you will need to specify the targets you wish to compile for using the `--hipsycl-targets="backend1:target1,target2,...;backend2:..."` command line argument, `HIPSYCL_TARGETS` environment variable or cmake argument. 
+
+For GPUs, the expected targets are defined by clang CUDA/HIP. Examples:
 * `sm_52`: NVIDIA Maxwell GPUs
 * `sm_60`: NVIDIA Pascal GPUs
 * `sm_70`: NVIDIA Volta GPUs

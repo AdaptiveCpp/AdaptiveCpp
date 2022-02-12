@@ -64,12 +64,15 @@ void markLoopParallel(llvm::Function &F, llvm::Loop *L) {
     } else if (L->getLoopID()) {
       assert(L->getLoopID());
       const llvm::Module *M = F.getParent();
-      HIPSYCL_DEBUG_WARNING << "[ParallelMarker] loop id for " << L->getHeader()->getName();
-      L->getLoopID()->print(llvm::outs(), M);
-      for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
-        MDOp->print(llvm::outs(), M);
-      }
-      llvm::outs() << "\n";
+      HIPSYCL_DEBUG_WARNING << "[ParallelMarker] failed to mark wi-loop as parallel, loop id for "
+                            << L->getHeader()->getName();
+      HIPSYCL_DEBUG_EXECUTE_WARNING(
+        L->getLoopID()->print(llvm::outs(), M);
+        for (auto &MDOp : llvm::drop_begin(L->getLoopID()->operands(), 1)) {
+          MDOp->print(llvm::outs(), M);
+        }
+        llvm::outs() << "\n";
+      )
     }
   }
 #endif

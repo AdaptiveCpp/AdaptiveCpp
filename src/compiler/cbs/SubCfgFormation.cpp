@@ -840,8 +840,7 @@ void SubCFG::fixSingleSubCfgValues(
             if (FoundIncoming)
               continue;
           }
-          HIPSYCL_DEBUG_WARNING << "Instruction not dominated " << I << " operand: " << *OPI
-                                << "\n";
+          HIPSYCL_DEBUG_INFO << "Instruction not dominated " << I << " operand: " << *OPI << "\n";
 
           if (auto *Load = InstLoadMap.lookup(OPI))
             // if the already inserted Load does not dominate I, we must create another load.

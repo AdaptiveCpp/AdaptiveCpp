@@ -1,7 +1,63 @@
 # Using hipSYCL in projects
-It is recommended to use the CMake integration for larger projects.
+It is recommended to use the CMake integration for larger projects. See the section on the cmake integration below. Alternatively, `syclcc` can be used directly as a compiler.
 
-## Compiling with syclcc
+## hipSYCL targets specification
+
+Both `syclcc` and the cmake integration expect a hipSYCL targets specification. This specification defines which compilation flows hipSYCL should enable, and which devices from a compilation flow hipSYCL should target during compilation. In general, it has the form:
+
+```
+"flow1:target1,target2,...;flow2:...;..."
+```
+and can be passed either as `syclcc` command line argument, environment variable or CMake argument depending on whether `syclcc` or `cmake` is used.
+
+"compilation flow" refers to one of the available compilation flows defined in the [compilation flow](compilation.md) documentation.
+
+### Requirements for specifying targets of individual compilation flows
+
+Whether a compilation flow needs to be followed by a target list or not varies between the available flows and is described below.
+
+For the following compilation flows, targets cannot be specified:
+* `omp.*`
+* `spirv`
+
+For the following compilation flows, targets can optionally be specified:
+* `cuda-nvcxx` - Targets take the format of `ccXY` where `XY` stands for the compute capability of the device.
+
+For the following compilation flows, targets must be specified:
+* `cuda.*` - The target format is defined by clang and takes the format of `sm_XY`. For example:
+  * `sm_52`: NVIDIA Maxwell GPUs
+  * `sm_60`: NVIDIA Pascal GPUs
+  * `sm_70`: NVIDIA Volta GPUs
+* `hip.*` - The target format is defined by clang and takes the format of `gfxXYZ`. For example:
+  * `gfx900`: AMD Vega 10 GPUs (e.g. Radeon Vega 56, Vega 64)
+  * `gfx906`: AMD Vega 20 GPUs (e.g. Radeon VII, Instinct MI50)
+  * `gfx908`: AMD CDNA GPUs (e.g Instinct MI100)
+
+### Abbreviations
+
+For some compilation flows, abbreviations exist that will be resolved by hipSYCL to one of the available compilation flows:
+* `omp` will be translated 
+  * into `omp.accelerated` 
+     * if hipSYCL has been built with support for accelerated CPU and the host compiler is the clang that hipSYCL has been built with or
+     * if `--hipsycl-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. hipSYCL has been compiled without support for it), compilation will abort with an error.
+  * into `omp.library-only` otherwise
+* `cuda` will be translated
+  * into `cuda.explicit-multipass`
+    * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. hipSYCL will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
+    * if `--hipsycl-explicit-multipass` is set explicitly
+  * into `cuda.integrated-multipass` otherwise
+* `hip` will be translated into `hip.integrated-multipass`
+
+Of course, the desired flows can also always be specified explicitly.
+
+### Examples
+
+* `"omp.library-only;cuda.explicit-multipass:sm_61;sm_70"`  - compiles for the CPU backend and Pascal and Volta era GPUs
+* `"omp;cuda:sm_70;hip:gfx906"`  - compiles for the CPU backend (library or accelerated), NVIDIA Volta era GPUs via explicit multipass, AMD Vega 20 GPUs
+* `"omp.accelerated;cuda:sm_70;spirv`" - compiles for the CPU backend (compiler accelerated), NVIDIA Volta era GPUs, and SPIR-V devices
+* `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using nvc++
+
+## Manually compiling with syclcc
 `syclcc` is the compilation driver used by hipSYCL to build the final compiler invocations.
 After installing hipSYCL, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.
 For example, compiling a SYCL source `example.cpp` to an executable, while targeting CPU and CUDA backends, is possible using `syclcc -o example example.cpp -O3 --hipsycl-targets="omp;cuda:sm_61"`.
@@ -207,3 +263,5 @@ See the [example cmake project](../examples/CMakeLists.txt).
 
 A typical configure command line looks like this: `cmake .. -DhipSYCL_DIR=</hipsycl/install/lib/cmake/hipSYCL> -DHIPSYCL_TARGETS="<targets>"`.
 `HIPSYCL_TARGETS` has to be set either as environment variable or on the command line for the `find_package` call to succeed. See the documentation of this flag above.
+
+If the accelerated CPU flow has been built, `-DHIPSYCL_USE_ACCELERATED_CPU=ON/OFF` can be used to override whether `omp` should refer to the `omp.library-only` or `omp.accelerated` compilation flow.

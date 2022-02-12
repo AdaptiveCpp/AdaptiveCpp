@@ -15,7 +15,7 @@ In addition, the various supported compilation flows have additional requirement
 
 | Compilation flow | Target hardware | Short description | Requirements |
 |------------------|-------------------|-------------------|-------------------|
-| `omp` | Any CPU | OpenMP CPU backend | Any OpenMP compiler |
+| `omp.library-only` | Any CPU | OpenMP CPU backend | Any OpenMP compiler |
 | `omp.accelerated` | Any CPU supported by LLVM | OpenMP CPU backend (compiler-accelerated)| LLVM >= 11 |
 | `cuda.integrated-multipass` | NVIDIA GPUs | CUDA backend (clang)| CUDA >= 10, LLVM >= 10 |
 | `cuda.explicit-multipass` | NVIDIA GPUs | CUDA backend (clang, can be targeted simultaneously with other backends) | CUDA >= 10, LLVM 11 or 13+ |
@@ -47,16 +47,45 @@ Once the software requirements mentioned above are met, clone the repository:
 ```
 $ git clone https://github.com/illuhad/hipSYCL
 ```
-Then, create a build directory and compile hipSYCL:
+Then, create a build directory and compile hipSYCL. As described below, some backends and compilation flows must be configured with specific cmake arguments which should be passed during the cmake step.
+
 ```
 $ cd <build directory>
 $ cmake -DCMAKE_INSTALL_PREFIX=<installation prefix> <more optional options, e.g. to configure the LLVM dependency> <hipSYCL source directory>
 $ make install
 ```
+
 The default installation prefix is `/usr/local`. Change this to your liking.
 **Note: hipSYCL needs to be installed to function correctly; don't replace "make install" with just "make"!**
 
-A `cmake` variable that maybe useful to set is `CMAKE_CXX_COMPILER` which should be pointed to the C++ compiler to compile hipSYCL with. Note that this also sets the default C++ compiler for the CPU backend when using syclcc once hipSYCL is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
+##### CMake options to configure the hipSYCL build
+
+###### General
+*  `-DCMAKE_CXX_COMPILER` should be pointed to the C++ compiler to compile hipSYCL with. Note that this also sets the default C++ compiler for the CPU backend when using syclcc once hipSYCL is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
+
+###### omp.library-only
+
+* `-DCMAKE_CXX_COMPILER` can be used to set the default OpenMP compiler.
+
+###### omp.accelerated
+
+* `-DWITH_ACCELERATED_CPU=OFF/ON` can be used to explicitly disable/enable CPU acceleration. Support for CPU acceleration is enabled by default when enabling the LLVM dependency, and LLVM is sufficiently new.
+
+###### cuda.*
+
+* See the CUDA [installation instructions](install-cuda.md) instructions (section on clang).
+
+###### cuda-nvcxx
+
+* See the CUDA [installation instructions](install-cuda.md) instructions (section on nvc++).
+
+###### hip.*
+
+* See the ROCm [installation instructions](install-rocm.md) instructions.
+
+###### spirv
+
+* No specific cmake flags are currently available.
 
 ## Manual installation (Mac)
 
@@ -65,6 +94,7 @@ On Mac, only the CPU backends are supported. The required steps are analogous to
 ## Manual installation (Windows)
 
 For experimental building on Windows (CPU and CUDA backends) see the corresponding [wiki](https://github.com/illuhad/hipSYCL/wiki/Using-hipSYCL-on-Windows).
+The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
 ## Repositories (Linux)
 

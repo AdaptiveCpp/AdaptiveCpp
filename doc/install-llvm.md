@@ -48,4 +48,4 @@ If hipSYCL does not select the right clang++ or include directories, use the fol
 
 
 * `-DCLANG_EXECUTABLE_PATH=/path/to/clang++` must be pointed to the `clang++` executable from this LLVM installation.
-* `-DCLANG_INCLUDE_PATH=/path/to/clang-includes` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`. Newer ROCm versions will require the parent directory instead, i.e. `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>`.
+* `-DCLANG_INCLUDE_PATH=/path/to/clang-includes` must be pointed to the clang internal header directory. Typically, this is something like `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include`. Newer ROCm versions will require the parent directory instead, i.e. `$LLVM_INSTALL_PREFIX/include/clang/<llvm-version>`. This is only important for the ROCm backend.

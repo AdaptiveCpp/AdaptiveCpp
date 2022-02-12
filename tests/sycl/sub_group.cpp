@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   s::range<1> local_size1d{128};
   s::range<2> local_size2d{16, 16};
   s::range<3> local_size3d{4, 8, 8};
-  
+
   s::buffer<uint32_t, 1> buff1d{size1d};
   s::buffer<uint32_t, 2> buff2d{size2d};
   s::buffer<uint32_t, 3> buff3d{size3d};
@@ -92,13 +92,14 @@ BOOST_AUTO_TEST_CASE(sub_group) {
 
   for (size_t i = 0; i < size1d[0]; ++i) {
     size_t lid = i % local_size1d[0];
-    BOOST_CHECK(host_acc1[i] == lid % subgroup_size);
+    BOOST_TEST_INFO("i: " << i);
+    BOOST_CHECK_EQUAL(host_acc1[i], lid % subgroup_size);
   }
   for (size_t i = 0; i < size2d[0]; ++i) {
     for (size_t j = 0; j < size2d[1]; ++j) {
       auto id = s::id<2>{i, j};
       auto lid = id % local_size2d;
-      BOOST_CHECK(host_acc2[id] == (lid[1] + lid[0]*local_size2d[1]) % subgroup_size);
+      BOOST_CHECK_EQUAL(host_acc2[id], (lid[1] + lid[0]*local_size2d[1]) % subgroup_size);
     }
   }
   for (size_t i = 0; i < size3d[0]; ++i) {
@@ -106,7 +107,7 @@ BOOST_AUTO_TEST_CASE(sub_group) {
       for (size_t k = 0; k < size3d[2]; ++k) {
         auto id = s::id<3>{i, j, k};
         auto lid = id % local_size3d;
-        BOOST_CHECK(host_acc3[id] ==
+        BOOST_CHECK_EQUAL(host_acc3[id],
                     (lid[2] + lid[1] * local_size3d[2] +
                      lid[0] * local_size3d[1] * local_size3d[2]) %
                         subgroup_size);

@@ -1,8 +1,12 @@
 # CMake out-of-source
 build/
+*-build-*/
 
 # vscode in-source configs
 .vscode/
+
+# clion etc in-source configs
+.idea/
 
 # Prerequisites
 *.d

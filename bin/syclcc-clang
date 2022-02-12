@@ -38,6 +38,7 @@ import string
 import tempfile
 import uuid
 import binascii
+import shutil
 
 class OptionNotSet(Exception):
   def __init__(self, msg):
@@ -195,6 +196,11 @@ class syclcc_config:
 """  Specify backends and targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'
     Available backends:
       * omp - OpenMP CPU backend
+               Backend Flavors:
+               - omp.library-only: Works with any OpenMP enabled CPU compiler.
+                                   Uses Boost.Fiber for nd_range parallel_for support.
+               - omp.accelerated: Uses clang as host compiler to enable compiler support
+                                  for nd_range parallel_for (see --hipsycl-use-accelerated-cpu).
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
@@ -211,6 +217,13 @@ class syclcc_config:
       * spirv - use clang SYCL driver to generate spirv""")
     }
     self._flags = {
+      'use-accelerated-cpu': option("--hipsycl-use-accelerated-cpu", "HIPSYCL_USE_ACCELERATED_CPU",
+                                    "default-use-accelerated-cpu",
+"""  If set, Clang is used for host compilation and explicit compiler support
+  is enabled for accelerating the nd-range parallel_for on CPU.
+  Uses continuation-based synchronization to execute all work-items
+  of a work-group in a single thread, eliminating scheduling overhead
+  and enabling enhanced vectorization opportunities compared to the fiber variant."""),
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
 """  If set, only shows compilation commands that would be executed, 
   but does not actually execute it. """),
@@ -227,6 +240,8 @@ class syclcc_config:
     self._hipsycl_args = []
     self._forwarded_args = []
     self._targets = None
+    self._cxx_path = None
+    self._clang_path = None
     
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
@@ -304,8 +319,11 @@ class syclcc_config:
 
   def _is_flag_set(self, flag_name):
     flag = self._flags[flag_name]
-    if flag.commandline in self._hipsycl_args:
-      return True
+    for arg in self._hipsycl_args:
+      if arg == flag.commandline:
+        return True
+      if arg.startswith(flag.commandline + "="):
+        return self._interpret_flag(arg.split("=")[1])
 
     if flag.environment in os.environ:
       env_value = os.environ[flag.environment]
@@ -437,6 +455,12 @@ class syclcc_config:
 
     return result
   
+  def _get_executable_path(self, path):
+    normalized_path = shutil.which(path)
+    if normalized_path:
+      return normalized_path
+    return path
+
   @property
   def version(self):
   
@@ -451,6 +475,22 @@ class syclcc_config:
       self._config_file.get("version-major"), 
       self._config_file.get("version-minor"),
       self._config_file.get("version-patch"))
+
+  @property
+  def plugin_llvm_version(self):
+    if not self._config_file.contains_key("plugin-llvm-version-major"):
+      raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
+    return int(self._config_file.get("plugin-llvm-version-major"))
+
+  @property
+  def has_plugin(self):
+    return self.plugin_llvm_version != 0
+
+  @property
+  def has_plugin_cpu_acceleration(self):
+    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+      raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
+    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
 
   @property
   def runtime_backends(self):
@@ -503,7 +543,9 @@ class syclcc_config:
 
   @property
   def clang_path(self):
-    return self._retrieve_option("clang")
+    if self._clang_path is None:
+      self._clang_path = self._get_executable_path(self._retrieve_option("clang"))
+    return self._clang_path
 
   @property
   def nvcxx_path(self):
@@ -511,7 +553,9 @@ class syclcc_config:
 
   @property
   def pure_cpu_compiler(self):
-    return self._retrieve_option("cpu-compiler")
+    if self._cxx_path is None:
+      self._cxx_path = self._get_executable_path(self._retrieve_option("cpu-compiler"))
+    return self._cxx_path
 
   @property
   def clang_include_path(self):
@@ -577,6 +621,13 @@ class syclcc_config:
   def is_dryrun(self):
     try:
       return self._is_flag_set("is-dryrun")
+    except OptionNotSet:
+      return False
+
+  @property
+  def use_accelerated_cpu(self):
+    try:
+      return self._is_flag_set("use-accelerated-cpu")
     except OptionNotSet:
       return False
   
@@ -1082,7 +1133,7 @@ class omp_invocation:
 
   @property
   def unique_name(self):
-    return "omp"
+    return "omp.library-only"
 
   @property
   def is_integrated_multipass(self):
@@ -1092,13 +1143,11 @@ class omp_invocation:
   def is_explicit_multipass(self):
     return not self.is_integrated_multipass
 
-  def __init__(self, config):
+  def __init__(self, config, targets):
     self._linker_args = config.omp_link_line
     self._cxx_flags = config.omp_cxx_flags
 
-    if not "omp" in config.targets:
-      raise RuntimeError("OpenMP not among targets")
-    if len(config.targets["omp"]) != 0:
+    if len(targets) != 0:
       raise RuntimeError("OpenMP backend does not support specifiying target architecture")
 
     self._cxx = config.pure_cpu_compiler
@@ -1110,14 +1159,67 @@ class omp_invocation:
     return {
       'requires-extended-host-pass' : False,
       'extended-host-pass-providers' : [],
-      'conflicts' : [],
+      'conflicts' : ['omp.accelerated'],
       'caveats' : []
     }
 
   def get_cxx_flags(self):
-    flags =["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
       
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
+class omp_accelerated_invocation:
+
+  @property
+  def unique_name(self):
+    return "omp.accelerated"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = config.omp_link_line
+    self._cxx_flags = config.omp_cxx_flags
+
+    if len(targets) != 0:
+      raise RuntimeError("OpenMP backend does not support specifiying target architecture")
+    if not config.has_plugin_cpu_acceleration:
+      raise RuntimeError("Trying to use accelerated CPU variant, but plugin was built without support for it")
+
+    self._clang_path = config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._clang_path, 10)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx', 'omp.library-only'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    if not sys.platform.startswith("win32"):
+      flags += [
+        "-fplugin=" + config.hipsycl_plugin_path
+        , "-fpass-plugin=" + config.hipsycl_plugin_path
+        , "-D__HIPSYCL_USE_ACCELERATED_CPU__"
+      ]
+    flags += self._cxx_flags
+
     return flags
 
   def get_linker_flags(self):
@@ -1193,7 +1295,23 @@ class compiler:
 
     for backend in self._targets:
       if backend == "omp":
-        self._backends.append(omp_invocation(config))
+        def default_to_accelerated(config):
+          clang_path = None
+          try:
+            clang_path = config.clang_path
+          except OptionNotSet:
+            return False
+          return not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == clang_path\
+            and config.has_plugin_cpu_acceleration and int(config.plugin_llvm_version) >= 11
+
+        if config.use_accelerated_cpu or default_to_accelerated(config):
+          self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))
+        else:
+          self._backends.append(omp_invocation(config, config.targets["omp"]))
+      elif backend == "omp.library-only":
+        self._backends.append(omp_invocation(config, config.targets["omp.library-only"]))
+      elif backend == "omp.accelerated":
+        self._backends.append(omp_accelerated_invocation(config, config.targets["omp.accelerated"]))
       elif backend == "cuda":
         targets = config.targets["cuda"]
         if self._is_explicit_multipass:
@@ -1223,7 +1341,8 @@ class compiler:
     for mb in self._multipass_backends:
       mb.set_host_compiler(self._host_compiler)
 
-    if not "omp" in self._targets:
+    if not "omp" in self._targets and not "omp.accelerated" in self._targets and\
+            not "omp.library-only" in self._targets:
       # We need at least OpenMP "lite" (i.e. without -fopenmp) to
       # get access to things like host tasks
      self._backends.append(omp_sequential_invocation(config))
@@ -1381,6 +1500,27 @@ class compiler:
     
     return compiler_executable
 
+  def _flag_should_be_unique(self, flag):
+    unique_list = ["-fplugin", "-fpass-plugin"]
+    for unique_flag in unique_list:
+      if flag.startswith(unique_flag):
+        return True
+
+  def _uniquify_flags(self, flags):
+    flag_counts = set()
+    i = 0
+    n = len(flags)
+    while i < n:
+      flag = flags[i]
+      if self._flag_should_be_unique(flag):
+        if flag in flag_counts:
+          del flags[i]
+          n = n - 1
+          i = i - 1
+        else:
+          flag_counts.add(flag)
+      i = i + 1
+
   def _run(self, temp_dir):
     if len(self._multipass_backends) > 0 and self._requires_compilation:
       for b in self._multipass_backends:
@@ -1393,6 +1533,8 @@ class compiler:
     for backend_args in self._backends:
       cxx_flags += backend_args.get_cxx_flags()
       ld_flags += backend_args.get_linker_flags()
+
+    self._uniquify_flags(cxx_flags)
 
     args = []
     if self._requires_compilation:
@@ -1433,6 +1575,8 @@ def print_version(config):
   print("syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project")
   print("  hipSYCL version: {}.{}.{}".format(version[0],version[1],version[2]))
   print("  Installation root:",os.path.abspath(config.hipsycl_installation_path))
+  if config.has_plugin:
+    print("  Plugin LLVM version: {}, can accelerate CPU: {}".format(config.plugin_llvm_version, config.has_plugin_cpu_acceleration))
   print("  Available runtime backends:")
   for b in config.runtime_backends:
     print("    ",b)

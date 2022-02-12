@@ -80,6 +80,11 @@ set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
+if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
+set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+else()
+set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+endif()
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
@@ -100,13 +105,20 @@ if(WITH_CUDA_NVCXX_ONLY)
   endif()
 endif()
 
+
+if(WITH_ACCELERATED_CPU) # sanitize input
+  set(WITH_ACCELERATED_CPU true)
+  set(BUILD_CLANG_PLUGIN true)
+else()
+  set(WITH_ACCELERATED_CPU false)
+endif()
+
 if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
   set(BUILD_CLANG_PLUGIN true)
 endif()
 if(WITH_ROCM_BACKEND)
   set(BUILD_CLANG_PLUGIN true)
 endif()
-
 
 if(BUILD_CLANG_PLUGIN)
   find_package(LLVM CONFIG)
@@ -152,6 +164,10 @@ if(BUILD_CLANG_PLUGIN)
   
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
     message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
+  endif()
+  if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
+    message(WARNING "clang version to old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
+    set(WITH_ACCELERATED_CPU false)
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
@@ -283,18 +299,27 @@ if(NOT CUDA_CXX_FLAGS)
   set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
+# always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
 if(NOT OMP_CXX_FLAGS) 
-  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG}" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
+  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
 
 if(NOT SEQUENTIAL_CXX_FLAGS) 
-  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR}" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+endif()
+
+if(BUILD_CLANG_PLUGIN)
+  set(PLUGIN_LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
+else()
+  set(PLUGIN_LLVM_VERSION_MAJOR 0)
 endif()
 
 set(SYCLCC_CONFIG_FILE "{
   \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
   \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
   \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
+  \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
+  \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
@@ -304,6 +329,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
+  \"default-use-accelerated-cpu\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
   \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",

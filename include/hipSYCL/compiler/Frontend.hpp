@@ -70,8 +70,8 @@ namespace detail {
 
 ///
 /// Utility type to generate the set of all function declarations
-/// implictly or explictly reachable from some initial declaration.
-/// 
+/// implicitly or explicitly reachable from some initial declaration.
+///
 /// NOTE: Must only be used when the full translation unit is present,
 /// e.g. in HandleTranslationUnitDecl, otherwise the callset
 /// might not be complete.
@@ -80,7 +80,7 @@ class CompleteCallSet : public clang::RecursiveASTVisitor<CompleteCallSet> {
   public:
     using FunctionSet = std::unordered_set<clang::FunctionDecl*>;
 
-    CompleteCallSet(clang::Decl* D)
+    explicit CompleteCallSet(clang::Decl* D)
     {
       TraverseDecl(D);
     }
@@ -212,11 +212,11 @@ class FrontendASTVisitor : public clang::RecursiveASTVisitor<FrontendASTVisitor>
 {
   clang::CompilerInstance &Instance;
   
-  
+
 public:
   FrontendASTVisitor(clang::CompilerInstance &instance)
       : Instance{instance} {
-    
+
     clang::MangleContext* NameMangler = nullptr;
     clang::MangleContext* DeviceNameMangler = nullptr;
 
@@ -240,7 +240,7 @@ public:
       // anyway in the host pass.
       NameMangler = clang::ItaniumMangleContext::create(
         instance.getASTContext(), instance.getASTContext().getDiagnostics());
-    
+
     // Only used during the host pass
     if(instance.getAuxTarget())
       DeviceNameMangler = instance.getASTContext().createDeviceMangleContext(
@@ -310,7 +310,7 @@ public:
 
       auto KernelFunctorType = llvm::dyn_cast<clang::RecordType>(Call->getArg(0)
         ->getType()->getCanonicalTypeUnqualified());
-      
+
       return handleKernel(F, KernelFunctorType);
     }
 
@@ -348,7 +348,7 @@ public:
       for (auto&& RD : CCS.getReachableDecls())
       {
         HIPSYCL_DEBUG_INFO << "AST processing: Marking function as __host__ __device__: "
-                           << RD->getQualifiedNameAsString() << std::endl;
+                           << RD->getQualifiedNameAsString() << "\n";
         markAsHostDevice(RD);
         if (!RD->hasAttr<clang::CUDAHostAttr>() && !RD->hasAttr<clang::CUDADeviceAttr>()
             && !CustomAttributes::SyclKernel.isAttachedTo(RD))
@@ -364,7 +364,7 @@ public:
 
     for(auto* Kernel : HierarchicalKernels){
       HIPSYCL_DEBUG_INFO << "AST Processing: Detected parallel_for_workgroup kernel "
-                        << Kernel->getQualifiedNameAsString() << std::endl;
+                        << Kernel->getQualifiedNameAsString() << "\n";
 
       // Mark local variables as shared memory, unless they are explicitly marked private.
       // Do this not only for the kernel itself, but consider all functions called by the kernel.
@@ -383,6 +383,17 @@ public:
               break;
             }
           }
+        }
+      }
+    }
+
+    for(auto* F : HostNDKernels) {
+      detail::CompleteCallSet CCS(F);
+      for (auto &D : CCS.getReachableDecls()) {
+        if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
+          HIPSYCL_DEBUG_INFO << "AST processing: Marking function as noexcept: " << D->getQualifiedNameAsString()
+                             << "\n";
+          D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
         }
       }
     }
@@ -410,7 +421,9 @@ private:
   // Maps the declaration/instantiation of a kernel to the kernel body
   // (kernel lambda or function object)
   std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
-  
+
+  std::unordered_set<clang::FunctionDecl*> HostNDKernels;
+
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
   // Only used on clang 13+. Name mangler that takes into account
   // the device numbering of kernel lambdas.
@@ -426,25 +439,35 @@ private:
     this->MarkedKernels.insert(F);
   }
 
+  void markAsNDKernel(clang::FunctionDecl* F)
+  {
+    this->HostNDKernels.insert(F);
+  }
+
   void processFunctionDecl(clang::FunctionDecl* f)
   {
     if(!f)
       return;
 
-    if(f->getQualifiedNameAsString() 
+    if(f->getQualifiedNameAsString()
         == "hipsycl::glue::hiplike_dispatch::parallel_for_workgroup")
     {
       clang::FunctionDecl* Kernel = f;
       
-      HierarchicalKernels.insert(Kernel);    
+      HierarchicalKernels.insert(Kernel);
     }
   
     
     if(CustomAttributes::SyclKernel.isAttachedTo(f)){
       markAsKernel(f); 
     }
-  }
 
+    if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
+      if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
+        markAsNDKernel(f);
+      }
+    }
+  }
 
   bool isPrivateMemory(const clang::VarDecl* V) const
   {
@@ -500,7 +523,7 @@ private:
                   << "AST Processing: Marking variable "
                   << V->getNameAsString()
                   << " as __shared__"
-                  << std::endl;
+                  << "\n";
 
     if (!V->hasAttr<clang::CUDASharedAttr>()) {
       V->addAttr(clang::CUDASharedAttr::CreateImplicit(
@@ -516,7 +539,7 @@ private:
     if(Info) {
       if(TemplateArg >= Info->TemplateArguments->size())
         return nullptr;
-      
+
       const auto KernelNameArgument = Info->TemplateArguments->get(TemplateArg);
 
       if (KernelNameArgument.getKind() == clang::TemplateArgument::ArgKind::Type) {
@@ -536,7 +559,7 @@ private:
   bool isKernelUnnamed(clang::FunctionDecl* F) {
     if(!F)
       return false;
-    
+
     const clang::RecordType* NameTag = getKernelNameTag(F);
 
     if(!NameTag)
@@ -547,7 +570,7 @@ private:
       return NameTag->getDecl()->getQualifiedNameAsString() ==
              "__hipsycl_unnamed_kernel";
     }
-    
+
     return true;
   }
 
@@ -556,11 +579,10 @@ private:
   const clang::RecordType* getRelevantKernelNamingComponent(clang::FunctionDecl* F) {
     if(isKernelUnnamed(F)) {
       auto BodyIterator = KernelBodies.find(F);
-      
+
       if(BodyIterator == KernelBodies.end()) {
         HIPSYCL_DEBUG_ERROR
-            << "Kernel did not have body registered, this should never happen"
-            << std::endl;
+            << "Kernel did not have body registered, this should never happen\n";
         return nullptr;
       }
 
@@ -644,7 +666,7 @@ private:
       if(RenameUnnamedKernels) {
         // Otherwise (for unnamed kernels or non-lambda kernels)
         // construct name based on kernel functor type.
-        
+
         const auto KernelFunctorArgument = getTemplateTypeArgument(F, 1);
 
         if (KernelFunctorArgument) {
@@ -669,11 +691,10 @@ private:
   void nameKernelUsingKernelManglingStub(clang::FunctionDecl* F) {
     const clang::RecordType* NamingComponent = getRelevantKernelNamingComponent(F);
     auto SuggestionIt = KernelManglingNameTemplates.find(NamingComponent);
-    
+
     if(SuggestionIt == KernelManglingNameTemplates.end()) {
       HIPSYCL_DEBUG_ERROR << "Did not find kernel mangling suggestion for "
-                             "encountered kernel, this should never happen."
-                          << std::endl;
+                             "encountered kernel, this should never happen.\n";
     }
 
     std::string KernelName = detail::getDeviceSideName(
@@ -685,7 +706,7 @@ private:
     assert(KernelName.size() > TemplateMarker.size());
     KernelName.erase(0, TemplateMarker.size());
     KernelName = Replacement + KernelName;
-    
+
     setKernelName(F, KernelName);
   }
 #endif
@@ -741,7 +762,7 @@ private:
       // error if this happens
       if(isKernelUnnamed(F)) {
         if(clang::CXXRecordDecl* KernelBody = KernelFunctorType->getAsCXXRecordDecl()) {
-        
+
           if(KernelBody->isLambda()) {
             if (KernelFunctorType->getAsCXXRecordDecl() &&
                 KernelFunctorType->getAsCXXRecordDecl()->isLambda()) {
@@ -758,7 +779,7 @@ private:
               Instance.getASTContext().getDiagnostics().Report(SL, ID);
             }
           }
-        
+
         }
       }
       nameKernelUsingTypes(F, true);
@@ -798,9 +819,9 @@ public:
         Instance.getSema().getLangOpts().CUDAIsDevice);
 
     if(CompilationStateManager::getASTPassState().isDeviceCompilation())
-      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __device__ ****** " << std::endl;
+      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __device__ ****** " << "\n";
     else
-      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __host__ ****** " << std::endl;
+      HIPSYCL_DEBUG_INFO << " ****** Entering compilation mode for __host__ ****** " << "\n";
 
     Visitor.applyAttributes();
 
@@ -834,7 +855,7 @@ public:
     {
       clang::MultiplexConsumer& MC = static_cast<clang::MultiplexConsumer&>(C);
       if(CompilationStateManager::getASTPassState().isDeviceCompilation()){
-      
+
         for (clang::FunctionDecl *HDFunction :
             Visitor.getMarkedHostDeviceFunctions()) {
           clang::DeclGroupRef DG{HDFunction};

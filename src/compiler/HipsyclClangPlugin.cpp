@@ -28,10 +28,15 @@
 
 #include "hipSYCL/compiler/FrontendPlugin.hpp"
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
+#include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
+
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
+#include "hipSYCL/compiler/cbs/LoopsParallelMarker.hpp"
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
+#endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -56,28 +61,66 @@ static llvm::RegisterStandardPasses
     RegisterGlobalsPruningPassOptimizerLast(llvm::PassManagerBuilder::EP_OptimizerLast,
                                             registerGlobalsPruningPass);
 
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
+static llvm::RegisterPass<SplitterAnnotationAnalysisLegacy>
+    splitterAnnotationReg("splitter-annot-ana", "hipSYCL splitter annotation analysis pass",
+                          true /* Only looks at CFG */, true /* Analysis Pass */);
+
+static void registerLoopSplitAtBarrierPasses(const llvm::PassManagerBuilder &,
+                                             llvm::legacy::PassManagerBase &PM) {
+  registerCBSPipelineLegacy(PM);
+}
+
+static llvm::RegisterStandardPasses
+    RegisterLoopSplitAtBarrierPassOptimizerFirst(llvm::PassManagerBuilder::EP_EarlyAsPossible,
+                                                 registerLoopSplitAtBarrierPasses);
+
+static void registerMarkParallelPass(const llvm::PassManagerBuilder &,
+                                     llvm::legacy::PassManagerBase &PM) {
+  PM.add(new LoopsParallelMarkerPassLegacy());
+}
+
+// SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
+static llvm::RegisterStandardPasses
+    RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
+                                         registerMarkParallelPass);
+#endif
 #if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 #define HIPSYCL_STRINGIFY(V) #V
-#define HIPSYCL_PLUGIN_VERSION_STRING                                                    \
-  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                    \
+#define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
+  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
       HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
-          [](llvm::PassBuilder &PB) {
-            // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
-            // really used there anyways..
-            PB.registerOptimizerLastEPCallback(
-                [](llvm::ModulePassManager &MPM,
-#if LLVM_VERSION_MAJOR >= 14
-                   llvm::OptimizationLevel
+  return {
+    LLVM_PLUGIN_API_VERSION, "hipSYCL Clang plugin", HIPSYCL_PLUGIN_VERSION_STRING,
+        [](llvm::PassBuilder &PB) {
+          // Note: for Clang < 12, this EP is not called for O0, but the new PM isn't
+          // really used there anyways..
+          PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
+            MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
+          });
+
+#ifdef HIPSYCL_WITH_ACCELERATED_CPU
+          PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+            MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+          });
+#if LLVM_VERSION_MAJOR < 12
+          PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
+            OptLevel Opt = OptLevel::O3;
 #else
-                   llvm::PassBuilder::OptimizationLevel
+          PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
-                  ) {
-                  MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
-                });
-          }};
+            registerCBSPipeline(MPM, Opt);
+          });
+          // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
+          // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
+          PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager &FPM, OptLevel) {
+            FPM.addPass(LoopsParallelMarkerPass{});
+          });
+#endif
+        }
+  };
 }
 #endif // !_WIN32 && LLVM_VERSION_MAJOR >= 11
 

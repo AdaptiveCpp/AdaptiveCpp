@@ -10,21 +10,49 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
 endif()
 
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(WITH_ACCELERATED_CPU)
+  add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
+endif()
+
+if(WITH_ACCELERATED_CPU)
+  set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
+    cbs/SplitterAnnotationAnalysis.cpp
+    cbs/IRUtils.cpp
+    cbs/KernelFlattening.cpp
+    cbs/LoopsParallelMarker.cpp
+    cbs/PHIsToAllocas.cpp
+    cbs/RemoveBarrierCalls.cpp
+    cbs/CanonicalizeBarriers.cpp
+    cbs/SimplifyKernel.cpp
+    cbs/LoopSimplify.cpp
+    cbs/PipelineBuilder.cpp
+    cbs/SubCfgFormation.cpp
+    cbs/UniformityAnalysis.cpp
+    cbs/VectorShape.cpp
+    cbs/VectorizationInfo.cpp
+    cbs/AllocaSSA.cpp
+    cbs/VectorShapeTransformer.cpp
+    cbs/Region.cpp
+    cbs/SyncDependenceAnalysis.cpp)
+else()
+  set(CBS_PLUGIN "")
+endif()
 
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
+  ${CBS_PLUGIN}
 )
 
 target_include_directories(hipSYCL_clang PRIVATE
+  ../../include
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}/include
-  ../../include)
+  ${CMAKE_BINARY_DIR}/include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  
+
 if(NOT ${LLVM_ENABLE_EH})
   target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
 endif()

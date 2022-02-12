@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"

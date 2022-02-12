@@ -8,8 +8,7 @@ bool canGlobalVariableBeRemoved(llvm::GlobalVariable *G) {
 
 void pruneUnusedGlobals(llvm::Module &M) {
 
-  HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******"
-                     << std::endl;
+  HIPSYCL_DEBUG_INFO << " ****** Starting pruning of global variables ******\n";
 
   std::vector<llvm::GlobalVariable *> VariablesForPruning;
 
@@ -20,7 +19,7 @@ void pruneUnusedGlobals(llvm::Module &M) {
 
       HIPSYCL_DEBUG_INFO
           << "IR Processing: Pruning unused global variable from device code: "
-          << G->getName().str() << std::endl;
+          << G->getName().str() << "\n";
     }
   }
 
@@ -29,7 +28,7 @@ void pruneUnusedGlobals(llvm::Module &M) {
     G->eraseFromParent();
   }
   HIPSYCL_DEBUG_INFO << "===> IR Processing: Pruning of globals complete, removed "
-                     << VariablesForPruning.size() << " global variable(s)." << std::endl;
+                     << VariablesForPruning.size() << " global variable(s).\n";
 }
 
 } // namespace

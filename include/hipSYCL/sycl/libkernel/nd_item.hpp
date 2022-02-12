@@ -278,7 +278,7 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
@@ -346,7 +346,7 @@ struct nd_item
   {}
 #else
   HIPSYCL_KERNEL_TARGET
-  nd_item(id<dimensions>* offset, 
+  nd_item(const id<dimensions>* offset,
           id<dimensions> group_id, id<dimensions> local_id, 
           range<dimensions> local_range, range<dimensions> num_groups,
           detail::host_barrier_type* host_group_barrier = nullptr,

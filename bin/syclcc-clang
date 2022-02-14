@@ -648,7 +648,11 @@ class syclcc_config:
   @property
   def common_compiler_args(self):
     return self._common_compiler_args
-  
+
+  @property
+  def hipsycl_include_path(self):
+    return os.path.join(self.hipsycl_installation_path, "include/")
+
   def has_optimization_flag(self):
     for arg in self._forwarded_args:
       if arg.startswith("-O"):
@@ -1043,6 +1047,7 @@ class cuda_nvcxx_invocation:
     self._nvcxx = config.nvcxx_path
     self._linker_args = config.cuda_link_line
     self._cxx_flags = config.cuda_cxx_flags
+    self._hipsycl_include_path = config.hipsycl_include_path
 
   def get_compiler_preference(self):
     return (self._nvcxx, 200)
@@ -1059,7 +1064,9 @@ class cuda_nvcxx_invocation:
 
     flags = [
         "-cuda",
-        "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        # Needed to avoid warnings about unused functions/variables in SYCL headers
+        "-isystem", self._hipsycl_include_path
       ]
 
     flags += self._cxx_flags
@@ -1279,6 +1286,7 @@ class compiler:
     self._common_compiler_args = config.common_compiler_args
     self._hipsycl_path = config.hipsycl_installation_path
     self._hipsycl_lib_path = os.path.join(self._hipsycl_path, "lib/")
+    self._hipsycl_include_path = config.hipsycl_include_path
     self._is_explicit_multipass = config.is_explicit_multipass
     self._save_temps = config.save_temps
     self._host_compiler = ""
@@ -1445,7 +1453,7 @@ class compiler:
   @property
   def common_cxx_flags(self):
     args = [
-      "-I" + os.path.join(self._hipsycl_path, "include/"),
+      "-I" + self._hipsycl_include_path,
       "-D__HIPSYCL__"
     ] + self._common_compiler_args
 

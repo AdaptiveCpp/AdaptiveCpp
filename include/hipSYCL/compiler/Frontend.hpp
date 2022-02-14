@@ -171,7 +171,7 @@ inline std::string buildKernelName(clang::RecordDecl* D, clang::MangleContext *M
 }
 
 // Partially taken from CGCUDANV.cpp
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR >= 13 && !defined(HIPSYCL_NO_DEVICE_MANGLER)
 inline std::string
 getDeviceSideName(clang::NamedDecl *ND, clang::ASTContext &Ctx,
                   clang::MangleContext *RegularMangleContext,
@@ -224,7 +224,7 @@ public:
     // Construct unique name mangler if supported
     NameMangler = clang::ItaniumMangleContext::create(
       instance.getASTContext(), instance.getASTContext().getDiagnostics(), true);
-#elif  LLVM_VERSION_MAJOR < 13
+#elif  LLVM_VERSION_MAJOR < 13 || defined(HIPSYCL_NO_DEVICE_MANGLER)
     NameMangler = clang::ItaniumMangleContext::create(
       instance.getASTContext(), instance.getASTContext().getDiagnostics());
 #else
@@ -687,7 +687,7 @@ private:
     nameKernelUsingTypes(F, true);
   }
 
-#if LLVM_VERSION_MAJOR >= 13
+#if LLVM_VERSION_MAJOR >= 13 && !defined(HIPSYCL_NO_DEVICE_MANGLER)
   void nameKernelUsingKernelManglingStub(clang::FunctionDecl* F) {
     const clang::RecordType* NamingComponent = getRelevantKernelNamingComponent(F);
     auto SuggestionIt = KernelManglingNameTemplates.find(NamingComponent);
@@ -737,7 +737,7 @@ private:
     nameKernelUsingTypes(F, false);
 #elif LLVM_VERSION_MAJOR == 11
     nameKernelUsingUniqueMangler(F);
-#elif LLVM_VERSION_MAJOR == 12
+#elif LLVM_VERSION_MAJOR == 12 || defined(HIPSYCL_NO_DEVICE_MANGLER)
     // Starting with clang 12, we rename all kernels
     nameKernelUsingTypes(F, true);
 #else

@@ -470,12 +470,12 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 }
 
 // ****************** relational functions ******************
-#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(name)                            \
-  template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x) noexcept {    \
-    return __spirv_##name(x);                                              \
+#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(builtin_name, dispatched_name)   \
+  template <class T> HIPSYCL_BUILTIN T __hipsycl_##builtin_name(T x) noexcept {    \
+    return __spirv_##dispatched_name(x);                                              \
   }
 
-HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(IsNan)
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isnan, IsNan)
 
 }
 }

@@ -672,7 +672,7 @@ class syclcc_config:
 
   @property
   def source_file_arguments(self):
-    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu"])
+    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu", ".sycl"])
     source_files = []
     for arg in self.forwarded_compiler_arguments:
       if not arg.startswith("-"):

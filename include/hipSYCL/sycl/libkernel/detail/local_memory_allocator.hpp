@@ -163,9 +163,11 @@ private:
       [_max_static_local_mem_size];
   
   inline static host_local_memory_origin _origin;
-#pragma omp threadprivate(_local_mem)
-#pragma omp threadprivate(_static_local_mem)
-#pragma omp threadprivate(_origin)
+#ifdef _OPENMP
+  #pragma omp threadprivate(_local_mem)
+  #pragma omp threadprivate(_static_local_mem)
+  #pragma omp threadprivate(_origin)
+#endif
 };
 
 HIPSYCL_KERNEL_TARGET

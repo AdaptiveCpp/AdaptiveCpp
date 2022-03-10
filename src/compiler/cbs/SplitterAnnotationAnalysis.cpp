@@ -48,18 +48,22 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
-        auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
-        auto *F = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0));
-        auto *AnnotationGL = llvm::dyn_cast<llvm::GlobalVariable>(CS->getOperand(1)->getOperand(0));
-        llvm::StringRef Annotation =
-            llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())->getAsCString();
-        if (Annotation.compare(SplitterAnnotation) == 0) {
-          SplitterFuncs.insert(F);
-          HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << F->getName() << "\n";
-        } else if (Annotation.compare(KernelAnnotation) == 0) {
-          NDKernels.insert(F);
-          HIPSYCL_DEBUG_INFO << "Found kernel annotated function " << F->getName() << "\n";
-        }
+        if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get()))
+          if (auto *F = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0)))
+            if (auto *AnnotationGL =
+                    llvm::dyn_cast<llvm::GlobalVariable>(CS->getOperand(1)->getOperand(0)))
+              if (auto *Initializer =
+                      llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
+                llvm::StringRef Annotation = Initializer->getAsCString();
+                if (Annotation.compare(SplitterAnnotation) == 0) {
+                  SplitterFuncs.insert(F);
+                  HIPSYCL_DEBUG_INFO << "Found splitter annotated function " << F->getName()
+                                     << "\n";
+                } else if (Annotation.compare(KernelAnnotation) == 0) {
+                  NDKernels.insert(F);
+                  HIPSYCL_DEBUG_INFO << "Found kernel annotated function " << F->getName() << "\n";
+                }
+              }
       }
     }
   }

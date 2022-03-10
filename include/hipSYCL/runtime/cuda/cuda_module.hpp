@@ -33,6 +33,7 @@
 
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/runtime/module_invoker.hpp"
 #include "hipSYCL/glue/generic/module.hpp"
 
@@ -43,6 +44,30 @@ namespace rt {
 
 using cuda_module_id_t = module_id_t;
 class cuda_queue;
+
+class cuda_code_object : public code_object {
+public:
+  virtual ~cuda_code_object(){}
+  cuda_code_object(hcf_object_id origin, const std::string &target, int device,
+                   const std::string &source);
+
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
+
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+
+  CUmod_st* get_module() const;
+private:
+  hcf_object_id _origin;
+  std::vector<std::string> _kernel_names;
+  std::string _target_arch;
+  CUmod_st* _module;
+};
 
 class cuda_module {
 public:

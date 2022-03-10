@@ -33,6 +33,29 @@
 #include <array>
 #include <string>
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
+
+#define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
+  (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
+
+template<std::size_t Hcf_object_id>
+struct __hipsycl_hcf_registration {};
+
+#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_object_id, hcf_string)             \
+  template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
+    __hipsycl_hcf_registration() {                                             \
+      ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
+          ::hipsycl::common::binary_container{hcf_string});                    \
+    }                                                                          \
+  };                                                                           \
+  static __hipsycl_hcf_registration<hcf_object_id>                             \
+      __hipsycl_register_hcf_##hcf_object_id;
+
+#define HIPSYCL_EMBED_HCF(name, hcf_object_id, hcf_string)                     \
+  static const unsigned long long __hipsycl_##name##_hcf_object_id =           \
+      hcf_object_id;                                                           \
+  static const char __hipsycl_##name##_hcf_object[] = hcf_string;             \
+  HIPSYCL_STATIC_HCF_REGISTRATION(hcf_object_id, __hipsycl_##name##_hcf_object)
 
 struct __hipsycl_cuda_embedded_object {
   std::string target;

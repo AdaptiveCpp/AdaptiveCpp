@@ -75,7 +75,7 @@ result ze_module_invoker::submit_kernel(
 
   ze_kernel_handle_t kernel;
   res = mod->obtain_kernel(kernel_name_tag, kernel_body_name, kernel);
-
+  
   if(!res.is_success())
     return res;
 

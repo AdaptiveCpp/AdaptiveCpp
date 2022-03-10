@@ -151,6 +151,32 @@ private:
 
 }
 
+cuda_code_object::cuda_code_object(hcf_object_id origin,
+                                   const std::string &target,
+                                   int device,
+                                   const std::string &source) 
+  : _origin{origin}, _target_arch{target} {
+  
+  std::istringstream code_stream(source);
+  std::string line;
+
+  while (std::getline(code_stream, line)) {
+
+    const std::string kernel_identifier = ".visible .entry";
+    auto pos = line.find(kernel_identifier);
+
+    if (pos != std::string::npos) {
+      line = line.substr(pos+kernel_identifier.size());
+      trim_left(line);
+      trim_right_space_and_parenthesis(line);
+      HIPSYCL_DEBUG_INFO << "Detected kernel in code object: " << line << std::endl;
+      _kernel_names.push_back(line);
+    }
+  }
+}
+
+
+
 cuda_module::cuda_module(cuda_module_id_t module_id, const std::string &target,
                          const std::string &code_content)
     : _id{module_id}, _target{target}, _content{code_content} {

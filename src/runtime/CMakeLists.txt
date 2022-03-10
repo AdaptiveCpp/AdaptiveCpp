@@ -12,6 +12,7 @@ add_library(hipSYCL-rt SHARED
   device_id.cpp
   operations.cpp
   data.cpp
+  kernel_cache.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp

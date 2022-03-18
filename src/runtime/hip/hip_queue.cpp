@@ -385,7 +385,7 @@ void *hip_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
 }
 
-module_invoker *hip_queue::get_module_invoker() {
+code_object_invoker* hip_queue::get_code_object_invoker() {
   return nullptr;
 }
 

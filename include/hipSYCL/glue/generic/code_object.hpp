@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_GLUE_CODE_OBJECT_HPP
+#define HIPSYCL_GLUE_CODE_OBJECT_HPP
+
+
 #include <vector>
+#include <array>
+#include <string>
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
+#define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
+  (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
 
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
+template<std::size_t Hcf_object_id>
+struct __hipsycl_hcf_registration {};
 
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_object_id, hcf_string, hcf_size)   \
+  template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
+    __hipsycl_hcf_registration() {                                             \
+      ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
+          ::hipsycl::common::binary_container{                                 \
+              std::string{hcf_string, hcf_size}});                             \
+    }                                                                          \
+  };                                                                           \
+  __hipsycl_hcf_registration<hcf_object_id>                                    \
+      __hipsycl_register_hcf_##hcf_object_id;
 
-namespace hipsycl {
-namespace rt {
+#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
+ #include __HIPSYCL_MULTIPASS_CUDA_HEADER__
+#endif
 
-
-class cuda_backend : public backend
-{
-public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
-
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
-
-private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-  mutable std::vector<cuda_allocator> _allocators;
-};
-
-}
-}
-
+#ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
+ #include __HIPSYCL_MULTIPASS_SPIRV_HEADER__
+#endif
 
 #endif

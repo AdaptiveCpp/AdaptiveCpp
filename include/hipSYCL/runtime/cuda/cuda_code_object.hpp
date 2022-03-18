@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_MODULE_HPP
-#define HIPSYCL_CUDA_MODULE_HPP
+#ifndef HIPSYCL_CUDA_CODE_OBJECT_HPP
+#define HIPSYCL_CUDA_CODE_OBJECT_HPP
 
 #include <vector>
 #include <string>
@@ -34,22 +34,43 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/module_invoker.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
 
 struct CUmod_st;
 
 namespace hipsycl {
 namespace rt {
 
-using cuda_module_id_t = module_id_t;
-class cuda_queue;
-
-class cuda_code_object : public code_object {
+class cuda_source_object : public code_object {
 public:
-  virtual ~cuda_code_object(){}
-  cuda_code_object(hcf_object_id origin, const std::string &target, int device,
-                   const std::string &source);
+  virtual ~cuda_source_object(){}
+  cuda_source_object(hcf_object_id origin, const std::string &target,
+                     const std::string &source);
+
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
+
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+  const std::string& get_source() const;
+
+private:
+  hcf_object_id _origin;
+  std::vector<std::string> _kernel_names;
+  std::string _target_arch;
+  std::string _source;
+};
+
+class cuda_executable_object : public code_object {
+public:
+  virtual ~cuda_executable_object();
+  cuda_executable_object(const cuda_source_object* source, int device);
+
+  result build();
 
   virtual code_object_state state() const override;
   virtual code_format format() const override;
@@ -62,50 +83,14 @@ public:
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
   CUmod_st* get_module() const;
+  int get_device() const;
 private:
-  hcf_object_id _origin;
-  std::vector<std::string> _kernel_names;
-  std::string _target_arch;
+  
+  const cuda_source_object* _source;
+  int _device;
   CUmod_st* _module;
 };
 
-class cuda_module {
-public:
-  cuda_module(cuda_module_id_t module_id, const std::string &target,
-              const std::string &code_content);
-  
-  const std::vector<std::string>& get_kernel_names() const;
-
-  std::string get_content() const;
-
-  bool guess_kernel_name(const std::string &kernel_group_name,
-                         const std::string &kernel_component_name,
-                         std::string &guessed_name) const;
-
-  cuda_module_id_t get_id() const;
-  const std::string& get_target() const;
-  
-private:
-  cuda_module_id_t _id;
-  std::string _target;
-  std::string _content;
-  std::vector<std::string> _kernel_names;
-  
-};
-
-class cuda_module_manager {
-public:
-  cuda_module_manager() = default;
-  cuda_module_manager(std::size_t num_devices);
-  ~cuda_module_manager();
-
-  const cuda_module &obtain_module(cuda_module_id_t id,
-                                   const std::string &target,
-                                   const std::string &content);
-
-  result load(rt::device_id dev, const cuda_module &module, CUmod_st*& out);
-
-};
 
 }
 }

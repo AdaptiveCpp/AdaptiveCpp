@@ -55,7 +55,7 @@
 
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/kernel_launcher.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
@@ -63,7 +63,7 @@
 #include "hipSYCL/runtime/dag_node.hpp"
 
 #include "hipSYCL/glue/kernel_names.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
+#include "hipSYCL/glue/generic/code_object.hpp"
 
 
 #if defined(HIPSYCL_HIPLIKE_LAUNCHER_ALLOW_DEVICE_CODE)
@@ -597,16 +597,15 @@ template<rt::backend_id Backend_id, class Queue_type>
 class hiplike_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
-
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, grid, block,      \
-                                shared_mem, stream, ...)               \
-  if(false) {                                                                  \
-    __hipsycl_kernel_name_template<KernelNameT><<<1,1>>>();                    \
-    __hipsycl_kernel_name_template<KernelBodyT><<<1,1>>>();              \
+#define __hipsycl_invoke_kernel(nodeptr, f, KernelNameT, KernelBodyT, grid,    \
+                                block, shared_mem, stream, ...)                \
+  if (false) {                                                                 \
+    __hipsycl_kernel_name_template<KernelNameT><<<1, 1>>>();                   \
+    __hipsycl_kernel_name_template<KernelBodyT><<<1, 1>>>();                   \
   }                                                                            \
   if constexpr (is_launch_from_module()) {                                     \
-    invoke_from_module<KernelNameT, KernelBodyT>(grid, block, shared_mem,      \
-                                                 __VA_ARGS__);                 \
+    invoke_from_module<KernelNameT, KernelBodyT>(nodeptr, grid, block,         \
+                                                 shared_mem, __VA_ARGS__);     \
   } else {                                                                     \
     __hipsycl_launch_integrated_kernel(f, grid, block, shared_mem, stream,     \
                                        __VA_ARGS__)                            \
@@ -678,9 +677,9 @@ public:
       if constexpr (type == rt::kernel_type::single_task) {
 
         __hipsycl_invoke_kernel(
-            hiplike_dispatch::single_task_kernel<kernel_name_t>, kernel_name_t,
-            Kernel, dim3(1, 1, 1), dim3(1, 1, 1), dynamic_local_memory,
-            _queue->get_native_type(), k);
+            node, hiplike_dispatch::single_task_kernel<kernel_name_t>,
+            kernel_name_t, Kernel, dim3(1, 1, 1), dim3(1, 1, 1),
+            dynamic_local_memory, _queue->get_native_type(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
        
@@ -729,7 +728,7 @@ public:
 
           if constexpr (type == rt::kernel_type::basic_parallel_for) {
 
-            __hipsycl_invoke_kernel(
+            __hipsycl_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_kernel<kernel_name_t>, kernel_name_t,
                 Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -743,7 +742,7 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_invoke_kernel(
+            __hipsycl_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_ndrange_kernel<kernel_name_t>,
                 kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -758,7 +757,7 @@ public:
             for (int i = 0; i < Dim; ++i)
               assert(global_range[i] % effective_local_range[i] == 0);
 
-            __hipsycl_invoke_kernel(
+            __hipsycl_invoke_kernel(node,
                 hiplike_dispatch::parallel_for_workgroup<kernel_name_t>,
                 kernel_name_t, Kernel,
                 hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -785,7 +784,7 @@ public:
               
               using sp_properties_t = decltype(multiversioning_props);
 
-              __hipsycl_invoke_kernel(
+              __hipsycl_invoke_kernel(node
                   hiplike_dispatch::parallel_region<multiversioned_name_t>,
                   multiversioned_name_t, decltype(multiversioned_kernel_body),
                   hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -846,7 +845,7 @@ public:
                   (local_reducers.combine_global_input(gid), ...);
               };
 
-              __hipsycl_invoke_kernel(
+              __hipsycl_invoke_kernel(node
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
                       __hipsycl_unnamed_kernel>,
                   __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
@@ -922,51 +921,15 @@ private:
   }
 
   template <class KernelName, class KernelBodyT, typename... Args>
-  void invoke_from_module(dim3 grid_size, dim3 block_size,
+  void invoke_from_module(rt::dag_node* node, dim3 grid_size, dim3 block_size,
                           unsigned dynamic_shared_mem, Args... args) {
-    
+    assert(node);
+
     if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
 
-      if (this_module::get_num_objects<Backend_id>() == 0) {
-        rt::register_error(
-            __hipsycl_here(),
-            rt::error_info{
-                "hiplike_kernel_launcher: Cannot invoke CUDA kernel: No code "
-                "objects present in this module."});
-        return;
-      }
-
-      rt::hardware_context *ctx =
-          rt::application::get_backend(Backend_id)
-              .get_hardware_manager()
-              ->get_device(_queue->get_device().get_id());
-
-      std::string target_arch = ctx->get_device_arch();
-      std::string selected_arch;
-      this_module::for_each_target<Backend_id>(
-          [&](const std::string &available_code_arch) {
-            if (available_code_arch == target_arch) {
-              selected_arch = target_arch;
-            }
-          });
-
-      if (selected_arch.size() == 0) {
-        // TODO: Improve selection when we don't have an exact match
-        this_module::for_each_target<Backend_id>(
-            [&](const std::string &available_code_arch) {
-              selected_arch = available_code_arch;
-            });
-        
-        HIPSYCL_DEBUG_WARNING
-            << "hiplike_kernel_launcher: No exact target architecture match "
-               "found in this compilation unit; selecting kernel for "
-            << selected_arch << std::endl;
-      }
-
-      const std::string *kernel_image =
-          this_module::get_code_object<Backend_id>(selected_arch);
-      assert(kernel_image && "Invalid kernel image object");
+      const std::size_t local_cuda_hcf_object_id =
+          __hipsycl_local_cuda_hcf_object_id;
 
       std::array<void *, sizeof...(Args)> kernel_args{
         static_cast<void *>(&args)...
@@ -978,7 +941,7 @@ private:
       std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
       std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
-      rt::module_invoker *invoker = _queue->get_module_invoker();
+      rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
 
       assert(invoker &&
              "Runtime backend does not support invoking kernels from modules");
@@ -986,8 +949,10 @@ private:
       auto num_groups = rt::range<3>{grid_size.x, grid_size.y, grid_size.z};
       auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
 
-      rt::result err = invoker->submit_kernel(
-          this_module::get_module_id<Backend_id>(), selected_arch, kernel_image,
+      const rt::kernel_operation &op =
+          *static_cast<rt::kernel_operation>(node->get_operation());
+
+      rt::result err = invoker->submit_kernel(op, local_cuda_hcf_object_id,
           num_groups, group_size, dynamic_shared_mem, kernel_args.data(),
           arg_sizes.data(), kernel_args.size(), kernel_name_tag,
           kernel_body_name);

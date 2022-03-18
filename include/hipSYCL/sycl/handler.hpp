@@ -771,7 +771,7 @@ private:
     rt::dag_build_guard build{rt::application::dag()};
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
-        typeid(f).name(),
+        rt::kernel_cache::get().get_global_kernel_name<KernelFuncType>(),
         glue::make_kernel_launchers<KernelName, KernelType>(
             offset, local_range, global_range, shared_mem_size, f,
             reductions...),

@@ -25,7 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/util.hpp"
@@ -33,8 +35,10 @@
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
+#include "hipSYCL/runtime/cuda/cuda_code_object.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
@@ -131,7 +135,7 @@ void cuda_queue::activate_device() const {
 }
 
 cuda_queue::cuda_queue(device_id dev)
-    : _dev{dev}, _module_invoker{this}, _stream{nullptr} {
+    : _dev{dev}, _code_object_invoker{this}, _stream{nullptr} {
   this->activate_device();
 
   auto err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
@@ -384,23 +388,141 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
   return make_success();
 }
 
-result cuda_queue::submit_kernel_from_module(cuda_module_manager &manager,
-                                             const cuda_module &module,
-                                             const std::string &kernel_name,
-                                             const rt::range<3> &grid_size,
-                                             const rt::range<3> &block_size,
-                                             unsigned dynamic_shared_mem,
-                                             void **kernel_args) {
+result cuda_queue::submit_kernel_from_code_object(
+                                 const kernel_operation& op,
+                                 hcf_object_id hcf_object,
+                                 const std::string &backend_kernel_name,
+                                 const rt::range<3> &grid_size,
+                                 const rt::range<3> &block_size,
+                                 unsigned dynamic_shared_mem,
+                                 void **kernel_args) {
 
   this->activate_device();
 
-  CUmodule cumodule;
-  result res = manager.load(_dev, module, cumodule);
-  if (!res.is_success())
-    return res;
+  std::string global_kernel_name = op.get_global_kernel_name();
+  const kernel_cache::kernel_name_index_t *kidx =
+      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+
+  if(!kidx) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"cuda_queue: Could not obtain kernel index for kernel " +
+                   global_kernel_name});
+  }
+
+  // For now we need to extract HCF in order to get a list of available
+  // compilation targets (list of embedded device images in HCF).
+  // TODO we could cache this vector to avoid retrieving HCF for every kernel launch
+  const common::hcf_container *hcf =
+        rt::kernel_cache::get().get_hcf(hcf_object);
+  if (!hcf)
+    return make_error(
+        __hipsycl_here(),
+        error_info{"cuda_queue: Could not access requested HCF object"});
+
+  assert(hcf->root_node());
+  std::vector<std::string> available_targets = hcf->root_node()->get_subnodes();
+  assert(!available_targets.empty());
+
+  // TODO Select best compiled target based on actual device - currently
+  // we just use the first device image no matter which device it was
+  // compiled for
+  std::string selected_target = available_targets[0];
+
+  int device = _dev.get_id();
+
+  // This defines the conditions that we apply when looking for appropriate
+  // code objects.
+  // The correct hcf id and backend are already enforced by the kernel cache,
+  // so we don't need to verify here.
+  auto code_object_selector = [&](const code_object* candidate) -> bool {
+    // We do not need to check for ptx since all CUDA code objects are PTX
+    // Also no need to check for CUDA backend since the kernel cache already
+    // guarantees that we are only given candidates for the requested backend (CUDA).
+    return (candidate->target_arch() == selected_target) &&
+           (candidate->state() == code_object_state::executable) &&
+           (static_cast<const cuda_executable_object *>(candidate)
+                ->get_device() == device);
+  };
+
+  // Will be invoked by the kernel cache in case there is a miss in the kernel
+  // cache and we have to construct a new code object
+  auto code_object_constructor = [&]() -> code_object* {
+
+    // First we need to obtain the source object. Need to use recursive_*
+    // to avoid deadlocks since we are already inside the kernel cache here.
+
+    auto source_object_selector = [&](const code_object *candidate) -> bool {
+      return (candidate->state() == code_object_state::source) &&
+             (candidate->target_arch() == selected_target);
+    };
+
+    auto source_object_constructor = [&]() -> code_object* {
+      const common::hcf_container::node *tn =
+          hcf->root_node()->get_subnode(selected_target);
+      if(!tn)
+        return nullptr;
+      if(!tn->has_binary_data_attached())
+        return nullptr;
+      
+      std::string source_code;
+      if(!hcf->get_binary_attachment(tn, source_code)) {
+        HIPSYCL_DEBUG_ERROR << "cuda_queue: Could not extract PTX code from "
+                               "HCF node; invalid HCF data?"
+                            << std::endl;
+        return nullptr;
+      }
+      // The source object parses the PTX code and can give out information
+      // such as a list of contained kernels
+      return new cuda_source_object{hcf_object, selected_target, source_code};
+    };
+
+    const cuda_source_object *source = static_cast<const cuda_source_object *>(
+        rt::kernel_cache::get().recursive_get_or_construct_code_object(
+            *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
+            source_object_selector, source_object_constructor));
+    
+    cuda_executable_object* exec_obj = new cuda_executable_object{source, device};
+    result r = exec_obj->build();
+
+    if(!r.is_success()) {
+      register_error(r);
+      delete exec_obj;
+      return nullptr;
+    }
+
+    return exec_obj;
+  };
+
+  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+      *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
+      code_object_selector, code_object_constructor);
+
+  if(!obj) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Code object construction failed"});
+  }
+
+  CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
+  assert(cumodule);
+
+  // Need to find out full backend kernel name. This is necessary because
+  // we don't know the *exact* kernel name until we know that we are in the clang 13+
+  // name mangling path. It can be that we only have a fragment :(
+  std::string full_kernel_name;
+  for(const auto& name : obj->supported_backend_kernel_names()) {
+    if(name.find(backend_kernel_name) != std::string::npos) {
+      full_kernel_name = name;
+      break;
+    }
+  }
+  if(full_kernel_name.empty())
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Could not discover full kernel "
+                                 "name from partial backend kernel name"});
 
   CUfunction f;
-  CUresult err = cuModuleGetFunction(&f, cumodule, kernel_name.c_str());
+  CUresult err = cuModuleGetFunction(&f, cumodule, full_kernel_name.c_str());
 
   if (err != CUDA_SUCCESS) {
     return make_error(__hipsycl_here(),
@@ -433,59 +555,34 @@ void *cuda_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
 }
 
-module_invoker *cuda_queue::get_module_invoker() {
-  return &_module_invoker;
+code_object_invoker *cuda_queue::get_code_object_invoker() {
+  return &_code_object_invoker;
 }
 
-cuda_module_invoker::cuda_module_invoker(cuda_queue *q) : _queue{q} {}
+cuda_code_object_invoker::cuda_code_object_invoker(cuda_queue *q) : _queue{q} {}
 
-result cuda_module_invoker::submit_kernel(
-    module_id_t id, const std::string &module_variant,
-    const std::string *module_image, const rt::range<3> &num_groups,
-    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+result cuda_code_object_invoker::submit_kernel(
+    const kernel_operation& op,
+    hcf_object_id hcf_object,
+    const rt::range<3> &num_groups,
+    const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args,
     std::size_t *arg_sizes, std::size_t num_args,
-    const std::string &kernel_name_tag, const std::string &kernel_body_name) {
+    const std::string &kernel_name_tag,
+    const std::string &kernel_body_name) {
 
   assert(_queue);
-  assert(module_image);
 
-  cuda_backend *be =
-      cast<cuda_backend>(&(application::get_backend(rt::backend_id::cuda)));
+  std::string kernel_name = kernel_body_name;
+  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") != std::string::npos)
+    kernel_name = kernel_name_tag;
 
-  HIPSYCL_DEBUG_INFO << "cuda_module_invoker: Obtaining module with id " << id
-                     << " in variant '" << module_variant << "'" << std::endl;
-  
-  const cuda_module &code_module =
-      be->get_module_manager().obtain_module(id, module_variant, *module_image);
-
-  // This will hold the actual kernel name in the device image
-  std::string kernel_name;
-  // First check if there is a kernel in the module that matches
-  // the expected explicitly named kernel name
-  if (!code_module.guess_kernel_name("__hipsycl_kernel", kernel_name_tag,
-                                     kernel_name)) {
-
-    // We are dealing with an unnamed kernel, so check if we can find
-    // a matching unnamed kernel
-    if (!code_module.guess_kernel_name("__hipsycl_kernel", kernel_body_name,
-                                       kernel_name)) {
-
-      return rt::make_error(
-          __hipsycl_here(),
-          rt::error_info{"cuda_module_invoker: No matching CUDA kernel "
-                         "found in module for kernel with name tag " +
-                         kernel_name_tag + " and type " +
-                         kernel_body_name});
-    }
-  }
-  HIPSYCL_DEBUG_INFO
-      << "cuda_module_invoker: Selected kernel from module for execution: "
-      << kernel_name << std::endl;
-
-  return _queue->submit_kernel_from_module(
-      be->get_module_manager(), code_module, kernel_name, num_groups,
-      group_size, local_mem_size, args);
+  return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,
+                                                num_groups, group_size,
+                                                local_mem_size, args);
 }
+
+
 }
 }
 

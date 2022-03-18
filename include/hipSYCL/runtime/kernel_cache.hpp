@@ -112,6 +112,36 @@ public:
     }
   }
 
+  // Retrieve object for provided kernel and backend, or nullptr
+  // if not found.
+  template<class Predicate>
+  const code_object* get_code_object(kernel_name_index_t kernel_index,
+    const std::string& backend_kernel_name,
+    backend_id b, Predicate&& object_selector) {
+
+    std::lock_guard<std::mutex> lock{_mutex};
+    return get_code_object_impl(kernel_index, backend_kernel_name, b,
+                                object_selector);
+  }
+
+  template<class Predicate>
+  const code_object* get_code_object(kernel_name_index_t kernel_index,
+    const std::string& backend_kernel_name,
+    backend_id b, hcf_object_id source_object, Predicate&& object_selector) {
+
+    std::lock_guard<std::mutex> lock{_mutex};
+
+    auto pred = [&](const code_object *obj) {
+      if (obj->hcf_source() != source_object)
+        return false;
+
+      return object_selector(obj);
+    };
+
+    return get_code_object_impl(kernel_index, backend_kernel_name, b,
+                                pred);
+  }
+
   template <class Constructor, class Predicate>
   const code_object *get_or_construct_code_object(
       kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
@@ -119,6 +149,64 @@ public:
 
     std::lock_guard<std::mutex> lock{_mutex};
 
+    return get_or_construct_code_object_impl(kernel_index, backend_kernel_name,
+                                             b, object_selector, c);
+  }
+
+  // Only to be used within a Constructor passed to get_or_construct_code_object!
+  template <class Constructor, class Predicate>
+  const code_object *recursive_get_or_construct_code_object(
+      kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
+      backend_id b, Predicate &&object_selector, Constructor &&c) {
+
+    return get_or_construct_code_object_impl(kernel_index, backend_kernel_name,
+                                             b, object_selector, c);
+  }
+
+  template <class Constructor, class Predicate>
+  const code_object *
+  get_or_construct_code_object(kernel_name_index_t kernel_index,
+                               const std::string &backend_kernel_name,
+                               backend_id b, hcf_object_id source_object,
+                               Predicate &&object_selector, Constructor &&c) {
+
+    auto pred = [&](const code_object *obj) {
+      if (obj->hcf_source() != source_object)
+        return false;
+
+      return object_selector(obj);
+    };
+
+    return get_or_construct_code_object(kernel_index, backend_kernel_name, b,
+                                        pred, c);
+  }
+
+  // Only to be used within a Constructor passed to get_or_construct_code_object!
+  template <class Constructor, class Predicate>
+  const code_object *
+  recursive_get_or_construct_code_object(kernel_name_index_t kernel_index,
+                               const std::string &backend_kernel_name,
+                               backend_id b, hcf_object_id source_object,
+                               Predicate &&object_selector, Constructor &&c) {
+
+    auto pred = [&](const code_object *obj) {
+      if (obj->hcf_source() != source_object)
+        return false;
+
+      return object_selector(obj);
+    };
+
+    return recursive_get_or_construct_code_object(
+        kernel_index, backend_kernel_name, b, pred, c);
+  }
+
+private:
+
+  template<class Predicate>
+  const code_object* get_code_object_impl(kernel_name_index_t kernel_index,
+    const std::string& backend_kernel_name,
+    backend_id b, Predicate&& object_selector) {
+    
     assert(kernel_index < _kernel_names.size());
 
     auto& backend_code_objects = _kernel_code_objects[b];
@@ -156,13 +244,27 @@ public:
       }
     }
 
-    // Worst case: Construct new code object
+    // Worst case: code object does not exist
+    return nullptr;
+  }
+
+  template <class Constructor, class Predicate>
+  const code_object *get_or_construct_code_object_impl(
+      kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
+      backend_id b, Predicate &&object_selector, Constructor &&c) {
+
+    code_object *obj = get_code_object_impl(kernel_index, backend_kernel_name,
+                                            b, object_selector);
+    if(obj)
+      return obj;
+    
+    // We haven't found the requested object: Construct new code object
     code_object* new_obj = c();
     if(new_obj) {
       _code_objects.emplace_back(code_object_ptr{new_obj});
       code_object_index_t new_cidx = _code_objects.size() - 1;
 
-      kernel_objects.push_back(new_cidx);
+      _kernel_code_objects[b][kernel_index].push_back(new_cidx);
     } else {
       register_error(
           __hipsycl_here(),
@@ -171,26 +273,6 @@ public:
 
     return new_obj;
   }
-
-  template <class Constructor, class Predicate>
-  const code_object *
-  get_or_construct_code_object(kernel_name_index_t kernel_index,
-                               const std::string &backend_kernel_name,
-                               backend_id b, hcf_object_id source_object,
-                               Predicate &&object_selector, Constructor &&c) {
-
-    auto pred = [&](const code_object *obj) {
-      if (obj->hcf_source() != source_object)
-        return false;
-
-      return object_selector(obj);
-    };
-
-    return get_or_construct_code_object(kernel_index, backend_kernel_name, b,
-                                        pred, c);
-  }
-
-private:
 
   // These objects should only be written to during startup - they
   // are not thread-safe!

@@ -136,21 +136,30 @@ public:
     return &_root_node;
   }
 
-  bool get_binary_content(const node* binary_descriptor, std::string& out) {
+  bool get_binary_attachment(const node* n, std::string& out) const {
     std::size_t start = 0;
     std::size_t size = 0;
 
-    if(!binary_descriptor)
+    if(!n)
       return false;
 
-    if(!binary_descriptor->is_binary_content()) {
-      HIPSYCL_DEBUG_ERROR << "hcf: Node " << binary_descriptor->node_id
-                          << " is not a binary content node" << std::endl;
+    const node* descriptor_node = nullptr;
+
+    if(n->is_binary_content())
+      descriptor_node = n;
+    else if(n->has_binary_data_attached()) {
+      descriptor_node = n->get_subnode("__binary");
+    } else {
+      HIPSYCL_DEBUG_ERROR << "hcf: Node " << n->node_id
+                          << " is not a binary content node, nor does it carry "
+                             "a binary attachment"
+                          << std::endl;
       return false;
     }
+    assert(descriptor_node);
 
-    const std::string* start_entry = binary_descriptor->get_value("start");
-    const std::string* size_entry = binary_descriptor->get_value("size");
+    const std::string* start_entry = descriptor_node->get_value("start");
+    const std::string* size_entry = descriptor_node->get_value("size");
 
     if(!start_entry) {
       HIPSYCL_DEBUG_ERROR << "hcf: Node does not contain binary content start" << std::endl;

@@ -77,7 +77,7 @@ if(WITH_CUDA_BACKEND)
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
     cuda/cuda_backend.cpp
-    cuda/cuda_module.cpp)
+    cuda/cuda_code_object.cpp)
 
   target_include_directories(rt-backend-cuda PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include

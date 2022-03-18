@@ -26,28 +26,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_MODULE_INVOKER_HPP
-#define HIPSYCL_MODULE_INVOKER_HPP
+#ifndef HIPSYCL_CODE_OBJECT_INVOKER_HPP
+#define HIPSYCL_CODE_OBJECT_INVOKER_HPP
 
 #include "error.hpp"
 #include "util.hpp"
+#include "kernel_cache.hpp"
+#include "operations.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-using module_id_t = unsigned long long;
-
-class module_invoker {
+class code_object_invoker {
 public:
-  virtual result
-  submit_kernel(module_id_t id, const std::string &module_variant,
-                const std::string *module_image, const rt::range<3> &num_groups,
-                const rt::range<3>& group_size, unsigned local_mem_size,
-                void **args, std::size_t* arg_sizes, std::size_t num_args,
-                const std::string &kernel_name_tag,
-                const std::string &kernel_body_name) = 0;
-
-  virtual ~module_invoker() {}
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name_tag,
+                               const std::string &kernel_body_name) = 0;
+  virtual ~code_object_invoker(){}
 };
 
 }

@@ -397,7 +397,7 @@ void *omp_queue::get_native_type() const {
   return nullptr;
 }
 
-module_invoker *omp_queue::get_module_invoker() {
+code_object_invoker* omp_queue::get_code_object_invoker() {
   return nullptr;
 }
 

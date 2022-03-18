@@ -44,6 +44,125 @@ class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
 
+class hcf_node:
+  def __init__(self, node_name, nesting_level=0):
+    self._subnodes = []
+    self._key_value_pairs = {}
+    self._node_name = node_name
+    self._nesting_level = nesting_level
+
+  @property
+  def subnodes(self):
+    return self._subnodes
+  
+  def make_subnode(self, name):
+    n = hcf_node(name, self._nesting_level+1)
+    self._subnodes.append(n)
+    return n
+
+  def add_binary_attachment(self, offset, size):
+    n = self.make_subnode("__binary")
+    n.values["start"] = offset
+    n.values["size"] = size
+
+  @property
+  def values(self):
+    return self._key_value_pairs
+  
+  @property
+  def name(self):
+    return self._node_name
+
+  def __str__(self):
+    result = ""
+    indent = " "*self._nesting_level
+
+    for k in self._key_value_pairs:
+      result += "{}{}={}\n".format(indent,k, self._key_value_pairs[k])
+    
+    for n in self._subnodes:
+      result += indent + "{." + n.name + "\n"
+      result += str(n)
+      result += indent + "}." + n.name + "\n"
+    
+    return result
+
+class hcf_generator:
+  def __init__(self):
+    self._root = hcf_node("root")
+    self._binary_content = []
+    self._binary_content_size = 0
+
+  @property
+  def root(self):
+    return self._root
+
+  def attach_binary_content(self, node, content):
+    offset = self._binary_content_size
+    size = len(content)
+
+    node.add_binary_attachment(offset, size)
+
+    self._binary_content_size += len(content)
+    self._binary_content.append(bytes(content))
+
+  def attach_text_content(self, node, content):
+    self.attach_binary_content(node, content.encode("utf-8"))
+
+  # Return non-binary readable part
+  def __str__(self) -> str:
+    return str(self._root) + "__hipsycl_hcf_binary_appendix"
+  
+  @property
+  def bytes(self):
+    result = str(self).encode("utf-8")
+    for b in self._binary_content:
+      result += b
+    return result
+
+  @property
+  def escaped_bytes(self):
+    hex = binascii.hexlify(self.bytes).decode("utf-8")
+    return ",".join(["0x" + hex[i:i+2] 
+        for i in range(0,len(hex),2)])
+
+
+class integration_header:
+  def __init__(self, backend_name):
+    self._object_id = uuid.uuid1().int >> 64
+    self._hcf = hcf_generator()
+    self._hcf.root.values["object-id"] = self._object_id
+    self._hcf.root.values["generator"] = "syclcc"
+    self._backend = backend_name
+  
+  @property
+  def hcf_object(self):
+    return self._hcf
+  
+  def __str__(self) -> str:
+    hcf_string = self._hcf.escaped_bytes
+    
+    header = """
+#ifndef HIPSYCL_{capital_name}_INTEGRATION_HEADER
+#define HIPSYCL_{captial_name}_INTEGRATION_HEADER
+
+static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id};
+const char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
+HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
+
+#endif
+""".format(
+      capital_name = self._backend.upper(), 
+      name = self._backend.lower(),
+      hcf_object_id = self._object_id,
+      hcf_size = len(hcf_string))
+    
+    return header
+
+  def write_header(self, filename):
+    with open(filename, 'w') as f:
+      f.write(str(self))
+
 class config_file:
   def __init__(self, filepath):
     self._location = filepath
@@ -806,41 +925,21 @@ class cuda_multipass_invocation:
   def _explicit_pass_output_file(self, target):
     return os.path.join(self._temp_dir, "nvptx-"+target+".hipsycl_kernels")
 
-  def _generate_integration_header_content(self, targets, ptx_files):
+
+  def create_code_objects(self, targets):
+    kernel_files = [self._explicit_pass_output_file(target) for target in targets]
+
     ptx_content = []
-    for filename in ptx_files:
+    for filename in kernel_files:
       with open(filename, 'r') as f:
         ptx_content.append(f.read())
 
-    result = """ 
-#ifndef HIPSYCL_CUDA_INTEGRATION_HEADER_HPP
-#define HIPSYCL_CUDA_INTEGRATION_HEADER_HPP
-
-static std::array __hipsycl_cuda_bundle {
-"""
-    embed_string = """__hipsycl_cuda_embedded_object {{ 
-  std::string {{\"{0}\"}}, std::string {{R\"__hipsycl_embed({1})__hipsycl_embed\"}} 
-}}"""
-    result += ",\n".join([embed_string.format(
-        target, ptx) for target, ptx in zip(targets, ptx_content)])
-    result += """
-};
-"""
-    result += "static const unsigned long long __hipsycl_cuda_bundle_id={}ull;\n".format(
-      uuid.uuid1().int >> 64)
-    result += """
-#endif
-"""
-    return result
-
-  def create_kernel_bundle(self, targets):
-    kernel_files = [self._explicit_pass_output_file(target) for target in targets]
-
-    header_content = self._generate_integration_header_content(
-      targets, kernel_files)
+    header = integration_header("cuda")
+    for target,ptx in zip(targets, ptx_content):
+      target_node = header.hcf_object.root.make_subnode(target)
+      header.hcf_object.attach_text_content(target_node, ptx)
     
-    with open(self._integration_header, 'w') as f:
-      f.write(header_content)
+    header.write_header(self._integration_header)
 
 class spirv_multipass_invocation:
   @property
@@ -924,50 +1023,19 @@ class spirv_multipass_invocation:
   def _explicit_pass_output_file(self, target):
     return os.path.join(self._temp_dir, "hipsycl-kernels.spv")
 
-  def _generate_integration_header_content(self, spirv_file):
-    
-    spirv_data = ""
-
-    with open(spirv_file, "rb") as f:
-      data = f.read()
-      # Requires python 3.8 which is not yet widespread
-      # enough
-      #spirv_data = binascii.hexlify(data, '\\x')
-      hex_representation = binascii.hexlify(data).decode('utf-8')
-      spirv_data = ",".join(["0x" + hex_representation[i:i+2] 
-        for i in range(0,len(hex_representation),2)])
-      
-    result = """ 
-#ifndef HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
-#define HIPSYCL_SPIRV_INTEGRATION_HEADER_HPP
-
-static const unsigned char __hipsycl_spirv_raw_data [] = {{
-  {0}
-}};
-static std::array __hipsycl_spirv_bundle {{
-  std::string {{
-    reinterpret_cast<const char*>(__hipsycl_spirv_raw_data),
-    reinterpret_cast<const char*>(__hipsycl_spirv_raw_data)
-      + sizeof(__hipsycl_spirv_raw_data)
-  }}
-}};
-
-static const unsigned long long __hipsycl_spirv_bundle_id={1}ull;
-
-#endif
-""".format(spirv_data, uuid.uuid1().int >> 64)
-    return result
-
-  def create_kernel_bundle(self, targets):
+  def create_code_objects(self, targets):
 
     if len(targets) != 1 or targets[0] != "spirv":
       raise RuntimeError("SPIR-V multipass invocation: Invalid target")
 
-    header_content = self._generate_integration_header_content(
-      self._explicit_pass_output_file(targets[0]))
+    with open(self._explicit_pass_output_file(targets[0]), "rb") as f:
+      data = f.read()
+
+      header = integration_header("spirv")
+      header.hcf_object.attach_binary_content(header.hcf_object.root, data)
     
-    with open(self._integration_header, 'w') as f:
-      f.write(header_content)
+      header.write_header(self._integration_header)
+
 
 class cuda_invocation:
 
@@ -1495,7 +1563,7 @@ class compiler:
         sys.exit(ret_val)
 
     if not self._is_dry_run:
-      multipass_backend.create_kernel_bundle(targets)
+      multipass_backend.create_code_objects(targets)
 
   def _select_compiler(self):
     compiler_executable, compiler_priority = ("", 0)

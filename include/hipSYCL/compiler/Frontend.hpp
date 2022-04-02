@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <cassert>
 #include <regex>
 #include <sstream>
@@ -422,10 +423,10 @@ private:
   std::unordered_set<clang::FunctionDecl*> UserKernels;
   // Maps a Kernel name tag or kernel body type to the mangled name
   // of a kernel stub function
-  std::unordered_set<const clang::RecordType*, clang::FunctionDecl*> KernelManglingNameTemplates;
+  std::unordered_map<const clang::RecordType*, clang::FunctionDecl*> KernelManglingNameTemplates;
   // Maps the declaration/instantiation of a kernel to the kernel body
   // (kernel lambda or function object)
-  std::unordered_set<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
+  std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
 
   std::unordered_set<clang::FunctionDecl*> HostNDKernels;
 

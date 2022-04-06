@@ -36,13 +36,16 @@ kernel_cache& kernel_cache::get() {
 }
 
 void kernel_cache::register_hcf_object(const common::hcf_container &obj) {
+
   if (!obj.root_node()->has_key("object-id")) {
     HIPSYCL_DEBUG_ERROR
         << "kernel_cache: Invalid hcf object (missing object id)" << std::endl;
   }
   const std::string *data = obj.root_node()->get_value("object-id");
+  
   assert(data);
   hcf_object_id id = std::stoull(*data);
+  HIPSYCL_DEBUG_INFO << "kernel_cache: Registering HCF object " << id << "..." << std::endl;
 
   if (_hcf_objects.count(id) > 0) {
     HIPSYCL_DEBUG_ERROR

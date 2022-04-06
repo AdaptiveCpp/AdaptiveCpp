@@ -90,6 +90,8 @@ public:
   void register_kernel() {
     std::string name = get_global_kernel_name<KernelT>();
 
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Registering kernel " << name << std::endl;
+
     _kernel_names.push_back(name);
     kernel_name_index_t idx = _kernel_names.size() - 1;
     _kernel_index_map[name] = idx;
@@ -212,7 +214,7 @@ private:
     auto& backend_code_objects = _kernel_code_objects[b];
     // Need an entry for every kernel
     if(backend_code_objects.size() != _kernel_names.size()) {
-      backend_code_objects.resize(backend_code_objects.size());
+      backend_code_objects.resize(_kernel_names.size());
     }
 
     auto& kernel_objects = backend_code_objects[kernel_index];

@@ -172,14 +172,14 @@ class ze_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
 #ifdef SYCL_DEVICE_ONLY
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+#define __hipsycl_invoke_kernel(node, f, KernelNameT, KernelBodyT, num_groups, \
                                 group_size, local_mem, ...)                    \
   f(__VA_ARGS__);
 #else
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+#define __hipsycl_invoke_kernel(node, f, KernelNameT, KernelBodyT, num_groups, \
                                 group_size, local_mem, ...)                    \
-  invoke_from_module<KernelNameT, KernelBodyT>(num_groups, group_size,          \
-                                              local_mem, __VA_ARGS__);
+  invoke_from_module<KernelNameT, KernelBodyT>(node, num_groups, group_size,   \
+                                               local_mem, __VA_ARGS__);
 #endif
 
   ze_kernel_launcher() : _queue{nullptr}{}
@@ -235,7 +235,7 @@ public:
       if constexpr(type == rt::kernel_type::single_task){
         rt::range<3> single_item{1,1,1};
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_single_task<kernel_name_t>,
                                 kernel_name_t, Kernel, single_item, single_item, 0,
                                 ze_dispatch::packed_kernel{k});
 
@@ -269,7 +269,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -296,7 +296,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -335,7 +335,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -440,7 +440,7 @@ private:
     assert(invoker &&
             "Runtime backend does not support invoking kernels from modules");
 
-    const rt::kernel_operation &op = *static_cast<rt::kernel_operation>(node->get_operation());
+    const rt::kernel_operation &op = *static_cast<rt::kernel_operation*>(node->get_operation());
 
     rt::result err = invoker->submit_kernel(
         op, local_spirv_hcf_object_id, num_groups, group_size,

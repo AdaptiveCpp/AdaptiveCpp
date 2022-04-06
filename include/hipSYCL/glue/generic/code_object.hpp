@@ -34,6 +34,7 @@
 #include <string>
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
+#include "hipSYCL/common/hcf_container.hpp"
 
 #define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
   (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
@@ -45,7 +46,7 @@ struct __hipsycl_hcf_registration {};
   template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
     __hipsycl_hcf_registration() {                                             \
       ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
-          ::hipsycl::common::binary_container{                                 \
+          ::hipsycl::common::hcf_container{                                    \
               std::string{hcf_string, hcf_size}});                             \
     }                                                                          \
   };                                                                           \

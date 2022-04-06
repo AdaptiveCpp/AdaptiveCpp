@@ -144,18 +144,19 @@ class integration_header:
     
     header = """
 #ifndef HIPSYCL_{capital_name}_INTEGRATION_HEADER
-#define HIPSYCL_{captial_name}_INTEGRATION_HEADER
+#define HIPSYCL_{capital_name}_INTEGRATION_HEADER
 
-static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id};
+static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id}ull;
 const char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
-HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
+HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
 
 #endif
 """.format(
       capital_name = self._backend.upper(), 
       name = self._backend.lower(),
       hcf_object_id = self._object_id,
-      hcf_size = len(hcf_string))
+      hcf_size = len(self._hcf.bytes),
+      hcf_binary = hcf_string)
     
     return header
 

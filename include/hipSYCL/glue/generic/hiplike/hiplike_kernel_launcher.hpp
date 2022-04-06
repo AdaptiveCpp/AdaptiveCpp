@@ -784,7 +784,7 @@ public:
               
               using sp_properties_t = decltype(multiversioning_props);
 
-              __hipsycl_invoke_kernel(node
+              __hipsycl_invoke_kernel(node,
                   hiplike_dispatch::parallel_region<multiversioned_name_t>,
                   multiversioned_name_t, decltype(multiversioned_kernel_body),
                   hiplike_dispatch::make_kernel_launch_range<Dim>(grid_range),
@@ -845,7 +845,7 @@ public:
                   (local_reducers.combine_global_input(gid), ...);
               };
 
-              __hipsycl_invoke_kernel(node
+              __hipsycl_invoke_kernel(node,
                   hiplike_dispatch::primitive_parallel_for_with_local_reducers<
                       __hipsycl_unnamed_kernel>,
                   __hipsycl_unnamed_kernel, decltype(pure_reduction_kernel),
@@ -950,7 +950,7 @@ private:
       auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
 
       const rt::kernel_operation &op =
-          *static_cast<rt::kernel_operation>(node->get_operation());
+          *static_cast<rt::kernel_operation*>(node->get_operation());
 
       rt::result err = invoker->submit_kernel(op, local_cuda_hcf_object_id,
           num_groups, group_size, dynamic_shared_mem, kernel_args.data(),

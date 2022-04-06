@@ -47,7 +47,7 @@
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/device_array.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
+#include "hipSYCL/glue/generic/code_object.hpp"
 
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 
@@ -395,10 +395,9 @@ private:
 
   template <class KernelName, class KernelBodyT,
             class WrappedLambdaT>
-  void invoke_from_module(rt::range<3> num_groups, rt::range<3> group_size,
+  void invoke_from_module(rt::dag_node* node, rt::range<3> num_groups, rt::range<3> group_size,
                           unsigned dynamic_local_mem,
                           ze_dispatch::packed_kernel<WrappedLambdaT> kernel) {
-    
     
 #ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
 #if !defined(__clang_major__) || __clang_major__ < 11
@@ -413,9 +412,7 @@ private:
       return;
     }
 
-    const std::string *kernel_image =
-        this_module::get_code_object<rt::backend_id::level_zero>("spirv");
-    assert(kernel_image && "Invalid kernel image object");
+    const std::size_t local_spirv_hcf_object_id = __hipsycl_local_spirv_hcf_object_id;
 
     // Earlier versions of LLVM SYCL/DPC++ would pass the packed
     // kernel as individual array elements, while newer versions
@@ -438,16 +435,17 @@ private:
     std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
-    rt::module_invoker *invoker = _queue->get_module_invoker();
+    rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
 
     assert(invoker &&
             "Runtime backend does not support invoking kernels from modules");
 
+    const rt::kernel_operation &op = *static_cast<rt::kernel_operation>(node->get_operation());
+
     rt::result err = invoker->submit_kernel(
-        this_module::get_module_id<rt::backend_id::level_zero>(), "spirv",
-        kernel_image, num_groups, group_size, dynamic_local_mem,
-        kernel_args.data(), arg_sizes.data(), kernel_args.size(), kernel_name_tag,
-        kernel_body_name);
+        op, local_spirv_hcf_object_id, num_groups, group_size,
+        dynamic_local_mem, kernel_args.data(), arg_sizes.data(),
+        kernel_args.size(), kernel_name_tag, kernel_body_name);
 
     if (!err.is_success())
       rt::register_error(err);

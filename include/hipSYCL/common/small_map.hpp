@@ -57,19 +57,25 @@ public:
 
   auto find(const Key& k) const noexcept {
     return std::find_if(
+        _v.cbegin(), _v.cend(),
+        [&](const value_type &v) { return v.first == k; });
+  }
+
+  auto find(const Key& k) noexcept {
+    return std::find_if(
         _v.begin(), _v.end(),
         [&](const value_type &v) { return v.first == k; });
   }
 
   bool contains(const Key& k) const noexcept {
-    return find(k) == _v.end();
+    return find(k) == _v.cend();
   }
 
   Value& operator[](const Key& k) {
     auto existing = find(k);
     
     if(existing != _v.end())
-      return *existing;
+      return existing->second;
     
     _v.push_back(std::make_pair(k, Value{}));
     return _v.back().second;

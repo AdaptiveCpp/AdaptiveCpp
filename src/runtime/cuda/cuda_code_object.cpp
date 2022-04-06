@@ -125,6 +125,12 @@ cuda_executable_object::cuda_executable_object(const cuda_source_object *source,
     : _source{source}, _device{device}, _module{nullptr} {
 
   assert(source);
+
+  this->_build_result = build();
+}
+
+result cuda_executable_object::get_build_result() const {
+  return _build_result;
 }
 
 cuda_executable_object::~cuda_executable_object() {

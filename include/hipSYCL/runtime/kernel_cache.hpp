@@ -73,7 +73,7 @@ public:
 
 class kernel_cache {
 public:
-  using code_object_ptr = std::unique_ptr<code_object>;
+  using code_object_ptr = std::unique_ptr<const code_object>;
   using code_object_index_t = std::size_t;
   using kernel_name_index_t = std::size_t;
 
@@ -253,13 +253,13 @@ private:
       kernel_name_index_t kernel_index, const std::string &backend_kernel_name,
       backend_id b, Predicate &&object_selector, Constructor &&c) {
 
-    code_object *obj = get_code_object_impl(kernel_index, backend_kernel_name,
-                                            b, object_selector);
+    const code_object *obj = get_code_object_impl(
+        kernel_index, backend_kernel_name, b, object_selector);
     if(obj)
       return obj;
     
     // We haven't found the requested object: Construct new code object
-    code_object* new_obj = c();
+    const code_object* new_obj = c();
     if(new_obj) {
       _code_objects.emplace_back(code_object_ptr{new_obj});
       code_object_index_t new_cidx = _code_objects.size() - 1;

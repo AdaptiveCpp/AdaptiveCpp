@@ -95,12 +95,10 @@ public:
   virtual code_object_invoker* get_code_object_invoker() override;
 
   result submit_kernel_from_code_object(
-                       const kernel_operation& op,
-                       hcf_object_id hcf_object, 
-                       const std::string &backend_kernel_name,
-                       const rt::range<3> &grid_size,
-                       const rt::range<3> &block_size,
-                       unsigned dynamic_shared_mem, void **kernel_args);
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+      void **kernel_args, std::size_t num_args);
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;

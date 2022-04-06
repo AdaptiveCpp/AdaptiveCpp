@@ -25,50 +25,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_CODE_OBJECT_HPP
-#define HIPSYCL_CUDA_CODE_OBJECT_HPP
+#ifndef HIPSYCL_ZE_CODE_OBJECT_HPP
+#define HIPSYCL_ZE_CODE_OBJECT_HPP
 
-#include <vector>
 #include <string>
 
-#include "hipSYCL/runtime/error.hpp"
-#include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/kernel_cache.hpp"
+#include <level_zero/ze_api.h>
 
-struct CUmod_st;
+#include "hipSYCL/runtime/code_object_invoker.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class cuda_source_object : public code_object {
+class ze_queue;
+
+class ze_code_object_invoker : public code_object_invoker {
 public:
-  virtual ~cuda_source_object(){}
-  cuda_source_object(hcf_object_id origin, const std::string &target,
-                     const std::string &source);
+  ze_code_object_invoker(ze_queue* queue)
+  : _queue{queue} {}
 
-  virtual code_object_state state() const override;
-  virtual code_format format() const override;
-  virtual backend_id managing_backend() const override;
-  virtual hcf_object_id hcf_source() const override;
-  virtual std::string target_arch() const override;
-
-  virtual std::vector<std::string>
-  supported_backend_kernel_names() const override;
-
-  virtual bool contains(const std::string &backend_kernel_name) const override;
-  const std::string& get_source() const;
-
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name_tag,
+                               const std::string &kernel_body_name) override;
 private:
-  hcf_object_id _origin;
-  std::vector<std::string> _kernel_names;
-  std::string _target_arch;
-  std::string _source;
+  ze_queue* _queue;
 };
 
-class cuda_executable_object : public code_object {
+enum class ze_source_format {
+  spirv,
+  native
+};
+
+class ze_executable_object : public code_object {
 public:
-  virtual ~cuda_executable_object();
-  cuda_executable_object(const cuda_source_object* source, int device);
+  ze_executable_object(ze_context_handle_t ctx, ze_device_handle_t dev,
+    hcf_object_id source, ze_source_format fmt, const std::string& code_image);
+  virtual ~ze_executable_object();
 
   result get_build_result() const;
 
@@ -82,15 +81,22 @@ public:
   supported_backend_kernel_names() const override;
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
-  CUmod_st* get_module() const;
-  int get_device() const;
+  ze_device_handle_t get_ze_device() const;
+  ze_context_handle_t get_ze_context() const;
+  // This should only be called inside ze_queue, not the user,
+  // so we do not have to worry about thread-safety. Only works
+  // if the module has been built successfully
+  result get_kernel(const std::string& name, ze_kernel_handle_t& out) const;
 private:
-  result build();
+  ze_source_format _format;
+  hcf_object_id _source;
+  ze_context_handle_t _ctx;
+  ze_device_handle_t _dev;
+  ze_module_handle_t _module;
+  std::vector<std::string> _kernels;
+  mutable std::unordered_map<std::string, ze_kernel_handle_t> _kernel_handles;
 
-  result _build_result;
-  const cuda_source_object* _source;
-  int _device;
-  CUmod_st* _module;
+  result _build_status;
 };
 
 

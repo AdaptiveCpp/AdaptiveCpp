@@ -395,7 +395,7 @@ result cuda_queue::submit_kernel_from_code_object(
                                  const rt::range<3> &grid_size,
                                  const rt::range<3> &block_size,
                                  unsigned dynamic_shared_mem,
-                                 void **kernel_args) {
+                                 void **kernel_args, std::size_t num_args) {
 
   this->activate_device();
 
@@ -483,7 +483,7 @@ result cuda_queue::submit_kernel_from_code_object(
             source_object_selector, source_object_constructor));
     
     cuda_executable_object* exec_obj = new cuda_executable_object{source, device};
-    result r = exec_obj->build();
+    result r = exec_obj->get_build_result();
 
     if(!r.is_success()) {
       register_error(r);
@@ -579,7 +579,7 @@ result cuda_code_object_invoker::submit_kernel(
 
   return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,
                                                 num_groups, group_size,
-                                                local_mem_size, args);
+                                                local_mem_size, args, num_args);
 }
 
 

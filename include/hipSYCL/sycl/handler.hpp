@@ -64,7 +64,7 @@
 #include "hipSYCL/glue/embedded_pointer.hpp"
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
+#include "hipSYCL/glue/generic/code_object.hpp"
 
 namespace hipsycl {
 namespace sycl {

@@ -81,6 +81,10 @@ public:
     return _v.back().second;
   }
 
+  void clear() {
+    _v.clear();
+  }
+
 private:
   std::vector<std::pair<Key,Value>> _v;
 };

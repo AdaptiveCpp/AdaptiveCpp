@@ -52,7 +52,7 @@ result ze_code_object_invoker::submit_kernel(
   assert(_queue);
 
   std::string kernel_name = kernel_body_name;
-  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") != std::string::npos)
+  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
     kernel_name = kernel_name_tag;
 
   return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,

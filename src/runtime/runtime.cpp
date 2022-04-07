@@ -28,6 +28,7 @@
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/common/debug.hpp"
 
+
 namespace hipsycl {
 namespace rt {
 

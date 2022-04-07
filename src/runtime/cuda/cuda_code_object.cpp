@@ -139,7 +139,11 @@ cuda_executable_object::~cuda_executable_object() {
 
     auto err = cuModuleUnload(_module);
 
-    if (err != CUDA_SUCCESS) {
+    if (err != CUDA_SUCCESS && 
+        // It can happen that during shutdown of the CUDA
+        // driver we cannot unload anymore.
+        // TODO: Find a better solution
+        err != CUDA_ERROR_DEINITIALIZED) {
       register_error(
           __hipsycl_here(),
           error_info{"cuda_executable_object: could not unload module",

@@ -202,6 +202,8 @@ public:
         kernel_index, backend_kernel_name, b, pred, c);
   }
 
+  // Unload entire cache and release resources to prepare runtime shutdown.
+  void unload();
 private:
 
   template<class Predicate>

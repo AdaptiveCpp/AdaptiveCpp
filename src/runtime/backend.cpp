@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 
 #include <algorithm>
 
@@ -86,7 +87,7 @@ backend_manager::backend_manager()
 
 backend_manager::~backend_manager()
 {
-  
+  kernel_cache::get().unload();
 }
 
 backend *backend_manager::get(backend_id id) const {

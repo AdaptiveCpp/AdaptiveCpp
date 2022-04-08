@@ -54,7 +54,8 @@ enum class setting {
   dag_req_optimization_depth,
   mqe_lane_statistics_max_size,
   mqe_lane_statistics_decay_time_sec,
-  default_selector_behavior
+  default_selector_behavior,
+  hcf_dump_directory
 };
 
 template <setting S> struct setting_trait {};
@@ -76,6 +77,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_decay_time_sec,
                               "rt_mqe_lane_statistics_decay_time_sec", double);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::default_selector_behavior,
                               "default_selector_behavior", default_selector_behavior);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::hcf_dump_directory,
+                              "hcf_dump_directory", std::string);
 
 class settings
 {
@@ -96,6 +99,8 @@ public:
       return _mqe_lane_statistics_decay_time_sec;
     } else if constexpr (S == setting::default_selector_behavior) {
       return _default_selector_behavior;
+    } else if constexpr (S == setting::hcf_dump_directory) {
+      return _hcf_dump_directory;
     }
     return typename setting_trait<S>::type{};
   }
@@ -122,6 +127,9 @@ public:
     _default_selector_behavior =
         get_environment_variable_or_default<setting::default_selector_behavior>(
             default_selector_behavior::strict);
+    _hcf_dump_directory =
+        get_environment_variable_or_default<setting::hcf_dump_directory>(
+            std::string{});
   }
 
 private:
@@ -158,6 +166,7 @@ private:
   std::size_t _mqe_lane_statistics_max_size;
   double _mqe_lane_statistics_decay_time_sec;
   default_selector_behavior _default_selector_behavior;
+  std::string _hcf_dump_directory;
 };
 
 }

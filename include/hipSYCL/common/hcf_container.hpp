@@ -57,6 +57,14 @@ public:
       return nullptr;
     }
 
+    node* get_subnode(const std::string& name) {
+      for(int i = 0; i < subnodes.size(); ++i) {
+        if(subnodes[i].node_id == name)
+          return &(subnodes[i]);
+      }
+      return nullptr;
+    }
+
     const std::string* get_value(const std::string& key) const {
       for(int i = 0; i < key_value_pairs.size(); ++i) {
         if(key_value_pairs[i].first == key) {
@@ -203,7 +211,7 @@ public:
   std::string serialize() const {
     std::stringstream sstr;
     serialize_node(_root_node, sstr);
-    sstr << _binary_appendix_id << std::endl;
+    sstr << _binary_appendix_id;
 
     return sstr.str() + _binary_appendix;
   }

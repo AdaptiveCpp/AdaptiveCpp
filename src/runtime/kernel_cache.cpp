@@ -26,6 +26,8 @@
  */
 
 #include "hipSYCL/runtime/kernel_cache.hpp"
+#include "hipSYCL/common/debug.hpp"
+#include <fstream>
 
 namespace hipsycl {
 namespace rt {
@@ -54,6 +56,27 @@ void kernel_cache::register_hcf_object(const common::hcf_container &obj) {
         << std::endl;
   } else
     _hcf_objects[id] = obj;
+
+  std::string hcf_dump_dir =
+      application::get_settings().get<setting::hcf_dump_directory>();
+  if(!hcf_dump_dir.empty()) {
+    std::string out_filename = hcf_dump_dir;
+
+    if(out_filename.back() != '/' && out_filename.back() != '\\')
+      out_filename += '/';
+    
+    out_filename += "hipsycl_object_"+std::to_string(id)+".hcf";
+
+    std::ofstream out_file(out_filename.c_str(), std::ios::binary);
+    if(!out_file.is_open()) {
+      HIPSYCL_DEBUG_ERROR << "Could not open file " << out_filename
+                          << " for writing." << std::endl;
+
+    } else {
+      std::string hcf_data = obj.serialize();
+      out_file.write(hcf_data.c_str(), hcf_data.size());
+    }
+  }
 }
 
 const kernel_cache::kernel_name_index_t*

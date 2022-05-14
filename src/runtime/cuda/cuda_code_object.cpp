@@ -54,7 +54,7 @@ void trim_left(std::string &s) {
 
 void trim_right_space_and_parenthesis(std::string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch) && (ch != '(');
+        return !std::isspace(ch) && (ch != '(') && (ch != ')');
     }).base(), s.end());
 }
 

@@ -403,15 +403,6 @@ private:
 #if !defined(__clang_major__) || __clang_major__ < 11
   #error Multipass compilation requires clang >= 11
 #endif
-    if (this_module::get_num_objects<rt::backend_id::level_zero>() == 0) {
-      rt::register_error(
-          __hipsycl_here(),
-          rt::error_info{
-              "hiplike_kernel_launcher: Cannot invoke SPIR-V kernel: No code "
-              "objects present in this module."});
-      return;
-    }
-
     const std::size_t local_spirv_hcf_object_id = __hipsycl_local_spirv_hcf_object_id;
 
     // Earlier versions of LLVM SYCL/DPC++ would pass the packed

@@ -210,7 +210,9 @@ private:
   const code_object* get_code_object_impl(kernel_name_index_t kernel_index,
     const std::string& backend_kernel_name,
     backend_id b, Predicate&& object_selector) {
-    
+
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Querying kernel cache, having "
+                       << _code_objects.size() << " code objects." << std::endl;
     assert(kernel_index < _kernel_names.size());
 
     auto& backend_code_objects = _kernel_code_objects[b];
@@ -228,6 +230,9 @@ private:
       if(object_selector(_code_objects[cidx].get()))
         return _code_objects[cidx].get();
     }
+    HIPSYCL_DEBUG_INFO << "kernel_cache: Requested object not hooked up to "
+                          "kernel index, attempting full cache search."
+                       << std::endl;
 
     // Check for second best case: Desired code object
     // exists, but it is not yet connected to the kernel.
@@ -259,8 +264,17 @@ private:
 
     const code_object *obj = get_code_object_impl(
         kernel_index, backend_kernel_name, b, object_selector);
-    if(obj)
+    if(obj) {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: cache hit for kernel index "
+                         << kernel_index << " and backend kernel name "
+                         << backend_kernel_name << std::endl;
       return obj;
+    } else {
+      HIPSYCL_DEBUG_INFO << "kernel_cache: cache MISS; constructing new object "
+                            "for kernel index "
+                         << kernel_index << " and backend kernel name "
+                         << backend_kernel_name << std::endl;
+    }
     
     // We haven't found the requested object: Construct new code object
     const code_object* new_obj = c();

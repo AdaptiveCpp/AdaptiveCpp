@@ -147,7 +147,7 @@ class integration_header:
 #define HIPSYCL_{capital_name}_INTEGRATION_HEADER
 
 static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id}ull;
-const char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
+const unsigned char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
 HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
 
 #endif

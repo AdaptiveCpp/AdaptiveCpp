@@ -46,8 +46,8 @@ struct __hipsycl_hcf_registration {};
   template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
     __hipsycl_hcf_registration() {                                             \
       ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
-          ::hipsycl::common::hcf_container{                                    \
-              std::string{hcf_string, hcf_size}});                             \
+          ::hipsycl::common::hcf_container{std::string{                        \
+              reinterpret_cast<const char *>(hcf_string), hcf_size}});         \
     }                                                                          \
   };                                                                           \
   __hipsycl_hcf_registration<hcf_object_id>                                    \

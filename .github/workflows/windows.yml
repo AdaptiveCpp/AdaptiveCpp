@@ -65,7 +65,7 @@ jobs:
         CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/core"
         cd "%GITHUB_WORKSPACE%/build/core"
@@ -76,7 +76,7 @@ jobs:
       env:
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/tests-cpu"
         cd "%GITHUB_WORKSPACE%/build/tests-cpu"
@@ -87,7 +87,7 @@ jobs:
       env:
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         mkdir "%GITHUB_WORKSPACE%/build/tests-cuda"
         cd "%GITHUB_WORKSPACE%/build/tests-cuda"

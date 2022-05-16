@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <cassert>
 #include <regex>
 #include <sstream>

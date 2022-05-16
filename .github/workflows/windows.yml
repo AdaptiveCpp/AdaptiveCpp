@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         clang_version: [11]
-        os: [windows-2016]
+        os: [windows-2022]
         cuda: ['10.0', '10.2', '11.0']
     steps:
     - uses: actions/checkout@v2

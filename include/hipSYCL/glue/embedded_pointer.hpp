@@ -47,9 +47,9 @@ namespace detail {
 
 template<class T>
 inline T random_number() {
-  static std::random_device rd;
-  static std::mt19937 gen{rd()};
-  static std::uniform_int_distribution<T> distribution{0};
+  thread_local std::random_device rd;
+  thread_local std::mt19937 gen{rd()};
+  thread_local std::uniform_int_distribution<T> distribution{0};
 
   return distribution(gen);
 }

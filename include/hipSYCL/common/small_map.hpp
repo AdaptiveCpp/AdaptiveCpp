@@ -68,7 +68,7 @@ public:
   }
 
   bool contains(const Key& k) const noexcept {
-    return find(k) == _v.cend();
+    return find(k) != _v.cend();
   }
 
   Value& operator[](const Key& k) {

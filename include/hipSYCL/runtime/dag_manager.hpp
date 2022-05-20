@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_DAG_MANAGER_HPP
 #define HIPSYCL_DAG_MANAGER_HPP
 
+#include <mutex>
+
 #include "dag.hpp"
 #include "dag_builder.hpp"
 #include "dag_direct_scheduler.hpp"
@@ -71,6 +73,9 @@ private:
   dag_direct_scheduler _direct_scheduler;
   dag_unbound_scheduler _unbound_scheduler;
   dag_submitted_ops _submitted_ops;
+
+  // Should only be used for flush_async()
+  std::mutex _flush_mutex;
 };
 
 class dag_build_guard

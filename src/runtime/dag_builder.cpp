@@ -269,14 +269,18 @@ dag dag_builder::finish_and_reset()
   dag final_dag = _current_dag;
   _current_dag = dag{};
 
-  final_dag.for_each_node([](dag_node_ptr node) {
-    HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operation: "
-                       << dump(node->get_operation()) << " @node " << node.get()
-                       << std::endl;
+  HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operations: " << std::endl;
+  int operation_index = 0;
+  final_dag.for_each_node([&](dag_node_ptr node) {
+    HIPSYCL_DEBUG_INFO << operation_index << ". " << dump(node->get_operation())
+                       << " @node " << node.get() << std::endl;
+
     for (dag_node_ptr req : node->get_requirements()) {
-      HIPSYCL_DEBUG_INFO << "    --> requires: " << dump(req->get_operation())
-                         << " @node " << req.get() << std::endl;
+      HIPSYCL_DEBUG_INFO << "    --> requires node @" << req.get()
+                         << " " << dump(req->get_operation()) << std::endl;
     }
+
+    ++operation_index;
   });
 
   return final_dag;

@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <cassert>
 #include <regex>
 #include <sstream>
@@ -241,10 +242,15 @@ public:
       NameMangler = clang::ItaniumMangleContext::create(
         instance.getASTContext(), instance.getASTContext().getDiagnostics());
 
-    // Only used during the host pass
-    if(instance.getAuxTarget())
-      DeviceNameMangler = instance.getASTContext().createDeviceMangleContext(
-          *instance.getAuxTarget());
+    // DeviceNameMangler is only used during the host pass
+    if (instance.getAuxTarget() && instance.getTarget().getCXXABI().isMicrosoft() &&
+        instance.getAuxTarget()->getCXXABI().isItaniumFamily()) {
+      DeviceNameMangler =
+          instance.getASTContext().createDeviceMangleContext(*instance.getAuxTarget());
+    } else {
+      DeviceNameMangler =
+          instance.getASTContext().createMangleContext(instance.getASTContext().getAuxTargetInfo());
+    }
 #endif
 
     KernelNameMangler.reset(NameMangler);

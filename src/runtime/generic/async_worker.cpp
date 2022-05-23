@@ -81,7 +81,7 @@ void worker_thread::work()
   // The loop is executed as long as there are enqueued operations,
   // (_is_operation_pending) or we should wait for new operations
   // (_continue).
-  while(_continue || _enqueued_operations.size() > 0)
+  while(_continue || queue_size() > 0)
   {
     {
       std::unique_lock<std::mutex> lock(_mutex);

@@ -225,6 +225,8 @@ const std::vector<dag_node_ptr> &dag_node::get_requirements() const
 void dag_node::wait() const
 {
   while (!_is_submitted);
+  if(_is_complete)
+    return;
 
   _event->wait();
   _is_complete = true;

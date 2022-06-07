@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13]
+        clang_version: [11, 12, 13, 14]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04, ubuntu-18.04]
         cuda: [11.0]
@@ -83,7 +83,7 @@ jobs:
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
-        cmake -DHIPSYCL_TARGETS="cuda:sm_60" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_TARGETS="cuda:sm_60" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: build explicit multipass tests
       run: |
@@ -95,7 +95,7 @@ jobs:
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
-        cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: run CPU tests
       run: |

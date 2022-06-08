@@ -65,7 +65,7 @@ public:
   virtual device_id get_device() const override;
   virtual void* get_native_type() const override;
 
-  virtual module_invoker* get_module_invoker() override;
+  virtual code_object_invoker* get_code_object_invoker() override;
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;

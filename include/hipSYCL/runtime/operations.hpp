@@ -368,6 +368,9 @@ public:
     }
   }
 
+  const std::string& get_global_kernel_name() const {
+    return _kernel_name;
+  }
 private:
   std::string _kernel_name;
   kernel_launcher _launcher;

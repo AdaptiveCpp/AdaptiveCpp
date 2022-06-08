@@ -60,3 +60,7 @@ A deep dive into how the implementation works and why this approach was chosen
 can be found in Joachim Meyer's [master thesis](https://joameyer.de/hipsycl/Thesis_JoachimMeyer.pdf).
 
 For more details, see the [installation instructions](installing.md) and the documentation [using hipSYCL](using-hipsycl.md).
+
+## File format for embedded device code
+
+hipSYCL relies on the [hipSYCL container format (HCF)](hcf.md) whenever it takes control over the embedding process of device code (e.g. explicit multipass scenarios).

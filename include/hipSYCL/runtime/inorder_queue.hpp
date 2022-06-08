@@ -35,7 +35,7 @@
 #include "hints.hpp"
 #include "operations.hpp"
 #include "error.hpp"
-#include "module_invoker.hpp"
+#include "code_object_invoker.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -61,9 +61,9 @@ public:
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const = 0;
 
-  /// Get a module invoker to launch kernels from module images,
+  /// Get a code object invoker to launch kernels from code object images,
   /// if the backend supports this. Returns nullptr if unsupported.
-  virtual module_invoker* get_module_invoker() = 0;
+  virtual code_object_invoker* get_code_object_invoker() = 0;
 
   virtual ~inorder_queue(){}
 };

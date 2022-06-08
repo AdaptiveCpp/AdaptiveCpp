@@ -64,6 +64,7 @@
 #include "hipSYCL/glue/embedded_pointer.hpp"
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
+#include "hipSYCL/glue/generic/code_object.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -770,7 +771,7 @@ private:
     rt::dag_build_guard build{rt::application::dag()};
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
-        typeid(f).name(),
+        rt::kernel_cache::get().get_global_kernel_name<KernelFuncType>(),
         glue::make_kernel_launchers<KernelName, KernelType>(
             offset, local_range, global_range, shared_mem_size, f,
             reductions...),
@@ -780,6 +781,10 @@ private:
         std::move(kernel_op), _requirements, _execution_hints);
     
     _command_group_nodes.push_back(node);
+
+    // This registers the kernel with the runtime when the application
+    // launches, and allows us to introspect available kernels.
+    HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelFuncType);
   }
 
   template<class T>

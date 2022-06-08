@@ -500,35 +500,6 @@ uint32_t ze_hardware_context::get_ze_global_memory_ordinal() const {
   return result;
 }
 
-result ze_hardware_context::obtain_module(module_id_t id,
-                                          const std::string &variant,
-                                          const std::string *module_image,
-                                          ze_module* &out) {
-  for(auto mod : _modules) {
-    if(mod->get_id() == id && mod->get_variant() == variant) {
-      HIPSYCL_DEBUG_INFO << "ze_hardware_context: Found module " << id
-                         << " in cache" << std::endl;
-      out = mod.get();
-      return make_success();
-    }
-  }
-
-  _modules.emplace_back(
-      std::make_shared<ze_module>(_ctx, _device, id, variant, module_image));
-  if(!_modules.back()->get_build_status().is_success()){
-    _modules.pop_back();
-
-    return make_error(
-        __hipsycl_here(),
-        error_info{"ze_hardware_context: Module construction failed."});
-    
-  } else {
-    out = _modules.back().get();
-  }
-
-  return make_success();
-}
-
 ze_hardware_manager::ze_hardware_manager() {
 
   uint32_t num_drivers = 0;

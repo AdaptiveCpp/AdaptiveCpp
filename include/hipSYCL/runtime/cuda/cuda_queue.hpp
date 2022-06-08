@@ -33,7 +33,8 @@
 #include "../generic/host_timestamped_event.hpp"
 
 #include "cuda_instrumentation.hpp"
-#include "cuda_module.hpp"
+#include "cuda_code_object.hpp"
+#include "hipSYCL/runtime/code_object_invoker.hpp"
 
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
@@ -48,18 +49,19 @@ namespace rt {
 
 class cuda_queue;
 
-class cuda_module_invoker : public module_invoker {
+class cuda_code_object_invoker : public code_object_invoker{
 public:
-  cuda_module_invoker(cuda_queue *q);
+  cuda_code_object_invoker(cuda_queue* q);
 
-  virtual result
-  submit_kernel(module_id_t id, const std::string &module_variant,
-                const std::string *module_image, const rt::range<3> &num_groups,
-                const rt::range<3>& group_size, unsigned local_mem_size,
-                void **args, std::size_t* arg_sizes, std::size_t num_args,
-                const std::string &kernel_name_tag,
-                const std::string &kernel_body_name) override;
-
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name_tag,
+                               const std::string &kernel_body_name) override;
+  virtual ~cuda_code_object_invoker(){}
 private:
   cuda_queue* _queue;
 };
@@ -90,15 +92,13 @@ public:
 
   virtual void *get_native_type() const override;
 
-  virtual module_invoker* get_module_invoker() override;
-  
-  result submit_kernel_from_module(cuda_module_manager &manager,
-                                   const cuda_module &module,
-                                   const std::string &kernel_name,
-                                   const rt::range<3> &grid_size,
-                                   const rt::range<3> &block_size,
-                                   unsigned dynamic_shared_mem,
-                                   void **kernel_args);
+  virtual code_object_invoker* get_code_object_invoker() override;
+
+  result submit_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+      void **kernel_args, std::size_t num_args);
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;
@@ -108,7 +108,7 @@ private:
 
   device_id _dev;
   CUstream_st *_stream;
-  cuda_module_invoker _module_invoker;
+  cuda_code_object_invoker _code_object_invoker;
   host_timestamped_event _reference_event;
 };
 

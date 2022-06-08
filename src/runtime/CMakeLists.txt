@@ -12,6 +12,7 @@ add_library(hipSYCL-rt SHARED
   device_id.cpp
   operations.cpp
   data.cpp
+  kernel_cache.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp
@@ -76,7 +77,7 @@ if(WITH_CUDA_BACKEND)
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
     cuda/cuda_backend.cpp
-    cuda/cuda_module.cpp)
+    cuda/cuda_code_object.cpp)
 
   target_include_directories(rt-backend-cuda PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include
@@ -129,7 +130,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_allocator.cpp
     ze/ze_event.cpp
     ze/ze_queue.cpp
-    ze/ze_module.cpp)
+    ze/ze_code_object.cpp)
   
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)

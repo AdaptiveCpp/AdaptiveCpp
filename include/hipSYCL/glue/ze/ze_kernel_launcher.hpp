@@ -47,7 +47,7 @@
 #include "hipSYCL/sycl/libkernel/reduction.hpp"
 #include "hipSYCL/sycl/libkernel/detail/device_array.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
+#include "hipSYCL/glue/generic/code_object.hpp"
 
 #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 
@@ -172,14 +172,14 @@ class ze_kernel_launcher : public rt::backend_kernel_launcher
 {
 public:
 #ifdef SYCL_DEVICE_ONLY
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+#define __hipsycl_invoke_kernel(node, f, KernelNameT, KernelBodyT, num_groups, \
                                 group_size, local_mem, ...)                    \
   f(__VA_ARGS__);
 #else
-#define __hipsycl_invoke_kernel(f, KernelNameT, KernelBodyT, num_groups,       \
+#define __hipsycl_invoke_kernel(node, f, KernelNameT, KernelBodyT, num_groups, \
                                 group_size, local_mem, ...)                    \
-  invoke_from_module<KernelNameT, KernelBodyT>(num_groups, group_size,          \
-                                              local_mem, __VA_ARGS__);
+  invoke_from_module<KernelNameT, KernelBodyT>(node, num_groups, group_size,   \
+                                               local_mem, __VA_ARGS__);
 #endif
 
   ze_kernel_launcher() : _queue{nullptr}{}
@@ -235,7 +235,7 @@ public:
       if constexpr(type == rt::kernel_type::single_task){
         rt::range<3> single_item{1,1,1};
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_single_task<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_single_task<kernel_name_t>,
                                 kernel_name_t, Kernel, single_item, single_item, 0,
                                 ze_dispatch::packed_kernel{k});
 
@@ -269,7 +269,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -296,7 +296,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -335,7 +335,7 @@ public:
 #endif
         };
 
-        __hipsycl_invoke_kernel(ze_dispatch::kernel_parallel_for<kernel_name_t>,
+        __hipsycl_invoke_kernel(node, ze_dispatch::kernel_parallel_for<kernel_name_t>,
                                 kernel_name_t, Kernel,
                                 make_kernel_launch_range(num_groups),
                                 make_kernel_launch_range(effective_local_range),
@@ -395,27 +395,15 @@ private:
 
   template <class KernelName, class KernelBodyT,
             class WrappedLambdaT>
-  void invoke_from_module(rt::range<3> num_groups, rt::range<3> group_size,
+  void invoke_from_module(rt::dag_node* node, rt::range<3> num_groups, rt::range<3> group_size,
                           unsigned dynamic_local_mem,
                           ze_dispatch::packed_kernel<WrappedLambdaT> kernel) {
-    
     
 #ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
 #if !defined(__clang_major__) || __clang_major__ < 11
   #error Multipass compilation requires clang >= 11
 #endif
-    if (this_module::get_num_objects<rt::backend_id::level_zero>() == 0) {
-      rt::register_error(
-          __hipsycl_here(),
-          rt::error_info{
-              "hiplike_kernel_launcher: Cannot invoke SPIR-V kernel: No code "
-              "objects present in this module."});
-      return;
-    }
-
-    const std::string *kernel_image =
-        this_module::get_code_object<rt::backend_id::level_zero>("spirv");
-    assert(kernel_image && "Invalid kernel image object");
+    const std::size_t local_spirv_hcf_object_id = __hipsycl_local_spirv_hcf_object_id;
 
     // Earlier versions of LLVM SYCL/DPC++ would pass the packed
     // kernel as individual array elements, while newer versions
@@ -438,16 +426,17 @@ private:
     std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
-    rt::module_invoker *invoker = _queue->get_module_invoker();
+    rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
 
     assert(invoker &&
             "Runtime backend does not support invoking kernels from modules");
 
+    const rt::kernel_operation &op = *static_cast<rt::kernel_operation*>(node->get_operation());
+
     rt::result err = invoker->submit_kernel(
-        this_module::get_module_id<rt::backend_id::level_zero>(), "spirv",
-        kernel_image, num_groups, group_size, dynamic_local_mem,
-        kernel_args.data(), arg_sizes.data(), kernel_args.size(), kernel_name_tag,
-        kernel_body_name);
+        op, local_spirv_hcf_object_id, num_groups, group_size,
+        dynamic_local_mem, kernel_args.data(), arg_sizes.data(),
+        kernel_args.size(), kernel_name_tag, kernel_body_name);
 
     if (!err.is_success())
       rt::register_error(err);

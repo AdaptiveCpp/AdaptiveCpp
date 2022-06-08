@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,71 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+#include <algorithm>
 #include <vector>
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
-
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+#ifndef HIPSYCL_COMMON_SMALL_MAP_HPP
+#define HIPSYCL_COMMON_SMALL_MAP_HPP
 
 namespace hipsycl {
-namespace rt {
+namespace common {
 
-
-class cuda_backend : public backend
-{
+template<class Key, class Value>
+class small_map {
 public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
 
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
+  using value_type = std::pair<Key,Value>;
+  using key_type = Key;
+  using mapped_type = Value;
+
+  std::size_t size() const {
+    return _v.size();
+  }
+
+  auto begin() noexcept { return _v.begin(); }
+  auto begin() const noexcept { return _v.begin(); }
+  auto cbegin() const noexcept { return _v.cbegin(); }
+
+  auto end() noexcept { return _v.end(); }
+  auto end() const noexcept { return _v.end(); }
+  auto cend() const noexcept { return _v.cend(); }
+
+  auto find(const Key& k) const noexcept {
+    return std::find_if(
+        _v.cbegin(), _v.cend(),
+        [&](const value_type &v) { return v.first == k; });
+  }
+
+  auto find(const Key& k) noexcept {
+    return std::find_if(
+        _v.begin(), _v.end(),
+        [&](const value_type &v) { return v.first == k; });
+  }
+
+  bool contains(const Key& k) const noexcept {
+    return find(k) != _v.cend();
+  }
+
+  Value& operator[](const Key& k) {
+    auto existing = find(k);
+    
+    if(existing != _v.end())
+      return existing->second;
+    
+    _v.push_back(std::make_pair(k, Value{}));
+    return _v.back().second;
+  }
+
+  void clear() {
+    _v.clear();
+  }
 
 private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-  mutable std::vector<cuda_allocator> _allocators;
+  std::vector<std::pair<Key,Value>> _v;
 };
 
 }
 }
-
 
 #endif

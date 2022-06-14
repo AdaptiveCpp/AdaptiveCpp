@@ -77,7 +77,7 @@ public:
   {
     if(this->_node){
       if(!this->_node->is_submitted())
-        rt::application::dag().flush_sync();
+        _requires_runtime.get()->dag().flush_sync();
       
       assert(this->_node->is_submitted());
       this->_node->wait();
@@ -86,6 +86,7 @@ public:
 
   static void wait(const vector_class<event> &eventList)
   {
+    rt::runtime_keep_alive_token requires_runtime;
     // Only need a at most a single flush,
     // so check if any of the events are unsubmitted,
     // if so, perform a single flush.
@@ -96,7 +97,7 @@ public:
           flush = true;
 
     if(flush)
-      rt::application::dag().flush_sync();
+      requires_runtime.get()->dag().flush_sync();
 
     for(const event& evt: eventList){
       const_cast<event&>(evt).wait();
@@ -144,7 +145,7 @@ public:
     // but the user thread waits for the instrumentation results
     // and so cannot submit more work.
     if(!this->_node->is_submitted())
-      rt::application::dag().flush_sync();
+      _requires_runtime.get()->dag().flush_sync();
 
     rt::execution_hints& hints = _node->get_execution_hints();
     // The regular SYCL API will always result in full profiling requested,
@@ -220,6 +221,7 @@ public:
 private:
 
   rt::dag_node_ptr _node;
+  rt::runtime_keep_alive_token _requires_runtime;
   async_handler _handler;
 };
 

@@ -55,7 +55,8 @@ enum class setting {
   mqe_lane_statistics_max_size,
   mqe_lane_statistics_decay_time_sec,
   default_selector_behavior,
-  hcf_dump_directory
+  hcf_dump_directory,
+  persistent_runtime
 };
 
 template <setting S> struct setting_trait {};
@@ -79,6 +80,7 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::default_selector_behavior,
                               "default_selector_behavior", default_selector_behavior);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::hcf_dump_directory,
                               "hcf_dump_directory", std::string);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::persistent_runtime, "persistent_runtime", bool)
 
 class settings
 {
@@ -101,6 +103,8 @@ public:
       return _default_selector_behavior;
     } else if constexpr (S == setting::hcf_dump_directory) {
       return _hcf_dump_directory;
+    } else if constexpr (S == setting::persistent_runtime) {
+      return _persistent_runtime;
     }
     return typename setting_trait<S>::type{};
   }
@@ -130,6 +134,8 @@ public:
     _hcf_dump_directory =
         get_environment_variable_or_default<setting::hcf_dump_directory>(
             std::string{});
+    _persistent_runtime =
+        get_environment_variable_or_default<setting::persistent_runtime>(false);
   }
 
 private:
@@ -167,6 +173,7 @@ private:
   double _mqe_lane_statistics_decay_time_sec;
   default_selector_behavior _default_selector_behavior;
   std::string _hcf_dump_directory;
+  bool _persistent_runtime;
 };
 
 }

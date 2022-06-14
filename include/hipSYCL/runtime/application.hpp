@@ -39,20 +39,38 @@ namespace rt {
 
 class dag_manager;
 class runtime;
+class async_error_list;
 
 class application
 {
 public:
-  static runtime& get_runtime();
   static settings& get_settings();
-  static dag_manager &dag();
-  static backend &get_backend(hipsycl::rt::backend_id id);
-  static backend_manager& backends();
-  // Note: This functions is not fully thread-safe and should
-  // only be called in well-defined circumstances!
-  static void reset();
+  // Should only be invoked from the SYCL interface, not
+  // from the runtime or kernel launchers.
+  static std::shared_ptr<runtime> get_runtime_pointer();
+  static async_error_list& errors();
 
   application() = delete;
+};
+
+class persistent_runtime {
+public:
+  persistent_runtime() : _rt{nullptr} {
+    if(application::get_settings().get<setting::persistent_runtime>()) {
+      _rt = application::get_runtime_pointer();
+    }
+  }
+private:
+  std::shared_ptr<runtime> _rt;
+};
+
+class runtime_keep_alive_token {
+public:
+  runtime_keep_alive_token();
+
+  runtime* get() const;
+private:
+  std::shared_ptr<runtime> _rt;
 };
 
 }

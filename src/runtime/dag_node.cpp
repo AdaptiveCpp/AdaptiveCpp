@@ -40,11 +40,12 @@ namespace rt {
 
 dag_node::dag_node(const execution_hints &hints,
                    const std::vector<dag_node_ptr> &requirements,
-                   std::unique_ptr<operation> op)
+                   std::unique_ptr<operation> op,
+                   runtime* rt)
     : _hints{hints}, _requirements{requirements},
       _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
-      _is_cancelled{false} {}
+      _is_cancelled{false}, _rt{rt} {}
 
 dag_node::~dag_node() {
   if(!is_complete()){
@@ -248,6 +249,10 @@ void dag_node::for_each_nonvirtual_requirement(
       req->for_each_nonvirtual_requirement(handler);
     }
   }
+}
+
+runtime* dag_node::get_runtime() const {
+  return _rt;
 }
 
 }

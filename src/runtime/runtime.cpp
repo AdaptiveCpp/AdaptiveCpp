@@ -28,11 +28,11 @@
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/common/debug.hpp"
 
-
 namespace hipsycl {
 namespace rt {
 
 runtime::runtime()
+: _dag_manager{this}
 {
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt launch initiated ********"
                       << std::endl;
@@ -43,6 +43,8 @@ runtime::~runtime()
   HIPSYCL_DEBUG_INFO << "runtime: ******* rt shutdown ********"
                       << std::endl;
 }
+
+
 
 }
 }

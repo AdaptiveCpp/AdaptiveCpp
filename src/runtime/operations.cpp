@@ -77,7 +77,8 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
   auto node = std::make_shared<dag_node>(
     execution_hints{}, 
     std::vector<dag_node_ptr>{},
-    std::move(req));
+    std::move(req),
+    _rt);
   
   add_node_requirement(node);
 }

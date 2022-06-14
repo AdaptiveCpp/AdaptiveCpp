@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "hipSYCL/runtime/allocator.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
@@ -53,10 +54,9 @@
 #include "hipSYCL/sycl/libkernel/detail/local_memory_allocator.hpp"
 #include "hipSYCL/sycl/interop_handle.hpp"
 
-#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/util.hpp"
@@ -443,19 +443,17 @@ public:
 
   __host__ hiplike_reduction_descriptor(
       const ReductionDescriptor& desc,
-      rt::device_id dev, const std::vector<ReductionStage> &stages,
-      std::vector<void *> &managed_scratch_memory)
+      const std::vector<ReductionStage> &stages,
+      std::vector<void *> &managed_scratch_memory,
+      rt::backend_allocator* allocator)
       : _descriptor{desc}, _is_final{false}, _scratch_memory_in{nullptr},
-        _scratch_memory_out{nullptr} {
+        _scratch_memory_out{nullptr}, _allocator{allocator} {
     
     assert(stages.size() > 0);
 
     std::size_t num_scratch_elements = stages[0].num_groups.size();
     std::size_t scratch_memory_size =
         sizeof(value_type) * num_scratch_elements;
-
-    auto allocator =
-        rt::application::get_backend(dev.get_backend()).get_allocator(dev);
 
     auto allocate_scratch = [&]() -> void * {
       void *mem = allocator->allocate(0, scratch_memory_size);
@@ -579,16 +577,17 @@ private:
 
   int _local_memory_offset;
   ReductionDescriptor _descriptor;
+  rt::backend_allocator* _allocator;
 };
 
 template <class F, class ReductionStage, typename... ReductionDescriptors>
-__host__
-void invoke_reducible_kernel(F &&handler, rt::device_id dev,
-                              const std::vector<ReductionStage>& stages,
-                              std::vector<void *> &managed_scratch_memory,
-                              ReductionDescriptors&& ... descriptors) {
-  handler(hiplike_reduction_descriptor{descriptors, dev, stages,
-                                       managed_scratch_memory}...);
+__host__ void
+invoke_reducible_kernel(F &&handler, const std::vector<ReductionStage> &stages,
+                        std::vector<void *> &managed_scratch_memory,
+                        rt::backend_allocator *allocator,
+                        ReductionDescriptors &&...descriptors) {
+  handler(hiplike_reduction_descriptor{descriptors, stages,
+                                       managed_scratch_memory, allocator}...);
 }
 
 } // hiplike_dispatch
@@ -623,9 +622,9 @@ public:
       // But if we have reduction scratch allocations, we know
       // that we have been invoked.
       assert(_queue);
-      rt::application::get_backend(Backend_id)
-          .get_allocator(_queue->get_device())
-          ->free(scratch_ptr);
+
+      assert(_allocator);
+      _allocator->free(scratch_ptr);
     }
   }
 
@@ -859,11 +858,15 @@ public:
             }
           }
         };
-        
-     
+
+        _allocator = node->get_runtime()
+                         ->backends()
+                         .get(_queue->get_device().get_backend())
+                         ->get_allocator(_queue->get_device());
+
         hiplike_dispatch::invoke_reducible_kernel(
-            reducible_kernel_invoker, _queue->get_device(), reduction_stages,
-            _managed_reduction_scratch, reductions...);
+            reducible_kernel_invoker, reduction_stages,
+            _managed_reduction_scratch, _allocator, reductions...);
       }
     };
   }
@@ -972,6 +975,7 @@ private:
   std::function<void (rt::dag_node*)> _invoker;
 
   std::vector<void*> _managed_reduction_scratch;
+  rt::backend_allocator* _allocator = nullptr;
 };
 
 }

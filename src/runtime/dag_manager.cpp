@@ -29,10 +29,14 @@
 #include <mutex>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -47,9 +51,9 @@ dag_build_guard::~dag_build_guard()
   _mgr->trigger_flush_opportunity();
 }
 
-dag_manager::dag_manager()
-: _builder{std::make_unique<dag_builder>()}
-{
+dag_manager::dag_manager(runtime *rt)
+    : _builder{std::make_unique<dag_builder>(rt)},
+      _direct_scheduler{rt}, _unbound_scheduler{rt}, _rt{rt} {
   HIPSYCL_DEBUG_INFO << "dag_manager: DAG manager is alive!" << std::endl;
 }
 
@@ -57,6 +61,7 @@ dag_manager::~dag_manager()
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: Waiting for async worker..." << std::endl;
   
+  flush_sync();
   wait();
 
   HIPSYCL_DEBUG_INFO << "dag_manager: Shutdown." << std::endl;

@@ -27,7 +27,7 @@
 
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
-#include "hipSYCL/runtime/runtime.hpp"
+#include "hipSYCL/runtime/async_errors.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -96,12 +96,12 @@ result register_error(
 
   auto res = make_error(origin, info);
 
-  application::get_runtime().errors().add(res);
+  application::errors().add(res);
   return res;
 }
 
 void register_error(const result &err) {
-  application::get_runtime().errors().add(err);
+  application::errors().add(err);
 }
 
 }

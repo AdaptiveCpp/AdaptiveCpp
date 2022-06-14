@@ -76,8 +76,8 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
              "target."
           << std::endl;
     }
-    auto backend_it = devs.find_first_backend([](rt::backend_id b) {
-      return rt::application::get_backend(b).get_hardware_platform() !=
+    auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
+      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() !=
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -93,8 +93,8 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
              "carry out USM memory management"
           << std::endl;
     }
-    auto backend_it = devs.find_first_backend([](rt::backend_id b) {
-      return rt::application::get_backend(b).get_hardware_platform() ==
+    auto backend_it = devs.find_first_backend([&](rt::backend_id b) {
+      return ctx.hipSYCL_runtime()->backends().get(b)->get_hardware_platform() ==
              rt::hardware_platform::cpu;
     });
     assert(backend_it != devs.backends_end());
@@ -112,7 +112,8 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
 inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
-  rt::backend &backend_object = rt::application::get_backend(selected_backend);
+  rt::backend &backend_object =
+      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
 
   if (backend_object.get_hardware_manager()->get_num_devices() == 0)
     throw memory_allocation_error{"USM: Context has no devices on which "
@@ -126,7 +127,8 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
                                                    const device &dev) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
-  rt::backend &backend_object = rt::application::get_backend(selected_backend);
+  rt::backend &backend_object =
+      *ctx.hipSYCL_runtime()->backends().get(selected_backend);
   rt::device_id d = detail::extract_rt_device(dev);
   
   if(d.get_backend() == selected_backend)
@@ -139,10 +141,10 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx,
 inline rt::backend_allocator *select_device_allocator(const device &dev) {
   rt::device_id d = detail::extract_rt_device(dev);
 
-  rt::backend& backend_object = rt::application::get_backend(d.get_backend());
+  rt::backend &backend_object =
+      *dev.hipSYCL_runtime()->backends().get(d.get_backend());
   return backend_object.get_allocator(d);
 }
-
 }
 
 namespace usm {

@@ -31,13 +31,13 @@
 
 #include "dag_manager.hpp"
 #include "backend.hpp"
-#include "async_errors.hpp"
 #include "settings.hpp"
 
+#include <memory>
 #include <iostream>
+
 namespace hipsycl {
 namespace rt {
-
 
 class runtime
 {
@@ -57,16 +57,14 @@ public:
 
   const backend_manager &backends() const { return _backends; }
 
-  async_error_list& errors() { return _errors; }
-  const async_error_list& errors() const { return _errors; }
-
 private:
-  
-  // !! Attention: order is important, as backends have to be still present, when the dag_manager is destructed!
-  async_error_list _errors;
+  // !! Attention: order is important, as backends have to be still present,
+  // when the dag_manager is destructed!
   backend_manager _backends;
   dag_manager _dag_manager;
 };
+
+
 
 }
 }

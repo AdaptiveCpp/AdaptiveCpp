@@ -40,11 +40,10 @@
 #include "dag_node.hpp"
 #include "device_id.hpp"
 #include "util.hpp"
+#include "allocator.hpp"
 
 namespace hipsycl {
 namespace rt {
-
-void generic_pointer_free(device_id, void*);
 
 class range_store
 {
@@ -286,6 +285,7 @@ struct data_allocation {
   Memory_descriptor memory;
   range_store invalid_pages;
   bool is_owned;
+  backend_allocator* managing_allocator;
 };
 
 template <class Memory_descriptor> class allocation_list {
@@ -426,7 +426,16 @@ public:
         device_id dev = alloc.dev;
         HIPSYCL_DEBUG_INFO << "data_region::~data_region: Freeing allocation "
                            << alloc.memory << std::endl;
-        generic_pointer_free(dev, alloc.memory);
+        if(!alloc.managing_allocator) {
+          HIPSYCL_DEBUG_WARNING
+              << "data_region::~data_region: Cannot free owned allocation "
+              << alloc.memory
+              << " because no managing allocator was provided. This is likely "
+                 "a memory leak."
+              << std::endl;
+        } else {
+          alloc.managing_allocator->free(alloc.memory);
+        }
       }
       return true;
     });
@@ -450,16 +459,19 @@ public:
 
   void add_empty_allocation(const device_id &d,
                             Memory_descriptor memory_context,
+                            backend_allocator* allocator,
                             bool takes_ownership = true) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
     this->add_allocation<initial_data_state::invalid>(d, memory_context,
-                                                      takes_ownership);
+                                                      takes_ownership,
+                                                      allocator);
   }
 
   void add_nonempty_allocation(const device_id &d,
                                Memory_descriptor memory_context,
+                               backend_allocator* allocator,
                                bool takes_ownership = false) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
@@ -470,7 +482,8 @@ public:
     // is only invoked at the initialization of a buffer if constructed
     // with an existing pointer (e.g. host pointer).
     this->add_allocation<initial_data_state::valid>(d, memory_context,
-                                                    takes_ownership);
+                                                    takes_ownership,
+                                                    allocator);
   }
 
   /// Converts an offset into the data buffer (in element numbers) and the
@@ -685,14 +698,15 @@ private:
     invalid
   };
 
-  template<initial_data_state InitialState>
+  template <initial_data_state InitialState>
   void add_allocation(const device_id &d, Memory_descriptor memory_context,
-                      bool takes_ownership = true) {
+                      bool takes_ownership = true,
+                      backend_allocator *allocator = nullptr) {
     // Make sure that there isn't already an allocation on the given device
     assert(!has_allocation(d));
 
     data_allocation<Memory_descriptor> new_alloc{
-        d, memory_context, range_store{_num_pages}, takes_ownership};
+        d, memory_context, range_store{_num_pages}, takes_ownership, allocator};
 
     if constexpr(InitialState == initial_data_state::invalid) {
       new_alloc.invalid_pages.add(std::make_pair(id<3>{0, 0, 0}, _num_pages));

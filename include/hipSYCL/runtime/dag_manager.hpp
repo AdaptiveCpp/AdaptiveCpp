@@ -41,13 +41,13 @@
 namespace hipsycl {
 namespace rt {
 
-class dag_interpreter;
+class runtime;
 
 class dag_manager
 {
   friend class dag_build_guard;
 public:
-  dag_manager();
+  dag_manager(runtime* rt);
   ~dag_manager();
 
   // Submits operations asynchronously
@@ -76,6 +76,8 @@ private:
 
   // Should only be used for flush_async()
   std::mutex _flush_mutex;
+
+  runtime* _rt;
 };
 
 class dag_build_guard

@@ -10,6 +10,7 @@ In order to successfully build and install hipSYCL, the following dependencies m
 * `cmake`
 * the Boost C++ libraries (in particular `boost.fiber`, `boost.context` and for the unit tests `boost.test`)
   * it may be helpful to set the `BOOST_ROOT` `cmake` variable to the path to the root directory of Boost you wish to use if `cmake` does not find it automatically
+  * **Note for boost 1.78 users:** There seems to be a bug in the build system for boost 1.78, causing the compiled fiber and context libraries not to be copied to the installation directory. You will have to copy these libraries manually to the installation directory. In binary packages from some distribution repositories this issue is fixed. You might be only affected when building boost manually from source.
 
 In addition, the various supported compilation flows have additional requirements (see [here](compilation.md) for more information on available compilation flows):
 

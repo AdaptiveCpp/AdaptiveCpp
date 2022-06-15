@@ -92,10 +92,13 @@ void dag_manager::flush_async()
 
     if(new_dag.num_nodes() > 0) {
       _worker([this, new_dag](){
-        // Construct new DAG
         HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
         
         // Release any old users of memory buffers used in this dag
+        // purge_completed() not only removes old users from the submitted ops list,
+        // it also queries event state and updates the cached value
+        // in case operations have completed.
+        this->_submitted_ops.purge_completed();
         for(dag_node_ptr req : new_dag.get_memory_requirements()){
           assert_is<memory_requirement>(req->get_operation());
 

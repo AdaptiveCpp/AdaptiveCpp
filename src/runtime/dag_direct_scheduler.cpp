@@ -189,11 +189,10 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
       reqs.push_back(req);
   });
   // Compress requirements by removing complete requirements
-  reqs.erase(
-      std::remove_if(reqs.begin(), reqs.end(),
-                     [](dag_node_ptr elem) { return elem->is_complete(); }),
-      reqs.end());
-
+  reqs.erase(std::remove_if(
+                 reqs.begin(), reqs.end(),
+                 [](dag_node_ptr elem) { return elem->is_known_complete(); }),
+             reqs.end());
 
   node->assign_to_executor(executor);
   

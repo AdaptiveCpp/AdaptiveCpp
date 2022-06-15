@@ -29,7 +29,6 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/async_errors.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
-#include "hipSYCL/runtime/managed_singleton.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
 #include "hipSYCL/runtime/settings.hpp"

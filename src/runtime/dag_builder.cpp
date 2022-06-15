@@ -127,8 +127,7 @@ class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
 
-dag_builder::dag_builder(){}
-
+dag_builder::dag_builder(runtime *rt) : _rt{rt} {}
 
 dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
                                      const requirements_list& requirements,
@@ -171,7 +170,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   };
 
   auto operation_node = std::make_shared<dag_node>(
-      hints, requirements.get(), std::move(op));
+      hints, requirements.get(), std::move(op), _rt);
   
   bool is_req = operation_node->get_operation()->is_requirement();
 

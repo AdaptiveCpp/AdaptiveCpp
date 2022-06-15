@@ -39,6 +39,7 @@
 namespace hipsycl {
 namespace rt {
 
+class runtime;
 /// Incrementally builds a dag based on operations, taking into
 /// account data dependencies.
 /// The resulting DAG will still contain requirements,
@@ -51,7 +52,7 @@ namespace rt {
 class dag_builder
 {
 public:
-  dag_builder();
+  dag_builder(runtime* rt);
 
   dag_node_ptr add_kernel(std::unique_ptr<operation> op,
                           const requirements_list& requirements,
@@ -89,6 +90,7 @@ private:
 
   mutable std::mutex _mutex;
   dag _current_dag;
+  runtime* _rt;
 };
 
 

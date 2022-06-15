@@ -56,6 +56,7 @@ class inorder_queue;
 template<class T> class data_region;
 using buffer_data_region = data_region<void *>;
 
+class runtime;
 class backend_executor;
 class dag_node;
 using dag_node_ptr = std::shared_ptr<dag_node>;
@@ -616,9 +617,13 @@ std::unique_ptr<operation> make_operation(Args... args)
 }
 
 
+
 class requirements_list
 {
 public:
+  requirements_list(runtime* rt)
+  : _rt{rt} {}
+
   template<class T, typename... Args>
   void add_requirement(Args... args)
   {
@@ -633,6 +638,7 @@ public:
   
 private:
   std::vector<dag_node_ptr> _reqs;
+  runtime* _rt;
 };
 
 

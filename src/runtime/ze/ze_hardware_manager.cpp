@@ -62,7 +62,7 @@ ze_context_manager::ze_context_manager(ze_driver_handle_t driver)
       HIPSYCL_DEBUG_INFO << "ze_context_manager: Destroying context..."
                          << std::endl;
       ze_result_t err = zeContextDestroy(*ptr);
-      assert(false);
+      
       if (err != ZE_RESULT_SUCCESS) {
         register_error(
             __hipsycl_here(),

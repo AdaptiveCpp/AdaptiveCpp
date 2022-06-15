@@ -157,6 +157,10 @@ public:
 
   friend bool operator!=(const context& lhs, const context &rhs)
   { return !(lhs == rhs); }
+
+  rt::runtime* hipSYCL_runtime() const {
+    return _impl->requires_runtime.get();
+  }
 private:
   void init(async_handler handler) {
     _impl = std::make_shared<context_impl>();
@@ -173,8 +177,12 @@ private:
   }
   
   struct context_impl {
+    rt::runtime_keep_alive_token requires_runtime;
     rt::unique_device_list devices;
-    async_handler handler;
+
+    context_impl() : devices{requires_runtime.get()} {}
+
+    async_handler handler;    
   };
 
   std::shared_ptr<context_impl> _impl;

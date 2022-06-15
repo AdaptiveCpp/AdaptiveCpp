@@ -27,6 +27,8 @@
 
 #include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_direct_scheduler.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
@@ -35,7 +37,8 @@
 namespace hipsycl {
 namespace rt {
 
-dag_unbound_scheduler::dag_unbound_scheduler() {}
+dag_unbound_scheduler::dag_unbound_scheduler(runtime* rt)
+: _direct_scheduler{rt}, _rt{rt} {}
 
 void dag_unbound_scheduler::submit(dag_node_ptr node) {
   if(_devices.empty()) {
@@ -43,7 +46,7 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
     // when schedulers are constructed the runtime is typically
     // locked because it is just starting up, so this would
     // create a deadlock
-    application::backends().for_each_backend([this](backend *b) {
+    _rt->backends().for_each_backend([this](backend *b) {
       std::size_t num_devs = b->get_hardware_manager()->get_num_devices();
       for (std::size_t i = 0; i < num_devs; ++i) {
         this->_devices.push_back(b->get_hardware_manager()->get_device_id(i));

@@ -47,6 +47,8 @@
 #define SYCL_LANGUAGE_VERSION 202003
 #define SYCL_FEATURE_SET_FULL
 
+#include "hipSYCL/glue/persistent_runtime.hpp"
+
 #include "extensions.hpp"
 
 #include "libkernel/backend.hpp"

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,28 +25,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_PERSISTENT_RUNTIME_HPP
+#define HIPSYCL_PERSISTENT_RUNTIME_HPP
 
-#ifndef HIPSYCL_DAG_DIRECT_SCHEDULER_HPP
-#define HIPSYCL_DAG_DIRECT_SCHEDULER_HPP
-
-#include "dag_node.hpp"
-#include "operations.hpp"
-
-#include <functional>
+#include <memory>
+#include "hipSYCL/runtime/application.hpp"
 
 namespace hipsycl {
-namespace rt {
+namespace glue {
 
-class runtime;
-
-class dag_direct_scheduler {
+class persistent_runtime {
 public:
-  dag_direct_scheduler(runtime* rt);
-  void submit(dag_node_ptr node);
-
+  persistent_runtime() : _rt{nullptr} {
+    if(rt::application::get_settings().get<rt::setting::persistent_runtime>()) {
+      _rt = rt::application::get_runtime_pointer();
+    }
+  }
 private:
-  runtime* _rt;
+  std::shared_ptr<rt::runtime> _rt;
 };
+
+static persistent_runtime persistent_runtime_object;
 
 }
 }

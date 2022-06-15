@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <cstdlib>
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag.hpp"
 #include "hipSYCL/runtime/data.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -19,6 +20,7 @@ using namespace hipsycl::rt;
 
 int main()
 {
+  hipsycl::rt::runtime_keep_alive_token rt;
   // OP: buffer Memory requirement 
   std::cout << "Dumping memory requirement buffers: " << std::endl << std::endl;
   hipsycl::rt::range<3> c(10, 0, 0);
@@ -42,7 +44,7 @@ int main()
   
   // Kernel Operation
   std::cout << std::endl << "Dumping Kernel Operation: " << std::endl << std::endl;        
-  requirements_list reqs;
+  requirements_list reqs{rt.get()};
   std::vector<std::unique_ptr<backend_kernel_launcher>> backend_kernel_list;
   std::string kernel_name = "test_kernel";
   kernel_operation kernel_op(kernel_name, std::move(backend_kernel_list), reqs);
@@ -71,16 +73,20 @@ int main()
   //kernels
   auto node_ptr1 = std::make_shared<dag_node>(no_hint, 
                                     no_requirements, 
-                                    std::unique_ptr<operation>(&kernel_op));
+                                    std::unique_ptr<operation>(&kernel_op),
+                                    rt.get());
   auto node_memcpy1 = std::make_shared<dag_node>(no_hint, 
                                     std::vector{ node_ptr1 }, 
-                                    std::unique_ptr<operation>(&test_memcpy));
+                                    std::unique_ptr<operation>(&test_memcpy),
+                                    rt.get());
   auto node_ptr2 = std::make_shared<dag_node>(no_hint, 
                                     std::vector{ node_ptr1 , node_memcpy1},
-                                    std::unique_ptr<operation>(&kernel_op));
+                                    std::unique_ptr<operation>(&kernel_op),
+                                    rt.get());
   auto node_ptr3 = std::make_shared<dag_node>(no_hint, 
                                     std::vector{ node_ptr2, node_ptr1 },
-                                    std::unique_ptr<operation>(&kernel_op));
+                                    std::unique_ptr<operation>(&kernel_op),
+                                    rt.get());
   //Memcpy
   
 

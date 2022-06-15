@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(queue_profiling)
   auto t11 = evt1.get_profiling_info<cl::sycl::info::event_profiling::command_submit>();
   auto t13 = evt1.get_profiling_info<cl::sycl::info::event_profiling::command_end>();
   BOOST_CHECK(t11 <= t12 && t12 <= t13);
-
+  
   auto evt2 = queue.submit([&](cl::sycl::handler &cgh) {
     auto acc = buf1.get_access<cl::sycl::access::mode::discard_write>(cgh);
     cgh.parallel_for<class profile_parallel_for>(buf1.get_range(), [=](cl::sycl::item<1> item) {

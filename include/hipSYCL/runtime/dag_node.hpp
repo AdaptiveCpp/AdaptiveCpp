@@ -42,6 +42,7 @@ class operation;
 class backend_executor;
 
 class dag_node;
+class runtime;
 using dag_node_ptr = std::shared_ptr<dag_node>;
 
 class dag_node
@@ -49,7 +50,8 @@ class dag_node
 public:
   dag_node(const execution_hints& hints,
           const std::vector<dag_node_ptr>& requirements,
-          std::unique_ptr<operation> op);
+          std::unique_ptr<operation> op,
+          runtime* rt);
 
   ~dag_node();
 
@@ -116,6 +118,8 @@ public:
     else
       h(_operation.get());
   }
+
+  runtime* get_runtime() const;
 private:
   execution_hints _hints;
   std::vector<dag_node_ptr> _requirements;
@@ -137,6 +141,8 @@ private:
   mutable std::atomic<bool> _is_complete;
   bool _is_virtual;
   std::atomic<bool> _is_cancelled;
+
+  runtime* _rt;
 
 };
 

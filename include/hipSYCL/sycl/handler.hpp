@@ -450,7 +450,7 @@ public:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
@@ -514,7 +514,7 @@ public:
 
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit memcpy() is unsupported "
@@ -592,7 +592,7 @@ public:
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
    
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit memset() is unsupported "
@@ -609,7 +609,7 @@ public:
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
@@ -658,7 +658,7 @@ public:
     else {
       // Otherwise, run prefetch on the queue's device to the
       // queue's device
-      rt::dag_build_guard build{rt::application::dag()};
+      rt::dag_build_guard build{_rt->dag()};
 
       auto op = rt::make_operation<rt::prefetch_operation>(
           ptr, num_bytes, executing_dev);
@@ -682,7 +682,7 @@ public:
           "handler: submitting custom operations is unsupported "
           "for queues not bound to devices"};
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
@@ -728,7 +728,7 @@ private:
       throw sycl::invalid_parameter_error{
           "update_dev(): Accessor is not bound to buffer"};
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     const rt::range<dim> buffer_shape = rt::make_range(acc.get_buffer_shape());
     constexpr bool has_access_range =
@@ -768,7 +768,7 @@ private:
                      Reductions... reductions) {
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         rt::kernel_cache::get().get_global_kernel_name<KernelFuncType>(),
@@ -810,7 +810,7 @@ private:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
@@ -845,7 +845,7 @@ private:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: explicit copy() is unsupported "
@@ -902,10 +902,10 @@ private:
 
   
   handler(const context &ctx, async_handler handler,
-          const rt::execution_hints &hints)
+          const rt::execution_hints &hints, rt::runtime* rt)
       : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
         _preferred_group_size1d{}, _preferred_group_size2d{},
-        _preferred_group_size3d{} {}
+        _preferred_group_size3d{}, _rt{rt}, _requirements{rt} {}
 
   template<int Dim>
   range<Dim>& get_preferred_group_size() {
@@ -945,6 +945,8 @@ private:
   range<1> _preferred_group_size1d;
   range<2> _preferred_group_size2d;
   range<3> _preferred_group_size3d;
+
+  rt::runtime* _rt;
 };
 
 namespace detail::handler {

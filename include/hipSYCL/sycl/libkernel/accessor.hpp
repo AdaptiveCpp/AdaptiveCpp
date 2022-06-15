@@ -1046,7 +1046,7 @@ private:
     bind_to_buffer(buff, offset, access_range);
 
     if (accessTarget == access::target::host_buffer) {
-      init_host_buffer(is_no_init_access);
+      init_host_buffer(buff.hipSYCL_runtime(), is_no_init_access);
     }
   }
   
@@ -1136,7 +1136,7 @@ private:
         dimensions>::attempt_set(detail::extract_buffer_range(buff));
   }
 
-  void init_host_buffer(bool is_no_init) {
+  void init_host_buffer(rt::runtime* rt, bool is_no_init) {
     // TODO: Maybe unify code with handler::update_host()?
     HIPSYCL_DEBUG_INFO << "accessor [host]: Initializing host access" << std::endl;
 
@@ -1148,7 +1148,7 @@ private:
 
     rt::dag_node_ptr node;
     {
-      rt::dag_build_guard build{rt::application::dag()};
+      rt::dag_build_guard build{rt->dag()};
       
       const rt::range<dimensions> buffer_shape = rt::make_range(get_buffer_shape());
       auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
@@ -1170,13 +1170,13 @@ private:
               detail::get_host_device()));
 
       node = build.builder()->add_explicit_mem_requirement(
-          std::move(explicit_requirement), rt::requirements_list{},
+          std::move(explicit_requirement), rt::requirements_list{rt},
           enforce_bind_to_host);
       
       HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
-      rt::application::dag().flush_sync();
+      rt->dag().flush_sync();
     }
-    if(rt::application::get_runtime().errors().num_errors() == 0){
+    if(rt::application::errors().num_errors() == 0){
       HIPSYCL_DEBUG_INFO << "accessor [host]: Waiting for completion of host access..." << std::endl;
 
       assert(node);

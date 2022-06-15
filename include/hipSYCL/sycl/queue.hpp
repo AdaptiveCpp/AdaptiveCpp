@@ -285,8 +285,8 @@ public:
   }
 
   void wait() {
-    rt::application::dag().flush_sync();
-    rt::application::dag().wait(_node_group_id);
+    _requires_runtime.get()->dag().flush_sync();
+    _requires_runtime.get()->dag().wait(_node_group_id);
   }
 
   void wait_and_throw() {
@@ -341,7 +341,7 @@ public:
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
 
-    handler cgh{get_context(), _handler, hints};
+    handler cgh{get_context(), _handler, hints, _requires_runtime.get()};
     
     apply_preferred_group_size<1>(prop_list, cgh);
     apply_preferred_group_size<2>(prop_list, cgh);
@@ -366,21 +366,21 @@ public:
     try {
 
       size_t num_errors_begin =
-          rt::application::get_runtime().errors().num_errors();
+          rt::application::errors().num_errors();
 
       event evt = submit(prop_list, cgf);
       // Flush so that we see any errors during submission
-      rt::application::dag().flush_sync();
+      _requires_runtime.get()->dag().flush_sync();
 
       size_t num_errors_end =
-          rt::application::get_runtime().errors().num_errors();
+          rt::application::errors().num_errors();
 
       bool submission_failed = false;
       // TODO This approach fails if an async handler has consumed
       // the errors in the meantime
       if(num_errors_end != num_errors_begin) {
         // Need to check if there was a kernel error..
-        rt::application::get_runtime().errors().for_each_error(
+        rt::application::errors().for_each_error(
             [&](const rt::result &err) {
               if (!err.is_success()) {
                 if (err.info().get_error_type() ==
@@ -424,8 +424,8 @@ public:
     } else {
       // for non-in-order queues we need to ask the runtime for
       // all nodes of this node group
-      rt::application::dag().flush_sync();
-      auto nodes = rt::application::dag().get_group(_node_group_id);
+      _requires_runtime.get()->dag().flush_sync();
+      auto nodes = _requires_runtime.get()->dag().get_group(_node_group_id);
       std::vector<event> evts;
       for(auto node : nodes){
         if(!node->is_complete())
@@ -959,6 +959,8 @@ private:
   std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
+
+  rt::runtime_keep_alive_token _requires_runtime;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

@@ -35,14 +35,17 @@
 namespace hipsycl {
 namespace rt {
 
+class runtime;
+
 class dag_unbound_scheduler {
 public:
-  dag_unbound_scheduler();
+  dag_unbound_scheduler(runtime* rt);
 
   void submit(dag_node_ptr node);
 private:
   std::vector<device_id> _devices;
   rt::dag_direct_scheduler _direct_scheduler;
+  runtime* _rt;
 };
 
 }

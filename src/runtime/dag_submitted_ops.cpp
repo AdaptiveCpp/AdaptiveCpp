@@ -44,11 +44,14 @@ void erase_completed_nodes(std::vector<dag_node_ptr> &ops) {
 }
 }
 
-
-void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {
+void dag_submitted_ops::purge_completed() {
   std::lock_guard lock{_lock};
 
   erase_completed_nodes(_ops);
+}
+
+void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {
+  std::lock_guard lock{_lock};
 
   assert(single_node->is_submitted());
   _ops.push_back(single_node);

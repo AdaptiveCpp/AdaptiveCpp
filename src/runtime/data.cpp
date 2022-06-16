@@ -82,7 +82,7 @@ void data_user_tracker::release_dead_users()
                                 auto u = user.user.lock();
                                 if (!u)
                                   return true;
-                                return u->is_complete();
+                                return u->is_known_complete();
                               }),
                _users.end());
 }

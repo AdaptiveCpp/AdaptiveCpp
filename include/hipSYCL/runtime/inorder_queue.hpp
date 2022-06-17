@@ -57,6 +57,8 @@ public:
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) = 0;
   virtual result submit_external_wait_for(dag_node_ptr node) = 0;
 
+  virtual result wait() = 0;
+
   virtual device_id get_device() const = 0;
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const = 0;

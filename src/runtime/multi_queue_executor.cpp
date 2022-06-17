@@ -101,7 +101,7 @@ std::size_t determine_target_lane(dag_node_ptr node,
     assert(req->is_submitted());
 
     if(req->get_assigned_executor() == executor) {
-      std::size_t lane_id = req->get_assigned_execution_lane();
+      std::size_t lane_id = req->get_assigned_execution_lane().first;
       if (lane_id >= lane_range.begin &&
           lane_id < lane_range.begin + lane_range.num_lanes) {
         
@@ -272,13 +272,15 @@ void multi_queue_executor::submit_directly(
   _device_data[node->get_assigned_device().get_id()]
       .submission_statistics.insert(op_target_lane);
   
-  node->assign_to_execution_lane(op_target_lane);
-  node->assign_execution_index(_num_submitted_operations);
-  ++_num_submitted_operations;
-
   inorder_queue *q = _device_data[node->get_assigned_device().get_id()]
                          .queues[op_target_lane]
                          .get();
+
+  node->assign_to_execution_lane(
+      std::pair<std::size_t, void *>{op_target_lane, q});
+  node->assign_execution_index(_num_submitted_operations);
+  ++_num_submitted_operations;
+
 
   // Submit synchronization mechanisms
 
@@ -297,7 +299,7 @@ void multi_queue_executor::submit_directly(
             << std::endl;
         res = q->submit_external_wait_for(req);
       } else {
-        if (req->get_assigned_execution_lane() == op_target_lane) {
+        if (req->get_assigned_execution_lane().first == op_target_lane) {
           HIPSYCL_DEBUG_INFO
             << " --> (Skipping same-lane synchronization with node: " << req
             << ")" << std::endl;
@@ -307,7 +309,7 @@ void multi_queue_executor::submit_directly(
         } else {
           assert(req->get_event());
 
-          std::size_t lane = req->get_assigned_execution_lane();
+          std::size_t lane = req->get_assigned_execution_lane().first;
 
           HIPSYCL_DEBUG_INFO << " --> Synchronizes with other queue for node: "
                             << req

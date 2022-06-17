@@ -115,8 +115,8 @@ void dag_node::assign_to_device(device_id dev) {
   this->_assigned_device = dev;
 }
 
-void dag_node::assign_to_execution_lane(std::size_t lane_id)
-{
+void dag_node::assign_to_execution_lane(
+    std::pair<std::size_t, void *> lane_id) {
   this->_assigned_execution_lane = lane_id;
 }
 

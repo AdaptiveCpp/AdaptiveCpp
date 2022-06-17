@@ -344,6 +344,19 @@ result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
+result hip_queue::wait() {
+
+  auto err = hipStreamSynchronize(_stream);
+
+  if(err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Couldn't synchronize with stream",
+                                 error_code{"HIP", err}});
+  }
+
+  return make_success();
+}
+
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
 result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {

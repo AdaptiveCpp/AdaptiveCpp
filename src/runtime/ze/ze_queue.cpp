@@ -208,7 +208,13 @@ result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
 result ze_queue::submit_memset(memset_operation&, dag_node_ptr node) {
   return make_success();
 }
-  
+
+result ze_queue::wait() {
+  // TODO
+  return make_error(__hipsycl_here(),
+                      error_info{"Unimplemented"});
+}
+
 result ze_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   _enqueued_synchronization_ops.push_back(evt);
   return make_success();

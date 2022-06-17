@@ -368,6 +368,11 @@ result omp_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   return make_success();
 }
 
+result omp_queue::wait() {
+  _worker.wait();
+  return make_success();
+}
+
 result omp_queue::submit_external_wait_for(dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for external node..."
                      << std::endl;

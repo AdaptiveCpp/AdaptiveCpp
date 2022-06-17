@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
@@ -385,6 +386,19 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
                                  error_code{"CUDA", err}});
   }
   
+  return make_success();
+}
+
+result cuda_queue::wait() {
+
+  auto err = cudaStreamSynchronize(_stream);
+
+  if(err != cudaSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Couldn't synchronize with stream",
+                                 error_code{"CUDA", err}});
+  }
+
   return make_success();
 }
 

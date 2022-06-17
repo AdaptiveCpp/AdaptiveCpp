@@ -65,7 +65,7 @@ __hipsycl_atomic_store(T *addr, T x, memory_order order,
 }
 
 template <access::address_space S>
-HIPSYCL_HIPLIKE_BUILTIN float
+HIPSYCL_HIPLIKE_BUILTIN void
 __hipsycl_atomic_store(float *addr, float x, memory_order order,
                        memory_scope scope) noexcept {
   __atomic_store_n(reinterpret_cast<unsigned int *>(addr),
@@ -73,7 +73,7 @@ __hipsycl_atomic_store(float *addr, float x, memory_order order,
 }
 
 template <access::address_space S>
-HIPSYCL_HIPLIKE_BUILTIN double
+HIPSYCL_HIPLIKE_BUILTIN void
 __hipsycl_atomic_store(double *addr, double x, memory_order order,
                        memory_scope scope) noexcept {
   __atomic_store_n(reinterpret_cast<unsigned long long *>(addr),

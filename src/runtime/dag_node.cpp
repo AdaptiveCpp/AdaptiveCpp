@@ -143,7 +143,7 @@ backend_executor *dag_node::get_assigned_executor() const
   return _assigned_executor;
 }
 
-std::size_t dag_node::get_assigned_execution_lane() const
+std::pair<std::size_t, void*> dag_node::get_assigned_execution_lane() const
 {
   return _assigned_execution_lane;
 }
@@ -153,6 +153,15 @@ const execution_hints &dag_node::get_execution_hints() const { return _hints; }
 execution_hints &dag_node::get_execution_hints() { return _hints; }
 
 namespace {
+
+template<class F>
+void descend_requirement_tree(F&& f, const dag_node* n) {
+  if(f(n)) {
+    for(const auto& req : n->get_requirements()) {
+      descend_requirement_tree(f, req.get());
+    }
+  }
+}
 
 // Looks recursively in the requirement graph of current for x.
 // Descends no more than current_level levels and does not
@@ -174,6 +183,8 @@ bool recursive_find(const dag_node_ptr &current, int current_level,
   }
   return false;
 }
+
+
 
 }
 
@@ -230,6 +241,17 @@ void dag_node::wait() const
     return;
 
   _event->wait();
+  // All requirements are now also complete
+  descend_requirement_tree([](const dag_node* current) -> bool{
+    // Descend to all nodes that are not yet marked as complete,
+    // so abort on nodes that are complete
+    if(current->_is_complete)
+      return false;
+    // Otherwise mark as complete and return
+    current->_is_complete = true;
+    return true;
+  }, this);
+
   _is_complete = true;
 }
 

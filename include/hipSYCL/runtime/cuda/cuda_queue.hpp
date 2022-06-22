@@ -77,6 +77,7 @@ public:
 
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
+  virtual std::shared_ptr<dag_node_event> create_queue_completion_event() override;
 
   virtual result submit_memcpy(memcpy_operation &, dag_node_ptr) override;
   virtual result submit_kernel(kernel_operation &, dag_node_ptr) override;
@@ -95,6 +96,8 @@ public:
   virtual void *get_native_type() const override;
 
   virtual code_object_invoker* get_code_object_invoker() override;
+
+  virtual result query_status(inorder_queue_status& status) override;
 
   result submit_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,

@@ -77,5 +77,9 @@ device_id hip_node_event::get_device() const
   return _dev;
 }
 
+ihipEvent_t* hip_node_event::request_backend_event() {
+  return get_event();
+}
+
 }
 }

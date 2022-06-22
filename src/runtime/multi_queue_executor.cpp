@@ -149,7 +149,7 @@ get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
   std::size_t index = 0;
   for (const auto &node : nodes) {
     if (node->is_submitted() && node->get_assigned_executor() == executor &&
-        node->get_assigned_execution_lane() == lane) {
+        node->get_assigned_execution_lane().first == lane) {
       if(node->get_assigned_execution_index() > index)
         index = node->get_assigned_execution_index();
     }
@@ -356,7 +356,12 @@ void multi_queue_executor::submit_directly(
     return;
   }
 
-  node->mark_submitted(q->insert_event());
+  if (node->get_execution_hints()
+          .has_hint<hints::coarse_grained_synchronization>()) {
+    node->mark_submitted(q->create_queue_completion_event());
+  } else {
+    node->mark_submitted(q->insert_event());
+  }
 }
 
 

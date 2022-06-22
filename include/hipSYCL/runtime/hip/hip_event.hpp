@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_HIP_EVENT_HPP
 #define HIPSYCL_HIP_EVENT_HPP
 
-#include "../event.hpp"
+#include "../inorder_queue_event.hpp"
 
 struct ihipEvent_t;
 
@@ -36,11 +36,12 @@ namespace hipsycl {
 namespace rt {
 
 
-class hip_node_event : public dag_node_event
+class hip_node_event : public inorder_queue_event<ihipEvent_t*>
 {
 public:
+  using backend_event_type = ihipEvent_t*;
   /// \c evt Must have been properly initialized and recorded.
-  hip_node_event(device_id dev, ihipEvent_t* evt);
+  hip_node_event(device_id dev, backend_event_type evt);
   ~hip_node_event();
 
   virtual bool is_complete() const override;
@@ -48,9 +49,11 @@ public:
 
   ihipEvent_t* get_event() const;
   device_id get_device() const;
+
+  virtual backend_event_type request_backend_event() override;
 private:
   device_id _dev;
-  ihipEvent_t* _evt;
+  backend_event_type _evt;
 };
 
 }

@@ -32,6 +32,7 @@
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/queue_completion_event.hpp"
 
 #include <cassert>
 #include <memory>
@@ -171,6 +172,12 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
 
   return std::make_shared<hip_node_event>(_dev, std::move(evt));
 }
+
+std::shared_ptr<dag_node_event> hip_queue::create_queue_completion_event() {
+  return std::make_shared<queue_completion_event<hipEvent_t, hip_node_event>>(
+      this);
+}
+
 
 
 result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
@@ -357,13 +364,29 @@ result hip_queue::wait() {
   return make_success();
 }
 
+result hip_queue::query_status(inorder_queue_status &status) {
+  auto err = hipStreamQuery(_stream);
+  if(err == hipSuccess) {
+    status = inorder_queue_status{true};
+  } else if(err == hipErrorNotReady) {
+    status = inorder_queue_status{false};
+  } else {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Could not query stream status",
+                                 error_code{"HIP", static_cast<int>(err)}});
+  }
+
+  return make_success();
+}
+
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
 result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
-  assert(dynamic_is<hip_node_event>(evt.get()));
+  assert(dynamic_is<inorder_queue_event<hipEvent_t>>(evt.get()));
 
-  hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
-  auto err = hipStreamWaitEvent(_stream, hip_evt->get_event(), 0);
+  inorder_queue_event<hipEvent_t> *hip_evt =
+      cast<inorder_queue_event<hipEvent_t>>(evt.get());
+  auto err = hipStreamWaitEvent(_stream, hip_evt->request_backend_event(), 0);
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"hip_queue: hipStreamWaitEvent() failed",

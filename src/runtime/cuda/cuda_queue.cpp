@@ -39,9 +39,11 @@
 #include "hipSYCL/runtime/cuda/cuda_code_object.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/queue_completion_event.hpp"
 
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h> //for make_cudaPitchedPtr
@@ -183,6 +185,11 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
   }
 
   return std::make_shared<cuda_node_event>(_dev, evt);
+}
+
+std::shared_ptr<dag_node_event> cuda_queue::create_queue_completion_event() {
+  return std::make_shared<queue_completion_event<cudaEvent_t, cuda_node_event>>(
+      this);
 }
 
 
@@ -357,10 +364,12 @@ result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
 result cuda_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
-  assert(dynamic_is<cuda_node_event>(evt.get()));
+  assert(dynamic_is<inorder_queue_event<cudaEvent_t>>(evt.get()));
 
-  cuda_node_event* cuda_evt = cast<cuda_node_event>(evt.get());
-  auto err = cudaStreamWaitEvent(_stream, cuda_evt->get_event(), 0);
+  inorder_queue_event<cudaEvent_t> *cuda_evt =
+      cast<inorder_queue_event<cudaEvent_t>>(evt.get());
+  
+  auto err = cudaStreamWaitEvent(_stream, cuda_evt->request_backend_event(), 0);
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"cuda_queue: cudaStreamWaitEvent() failed",
@@ -574,6 +583,21 @@ code_object_invoker *cuda_queue::get_code_object_invoker() {
 }
 
 cuda_code_object_invoker::cuda_code_object_invoker(cuda_queue *q) : _queue{q} {}
+
+result cuda_queue::query_status(inorder_queue_status &status) {
+  auto err = cudaStreamQuery(_stream);
+  if(err == cudaSuccess) {
+    status = inorder_queue_status{true};
+  } else if(err == cudaErrorNotReady) {
+    status = inorder_queue_status{false};
+  } else {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: Could not query stream status",
+                                 error_code{"CU", static_cast<int>(err)}});
+  }
+
+  return make_success();
+}
 
 result cuda_code_object_invoker::submit_kernel(
     const kernel_operation& op,

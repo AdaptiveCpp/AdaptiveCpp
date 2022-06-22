@@ -152,6 +152,9 @@ class coarse_grained_synchronization : public execution_hint
 public:
   static constexpr execution_hint_type type =
       execution_hint_type::coarse_grained_synchronization;
+  
+  coarse_grained_synchronization()
+  : execution_hint{execution_hint_type::coarse_grained_synchronization} {}
 };
 
 class request_instrumentation_submission_timestamp : public execution_hint {

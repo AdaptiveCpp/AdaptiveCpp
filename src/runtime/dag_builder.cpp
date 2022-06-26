@@ -160,7 +160,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
             if(user_ptr && is_conflicting_access(mem_req, user))
             {
               // No reason to take a dependency into account that is alreay completed
-              if(!user_ptr->is_complete())
+              if(!user_ptr->is_known_complete())
                 req_node->add_requirement(user_ptr);
             }
           });

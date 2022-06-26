@@ -30,7 +30,6 @@
 
 #include <vector>
 #include <mutex>
-#include <functional>
 #include "error.hpp"
 
 namespace hipsycl {

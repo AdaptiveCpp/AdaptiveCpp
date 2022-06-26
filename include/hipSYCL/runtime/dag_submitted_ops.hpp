@@ -41,6 +41,7 @@ namespace rt {
 class dag_submitted_ops
 {
 public:
+  void purge_completed();
   void update_with_submission(dag_node_ptr single_node);
   
   void wait_for_all();

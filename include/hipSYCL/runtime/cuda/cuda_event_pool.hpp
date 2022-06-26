@@ -31,7 +31,6 @@
 #include "../event_pool.hpp"
 #include "cuda_event.hpp"
 
-#include <cuda_runtime_api.h>
 
 namespace hipsycl {
 namespace rt {

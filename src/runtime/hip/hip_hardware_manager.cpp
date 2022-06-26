@@ -26,6 +26,8 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_event_pool.hpp"
+#include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include <exception>
@@ -97,6 +99,18 @@ hip_hardware_context::hip_hardware_context(int dev) : _dev{dev} {
         error_info{"hip_hardware_manager: Could not query device properties ",
                    error_code{"HIP", err}});
   }
+
+  _allocator = std::make_unique<hip_allocator>(
+      backend_descriptor{hardware_platform::rocm, api_platform::hip}, _dev);
+  _event_pool = std::make_unique<hip_event_pool>(_dev);
+}
+
+hip_allocator* hip_hardware_context::get_allocator() const {
+  return _allocator.get();
+}
+
+hip_event_pool* hip_hardware_context::get_event_pool() const {
+  return _event_pool.get();
 }
 
 bool hip_hardware_context::is_cpu() const {

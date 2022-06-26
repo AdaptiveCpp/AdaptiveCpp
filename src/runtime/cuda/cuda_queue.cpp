@@ -134,8 +134,8 @@ void cuda_queue::activate_device() const {
   cuda_device_manager::get().activate_device(_dev.get_id());
 }
 
-cuda_queue::cuda_queue(device_id dev)
-    : _dev{dev}, _code_object_invoker{this}, _stream{nullptr} {
+cuda_queue::cuda_queue(cuda_backend* be, device_id dev)
+    : _dev{dev}, _code_object_invoker{this}, _stream{nullptr}, _backend{be} {
   this->activate_device();
 
   auto err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
@@ -162,18 +162,15 @@ cuda_queue::~cuda_queue() {
 
 /// Inserts an event into the stream
 std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
-  this->activate_device();
-
   cudaEvent_t evt;
-  auto err = cudaEventCreate(&evt);
-  if(err != cudaSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"cuda_queue: Couldn't create event", error_code{"CUDA", err}});
+  auto event_creation_result =
+      _backend->get_event_pool(_dev)->obtain_event(evt);
+  if(!event_creation_result.is_success()) {
+    register_error(event_creation_result);
     return nullptr;
   }
 
-  err = cudaEventRecord(evt, this->get_stream());
+  cudaError_t err = cudaEventRecord(evt, this->get_stream());
   if (err != cudaSuccess) {
     register_error(
         __hipsycl_here(),
@@ -181,7 +178,8 @@ std::shared_ptr<dag_node_event> cuda_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<cuda_node_event>(_dev, evt);
+  return std::make_shared<cuda_node_event>(_dev, evt,
+                                           _backend->get_event_pool(_dev));
 }
 
 

@@ -28,6 +28,7 @@
 #include "hipSYCL/runtime/backend_loader.hpp"
 
 #include "hipSYCL/runtime/hip/hip_backend.hpp"
+#include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 
@@ -48,16 +49,9 @@ namespace rt {
 
 hip_backend::hip_backend()
     : _hw_manager{get_hardware_platform()},
-      _executor{*this, [](device_id dev) {
-                  return std::make_unique<hip_queue>(dev);
-                }} {
-
-  backend_descriptor backend_desc{get_hardware_platform(), get_api_platform()};
-
-  for (int i = 0; i < static_cast<int>(_hw_manager.get_num_devices()); ++i) {
-    _allocators.push_back(hip_allocator{backend_desc, i});
-  }
-}
+      _executor{*this, [this](device_id dev) {
+                  return std::make_unique<hip_queue>(this, dev);
+                }} {}
 
 api_platform hip_backend::get_api_platform() const {
   return api_platform::hip;
@@ -94,17 +88,18 @@ backend_executor *hip_backend::get_executor(device_id dev) const {
   return &_executor;
 }
 
-backend_allocator *hip_backend::get_allocator(device_id dev) const {
-  if (dev.get_full_backend_descriptor().sw_platform != api_platform::hip) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_backend: Passed device id from other backend to HIP backend"});
-    return nullptr;
-  }
-  if (static_cast<std::size_t>(dev.get_id()) >= _allocators.size()) {
-    register_error(__hipsycl_here(), error_info{"hip_backend: Device id is out of bounds"});
-  }
-  return &(_allocators[dev.get_id()]);
+backend_allocator* hip_backend::get_allocator(device_id dev) const {
+  assert(dev.get_backend() == this->get_unique_backend_id());
+  return static_cast<hip_hardware_context *>(
+             get_hardware_manager()->get_device(dev.get_id()))
+      ->get_allocator();
+}
+
+hip_event_pool* hip_backend::get_event_pool(device_id dev) const {
+  assert(dev.get_backend() == this->get_unique_backend_id());
+  return static_cast<hip_hardware_context *>(
+             get_hardware_manager()->get_device(dev.get_id()))
+      ->get_event_pool();
 }
 
 std::string hip_backend::get_name() const {

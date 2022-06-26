@@ -40,6 +40,9 @@ struct hipDeviceProp_t;
 namespace hipsycl {
 namespace rt {
 
+class hip_allocator;
+class hip_event_pool;
+
 class hip_hardware_context : public hardware_context
 {
 public:
@@ -70,8 +73,12 @@ public:
 
   virtual ~hip_hardware_context() {}
 
+  hip_allocator* get_allocator() const;
+  hip_event_pool* get_event_pool() const;
 private:
   std::unique_ptr<hipDeviceProp_t> _properties;
+  std::unique_ptr<hip_allocator> _allocator;
+  std::unique_ptr<hip_event_pool> _event_pool;
   int _dev;
 };
 

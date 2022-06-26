@@ -35,12 +35,14 @@ struct ihipEvent_t;
 namespace hipsycl {
 namespace rt {
 
-
+class hip_event_pool;
 class hip_node_event : public dag_node_event
 {
 public:
-  /// \c evt Must have been properly initialized and recorded.
-  hip_node_event(device_id dev, ihipEvent_t* evt);
+  /// \param evt Must have been properly initialized and recorded.
+  /// \param pool the pool managing the event. If not null, the destructor
+  /// will return the event to the pool.
+  hip_node_event(device_id dev, ihipEvent_t* evt, hip_event_pool* pool = nullptr);
   ~hip_node_event();
 
   virtual bool is_complete() const override;
@@ -51,6 +53,7 @@ public:
 private:
   device_id _dev;
   ihipEvent_t* _evt;
+  hip_event_pool* _pool;
 };
 
 }

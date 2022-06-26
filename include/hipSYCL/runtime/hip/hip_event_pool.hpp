@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_EVENT_HPP
-#define HIPSYCL_CUDA_EVENT_HPP
+#ifndef HIPSYCL_HIP_EVENT_POOL_HPP
+#define HIPSYCL_HIP_EVENT_POOL_HPP
 
-#include "../event.hpp"
+#include "../event_pool.hpp"
+#include "hip_event.hpp"
 
-// Note: CUevent_st* == cudaEvent_t 
-struct CUevent_st;
+
 
 namespace hipsycl {
 namespace rt {
 
-class cuda_event_pool;
-class cuda_node_event : public dag_node_event
-{
+class hip_event_factory {
 public:
-  /// \param evt cuda event; must have been properly initialized and recorded.
-  /// \param pool the pool managing the event. If not null, the destructor will return the event
-  /// to the pool.
-  cuda_node_event(device_id dev, CUevent_st* evt, cuda_event_pool* pool = nullptr);
-  ~cuda_node_event();
+  using event_type = ihipEvent_t*;
+  hip_event_factory(int device_id);
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
-
-  CUevent_st* get_event() const;
-  device_id get_device() const;
+  result create(event_type&);
+  result destroy(event_type);
 private:
-  device_id _dev;
-  CUevent_st* _evt;
-  cuda_event_pool* _pool;
+  int _device_id;
+};
+
+class hip_event_pool : public event_pool<hip_event_factory> {
+public:
+  hip_event_pool(int device_id);
 };
 
 }
 }
-
 
 #endif

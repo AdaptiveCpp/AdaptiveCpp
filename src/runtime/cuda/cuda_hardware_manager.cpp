@@ -26,8 +26,12 @@
  */
 
 #include "hipSYCL/runtime/cuda/cuda_hardware_manager.hpp"
+#include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
+#include "hipSYCL/runtime/cuda/cuda_allocator.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
+
 
 #include <cuda_runtime_api.h>
 #include <exception>
@@ -88,7 +92,8 @@ device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
 }
 
 
-cuda_hardware_context::cuda_hardware_context(int dev) : _dev{dev} {
+cuda_hardware_context::cuda_hardware_context(int dev) 
+  : _dev{dev} {
   _properties = std::make_unique<cudaDeviceProp>();
   auto err = cudaGetDeviceProperties(_properties.get(), dev);
 
@@ -98,6 +103,18 @@ cuda_hardware_context::cuda_hardware_context(int dev) : _dev{dev} {
         error_info{"cuda_hardware_manager: Could not query device properties ",
                    error_code{"CUDA", err}});
   }
+
+  _allocator = std::make_unique<cuda_allocator>(
+      backend_descriptor{hardware_platform::cuda, api_platform::cuda}, _dev);
+  _event_pool = std::make_unique<cuda_event_pool>(_dev);
+}
+
+cuda_allocator* cuda_hardware_context::get_allocator() const {
+  return _allocator.get();
+}
+
+cuda_event_pool* cuda_hardware_context::get_event_pool() const {
+  return _event_pool.get();
 }
 
 bool cuda_hardware_context::is_cpu() const {

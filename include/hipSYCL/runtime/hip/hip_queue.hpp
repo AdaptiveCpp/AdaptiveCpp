@@ -40,10 +40,12 @@ struct ihipStream_t;
 namespace hipsycl {
 namespace rt {
 
+class hip_backend;
+
 class hip_queue : public inorder_queue
 {
 public:
-  hip_queue(device_id dev);
+  hip_queue(hip_backend* be, device_id dev);
 
   ihipStream_t* get_stream() const;
 
@@ -76,6 +78,7 @@ private:
   device_id _dev;
   ihipStream_t* _stream;
   host_timestamped_event _reference_event;
+  hip_backend* _backend;
 };
 
 }

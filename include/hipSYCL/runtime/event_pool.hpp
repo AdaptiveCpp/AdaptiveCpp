@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_EVENT_HPP
-#define HIPSYCL_CUDA_EVENT_HPP
+#ifndef HIPSYCL_EVENT_POOL_HPP
+#define HIPSYCL_EVENT_POOL_HPP
 
-#include "../event.hpp"
-
-// Note: CUevent_st* == cudaEvent_t 
-struct CUevent_st;
+#include <vector>
+#include <mutex>
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class cuda_event_pool;
-class cuda_node_event : public dag_node_event
-{
+// BackendEventFactory must satisfy the concept:
+// - define event_type for native backend type
+// - define method to construct event: result create(event_type&)
+// - define method to destroy event: result destroy(event_type)
+template<class BackendEventFactory>
+class event_pool {
 public:
-  /// \param evt cuda event; must have been properly initialized and recorded.
-  /// \param pool the pool managing the event. If not null, the destructor will return the event
-  /// to the pool.
-  cuda_node_event(device_id dev, CUevent_st* evt, cuda_event_pool* pool = nullptr);
-  ~cuda_node_event();
+  using event_type = typename BackendEventFactory::event_type;
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
+  event_pool(const BackendEventFactory& event_factory)
+      : _event_factory{event_factory} {}
 
-  CUevent_st* get_event() const;
-  device_id get_device() const;
+  ~event_pool() {
+    for(event_type& evt : _available_events) {
+      auto err = _event_factory.destroy(evt);
+      if(!err.is_success()) {
+        register_error(err);
+      }
+    }
+  }
+
+  // Obtain event from pool. Obtained event
+  // must be returned to the pool using release_event()
+  // when it is no longer needed.
+  result obtain_event(event_type& out) {
+    std::lock_guard<std::mutex> lock {_mutex};
+    if(!_available_events.empty()) {
+      out = _available_events.back();
+      _available_events.pop_back();
+      return make_success();
+    }
+    return _event_factory.create(out);
+  }
+
+  // Return event to pool.
+  void release_event(event_type evt) {
+    std::lock_guard<std::mutex> lock {_mutex};
+    _available_events.push_back(evt);
+  }
+
 private:
-  device_id _dev;
-  CUevent_st* _evt;
-  cuda_event_pool* _pool;
+  BackendEventFactory _event_factory;
+  std::vector<event_type> _available_events;
+  std::mutex _mutex;
 };
 
 }
 }
-
 
 #endif

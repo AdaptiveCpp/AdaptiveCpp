@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,46 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_EVENT_HPP
-#define HIPSYCL_CUDA_EVENT_HPP
 
-#include "../event.hpp"
-
-// Note: CUevent_st* == cudaEvent_t 
-struct CUevent_st;
+#include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
+#include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include <cuda_runtime_api.h>
 
 namespace hipsycl {
 namespace rt {
 
-class cuda_event_pool;
-class cuda_node_event : public dag_node_event
-{
-public:
-  /// \param evt cuda event; must have been properly initialized and recorded.
-  /// \param pool the pool managing the event. If not null, the destructor will return the event
-  /// to the pool.
-  cuda_node_event(device_id dev, CUevent_st* evt, cuda_event_pool* pool = nullptr);
-  ~cuda_node_event();
+cuda_event_factory::cuda_event_factory(int device_id)
+: _device_id{device_id} {}
 
-  virtual bool is_complete() const override;
-  virtual void wait() override;
+result cuda_event_factory::create(cudaEvent_t& out) {
+  cuda_device_manager::get().activate_device(_device_id);
 
-  CUevent_st* get_event() const;
-  device_id get_device() const;
-private:
-  device_id _dev;
-  CUevent_st* _evt;
-  cuda_event_pool* _pool;
-};
+  cudaEvent_t evt;
+  auto err = cudaEventCreate(&evt);
+  if(err != cudaSuccess) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"cuda_event_factory: Couldn't create event", error_code{"CUDA", err}});
+    
+  }
+  out = evt;
+  
+  return make_success();
+}
+
+result cuda_event_factory::destroy(cudaEvent_t evt) {
+  auto err = cudaEventDestroy(evt);
+  if (err != cudaSuccess) {
+    return make_error(__hipsycl_here(),
+                   error_info{"cuda_event_factory: Couldn't destroy event",
+                              error_code{"CUDA", err}});
+  }
+  return make_success();
+}
+
+cuda_event_pool::cuda_event_pool(int device_id)
+: event_pool<cuda_event_factory>{cuda_event_factory{device_id}} {}
 
 }
 }
-
-
-#endif

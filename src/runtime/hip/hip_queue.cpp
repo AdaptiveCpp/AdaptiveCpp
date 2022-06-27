@@ -27,6 +27,7 @@
 
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/hip/hip_backend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
@@ -123,7 +124,8 @@ void hip_queue::activate_device() const {
   hip_device_manager::get().activate_device(_dev.get_id());
 }
 
-hip_queue::hip_queue(device_id dev) : _dev{dev}, _stream{nullptr} {
+hip_queue::hip_queue(hip_backend *be, device_id dev)
+    : _dev{dev}, _stream{nullptr}, _backend{be} {
   this->activate_device();
 
   auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
@@ -150,19 +152,15 @@ hip_queue::~hip_queue() {
 
 /// Inserts an event into the stream
 std::shared_ptr<dag_node_event> hip_queue::insert_event() {
-  this->activate_device();
-
   hipEvent_t evt;
-  auto err = hipEventCreate(&evt);
-  if(err != hipSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
+  auto event_creation_result =
+      _backend->get_event_pool(_dev)->obtain_event(evt);
+  if(!event_creation_result.is_success()) {
+    register_error(event_creation_result);
     return nullptr;
   }
 
-
-  err = hipEventRecord(evt, this->get_stream());
+  hipError_t err = hipEventRecord(evt, this->get_stream());
   if (err != hipSuccess) {
     register_error(
         __hipsycl_here(),
@@ -170,7 +168,8 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<hip_node_event>(_dev, std::move(evt));
+  return std::make_shared<hip_node_event>(_dev, std::move(evt),
+                                          _backend->get_event_pool(_dev));
 }
 
 std::shared_ptr<dag_node_event> hip_queue::create_queue_completion_event() {

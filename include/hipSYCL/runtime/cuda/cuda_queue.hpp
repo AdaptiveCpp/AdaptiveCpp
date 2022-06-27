@@ -35,6 +35,7 @@
 #include "cuda_instrumentation.hpp"
 #include "cuda_code_object.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
+#include "hipSYCL/runtime/cuda/cuda_event.hpp"
 
 
 // Forward declare CUstream_st instead of including cuda_runtime_api.h.
@@ -48,6 +49,7 @@ namespace hipsycl {
 namespace rt {
 
 class cuda_queue;
+class cuda_backend;
 
 class cuda_code_object_invoker : public code_object_invoker{
 public:
@@ -69,7 +71,7 @@ private:
 class cuda_queue : public inorder_queue
 {
 public:
-  cuda_queue(device_id dev);
+  cuda_queue(cuda_backend* be, device_id dev);
 
   CUstream_st* get_stream() const;
 
@@ -115,6 +117,7 @@ private:
   CUstream_st *_stream;
   cuda_code_object_invoker _code_object_invoker;
   host_timestamped_event _reference_event;
+  cuda_backend* _backend;
 };
 
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,47 +25,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_EVENT_POOL_HPP
+#define HIPSYCL_EVENT_POOL_HPP
+
 #include <vector>
-
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
-#include "cuda_event_pool.hpp"
-
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+#include <mutex>
+#include "error.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-
-class cuda_backend : public backend
-{
+// BackendEventFactory must satisfy the concept:
+// - define event_type for native backend type
+// - define method to construct event: result create(event_type&)
+// - define method to destroy event: result destroy(event_type)
+template<class BackendEventFactory>
+class event_pool {
 public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
+  using event_type = typename BackendEventFactory::event_type;
 
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
+  event_pool(const BackendEventFactory& event_factory)
+      : _event_factory{event_factory} {}
 
-  cuda_event_pool* get_event_pool(device_id dev) const;
+  ~event_pool() {
+    for(event_type& evt : _available_events) {
+      auto err = _event_factory.destroy(evt);
+      if(!err.is_success()) {
+        register_error(err);
+      }
+    }
+  }
+
+  // Obtain event from pool. Obtained event
+  // must be returned to the pool using release_event()
+  // when it is no longer needed.
+  result obtain_event(event_type& out) {
+    std::lock_guard<std::mutex> lock {_mutex};
+    if(!_available_events.empty()) {
+      out = _available_events.back();
+      _available_events.pop_back();
+      return make_success();
+    }
+    return _event_factory.create(out);
+  }
+
+  // Return event to pool.
+  void release_event(event_type evt) {
+    std::lock_guard<std::mutex> lock {_mutex};
+    _available_events.push_back(evt);
+  }
+
 private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
+  BackendEventFactory _event_factory;
+  std::vector<event_type> _available_events;
+  std::mutex _mutex;
 };
 
 }
 }
-
 
 #endif

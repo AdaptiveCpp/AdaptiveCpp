@@ -27,22 +27,20 @@
 
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 namespace hipsycl {
 namespace rt {
 
 
-hip_node_event::hip_node_event(device_id dev, hipEvent_t evt)
-: _dev{dev}, _evt{evt}
+hip_node_event::hip_node_event(device_id dev, hipEvent_t evt, hip_event_pool* pool)
+: _dev{dev}, _evt{evt}, _pool{pool}
 {}
 
 hip_node_event::~hip_node_event() {
-  auto err = hipEventDestroy(_evt);
-  if (err != hipSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"hip_node_event: Couldn't destroy event",
-                              error_code{"HIP", err}});
+  if(_pool) {
+    _pool->release_event(_evt);
   }
 }
 

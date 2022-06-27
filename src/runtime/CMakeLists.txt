@@ -71,6 +71,7 @@ install(TARGETS hipSYCL-rt
 if(WITH_CUDA_BACKEND)
   add_library(rt-backend-cuda SHARED
     cuda/cuda_event.cpp
+    cuda/cuda_event_pool.cpp
     cuda/cuda_queue.cpp
     cuda/cuda_instrumentation.cpp
     cuda/cuda_allocator.cpp
@@ -96,6 +97,7 @@ if(WITH_ROCM_BACKEND)
 
   add_library(rt-backend-hip SHARED
     hip/hip_event.cpp
+    hip/hip_event_pool.cpp
     hip/hip_queue.cpp
     hip/hip_instrumentation.cpp
     hip/hip_allocator.cpp

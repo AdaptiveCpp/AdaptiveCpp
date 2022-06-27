@@ -36,12 +36,16 @@ struct CUevent_st;
 namespace hipsycl {
 namespace rt {
 
+class cuda_event_pool;
 class cuda_node_event : public inorder_queue_event<CUevent_st*>
 {
 public:
   using backend_event_type = CUevent_st*;
-  /// \c evt Must have been properly initialized and recorded.
-  cuda_node_event(device_id dev, backend_event_type evt);
+  /// \param evt cuda event; must have been properly initialized and recorded.
+  /// \param pool the pool managing the event. If not null, the destructor will return the event
+  /// to the pool.
+  cuda_node_event(device_id dev, CUevent_st* evt, cuda_event_pool* pool = nullptr);
+
   ~cuda_node_event();
 
   virtual bool is_complete() const override;
@@ -54,6 +58,7 @@ public:
 private:
   device_id _dev;
   backend_event_type _evt;
+  cuda_event_pool* _pool;
 };
 
 }

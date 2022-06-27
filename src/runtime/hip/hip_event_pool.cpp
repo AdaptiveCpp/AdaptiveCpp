@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,47 +25,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <vector>
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-
-#include "cuda_allocator.hpp"
-#include "cuda_queue.hpp"
-#include "cuda_hardware_manager.hpp"
-#include "cuda_event_pool.hpp"
-
-#ifndef HIPSYCL_CUDA_BACKEND_HPP
-#define HIPSYCL_CUDA_BACKEND_HPP
+#include "hipSYCL/runtime/hip/hip_event_pool.hpp"
+#include "hipSYCL/runtime/hip/hip_device_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_target.hpp"
 
 namespace hipsycl {
 namespace rt {
 
+hip_event_factory::hip_event_factory(int device_id)
+: _device_id{device_id} {}
 
-class cuda_backend : public backend
-{
-public:
-  cuda_backend();
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
+result hip_event_factory::create(hipEvent_t& out) {
+  hip_device_manager::get().activate_device(_device_id);
 
-  virtual std::string get_name() const override;
-  
-  virtual ~cuda_backend(){}
+  hipEvent_t evt;
+  auto err = hipEventCreate(&evt);
+  if(err != hipSuccess) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"hip_event_factory: Couldn't create event", error_code{"HIP", err}});
+    
+  }
+  out = evt;
+  return make_success();
+}
 
-  cuda_event_pool* get_event_pool(device_id dev) const;
-private:
-  mutable cuda_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
-};
+result hip_event_factory::destroy(hipEvent_t evt) {
+  auto err = hipEventDestroy(evt);
+  if (err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                   error_info{"hip_event_factory: Couldn't destroy event",
+                              error_code{"HIP", err}});
+  }
+  return make_success();
+}
+
+hip_event_pool::hip_event_pool(int device_id)
+: event_pool<hip_event_factory>{hip_event_factory{device_id}} {}
+
 
 }
 }
-
-
-#endif

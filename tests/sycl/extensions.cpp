@@ -30,6 +30,7 @@
 #include "hipSYCL/sycl/backend.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/event.hpp"
+#include "hipSYCL/sycl/info/event.hpp"
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
 #include "hipSYCL/sycl/libkernel/cuda/cuda_backend.hpp"
 #include "hipSYCL/sycl/libkernel/hip/hip_backend.hpp"
@@ -1148,5 +1149,29 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
   BOOST_CHECK(hacc[0] == 102);
 }
 #endif
-
+#ifdef HIPSYCL_EXT_COARSE_GRAINED_EVENTS
+BOOST_AUTO_TEST_CASE(coarse_grained_events) {
+  using namespace cl;
+  sycl::queue q{sycl::property::queue::hipSYCL_coarse_grained_events{}};
+  
+  auto e1 = q.single_task([=](){});
+  std::vector<sycl::event> events;
+  for(int i=0; i < 10; ++i) {
+    auto e = q.submit(
+        {sycl::property::command_group::hipSYCL_prefer_execution_lane{
+            static_cast<std::size_t>(
+                i)}}, // Make sure we alternate across all lanes/streams
+        [&](sycl::handler &cgh) {
+          cgh.depends_on(e1); // Test depends_on synchronization
+          cgh.single_task([=]() {});
+        });
+    events.push_back(e);
+  }
+  for(auto& e : events) {
+    e.wait();
+    BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
+                sycl::info::event_command_status::complete);
+  }
+}
+#endif
 BOOST_AUTO_TEST_SUITE_END()

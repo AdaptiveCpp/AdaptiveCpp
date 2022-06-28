@@ -43,7 +43,8 @@ class queue_completion_event
     : public inorder_queue_event<FineGrainedBackendEventT> {
 public:
   queue_completion_event(inorder_queue* q)
-  : _q{q} {}
+  : _q{q}, _has_fine_grained_event{false}, _is_complete{false} {}
+
   virtual ~queue_completion_event(){}
 
   virtual bool is_complete() const override {
@@ -70,16 +71,19 @@ public:
       _fine_grained_event->wait();
     else
       _q->wait();
+    _is_complete = true;
   }
 
   // This function is currently not thread-safe and should not be
   // invoked by multiple threads
   virtual FineGrainedBackendEventT request_backend_event() override {
-    // We need to first create an actual fine-grained event
-    // to be able to service the request, since this event
-    // is not tied to a backend event otherwise.
-    _fine_grained_event = _q->insert_event();
-    _has_fine_grained_event = true;
+    if(!_has_fine_grained_event){
+      // We need to first create an actual fine-grained event
+      // to be able to service the request, since this event
+      // is not tied to a backend event otherwise.
+      _fine_grained_event = _q->insert_event();
+      _has_fine_grained_event = true;
+    }
     
     return static_cast<inorder_queue_event<FineGrainedBackendEventT> *>(
                _fine_grained_event.get())

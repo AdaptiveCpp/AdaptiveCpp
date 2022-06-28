@@ -25,59 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <level_zero/ze_api.h>
+#ifndef HIPSYCL_INORDER_QUEUE_EVENT_HPP
+#define HIPSYCL_INORDER_QUEUE_EVENT_HPP
 
-#include "hipSYCL/runtime/ze/ze_event.hpp"
-#include "hipSYCL/runtime/error.hpp"
+#include "event.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-ze_node_event::ze_node_event(ze_event_handle_t evt,
-                             std::shared_ptr<ze_event_pool_handle_t> pool)
-    : _evt{evt}, _pool{pool} {}
+class inorder_queue;
 
-ze_node_event::~ze_node_event() {
-  ze_result_t err = zeEventDestroy(_evt);
+template<class FineGrainedBackendEventT>
+class inorder_queue_event : public dag_node_event {
+public:
+  // Get fine-grained backend event that should be inserted into
+  // the queue as early as possible after the operation that it describes.
+  //
+  // This should only be invoked when absolutely necessary, since it can
+  // force event implementations that rely on interacting with the backend only
+  // lazily to actually insert events into a backend inorder queue.
+  //
+  // This function does not have to be thread-safe and should therefore only be
+  // invoked inside the runtime thread.
+  virtual FineGrainedBackendEventT request_backend_event() = 0;
+  virtual ~inorder_queue_event() {}
+};
 
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not destroy event",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-}
-
-bool ze_node_event::is_complete() const {
-  ze_result_t err = zeEventQueryStatus(_evt);
-
-  if(err != ZE_RESULT_SUCCESS && err != ZE_RESULT_NOT_READY) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not query event status",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-
-  return err == ZE_RESULT_SUCCESS;
-}
-
-void ze_node_event::wait() {
-
-  ze_result_t err = zeEventHostSynchronize(_evt, UINT64_MAX);
-
-  if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(),
-                  error_info{"ze_node_event: Could not wait for event",
-                             error_code{"ze", static_cast<int>(err)}});
-  }
-}
-
-ze_event_handle_t ze_node_event::get_event_handle() const {
-  return _evt;
-}
-
-ze_event_handle_t ze_node_event::request_backend_event() {
-  return get_event_handle();
-}
 
 }
 }
 
+#endif

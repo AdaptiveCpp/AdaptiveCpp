@@ -53,6 +53,7 @@ public:
 
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
+  virtual std::shared_ptr<dag_node_event> create_queue_completion_event() override;
 
   virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
@@ -64,6 +65,8 @@ public:
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
+  virtual result wait() override;
+
   virtual device_id get_device() const override;
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const override;
@@ -71,6 +74,8 @@ public:
   /// Get a module invoker to launch kernels from module images,
   /// if the backend supports this. Returns nullptr if unsupported.
   virtual code_object_invoker* get_code_object_invoker() override;
+
+  virtual result query_status(inorder_queue_status& status) override;
 
   ze_command_list_handle_t get_ze_command_list() const {
     return _command_list;

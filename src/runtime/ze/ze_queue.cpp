@@ -36,11 +36,13 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/ze/ze_code_object.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
 #include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/queue_completion_event.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -118,6 +120,12 @@ std::shared_ptr<dag_node_event> ze_queue::create_event() {
 
   return std::make_shared<ze_node_event>(evt, pool);
 }
+
+std::shared_ptr<dag_node_event> ze_queue::create_queue_completion_event() {
+  return std::make_shared<queue_completion_event<ze_event_handle_t, ze_node_event>>(
+      this);
+}
+
 
 std::shared_ptr<dag_node_event> ze_queue::insert_event() {
   if(!_last_submitted_op_event) {
@@ -208,7 +216,12 @@ result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
 result ze_queue::submit_memset(memset_operation&, dag_node_ptr node) {
   return make_success();
 }
-  
+
+result ze_queue::wait() {
+  _last_submitted_op_event->wait();
+  return make_success();
+}
+
 result ze_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
   _enqueued_synchronization_ops.push_back(evt);
   return make_success();
@@ -241,6 +254,11 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
 
   _external_waits.push_back(std::move(f));
 
+  return make_success();
+}
+
+result ze_queue::query_status(inorder_queue_status &status) {
+  status = inorder_queue_status{this->_last_submitted_op_event->is_complete()};
   return make_success();
 }
 

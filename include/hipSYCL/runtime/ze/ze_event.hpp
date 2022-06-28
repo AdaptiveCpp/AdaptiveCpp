@@ -31,13 +31,13 @@
 #ifndef HIPSYCL_ZE_EVENT_HPP
 #define HIPSYCL_ZE_EVENT_HPP
 
-#include "../event.hpp"
+#include "../inorder_queue_event.hpp"
 
 namespace hipsycl {
 namespace rt {
 
 
-class ze_node_event : public dag_node_event
+class ze_node_event : public inorder_queue_event<ze_event_handle_t>
 {
 public:
   /// Takes ownership of supplied ze_event_handle_t
@@ -49,6 +49,7 @@ public:
   virtual void wait() override;
 
   ze_event_handle_t get_event_handle() const;
+  virtual ze_event_handle_t request_backend_event() override;
 private:
   ze_event_handle_t _evt;
   std::shared_ptr<ze_event_pool_handle_t> _pool;

@@ -66,7 +66,7 @@ void cuda_node_event::wait()
   }
 }
 
-CUevent_st* cuda_node_event::get_event() const
+cuda_node_event::backend_event_type cuda_node_event::get_event() const
 {
   return _evt;
 }
@@ -74,6 +74,11 @@ CUevent_st* cuda_node_event::get_event() const
 device_id cuda_node_event::get_device() const
 {
   return _dev;
+}
+
+cuda_node_event::backend_event_type
+cuda_node_event::request_backend_event() {
+  return get_event();
 }
 
 }

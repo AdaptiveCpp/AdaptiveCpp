@@ -93,6 +93,8 @@ struct hipSYCL_prefer_execution_lane : public detail::cg_property{
   const std::size_t lane;
 };
 
+struct hipSYCL_coarse_grained_events : public detail::cg_property {};
+
 }
 
 
@@ -102,6 +104,9 @@ class in_order : public detail::queue_property
 {};
 
 class enable_profiling : public detail::property
+{};
+
+class hipSYCL_coarse_grained_events : public detail::queue_property
 {};
 
 }
@@ -222,7 +227,7 @@ public:
           rt::make_execution_hint<rt::hints::bind_to_device_group>(rt_devs));
     }
     // Otherwise we are in completely unrestricted scheduling land - don't
-    // add any hints
+    // add any hints regarding target device.
 
     this->init();
   }
@@ -338,6 +343,11 @@ public:
       hints.overwrite_with(
           rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
     }
+    if (prop_list.has_property<
+            property::command_group::hipSYCL_coarse_grained_events>()) {
+      hints.overwrite_with(
+          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
+    }
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
 
@@ -413,7 +423,7 @@ public:
       std::lock_guard<std::mutex> lock{*_lock};
 
       if(auto prev = this->_previous_submission->lock()){
-        if(!prev->is_complete()) {
+        if(!prev->is_known_complete()) {
           return std::vector<event>{event{prev, _handler}};
         }
       }
@@ -428,7 +438,7 @@ public:
       auto nodes = _requires_runtime.get()->dag().get_group(_node_group_id);
       std::vector<event> evts;
       for(auto node : nodes){
-        if(!node->is_complete())
+        if(!node->is_known_complete())
           evts.push_back(event{node, _handler});
       }
 
@@ -933,6 +943,10 @@ private:
       _default_hints.add_hint(
           rt::make_execution_hint<
               rt::hints::request_instrumentation_finish_timestamp>());
+    }
+    if(this->has_property<property::queue::hipSYCL_coarse_grained_events>()){
+      _default_hints.add_hint(
+          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
     }
 
     _is_in_order = this->has_property<property::queue::in_order>();

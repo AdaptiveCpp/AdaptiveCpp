@@ -71,6 +71,33 @@ public:
 }
 ```
 
+### `HIPSYCL_EXT_COARSE_GRAINED_EVENTS`
+
+This extension allows to hint to hipSYCL that events associated with command groups can be more coarse-grained and are allowed to synchronize with potentially more operations.
+This can allow hipSYCL to trade less synchronization performance for lighter-weight events, and hence lower kernel launch latency. The main benefit are situations where the returned event from `submit` is not of particular interest, e.g. in in-order queues when no user synchronization with those events are expected.
+
+For example, a coarse grained event for a backend based on in-order queues (e.g. CUDA or HIP) might just synchronize with the entire HIP or CUDA stream - thereby completely eliding the need to create a new backend event.
+
+Coarse-grained events support the same functionality as regular events.
+
+Coarse-grained events can be requested in two ways: 
+1. By passing a property to `queue` which instructs the `queue` to construct coarse-grained events for all operations that it processes, and 
+2. by passing in a property to an individual command group (see `HIPSYCL_EXT_CG_PROPERTY_*`). In this case, coarse-grained events can be enabled selectively only for some command groups submitted to a queue.
+
+#### API Reference
+
+```c++
+
+namespace sycl::property::queue {
+class hipSYCL_coarse_grained_events {};
+}
+
+namespace sycl::property::command_group {
+class hipSYCL_coarse_grained_events {};
+}
+
+```
+
 ### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
 hipSYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:

@@ -41,10 +41,6 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-constexpr int max_cached_dag_nodes = 100;
-}
-
 
 dag_build_guard::~dag_build_guard()
 {
@@ -180,7 +176,8 @@ void dag_manager::trigger_flush_opportunity()
     // Direct scheduler always needs flushing
     flush_async();
   } else {
-    if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+    if (builder()->get_current_dag_size() >
+        application::get_settings().get<setting::max_cached_nodes>())
       flush_async();
   }
 }

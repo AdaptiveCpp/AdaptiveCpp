@@ -29,7 +29,7 @@
 #define HIPSYCL_RT_SETTINGS_HPP
 
 #include "hipSYCL/runtime/device_id.hpp"
-#include <bits/c++config.h>
+
 #include <ios>
 #include <optional>
 #include <string>
@@ -142,7 +142,7 @@ public:
     _persistent_runtime =
         get_environment_variable_or_default<setting::persistent_runtime>(false);
     _max_cached_nodes =
-        get_environment_variable_or_default<setting::max_cached_nodes>(1000);
+        get_environment_variable_or_default<setting::max_cached_nodes>(100);
   }
 
 private:

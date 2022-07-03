@@ -243,6 +243,88 @@ void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
 
 ```
 
+### `HIPSYCL_EXT_POINTER_FUTURE`
+
+Adds an alternative light-weight interface to buffers.
+
+#### API reference
+
+```c++
+namespace sycl {
+
+template <class T, class Properties = void>
+class pointer_future {
+public:
+  // Only returns valid pointer inside kernel code.
+  operator T* () const;
+};
+
+class handler {
+public:
+  // Only available if T1 and T2 are equal up to const; non-const T1 for const T2
+  // is not allowed.
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff,
+               range<Dim> access_range, id<Dim> access_offset,
+               const property_list& prop_list = {});
+
+  // Only available if T1 and T2 are equal up to const; non-const T1 for const T2
+  // is not allowed.
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff, range<Dim> access_range,
+               const property_list &prop_list = {});
+
+  // Only available if T1 and T2 are equal up to const; non-const T1 for const T2
+  // is not allowed.
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff,
+               const property_list &prop_list = {});
+};
+
+// Create read-write pointer future - T must not be a const type.
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<T, ConstexprProperties>
+begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                    const property_list &props = {});
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<T, ConstexprProperties>
+begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                    range<Dim> access_range,
+                    const property_list &props = {});
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<T, ConstexprProperties>
+begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                    range<Dim> access_range, id<Dim> access_offset,
+                    const property_list &props = {});
+
+// Create read-only pointer future
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<std::add_const_t<T>, ConstexprProperties>
+cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                      const property_list &props = {});
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<std::add_const_t<T>, ConstexprProperties>
+cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                      range<Dim> access_range,
+                      const property_list &props = {});
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+pointer_future<std::add_const_t<T>, ConstexprProperties>
+cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                      range<Dim> access_range, id<Dim> access_offset,
+                      const property_list &props = {});
+} // namespace sycl
+```
+
 ### `HIPSYCL_EXT_FP_ATOMICS`
 This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all hipSYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this. This extension must be enabled explicitly by `#define HIPSYCL_EXT_FP_ATOMICS` before including `sycl.hpp`
 

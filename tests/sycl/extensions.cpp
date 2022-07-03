@@ -1174,4 +1174,35 @@ BOOST_AUTO_TEST_CASE(coarse_grained_events) {
   }
 }
 #endif
+#ifdef HIPSYCL_EXT_POINTER_FUTURE
+BOOST_AUTO_TEST_CASE(pointer_future) {
+  using namespace cl;
+  sycl::queue q;
+
+  sycl::buffer<int> b1{sycl::range{1}};
+  sycl::buffer<int> b2{sycl::range{1}};
+
+  q.submit([&](sycl::handler& cgh){
+    auto pf1_rw = sycl::begin_pointer_future(b1, cgh, sycl::no_init);
+    auto pf2_rw = sycl::begin_pointer_future(b2, cgh, sycl::no_init);
+
+    cgh.single_task([=](){
+      *pf1_rw = 1;
+      *pf2_rw = 2;
+    });
+  });
+
+  q.submit([&](sycl::handler& cgh){
+    auto pf1_ro = sycl::cbegin_pointer_future(b1, cgh, sycl::no_init);
+    auto pf2_rw = sycl::begin_pointer_future(b2, cgh, sycl::no_init);
+
+    cgh.single_task([=](){
+      *pf2_rw += *pf1_ro;
+    });
+  });
+
+  sycl::host_accessor hacc{b2};
+  BOOST_CHECK(hacc[0] == 3);
+}
+#endif
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2018 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,35 +25,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_EXTENSIONS_HPP
-#define HIPSYCL_EXTENSIONS_HPP
+#ifndef HIPSYCL_POINTER_FUTURE_HPP
+#define HIPSYCL_POINTER_FUTURE_HPP
 
-#ifdef HIPSYCL_EXT_ENABLE_ALL
- #define HIPSYCL_EXT_FP_ATOMICS
-#endif
+#include "hipSYCL/glue/embedded_pointer.hpp"
 
-#define HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE
-#define HIPSYCL_EXT_CUSTOM_PFWI_SYNCHRONIZATION
-#define HIPSYCL_EXT_SCOPED_PARALLELISM_V2
-#define HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
-#define HIPSYCL_EXT_CG_PROPERTY_RETARGET
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
-#define HIPSYCL_EXT_CG_PROPERTY_PREFER_EXECUTION_LANE
-#define HIPSYCL_EXT_BUFFER_USM_INTEROP
-#define HIPSYCL_EXT_PREFETCH_HOST
-#define HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE
-#define HIPSYCL_EXT_BUFFER_PAGE_SIZE
-#define HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES
-#define HIPSYCL_EXT_ACCESSOR_VARIANTS
+namespace hipsycl {
+namespace sycl {
 
-#ifndef HIPSYCL_STRICT_ACCESSOR_DEDUCTION
- #define HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION
-#endif
+class handler;
 
-#define HIPSYCL_EXT_UPDATE_DEVICE
-#define HIPSYCL_EXT_QUEUE_WAIT_LIST
-#define HIPSYCL_EXT_MULTI_DEVICE_QUEUE
-#define HIPSYCL_EXT_COARSE_GRAINED_EVENTS
-#define HIPSYCL_EXT_POINTER_FUTURE
+template <class T, class Properties = void>
+class pointer_future {
+  friend class handler;
+public:
+  HIPSYCL_KERNEL_TARGET operator T* () const {
+    return _ptr.get();
+  }
+private:
+  glue::unique_id get_uid() const {
+    return _ptr.get_uid();
+  }
+  glue::embedded_pointer<T> _ptr;
+};
+
+}
+}
 
 #endif

@@ -38,6 +38,7 @@
 #include "context.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/sycl/property.hpp"
 #include "libkernel/backend.hpp"
 #include "device.hpp"
 #include "event.hpp"
@@ -51,6 +52,7 @@
 #include "libkernel/item.hpp"
 #include "libkernel/nd_item.hpp"
 #include "libkernel/group.hpp"
+#include "libkernel/pointer_future.hpp"
 #include "libkernel/detail/local_memory_allocator.hpp"
 #include "detail/util.hpp"
 
@@ -269,6 +271,73 @@ public:
     };
 
     this->require(acc, data);
+  }
+
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim,
+            std::enable_if_t<std::is_same_v<T1, T2> ||
+                                 std::is_same_v<std::remove_const_t<T1>, T2>,
+                             int> = 0>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff,
+               range<Dim> access_range, id<Dim> access_offset,
+               const property_list& prop_list = {}) {
+    
+    bool is_no_init = prop_list.has_property<property::no_init>();
+
+    std::shared_ptr<rt::buffer_data_region> data_region =
+        detail::extract_buffer_data_region(buff);
+
+    glue::unique_id accessor_id = pf.get_uid();
+
+    // Translate no_init property and host_task modes
+    access_mode mode = detail::get_effective_access_mode(
+        std::is_const_v<T1> ? access_mode::read : access_mode::read_write,
+        is_no_init);
+
+    size_t element_size = data_region->get_element_size();
+
+    const rt::range<Dim> buffer_shape = rt::make_range(buff.get_range());
+    
+    auto req = std::make_unique<rt::buffer_memory_requirement>(
+      data_region,
+      detail::get_effective_offset<T1>(
+          data_region, rt::make_id(access_offset), buffer_shape,
+          true),
+      detail::get_effective_range<T1>(
+          data_region, rt::make_range(access_range), buffer_shape,
+          true),
+      mode, target::device
+    );
+
+    // Bind the accessor's embedded pointer to the requirement, such that
+    // the scheduler is able to initialize the accessor's data pointer
+    // once it has been captured
+    req->bind(accessor_id);
+
+    _requirements.add_requirement(std::move(req));
+  }
+
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim,
+            std::enable_if_t<std::is_same_v<T1, T2> ||
+                                 std::is_same_v<std::remove_const_t<T1>, T2>,
+                             int> = 0>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff, range<Dim> access_range,
+               const property_list &prop_list = {}) {
+    require(pf, buff, access_range, id<Dim>{}, prop_list);
+  }
+
+  template <class T1, class Properties, class T2, class BufferAllocatorT,
+            int Dim,
+            std::enable_if_t<std::is_same_v<T1, T2> ||
+                                 std::is_same_v<std::remove_const_t<T1>, T2>,
+                             int> = 0>
+  void require(pointer_future<T1, Properties> pf,
+               buffer<T2, Dim, BufferAllocatorT> &buff,
+               const property_list &prop_list = {}) {
+    require(pf, buff, buff.get_range(), prop_list);
   }
 
   void depends_on(event e) {
@@ -976,6 +1045,58 @@ void bind_to_handler(AccessorType& acc, sycl::handler& cgh,
   cgh.require(acc, detail::accessor_data<Dim>{mem, offset, range, is_no_init});
 }
 
+} // detail::handler
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          const property_list &props = {}) {
+  pointer_future<std::remove_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, props);
+  return pf;
+}
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          range<Dim> access_range,
+                          const property_list &props = {}) {
+  pointer_future<std::remove_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, access_range, props);
+  return pf;
+}
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto begin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          range<Dim> access_range, id<Dim> access_offset,
+                          const property_list &props = {}) {
+  pointer_future<std::remove_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, access_range, access_offset, props);
+  return pf;
+}
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          const property_list &props = {}) {
+  pointer_future<std::add_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, props);
+  return pf;
+}
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          range<Dim> access_range,
+                          const property_list &props = {}) {
+  pointer_future<std::add_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, access_range, props);
+  return pf;
+}
+
+template <class ConstexprProperties = void, class T, int Dim, class AllocatorT>
+auto cbegin_pointer_future(buffer<T, Dim, AllocatorT> &buff, handler &cgh,
+                          range<Dim> access_range, id<Dim> access_offset,
+                          const property_list &props = {}) {
+  pointer_future<std::add_const_t<T>, ConstexprProperties> pf;
+  cgh.require(pf, buff, access_range, access_offset, props);
+  return pf;
 }
 
 } // namespace sycl

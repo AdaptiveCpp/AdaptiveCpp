@@ -36,18 +36,32 @@ namespace rt {
 
 namespace {
 
-void erase_completed_nodes(std::vector<dag_node_ptr> &ops) {
-  ops.erase(std::remove_if(
-                ops.begin(), ops.end(),
-                [&](dag_node_ptr node) -> bool { return node->is_complete(); }),
+void erase_known_completed_nodes(std::vector<dag_node_ptr> &ops) {
+  ops.erase(std::remove_if(ops.begin(), ops.end(),
+                           [&](dag_node_ptr node) -> bool {
+                             return node->is_known_complete();
+                           }),
             ops.end());
 }
 }
 
-void dag_submitted_ops::purge_completed() {
+void dag_submitted_ops::purge_known_completed() {
   std::lock_guard lock{_lock};
 
-  erase_completed_nodes(_ops);
+  erase_known_completed_nodes(_ops);
+}
+
+void dag_submitted_ops::async_wait_and_unregister(
+    const std::vector<dag_node_ptr> &nodes) {
+  
+  _updater_thread([nodes, this]{
+    for(const auto& node : nodes) {
+      node->wait();
+    }
+    // Waiting on nodes causes them to be known complete,
+    // so we can just purge all known completed nodes
+    this->purge_known_completed();
+  });
 }
 
 void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {

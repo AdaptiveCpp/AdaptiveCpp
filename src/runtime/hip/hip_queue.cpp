@@ -124,11 +124,17 @@ void hip_queue::activate_device() const {
   hip_device_manager::get().activate_device(_dev.get_id());
 }
 
-hip_queue::hip_queue(hip_backend *be, device_id dev)
+hip_queue::hip_queue(hip_backend *be, device_id dev, int priority)
     : _dev{dev}, _stream{nullptr}, _backend{be} {
   this->activate_device();
 
-  auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
+  hipError_t err;
+  if(priority == 0) {
+    err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
+  } else {
+    // TODO Clamp priority to priority range allowed by HIP.
+    err = hipStreamCreateWithPriority(&_stream, hipStreamNonBlocking, priority);
+  }
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_queue: Couldn't construct backend stream",

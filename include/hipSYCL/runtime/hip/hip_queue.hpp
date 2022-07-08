@@ -45,7 +45,7 @@ class hip_backend;
 class hip_queue : public inorder_queue
 {
 public:
-  hip_queue(hip_backend* be, device_id dev);
+  hip_queue(hip_backend* be, device_id dev, int priority = 0);
 
   ihipStream_t* get_stream() const;
 

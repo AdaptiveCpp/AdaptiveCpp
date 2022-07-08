@@ -38,7 +38,7 @@
 namespace hipsycl {
 namespace rt {
 
-
+class backend_executor;
 class dag_node;
 using dag_node_ptr = std::shared_ptr<dag_node>;
 
@@ -52,6 +52,7 @@ enum class execution_hint_type
   prefer_execution_lane,
   node_group,
   coarse_grained_synchronization,
+  prefer_executor,
 
   request_instrumentation_submission_timestamp,
   request_instrumentation_start_timestamp,
@@ -155,6 +156,23 @@ public:
   
   coarse_grained_synchronization()
   : execution_hint{execution_hint_type::coarse_grained_synchronization} {}
+};
+
+class prefer_executor : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::prefer_executor;
+
+  prefer_executor(backend_executor *executor)
+      : execution_hint{execution_hint_type::prefer_executor}, _executor{
+                                                                  executor} {}
+
+  backend_executor* get_executor() const {
+    return _executor;
+  }
+private:
+  backend_executor* _executor;
 };
 
 class request_instrumentation_submission_timestamp : public execution_hint {

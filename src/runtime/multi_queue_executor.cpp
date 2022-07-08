@@ -27,6 +27,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/inorder_executor.hpp"
 #include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
@@ -42,41 +43,6 @@ namespace hipsycl {
 namespace rt {
 
 namespace {
-
-class queue_operation_dispatcher : public operation_dispatcher
-{
-public:
-  queue_operation_dispatcher(inorder_queue* q)
-  : _queue{q}
-  {}
-
-  virtual ~queue_operation_dispatcher(){}
-
-  virtual result dispatch_kernel(kernel_operation *op,
-                                 dag_node_ptr node) final override {
-
-    return _queue->submit_kernel(*op, node);
-  }
-
-  virtual result dispatch_memcpy(memcpy_operation *op,
-                                 dag_node_ptr node) final override {
-    return _queue->submit_memcpy(*op, node);
-  }
-
-  virtual result dispatch_prefetch(prefetch_operation *op,
-                                   dag_node_ptr node) final override {
-    return _queue->submit_prefetch(*op, node);
-  }
-
-  virtual result dispatch_memset(memset_operation *op,
-                                 dag_node_ptr node) final override {
-    return _queue->submit_memset(*op, node);
-  }
-
-private:
-  inorder_queue* _queue;
-};
-
 
 std::size_t determine_target_lane(dag_node_ptr node,
                                   const std::vector<dag_node_ptr>& nonvirtual_reqs,
@@ -142,26 +108,13 @@ std::size_t determine_target_lane(dag_node_ptr node,
   return current_best_lane;
 }
 
-std::size_t
-get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
-                                     multi_queue_executor *executor,
-                                     std::size_t lane) {
-  std::size_t index = 0;
-  for (const auto &node : nodes) {
-    if (node->is_submitted() && node->get_assigned_executor() == executor &&
-        node->get_assigned_execution_lane().first == lane) {
-      if(node->get_assigned_execution_index() > index)
-        index = node->get_assigned_execution_index();
-    }
-  }
-  return index;
-}
+
 
 } // anonymous namespace
 
 multi_queue_executor::multi_queue_executor(
     const backend &b, queue_factory_function queue_factory)
-    : _num_submitted_operations{0} {
+    : _num_submitted_operations{0}, _backend{b.get_unique_backend_id()} {
   std::size_t num_devices = b.get_hardware_manager()->get_num_devices();
 
 
@@ -176,14 +129,20 @@ multi_queue_executor::multi_queue_executor(
     std::size_t kernel_concurrency = hw_context->get_max_kernel_concurrency();
 
     for (std::size_t i = 0; i < memcpy_concurrency; ++i) {
-      _device_data[dev].queues.push_back(queue_factory(dev_id));
+      std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
+      _managed_queues.push_back(new_queue.get());
+      _device_data[dev].executors.push_back(
+          std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
     _device_data[dev].memcpy_lanes.begin = 0;
     _device_data[dev].memcpy_lanes.num_lanes = memcpy_concurrency;
 
     for(std::size_t i  = 0; i < kernel_concurrency; ++i) {
-      _device_data[dev].queues.push_back(queue_factory(dev_id));
+      std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
+      _managed_queues.push_back(new_queue.get());
+      _device_data[dev].executors.push_back(
+          std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
     _device_data[dev].kernel_lanes.begin = memcpy_concurrency;
@@ -196,7 +155,7 @@ multi_queue_executor::multi_queue_executor(
 
     _device_data[dev].submission_statistics = moving_statistics{
         max_statistics_size,
-        _device_data[dev].queues.size(),
+        _device_data[dev].executors.size(),
         static_cast<std::size_t>(1e9 * statistics_decay_time_sec)};
   }
 
@@ -272,8 +231,8 @@ void multi_queue_executor::submit_directly(
   _device_data[node->get_assigned_device().get_id()]
       .submission_statistics.insert(op_target_lane);
   
-  inorder_queue *q = _device_data[node->get_assigned_device().get_id()]
-                         .queues[op_target_lane]
+  inorder_executor *executor = _device_data[node->get_assigned_device().get_id()]
+                         .executors[op_target_lane]
                          .get();
 
   node->assign_to_execution_lane(
@@ -364,7 +323,9 @@ void multi_queue_executor::submit_directly(
   }
 }
 
-
+bool multi_queue_executor::can_execute_on_device(const device_id &dev) const {
+  return _backend == dev.get_backend();
+}
 
 }
 }

@@ -57,7 +57,7 @@ static Type *getElementType(Type *Ty) {
     return VecTy->getElementType();
   }
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
-    return PtrTy->getElementType();
+    return PtrTy->getPointerElementType();
   }
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
     return ArrTy->getElementType();

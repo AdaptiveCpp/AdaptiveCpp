@@ -1,4 +1,5 @@
-//===- src/compiler/cbs/VectorShapeTransformer.cpp - (s,a)-lattice abstract transformers --*- C++ -*-===//
+//===- src/compiler/cbs/VectorShapeTransformer.cpp - (s,a)-lattice abstract transformers --*- C++
+//-*-===//
 //
 // Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,6 +12,7 @@
 //
 
 #include "hipSYCL/compiler/cbs/VectorShapeTransformer.hpp"
+#include "hipSYCL/compiler/cbs/VectorShape.hpp"
 #include "hipSYCL/compiler/cbs/VectorizationInfo.hpp"
 
 #include "hipSYCL/compiler/cbs/MathUtils.hpp"
@@ -22,6 +24,14 @@
 
 using namespace hipsycl::compiler;
 using namespace llvm;
+
+#if LLVM_VERSION_MAJOR < 13
+#define IS_OPAQUE(pointer) if constexpr (false)
+#elif LLVM_VERSION_MAJOR < 16
+#define IS_OPAQUE(pointer) if (pointer->isOpaquePointerTy())
+#else
+#define IS_OPAQUE(pointer) if constexpr (true)
+#endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())
@@ -57,6 +67,7 @@ static Type *getElementType(Type *Ty) {
     return VecTy->getElementType();
   }
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
+    IS_OPAQUE(PtrTy) return nullptr;
     return PtrTy->getPointerElementType();
   }
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
@@ -109,7 +120,7 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
   switch (I.getOpcode()) {
   case Instruction::Alloca: {
     const int alignment = vecInfo.getVectorWidth();
-    auto *AllocatedType = I.getType()->getPointerElementType();
+    auto *AllocatedType = llvm::cast<llvm::AllocaInst>(I).getAllocatedType();
     const bool Vectorizable = false;
 
     if (Vectorizable) {
@@ -197,7 +208,9 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
         result.setAlignment(newalignment);
       } else {
         // NOTE: If indexShape is varying, this still reasons about alignment
-        subT = getElementType(subT);
+        IS_OPAQUE(subT)
+        subT = gep.getSourceElementType();
+        else subT = getElementType(subT);
         assert(subT && "Unknown LLVM element type .. IR type system change?");
 
         const size_t typeSizeInBytes = (size_t)layout.getTypeStoreSize(subT);
@@ -483,6 +496,8 @@ bool returnsVoidPtr(const Instruction &inst) {
     return false;
   if (!inst.getType()->isPointerTy())
     return false;
+  IS_OPAQUE(inst.getType())
+  return true;
 
   return inst.getType()->getPointerElementType()->isIntegerTy(8);
 }
@@ -503,6 +518,9 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
   switch (castI.getOpcode()) {
   case Instruction::IntToPtr: {
     PointerType *DestType = cast<PointerType>(castI.getDestTy());
+    IS_OPAQUE(DestType)
+    return VectorShape::strided(castOpStride, 1);
+
     Type *DestPointsTo = DestType->getPointerElementType();
 
     // FIXME: void pointers are char pointers (i8*), but what
@@ -519,7 +537,11 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
   }
 
   case Instruction::PtrToInt: {
-    Type *SrcElemType = castI.getSrcTy()->getPointerElementType();
+    Type *SrcType = castI.getSrcTy();
+    IS_OPAQUE(SrcType)
+    return VectorShape::strided(castOpStride, aligned);
+
+    Type *SrcElemType = SrcType->getPointerElementType();
 
     unsigned typeSize = (unsigned)layout.getTypeStoreSize(SrcElemType);
 

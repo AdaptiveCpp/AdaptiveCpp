@@ -33,6 +33,7 @@
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 
 #include "hipSYCL/common/debug.hpp"
+#include "llvm/IR/GlobalVariable.h"
 
 #include <llvm/Analysis/PostDominators.h>
 #include <llvm/IR/Dominators.h>
@@ -84,16 +85,25 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
     for (auto &I : BB)
       if (auto *UI = llvm::dyn_cast<llvm::CallInst>(&I))
         if (UI->getCalledFunction()->getName().equals("llvm.var.annotation")) {
-          auto *CE = llvm::cast<llvm::ConstantExpr>(UI->getOperand(1));
-          if (CE->getOpcode() == llvm::Instruction::GetElementPtr)
+          HIPSYCL_DEBUG_INFO << *UI << '\n';
+          llvm::GlobalVariable *AnnotateStr = nullptr;
+          if (auto *CE = llvm::dyn_cast<llvm::ConstantExpr>(UI->getOperand(1));
+              CE && CE->getOpcode() == llvm::Instruction::GetElementPtr) {
             if (auto *AnnoteStr = llvm::dyn_cast<llvm::GlobalVariable>(CE->getOperand(0)))
-              if (auto *Data =
-                      llvm::dyn_cast<llvm::ConstantDataSequential>(AnnoteStr->getInitializer()))
-                if (Data->isString() &&
-                    Data->getAsString().startswith("hipsycl_nd_kernel_local_size_arg")) {
-                  auto *BC = llvm::cast<llvm::BitCastInst>(UI->getOperand(0));
+              AnnotateStr = AnnoteStr;
+          } else if (auto *AnnoteStr =
+                         llvm::dyn_cast<llvm::GlobalVariable>(UI->getOperand(1))) // opaque-ptr
+            AnnotateStr = AnnoteStr;
+
+          if (AnnotateStr)
+            if (auto *Data =
+                    llvm::dyn_cast<llvm::ConstantDataSequential>(AnnotateStr->getInitializer()))
+              if (Data->isString() &&
+                  Data->getAsString().startswith("hipsycl_nd_kernel_local_size_arg")) {
+                if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(UI->getOperand(0)))
                   return {BC->getOperand(0), UI};
-                }
+                return {UI->getOperand(0), UI};
+              }
         }
 
   assert(false && "Didn't find annotated argument!");

@@ -165,6 +165,20 @@ void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *Insert
 void dropDebugLocation(llvm::Instruction &I);
 void dropDebugLocation(llvm::BasicBlock *BB);
 
+/// opaque ptr abstraction
+/// we have some cases where originally we had to look through a bitcast / gep
+/// but since opaque ptrs, they're gone, so now we check, if \a V is the type we're looking for
+template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
+  // opaque ptr
+  if (auto *R = llvm::dyn_cast<T>(V))
+    return R;
+
+  // typed ptr -> look through bitcast
+  if (V->getNumOperands() == 0)
+    return nullptr;
+  return llvm::dyn_cast<T>(V->getOperand(idx));
+}
+
 } // namespace utils
 } // namespace hipsycl::compiler
 #endif // HIPSYCL_IRUTILS_HPP

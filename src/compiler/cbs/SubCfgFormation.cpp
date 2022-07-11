@@ -95,15 +95,17 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
                          llvm::dyn_cast<llvm::GlobalVariable>(UI->getOperand(1))) // opaque-ptr
             AnnotateStr = AnnoteStr;
 
-          if (AnnotateStr)
+          if (AnnotateStr) {
             if (auto *Data =
-                    llvm::dyn_cast<llvm::ConstantDataSequential>(AnnotateStr->getInitializer()))
+                    llvm::dyn_cast<llvm::ConstantDataSequential>(AnnotateStr->getInitializer())) {
               if (Data->isString() &&
                   Data->getAsString().startswith("hipsycl_nd_kernel_local_size_arg")) {
                 if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(UI->getOperand(0)))
                   return {BC->getOperand(0), UI};
                 return {UI->getOperand(0), UI};
               }
+            }
+          }
         }
 
   assert(false && "Didn't find annotated argument!");

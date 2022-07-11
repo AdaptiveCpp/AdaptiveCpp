@@ -26,11 +26,11 @@ using namespace hipsycl::compiler;
 using namespace llvm;
 
 #if LLVM_VERSION_MAJOR < 13
-#define IS_OPAQUE(pointer) if constexpr (false)
+#define IS_OPAQUE(pointer) constexpr(false)
 #elif LLVM_VERSION_MAJOR < 16
-#define IS_OPAQUE(pointer) if (pointer->isOpaquePointerTy())
+#define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
 #else
-#define IS_OPAQUE(pointer) if constexpr (true)
+#define IS_OPAQUE(pointer) constexpr(true)
 #endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
@@ -67,7 +67,8 @@ static Type *getElementType(Type *Ty) {
     return VecTy->getElementType();
   }
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
-    IS_OPAQUE(PtrTy) return nullptr;
+    if IS_OPAQUE (PtrTy)
+      return nullptr;
     return PtrTy->getPointerElementType();
   }
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
@@ -208,9 +209,10 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
         result.setAlignment(newalignment);
       } else {
         // NOTE: If indexShape is varying, this still reasons about alignment
-        IS_OPAQUE(subT)
-        subT = gep.getSourceElementType();
-        else subT = getElementType(subT);
+        if IS_OPAQUE (subT)
+          subT = gep.getSourceElementType();
+        else
+          subT = getElementType(subT);
         assert(subT && "Unknown LLVM element type .. IR type system change?");
 
         const size_t typeSizeInBytes = (size_t)layout.getTypeStoreSize(subT);
@@ -496,8 +498,8 @@ bool returnsVoidPtr(const Instruction &inst) {
     return false;
   if (!inst.getType()->isPointerTy())
     return false;
-  IS_OPAQUE(inst.getType())
-  return true;
+  if IS_OPAQUE (inst.getType())
+    return true;
 
   return inst.getType()->getPointerElementType()->isIntegerTy(8);
 }
@@ -518,8 +520,8 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
   switch (castI.getOpcode()) {
   case Instruction::IntToPtr: {
     PointerType *DestType = cast<PointerType>(castI.getDestTy());
-    IS_OPAQUE(DestType)
-    return VectorShape::strided(castOpStride, 1);
+    if IS_OPAQUE (DestType)
+      return VectorShape::strided(castOpStride, 1);
 
     Type *DestPointsTo = DestType->getPointerElementType();
 
@@ -538,8 +540,8 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
 
   case Instruction::PtrToInt: {
     Type *SrcType = castI.getSrcTy();
-    IS_OPAQUE(SrcType)
-    return VectorShape::strided(castOpStride, aligned);
+    if IS_OPAQUE (SrcType)
+      return VectorShape::strided(castOpStride, aligned);
 
     Type *SrcElemType = SrcType->getPointerElementType();
 

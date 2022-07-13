@@ -27,10 +27,13 @@ using namespace llvm;
 
 #if LLVM_VERSION_MAJOR < 13
 #define IS_OPAQUE(pointer) constexpr(false)
+#define HAS_TYPED_PTR 1
 #elif LLVM_VERSION_MAJOR < 16
 #define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
+#define HAS_TYPED_PTR 1
 #else
 #define IS_OPAQUE(pointer) constexpr(true)
+#define HAS_TYPED_PTR 0
 #endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
@@ -66,11 +69,13 @@ static Type *getElementType(Type *Ty) {
   if (auto VecTy = dyn_cast<VectorType>(Ty)) {
     return VecTy->getElementType();
   }
+#if HAS_TYPED_PTR
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
     if IS_OPAQUE (PtrTy)
       return nullptr;
     return PtrTy->getPointerElementType();
   }
+#endif
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
     return ArrTy->getElementType();
   }
@@ -501,7 +506,9 @@ bool returnsVoidPtr(const Instruction &inst) {
   if IS_OPAQUE (inst.getType())
     return true;
 
+#if HAS_TYPED_PTR // otherwise return true from above holds.
   return inst.getType()->getPointerElementType()->isIntegerTy(8);
+#endif
 }
 
 VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &castI) const {
@@ -523,6 +530,7 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
     if IS_OPAQUE (DestType)
       return VectorShape::strided(castOpStride, 1);
 
+#if HAS_TYPED_PTR
     Type *DestPointsTo = DestType->getPointerElementType();
 
     // FIXME: void pointers are char pointers (i8*), but what
@@ -536,6 +544,7 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
       return VectorShape::varying();
 
     return VectorShape::strided(castOpStride / typeSize, 1);
+#endif
   }
 
   case Instruction::PtrToInt: {
@@ -543,11 +552,13 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
     if IS_OPAQUE (SrcType)
       return VectorShape::strided(castOpStride, aligned);
 
+#if HAS_TYPED_PTR
     Type *SrcElemType = SrcType->getPointerElementType();
 
     unsigned typeSize = (unsigned)layout.getTypeStoreSize(SrcElemType);
 
     return VectorShape::strided(typeSize * castOpStride, aligned);
+#endif
   }
 
     // Truncation reinterprets the stride modulo the target type width

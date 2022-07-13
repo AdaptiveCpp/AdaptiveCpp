@@ -73,14 +73,13 @@ private:
 
 std::size_t
 get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
-                                     inorder_executor *executor,
                                      inorder_queue* lane) {
   std::size_t index = 0;
   for (const auto &node : nodes) {
     if (node->is_submitted() &&
         node->get_assigned_device().get_backend() ==
             lane->get_device().get_backend() &&
-        node->get_assigned_execution_lane().second == lane) {
+        node->get_assigned_execution_lane() == lane) {
       if(node->get_assigned_execution_index() > index)
         index = node->get_assigned_execution_index();
     }
@@ -117,8 +116,8 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
   if (node->is_submitted())
     return;
 
-  node->assign_to_execution_lane(
-      std::pair<std::size_t, void *>{0, _q.get()});
+  node->assign_to_execution_lane(_q.get());
+
   node->assign_execution_index(_num_submitted_operations);
   ++_num_submitted_operations;
 
@@ -139,7 +138,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
             << std::endl;
         res = _q->submit_external_wait_for(req);
       } else {
-        if (req->get_assigned_execution_lane().second == _q) {
+        if (req->get_assigned_execution_lane() == _q.get()) {
           HIPSYCL_DEBUG_INFO
             << " --> (Skipping same-lane synchronization with node: " << req
             << ")" << std::endl;
@@ -161,9 +160,9 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
           // Since the execution index is incremented after each submission,
           // this allows us to identify the requirement that was submitted last.
           inorder_queue *req_q = static_cast<inorder_queue *>(
-              req->get_assigned_execution_lane().second);
+              req->get_assigned_execution_lane());
           std::size_t maximum_execution_index =
-              get_maximum_execution_index_for_lane(reqs, this, req_q);
+              get_maximum_execution_index_for_lane(reqs, req_q);
           
           if(req->get_assigned_execution_index() != maximum_execution_index) {
             HIPSYCL_DEBUG_INFO
@@ -184,7 +183,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
   }
 
   HIPSYCL_DEBUG_INFO
-      << "inorder_executor: Dispatching to lane " << _q << ": "
+      << "inorder_executor: Dispatching to lane " << _q.get() << ": "
       << dump(op) << std::endl;
   
   queue_operation_dispatcher dispatcher{_q.get()};
@@ -209,6 +208,12 @@ inorder_queue* inorder_executor::get_queue() const {
 
 bool inorder_executor::can_execute_on_device(const device_id& dev) const {
   return _q->get_device() == dev;
+}
+
+bool inorder_executor::is_submitted_by_me(dag_node_ptr node) const {
+  if(!node->is_submitted())
+    return false;
+  return node->get_assigned_executor() == this;
 }
 
 }

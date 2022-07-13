@@ -35,6 +35,7 @@
 #include "backend.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "inorder_executor.hpp"
 #include "generic/multi_event.hpp"
 
@@ -153,7 +154,11 @@ public:
   }
 
   virtual bool can_execute_on_device(const device_id& dev) const override;
+  virtual bool is_submitted_by_me(dag_node_ptr node) const override;
+
+  bool find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const;
 private:
+  
 
   struct per_device_data
   {

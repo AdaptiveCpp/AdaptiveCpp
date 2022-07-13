@@ -72,7 +72,7 @@ public:
   /// Only to be called by the backend executor/scheduler
   void assign_to_device(device_id dev);
   /// Only to be called by the backend executor/scheduler
-  void assign_to_execution_lane(std::pair<std::size_t, void*> lane);
+  void assign_to_execution_lane(void* lane);
   /// Can be used by the backend executor to store
   /// ordering information between nodes.
   /// Only to be called by the backend executor/scheduler
@@ -87,9 +87,9 @@ public:
 
   device_id get_assigned_device() const;
   backend_executor *get_assigned_executor() const;
-  // Returns pair of lane index and potential additional information
+  // Returns potential additional information about execution lane
   // maintained by the backend executor.
-  std::pair<std::size_t, void*> get_assigned_execution_lane() const;
+  void* get_assigned_execution_lane() const;
   std::size_t get_assigned_execution_index() const;
 
   const execution_hints& get_execution_hints() const;
@@ -128,7 +128,7 @@ private:
 
   device_id _assigned_device;
   backend_executor *_assigned_executor;
-  std::pair<std::size_t, void*> _assigned_execution_lane;
+  void* _assigned_execution_lane;
   std::size_t _assigned_execution_index;
 
   std::shared_ptr<dag_node_event> _event;

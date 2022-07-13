@@ -116,7 +116,7 @@ void dag_node::assign_to_device(device_id dev) {
 }
 
 void dag_node::assign_to_execution_lane(
-    std::pair<std::size_t, void *> lane_id) {
+    void * lane_id) {
   this->_assigned_execution_lane = lane_id;
 }
 
@@ -143,7 +143,7 @@ backend_executor *dag_node::get_assigned_executor() const
   return _assigned_executor;
 }
 
-std::pair<std::size_t, void*> dag_node::get_assigned_execution_lane() const
+void* dag_node::get_assigned_execution_lane() const
 {
   return _assigned_execution_lane;
 }

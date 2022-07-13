@@ -73,7 +73,10 @@ static Type *getElementType(Type *Ty) {
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
     if IS_OPAQUE (PtrTy)
       return nullptr;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     return PtrTy->getPointerElementType();
+#pragma GCC diagnostic pop
   }
 #endif
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
@@ -507,7 +510,10 @@ bool returnsVoidPtr(const Instruction &inst) {
     return true;
 
 #if HAS_TYPED_PTR // otherwise return true from above holds.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   return inst.getType()->getPointerElementType()->isIntegerTy(8);
+#pragma GCC diagnostic pop
 #endif
 }
 
@@ -531,7 +537,10 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
       return VectorShape::strided(castOpStride, 1);
 
 #if HAS_TYPED_PTR
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     Type *DestPointsTo = DestType->getPointerElementType();
+#pragma GCC diagnostic pop
 
     // FIXME: void pointers are char pointers (i8*), but what
     // difference is there between a real i8* and a void pointer?
@@ -553,7 +562,10 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
       return VectorShape::strided(castOpStride, aligned);
 
 #if HAS_TYPED_PTR
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     Type *SrcElemType = SrcType->getPointerElementType();
+#pragma GCC diagnostic pop
 
     unsigned typeSize = (unsigned)layout.getTypeStoreSize(SrcElemType);
 

@@ -972,18 +972,17 @@ private:
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
       // Dedicated executor may not be supported by all backends,
       // so this might return nullptr.
-      std::unique_ptr<rt::backend_executor> dedicated_executor =
+      std::shared_ptr<rt::backend_executor> dedicated_executor =
           _requires_runtime.get()
               ->backends()
               .get(rt_dev.get_backend())
               ->create_inorder_executor(rt_dev, priority);
-      if(dedicated_executor)
-        _dedicated_executor = std::move(dedicated_executor);
-    }
-    if(_dedicated_executor) {
-      _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::prefer_executor>(
-              _dedicated_executor.get()));
+      
+      if(dedicated_executor) {
+        _default_hints.add_hint(
+            rt::make_execution_hint<rt::hints::prefer_executor>(
+                dedicated_executor));
+      }
     }
 
     this->_hooks = detail::queue_submission_hooks_ptr{
@@ -995,7 +994,8 @@ private:
   {
     return _hooks;
   }
-  
+
+  rt::runtime_keep_alive_token _requires_runtime;  
   detail::queue_submission_hooks_ptr _hooks;
 
   rt::execution_hints _default_hints;
@@ -1006,12 +1006,6 @@ private:
   std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
-
-  // Only used in case we want to attach the prefer_executor hint
-  // to operations. This happens e.g. for single-device in-order CUDA or HIP queues.
-  std::shared_ptr<rt::backend_executor> _dedicated_executor;
-
-  rt::runtime_keep_alive_token _requires_runtime;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

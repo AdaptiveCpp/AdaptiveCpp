@@ -40,7 +40,7 @@ class inorder_executor : public backend_executor
 public:
   inorder_executor(std::unique_ptr<inorder_queue> q);
 
-  virtual ~inorder_executor() {}
+  virtual ~inorder_executor();
 
   bool is_inorder_queue() const final override;
   bool is_outoforder_queue() const final override;

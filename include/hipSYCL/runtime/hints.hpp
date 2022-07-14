@@ -164,15 +164,20 @@ public:
   static constexpr execution_hint_type type =
       execution_hint_type::prefer_executor;
 
-  prefer_executor(backend_executor *executor)
-      : execution_hint{execution_hint_type::prefer_executor}, _executor{
-                                                                  executor} {}
+  prefer_executor(std::shared_ptr<backend_executor> executor)
+      : execution_hint{execution_hint_type::prefer_executor},
+        _executor{executor.get()}, _shared_executor{executor} {}
+
+  prefer_executor(backend_executor* executor)
+      : execution_hint{execution_hint_type::prefer_executor},
+        _executor{executor} {}
 
   backend_executor* get_executor() const {
     return _executor;
   }
 private:
   backend_executor* _executor;
+  std::shared_ptr<backend_executor> _shared_executor;
 };
 
 class request_instrumentation_submission_timestamp : public execution_hint {

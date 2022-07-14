@@ -101,7 +101,8 @@ std::string cuda_backend::get_name() const {
 
 std::unique_ptr<backend_executor>
 cuda_backend::create_inorder_executor(device_id dev, int priority) {
-  std::unique_ptr<inorder_queue> q = std::make_unique<cuda_queue>(this, dev);
+  std::unique_ptr<inorder_queue> q =
+      std::make_unique<cuda_queue>(this, dev, priority);
 
   return std::make_unique<inorder_executor>(std::move(q));
 }

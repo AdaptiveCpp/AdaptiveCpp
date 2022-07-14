@@ -92,6 +92,8 @@ get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
 inorder_executor::inorder_executor(std::unique_ptr<inorder_queue> q)
 : _q{std::move(q)} {}
 
+inorder_executor::~inorder_executor(){}
+
 bool inorder_executor::is_inorder_queue() const {
   return true;
 }

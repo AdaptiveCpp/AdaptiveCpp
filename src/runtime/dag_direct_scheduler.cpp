@@ -335,6 +335,9 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
           abort_submission(node);
           return;
         }
+
+        // Need to make sure that we also remember the requirements
+        _rt->dag().register_submitted_ops(req);
       }
     }
   }

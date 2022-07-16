@@ -70,6 +70,10 @@ struct nd_range
   { return _num_groups; }
 
   HIPSYCL_UNIVERSAL_TARGET
+  range<dimensions> get_group_range() const
+  { return get_group(); }
+
+  HIPSYCL_UNIVERSAL_TARGET
   id<dimensions> get_offset() const
   { return _offset; }
   

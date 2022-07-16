@@ -12,5 +12,5 @@ config.test_exec_root = os.path.join(config.my_obj_root, 'test')
 config.substitutions.append(('%syclcc', config.hipsycl_syclcc))
 
 if "HIPSYCL_DEBUG_LEVEL" in os.environ:
-  config.environment["HIPSYCL_DEBUG_LEVEL"] = os.environ["HIPSYCL_DEBUG_LEVEL"]
-  
+    config.environment["HIPSYCL_DEBUG_LEVEL"] = os.environ[
+        "HIPSYCL_DEBUG_LEVEL"]

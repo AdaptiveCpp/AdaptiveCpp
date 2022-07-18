@@ -30,9 +30,28 @@
 #define HIPSYCL_SYCL_FUNCTIONAL_HPP
 
 #include "backend.hpp"
+#include "vec.hpp"
 
 namespace hipsycl {
 namespace sycl {
+
+namespace detail {
+// simple construct to get type of elements in vector
+// detail::builtin_type_traits does not work for void and can not directly be used here.
+template<class T>
+struct element_type {
+  using type = T;
+};
+
+template<class T, int Dim>
+struct element_type<vec<T, Dim>> {
+  using type = T;
+};
+
+template<typename T>
+using element_type_t = typename element_type<T>::type;
+
+} // namespace detail
 
 template <typename T = void> struct plus {
   HIPSYCL_KERNEL_TARGET
@@ -143,14 +162,14 @@ struct known_identity_trait {
 
 template<typename T, typename Enable=void>
 struct minmax_identity {
-  inline static constexpr T max_id = std::numeric_limits<T>::lowest();
-  inline static constexpr T min_id = std::numeric_limits<T>::max();
+  inline static constexpr T max_id = static_cast<T>(std::numeric_limits<T>::lowest());
+  inline static constexpr T min_id = static_cast<T>(std::numeric_limits<T>::max());
 };
 
 template<typename T>
 struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>> {
-  inline static constexpr T max_id = -std::numeric_limits<T>::infinity();
-  inline static constexpr T min_id = std::numeric_limits<T>::infinity();
+  inline static constexpr T max_id = static_cast<T>(-std::numeric_limits<T>::infinity());
+  inline static constexpr T min_id = static_cast<T>(std::numeric_limits<T>::infinity());
 };
 
 #define HIPSYCL_DEFINE_IDENTITY(op, cond, identity) \
@@ -171,15 +190,15 @@ struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>
 #endif
 
 // TODO is_arithmetic implicitly covers the current pseudo half = ushort type, resolve once half is implemented
-HIPSYCL_DEFINE_IDENTITY(plus, std::is_arithmetic_v<T>, T{});
-HIPSYCL_DEFINE_IDENTITY(multiplies, std::is_arithmetic_v<T>, T{1});
-HIPSYCL_DEFINE_IDENTITY(bit_or, std::is_integral_v<T>, T{});
-HIPSYCL_DEFINE_IDENTITY(bit_and, std::is_integral_v<T>, ~T{});
-HIPSYCL_DEFINE_IDENTITY(bit_xor, std::is_integral_v<T>, T{});
-HIPSYCL_DEFINE_IDENTITY(logical_or, (std::is_same_v<std::remove_cv_t<T>, bool>), false);
-HIPSYCL_DEFINE_IDENTITY(logical_and, (std::is_same_v<std::remove_cv_t<T>, bool>), true);
-HIPSYCL_DEFINE_IDENTITY(minimum, std::is_arithmetic_v<T>, minmax_identity<std::remove_cv_t<T>>::min_id);
-HIPSYCL_DEFINE_IDENTITY(maximum, std::is_arithmetic_v<T>, minmax_identity<std::remove_cv_t<T>>::max_id);
+HIPSYCL_DEFINE_IDENTITY(plus, std::is_arithmetic_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(multiplies, std::is_arithmetic_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(1)});
+HIPSYCL_DEFINE_IDENTITY(bit_or, std::is_integral_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(bit_and, std::is_integral_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(~element_type_t<T>{})});
+HIPSYCL_DEFINE_IDENTITY(bit_xor, std::is_integral_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(logical_or, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{false});
+HIPSYCL_DEFINE_IDENTITY(logical_and, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{true});
+HIPSYCL_DEFINE_IDENTITY(minimum, std::is_arithmetic_v<element_type_t<T>>, T{minmax_identity<element_type_t<std::remove_cv_t<T>>>::min_id});
+HIPSYCL_DEFINE_IDENTITY(maximum, std::is_arithmetic_v<element_type_t<T>>, T{minmax_identity<element_type_t<std::remove_cv_t<T>>>::max_id});
 
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

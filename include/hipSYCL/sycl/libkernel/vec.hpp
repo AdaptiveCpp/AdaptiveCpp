@@ -50,10 +50,10 @@ public:
   using value_type = T;
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[](int i) { return _storage[i]; }
+  constexpr T& operator[](int i) { return _storage[i]; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[](int i) const { return _storage[i]; }
+  constexpr const T& operator[](int i) const { return _storage[i]; }
 
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
@@ -87,7 +87,7 @@ public:
   }
 
 private:
-  alignas(alignment) T _storage [effective_size];
+  alignas(alignment) T _storage [effective_size] = {0};
 };
 
 // An alternative implementation of the vec_storage concept
@@ -183,6 +183,17 @@ template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type& v, Function&& f);
 
+template <typename Arg, typename T>
+HIPSYCL_UNIVERSAL_TARGET
+constexpr int external_count_num_elements() {
+  if constexpr(std::is_scalar_v<Arg>)
+    return 1;
+  else if(std::is_same_v<typename Arg::element_type, T>)
+    return Arg::get_count();
+  // ToDo: Trigger error
+  return 0;
+}
+
 }
 
 enum class rounding_mode {
@@ -253,7 +264,7 @@ public:
   using vector_t = typename VectorStorage::interop_type;
 
   HIPSYCL_UNIVERSAL_TARGET
-  vec(const VectorStorage& v)
+  constexpr vec(const VectorStorage& v)
   : _data{v} {}
 
   // The regular constructors are only available when we are not
@@ -262,7 +273,7 @@ public:
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
   HIPSYCL_UNIVERSAL_TARGET
-  vec() {
+  constexpr vec() {
     for(int i = 0; i < N; ++i)
       _data[i] = T{};
   }
@@ -270,7 +281,7 @@ public:
   template <class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET explicit vec(const T &value) {
+  HIPSYCL_UNIVERSAL_TARGET explicit constexpr vec(const T &value) {
     for(int i = 0; i < N; ++i)
       _data[i] = value;
   }
@@ -278,8 +289,8 @@ public:
   template <typename... Args, class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {
-    static_assert((count_num_elements<Args>() + ...) == N,
+  HIPSYCL_UNIVERSAL_TARGET constexpr vec(const Args &...args) {
+    static_assert((detail::external_count_num_elements<Args, T>() + ...) == N,
                   "Argument mismatch with vector size");
 
     int current_init_index = 0;
@@ -289,7 +300,7 @@ public:
   template <class OtherStorage, class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true>
-  HIPSYCL_UNIVERSAL_TARGET vec(const vec<T, N, OtherStorage> &other)
+  HIPSYCL_UNIVERSAL_TARGET constexpr vec(const vec<T, N, OtherStorage> &other)
   {
     for(int i = 0; i < N; ++i)
       _data[i] = other[i];
@@ -874,7 +885,7 @@ private:
       ++current_init_index;
     } else {
       // Assume we are dealing with another vector
-      constexpr int count = count_num_elements<Arg>();
+      constexpr int count = detail::external_count_num_elements<Arg, T>();
       
       for(int i = 0; i < count; ++i) {
         _data[i + current_init_index] = x[i];

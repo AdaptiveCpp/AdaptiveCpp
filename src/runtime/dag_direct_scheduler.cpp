@@ -335,9 +335,6 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
           abort_submission(node);
           return;
         }
-
-        // Need to make sure that we also remember the requirements
-        _rt->dag().register_submitted_ops(req);
       }
     }
   }
@@ -356,8 +353,6 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
     backend_executor *exec = select_executor(_rt, node, node->get_operation());
     rt::submit(exec, node, node->get_operation());
   }
-  // Register node as submitted with the runtime
-  _rt->dag().register_submitted_ops(node);
 }
 
 }

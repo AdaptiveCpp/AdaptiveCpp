@@ -66,8 +66,7 @@ if(NOT ${LLVM_ENABLE_RTTI})
 endif()
 
 target_link_libraries(hipSYCL_clang
-  ${LLVM_LIBS}
-  ${Boost_LIBRARIES})
+  ${LLVM_LIBS})
 if(APPLE)
   target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)

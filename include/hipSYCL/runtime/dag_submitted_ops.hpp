@@ -47,9 +47,11 @@ public:
   void wait_for_all();
   void wait_for_group(std::size_t node_group);
   std::vector<dag_node_ptr> get_group(std::size_t node_group);
+
+  bool contains_node(dag_node_ptr node) const;
 private:
   std::vector<dag_node_ptr> _ops;
-  std::mutex _lock;
+  mutable std::mutex _lock;
 };
 
 

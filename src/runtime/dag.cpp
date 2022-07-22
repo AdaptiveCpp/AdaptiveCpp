@@ -38,9 +38,11 @@ namespace hipsycl {
 namespace rt {
 
 void dag::add_command_group(dag_node_ptr node) {
-  for (auto req : node->get_requirements()) {
-    if (req->get_operation()->is_requirement())
-      _memory_requirements.push_back(req);
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock()) {
+      if (req->get_operation()->is_requirement())
+        _memory_requirements.push_back(req);
+    }
   }
   _command_groups.push_back(node);
 }

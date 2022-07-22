@@ -137,6 +137,13 @@ void dag_manager::flush_async()
         HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
                           << std::endl;
       
+        for(auto node : new_dag.get_command_groups())
+          // Register node as submitted with the runtime
+          this->register_submitted_ops(node);
+        
+        for(auto node : new_dag.get_memory_requirements())
+          this->register_submitted_ops(node);
+        
       });
     }
   } else {

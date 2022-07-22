@@ -109,7 +109,8 @@ void kernel_operation::dump(std::ostream &ostr, int indentation) const {
   std::string indent = get_indentation(indentation);
   ostr << indent << "kernel: " << _kernel_name;
   for (auto requirement : _requirements) {
-    ostr << std::endl; requirement->dump(ostr, indentation + 1);
+    ostr << std::endl;
+    requirement->get_operation()->dump(ostr, indentation + 1);
   }
 }
 

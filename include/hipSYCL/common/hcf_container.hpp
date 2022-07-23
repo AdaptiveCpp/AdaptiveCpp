@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <exception>
 #include <cassert>
+#include <locale>
 
 namespace hipsycl {
 namespace common {

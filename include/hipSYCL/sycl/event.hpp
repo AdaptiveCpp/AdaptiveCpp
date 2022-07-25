@@ -62,9 +62,10 @@ public:
     if(_node) {
       std::vector<event> events;
 
-      for(auto node : _node->get_requirements()) {
+      for(auto weak_node : _node->get_requirements()) {
         // TODO Is it correct to just use our handler here?
-        events.push_back(event{node, _handler});
+        if(auto node = weak_node.lock())
+          events.push_back(event{node, _handler});
       }
 
       return events;

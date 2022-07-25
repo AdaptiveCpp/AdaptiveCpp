@@ -134,5 +134,15 @@ std::vector<dag_node_ptr> dag_submitted_ops::get_group(std::size_t node_group) {
   return ops;
 }
 
+bool dag_submitted_ops::contains_node(dag_node_ptr node) const {
+  std::lock_guard lock{_lock};
+
+  for(dag_node_ptr n : _ops) {
+    if(n == node)
+      return true;
+  }
+  return false;
+}
+
 }
 }

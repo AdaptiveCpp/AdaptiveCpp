@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // Adaptations: Get rid of unnecessary dependencies (VectorMapping)
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 
@@ -14,6 +14,7 @@
 #include <hipSYCL/common/debug.hpp>
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 

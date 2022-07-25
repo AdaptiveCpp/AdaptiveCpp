@@ -1,6 +1,15 @@
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
+set(HIPSYCL_RT_SANITIZE "" CACHE STRING
+    "Enable building hipSYCL runtime with specified sanitizers")
+
+if(NOT ${HIPSYCL_RT_SANITIZE} STREQUAL "")
+  set(HIPSYCL_RT_EXTRA_CXX_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
+  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
+endif()
 
 add_library(hipSYCL-rt SHARED
   application.cpp
@@ -25,6 +34,9 @@ add_library(hipSYCL-rt SHARED
   generic/async_worker.cpp
   hw_model/memcpy.cpp
   serialization/serialization.cpp)
+
+target_compile_options(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
@@ -86,6 +98,9 @@ if(WITH_CUDA_BACKEND)
   
   target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
 
+  target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
   install(TARGETS rt-backend-cuda
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -119,6 +134,9 @@ if(WITH_ROCM_BACKEND)
     target_link_libraries(rt-backend-hip PRIVATE hipSYCL-rt  hip::host)
   endif()
 
+  target_compile_options(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -137,6 +155,8 @@ if(WITH_LEVEL_ZERO_BACKEND)
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
 
+  target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
   install(TARGETS rt-backend-ze
         LIBRARY DESTINATION lib/hipSYCL
@@ -176,9 +196,12 @@ if(WITH_CPU_BACKEND)
 
   target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
 
-    install(TARGETS rt-backend-omp
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+  target_compile_options(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  install(TARGETS rt-backend-omp
+      RUNTIME DESTINATION bin/hipSYCL
+      LIBRARY DESTINATION lib/hipSYCL
+      ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 

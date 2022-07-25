@@ -41,10 +41,6 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-constexpr int max_cached_dag_nodes = 100;
-}
-
 
 dag_build_guard::~dag_build_guard()
 {
@@ -135,15 +131,18 @@ void dag_manager::flush_async()
         }
         HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
                           << std::endl;
-      
-        // Asynchronously wait on the new nodes and unregister
-        // once the entire DAG has completed.
-        //
-        // This release any old users of memory buffers used in this dag
-        // It not only removes old users from the submitted ops list,
-        // updates the cached value to mark operations as known completed.
+
+        // Register nodes as submitted with the runtime
+        for(auto node : new_dag.get_command_groups())
+          this->register_submitted_ops(node);
+        for(auto node : new_dag.get_memory_requirements())
+          this->register_submitted_ops(node);
+              
+        
         this->_submitted_ops.async_wait_and_unregister(
             new_dag.get_command_groups());
+        this->_submitted_ops.async_wait_and_unregister(
+            new_dag.get_memory_requirements());
       });
     }
   } else {
@@ -183,7 +182,8 @@ void dag_manager::trigger_flush_opportunity()
     // Direct scheduler always needs flushing
     flush_async();
   } else {
-    if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+    if (builder()->get_current_dag_size() >
+        application::get_settings().get<setting::max_cached_nodes>())
       flush_async();
   }
 }

@@ -51,8 +51,7 @@ kernel_operation::kernel_operation(
     if(op->is_requirement()){
       requirement* req = cast<requirement>(op);
       if(req->is_memory_requirement()){
-        memory_requirement* mreq = cast<memory_requirement>(req);
-        _requirements.push_back(mreq);
+        _requirements.push_back(req_node);
       }
     }
   }
@@ -65,10 +64,6 @@ kernel_operation::get_launcher()
 const kernel_launcher& 
 kernel_operation::get_launcher() const
 { return _launcher; }
-
-const std::vector<memory_requirement*>& 
-kernel_operation::get_memory_requirements() const
-{ return _requirements; }
 
 
 

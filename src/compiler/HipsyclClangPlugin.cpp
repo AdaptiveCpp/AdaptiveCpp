@@ -86,7 +86,8 @@ static llvm::RegisterStandardPasses
                                          registerMarkParallelPass);
 #endif
 #if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
-#define HIPSYCL_STRINGIFY(V) #V
+#define HIPSYCL_RESOLVE_AND_QUOTE(V) #V
+#define HIPSYCL_STRINGIFY(V) HIPSYCL_RESOLVE_AND_QUOTE(V)
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
   "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
       HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)

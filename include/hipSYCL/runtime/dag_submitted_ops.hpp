@@ -47,6 +47,8 @@ public:
   //
   // All nodes in the provided argument vector must have been registered
   // previously with update_with_submission()
+  //
+  // For best performance, the provided nodes should be in submission order.
   void async_wait_and_unregister(const std::vector<dag_node_ptr>& nodes);
   void update_with_submission(dag_node_ptr single_node);
   

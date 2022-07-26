@@ -55,8 +55,13 @@ void dag_submitted_ops::async_wait_and_unregister(
     const std::vector<dag_node_ptr> &nodes) {
   
   _updater_thread([nodes, this]{
-    for(const auto& node : nodes) {
-      node->wait();
+    // Since node->wait() causes all requirements to be marked
+    // as completed as well, we can reduce the number of backend wait
+    // operations by reversing the iteration order,
+    // since the newest operations will tend to be the last
+    // in the list.
+    for(int i = nodes.size() - 1; i >= 0; --i) {
+      nodes[i]->wait();
     }
     // Waiting on nodes causes them to be known complete,
     // so we can just purge all known completed nodes

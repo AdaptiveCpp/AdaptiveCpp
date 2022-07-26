@@ -138,11 +138,15 @@ void dag_manager::flush_async()
         for(auto node : new_dag.get_memory_requirements())
           this->register_submitted_ops(node);
               
-        
+        // We do not need to wait for the requirements explicitly
+        // because they will also have completed by the time
+        // their command groups have finished and can
+        // be purged together with them.
+        //
+        // This is the case, because dag_node::wait() also
+        // marks all its requirements as complete.
         this->_submitted_ops.async_wait_and_unregister(
             new_dag.get_command_groups());
-        this->_submitted_ops.async_wait_and_unregister(
-            new_dag.get_memory_requirements());
       });
     }
   } else {

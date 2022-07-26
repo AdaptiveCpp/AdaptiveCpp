@@ -104,6 +104,9 @@ public:
   // Can be invoked before the event has been set (pre-submission),
   // in which case the function will additionally wait
   // until the event exists.
+  //
+  // Waiting will cause the node and all its requirements to return true
+  // for is_known_complete().
   void wait() const;
 
   std::shared_ptr<dag_node_event> get_event() const;

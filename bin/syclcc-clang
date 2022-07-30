@@ -334,6 +334,11 @@ class syclcc_config:
       * hip  - HIP backend
                Requires specification of targets of the form gfxXYZ,
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
+               Backend Flavors:
+               - hip.explicit-multipass: HIP backend in explicit multipass mode
+                                         (see --hipsycl-explicit-multipass)
+               - hip.integrated-multipass: Force HIP backend to operate in integrated
+                                           multipass mode.
       * spirv - use clang SYCL driver to generate spirv""")
     }
     self._flags = {
@@ -942,6 +947,131 @@ class cuda_multipass_invocation:
     
     header.write_header(self._integration_header)
 
+class hip_multipass_invocation:
+  @property
+  def unique_name(self):
+    return "hip.explicit-multipass"
+
+  @property
+  def is_integrated_multipass(self):
+    return False
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._config = config
+    self._enable_hip_host_pass = False
+    self._targets = target_list
+    self._host_compiler = self._config.clang_path
+    self.set_temp_dir("/tmp")
+
+  def set_temp_dir(self, temp_dir):
+    self._temp_dir = temp_dir
+    self._integration_header = os.path.join(
+      self._temp_dir,"__hipsycl_embedded_hip_kernels.hpp")
+
+  def get_requested_targets(self):
+    return self._targets
+
+  def get_device_compiler(self):
+    return self._config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._config.clang_path, 100)
+
+  def enable_extended_host_pass(self):
+    self._enable_hip_host_pass = True
+
+  @property
+  def is_extended_host_pass_enabled(self):
+    return self._enable_hip_host_pass
+
+  def set_host_compiler(self, host_compiler):
+    self._host_compiler = host_compiler
+
+  def get_host_pass_requirements(self):
+    requires_extended_host_pass = True
+    caveats = []
+
+    if self._host_compiler != self._config.clang_path:
+      requires_extended_host_pass = False
+      caveats = [
+        'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
+        +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
+        ]
+      
+
+    return {
+      'requires-extended-host-pass' : requires_extended_host_pass,
+      'extended-host-pass-providers' : [
+        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.integrated-multipass', 'hip.integrated-multipass'],
+      'conflicts' : [],
+      'caveats' : caveats
+    }
+
+  def get_flags(self, target):
+    flags = self._config.rocm_cxx_flags
+    flags += [
+        "-x", "hip",
+        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        "-fplugin=" + self._config.hipsycl_plugin_path,
+        "--cuda-device-only",
+        "--cuda-gpu-arch=" + target,
+        "-c","-o",self._explicit_pass_output_file(target)
+      ]
+
+    if self._host_compiler != self._config.clang_path:
+      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._config.hipsycl_plugin_path]
+    return flags
+
+  # CXX flags for main pass
+  def get_cxx_flags(self):
+    hip_host_flags = []
+
+    if self._enable_hip_host_pass:
+      hip_host_flags = [
+        "-x","hip",
+        "--cuda-host-only"
+      ] + self._config.rocm_cxx_flags
+
+    return [
+      "-D__HIPSYCL_MULTIPASS_HIP_HEADER__=\"{}\"".format(
+            self._integration_header),
+      "-D__HIPSYCL_ENABLE_HIP_TARGET__"
+    ] + hip_host_flags
+
+
+
+  # Linker flags for main pass
+  def get_linker_flags(self):
+    return self._config.rocm_link_line
+
+  def _explicit_pass_output_file(self, target):
+    return os.path.join(self._temp_dir, "hipfb-"+target+".hipsycl_kernels")
+
+
+  def create_code_objects(self, targets):
+    kernel_files = [self._explicit_pass_output_file(target) for target in targets]
+
+    hipfb_content = []
+    for filename in kernel_files:
+      with open(filename, 'rb') as f:
+        hipfb_content.append(f.read())
+
+    header = integration_header("hip")
+    for target,hipfb in zip(targets, hipfb_content):
+      target_node = header.hcf_object.root.make_subnode(target)
+      header.hcf_object.attach_binary_content(target_node, hipfb)
+    
+    header.write_header(self._integration_header)
+
 class spirv_multipass_invocation:
   @property
   def unique_name(self):
@@ -1405,7 +1535,17 @@ class compiler:
         self._backends.append(
           cuda_nvcxx_invocation(config, config.targets["cuda-nvcxx"]))
       elif backend == "hip":
-        self._backends.append(hip_invocation(config, config.targets["hip"]))
+        targets = config.targets["hip"]
+        if self._is_explicit_multipass:
+          self._multipass_backends.append(hip_multipass_invocation(config, targets))
+        else:
+          self._backends.append(hip_invocation(config, targets))
+      elif backend == "hip.integrated-multipass":
+        self._backends.append(
+          hip_invocation(config, config.targets["hip.integrated-multipass"]))
+      elif backend == "hip.explicit-multipass":
+        self._multipass_backends.append(
+          hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
       elif backend == 'spirv':
         self._multipass_backends.append(
           spirv_multipass_invocation(config))

@@ -118,7 +118,8 @@ if(WITH_ROCM_BACKEND)
     hip/hip_allocator.cpp
     hip/hip_device_manager.cpp
     hip/hip_hardware_manager.cpp
-    hip/hip_backend.cpp)
+    hip/hip_backend.cpp
+    hip/hip_code_object.cpp)
 
   target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_TARGET_ROCM=1)
   if(ENABLE_ROCM_UNIFIED_MEMORY_API)

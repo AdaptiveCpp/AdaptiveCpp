@@ -967,6 +967,9 @@ class hip_multipass_invocation:
     self._host_compiler = self._config.clang_path
     self.set_temp_dir("/tmp")
 
+    if config.plugin_llvm_version < 13:
+      raise RuntimeError("hip.explicit-multipass is not supported for clang < 13.")
+
   def set_temp_dir(self, temp_dir):
     self._temp_dir = temp_dir
     self._integration_header = os.path.join(

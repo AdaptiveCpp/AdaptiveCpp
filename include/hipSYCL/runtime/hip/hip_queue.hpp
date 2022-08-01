@@ -31,6 +31,7 @@
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 #include "../generic/host_timestamped_event.hpp"
+#include "../code_object_invoker.hpp"
 
 #include "hip_instrumentation.hpp"
 
@@ -40,7 +41,26 @@ struct ihipStream_t;
 namespace hipsycl {
 namespace rt {
 
+class hip_queue;
 class hip_backend;
+
+
+class hip_code_object_invoker : public code_object_invoker{
+public:
+  hip_code_object_invoker(hip_queue* q);
+
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name_tag,
+                               const std::string &kernel_body_name) override;
+  virtual ~hip_code_object_invoker(){}
+private:
+  hip_queue* _queue;
+};
 
 class hip_queue : public inorder_queue
 {
@@ -74,6 +94,12 @@ public:
 
   virtual result query_status(inorder_queue_status& status) override;
 
+  result submit_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+      void **kernel_args, std::size_t* arg_sizes, std::size_t num_args);
+
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;
   }
@@ -84,6 +110,7 @@ private:
   ihipStream_t* _stream;
   host_timestamped_event _reference_event;
   hip_backend* _backend;
+  hip_code_object_invoker _code_object_invoker;
 };
 
 }

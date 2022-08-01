@@ -20,9 +20,10 @@ Not all backends support all modes. The following compilation flows are currentl
 | `cuda.explicit-multipass` | NVIDIA GPUs | Explicit | CUDA backend |
 | `cuda-nvcxx` | NVIDIA GPUs | Integrated (single-pass host/device compiler) | CUDA backend using nvc++ |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | Integrated | HIP backend |
+| `hip.explicit-multipass` | AMD GPUs (supported by ROCm) | Explicit | HIP backend |
 | `spirv` | Intel GPUs | Explicit | SPIR-V/Level Zero backend |
 
-**Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md).
+**Note:** Explicit multipass requires building hipSYCL against a clang that supports `__builtin_unique_stable_name()` (available in clang 11), or clang 13 or newer as described in the [installation documentation](installing.md). `hip.explicit-multipass` requires clang 13 or newer.
 
 ## Language extension guarantees
 

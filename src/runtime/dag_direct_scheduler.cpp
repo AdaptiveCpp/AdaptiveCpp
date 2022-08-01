@@ -45,9 +45,11 @@ namespace rt {
 namespace {
 
 void abort_submission(dag_node_ptr node) {
-  for (auto req : node->get_requirements()) {
-    if (!req->is_submitted()) {
-      req->cancel();
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock()) {
+      if (!req->is_submitted()) {
+        req->cancel();
+      }
     }
   }
   node->cancel();
@@ -330,26 +332,30 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
                                 ->get_device_id();
   node->assign_to_device(target_device);
   
-  for (auto req : node->get_requirements())
-    assign_devices_or_default(req, target_device);
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock())
+      assign_devices_or_default(req, target_device);
+  }
 
-  for (auto req : node->get_requirements()) {
-    if (!req->get_operation()->is_requirement()) {
-      if (!req->is_submitted()) {
-        register_error(__hipsycl_here(),
-                   error_info{"dag_direct_scheduler: Direct scheduler does not "
-                              "support processing multiple unsubmitted nodes",
-                              error_type::feature_not_supported});
-        abort_submission(node);
-        return;
-      }
-    } else {
-      result res = submit_requirement(_rt, req);
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock()) {
+      if (!req->get_operation()->is_requirement()) {
+        if (!req->is_submitted()) {
+          register_error(__hipsycl_here(),
+                    error_info{"dag_direct_scheduler: Direct scheduler does not "
+                                "support processing multiple unsubmitted nodes",
+                                error_type::feature_not_supported});
+          abort_submission(node);
+          return;
+        }
+      } else {
+        result res = submit_requirement(_rt, req);
 
-      if (!res.is_success()) {
-        register_error(res);
-        abort_submission(node);
-        return;
+        if (!res.is_success()) {
+          register_error(res);
+          abort_submission(node);
+          return;
+        }
       }
     }
   }
@@ -368,9 +374,6 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
     backend_executor *exec = select_executor(_rt, node, node->get_operation());
     rt::submit(exec, node, node->get_operation());
   }
-  // Register node as submitted with the runtime
-  // (only relevant for queue::wait() operations)
-  _rt->dag().register_submitted_ops(node);
 }
 
 }

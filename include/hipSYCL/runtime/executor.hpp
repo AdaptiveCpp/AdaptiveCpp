@@ -37,7 +37,6 @@
 namespace hipsycl {
 namespace rt {
 
-class dag_direct_scheduler;
 
 struct backend_execution_lane_range
 {

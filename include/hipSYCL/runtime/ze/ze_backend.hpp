@@ -57,6 +57,9 @@ public:
 
   virtual std::string get_name() const override;
   
+  std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) override;
+
   virtual ~ze_backend(){}
 
 private:

@@ -170,6 +170,9 @@ BOOST_AUTO_TEST_CASE(queue_profiling)
   auto t83 = evt8.get_profiling_info<cl::sycl::info::event_profiling::command_end>();
   // run time may be zero if prefetching is a no-op
   BOOST_CHECK(t81 <= t82 && t82 <= t83);
+
+  cl::sycl::free(src, queue);
+  cl::sycl::free(dest, queue);
 }
 
 // update_host is an explicit operation, but implemented as a requirement and thus not profiled.

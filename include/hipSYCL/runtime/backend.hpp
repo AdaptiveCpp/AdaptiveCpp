@@ -73,9 +73,7 @@ public:
   // priority can be used to define an inorder executor with particular execution
   // priority. It is backend-specific if or how this will affect execution.
   virtual std::unique_ptr<backend_executor>
-  create_inorder_executor(device_id dev, int priority) {
-    return nullptr;
-  }
+  create_inorder_executor(device_id dev, int priority) = 0;
 };
 
 class backend_manager

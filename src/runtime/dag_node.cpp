@@ -42,10 +42,14 @@ dag_node::dag_node(const execution_hints &hints,
                    const std::vector<dag_node_ptr> &requirements,
                    std::unique_ptr<operation> op,
                    runtime* rt)
-    : _hints{hints}, _requirements{requirements},
+    : _hints{hints},
       _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
-      _is_cancelled{false}, _rt{rt} {}
+      _is_cancelled{false}, _rt{rt} {
+  
+  for(const auto& req : requirements)
+    _requirements.push_back(req);
+}
 
 dag_node::~dag_node() {
   if(!is_complete()){
@@ -93,8 +97,10 @@ void dag_node::mark_virtually_submitted()
   _is_virtual = true;
   std::vector<std::shared_ptr<dag_node_event>> events;
   for (auto req : get_requirements()) {
-    assert(req->is_submitted());
-    events.push_back(req->get_event());
+    if(auto r = req.lock()) {
+      assert(r->is_submitted());
+      events.push_back(r->get_event());
+    }
   }
   mark_submitted(std::make_shared<dag_multi_node_event>(events));
 }
@@ -158,7 +164,8 @@ template<class F>
 void descend_requirement_tree(F&& f, const dag_node* n) {
   if(f(n)) {
     for(const auto& req : n->get_requirements()) {
-      descend_requirement_tree(f, req.get());
+      if(auto r = req.lock())
+        descend_requirement_tree(f, r.get());
     }
   }
 }
@@ -176,9 +183,11 @@ bool recursive_find(const dag_node_ptr &current, int current_level,
     return false;
 
   for(const auto& req : current->get_requirements()) {
-    if(!req->is_known_complete()) {
-      if(recursive_find(req, current_level - 1, x))
-        return true;
+    if(auto r = req.lock()) {
+      if(!r->is_known_complete()) {
+        if(recursive_find(r, current_level - 1, x))
+          return true;
+      }
     }
   }
   return false;
@@ -192,7 +201,7 @@ bool recursive_find(const dag_node_ptr &current, int current_level,
 void dag_node::add_requirement(dag_node_ptr requirement)
 {
   for (auto req : _requirements) {
-    if (req == requirement)
+    if (req.lock() == requirement)
       return;
   }
 
@@ -204,32 +213,37 @@ void dag_node::add_requirement(dag_node_ptr requirement)
   const int search_depth =
       application::get_settings().get<setting::dag_req_optimization_depth>();
 
-  for(auto existing_req : _requirements) {
-    if(is_reachable_from(existing_req, requirement, search_depth)) {
-      // The requirement is already reachable from an existing requirement,
-      // inserting is unnecessary since the existing requirement
-      // already provides sufficient synchronization.
-      return;
+  for(auto weak_existing_req : _requirements) {
+    if(auto existing_req = weak_existing_req.lock()) {
+      if(is_reachable_from(existing_req, requirement, search_depth)) {
+        // The requirement is already reachable from an existing requirement,
+        // inserting is unnecessary since the existing requirement
+        // already provides sufficient synchronization.
+        return;
+      }
     }
   }
 
   // Remove requirements that are weaker than the new nequirement
   for(std::size_t i = 0; i < _requirements.size(); ++i) {
-    if(is_reachable_from(requirement, _requirements[i], search_depth)) {
-      _requirements[i] = nullptr;
+    if(auto r = _requirements[i].lock()) {
+      if(is_reachable_from(requirement, r, search_depth)) {
+        _requirements[i] = std::weak_ptr<dag_node>{};
+      }
     }
   }
-  _requirements.erase(
-      std::remove_if(_requirements.begin(), _requirements.end(),
-                     [](dag_node_ptr req) { return req == nullptr; }),
-      _requirements.end());
+  _requirements.erase(std::remove_if(_requirements.begin(), _requirements.end(),
+                                     [](std::weak_ptr<dag_node> weak_req) {
+                                       return weak_req.expired();
+                                     }),
+                      _requirements.end());
 
   _requirements.push_back(requirement);
 }
 
 operation *dag_node::get_operation() const { return _operation.get(); }
 
-const std::vector<dag_node_ptr> &dag_node::get_requirements() const
+const std::vector<std::weak_ptr<dag_node>> &dag_node::get_requirements() const
 {
   return _requirements;
 }
@@ -267,10 +281,12 @@ void dag_node::for_each_nonvirtual_requirement(
     return;
   
   for (auto req : get_requirements()) {
-    if (!req->is_virtual()) {
-      handler(req);
-    } else {
-      req->for_each_nonvirtual_requirement(handler);
+    if(auto r = req.lock()) {
+      if (!r->is_virtual()) {
+        handler(r);
+      } else {
+        r->for_each_nonvirtual_requirement(handler);
+      }
     }
   }
 }

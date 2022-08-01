@@ -57,6 +57,10 @@ struct __hipsycl_hcf_registration {};
  #include __HIPSYCL_MULTIPASS_CUDA_HEADER__
 #endif
 
+#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
+ #include __HIPSYCL_MULTIPASS_HIP_HEADER__
+#endif
+
 #ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
  #include __HIPSYCL_MULTIPASS_SPIRV_HEADER__
 #endif

@@ -300,8 +300,24 @@ public:
   }
 
   void wait() {
-    _requires_runtime.get()->dag().flush_sync();
-    _requires_runtime.get()->dag().wait(_node_group_id);
+    if(_is_in_order) {
+      rt::dag_node_ptr most_recent_event = nullptr;
+      {
+        std::lock_guard<std::mutex> lock{*_lock};
+
+        most_recent_event = _previous_submission->lock();
+      }
+      if(most_recent_event) {
+        
+        if(!most_recent_event->is_submitted())
+          _requires_runtime.get()->dag().flush_sync();
+        
+        most_recent_event->wait();
+      }
+    } else {
+      _requires_runtime.get()->dag().flush_sync();
+      _requires_runtime.get()->dag().wait(_node_group_id);
+    }
   }
 
   void wait_and_throw() {

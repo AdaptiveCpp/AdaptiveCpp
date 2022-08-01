@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_HIP_CODE_OBJECT_HPP
+#define HIPSYCL_HIP_CODE_OBJECT_HPP
 
-#ifndef HIPSYCL_DAG_SUBMITTED_OPS_HPP
-#define HIPSYCL_DAG_SUBMITTED_OPS_HPP
-
-#include <mutex>
 #include <vector>
+#include <string>
 
-#include "dag_node.hpp"
-#include "generic/async_worker.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
+
+
+struct ihipModule_t;
 
 namespace hipsycl {
 namespace rt {
 
 
-class dag_submitted_ops
-{
+class hip_executable_object : public code_object {
 public:
-  // Asynchronously waits on the nodes to complete, and, once complete,
-  // removes them (and other completed) nodes from the submitted list.
-  //
-  // All nodes in the provided argument vector must have been registered
-  // previously with update_with_submission()
-  //
-  // For best performance, the provided nodes should be in submission order.
-  void async_wait_and_unregister(const std::vector<dag_node_ptr>& nodes);
-  void update_with_submission(dag_node_ptr single_node);
-  
-  void wait_for_all();
-  void wait_for_group(std::size_t node_group);
-  std::vector<dag_node_ptr> get_group(std::size_t node_group);
+  virtual ~hip_executable_object();
+  hip_executable_object(hcf_object_id origin, const std::string &target,
+                        const std::string &hip_fat_binary, int device);
 
-  bool contains_node(dag_node_ptr node) const;
+  result get_build_result() const;
+
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
+
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+
+  ihipModule_t* get_module() const;
+  int get_device() const;
 private:
-  void purge_known_completed();
+  result build(const std::string& hip_fat_binary);
 
-  std::vector<dag_node_ptr> _ops;
-  mutable std::mutex _lock;
-  worker_thread _updater_thread;
+  hcf_object_id _origin;
+  std::string _target;
+  result _build_result;
+  int _device;
+  ihipModule_t* _module;
 };
 
 

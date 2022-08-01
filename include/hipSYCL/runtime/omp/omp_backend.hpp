@@ -54,6 +54,8 @@ public:
   
   virtual ~omp_backend(){}
 
+  std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) override;
 private:
   mutable omp_allocator _allocator;
   mutable omp_hardware_manager _hw;

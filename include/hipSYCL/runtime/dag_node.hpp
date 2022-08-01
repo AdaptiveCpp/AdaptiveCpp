@@ -98,12 +98,15 @@ public:
   // Add requirement if not already present
   void add_requirement(dag_node_ptr requirement);
   operation* get_operation() const;
-  const std::vector<dag_node_ptr>& get_requirements() const;
+  const std::vector<std::weak_ptr<dag_node>>& get_requirements() const;
 
   // Wait until the associated event has completed.
   // Can be invoked before the event has been set (pre-submission),
   // in which case the function will additionally wait
   // until the event exists.
+  //
+  // Waiting will cause the node and all its requirements to return true
+  // for is_known_complete().
   void wait() const;
 
   std::shared_ptr<dag_node_event> get_event() const;
@@ -124,7 +127,7 @@ public:
   runtime* get_runtime() const;
 private:
   execution_hints _hints;
-  std::vector<dag_node_ptr> _requirements;
+  std::vector<std::weak_ptr<dag_node>> _requirements;
 
   device_id _assigned_device;
   backend_executor *_assigned_executor;

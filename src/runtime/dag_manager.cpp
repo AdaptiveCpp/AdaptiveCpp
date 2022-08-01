@@ -41,10 +41,6 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-constexpr int max_cached_dag_nodes = 100;
-}
-
 
 dag_build_guard::~dag_build_guard()
 {
@@ -94,11 +90,6 @@ void dag_manager::flush_async()
       _worker([this, new_dag](){
         HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
         
-        // Release any old users of memory buffers used in this dag
-        // purge_completed() not only removes old users from the submitted ops list,
-        // it also queries event state and updates the cached value
-        // in case operations have completed.
-        this->_submitted_ops.purge_completed();
         for(dag_node_ptr req : new_dag.get_memory_requirements()){
           assert_is<memory_requirement>(req->get_operation());
 
@@ -140,7 +131,22 @@ void dag_manager::flush_async()
         }
         HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
                           << std::endl;
-      
+
+        // Register nodes as submitted with the runtime
+        for(auto node : new_dag.get_command_groups())
+          this->register_submitted_ops(node);
+        for(auto node : new_dag.get_memory_requirements())
+          this->register_submitted_ops(node);
+              
+        // We do not need to wait for the requirements explicitly
+        // because they will also have completed by the time
+        // their command groups have finished and can
+        // be purged together with them.
+        //
+        // This is the case, because dag_node::wait() also
+        // marks all its requirements as complete.
+        this->_submitted_ops.async_wait_and_unregister(
+            new_dag.get_command_groups());
       });
     }
   } else {
@@ -180,7 +186,8 @@ void dag_manager::trigger_flush_opportunity()
     // Direct scheduler always needs flushing
     flush_async();
   } else {
-    if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+    if (builder()->get_current_dag_size() >
+        application::get_settings().get<setting::max_cached_nodes>())
       flush_async();
   }
 }

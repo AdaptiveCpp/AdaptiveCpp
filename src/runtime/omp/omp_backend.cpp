@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/backend_loader.hpp"
+#include "hipSYCL/runtime/executor.hpp"
 #include "hipSYCL/runtime/omp/omp_backend.hpp"
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -107,6 +108,11 @@ backend_allocator* omp_backend::get_allocator(device_id dev) const {
 
 std::string omp_backend::get_name() const {
   return "OpenMP";
+}
+
+std::unique_ptr<backend_executor>
+omp_backend::create_inorder_executor(device_id dev, int priority){
+  return nullptr;
 }
 
 }

@@ -182,8 +182,10 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
     // with our requirements, but with the node itself
     add_conflicts_as_requirements(operation_node);
   
-  for (auto node : operation_node->get_requirements())
-    add_conflicts_as_requirements(node);
+  for (auto weak_node : operation_node->get_requirements()) {
+    if(auto node = weak_node.lock())
+      add_conflicts_as_requirements(node);
+  }
 
   // if this is an explicit requirement, we need to add *this*
   // operation to the users of the requirement it refers to.
@@ -274,9 +276,11 @@ dag dag_builder::finish_and_reset()
     HIPSYCL_DEBUG_INFO << operation_index << ". " << dump(node->get_operation())
                        << " @node " << node.get() << std::endl;
 
-    for (dag_node_ptr req : node->get_requirements()) {
-      HIPSYCL_DEBUG_INFO << "    --> requires node @" << req.get()
-                         << " " << dump(req->get_operation()) << std::endl;
+    for (auto weak_req : node->get_requirements()) {
+      if(auto req = weak_req.lock()) {
+        HIPSYCL_DEBUG_INFO << "    --> requires node @" << req.get()
+                          << " " << dump(req->get_operation()) << std::endl;
+      }
     }
 
     ++operation_index;

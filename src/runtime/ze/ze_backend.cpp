@@ -103,5 +103,10 @@ std::string ze_backend::get_name() const {
   return "Level Zero";
 }
 
+std::unique_ptr<backend_executor>
+ze_backend::create_inorder_executor(device_id dev, int priority){
+  return nullptr;
+}
+
 }
 }

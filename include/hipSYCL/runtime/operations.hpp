@@ -334,8 +334,6 @@ public:
   kernel_launcher& get_launcher();
   const kernel_launcher& get_launcher() const;
 
-  const std::vector<memory_requirement*>& get_memory_requirements() const;
-
   void dump(std::ostream & ostr, int indentation=0) const override;
 
   result dispatch(operation_dispatcher* dispatcher, dag_node_ptr node) override {
@@ -347,7 +345,11 @@ public:
   /// variables.
   template <typename... KernelComponents>
   void initialize_embedded_pointers(KernelComponents &...kernel_components) {
-    for(auto* req : _requirements) {
+    for(auto req_node : _requirements) {
+
+      memory_requirement *req =
+          static_cast<memory_requirement *>(req_node->get_operation());
+
       if(req->is_buffer_requirement()){
         buffer_memory_requirement *bmem_req =
             static_cast<buffer_memory_requirement *>(req);
@@ -375,7 +377,11 @@ public:
 private:
   std::string _kernel_name;
   kernel_launcher _launcher;
-  std::vector<memory_requirement*> _requirements;
+  // We store shared_ptr to the memory requirement nodes to make sure
+  // that they are alive as long as kernel operations live.
+  // This is required to guarantee the functionality of
+  // initialize_embedded_pointers()
+  std::vector<dag_node_ptr> _requirements;
 };
 
 // To describe memcpy operations, we need an abstract

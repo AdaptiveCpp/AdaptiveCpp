@@ -48,10 +48,11 @@ bool hipsycl::compiler::SplitterAnnotationInfo::analyzeModule(llvm::Module &M) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
       for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
-        if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get()))
-          if (auto *F = llvm::dyn_cast<llvm::Function>(CS->getOperand(0)->getOperand(0)))
+        if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
+            CS && CS->getNumOperands() >= 2)
+          if (auto *F = utils::getValueOneLevel<llvm::Function>(CS->getOperand(0)))
             if (auto *AnnotationGL =
-                    llvm::dyn_cast<llvm::GlobalVariable>(CS->getOperand(1)->getOperand(0)))
+                    utils::getValueOneLevel<llvm::GlobalVariable>(CS->getOperand(1)))
               if (auto *Initializer =
                       llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
                 llvm::StringRef Annotation = Initializer->getAsCString();

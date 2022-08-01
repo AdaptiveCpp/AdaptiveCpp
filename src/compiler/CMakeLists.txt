@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
 project(hipSYCL_clang)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 
@@ -66,8 +64,7 @@ if(NOT ${LLVM_ENABLE_RTTI})
 endif()
 
 target_link_libraries(hipSYCL_clang
-  ${LLVM_LIBS}
-  ${Boost_LIBRARIES})
+  ${LLVM_LIBS})
 if(APPLE)
   target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)

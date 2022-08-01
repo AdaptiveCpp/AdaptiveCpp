@@ -30,7 +30,9 @@
 
 #include <cassert>
 #include <tuple>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -62,10 +64,34 @@ namespace hipsycl {
 namespace glue {
 namespace omp_dispatch {
 
+inline int get_my_thread_id() {
+#ifdef _OPENMP
+  return omp_get_thread_num();
+#else
+  return 0;
+#endif
+}
+
+inline int get_max_num_threads() {
+#ifdef _OPENMP
+  return omp_get_max_threads();
+#else
+  return 1;
+#endif
+}
+
+inline int get_num_threads() {
+#ifdef _OPENMP
+  return omp_get_num_threads();
+#else
+  return 1;
+#endif
+}
+
 template <class ReductionDescriptor> class omp_reducer {
 public:
   omp_reducer(host::sequential_reducer<ReductionDescriptor>& seq_reducer)
-      : _seq_reducer{seq_reducer}, _my_thread_id{omp_get_thread_num()} {}
+      : _seq_reducer{seq_reducer}, _my_thread_id{get_my_thread_id()} {}
 
   using value_type =
       typename host::sequential_reducer<ReductionDescriptor>::value_type;
@@ -90,12 +116,13 @@ void finalize_reduction(SequentialReducer &reducer) {
 template <class Function, typename... Reductions>
 void reducible_parallel_invocation(Function kernel,
                                    Reductions... reductions) noexcept {
-  int max_threads = omp_get_max_threads();
+  int max_threads = get_max_num_threads();
 
   auto sequential_reducers =
       std::make_tuple(host::sequential_reducer{max_threads, reductions}...);
-
+#ifdef _OPENMP
 #pragma omp parallel shared(sequential_reducers)
+#endif
   {
     auto make_omp_reducers = [&](auto &... seq_reducers) {
       return std::make_tuple(omp_reducer{seq_reducers}...);
@@ -120,19 +147,25 @@ template <int Dim, class Function>
 void iterate_range_omp_for(sycl::range<Dim> r, Function f) noexcept {
 
   if constexpr (Dim == 1) {
+#ifdef _OPENMP
     #pragma omp for
+#endif
     for (std::size_t i = 0; i < r.get(0); ++i) {
       f(sycl::id<Dim>{i});
     }
   } else if constexpr (Dim == 2) {
+#ifdef _OPENMP
     #pragma omp for collapse(2)
+#endif
     for (std::size_t i = 0; i < r.get(0); ++i) {
       for (std::size_t j = 0; j < r.get(1); ++j) {
         f(sycl::id<Dim>{i, j});
       }
     }
   } else if constexpr (Dim == 3) {
+#ifdef _OPENMP
     #pragma omp for collapse(3)
+#endif
     for (std::size_t i = 0; i < r.get(0); ++i) {
       for (std::size_t j = 0; j < r.get(1); ++j) {
         for (std::size_t k = 0; k < r.get(2); ++k) {
@@ -151,15 +184,18 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
   const std::size_t max_i = offset.get(0) + r.get(0);
 
   if constexpr (Dim == 1) {
+#ifdef _OPENMP
   #pragma omp for
+#endif
     for (std::size_t i = min_i; i < max_i; ++i) {
       f(sycl::id<Dim>{i});
     }
   } else if constexpr (Dim == 2) {
     const std::size_t min_j = offset.get(1);
     const std::size_t max_j = offset.get(1) + r.get(1);
-
+#ifdef _OPENMP
   #pragma omp for collapse(2)
+#endif
     for (std::size_t i = min_i; i < max_i; ++i) {
       for (std::size_t j = min_j; j < max_j; ++j) {
         f(sycl::id<Dim>{i, j});
@@ -170,8 +206,9 @@ void iterate_range_omp_for(sycl::id<Dim> offset, sycl::range<Dim> r,
     const std::size_t min_k = offset.get(2);
     const std::size_t max_j = offset.get(1) + r.get(1);
     const std::size_t max_k = offset.get(2) + r.get(2);
-
+#ifdef _OPENMP
   #pragma omp for collapse(3)
+#endif
     for (std::size_t i = min_i; i < max_i; ++i) {
       for (std::size_t j = min_j; j < max_j; ++j) {
         for (std::size_t k = min_k; k < max_k; ++k) {
@@ -285,11 +322,11 @@ inline void parallel_for_ndrange_kernel(
     });
 #elif defined(HIPSYCL_HAS_FIBERS)
     host::static_range_decomposition<Dim> group_decomposition{
-        num_groups, omp_get_num_threads()};
+        num_groups, get_num_threads()};
 
     host::collective_execution_engine<Dim> engine{num_groups, local_size,
                                                   offset, group_decomposition,
-                                                  omp_get_thread_num()};
+                                                  get_my_thread_id()};
 
     std::function<void()> barrier_impl = [&]() { engine.barrier(); };
 

@@ -1,4 +1,5 @@
-//===- src/compiler/cbs/VectorShapeTransformer.cpp - (s,a)-lattice abstract transformers --*- C++ -*-===//
+//===- src/compiler/cbs/VectorShapeTransformer.cpp - (s,a)-lattice abstract transformers --*- C++
+//-*-===//
 //
 // Adapted from the RV Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,6 +12,7 @@
 //
 
 #include "hipSYCL/compiler/cbs/VectorShapeTransformer.hpp"
+#include "hipSYCL/compiler/cbs/VectorShape.hpp"
 #include "hipSYCL/compiler/cbs/VectorizationInfo.hpp"
 
 #include "hipSYCL/compiler/cbs/MathUtils.hpp"
@@ -22,6 +24,17 @@
 
 using namespace hipsycl::compiler;
 using namespace llvm;
+
+#if LLVM_VERSION_MAJOR < 13
+#define IS_OPAQUE(pointer) constexpr(false)
+#define HAS_TYPED_PTR 1
+#elif LLVM_VERSION_MAJOR < 16
+#define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
+#define HAS_TYPED_PTR 1
+#else
+#define IS_OPAQUE(pointer) constexpr(true)
+#define HAS_TYPED_PTR 0
+#endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())
@@ -56,9 +69,16 @@ static Type *getElementType(Type *Ty) {
   if (auto VecTy = dyn_cast<VectorType>(Ty)) {
     return VecTy->getElementType();
   }
+#if HAS_TYPED_PTR
   if (auto PtrTy = dyn_cast<PointerType>(Ty)) {
-    return PtrTy->getElementType();
+    if IS_OPAQUE (PtrTy)
+      return nullptr;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    return PtrTy->getPointerElementType();
+#pragma GCC diagnostic pop
   }
+#endif
   if (auto ArrTy = dyn_cast<ArrayType>(Ty)) {
     return ArrTy->getElementType();
   }
@@ -109,7 +129,7 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
   switch (I.getOpcode()) {
   case Instruction::Alloca: {
     const int alignment = vecInfo.getVectorWidth();
-    auto *AllocatedType = I.getType()->getPointerElementType();
+    auto *AllocatedType = llvm::cast<llvm::AllocaInst>(I).getAllocatedType();
     const bool Vectorizable = false;
 
     if (Vectorizable) {
@@ -197,7 +217,10 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
         result.setAlignment(newalignment);
       } else {
         // NOTE: If indexShape is varying, this still reasons about alignment
-        subT = getElementType(subT);
+        if IS_OPAQUE (subT)
+          subT = gep.getSourceElementType();
+        else
+          subT = getElementType(subT);
         assert(subT && "Unknown LLVM element type .. IR type system change?");
 
         const size_t typeSizeInBytes = (size_t)layout.getTypeStoreSize(subT);
@@ -483,8 +506,15 @@ bool returnsVoidPtr(const Instruction &inst) {
     return false;
   if (!inst.getType()->isPointerTy())
     return false;
+  if IS_OPAQUE (inst.getType())
+    return true;
 
+#if HAS_TYPED_PTR // otherwise return true from above holds.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   return inst.getType()->getPointerElementType()->isIntegerTy(8);
+#pragma GCC diagnostic pop
+#endif
 }
 
 VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &castI) const {
@@ -503,7 +533,14 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
   switch (castI.getOpcode()) {
   case Instruction::IntToPtr: {
     PointerType *DestType = cast<PointerType>(castI.getDestTy());
+    if IS_OPAQUE (DestType)
+      return VectorShape::strided(castOpStride, 1);
+
+#if HAS_TYPED_PTR
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     Type *DestPointsTo = DestType->getPointerElementType();
+#pragma GCC diagnostic pop
 
     // FIXME: void pointers are char pointers (i8*), but what
     // difference is there between a real i8* and a void pointer?
@@ -516,14 +553,24 @@ VectorShape VectorShapeTransformer::computeShapeForCastInst(const CastInst &cast
       return VectorShape::varying();
 
     return VectorShape::strided(castOpStride / typeSize, 1);
+#endif
   }
 
   case Instruction::PtrToInt: {
-    Type *SrcElemType = castI.getSrcTy()->getPointerElementType();
+    Type *SrcType = castI.getSrcTy();
+    if IS_OPAQUE (SrcType)
+      return VectorShape::strided(castOpStride, aligned);
+
+#if HAS_TYPED_PTR
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    Type *SrcElemType = SrcType->getPointerElementType();
+#pragma GCC diagnostic pop
 
     unsigned typeSize = (unsigned)layout.getTypeStoreSize(SrcElemType);
 
     return VectorShape::strided(typeSize * castOpStride, aligned);
+#endif
   }
 
     // Truncation reinterprets the stride modulo the target type width

@@ -1,6 +1,11 @@
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 if(BUILD_CLANG_PLUGIN)
   add_subdirectory(compiler)
 endif()
+
+list( APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib )
+
 add_subdirectory(runtime)
 add_subdirectory(tools)
 

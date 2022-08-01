@@ -1,5 +1,4 @@
-
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+find_package(Threads REQUIRED)
 
 set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
 set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
@@ -36,7 +35,7 @@ add_library(hipSYCL-rt SHARED
   serialization/serialization.cpp)
 
 target_compile_options(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
-target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.

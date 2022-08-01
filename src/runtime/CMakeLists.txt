@@ -1,6 +1,3 @@
-
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 find_package(Threads REQUIRED)
 
 set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")

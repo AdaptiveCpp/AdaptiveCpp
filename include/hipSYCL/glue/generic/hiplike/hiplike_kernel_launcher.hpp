@@ -886,11 +886,24 @@ public:
 private:
   
   static constexpr bool is_launch_from_module() {
+
+    constexpr auto is_cuda_module_launch = [](){
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-    return Backend_id == rt::backend_id::cuda;
+      return Backend_id == rt::backend_id::cuda;
 #else
-    return false;
+      return false;
 #endif
+    };
+
+    constexpr auto is_hip_module_launch = [](){
+#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
+      return Backend_id == rt::backend_id::hip;
+#else
+      return false;
+#endif
+    };
+
+    return is_cuda_module_launch() || is_hip_module_launch();
   }
 
   template<class KernelT>
@@ -927,47 +940,48 @@ private:
   void invoke_from_module(rt::dag_node* node, dim3 grid_size, dim3 block_size,
                           unsigned dynamic_shared_mem, Args... args) {
     assert(node);
+  
+#if defined(__HIPSYCL_MULTIPASS_CUDA_HEADER__) || defined(__HIPSYCL_MULTIPASS_HIP_HEADER__)
 
-    if constexpr (Backend_id == rt::backend_id::cuda) {
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-
-      const std::size_t local_cuda_hcf_object_id =
-          __hipsycl_local_cuda_hcf_object_id;
-
-      std::array<void *, sizeof...(Args)> kernel_args{
-        static_cast<void *>(&args)...
-      };
-      std::array<std::size_t, sizeof...(Args)> arg_sizes{
-        sizeof(Args)...
-      };
-
-      std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
-      std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
-
-      rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
-
-      assert(invoker &&
-             "Runtime backend does not support invoking kernels from modules");
-
-      auto num_groups = rt::range<3>{grid_size.x, grid_size.y, grid_size.z};
-      auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
-
-      const rt::kernel_operation &op =
-          *static_cast<rt::kernel_operation*>(node->get_operation());
-
-      rt::result err = invoker->submit_kernel(op, local_cuda_hcf_object_id,
-          num_groups, group_size, dynamic_shared_mem, kernel_args.data(),
-          arg_sizes.data(), kernel_args.size(), kernel_name_tag,
-          kernel_body_name);
-
-      if (!err.is_success())
-        rt::register_error(err);
+    const std::size_t local_hcf_object_id =
+        __hipsycl_local_cuda_hcf_object_id;
 #else
-      assert(false && "No module available to invoke kernels from");
+    const std::size_t local_hcf_object_id =
+        __hipsycl_local_hip_hcf_object_id;
 #endif
-    } else {
-      assert(false && "Backend does not support kernel launch from module");
-    }
+
+    std::array<void *, sizeof...(Args)> kernel_args{
+      static_cast<void *>(&args)...
+    };
+    std::array<std::size_t, sizeof...(Args)> arg_sizes{
+      sizeof(Args)...
+    };
+
+    std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
+    std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
+
+    rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
+
+    assert(invoker &&
+            "Runtime backend does not support invoking kernels from modules");
+
+    auto num_groups = rt::range<3>{grid_size.x, grid_size.y, grid_size.z};
+    auto group_size = rt::range<3>{block_size.x, block_size.y, block_size.z};
+
+    const rt::kernel_operation &op =
+        *static_cast<rt::kernel_operation*>(node->get_operation());
+
+    rt::result err = invoker->submit_kernel(op, local_hcf_object_id,
+        num_groups, group_size, dynamic_shared_mem, kernel_args.data(),
+        arg_sizes.data(), kernel_args.size(), kernel_name_tag,
+        kernel_body_name);
+
+    if (!err.is_success())
+      rt::register_error(err);
+#else
+    assert(false && "No module available to invoke kernels from");
+#endif
   }
 
   Queue_type *_queue;

@@ -43,7 +43,6 @@ namespace rt {
 
 enum class code_format {
   ptx,
-  amdgpu,
   spirv,
   native_isa
 };
@@ -67,7 +66,11 @@ public:
   virtual hcf_object_id hcf_source() const = 0;
   virtual std::string target_arch() const = 0;
   
+  // Do we really need this? Cannot be implemented on all backends,
+  // and may return empty vector in this case. Maybe better to not
+  // have as part of the general interface?
   virtual std::vector<std::string> supported_backend_kernel_names() const = 0;
+
   virtual bool contains(const std::string& backend_kernel_name) const = 0;
 };
 

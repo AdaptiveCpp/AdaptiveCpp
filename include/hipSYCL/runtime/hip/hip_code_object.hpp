@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,56 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_GLUE_CODE_OBJECT_HPP
-#define HIPSYCL_GLUE_CODE_OBJECT_HPP
-
+#ifndef HIPSYCL_HIP_CODE_OBJECT_HPP
+#define HIPSYCL_HIP_CODE_OBJECT_HPP
 
 #include <vector>
-#include <array>
 #include <string>
+
+#include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
-#include "hipSYCL/common/hcf_container.hpp"
 
-#define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
-  (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
 
-template<std::size_t Hcf_object_id>
-struct __hipsycl_hcf_registration {};
+struct ihipModule_t;
 
-#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_object_id, hcf_string, hcf_size)   \
-  template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
-    __hipsycl_hcf_registration() {                                             \
-      ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
-          ::hipsycl::common::hcf_container{std::string{                        \
-              reinterpret_cast<const char *>(hcf_string), hcf_size}});         \
-    }                                                                          \
-  };                                                                           \
-  __hipsycl_hcf_registration<hcf_object_id>                                    \
-      __hipsycl_register_hcf_##hcf_object_id;
+namespace hipsycl {
+namespace rt {
 
-#ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
- #include __HIPSYCL_MULTIPASS_CUDA_HEADER__
-#endif
 
-#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
- #include __HIPSYCL_MULTIPASS_HIP_HEADER__
-#endif
+class hip_executable_object : public code_object {
+public:
+  virtual ~hip_executable_object();
+  hip_executable_object(hcf_object_id origin, const std::string &target,
+                        const std::string &hip_fat_binary, int device);
 
-#ifdef __HIPSYCL_MULTIPASS_SPIRV_HEADER__
- #include __HIPSYCL_MULTIPASS_SPIRV_HEADER__
-#endif
+  result get_build_result() const;
+
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
+
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+
+  ihipModule_t* get_module() const;
+  int get_device() const;
+private:
+  result build(const std::string& hip_fat_binary);
+
+  hcf_object_id _origin;
+  std::string _target;
+  result _build_result;
+  int _device;
+  ihipModule_t* _module;
+};
+
+
+}
+}
 
 #endif

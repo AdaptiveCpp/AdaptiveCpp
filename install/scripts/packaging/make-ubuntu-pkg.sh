@@ -23,7 +23,7 @@ mkdir -p ${HIPSYCL_OMP_DIR}/DEBIAN
 mkdir -p ${HIPSYCL_META_DIR}/DEBIAN
 mkdir -p ${HIPSYCL_FULL_DIR}/DEBIAN
 
-cat << EOF > ${HIPSYCL_CORE_DIR}/DEBIAN/control 
+cat << EOF > ${HIPSYCL_CORE_DIR}/DEBIAN/control
 Package: hipsycl-core-${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
@@ -32,10 +32,10 @@ Architecture: amd64
 Depends: hipsycl-omp-${HIPSYCL_PKG_TYPE}, python3 (>= 3.0)
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
 Description: hipSYCL${HIPSYCL_VERSION_STRING}
- Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs 
+ Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
 EOF
 
-cat << EOF > ${HIPSYCL_CUDA_DIR}/DEBIAN/control 
+cat << EOF > ${HIPSYCL_CUDA_DIR}/DEBIAN/control
 Package: hipsycl-cuda-${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
@@ -47,7 +47,7 @@ Description: hipSYCL${HIPSYCL_VERSION_STRING}
   Cuda backend for hipSYCL
 EOF
 
-cat << EOF > ${HIPSYCL_ROCM_DIR}/DEBIAN/control 
+cat << EOF > ${HIPSYCL_ROCM_DIR}/DEBIAN/control
 Package: hipsycl-rocm-${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
@@ -59,7 +59,7 @@ Description: hipSYCL${HIPSYCL_VERSION_STRING}
   Rocm backend for hipSYCL
 EOF
 
-cat << EOF > ${HIPSYCL_OMP_DIR}/DEBIAN/control 
+cat << EOF > ${HIPSYCL_OMP_DIR}/DEBIAN/control
 Package: hipsycl-omp-${HIPSYCL_PKG_TYPE}
 Version: ${HIPSYCL_VERSION_STRING}
 Section: base
@@ -103,7 +103,7 @@ Priority: optional
 Architecture: amd64
 Depends: hipsycl-rocm-${HIPSYCL_PKG_TYPE},  hipsycl-cuda-${HIPSYCL_PKG_TYPE}
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-Description:  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs 
+Description:  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
 
 EOF
 
@@ -115,7 +115,7 @@ Priority: optional
 Architecture: amd64
 Depends: hipsycl-full-${HIPSYCL_PKG_TYPE}
 Maintainer: Aksel Alpay <aksel.alpay@uni-heidelberg.de>
-Description:  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs 
+Description:  Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
 
 EOF
 
@@ -142,10 +142,10 @@ fi
 
 if [ "$HIPSYCL_PKG_BUILD_HIPSYCL" = "ON" ]; then
 
-dpkg-deb --build ${HIPSYCL_CORE_DIR} 
-dpkg-deb --build ${HIPSYCL_CUDA_DIR} 
-dpkg-deb --build ${HIPSYCL_ROCM_DIR} 
-dpkg-deb --build ${HIPSYCL_OMP_DIR} 
+dpkg-deb --build ${HIPSYCL_CORE_DIR}
+dpkg-deb --build ${HIPSYCL_CUDA_DIR}
+dpkg-deb --build ${HIPSYCL_ROCM_DIR}
+dpkg-deb --build ${HIPSYCL_OMP_DIR}
 
 dpkg-deb --build ${HIPSYCL_META_PKG}
 dpkg-deb --build ${HIPSYCL_FULL_PKG}
@@ -154,4 +154,3 @@ fi
 if [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ]; then
 dpkg-deb --build ${CUDA_PKG}
 fi
-

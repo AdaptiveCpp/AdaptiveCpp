@@ -49,10 +49,10 @@ namespace {
 
 void host_synchronization_callback(hipStream_t stream, hipError_t status,
                                    void *userData) {
-  
+
   assert(userData);
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
-  
+
   if(status != hipSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"hip_queue callback: HIP returned error code.",
@@ -69,7 +69,7 @@ void host_synchronization_callback(hipStream_t stream, hipError_t status,
 class hip_instrumentation_guard {
 public:
   hip_instrumentation_guard(hip_queue *q,
-                             operation &op, dag_node_ptr node) 
+                             operation &op, dag_node_ptr node)
                              : _queue{q}, _operation{&op}, _node{node} {
     assert(q);
     assert(_node);
@@ -205,7 +205,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     } else if (dest_dev.get_full_backend_descriptor().hw_platform ==
                hardware_platform::cpu) {
       copy_kind = hipMemcpyDeviceToHost;
-      
+
     } else
       assert(false && "Unknown copy destination platform");
   } else if (source_dev.get_full_backend_descriptor().hw_platform ==
@@ -237,7 +237,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
       op.source().get_access_offset() == id<3>{} &&
       op.dest().get_access_offset() == id<3>{})
     dimension = 1;
-  
+
   assert(dimension >= 1 && dimension <= 3);
 
   hip_instrumentation_guard instrumentation{this, op, node};
@@ -248,7 +248,7 @@ result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     err = hipMemcpyAsync(
         op.dest().get_access_ptr(), op.source().get_access_ptr(),
         op.get_num_transferred_bytes(), copy_kind, get_stream());
-    
+
   } else if (dimension == 2) {
     err = hipMemcpy2DAsync(
         op.dest().get_access_ptr(),
@@ -296,7 +296,7 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   this->activate_device();
   rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::hip);
-  
+
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
@@ -313,9 +313,9 @@ result hip_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
   // properties of the event.
   hip_instrumentation_guard instrumentation{this, op, node};
 #ifdef HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY
-  
+
   hipError_t err = hipSuccess;
-  
+
   if (op.get_target().is_host()) {
     err = hipMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
                               hipCpuDeviceId, get_stream());
@@ -405,7 +405,7 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
   assert(user_data);
   *user_data = node;
 
-  auto err = 
+  auto err =
       hipStreamAddCallback(_stream, host_synchronization_callback,
                            reinterpret_cast<void *>(user_data), 0);
 
@@ -414,7 +414,7 @@ result hip_queue::submit_external_wait_for(dag_node_ptr node) {
                    error_info{"hip_queue: Couldn't submit stream callback",
                               error_code{"HIP", err}});
   }
-  
+
   return make_success();
 }
 
@@ -435,7 +435,7 @@ result hip_queue::submit_kernel_from_code_object(
       void **kernel_args, std::size_t* arg_sizes, std::size_t num_args) {
 
   this->activate_device();
-  
+
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t *kidx =
       kernel_cache::get().get_global_kernel_index(global_kernel_name);
@@ -511,7 +511,7 @@ result hip_queue::submit_kernel_from_code_object(
       *kidx, backend_kernel_name, backend_id::hip, hcf_object,
       code_object_selector, code_object_constructor);
 
-  
+
   if(!obj) {
     return make_error(__hipsycl_here(),
                       error_info{"hip_queue: Code object construction failed"});
@@ -533,7 +533,7 @@ result hip_queue::submit_kernel_from_code_object(
                                  error_code{"HIP", static_cast<int>(err)}});
   }
 
-  err = hipModuleLaunchKernel(kernel_func, 
+  err = hipModuleLaunchKernel(kernel_func,
     static_cast<unsigned>(grid_size.get(0)),
                        static_cast<unsigned>(grid_size.get(1)),
                        static_cast<unsigned>(grid_size.get(2)),
@@ -547,7 +547,7 @@ result hip_queue::submit_kernel_from_code_object(
                       error_info{"hip_queue: could not submit kernel from module",
                                  error_code{"HIP", static_cast<int>(err)}});
   }
-  
+
   return make_success();
 }
 
@@ -579,4 +579,3 @@ result hip_code_object_invoker::submit_kernel(
 
 }
 }
-

@@ -40,4 +40,3 @@ EOF
 
 cd ${RPM_ROOT}/SPECS
 rpmbuild -D '%_python_bytecompile_errors_terminate_build 0' -bb hipSYCL-cuda.spec
-

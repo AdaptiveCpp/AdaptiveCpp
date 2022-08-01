@@ -22,7 +22,7 @@ These four components are strictly separated both in terms of the directory stru
 
 ## SYCL interface
 
-The SYCL interface provides the SYCL classes and functions that the user actually interacts with, i.e. everything inside the `sycl::` namespace. It can be seen as divided in two parts: 
+The SYCL interface provides the SYCL classes and functions that the user actually interacts with, i.e. everything inside the `sycl::` namespace. It can be seen as divided in two parts:
 1. SYCL host API: This part of the SYCL interface is written in regular C++, only runs on the host and provides mechanisms for task submission, task management, platform and device management etc. For example `sycl::queue`, `sycl::event`, `sycl::device` belong to the host API. The SYCL host API is mainly just an interface to the SYCL runtime, which actually implements most of these features. *Backend-specific code is not allowed in the host API as a rule of thumb. Non-standard C++ code (e.g. CUDA) is absolutely not allowed in the host API.*
 2. SYCL kernel library: The kernel library contains all SYCL classes and functions that are available from kernels. In general, the kernel library will make use of backend-specific functionality and may even need to be written in a backend-specific C++ dialect such as CUDA. This means that in general, a regular C++ compiler may not be able to parse the kernel library code.
   Note that there are some classes such as `sycl::accessor`, `sycl::id`, `sycl::range` that are needed both inside and outside kernel code.
@@ -35,7 +35,7 @@ Because of this, and to simplify the hipSYCL build process, the SYCL interface i
 
 The runtime implements device management, task graph management and execution, data management, backend management, scheduling and task synchronization. It interfaces with the runtime components of the supported backends (e.g. the CUDA runtime).
 
-Unlike the SYCL interface, the runtime is not header-only - it is in fact the major component that needs to be compiled when building hipSYCL. The runtime (compiled as `libhipSYCL-rt`) is a unified library for all backends. Backends are implemented using polymorphism, i.e. as classes derived from an abstract `backend` base class. When the runtime is initialized, all backends that have been enabled at build time are initialized. This means that, *regardless of what target the user compiles SYCL code for, all devices seen by available backends will show up when querying available devices*. 
+Unlike the SYCL interface, the runtime is not header-only - it is in fact the major component that needs to be compiled when building hipSYCL. The runtime (compiled as `libhipSYCL-rt`) is a unified library for all backends. Backends are implemented using polymorphism, i.e. as classes derived from an abstract `backend` base class. When the runtime is initialized, all backends that have been enabled at build time are initialized. This means that, *regardless of what target the user compiles SYCL code for, all devices seen by available backends will show up when querying available devices*.
 However, in order to actually run kernels on a particular device, it is additionally necessary that the compiler component has generated code for this device. This can lead to the situation where a user can select a device for computation just fine, but then is unable to run kernels on the device if it has not been specified as compilation target when compiling the SYCL code.
 
 Because the runtime is compiled like any regular C++ library, it *must not use functionality from the SYCL interface*, since the SYCL interface in general *cannot* be compiled by a regular C++ compiler.
@@ -55,7 +55,7 @@ Because of the clang plugin, clang is a dependency for the CUDA and ROCm backend
 
 If a connection needs to be established between some of the other components that requires intimate knowledge or implementation details of both, the `glue` part of hipSYCL is the right place.
 
-The most important part of the glue code are the *kernel launchers*. The kernel launchers, as the name suggests, implement launching a SYCL kernel for a particular backend. 
+The most important part of the glue code are the *kernel launchers*. The kernel launchers, as the name suggests, implement launching a SYCL kernel for a particular backend.
 While launching a kernel is semantically part of the runtime as it is subject to the runtime's scheduling decisions, it cannot be a part of the runtime: Launching a kernel may in general require specific compilers (think e.g. of the CUDA `<<<>>>` syntax or OpenMP pragmas). At the same time, relying on special compilers is only supported in the SYCL interface.
 The solution is to implement the kernel launch code as a header-only library that is included by the SYCL interface. The kernel launcher code generates a function object which, when executed, will invoke the kernel. This means we can simply pass this function object to the runtime, which will then invoke it when required without having to deal with the question of how exactly a kernel launch happens and what compiler was needed to generate the kernel.
 

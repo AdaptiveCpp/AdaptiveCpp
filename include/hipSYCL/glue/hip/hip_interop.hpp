@@ -69,7 +69,7 @@ template <> struct backend_interop<sycl::backend::hip> {
       rt::register_error(
           __hipsycl_here(),
           rt::error_info{"Invalid argument to get_native_queue()"});
-      
+
       return native_queue_type{};
     }
 

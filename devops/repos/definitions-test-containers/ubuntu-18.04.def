@@ -8,6 +8,6 @@ From: ubuntu:18.04
 %environment
 
 %post
-apt update -y 
+apt update -y
 apt install -y wget gawk gnupg apt-utils build-essential
 apt install -y software-properties-common

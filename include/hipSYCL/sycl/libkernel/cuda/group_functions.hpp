@@ -168,4 +168,3 @@ __device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
 
 #endif
 #endif // HIPSYCL_LIBKERNEL_CUDA_GROUP_FUNCTIONS_HPP
-

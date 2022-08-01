@@ -14,7 +14,7 @@ RPM_ROOT=${BUILD_DIR}/rpm
 mkdir -p ${RPM_ROOT}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
 
 # We need to use %undefine __brp_mangle_shebangs
-# since llvm contains ambigous python shebangs 
+# since llvm contains ambigous python shebangs
 # Probably fixing these here is not the best idea
 cat << EOF > ${RPM_ROOT}/SPECS/hipSYCL-core-${HIPSYCL_PKG_TYPE}.spec
 Summary: Implementation of Khronos SYCL for CPUs, AMD GPUs and NVIDIA GPUs
@@ -26,7 +26,7 @@ Packager: Aksel Alpay
 Group: Development/Tools
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_PKG_TYPE}-${HIPSYCL_VERSION_STRING}
-Requires: python3, hipSYCL-omp-${HIPSYCL_PKG_TYPE} 
+Requires: python3, hipSYCL-omp-${HIPSYCL_PKG_TYPE}
 AutoReq: no
 
 %description
@@ -54,7 +54,7 @@ Release: ${HIPSYCL_BUILD}
 License: BSD
 Packager: Aksel Alpay
 Group: Development/Tools
-BuildRequires: coreutils 
+BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_PKG_TYPE}-${HIPSYCL_VERSION_STRING}
 Requires: python3, hipSYCL-core-${HIPSYCL_PKG_TYPE}
 AutoReq: no
@@ -81,7 +81,7 @@ Release: ${HIPSYCL_BUILD}
 License: BSD
 Packager: Aksel Alpay
 Group: Development/Tools
-BuildRequires: coreutils 
+BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT}/tmp/hipSYCL-${HIPSYCL_PKG_TYPE}-${HIPSYCL_VERSION_STRING}
 Requires: python3, hipSYCL-base-rocm-${HIPSYCL_PKG_TYPE}, hipSYCL-core-${HIPSYCL_PKG_TYPE}
 AutoReq: no
@@ -221,7 +221,7 @@ AutoReq: no
 
 %install
 cp -R ${ROCM_DIR}/* %{buildroot}
-  
+
 %global __python %{__python3}
 %undefine __brp_mangle_shebangs
 

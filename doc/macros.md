@@ -28,10 +28,10 @@
 ### `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_<backend>`
 Note: Some compiler drivers that hipSYCL supports can compile for multiple backends in a single pass. Therefore, the following macros should not be seen as mutually exclusive in general. Currently, this affects the `cuda-nvcxx` driver which can target CUDA and host in a single pass.
 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
-* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
+* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise.
+* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise.
+* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP` - Set to 1 if the current compilation pass targets host. 0 otherwise.
+* `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV` - Set to 1 if the current compilation pass targets host. 0 otherwise.
 
 ### Properties of current compilation pass
 
@@ -56,7 +56,7 @@ Note: Some compiler drivers that hipSYCL supports can compile for multiple backe
 
 * (deprecated) `HIPSYCL_PLATFORM_CUDA` - defined when CUDA language extensions are available
 * (deprecated) `HIPSYCL_PLATFORM_ROCM`, `HIPSYCL_PLATFORM_HIP` - defined when HIP language extensions are available
-* (deprecated) `HIPSYCL_PLATFORM_SPIRV` - defined if SPIR-V intrinsics are available 
+* (deprecated) `HIPSYCL_PLATFORM_SPIRV` - defined if SPIR-V intrinsics are available
 * (deprecated) `HIPSYCL_PLATFORM_CPU` - defined if compiling for the host
 
 

@@ -48,7 +48,7 @@ bool omp_hardware_context::is_gpu() const {
 std::size_t omp_hardware_context::get_max_kernel_concurrency() const {
   return 1;
 }
-  
+
 // TODO We could actually copy have more memcpy concurrency
 std::size_t omp_hardware_context::get_max_memcpy_concurrency() const {
   return 1;

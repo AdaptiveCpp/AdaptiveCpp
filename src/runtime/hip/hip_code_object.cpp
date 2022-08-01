@@ -94,7 +94,7 @@ hip_executable_object::supported_backend_kernel_names() const {
 bool hip_executable_object::contains(const std::string &backend_kernel_name) const {
   if(!_build_result.is_success())
     return false;
-  
+
   // Currently just implemented by trying to query a function.
   hipFunction_t f;
   auto err = hipModuleGetFunction(&f, _module, backend_kernel_name.c_str());

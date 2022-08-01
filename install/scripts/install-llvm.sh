@@ -14,7 +14,7 @@ HIPSYCL_LLVM_BUILD_DIR=${HIPSYCL_LLVM_BUILD_DIR:-$HOME/git/llvm-vanilla}
 set -e
 if [ -d "$HIPSYCL_LLVM_BUILD_DIR" ]; then
        read -p  "The build directory already exists, do you want to use $HIPSYCL_LLVM_BUILD_DIR anyways?[y]" -n 1 -r
-       echo 
+       echo
        if [[ $REPLY =~ ^[Yy]$ ]]; then
               echo "Using the exisiting directory"
        else

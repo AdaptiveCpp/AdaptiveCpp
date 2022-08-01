@@ -67,7 +67,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       Reductions... reductions) {
 
   using name_traits = kernel_name_traits<KernelNameTag, Kernel>;
-  
+
   std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {

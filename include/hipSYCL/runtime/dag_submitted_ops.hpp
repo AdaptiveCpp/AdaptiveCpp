@@ -51,7 +51,7 @@ public:
   // For best performance, the provided nodes should be in submission order.
   void async_wait_and_unregister(const std::vector<dag_node_ptr>& nodes);
   void update_with_submission(dag_node_ptr single_node);
-  
+
   void wait_for_all();
   void wait_for_group(std::size_t node_group);
   std::vector<dag_node_ptr> get_group(std::size_t node_group);

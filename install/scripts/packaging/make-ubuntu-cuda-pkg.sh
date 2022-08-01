@@ -22,4 +22,3 @@ INSTALL_PREFIX=${CUDA_DIR}/opt/hipSYCL sh ../install-cuda.sh
 
 cd ${BUILD_DIR}
 dpkg-deb --build ${CUDA_PKG}
-

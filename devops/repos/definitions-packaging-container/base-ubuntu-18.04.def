@@ -10,4 +10,3 @@ From: ubuntu:18.04
 %post
 apt -y update
 apt -y install dpkg-dev dpkg-sig apt-utils
-

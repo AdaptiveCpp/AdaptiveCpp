@@ -102,7 +102,7 @@ public:
   friend bool operator==(const id<dimensions>& lhs, const id<dimensions>& rhs){
     return lhs._data == rhs._data;
   }
-  
+
   HIPSYCL_UNIVERSAL_TARGET
   friend bool operator!=(const id<dimensions>& lhs, const id<dimensions>& rhs){
     return lhs._data != rhs._data;

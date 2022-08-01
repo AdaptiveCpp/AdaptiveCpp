@@ -49,7 +49,7 @@ namespace detail {
     __hipsycl_if_target_host(return 0;);                                       \
   }
 
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x, 
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x,
   threadIdx.x, hipThreadIdx_x, __spirv_BuiltInLocalInvocationId.x, 0)
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y,
   threadIdx.y, hipThreadIdx_y, __spirv_BuiltInLocalInvocationId.y, 0)
@@ -108,8 +108,8 @@ HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
 
 
 
-// The get_global_id_* and get_global_size_* functions 
-// should only be used in the implementation of more 
+// The get_global_id_* and get_global_size_* functions
+// should only be used in the implementation of more
 // high-level functions in this file since they do
 // not take into the transformation needed to map
 // the fastest SYCL index to the fastest hardware index:

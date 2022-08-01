@@ -46,7 +46,7 @@ dag_node::dag_node(const execution_hints &hints,
       _assigned_executor{nullptr}, _event{nullptr}, _operation{std::move(op)},
       _is_submitted{false}, _is_complete{false}, _is_virtual{false},
       _is_cancelled{false}, _rt{rt} {
-  
+
   for(const auto& req : requirements)
     _requirements.push_back(req);
 }
@@ -104,7 +104,7 @@ void dag_node::mark_virtually_submitted()
   }
   mark_submitted(std::make_shared<dag_multi_node_event>(events));
 }
-    
+
 void dag_node::cancel() {
   mark_virtually_submitted();
   this->_is_complete = true;
@@ -276,10 +276,10 @@ dag_node::get_event() const{
 
 void dag_node::for_each_nonvirtual_requirement(
     std::function<void(dag_node_ptr)> handler) const {
-  
+
   if (is_complete())
     return;
-  
+
   for (auto req : get_requirements()) {
     if(auto r = req.lock()) {
       if (!r->is_virtual()) {

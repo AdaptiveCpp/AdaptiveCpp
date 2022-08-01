@@ -42,7 +42,7 @@ Follow [these](install-rocm.md) instructions
 
 Follow [these](install-spirv.md) instructions.
 
-#### Building and installing 
+#### Building and installing
 
 Once the software requirements mentioned above are met, clone the repository:
 ```

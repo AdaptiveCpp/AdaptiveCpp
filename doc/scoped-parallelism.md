@@ -84,13 +84,13 @@ There are three different group categories in scoped parallelism. They can be di
 2. A subgroup. For subgroups it holds that `Group::fence_scope == sycl::memory_scope::sub_group`. A sub group is a collection of logical work items below the granularity of the full work group. A backend or device might support multiple levels of nested sub groups.
 3. A scalar group. For scalar groups it holds that `Group::fence_scope == sycl::memory_scope::work_item`. Scalar groups contain a single logical work item.
 
- 
+
 Invoking `distribute_groups()` on a group may result in the following group types provided in the next nesting level:
 1. Work group subdivision may result in subgroup or a scalar group.
 2. Subdivision of a subgroup may result in another, smaller subgroup or a scalar group
 3. Subdivision of a scalar group will result in a scalar group.
 
-`sycl::distribute_items()` within 
+`sycl::distribute_items()` within
 The user then expresses the kernel using calls to `distribute_groups` and `distribute_items`. `distribute_groups`
 
 ## Scoped parallelism nesting rules
@@ -143,7 +143,7 @@ sycl::queue{}.parallel(num_work_groups, logical_group_size,
           ...
         });
       });
-      
+
       sycl::distribute_groups(subgroup, [&](auto subsubgroup){
         // Invalid (rule 3): Only one physical work item (the leader)
         // of subsubgroup will reach the distribute_items call.
@@ -192,20 +192,20 @@ See the example code below for an illustration on how `memory_environment()` can
 #include <vector>
 
 int main(){
-  
+
   sycl::queue q;
-  
+
   std::size_t input_size = 1024;
   std::vector<int> input(input_size);
   for(int i = 0; i < input.size(); ++i)
     input[i] = i;
-  
+
   sycl::buffer<int> buff{input.data(), sycl::range<1>{input_size}};
-  
+
   constexpr size_t Group_size = 128;
   q.submit([&](sycl::handler& cgh){
     auto data_accessor = buff.get_access<sycl::access::mode::read_write>(cgh);
-    cgh.parallel<class Kernel>(sycl::range<1>{input_size / Group_size}, sycl::range<1>{Group_size}, 
+    cgh.parallel<class Kernel>(sycl::range<1>{input_size / Group_size}, sycl::range<1>{Group_size},
     [=](auto grp){
       // Outside of distribute_items(), the degree of parallelism is implementation-defined.
       // the implementation can use whatever is most efficient for hardware/backend.
@@ -214,11 +214,11 @@ int main(){
       // Information about the position in the physical iteration space can be obtained
       // using grp.get_physical_local_id() and grp.get_physical_local_range().
 
-      // sycl::memory_environment() can be used to allocate local memory 
+      // sycl::memory_environment() can be used to allocate local memory
       // (of compile-time size) as well as private memory that is persistent across
       // multiple distribute_items() calls.
       // Of course, local accessors can also be used.
-      sycl::memory_environment(grp, 
+      sycl::memory_environment(grp,
         sycl::require_local_mem<int[Group_size]>(),
         // the requested private memory is not used in this example,
         // and only here to showcase how to request private memory.
@@ -229,13 +229,13 @@ int main(){
         // and of type sycl::s_private_memory<T, decltype(grp)>&.
         // scratch is a reference to the requested int[Group_size] array.
 
-        // Variables not explicitly requested as local or private memory 
+        // Variables not explicitly requested as local or private memory
         // will be allocated in private memory of the _physical_ work item
         // (see the for loop below)
 
-        // `distribute_items` distributes the logical, user-provided iteration space across the physical one. 
+        // `distribute_items` distributes the logical, user-provided iteration space across the physical one.
         sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
-            scratch[idx.get_local_id(grp, 0)] = data_accessor[idx.get_global_id(0)]; 
+            scratch[idx.get_local_id(grp, 0)] = data_accessor[idx.get_global_id(0)];
         });
         // Instead of an explicit group_barrier, we could also use the
         // blocking distribute_items_and_wait()
@@ -256,29 +256,29 @@ int main(){
         for(int i = Group_size / 2; i > 0; i /= 2){
           // The *_and_wait variants of distribute_groups and distribute_items
           // invoke a group_barrier at the end.
-          sycl::distribute_items_and_wait(grp, 
+          sycl::distribute_items_and_wait(grp,
             [&](sycl::s_item<1> idx){
             size_t lid = idx.get_innermost_local_id(0);
             if(lid < i)
               scratch[lid] += scratch[lid+i];
           });
         }
-        
+
         sycl::single_item(grp, [&](){
           data_accessor[grp.get_group_id(0)*Group_size] = scratch[0];
         });
       });
     });
   });
-  
+
   // Verify results on host
   auto host_acc = buff.get_access<sycl::access::mode::read>();
-  
+
   for(int grp = 0; grp < input_size/Group_size; ++grp){
     int host_result = 0;
     for(int i = grp * Group_size; i < (grp+1) * Group_size; ++i)
       host_result += i;
-    
+
     if(host_result != host_acc[grp*Group_size])
       std::cout << "Wrong result, got " << host_acc[grp * Group_size] << ", expected " << host_result << std::endl;
   }
@@ -290,7 +290,7 @@ int main(){
 ### New functions in `sycl::handler`
 
 ```c++
-/// Spawns a new parallel region. f must have the signature 
+/// Spawns a new parallel region. f must have the signature
 /// void(sycl::s_group<__unspecified__>)
 template <typename KernelName, typename KernelFunctionType,
           typename... Reductions, int dimensions>
@@ -314,7 +314,7 @@ namespace sycl {
 /// physical parallel resources that participate in executing this group.
 ///
 /// For each logical work item within the group, executes f exactly once.
-/// 
+///
 /// f must be a callable with signature void(sycl::s_item<Dimension>)
 template<class SpGroup, class NestedF>
 void distribute_items(const SpGroup &g, NestedF f) noexcept;
@@ -327,7 +327,7 @@ void distribute_items_and_wait(const SpGroup &g, NestedF f) noexcept;
 
 /// Only available if SpGroup is a scoped parallelism group type
 ///
-/// Subdivides the logical iteration space of the group into 
+/// Subdivides the logical iteration space of the group into
 /// implementation-defined smaller units and distributes
 /// them across the physical parallel resources that participate in execution.
 ///
@@ -360,18 +360,18 @@ void single_item_and_wait(const SpGroup &g, F f) noexcept;
 /// Only available if SpGroup is a scoped parallelism group type
 ///
 /// Constructs a memory environment for the given group. Currently,
-/// Only top-level work groups are supported. 
+/// Only top-level work groups are supported.
 ///
-/// Args is a collection of memory allocation requests (return values of 
+/// Args is a collection of memory allocation requests (return values of
 /// sycl::require_local_memory() and sycl::require_private_memory()) and, in
 /// the last argument, a callable.
 ///
 /// This callable will be invoked once the required memory has been allocated.
-/// The callable will be provided with a references to the memory allocations, 
+/// The callable will be provided with a references to the memory allocations,
 /// in the order they were requested.
 ///
 /// If private memory was requested, a wrapper type will be passed into the callable
-/// instead of the raw memory reference. The wrapper type has a member function 
+/// instead of the raw memory reference. The wrapper type has a member function
 /// T& operator()(const s_item<Dim>&) that can be used to obtain the actual memory.
 /// Local memory allocations will be passed directly as reference into the callable.
 template <class SpGroup, typename... Args>
@@ -441,8 +441,8 @@ class ScopedGroup {
   using id_type = sycl::id<dimensions>;
   using range_type = sycl::range<dimensions>;
   using linear_id_type = /* uint32_t or uint64_t */
-  
-  /// The memory scope the group operates in. 
+
+  /// The memory scope the group operates in.
   /// This can be used to distinguish different group types.
   static constexpr memory_scope fence_scope = /* memory scope of the group */;
 
@@ -466,7 +466,7 @@ class ScopedGroup {
   /// If this group is a work group, there is no parent group
   /// and the number of work groups is returned.
   range_type get_group_range() const noexcept;
-  
+
   /// Returns the number of groups within the parent group
   /// in the specified dimension.
   /// If this group is a work group, there is no parent group
@@ -491,7 +491,7 @@ class ScopedGroup {
   linear_id_type
   get_logical_local_linear_id(const sycl::s_item<dimensions> &idx) const noexcept;
 
-  /// Return the local id of the provided logical item in the 
+  /// Return the local id of the provided logical item in the
   /// specified dimension with respect to this group
   size_t get_logical_local_id(const sycl::s_item<dimensions> &idx,
                               int dimension) const noexcept;
@@ -569,7 +569,7 @@ class ScopedGroup {
   /// Returns the linear size of the physical iteration space of this group
   size_t get_physical_local_linear_range() const noexcept;
 
-  /// Returns whether the calling item is the leader in the physical 
+  /// Returns whether the calling item is the leader in the physical
   /// iteration space. Should not be called within distribute_items().
   bool leader() const noexcept;
 
@@ -581,7 +581,7 @@ class ScopedGroup {
   async_work_group_copy(local_ptr<dataT> dest, global_ptr<dataT> src,
                         size_t numElements) const noexcept;
 
-  
+
   /// Only available if the group is a work group; has same
   /// effect as the corresponding member function from sycl::group.
   /// See the SYCL specification for details.
@@ -673,7 +673,7 @@ class local_memory
 public:
   using scalar_type = typename std::remove_extent<T>::type;
 
-  // Only available if T is array. Returns reference to a single 
+  // Only available if T is array. Returns reference to a single
   // element of the array.
   [[deprecated("Use sycl::memory_environment() instead")]]
   scalar_type& operator[](std::size_t index) noexcept;
@@ -717,11 +717,11 @@ public:
   /// around the distribute_items() call.
   sycl::range<Dim> get_innermost_local_range() const noexcept;
 
-  /// Returns the local range in the specified dimension of 
+  /// Returns the local range in the specified dimension of
   /// the group nested innermost around the distribute_items() call.
   size_t get_innermost_local_range(int dimension) const noexcept;
 
-  /// Returns the linear local range the group nested innermost 
+  /// Returns the linear local range the group nested innermost
   /// around the distribute_items() call.
   size_t get_innermost_local_linear_range() const noexcept;
 
@@ -733,7 +733,7 @@ public:
   /// group.
   sycl::id<Dim> get_innermost_local_id() const noexcept;
 
-  /// Returns the local id in the specified dimension of this 
+  /// Returns the local id in the specified dimension of this
   /// logical work item with respect to the group nested innermost
   /// around the distribute_items() call
   ///
@@ -742,7 +742,7 @@ public:
   /// group.
   size_t get_innermost_local_id(int dimensions) const noexcept;
 
-  /// Returns the local linear id in the of this 
+  /// Returns the local linear id in the of this
   /// logical work item with respect to the group nested innermost
   /// around the distribute_items() call
   ///
@@ -778,4 +778,3 @@ public:
 
 }
 ```
-

@@ -95,7 +95,7 @@ public:
 
   std::size_t &operator[](int dim) { return _data[dim]; }
   std::size_t operator[](int dim) const { return _data[dim]; }
-  
+
   std::size_t get(int dim) const { return _data[dim]; }
 
 #define HIPSYCL_RT_SARRAY_MAKE_INPLACE_OP(op)                                  \
@@ -143,7 +143,7 @@ template <int Dim> using range = static_array<Dim>;
 
 template<int Dim>
 id<3> embed_in_id3(id<Dim> idx) {
-  static_assert(Dim >= 1 && Dim <=3, 
+  static_assert(Dim >= 1 && Dim <=3,
       "id dim must be between 1 and 3");
 
   if constexpr(Dim == 1) {
@@ -157,7 +157,7 @@ id<3> embed_in_id3(id<Dim> idx) {
 
 template<int Dim>
 range<3> embed_in_range3(range<Dim> r) {
-  static_assert(Dim >= 1 && Dim <=3, 
+  static_assert(Dim >= 1 && Dim <=3,
       "range dim must be between 1 and 3");
 
   if constexpr(Dim == 1) {

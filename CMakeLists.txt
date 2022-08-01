@@ -65,7 +65,7 @@ endif()
 if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
     #  message(SEND_ERROR "hipcc was not found")
-  
+
     # User has requested ROCm, but we could not find hipcc.
     # this is not necessarily a reason to abort,
     # since we only need libhip_hcc, the HIP includes,
@@ -144,7 +144,7 @@ if(BUILD_CLANG_PLUGIN)
   get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
   get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
-  # to let syclcc-clang fix a wrong order of system includes (clang's internal 
+  # to let syclcc-clang fix a wrong order of system includes (clang's internal
   # includes are not of high enough priority in the include path search order).
   # We identify this path as the one containing __clang_cuda_runtime_wrapper.h,
   # which is a clang-specific header file.
@@ -161,7 +161,7 @@ if(BUILD_CLANG_PLUGIN)
     # Required for newer ROCm versions
     set(CLANG_INCLUDE_PATH ${FOUND_CLANG_INCLUDE_PATH}/..)
   endif()
-  
+
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
     message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
   endif()
@@ -185,7 +185,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_subdirectory(src)
 
 set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
-set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
+set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL
   "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
 
 if(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION)
@@ -209,7 +209,7 @@ endif()
 
 if(APPLE)
   set(DEFAULT_OMP_FLAG "-Xclang -fopenmp")
-  
+
   if(Boost_FIBER_LIBRARY_DEBUG)
     set(DEFAULT_BOOST_LIBRARIES "${Boost_CONTEXT_LIBRARY_DEBUG} ${Boost_FIBER_LIBRARY_DEBUG} -Wl,-rpath ${Boost_LIBRARY_DIR}")
   else()
@@ -259,7 +259,7 @@ if(WIN32)
   if(NOT OMP_LINK_LINE)
     set(OMP_LINK_LINE ${DEFAULT_WIN32_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
   endif()
-  if(NOT SEQUENTIAL_LINK_LINE) 
+  if(NOT SEQUENTIAL_LINK_LINE)
     set(SEQUENTIAL_LINK_LINE ${DEFAULT_WIN32_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
   endif()
 elseif(APPLE)
@@ -269,7 +269,7 @@ elseif(APPLE)
   if(NOT OMP_LINK_LINE)
     set(OMP_LINK_LINE ${DEFAULT_APPLE_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
   endif()
-  if(NOT SEQUENTIAL_LINK_LINE) 
+  if(NOT SEQUENTIAL_LINK_LINE)
     set(SEQUENTIAL_LINK_LINE ${DEFAULT_APPLE_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
   endif()
 else()
@@ -279,33 +279,33 @@ else()
   if(NOT OMP_LINK_LINE)
     set(OMP_LINK_LINE ${DEFAULT_OMP_LINK_LINE} CACHE STRING "Arguments passed to compiler to link OpenMP libraries to SYCL applications")
   endif()
-  if(NOT SEQUENTIAL_LINK_LINE) 
+  if(NOT SEQUENTIAL_LINK_LINE)
     set(SEQUENTIAL_LINK_LINE ${DEFAULT_SEQUENTIAL_LINK_LINE} CACHE STRING "Arguments passed to compiler to link host libraries to SYCL applications")
   endif()
 endif()
 
 # If no compile flags given, set to default.
 if(NOT ROCM_CXX_FLAGS)
-  # clang erroneously sets feature detection flags for 
+  # clang erroneously sets feature detection flags for
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
 
   set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
-if(NOT CUDA_CXX_FLAGS)	
-  # clang erroneously sets feature detection flags for 
+if(NOT CUDA_CXX_FLAGS)
+  # clang erroneously sets feature detection flags for
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
   set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
 # always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
-if(NOT OMP_CXX_FLAGS) 
+if(NOT OMP_CXX_FLAGS)
   set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
 
-if(NOT SEQUENTIAL_CXX_FLAGS) 
+if(NOT SEQUENTIAL_CXX_FLAGS)
   set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
 endif()
 

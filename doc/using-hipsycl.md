@@ -36,8 +36,8 @@ For the following compilation flows, targets must be specified:
 ### Abbreviations
 
 For some compilation flows, abbreviations exist that will be resolved by hipSYCL to one of the available compilation flows:
-* `omp` will be translated 
-  * into `omp.accelerated` 
+* `omp` will be translated
+  * into `omp.accelerated`
      * if hipSYCL has been built with support for accelerated CPU and the host compiler is the clang that hipSYCL has been built with or
      * if `--hipsycl-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. hipSYCL has been compiled without support for it), compilation will abort with an error.
   * into `omp.library-only` otherwise
@@ -88,7 +88,7 @@ Options are:
   [default value provided by field 'default-clang' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   The path to the clang executable that should be used for compilation
-    (Note: *must* be compatible with the clang version that the 
+    (Note: *must* be compatible with the clang version that the
      hipSYCL clang plugin was compiled against!)
 
 --hipsycl-nvcxx=<value>
@@ -183,7 +183,7 @@ Options are:
   [default value provided by field 'default-config-file' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
   Select an alternative path for the config file containing the default hipSYCL settings.
-    It is normally not necessary for the user to change this setting. 
+    It is normally not necessary for the user to change this setting.
 
 --hipsycl-targets=<value>
   [can also be set with environment variable: HIPSYCL_TARGETS=<value>]
@@ -197,11 +197,11 @@ Options are:
                                    Uses Boost.Fiber for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --hipsycl-use-accelerated-cpu).
-      * cuda - CUDA backend 
+      * cuda - CUDA backend
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
-               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode
                                           (see --hipsycl-explicit-multipass)
                - cuda.integrated-multipass: Force CUDA backend to operate in integrated
                                            multipass mode.
@@ -226,8 +226,8 @@ Options are:
   [can also be set by setting environment variable HIPSYCL_DRYRUN to any value other than false|off|0 ]
   [default value provided by field 'default-is-dryrun' in /install/path/etc/hipSYCL/syclcc.json.]
   [current value: NOT SET]
-  If set, only shows compilation commands that would be executed, 
-  but does not actually execute it. 
+  If set, only shows compilation commands that would be executed,
+  but does not actually execute it.
 
 --hipsycl-explicit-multipass
   [can also be set by setting environment variable HIPSYCL_EXPLICIT_MULTIPASS to any value other than false|off|0 ]
@@ -236,7 +236,7 @@ Options are:
   If set, executes device passes as separate compiler invocation and lets hipSYCL control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
-  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. 
+  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode.
 
 --hipsycl-save-temps
   [can also be set by setting environment variable HIPSYCL_SAVE_TEMPS to any value other than false|off|0 ]

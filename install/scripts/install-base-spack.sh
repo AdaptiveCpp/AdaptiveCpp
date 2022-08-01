@@ -10,7 +10,7 @@ sed -i 's|root: .*$|root: /opt/hipSYCL/llvm/|' spack/etc/spack/defaults/config.y
 sed -i 's|all: .*$|all: ${PACKAGE}|' spack/etc/spack/defaults/config.yaml
 sed -i 's|# build_jobs: .*$|build_jobs: 64|' spack/etc/spack/defaults/config.yaml
 spack compiler find /opt/hipSYCL/llvm/llvm/bin/
-spack install llvm@$llvm_version libcxx=False 
+spack install llvm@$llvm_version libcxx=False
 
 sed -i 's|root: .*$|root: /opt/hipSYCL/boost/|' spack/etc/spack/defaults/config.yaml
 spack compiler find /opt/hipSYCL/llvm/llvm/bin/
@@ -20,6 +20,3 @@ sed -i 's|root: .*$|root: /opt/hipSYCL/rocm/|' spack/etc/spack/defaults/config.y
 find . | grep -E "(__pycache__|\.pyc|\.pyo$)" | xargs rm -rf
 spack compiler find /opt/hipSYCL/llvm/llvm/bin/
 spack install hip%clang@$llvm_version
-
-
-

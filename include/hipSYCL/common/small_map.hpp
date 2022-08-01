@@ -73,10 +73,10 @@ public:
 
   Value& operator[](const Key& k) {
     auto existing = find(k);
-    
+
     if(existing != _v.end())
       return existing->second;
-    
+
     _v.push_back(std::make_pair(k, Value{}));
     return _v.back().second;
   }

@@ -154,7 +154,7 @@ class device_selector
 {
 public:
   virtual ~device_selector(){};
-  
+
   device select_device() const {
     auto res = detail::select_devices(*this);
     // detail::select_devices should throw if it finds
@@ -279,7 +279,7 @@ std::vector<device> select_devices(const Selector &s) {
     rt::default_selector_behavior b =
         rt::application::get_settings()
             .get<rt::setting::default_selector_behavior>();
-    
+
     if(b == rt::default_selector_behavior::system)
       return select_devices(system_selector_v);
     else if(b == rt::default_selector_behavior::multigpu)

@@ -126,7 +126,7 @@ struct nd_item
     return this->get_local_id();
   }
 
-  [[deprecated]] 
+  [[deprecated]]
   HIPSYCL_KERNEL_TARGET
   size_t get_local(int dimension) const
   {
@@ -235,7 +235,7 @@ struct nd_item
     return this->_local_range[dimension];
 #endif
   }
-  
+
   HIPSYCL_KERNEL_TARGET
   range<dimensions> get_group_range() const
   {
@@ -286,7 +286,7 @@ struct nd_item
       detail::local_device_barrier(space);
     );
     __hipsycl_if_target_host(
-      (*_group_barrier)(); 
+      (*_group_barrier)();
     );
   }
 
@@ -338,7 +338,7 @@ struct nd_item
     get_group().wait_for(events...);
   }
 
-  
+
 #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   HIPSYCL_KERNEL_TARGET
   nd_item(const id<dimensions>* offset)
@@ -347,13 +347,13 @@ struct nd_item
 #else
   HIPSYCL_KERNEL_TARGET
   nd_item(const id<dimensions>* offset,
-          id<dimensions> group_id, id<dimensions> local_id, 
+          id<dimensions> group_id, id<dimensions> local_id,
           range<dimensions> local_range, range<dimensions> num_groups,
           detail::host_barrier_type* host_group_barrier = nullptr,
           void* local_memory_ptr = nullptr)
-    : _offset{offset}, 
-      _group_id{group_id}, 
-      _local_id{local_id}, 
+    : _offset{offset},
+      _group_id{group_id},
+      _local_id{local_id},
       _local_range{local_range},
       _num_groups{num_groups},
       _global_id{group_id * local_range + local_id},

@@ -79,7 +79,7 @@ hardware_platform omp_backend::get_hardware_platform() const {
 backend_id omp_backend::get_unique_backend_id() const {
   return backend_id::omp;
 }
-  
+
 backend_hardware_manager* omp_backend::get_hardware_manager() const {
   return &_hw;
 }

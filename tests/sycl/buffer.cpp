@@ -136,9 +136,9 @@ BOOST_AUTO_TEST_CASE(buffer_api_2d) {
   auto host_a = buf_a.get_host_access();
   for(size_t i = 0; i < host_a.get_range()[0]; ++i) {
     for(size_t j = 0; j < host_a.get_range()[1]; ++j) {
-      BOOST_CHECK_EQUAL(host_a[i][j], 
+      BOOST_CHECK_EQUAL(host_a[i][j],
         static_cast<int>(host_d[i * host_a.get_range()[1] * 2 + j * 2]));
-      BOOST_CHECK_EQUAL(host_a[i][j], 
+      BOOST_CHECK_EQUAL(host_a[i][j],
         static_cast<int>(host_e[i * host_a.get_range()[1] + j]));
       BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_f[i][j * 2]));
       BOOST_CHECK_EQUAL(host_a[i][j], static_cast<int>(host_g[i][j]));

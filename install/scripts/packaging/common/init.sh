@@ -76,4 +76,3 @@ rm -rf ${HIPSYCL_CORE_DIR}/opt/hipSYCL/lib/hipSYCL/* || true
 cp  /opt/hipSYCL/lib/hipSYCL/librt-backend-cuda.so ${HIPSYCL_CUDA_DIR}/opt/hipSYCL/lib/hipSYCL || true
 cp  /opt/hipSYCL/lib/hipSYCL/librt-backend-hip.so ${HIPSYCL_ROCM_DIR}/opt/hipSYCL/lib/hipSYCL || true
 cp  /opt/hipSYCL/lib/hipSYCL/librt-backend-omp.so ${HIPSYCL_OMP_DIR}/opt/hipSYCL/lib/hipSYCL || true
-

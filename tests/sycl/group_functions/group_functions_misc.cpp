@@ -589,7 +589,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
       test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
                                             tested_function, validation_function);
     }
-    
+
     {
       const auto tested_function = [=](auto acc, size_t global_linear_id, sycl::sub_group sg,
                                       auto g, T local_value) {

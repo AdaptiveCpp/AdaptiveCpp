@@ -24,7 +24,7 @@ do
 	mv $f $POOL_PATH
 	set -e
 done
-cd $UBUNTU_REPO_DIR 
+cd $UBUNTU_REPO_DIR
 # we need the relative path because it will write it directly in Packages
 apt-ftparchive  packages ./pool >  $PKG_PATH/Packages
 
@@ -39,4 +39,3 @@ rm -f Release.gpg
 rm -f InRelease
 gpg --batch --no-tty --default-key B2B75080 -abs -o Release.gpg Release
 gpg --batch --no-tty --default-key B2B75080 --clearsign -o InRelease Release
-

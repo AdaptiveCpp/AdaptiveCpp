@@ -30,7 +30,7 @@ declare -A image_base=( ["archlinux-rolling"]="docker://archlinux:base" \
                          ["centos-7"]="docker://centos:centos7" \
                          ["centos-8"]="docker://centos:centos8" \
                          ["ubuntu-18.04"]="docker://ubuntu:18.04" \
-                         ["ubuntu-20.04"]="docker://ubuntu:20.04" 
+                         ["ubuntu-20.04"]="docker://ubuntu:20.04"
                       )
 
 declare  -A pkg_suffix=( ["ONON"]="-full" ["OFFOFF"]="-omp" ["OFFON"]="-cuda" \
@@ -79,4 +79,4 @@ declare -A repo_script=( ["archlinux-rolling"]="create_arch_repo.sh" \
 
 
 #distros=( "centos-7" "archlinux-rolling" "ubuntu-18.04" "ubuntu-20.04")
-#build_distros=( "centos-7" "archlinux-rolling" "ubuntu-18.04" ) 
+#build_distros=( "centos-7" "archlinux-rolling" "ubuntu-18.04" )

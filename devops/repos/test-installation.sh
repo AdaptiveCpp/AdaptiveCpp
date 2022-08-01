@@ -1,19 +1,19 @@
-#!/bin/bash 
-set -e 
+#!/bin/bash
+set -e
 set -o xtrace
 set -xv
 if [ "$#" -ne 3 ]; then
   echo "
   This script is responsible for testing the installation inside a built container containing a hipSYCL installation
   the following tests are built and executed: sycl_tests
-  
-  
+
+
   usage:
    <dir_of_test_script> <distro> <backend>
   dir_of_test_scripts: Points to the directory where this script is located
   distro: The distribution for which the packages are suposed to be tested
   backend: A bitmask of the enabled backends, from leat to most important bit: CUDA,ROCM. 1 means enabled 0 means disabled
-  
+
   Important ENV variables:
     - HIPSYCL_TEST_DIR: The location where the test containers will be installed
     - HIPSYCL_TEST_EXCLUDE_FROM_RT: by default set to hip:gfx900. For this backend, we only build the tests.
@@ -23,7 +23,7 @@ fi
 cd $1
 distro=$2
 backend=$3
-HIPSYCL_WITH_CUDA="OFF" 
+HIPSYCL_WITH_CUDA="OFF"
 HIPSYCL_WITH_ROCM="OFF"
 if [[ ${backend:0:1} = "1" ]]; then HIPSYCL_WITH_ROCM="ON"; else HIPSYCL_WITH_ROCM="OFF"; fi
 if [[ ${backend:1:2} = "1" ]]; then HIPSYCL_WITH_CUDA="ON"; else HIPSYCL_WITH_CUDA="OFF"; fi
@@ -54,7 +54,7 @@ echo "Cloning form user $HIPSYCL_REPO_USER branch $HIPSYCL_REPO_BRANCH " >> $log
 HIPSYCL_TEST_EXCLUDE_FROM_RT=${HIPSYCL_TEST_EXCLUDE_FROM_RT:-"hip:gfx900"}
 DIR=`pwd`
 
-mkdir -p /tmp/hipSYCL-test/tests/build 
+mkdir -p /tmp/hipSYCL-test/tests/build
 mkdir -p /tmp/build/$distro-$backend
 
 for target in ${targets[@]}; do
@@ -67,7 +67,7 @@ for target in ${targets[@]}; do
       -DHIPSYCL_TARGETS=$target \
       -S /tmp/hipSYCL-test/tests \
       -B /tmp/build/$distro-$backend
-   
+
 
   VERBOSE=1 CUDA_VISIBLE_DEVICES=0 singularity exec --nv \
       -H /tmp/build/$distro-$backend $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro-$backend \
@@ -77,7 +77,7 @@ for target in ${targets[@]}; do
     #CUDA_VISIBLE_DEVICES=0 \
 	    singularity exec --nv \
       $HIPSYCL_PKG_CONTAINER_DIR/hipsycl-$distro-$backend \
-      /tmp/build/$2-$3/sycl_tests 
+      /tmp/build/$2-$3/sycl_tests
   else
     echo "test_skipped" >> $log_file
   fi

@@ -37,7 +37,7 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #else
-#include <windows.h> 
+#include <windows.h>
 #endif
 
 namespace {
@@ -121,7 +121,7 @@ bool load_plugin(const std::string &filename, void *&handle_out,
     }
   } else {
     return false;
-  } 
+  }
 }
 
 hipsycl::rt::backend *create_backend(void *plugin_handle) {
@@ -260,12 +260,12 @@ bool backend_loader::has_backend(const std::string &name) const {
 
 backend *backend_loader::create(std::size_t index) const {
   assert(index < _handles.size());
-  
+
   return create_backend(_handles[index].second);
 }
 
 backend *backend_loader::create(const std::string &name) const {
-  
+
   for (std::size_t i = 0; i < _handles.size(); ++i) {
     if (_handles[i].first == name)
       return create(i);

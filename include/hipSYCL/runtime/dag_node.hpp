@@ -60,7 +60,7 @@ public:
   bool is_known_complete() const;
   bool is_cancelled() const;
   bool is_virtual() const;
-  
+
   /// Only to be called by the backend executor/scheduler
   void mark_submitted(std::shared_ptr<dag_node_event> completion_evt);
   /// Only to be called by the backend executor/scheduler

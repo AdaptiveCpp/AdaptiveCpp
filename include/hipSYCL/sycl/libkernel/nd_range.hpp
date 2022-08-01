@@ -76,7 +76,7 @@ struct nd_range
   HIPSYCL_UNIVERSAL_TARGET
   id<dimensions> get_offset() const
   { return _offset; }
-  
+
   friend bool operator==(const nd_range<dimensions>& lhs, const nd_range<dimensions>& rhs)
   {
     return lhs._global_range == rhs._global_range &&

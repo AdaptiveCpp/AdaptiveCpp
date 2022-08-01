@@ -94,7 +94,7 @@ if(WITH_CUDA_BACKEND)
   target_include_directories(rt-backend-cuda PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include
     ${CUDA_TOOLKIT_ROOT_DIR}/include)
-  
+
   target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
 
   target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
@@ -151,7 +151,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_event.cpp
     ze/ze_queue.cpp
     ze/ze_code_object.cpp)
-  
+
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
 
@@ -182,7 +182,7 @@ if(WITH_CPU_BACKEND)
       string(JOIN " " hipSYCL_OpenMP_CXX_LIBRARIES ${OpenMP_CXX_LIBRARIES})
       set(hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES} PARENT_SCOPE)
     endif()
-  
+
   list(LENGTH OpenMP_CXX_LIBRARIES OpenMP_CXX_LIBRARIES_LENGTH)
   if(WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
     # FindOpenMP does a bad job here, finding any library.. so add some more hints..
@@ -204,4 +204,3 @@ if(WITH_CPU_BACKEND)
       LIBRARY DESTINATION lib/hipSYCL
       ARCHIVE DESTINATION lib/hipSYCL)
 endif()
-

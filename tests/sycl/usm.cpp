@@ -53,8 +53,8 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
   int *aligned_shared_ptr =
       sycl::aligned_alloc_shared<int>(sizeof(int), count, q);
   std::vector<int> unregistered_data(100);
-  
-  
+
+
   BOOST_TEST(device_mem_ptr != nullptr);
   BOOST_TEST(aligned_device_mem_ptr != nullptr);
   BOOST_TEST(host_ptr != nullptr);
@@ -106,8 +106,8 @@ BOOST_AUTO_TEST_CASE(allocation_functions) {
   verify_device(aligned_host_ptr);
   verify_device(shared_ptr);
   verify_device(aligned_shared_ptr);
-  
-  
+
+
   sycl::free(device_mem_ptr, q);
   sycl::free(aligned_device_mem_ptr, q);
   sycl::free(host_ptr, q);
@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(allocations_in_kernels) {
   int *shared_allocation = sycl::malloc_shared<int>(test_size, q);
   int *explicit_allocation = sycl::malloc_device<int>(test_size, q);
   int *mapped_host_allocation = sycl::malloc_host<int>(test_size, q);
-  
+
   q.single_task<class usm_alloc_single_task>([=]() {
     for (int i = 0; i < test_size; ++i) {
       shared_allocation[i] = i;
@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
 
     for (std::size_t i = 0; i < test_size; ++i)
       BOOST_TEST(host_data[i] == initial_data[i]);
-    
+
     sycl::free(device_mem, q);
     sycl::free(device_mem2, q);
     sycl::free(shared_mem, q);
@@ -322,7 +322,7 @@ BOOST_AUTO_TEST_CASE(memcpy) {
     int *device_mem = sycl::malloc_device<int>(test_size, q);
     int *device_mem2 = sycl::malloc_device<int>(test_size, q);
     std::vector<int> host_data(test_size);
-    
+
     q.memcpy(device_mem, initial_data.data(), test_size * sizeof(int));
     q.memcpy(device_mem2, device_mem, test_size * sizeof(int));
     q.memcpy(host_data.data(), device_mem2, test_size * sizeof(int));
@@ -408,7 +408,7 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   q.parallel_for<class usm_prefetch_test_kernel>(
       sycl::range<1>{test_size},
       [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
-  
+
   q.wait();
 
   // Test prefetching to host using a host_queue
@@ -419,7 +419,7 @@ BOOST_AUTO_TEST_CASE(prefetch) {
   }
   for (std::size_t i = 0; i < test_size; ++i)
     BOOST_TEST(shared_mem[i] == i + 1);
-  
+
   sycl::free(shared_mem, q);
 }
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this

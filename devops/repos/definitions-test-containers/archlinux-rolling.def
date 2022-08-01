@@ -6,4 +6,3 @@ From: archlinux:base
 %post
 pacman -Syu --noconfirm
 pacman -Sy --noconfirm awk wget make base-devel
-

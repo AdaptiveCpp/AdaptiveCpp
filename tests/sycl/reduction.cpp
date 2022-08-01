@@ -46,13 +46,13 @@ void test_scalar_reduction(sycl::queue &q, const T& identity,
 
   for(std::size_t i = 0; i < num_elements;++i)
     test_data[i] = gen(i);
-  
+
   h(test_data, output_data);
   q.wait();
 
   T expected_result =
       std::accumulate(test_data, test_data + num_elements, identity, op);
-  
+
   if constexpr(std::is_floating_point_v<T>) {
     BOOST_TEST(expected_result == *output_data, tolerance);
   } else {
@@ -81,7 +81,7 @@ struct input_generator <T, sycl::multiplies<T>> {
 
     if(i % 100 == 0)
       return static_cast<T>(2);
-    
+
     return static_cast<T>(1);
   }
 };
@@ -90,7 +90,7 @@ template<class T, class BinaryOp, int Line>
 class reduction_kernel;
 
 template<class T, class BinaryOp>
-void test_single_reduction(std::size_t input_size, std::size_t local_size, 
+void test_single_reduction(std::size_t input_size, std::size_t local_size,
                           const T& identity, BinaryOp op){
   sycl::queue q;
 
@@ -98,13 +98,13 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
     return input_generator<T,BinaryOp>{}(i);
   };
 
-  test_scalar_reduction(q, identity, 
+  test_scalar_reduction(q, identity,
     input_size, op, input_gen,
     [&](T* input, T* output){
 
       q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
-                  sycl::range<1>(input_size), 
-                  sycl::reduction(output, identity, op), 
+                  sycl::range<1>(input_size),
+                  sycl::reduction(output, identity, op),
                   [=](sycl::id<1> idx, auto& reducer){
         reducer.combine(input[idx[0]]);
       });
@@ -117,15 +117,15 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
       [&](T* input, T* output){
 
         q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::nd_range(sycl::range{input_size}, 
-                                     sycl::range{local_size}), 
-                      sycl::reduction(output, identity, op), 
+                      sycl::nd_range(sycl::range{input_size},
+                                     sycl::range{local_size}),
+                      sycl::reduction(output, identity, op),
                       [=](sycl::nd_item<1> idx, auto& reducer){
           reducer.combine(input[idx.get_global_linear_id()]);
         });
 
       });
-    
+
     std::size_t num_groups = input_size / local_size;
 
     test_scalar_reduction(q, identity,
@@ -134,8 +134,8 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 
         q.submit([&](sycl::handler& cgh){
           cgh.parallel_for_work_group<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::range{num_groups}, sycl::range{local_size}, 
-                      sycl::reduction(output, identity, op), 
+                      sycl::range{num_groups}, sycl::range{local_size},
+                      sycl::reduction(output, identity, op),
                       [=](sycl::group<1> grp, auto& reducer){
             grp.parallel_for_work_item([&](sycl::h_item<1> idx){
               reducer.combine(input[idx.get_global_id()[0]]);
@@ -143,21 +143,21 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
           });
         });
       });
-   
+
     test_scalar_reduction(q, identity,
       input_size, op, input_gen,
       [&](T* input, T* output){
 
         q.parallel<reduction_kernel<T,BinaryOp,__LINE__>>(
-                      sycl::range{num_groups}, sycl::range{local_size}, 
-                      sycl::reduction(output, identity, op), 
+                      sycl::range{num_groups}, sycl::range{local_size},
+                      sycl::reduction(output, identity, op),
                       [=](auto grp, auto& reducer){
           sycl::distribute_items(grp, [&](sycl::s_item<1> idx){
             reducer.combine(input[idx.get_global_linear_id()]);
           });
         });
       });
-    
+
   }
 }
 
@@ -209,9 +209,9 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
   };
 
   q.parallel_for<reduction_kernel<T,class MultiOp,__LINE__>>(
-              sycl::range<1>(input_size), 
+              sycl::range<1>(input_size),
               sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-              sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
+              sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
               [=](sycl::id<1> idx, auto& add_reducer, auto& mul_reducer){
     add_reducer += input0[idx[0]];
     mul_reducer *= input1[idx[0]];
@@ -235,14 +235,14 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     });
 
     verify();
-    
+
     std::size_t num_groups = input_size / local_size;
-    
+
     q.submit([&](sycl::handler& cgh) {
       cgh.parallel_for_work_group<reduction_kernel<T,class MultiOp,__LINE__>>(
                   sycl::range{num_groups}, sycl::range{local_size},
                   sycl::reduction(output0, T{0}, sycl::plus<T>{}),
-                  sycl::reduction(output1, T{1}, sycl::multiplies<T>{}), 
+                  sycl::reduction(output1, T{1}, sycl::multiplies<T>{}),
                   [=](sycl::group<1> grp, auto& add_reducer, auto& mul_reducer){
         // On omp backend, this is executed in a pragma omp simd loop.
         // It seems clang generates incorrect code when doing two
@@ -285,17 +285,17 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
     if(outputs[i])
       sycl::free(outputs[i], q);
   }
-  
+
 }
 
 
-using all_test_types = boost::mpl::list<char, unsigned int, int, long long, float, 
+using all_test_types = boost::mpl::list<char, unsigned int, int, long long, float,
   double>;
 
-using large_test_types = boost::mpl::list<unsigned int, int, long long, float, 
+using large_test_types = boost::mpl::list<unsigned int, int, long long, float,
   double>;
 
-using very_large_test_types = boost::mpl::list<unsigned int, long long, float, 
+using very_large_test_types = boost::mpl::list<unsigned int, long long, float,
   double>;
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(single_kernel_single_scalar_reduction, T, all_test_types) {
@@ -330,14 +330,14 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
 BOOST_AUTO_TEST_CASE(accessor_reduction) {
   sycl::queue q;
   sycl::buffer<int> values_buff{1024};
-  { 
+  {
     sycl::host_accessor a{values_buff};
     std::iota(a.get_pointer(), a.get_pointer() + 1024, 0);
   }
-  
+
   sycl::buffer<int> sum_buff{1};
   sycl::buffer<int> max_buff{1};
-  
+
   q.submit([&](sycl::handler
                    &cgh) {
     auto values_acc = values_buff.get_access<sycl::access_mode::read>(
@@ -345,10 +345,10 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
 
     sycl::accessor sum_acc {sum_buff, cgh};
     sycl::accessor max_acc {max_buff, cgh};
-    
+
     auto sumReduction = sycl::reduction(sum_acc, sycl::plus<int>());
     auto maxReduction = sycl::reduction(max_acc, sycl::maximum<int>());
-    
+
     cgh.parallel_for(sycl::range<1>{1024}, sumReduction, maxReduction,
                      [=](sycl::id<1> idx, auto &sum, auto &max) {
                        sum += values_acc[idx];

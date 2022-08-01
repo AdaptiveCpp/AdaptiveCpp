@@ -73,7 +73,7 @@ namespace detail {
 
 template <int Dim> struct accessor_data {
   std::shared_ptr<rt::buffer_data_region> mem;
-  
+
   sycl::id<Dim> offset;
   sycl::range<Dim> range;
 
@@ -110,11 +110,11 @@ class handler {
     // Translate no_init property and host_task modes
     access_mode mode =
         detail::get_effective_access_mode(AccessorType::mode, data.is_no_init);
-    
+
     size_t element_size = data.mem->get_element_size();
 
     const rt::range<Dim> buffer_shape = rt::make_range(acc.get_buffer_shape());
-    
+
     auto req = std::make_unique<rt::buffer_memory_requirement>(
       data.mem,
       detail::get_effective_offset<typename AccessorType::value_type>(
@@ -226,7 +226,7 @@ class handler {
 
     if(!mem_req)
       raise_unregistered_accessor(acc);
-    
+
     return mem_req->get_data_region();
   }
 
@@ -367,7 +367,7 @@ public:
   }
 
   // Scoped parallelism API
-  
+
   template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel(range<dimensions> numWorkGroups,
@@ -458,7 +458,7 @@ public:
 
     rt::device_id src_dev = get_explicit_accessor_target(src);
     rt::device_id dest_dev = get_explicit_accessor_target(dest);
-    
+
     rt::memory_location source_location{src_dev, rt::embed_in_id3(get_offset(src)),
                                         data_src};
     rt::memory_location dest_location{dest_dev, rt::embed_in_id3(get_offset(dest)),
@@ -482,7 +482,7 @@ public:
   template <typename T, int dim, access::mode mode, access::target tgt,
             accessor_variant variant>
   void update(accessor<T, dim, mode, tgt, variant> acc) {
-    
+
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
       throw invalid_parameter_error{"handler: device update() is unsupported "
                                     "for queues not bound to devices"};
@@ -522,7 +522,7 @@ public:
 
     rt::device_id queue_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
-  
+
 
     auto determine_ptr_device = [&, this](const void *ptr) {
       usm::alloc alloc_type = get_pointer_type(ptr, _ctx);
@@ -538,13 +538,13 @@ public:
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation
         return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
-      
+
       throw invalid_parameter_error{"Invalid allocation type"};
     };
 
     rt::device_id src_dev = determine_ptr_device(src);
     rt::device_id dest_dev = determine_ptr_device(dest);
-    
+
     rt::memory_location source_location{
         src_dev, extract_ptr(src), rt::id<3>{},
         rt::embed_in_range3(range<1>{num_bytes}), 1};
@@ -552,7 +552,7 @@ public:
     rt::memory_location dest_location{
         dest_dev, extract_ptr(dest), rt::id<3>{},
         rt::embed_in_range3(range<1>{num_bytes}), 1};
-    
+
     auto op = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, rt::embed_in_range3(range<1>{num_bytes}));
 
@@ -561,7 +561,7 @@ public:
 
     _command_group_nodes.push_back(node);
   }
-  
+
   template <typename T>
   void copy(const T* src, T* dest, std::size_t count) {
     this->memcpy(static_cast<void*>(dest),
@@ -573,7 +573,7 @@ public:
     // For special cases we can map this to a potentially more low-level memset
     if (sizeof(T) == 1) {
       unsigned char val = *reinterpret_cast<const unsigned char*>(&pattern);
-      
+
       memset(ptr, static_cast<int>(val), count);
     } else {
       T *typed_ptr = static_cast<T *>(ptr);
@@ -591,7 +591,7 @@ public:
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
-   
+
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
@@ -687,17 +687,17 @@ public:
     auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
         glue::make_kernel_launchers<class _unnamed, rt::kernel_type::custom>(
-            sycl::id<3>{}, sycl::range<3>{}, 
+            sycl::id<3>{}, sycl::range<3>{},
             sycl::range<3>{},
             0, f),
         _requirements);
 
     rt::dag_node_ptr node = build.builder()->add_kernel(
         std::move(custom_kernel_op), _requirements, _execution_hints);
-    
+
     _command_group_nodes.push_back(node);
   }
-  
+
   detail::local_memory_allocator& get_local_memory_allocator()
   {
     return _local_mem_allocator;
@@ -779,7 +779,7 @@ private:
 
     rt::dag_node_ptr node = build.builder()->add_kernel(
         std::move(kernel_op), _requirements, _execution_hints);
-    
+
     _command_group_nodes.push_back(node);
 
     // This registers the kernel with the runtime when the application
@@ -900,7 +900,7 @@ private:
   const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
   { return _command_group_nodes; }
 
-  
+
   handler(const context &ctx, async_handler handler,
           const rt::execution_hints &hints, rt::runtime* rt)
       : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
@@ -928,12 +928,12 @@ private:
       return _preferred_group_size3d;
     }
   }
-  
+
   template<int Dim>
   void set_preferred_group_size(range<Dim> r) {
     get_preferred_group_size<Dim>() = r;
   }
-  
+
   const context _ctx;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;

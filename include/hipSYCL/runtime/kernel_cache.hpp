@@ -65,7 +65,7 @@ public:
   virtual backend_id managing_backend() const = 0;
   virtual hcf_object_id hcf_source() const = 0;
   virtual std::string target_arch() const = 0;
-  
+
   // Do we really need this? Cannot be implemented on all backends,
   // and may return empty vector in this case. Maybe better to not
   // have as part of the general interface?
@@ -81,7 +81,7 @@ public:
   using kernel_name_index_t = std::size_t;
 
   static kernel_cache& get();
-  
+
   void register_hcf_object(const common::hcf_container& obj);
 
   const kernel_name_index_t*
@@ -278,7 +278,7 @@ private:
                          << kernel_index << " and backend kernel name "
                          << backend_kernel_name << std::endl;
     }
-    
+
     // We haven't found the requested object: Construct new code object
     const code_object* new_obj = c();
     if(new_obj) {

@@ -47,7 +47,7 @@ namespace detail {
 template <int dimensions>
 struct item_base
 {
-  HIPSYCL_KERNEL_TARGET 
+  HIPSYCL_KERNEL_TARGET
   item_base(const sycl::id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)
     : global_id{my_id}, global_size(global_size)
@@ -55,11 +55,11 @@ struct item_base
 
   /* -- common interface members -- */
 
-  HIPSYCL_KERNEL_TARGET 
+  HIPSYCL_KERNEL_TARGET
   sycl::range<dimensions> get_range() const
   { return global_size; }
 
-  HIPSYCL_KERNEL_TARGET 
+  HIPSYCL_KERNEL_TARGET
   size_t get_range(int dimension) const
   { return global_size[dimension]; }
 
@@ -139,14 +139,14 @@ private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc
 
-  friend HIPSYCL_KERNEL_TARGET 
+  friend HIPSYCL_KERNEL_TARGET
   item<dimensions, true> detail::make_item<dimensions>(
-    const sycl::id<dimensions>&, const _range<dimensions>&, 
+    const sycl::id<dimensions>&, const _range<dimensions>&,
     const sycl::id<dimensions>&);
 
-  HIPSYCL_KERNEL_TARGET 
+  HIPSYCL_KERNEL_TARGET
   item(const sycl::id<dimensions>& my_id,
-    const sycl::range<dimensions>& global_size, 
+    const sycl::range<dimensions>& global_size,
     const sycl::id<dimensions>& offset)
     : detail::item_base<dimensions>(my_id, global_size), offset{offset}
   {}

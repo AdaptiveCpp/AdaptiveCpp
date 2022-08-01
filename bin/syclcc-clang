@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 '''
  *
@@ -54,7 +55,7 @@ class hcf_node:
   @property
   def subnodes(self):
     return self._subnodes
-  
+
   def make_subnode(self, name):
     n = hcf_node(name, self._nesting_level+1)
     self._subnodes.append(n)
@@ -68,7 +69,7 @@ class hcf_node:
   @property
   def values(self):
     return self._key_value_pairs
-  
+
   @property
   def name(self):
     return self._node_name
@@ -79,12 +80,12 @@ class hcf_node:
 
     for k in self._key_value_pairs:
       result += "{}{}={}\n".format(indent,k, self._key_value_pairs[k])
-    
+
     for n in self._subnodes:
       result += indent + "{." + n.name + "\n"
       result += str(n)
       result += indent + "}." + n.name + "\n"
-    
+
     return result
 
 class hcf_generator:
@@ -112,7 +113,7 @@ class hcf_generator:
   # Return non-binary readable part
   def __str__(self) -> str:
     return str(self._root) + "__hipsycl_hcf_binary_appendix"
-  
+
   @property
   def bytes(self):
     result = str(self).encode("utf-8")
@@ -123,7 +124,7 @@ class hcf_generator:
   @property
   def escaped_bytes(self):
     hex = binascii.hexlify(self.bytes).decode("utf-8")
-    return ",".join(["0x" + hex[i:i+2] 
+    return ",".join(["0x" + hex[i:i+2]
         for i in range(0,len(hex),2)])
 
 
@@ -134,14 +135,14 @@ class integration_header:
     self._hcf.root.values["object-id"] = self._object_id
     self._hcf.root.values["generator"] = "syclcc"
     self._backend = backend_name
-  
+
   @property
   def hcf_object(self):
     return self._hcf
-  
+
   def __str__(self) -> str:
     hcf_string = self._hcf.escaped_bytes
-    
+
     header = """
 #ifndef HIPSYCL_{capital_name}_INTEGRATION_HEADER
 #define HIPSYCL_{capital_name}_INTEGRATION_HEADER
@@ -152,12 +153,12 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
 
 #endif
 """.format(
-      capital_name = self._backend.upper(), 
+      capital_name = self._backend.upper(),
       name = self._backend.lower(),
       hcf_object_id = self._object_id,
       hcf_size = len(self._hcf.bytes),
       hcf_binary = hcf_string)
-    
+
     return header
 
   def write_header(self, filename):
@@ -236,7 +237,7 @@ class syclcc_config:
     config_file_path = os.path.abspath(
       os.path.join(self.hipsycl_installation_path,
                   "etc/hipSYCL/syclcc.json"))
-    
+
     self._config_file = None
     # First check silently if we can open the default config file.
     # If that fails, we try later on after argument parsing if a
@@ -244,7 +245,7 @@ class syclcc_config:
     # (This happens when compiling hipSYCL)
     if os.path.exists(config_file_path):
       self._config_file = config_file(config_file_path)
-      
+
     self._args = args
 
     # Describes different representations of options:
@@ -260,7 +261,7 @@ class syclcc_config:
 
       'clang': option("--hipsycl-clang", "HIPSYCL_CLANG", "default-clang",
 """  The path to the clang executable that should be used for compilation
-    (Note: *must* be compatible with the clang version that the 
+    (Note: *must* be compatible with the clang version that the
      hipSYCL clang plugin was compiled against!)"""),
 
       'nvcxx': option("--hipsycl-nvcxx", "HIPSYCL_NVCXX", "default-nvcxx",
@@ -280,7 +281,7 @@ class syclcc_config:
 
       'cpu-compiler': option("--hipsycl-cpu-cxx", "HIPSYCL_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
-      
+
       'clang-include-path' : option("--hipsycl-clang-include-path", "HIPSYCL_CLANG_INCLUDE_PATH", "default-clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
 
@@ -311,7 +312,7 @@ class syclcc_config:
       'config-file' : option("--hipsycl-config-file", "HIPSYCL_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting. """),
-    
+
       'targets': option("--hipsycl-targets", "HIPSYCL_TARGETS", "default-targets",
 """  Specify backends and targets to compile for. Example: --hipsycl-targets='omp;hip:gfx900,gfx906'
     Available backends:
@@ -321,11 +322,11 @@ class syclcc_config:
                                    Uses Boost.Fiber for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
                                   for nd_range parallel_for (see --hipsycl-use-accelerated-cpu).
-      * cuda - CUDA backend 
+      * cuda - CUDA backend
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
-               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode
                                           (see --hipsycl-explicit-multipass)
                - cuda.integrated-multipass: Force CUDA backend to operate in integrated
                                            multipass mode.
@@ -350,7 +351,7 @@ class syclcc_config:
   of a work-group in a single thread, eliminating scheduling overhead
   and enabling enhanced vectorization opportunities compared to the fiber variant."""),
       'is-dryrun': option("--hipsycl-dryrun", "HIPSYCL_DRYRUN", "default-is-dryrun",
-"""  If set, only shows compilation commands that would be executed, 
+"""  If set, only shows compilation commands that would be executed,
   but does not actually execute it. """),
       'is-explicit-multipass': option("--hipsycl-explicit-multipass", "HIPSYCL_EXPLICIT_MULTIPASS",
       "default-is-explicit-multipass",
@@ -367,16 +368,16 @@ class syclcc_config:
     self._targets = None
     self._cxx_path = None
     self._clang_path = None
-    
+
     for arg in self._args:
       if self._is_hipsycl_arg(arg):
         self._hipsycl_args.append(arg)
       else:
         self._forwarded_args.append(arg)
-        
+
     if self._is_option_set_to_non_default_value("config-file"):
       self._config_file = config_file(self._retrieve_option("config-file"))
-      
+
     if self._config_file == None:
       # If the config file is still None at this point, probably no alternative
       # config file was supplied and the default one doesn't exist.
@@ -386,11 +387,11 @@ class syclcc_config:
       if os.path.exists(global_config_file):
         self._config_file = config_file(global_config_file)
       else:
-        # The main purpose of opening the default config file explicitly 
+        # The main purpose of opening the default config file explicitly
         # here is that it will print a warning for the user
         # if it doesn't exist and set the config file content to {}.
         self._config_file = config_file(config_file_path)
-    
+
     self._common_compiler_args = self._get_std_compiler_args()
 
   def _is_hipsycl_arg(self, arg):
@@ -497,7 +498,7 @@ class syclcc_config:
   def _substitute_rocm_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_rocm_substitution_vars())
-      
+
   def _substitute_cuda_template_string(self, template_string):
     return self._substitute_template_string(
       template_string, self._get_cuda_substitution_vars())
@@ -508,14 +509,14 @@ class syclcc_config:
 
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
-    
+
     for arg in self._hipsycl_args:
       if arg.startswith(opt.commandline+"="):
         return True
-      
+
     if opt.environment in os.environ:
       return True
-    
+
     return False
 
   def _retrieve_option(self, option_name, allow_unset=False):
@@ -533,7 +534,7 @@ class syclcc_config:
     # Try config file
     if self._config_file.contains_key(opt.configfile):
       return self._config_file.get(opt.configfile)
-  
+
     if not allow_unset:
       raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
             opt.commandline, opt.environment))
@@ -560,13 +561,13 @@ class syclcc_config:
   def _parse_targets(self, target_arg):
     # Split backends by ;
     platform_substrings = target_arg.replace("'","").replace('"',"").split(';')
-    
+
     result = {}
     for p in platform_substrings:
       platform_target_separated = p.split(':', 1)
       if len(platform_target_separated) > 2 or len(platform_target_separated) == 0:
         raise RuntimeError("Invalid target description: " + p)
-      
+
       platform = platform_target_separated[0].strip().lower()
 
       if not platform in result:
@@ -579,7 +580,7 @@ class syclcc_config:
             result[platform].append(t)
 
     return result
-  
+
   def _get_executable_path(self, path):
     normalized_path = shutil.which(path)
     if normalized_path:
@@ -588,7 +589,7 @@ class syclcc_config:
 
   @property
   def version(self):
-  
+
     if not self._config_file.contains_key("version-major"):
       raise OptionNotSet("Could not retrieve major version from config file")
     if not self._config_file.contains_key("version-minor"):
@@ -597,7 +598,7 @@ class syclcc_config:
       raise OptionNotSet("Could not retrieve major version from config file")
 
     return (
-      self._config_file.get("version-major"), 
+      self._config_file.get("version-major"),
       self._config_file.get("version-minor"),
       self._config_file.get("version-patch"))
 
@@ -624,7 +625,7 @@ class syclcc_config:
 
   @property
   def targets(self):
-    
+
     if self._targets == None:
       raw_target_string = ""
       try:
@@ -642,11 +643,11 @@ class syclcc_config:
           if platform in hip_platform_synonyms:
             target_arch = self._retrieve_option("gpu-arch")
             raw_target_string = "hip:" + target_arch
-            
+
           elif platform in cuda_platform_synonyms:
             target_arch = self._retrieve_option("gpu-arch")
             raw_target_string = "cuda:" + target_arch
-            
+
           elif platform in pure_cpu_platform_synonyms:
             raw_target_string = "omp"
         except OptionNotSet:
@@ -755,7 +756,7 @@ class syclcc_config:
       return self._is_flag_set("use-accelerated-cpu")
     except OptionNotSet:
       return False
-  
+
   @property
   def is_explicit_multipass(self):
     try:
@@ -785,7 +786,7 @@ class syclcc_config:
         if ending.isnumeric() or ending in ["s", "fast", "g"]:
           return True
     return False
-  
+
   def contains_linking_stage(self):
     for arg in self.forwarded_compiler_arguments:
       if (arg == "-E" or
@@ -874,12 +875,12 @@ class cuda_multipass_invocation:
         'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
         +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
         ]
-      
+
 
     return {
       'requires-extended-host-pass' : requires_extended_host_pass,
       'extended-host-pass-providers' : [
-        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.explicit-multipass', 'hip.explicit-multipass',
         'cuda.integrated-multipass', 'hip.integrated-multipass'],
       'conflicts' : [],
       'caveats' : caveats
@@ -944,7 +945,7 @@ class cuda_multipass_invocation:
     for target,ptx in zip(targets, ptx_content):
       target_node = header.hcf_object.root.make_subnode(target)
       header.hcf_object.attach_text_content(target_node, ptx)
-    
+
     header.write_header(self._integration_header)
 
 class hip_multipass_invocation:
@@ -1004,12 +1005,12 @@ class hip_multipass_invocation:
         'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
         +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
         ]
-      
+
 
     return {
       'requires-extended-host-pass' : requires_extended_host_pass,
       'extended-host-pass-providers' : [
-        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.explicit-multipass', 'hip.explicit-multipass',
         'cuda.integrated-multipass', 'hip.integrated-multipass'],
       'conflicts' : [],
       'caveats' : caveats
@@ -1072,7 +1073,7 @@ class hip_multipass_invocation:
     for target,hipfb in zip(targets, hipfb_content):
       target_node = header.hcf_object.root.make_subnode(target)
       header.hcf_object.attach_binary_content(target_node, hipfb)
-    
+
     header.write_header(self._integration_header)
 
 class spirv_multipass_invocation:
@@ -1129,7 +1130,7 @@ class spirv_multipass_invocation:
 
   def get_flags(self, target):
     flags = self._config.cuda_cxx_flags
-    
+
     flags += [
         "-fsycl-device-only",
         "-fsycl-unnamed-lambda",
@@ -1167,7 +1168,7 @@ class spirv_multipass_invocation:
 
       header = integration_header("spirv")
       header.hcf_object.attach_binary_content(header.hcf_object.root, data)
-    
+
       header.write_header(self._integration_header)
 
 
@@ -1224,7 +1225,7 @@ class cuda_invocation:
 
     if not sys.platform.startswith("win32"):
       flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
-      
+
     return flags
 
   def get_linker_flags(self):
@@ -1278,7 +1279,7 @@ class cuda_nvcxx_invocation:
     except OptionNotSet:
       # nvc++ can handle not setting targets explicitly
       pass
-      
+
     return flags
 
   def get_linker_flags(self):
@@ -1326,13 +1327,13 @@ class hip_invocation:
         "-fplugin=" + self._hipsycl_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
-    
+
     for t in self._hip_targets:
       flags += ["--cuda-gpu-arch=" + t]
 
     if not sys.platform.startswith("win32"):
       flags += ["-fpass-plugin=" + self._hipsycl_plugin_path]
-      
+
     return flags
 
   def get_linker_flags(self):
@@ -1375,7 +1376,7 @@ class omp_invocation:
   def get_cxx_flags(self):
     flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     flags += self._cxx_flags
-      
+
     return flags
 
   def get_linker_flags(self):
@@ -1556,7 +1557,7 @@ class compiler:
         raise RuntimeError("Unknown backend: " + backend)
 
     self._backends += self._multipass_backends
-    
+
     self._host_compiler = self._select_compiler()
     for mb in self._multipass_backends:
       mb.set_host_compiler(self._host_compiler)
@@ -1569,7 +1570,7 @@ class compiler:
 
     self._verify_backend_combinations()
 
-    # Take into account extended host pass requirements for 
+    # Take into account extended host pass requirements for
     # explicit multipass. E.g., CUDA explicit multipass requires
     # -x cuda or -x hip in the host pass.
     # The "extended host pass" concept is an abstraction of the fact
@@ -1594,7 +1595,7 @@ class compiler:
           "appears multiple times in processed target specification")
 
       reqs = b.get_host_pass_requirements()
-      
+
       conflicts = reqs['conflicts']
       caveats = reqs['caveats']
       for c in caveats:
@@ -1606,7 +1607,7 @@ class compiler:
           print("Error: requested backends",b.unique_name,
                 "and",c,"are incompatible.")
           fatal_error = True
-    
+
     if fatal_error:
       raise RuntimeError("Errors encountered while verifying combination of requested backends.")
 
@@ -1620,12 +1621,12 @@ class compiler:
 
     if host_pass_reqs['requires-extended-host-pass']:
       extended_pass_providers = host_pass_reqs['extended-host-pass-providers']
-      
+
       available_providers = []
       for provider in extended_pass_providers:
         if provider in active_backends:
           available_providers.append(provider)
-      
+
       # If there is already an integrated multipass backend running
       # that already provides the flags, or if an explicit multipass
       # provider is already enabled, there is nothing to do
@@ -1634,7 +1635,7 @@ class compiler:
           return
         elif active_backends[p].is_extended_host_pass_enabled:
           return
-      
+
       # Otherwise, we need to select and enable an explicit multipass
       # provider. Currently we always select the backend we are configuring.
       # TODO make this user configurable, especially if we add HIP explicit multipass
@@ -1677,7 +1678,7 @@ class compiler:
       "-L"+self._hipsycl_lib_path,
       "-lhipSYCL-rt"
     ]
-    
+
     if sys.platform == "darwin":
       linker_args.append("-Wl,-rpath")
       linker_args.append(self._hipsycl_lib_path)
@@ -1717,7 +1718,7 @@ class compiler:
       if priority > compiler_priority:
         compiler_executable = cxx
         compiler_priority = priority
-    
+
     return compiler_executable
 
   def _flag_should_be_unique(self, flag):
@@ -1817,7 +1818,7 @@ if __name__ == '__main__':
   if sys.version_info[0] < 3:
     print("syclcc requires python 3.")
     sys.exit(-1)
-  
+
   args = sys.argv[1:]
 
   try:
@@ -1841,7 +1842,7 @@ if __name__ == '__main__':
         print("syclcc warning: No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
-    
+
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:

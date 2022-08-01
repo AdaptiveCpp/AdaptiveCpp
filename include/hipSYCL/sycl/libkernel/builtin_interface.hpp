@@ -571,13 +571,13 @@ HIPSYCL_BUILTIN T __hipsycl_sign(T x) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cross3, a, b);
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross4(const VecType &a, const VecType &b) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_cross4, a, b);
 }

@@ -11,7 +11,7 @@ HIPSYCL_LLVM_DIR=${HIPSYCL_LLVM_DIR:-/opt/hipSYCL/llvm/lib/}
 
 if [ -d "$HIPSYCL_BUILD_DIR" ]; then
        read -p  "The build directory already exists, do you want to use $HIPSYCL_BUILD_DIR anyways?[y]" -n 1 -r
-       echo 
+       echo
        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
               echo "Please specify a different directory, exiting"
               [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1

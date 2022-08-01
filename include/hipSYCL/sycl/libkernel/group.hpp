@@ -123,8 +123,8 @@ public:
         host_barrier_type* group_barrier = nullptr,
         id_type local_id = {},
         void *local_memory_ptr = nullptr)
-  : _group_id{group_id}, 
-    _local_range{local_range}, 
+  : _group_id{group_id},
+    _local_range{local_range},
     _num_groups{num_groups},
     _group_barrier{group_barrier},
     _local_id{local_id},
@@ -228,8 +228,8 @@ public:
   }
 
   // Note: This returns the number of groups
-  // in each dimension - earler versions of the spec wrongly 
-  // claim that it should return the range "of the current group", 
+  // in each dimension - earler versions of the spec wrongly
+  // claim that it should return the range "of the current group",
   // i.e. the local range which makes no sense.
   HIPSYCL_KERNEL_TARGET
   range<Dimensions> get_group_range() const
@@ -361,7 +361,7 @@ public:
   void parallel_for_work_item(workItemFunctionT func) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    __hipsycl_if_target_device(  
+    __hipsycl_if_target_device(
       h_item<Dimensions> idx{detail::get_local_id<Dimensions>(), detail::get_local_size<Dimensions>()};
       func(idx);
     );
@@ -426,10 +426,10 @@ public:
     // in hipSYCL, we do not need to distinguish between global and local pointers,
     // so we can just call the async_work_group_copy() variant that has
     // global_ptr as dest and local_ptr as source.
-    
+
     global_ptr<dataT> global_dest{dest.get()};
     local_ptr<dataT> local_src{src.get()};
-    
+
     return async_work_group_copy(global_dest, local_src, numElements);
   }
 
@@ -440,7 +440,7 @@ public:
   {
     __hipsycl_if_target_device(
       const size_t physical_local_size = get_local_range().size();
-      
+
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
@@ -460,7 +460,7 @@ public:
   {
     __hipsycl_if_target_device(
       const size_t physical_local_size = get_local_range().size();
-      
+
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i] = src[i * srcStride];
       detail::local_device_barrier(access::fence_space::global_and_local);
@@ -480,7 +480,7 @@ public:
   {
     __hipsycl_if_target_device(
       const size_t physical_local_size = get_local_range().size();
-      
+
       for(size_t i = get_local_linear_id(); i < numElements; i += physical_local_size)
         dest[i * destStride] = src[i];
       detail::local_device_barrier(access::fence_space::global_and_local);
@@ -544,7 +544,7 @@ private:
   HIPSYCL_KERNEL_TARGET
   void parallelize_over_work_items(const range<3> flexibleRange,
                                   workItemFunctionT&& func) const
-  { 
+  {
     const range<3> physical_range = this->get_local_range();
     for(size_t i = __hipsycl_lid_z; i < flexibleRange.get(0); i += physical_range.get(0))
       for(size_t j = __hipsycl_lid_y; j < flexibleRange.get(1); j += physical_range.get(1))
@@ -567,13 +567,13 @@ private:
                               workItemFunctionT&& func) const
   {
 #ifdef _OPENMP
-    #pragma omp simd 
+    #pragma omp simd
 #endif
     for(size_t i = 0; i < iteration_range.get(0); ++i)
     {
 #ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
       h_item<1> idx{
-        id<1>{i}, 
+        id<1>{i},
         iteration_range, _group_id, _num_groups
       };
       func(idx);
@@ -589,13 +589,13 @@ private:
   {
     for(size_t i = 0; i < iteration_range.get(0); ++i)
 #ifdef _OPENMP
-      #pragma omp simd 
+      #pragma omp simd
 #endif
       for(size_t j = 0; j < iteration_range.get(1); ++j)
       {
 #ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
         h_item<2> idx{
-          id<2>{i,j}, 
+          id<2>{i,j},
           iteration_range, _group_id, _num_groups
         };
 
@@ -612,13 +612,13 @@ private:
     for(size_t i = 0; i < iteration_range.get(0); ++i)
       for(size_t j = 0; j < iteration_range.get(1); ++j)
   #ifdef _OPENMP
-    #pragma omp simd 
+    #pragma omp simd
   #endif
         for(size_t k = 0; k < iteration_range.get(2); ++k)
         {
 #ifndef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
           h_item<3> idx{
-            id<3>{i,j,k}, 
+            id<3>{i,j,k},
             iteration_range, _group_id, _num_groups
           };
 

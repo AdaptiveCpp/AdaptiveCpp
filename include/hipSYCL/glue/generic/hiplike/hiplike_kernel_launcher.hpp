@@ -75,7 +75,7 @@
  #endif
  #include "hiplike_reducer.hpp"
  #include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
- 
+
 #else
 
 #ifndef __host__
@@ -109,7 +109,7 @@ struct dim3 {
 #endif
 #endif
 
-// Dummy kernel that is used in conjunction with 
+// Dummy kernel that is used in conjunction with
 // __builtin_get_device_side_stable_name() to extract kernel names
 template<class KernelT>
 __global__ void __hipsycl_kernel_name_template () {}
@@ -431,7 +431,7 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
     stages.push_back(reduction_stage<Dimensions>{
         local_size, current_num_groups, current_num_work_items});
   }
-  
+
   return stages;
 }
 
@@ -448,7 +448,7 @@ public:
       rt::backend_allocator* allocator)
       : _descriptor{desc}, _is_final{false}, _scratch_memory_in{nullptr},
         _scratch_memory_out{nullptr}, _allocator{allocator} {
-    
+
     assert(stages.size() > 0);
 
     std::size_t num_scratch_elements = stages[0].num_groups.size();
@@ -487,7 +487,7 @@ public:
 
     if (stage_index + 1 == num_stages)
       _is_final = true;
-  
+
     if (stage_index > 0) {
       std::swap(_scratch_memory_in, _scratch_memory_out);
     }
@@ -507,7 +507,7 @@ public:
     );
   }
 
-  __host__ __device__ 
+  __host__ __device__
   void* get_reduction_output_buffer() const {
     __hipsycl_if_target_device(
       if(!_is_final)
@@ -544,7 +544,7 @@ public:
             group_output_ptr, global_input_ptr};
     );
   }
-  
+
   __device__ void *get_reduction_input_buffer() const {
     return _scratch_memory_in;
   }
@@ -554,24 +554,24 @@ public:
     return _descriptor;
   }
 
-  
+
 private:
-  
+
   __host__ void initialize_local_memory(int work_group_size,
                                         int &allocated_local_mem_size) {
-    
+
     std::size_t alignment = alignof(value_type);
 
     this->_local_memory_offset =
         ceil_division(allocated_local_mem_size, alignment) *
         alignment;
 
-    allocated_local_mem_size = _local_memory_offset + 
+    allocated_local_mem_size = _local_memory_offset +
         work_group_size * sizeof(value_type);
   }
 
   bool _is_final;
-  
+
   void* _scratch_memory_in;
   void* _scratch_memory_out;
 
@@ -614,7 +614,7 @@ public:
       : _queue{nullptr}, _invoker{[](rt::dag_node*) {}} {}
 
   virtual ~hiplike_kernel_launcher() {
-    
+
     for(void* scratch_ptr : _managed_reduction_scratch) {
       // Only assert(_queue) here instead of outside of the loop.
       // If this kernel_launcher was never invoked, it can
@@ -641,7 +641,7 @@ public:
   void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
             sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
             Kernel k, Reductions... reductions) {
-    
+
     this->_type = type;
 
     using kernel_name_t = typename KernelNameTraits::name;
@@ -667,7 +667,7 @@ public:
 
     _invoker = [=](rt::dag_node* node) mutable {
       assert(_queue != nullptr);
-      
+
       static_cast<rt::kernel_operation *>(node->get_operation())
           ->initialize_embedded_pointers(k, reductions...);
 
@@ -681,7 +681,7 @@ public:
             dynamic_local_memory, _queue->get_native_type(), k);
 
       } else if constexpr (type == rt::kernel_type::custom) {
-       
+
         sycl::interop_handle handle{_queue->get_device(),
                                     static_cast<void *>(_queue)};
 
@@ -776,11 +776,11 @@ public:
               using multiversioned_name_t =
                   typename KernelNameTraits::template multiversioned_name<
                       multiversioned_parameters>;
-              
+
               auto multiversioned_kernel_body =
                   KernelNameTraits::template make_multiversioned_kernel_body<
                       multiversioned_parameters>(k);
-              
+
               using sp_properties_t = decltype(multiversioning_props);
 
               __hipsycl_invoke_kernel(node,
@@ -884,7 +884,7 @@ public:
   }
 
 private:
-  
+
   static constexpr bool is_launch_from_module() {
 
     constexpr auto is_cuda_module_launch = [](){
@@ -920,7 +920,7 @@ private:
     // by the clang plugin in the device compilation pass.
 #elif __has_builtin(__builtin_get_device_side_mangled_name) &&                 \
     !defined(__HIPSYCL_SPLIT_COMPILER__)
-    
+
     // The builtin unfortunately only works with __global__ or
     // __device__ functions. Since our kernel launchers cannot be __global__
     // when semantic analysis runs, we cannot apply the builtin
@@ -940,7 +940,7 @@ private:
   void invoke_from_module(rt::dag_node* node, dim3 grid_size, dim3 block_size,
                           unsigned dynamic_shared_mem, Args... args) {
     assert(node);
-  
+
 #if defined(__HIPSYCL_MULTIPASS_CUDA_HEADER__) || defined(__HIPSYCL_MULTIPASS_HIP_HEADER__)
 
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__

@@ -41,7 +41,7 @@ ze_allocator::ze_allocator(const ze_hardware_context *device,
       _hw_manager{hw_manager} {}
 
 void* ze_allocator::allocate(size_t min_alignment, size_t size_bytes) {
-  
+
   void* out = nullptr;
 
   ze_device_mem_alloc_desc_t desc;
@@ -58,7 +58,7 @@ void* ze_allocator::allocate(size_t min_alignment, size_t size_bytes) {
                    error_info{"ze_allocator: zeMemAllocDevice() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
-    return nullptr; 
+    return nullptr;
   }
 
   return out;
@@ -68,7 +68,7 @@ void* ze_allocator::allocate_optimized_host(size_t min_alignment,
                                             size_t bytes) {
   void* out = nullptr;
   ze_host_mem_alloc_desc_t desc;
-  
+
   desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
   desc.pNext = nullptr;
   desc.flags = 0;
@@ -85,13 +85,13 @@ void* ze_allocator::allocate_optimized_host(size_t min_alignment,
 
   return out;
 }
-  
+
 void ze_allocator::free(void *mem) {
   ze_result_t err = zeMemFree(_ctx, mem);
 
   if(err != ZE_RESULT_SUCCESS) {
-    register_error(__hipsycl_here(), 
-        error_info{"ze_allocator: zeMemFree() failed", 
+    register_error(__hipsycl_here(),
+        error_info{"ze_allocator: zeMemFree() failed",
             error_code{"ze",static_cast<int>(err)}});
   }
 }
@@ -121,7 +121,7 @@ void* ze_allocator::allocate_usm(size_t bytes) {
                    error_info{"ze_allocator: zeMemAllocShared() failed",
                               error_code{"ze", static_cast<int>(err)},
                               error_type::memory_allocation_error});
-    return nullptr; 
+    return nullptr;
   }
 
   return out;
@@ -144,7 +144,7 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
                    error_info{"ze_allocator: zeMemGetAllocProperties() failed",
                               error_code{"ze", static_cast<int>(err)}});
   }
-  
+
   out.is_optimized_host = props.type == ZE_MEMORY_TYPE_HOST;
   out.is_usm = props.type == ZE_MEMORY_TYPE_SHARED;
 

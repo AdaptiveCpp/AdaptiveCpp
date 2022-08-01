@@ -49,7 +49,7 @@ namespace {
 bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
   if (r.size() == 0)
     return true;
-  
+
   int dim = 3;
   if (r.get(0) == 1)
     dim = 2;
@@ -177,7 +177,7 @@ omp_queue::~omp_queue() {
 
 std::shared_ptr<dag_node_event> omp_queue::insert_event() {
   HIPSYCL_DEBUG_INFO << "omp_queue: Inserting event into queue..." << std::endl;
-  
+
   auto evt = std::make_shared<omp_node_event>();
   auto signal_channel = evt->get_signal_channel();
 
@@ -202,7 +202,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
 
     void* base_src = op.source().get_base_ptr();
     void *base_dest = op.dest().get_base_ptr();
-    
+
     assert(base_src);
     assert(base_dest);
 
@@ -234,7 +234,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
       if (is_src_contiguous && is_dest_contiguous) {
         char *current_src = reinterpret_cast<char *>(base_src);
         char *current_dest = reinterpret_cast<char *>(base_dest);
-        
+
         current_src +=
             linear_index(src_offset, src_allocation_shape) * src_element_size;
         current_dest +=
@@ -267,7 +267,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
             assert(current_dest + row_size <=
                    reinterpret_cast<char *>(base_dest) +
                        dest_allocation_shape.size() * dest_element_size);
-            
+
             memcpy(current_dest, current_src, row_size);
 
             ++current_src_offset[1];
@@ -295,7 +295,7 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
 result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting kernel..." << std::endl;
 
-  rt::backend_kernel_launcher *launcher = 
+  rt::backend_kernel_launcher *launcher =
       op.get_launcher().find_launcher(_backend_id);
 
   if(!launcher) {
@@ -305,9 +305,9 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
         error_type::runtime_error});
   }
 
-  
+
   rt::dag_node* node_ptr = node.get();
-  
+
 
   omp_instrumentation_setup instrumentation_setup{op, node};
   _worker([=]() {
@@ -327,7 +327,7 @@ result omp_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr node) {
   // Yeah, what are you going to do? Prefetching CPU memory on CPU? Go home!
   // (TODO: maybe we should handle the case that we have USM memory from another
   // backend here)
-  
+
   omp_instrumentation_setup instrumentation_setup{op, node};
   {
     auto instrumentation_guard = instrumentation_setup.instrument_task();
@@ -340,7 +340,7 @@ result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
   void *ptr = op.get_pointer();
   std::size_t bytes = op.get_num_bytes();
   int pattern = op.get_pattern();
-  
+
   if (!ptr) {
     return register_error(
         __hipsycl_here(),
@@ -357,7 +357,7 @@ result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
   });
 
   return make_success();
-    
+
 }
 
   /// Causes the queue to wait until an event on another queue has occured.
@@ -392,14 +392,14 @@ result omp_queue::query_status(inorder_queue_status &status) {
 result omp_queue::submit_external_wait_for(dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for external node..."
                      << std::endl;
-  
+
   if(!node) {
     return register_error(
         __hipsycl_here(),
         error_info{"omp_queue: node for synchronization is null.",
                    error_type::invalid_parameter_error});
   }
-  
+
   _worker([=](){
     node->wait();
   });

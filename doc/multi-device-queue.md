@@ -40,7 +40,7 @@ enum class selection_policy {
 };
 
 // A wrapper class that turns a regular selector into a multi-device
-// selector. 
+// selector.
 // If selection policy is selection_policy::all, then
 // all devices are selected for which the provided selector returns a
 // non-negative number.
@@ -77,7 +77,7 @@ public:
                  const async_handler &handler,
                  const property_list &propList = {});
 
-  explicit queue(const std::vector<device>& devices, 
+  explicit queue(const std::vector<device>& devices,
                 const property_list& propList = {});
 
   explicit queue(const context &syclContext,

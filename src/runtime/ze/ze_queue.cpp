@@ -54,7 +54,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
 
   ze_hardware_context *hw_context =
       cast<ze_hardware_context>(hw_manager->get_device(device_index));
-  
+
   assert(hw_context);
 
   ze_command_queue_desc_t desc;
@@ -64,7 +64,7 @@ ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
                     // appropriate group
   desc.index = 0;
   desc.flags = ZE_COMMAND_QUEUE_FLAG_EXPLICIT_ONLY;
-  desc.mode  = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS; 
+  desc.mode  = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
   desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
 
   ze_result_t err = zeCommandListCreateImmediate(hw_context->get_ze_context(),
@@ -197,9 +197,9 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 }
 
 result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
-  rt::backend_kernel_launcher *l = 
+  rt::backend_kernel_launcher *l =
       op.get_launcher().find_launcher(backend_id::level_zero);
-  
+
   if (!l)
     return make_error(__hipsycl_here(),
                       error_info{"Could not obtain backend kernel launcher"});
@@ -344,7 +344,7 @@ result ze_queue::submit_kernel_from_code_object(
     assert(hcf->root_node());
     if(!hcf->root_node()->has_binary_data_attached())
       return nullptr;
-    
+
     std::string code;
     if(!hcf->get_binary_attachment(hcf->root_node(), code)) {
       HIPSYCL_DEBUG_ERROR
@@ -377,7 +377,7 @@ result ze_queue::submit_kernel_from_code_object(
   ze_kernel_handle_t kernel;
   result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
       backend_kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 
@@ -435,7 +435,7 @@ result ze_queue::submit_kernel_from_code_object(
       get_ze_command_list(), kernel, &group_count,
       static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
       static_cast<uint32_t>(wait_events.size()), wait_events.data());
-  
+
   if(err != ZE_RESULT_SUCCESS) {
     return make_error(
         __hipsycl_here(),
@@ -451,4 +451,3 @@ result ze_queue::submit_kernel_from_code_object(
 
 }
 }
-

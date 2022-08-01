@@ -77,5 +77,5 @@ Independent command groups may be executed in parallel. For example, this includ
 
 #### Comments
 
-* A smaller page size means a finer data management granularity; it may allow for more operations to be executed without dependencies in between them, but may also lead to a larger runtime overhead when tracking data state. The optimal page size is therefore a tradeoff. 
+* A smaller page size means a finer data management granularity; it may allow for more operations to be executed without dependencies in between them, but may also lead to a larger runtime overhead when tracking data state. The optimal page size is therefore a tradeoff.
 * Note that in the hipSYCL model, subbuffers are neither needed, nor necessary, nor recommended to obtain parallel execution of kernels.

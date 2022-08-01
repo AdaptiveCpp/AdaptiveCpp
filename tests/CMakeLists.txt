@@ -73,7 +73,7 @@ add_executable(sycl_tests
   sycl/reduction.cpp
   sycl/reference_semantics.cpp
   sycl/sub_group.cpp
-  sycl/sycl_test_suite.cpp 
+  sycl/sycl_test_suite.cpp
   sycl/usm.cpp
   sycl/vec.cpp
   sycl/queue.cpp)
@@ -82,8 +82,8 @@ target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURR
 target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})
 add_sycl_to_target(TARGET sycl_tests)
 
-add_executable(rt_tests 
-  runtime/runtime_test_suite.cpp 
+add_executable(rt_tests
+  runtime/runtime_test_suite.cpp
   runtime/dag_builder.cpp
   runtime/data.cpp)
 

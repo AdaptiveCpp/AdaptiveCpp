@@ -19,7 +19,7 @@ ${HIPSYCL_PKG_LLVM_VERSION_MINOR}.\
 ${HIPSYCL_PKG_LLVM_VERSION_PATCH}/include
 if [ -d "$HIPSYCL_BUILD_DIR" ]; then
        read -p  "hipsycl_installer: The build directory already exists, do you want to use $HIPSYCL_BUILD_DIR anyways?[y]" -n 1 -r
-       echo 
+       echo
        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
               echo "hipsycl_installer: Please specify a different directory than $HIPSYCL_BUILD_DIR, exiting"
               [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
@@ -63,4 +63,4 @@ cmake \
 ..
 
 make -j 16 install
-cp /mnt/spack-install/spack-syclcc.json /opt/hipSYCL/etc/hipSYCL/syclcc.json 
+cp /mnt/spack-install/spack-syclcc.json /opt/hipSYCL/etc/hipSYCL/syclcc.json

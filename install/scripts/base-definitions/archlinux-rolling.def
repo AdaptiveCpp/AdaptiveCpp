@@ -6,4 +6,4 @@ From: archlinux:base
 %post
 [ "$HIPSYCL_PKG_BUILD_CUDA" = "ON" ] && bash /install-cuda.sh || echo "Not building CUDA"
 pacman -Syu --noconfirm
-pacman -S --noconfirm unzip sed wget git python3 parallel tar perl base-devel cmake curl	
+pacman -S --noconfirm unzip sed wget git python3 parallel tar perl base-devel cmake curl

@@ -29,5 +29,3 @@ package(){
 EOF
 
 cd ${CUDA_DIR}/pkg && makepkg -d -c --skipinteg
-
-

@@ -47,7 +47,7 @@ public:
     std::lock_guard<std::mutex> lock{_lock};
 
     print_result(res);
-    
+
     _errors.push_back(res);
   }
 
@@ -82,7 +82,7 @@ private:
   std::vector<result> _errors;
 };
 
-}  
+}
 }
 
 #endif

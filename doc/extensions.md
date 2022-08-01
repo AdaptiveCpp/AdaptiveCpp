@@ -80,8 +80,8 @@ For example, a coarse grained event for a backend based on in-order queues (e.g.
 
 Coarse-grained events support the same functionality as regular events.
 
-Coarse-grained events can be requested in two ways: 
-1. By passing a property to `queue` which instructs the `queue` to construct coarse-grained events for all operations that it processes, and 
+Coarse-grained events can be requested in two ways:
+1. By passing a property to `queue` which instructs the `queue` to construct coarse-grained events for all operations that it processes, and
 2. by passing in a property to an individual command group (see `HIPSYCL_EXT_CG_PROPERTY_*`). In this case, coarse-grained events can be enabled selectively only for some command groups submitted to a queue.
 
 #### API Reference
@@ -221,7 +221,7 @@ void handler::prefetch_host(const void *ptr, std::size_t num_bytes);
 /// Queue shortcuts
 event queue::prefetch_host(const void *ptr, std::size_t num_bytes);
 
-event queue::prefetch_host(const void *ptr, std::size_t num_bytes, 
+event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
                           event dependency);
 
 event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
@@ -255,13 +255,13 @@ The following example illustrates the use of this extension:
 
 cl::sycl::queue q;
 cl::sycl::buffer<int, 1> buff{/* Initialize somehow */};
-cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write, 
+cl::sycl::accessor<int, 1, cl::sycl::access::mode::read_write,
       cl::sycl::access::target::global_buffer, cl::sycl::access::placeholder::true_t> acc{buff};
 
 // This will call handler::require(acc) for each command group subsequently
 // launched in the queue, until the `automatic_requirement` object is destroyed
 // or `automatic_requirement.release()` is called.
-auto automatic_requirement = 
+auto automatic_requirement =
    cl::sycl::vendor::hipsycl::automatic_require(q, acc);
 // The member function `is_required()` can be used to check if
 // if the automatic requirement object is active:

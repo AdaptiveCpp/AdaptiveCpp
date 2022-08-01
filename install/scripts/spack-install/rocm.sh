@@ -28,8 +28,7 @@ spack compiler find /opt/hipSYCL/llvm/llvm/bin/
 # In case that happens we run the sequential version to check if everything have been
 # installed properly
 parallel --lb -N0 spack install hip@$HIPSYCL_HIP_VERSION%clang@$llvm_version target=x86_64 ::: {1..16} || error="1"
-if [ "$error" = "1" ]; then 
+if [ "$error" = "1" ]; then
   spack install hip%clang@$llvm_version target=x86_64
 fi
 spack gc -y
-

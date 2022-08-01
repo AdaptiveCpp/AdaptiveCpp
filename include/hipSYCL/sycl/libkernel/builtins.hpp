@@ -221,7 +221,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(detail::char3, name, builtin_impl_name) \
   handler(detail::char4, name, builtin_impl_name) \
   handler(detail::char8, name, builtin_impl_name) \
-  handler(detail::char16, name, builtin_impl_name) 
+  handler(detail::char16, name, builtin_impl_name)
   // TODO: marray
 
 #define HIPSYCL_BUILTIN_OVERLOAD_SET_SCHARN(handler, name, builtin_impl_name) \
@@ -229,7 +229,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(detail::schar3, name, builtin_impl_name) \
   handler(detail::schar4, name, builtin_impl_name) \
   handler(detail::schar8, name, builtin_impl_name) \
-  handler(detail::schar16, name, builtin_impl_name) 
+  handler(detail::schar16, name, builtin_impl_name)
   // TODO: marray
 
 #define HIPSYCL_BUILTIN_OVERLOAD_SET_UCHARN(handler, name, builtin_impl_name) \
@@ -237,7 +237,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(detail::uchar3, name, builtin_impl_name) \
   handler(detail::uchar4, name, builtin_impl_name) \
   handler(detail::uchar8, name, builtin_impl_name) \
-  handler(detail::uchar16, name, builtin_impl_name) 
+  handler(detail::uchar16, name, builtin_impl_name)
   // TODO: marray
 
 #define HIPSYCL_BUILTIN_OVERLOAD_SET_IGENCHAR(handler, name, builtin_impl_name) \
@@ -262,7 +262,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(sycl::short3, name, builtin_impl_name)                              \
   handler(sycl::short4, name, builtin_impl_name)                              \
   handler(sycl::short8, name, builtin_impl_name)                              \
-  handler(sycl::short16, name, builtin_impl_name) 
+  handler(sycl::short16, name, builtin_impl_name)
   // TODO: marray
 
 #define HIPSYCL_BUILTIN_OVERLOAD_SET_GENSHORT(handler, name, builtin_impl_name) \
@@ -275,7 +275,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(sycl::ushort3, name, builtin_impl_name)                              \
   handler(sycl::ushort4, name, builtin_impl_name)                              \
   handler(sycl::ushort8, name, builtin_impl_name)                              \
-  handler(sycl::ushort16, name, builtin_impl_name) 
+  handler(sycl::ushort16, name, builtin_impl_name)
   // TODO: marray
 
 #define HIPSYCL_BUILTIN_OVERLOAD_SET_UGENSHORT(handler, name, builtin_impl_name) \
@@ -383,7 +383,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   handler(int32_t, name, builtin_impl_name)                           \
   handler(uint32_t, name, builtin_impl_name)                          \
   HIPSYCL_BUILTIN_OVERLOAD_SET_INTN(handler, name, builtin_impl_name) \
-  HIPSYCL_BUILTIN_OVERLOAD_SET_UINTN(handler, name, builtin_impl_name) 
+  HIPSYCL_BUILTIN_OVERLOAD_SET_UINTN(handler, name, builtin_impl_name)
 
 #define HIPSYCL_BUILTIN_GENERATOR_TRINARY_T_T_T(T, name, impl_name)            \
   HIPSYCL_BUILTIN T name(T a, T b, T c) noexcept {                             \

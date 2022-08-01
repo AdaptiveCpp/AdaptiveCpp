@@ -53,7 +53,7 @@ void dag_submitted_ops::purge_known_completed() {
 
 void dag_submitted_ops::async_wait_and_unregister(
     const std::vector<dag_node_ptr> &nodes) {
-  
+
   _updater_thread([nodes, this]{
     // Since node->wait() causes all requirements to be marked
     // as completed as well, we can reduce the number of backend wait
@@ -82,7 +82,7 @@ void dag_submitted_ops::wait_for_all() {
     std::lock_guard lock{_lock};
     current_ops = _ops;
   }
-  
+
   for(dag_node_ptr node : current_ops) {
     assert(node->is_submitted());
     node->wait();
@@ -92,10 +92,10 @@ void dag_submitted_ops::wait_for_all() {
 void dag_submitted_ops::wait_for_group(std::size_t node_group) {
   HIPSYCL_DEBUG_INFO << "dag_submitted_ops: Waiting for node group "
                      << node_group << std::endl;
-  
+
   std::vector<dag_node_ptr> current_ops;
   {
-    std::lock_guard lock{_lock};  
+    std::lock_guard lock{_lock};
     current_ops = _ops;
   }
 
@@ -121,7 +121,7 @@ void dag_submitted_ops::wait_for_group(std::size_t node_group) {
 }
 
 std::vector<dag_node_ptr> dag_submitted_ops::get_group(std::size_t node_group) {
-  
+
   std::vector<dag_node_ptr> ops;
   {
     std::lock_guard lock{_lock};

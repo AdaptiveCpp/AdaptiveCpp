@@ -1,6 +1,6 @@
 # Limitations
 
-## Unimplemented features 
+## Unimplemented features
 The following is a (probably incomplete) list of features that are not yet implemented in hipSYCL
 * hierarchical parallel for: flexible work group ranges are unsupported (hierarchical dispatch with ranges fixed at `parallel_for_work_group` invocation is supported).
 * hierarchical parallel for: Within work group scope execution may not be limited to only one work item per group.

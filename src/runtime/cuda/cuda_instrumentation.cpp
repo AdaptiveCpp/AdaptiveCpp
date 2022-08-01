@@ -45,7 +45,7 @@ cuda_event_time_delta::operator()(const dag_node_event& t0,
 
   cudaEvent_t t0_evt = cast<const cuda_node_event>(&t0)->get_event();
   cudaEvent_t t1_evt = cast<const cuda_node_event>(&t1)->get_event();
-  
+
   float ms = 0.0f;
   cudaError_t err = cudaEventElapsedTime(&ms, t0_evt, t1_evt);
 
@@ -62,4 +62,3 @@ cuda_event_time_delta::operator()(const dag_node_event& t0,
 
 }
 }
-

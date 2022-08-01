@@ -37,7 +37,7 @@ namespace rt {
 cuda_allocator::cuda_allocator(backend_descriptor desc, int cuda_device)
     : _backend_descriptor{desc}, _dev{cuda_device}
 {}
-      
+
 void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
@@ -81,13 +81,13 @@ void cuda_allocator::free(void *mem) {
     register_error(query_result);
     return;
   }
-  
+
   cudaError_t err;
   if (info.is_optimized_host)
     err = cudaFreeHost(mem);
   else
     err = cudaFree(mem);
-  
+
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"cuda_allocator: cudaFree() failed",
@@ -150,7 +150,7 @@ result cuda_allocator::query_pointer(const void *ptr, pointer_info &out) const {
   out.is_from_host_backend = false;
   out.is_optimized_host = attribs.type == cudaMemoryTypeHost;
   out.is_usm = attribs.type == cudaMemoryTypeManaged;
-  
+
   return make_success();
 }
 

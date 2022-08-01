@@ -39,16 +39,16 @@ namespace hipsycl {
 namespace compiler {
 
 class FrontendASTAction : public clang::PluginASTAction {
-  
+
 protected:
   std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI,
-                                                        llvm::StringRef) override 
+                                                        llvm::StringRef) override
   {
     return std::make_unique<FrontendASTConsumer>(CI);
   }
 
   bool ParseArgs(const clang::CompilerInstance &CI,
-                 const std::vector<std::string> &args) override 
+                 const std::vector<std::string> &args) override
   {
     return true;
   }
@@ -65,7 +65,7 @@ protected:
 
   void PrintHelp(llvm::raw_ostream& ros) {}
 
-  clang::PluginASTAction::ActionType getActionType() override 
+  clang::PluginASTAction::ActionType getActionType() override
   {
     return AddBeforeMainAction;
   }

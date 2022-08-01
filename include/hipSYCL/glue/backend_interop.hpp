@@ -50,7 +50,7 @@ template <sycl::backend b> struct backend_interop {
   // For interop_handle, the following is required:
   // native_queue_type get_native_queue(rt::backend_kernel_launcher*)
   // native_queue_type get_native_queue(rt::device_id, rt::backend_executor*)
-  // 
+  //
   // In any case, the following should be defined:
   // static constexpr bool can_make_T = <whether make_T exists>
   // static constexpr bool can_extract_native_T = <whether get_native_T exists>

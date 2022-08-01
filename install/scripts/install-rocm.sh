@@ -19,7 +19,7 @@ export CUDA=${CUDA:-$HIPSYCL_INSTALL_PREFIX/cuda}
 
 if [ -d "$HIPSYCL_ROCM_BUILD_DIR" ]; then
        read -p  "The build directory already exists, do you want to use $HIPSYCL_ROCM_BUILD_DIR anyways?[y]" -n 1 -r
-       echo 
+       echo
        if [[ $REPLY =~ ^[Yy]$ ]]; then
               echo "Using the exisiting directory"
        else

@@ -4,7 +4,7 @@ Certain backends/compilation flows require LLVM. This is because hipSYCL needs t
 
 Generally, we recommend the latest officially released clang/LLVM versions, but older versions might also work depending on the compilation flow (see the table from the main installation instructions).
 
-Usually, the clang/LLVM versions provided in Linux distribution repositories are sufficient, if they are recent enough. 
+Usually, the clang/LLVM versions provided in Linux distribution repositories are sufficient, if they are recent enough.
 *In this case, hipSYCL might automatically detect and configure your LLVM installation without additional cmake arguments required.* **We therefore recommend to make your life easy: Check your distribution's LLVM version against the hipSYCL requirements and if they match, use it**.
 
 If you are using Ubuntu or Debian, we can also recommend the package repositories at `http://apt.llvm.org` if you wish to obtain a newer LLVM.
@@ -33,7 +33,7 @@ Also make sure to enable the correct backends for your hardware (`nvptx` for NVI
 When invoking cmake, the hipSYCL build infrastructure will attempt to find LLVM automatically (see below for how to invoke cmake).
 
 If hipSYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point hipSYCL to the right one:
-* `-DLLVM_DIR=/path/to/llvm/cmake` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**. 
+* `-DLLVM_DIR=/path/to/llvm/cmake` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**.
 
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```

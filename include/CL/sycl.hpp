@@ -39,4 +39,3 @@ using namespace hipsycl::sycl;
 }
 
 #endif
-

@@ -36,7 +36,7 @@
 namespace hipsycl {
 namespace sycl {
 
-enum class program_state 
+enum class program_state
 {
   none,
   compiled,
@@ -46,12 +46,12 @@ enum class program_state
 class kernel;
 
 // Dummy implementation of SYCL program class
-class program 
+class program
 {
   context _ctx;
 public:
   program() = delete;
-  
+
   explicit program(const context &context)
   : _ctx{context}
   {}
@@ -65,7 +65,7 @@ public:
   program(const context &context, Cl_program clProgram)
   : _ctx{context}
   {}
-  
+
   /* -- common interface members -- */
   //cl_program get() const;
 
@@ -73,7 +73,7 @@ public:
   {
     return _ctx.is_host();
   }
-  
+
   template <typename kernelT>
   void compile_with_kernel_type(string_class compileOptions = "")
   {}
@@ -93,7 +93,7 @@ public:
   void link(string_class linkOptions = "")
   {}
 
-  template <typename kernelT> 
+  template <typename kernelT>
   bool has_kernel() const
   { return true; }
 
@@ -107,12 +107,12 @@ public:
 
   template <info::program param> typename info::param_traits<info::program, param>::return_type
   get_info() const;
-  
+
   vector_class<vector_class<char>> get_binaries() const
   {
     return vector_class<vector_class<char>>{};
   }
-  
+
   context get_context() const
   {
     return _ctx;

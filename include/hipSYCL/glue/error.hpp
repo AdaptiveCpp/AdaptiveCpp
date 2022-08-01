@@ -53,7 +53,7 @@ inline void print_async_errors(sycl::exception_list error_list) {
 
     int idx = 0;
     for(std::exception_ptr err : error_list) {
-      
+
       try{
         if(err) {
           std::rethrow_exception(err);

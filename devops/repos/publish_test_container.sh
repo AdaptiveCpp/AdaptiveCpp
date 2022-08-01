@@ -24,8 +24,3 @@ for backend in `ls $HIPSYCL_TEST_DIR | sed -n -e "s/^.*$distro-//p"`; do
     #Keep only the two latest container from each kind
     ls -t $HIPSYCL_PKG_PUBLIC_CONTAINER_DIR | grep $container_name_base-[0-9] | tail -n +3 | xargs -I '_' rm -rf $HIPSYCL_PKG_PUBLIC_CONTAINER_DIR/_
 done
-
-
-
-
-

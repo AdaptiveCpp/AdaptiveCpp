@@ -57,7 +57,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
                     error_code{"CUDA", err}});
     }
   }
-  
+
   for (int dev = 0; dev < num_devices; ++dev) {
     _devices.push_back(std::move(cuda_hardware_context{dev}));
   }
@@ -92,7 +92,7 @@ device_id cuda_hardware_manager::get_device_id(std::size_t index) const {
 }
 
 
-cuda_hardware_context::cuda_hardware_context(int dev) 
+cuda_hardware_context::cuda_hardware_context(int dev)
   : _dev{dev} {
   _properties = std::make_unique<cudaDeviceProp>();
   auto err = cudaGetDeviceProperties(_properties.get(), dev);
@@ -366,7 +366,7 @@ std::string cuda_hardware_context::get_driver_version() const {
         error_info{"cuda_hardware_manager: Querying driver version failed",
                    error_code{"CUDA", err}});
   }
-  
+
   return std::to_string(driver_version);
 }
 

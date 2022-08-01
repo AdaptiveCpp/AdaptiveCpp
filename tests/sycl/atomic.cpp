@@ -57,7 +57,7 @@ unsigned long long t_to_int(T x) {
   } else {
     result = static_cast<unsigned long long>(x);
   }
-  
+
   return result;
 }
 
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
       // stores.
       if constexpr(!std::is_floating_point_v<Type>)
         r.store(int_to_t<Type>(x+2));
-      
+
       r.exchange(int_to_t<Type>(x+1));
     });
   });
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(load_store_exchange, Type,
 template <class T, class AtomicTester,
           class Verifier>
 void atomic_device_reduction_test(AtomicTester t, Verifier v) {
-  
+
   sycl::queue q;
 
   const std::size_t size = 2048;

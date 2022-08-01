@@ -54,7 +54,7 @@ q.submit([&](sycl::handler &cgh) {
     cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
       // Can extract device pointers from accessors
       void *native_mem = h.get_native_mem<sycl::backend::hip>(acc);
-      // Can extract stream (note: get_native_queue() may not be 
+      // Can extract stream (note: get_native_queue() may not be
       // supported on CPU backends)
       hipStream_t stream = h.get_native_queue<sycl::backend::hip>();
       // Can extract HIP device (note: get_native_device() may not be

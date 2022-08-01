@@ -1,4 +1,4 @@
-*Thank you for your interest in contributing to hipSYCL! Your PR will be highly appreciated* :-) 
+*Thank you for your interest in contributing to hipSYCL! Your PR will be highly appreciated* :-)
 
 When in doubt about how to implement something or how to integrate with the overall project strategy, please just open an issue for discussion.
 
@@ -19,4 +19,3 @@ We periodically perform the following merges:
 Please follow the following guidelines:
 * **File your PR against the `develop` branch, unless you are specifically targeting an earlier SYCL version.**
 * **If you are targeting an earlier SYCL version, target the appropriate `sycl/<version>` branch**
-   

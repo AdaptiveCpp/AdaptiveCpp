@@ -53,7 +53,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
                     error_code{"HIP", err}});
     }
   }
-  
+
   for (int dev = 0; dev < num_devices; ++dev) {
     _devices.push_back(std::move(hip_hardware_context{dev}));
   }
@@ -373,7 +373,7 @@ std::string hip_hardware_context::get_driver_version() const {
         error_info{"hip_hardware_manager: Querying driver version failed",
                    error_code{"HIP", err}});
   }
-  
+
   return std::to_string(driver_version);
 }
 

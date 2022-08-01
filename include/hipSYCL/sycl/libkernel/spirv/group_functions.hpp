@@ -190,4 +190,3 @@ T select_from_group(Group g, T x, typename Group::id_type remote_local_id);
 #endif
 
 #endif // HIPSYCL_LIBKERNEL_SPIRV_GROUP_FUNCTIONS_HPP
-

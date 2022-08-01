@@ -158,8 +158,8 @@ private:
   HIPSYCL_KERNEL_TARGET
   int local_tid() const {
     __hipsycl_if_target_device(
-      int tid = __hipsycl_lid_x 
-              + __hipsycl_lid_y * __hipsycl_lsize_x 
+      int tid = __hipsycl_lid_x
+              + __hipsycl_lid_y * __hipsycl_lsize_x
               + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
       return tid;
     );

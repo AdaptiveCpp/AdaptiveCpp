@@ -49,7 +49,7 @@ class platform {
 
 public:
   platform() : _platform{detail::get_host_device().get_backend(), 0} {}
-  
+
   platform(rt::backend_id backend)
       : _platform{backend, 0} {}
 
@@ -83,7 +83,7 @@ public:
       if (include_device)
         result.push_back(device{rt::device_id{b->get_backend_descriptor(), dev}});
     }
-  
+
     return result;
   }
 

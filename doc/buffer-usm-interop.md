@@ -15,7 +15,7 @@ USM pointers that a buffer currently manages can be queried, and some aspects ca
 namespace sycl {
 
 namespace buffer_allocation {
-/// Describes a buffer memory allocation represented by a USM pointer 
+/// Describes a buffer memory allocation represented by a USM pointer
 /// and additional meta-nformation.
 template <class T> struct descriptor {
   /// the USM pointer
@@ -144,7 +144,7 @@ public:
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
     const range<dimensions>& r,
     const property_list& prop_list = {});
-  
+
   buffer(
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,
     const range<dimensions>& r,
@@ -200,7 +200,7 @@ int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
   // because the pointer now holds up-to-date data
   sycl::buffer<int> b2{
       {sycl::buffer_allocation::view(alloc1, q.get_device())}, size};
-  
+
   // Can again use the buffer just as usual
   q.submit([&](sycl::handler& cgh){
     sycl::accessor<int> acc{b2, cgh};
@@ -213,7 +213,7 @@ int* alloc2 = sycl::malloc_shared<int>(size.size(), q);
   sycl::host_accessor<int> hacc{b2};
   for(int i = 0; i < size.get(0); ++i){
     assert(hacc[i] == i);
-  }  
+  }
 }
 
 sycl::free(alloc1, q);

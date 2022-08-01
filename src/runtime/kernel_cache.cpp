@@ -64,7 +64,7 @@ void kernel_cache::register_hcf_object(const common::hcf_container &obj) {
 
     if(out_filename.back() != '/' && out_filename.back() != '\\')
       out_filename += '/';
-    
+
     out_filename += "hipsycl_object_"+std::to_string(id)+".hcf";
 
     std::ofstream out_file(out_filename.c_str(), std::ios::binary);

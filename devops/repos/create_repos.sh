@@ -19,4 +19,3 @@ mkdir -p $HIPSYCL_PKG_REPO_BASE_DIR
 echo "$HIPSYCL_PKG_REPO_BASE_DIR"
 singularity -d exec --fakeroot -B $HIPSYCL_PKG_REPO_BASE_DIR:/data/repos/ -B $HIPSYCL_PKG_DEVOPS_DIR:$HIPSYCL_PKG_DEVOPS_DIR \
      $SINGULARITY_BASE_DIR/${repo_tools_cont[$distro]} bash $HIPSYCL_PKG_SCRIPT_DIR/${repo_script[$distro]}
-     

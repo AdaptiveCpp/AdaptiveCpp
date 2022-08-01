@@ -50,10 +50,10 @@ public:
   virtual bool is_complete() const override {
     if(_is_complete)
       return true;
-    
+
     if(_has_fine_grained_event)
       return _fine_grained_event->is_complete();
-    
+
     inorder_queue_status status;
     auto err = _q->query_status(status);
     if(!err.is_success()) {
@@ -84,7 +84,7 @@ public:
       _fine_grained_event = _q->insert_event();
       _has_fine_grained_event = true;
     }
-    
+
     return static_cast<inorder_queue_event<FineGrainedBackendEventT> *>(
                _fine_grained_event.get())
         ->request_backend_event();

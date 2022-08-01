@@ -50,13 +50,13 @@ public:
   virtual api_platform get_api_platform() const override;
   virtual hardware_platform get_hardware_platform() const override;
   virtual backend_id get_unique_backend_id() const override;
-  
+
   virtual backend_hardware_manager* get_hardware_manager() const override;
   virtual backend_executor* get_executor(device_id dev) const override;
   virtual backend_allocator *get_allocator(device_id dev) const override;
 
   virtual std::string get_name() const override;
-  
+
   virtual ~ze_backend(){}
 
 private:
@@ -70,4 +70,3 @@ private:
 }
 
 #endif
-

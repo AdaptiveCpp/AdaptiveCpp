@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from graphviz import Graph
 from graphviz import Digraph
 import colorsys

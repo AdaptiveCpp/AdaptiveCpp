@@ -96,6 +96,6 @@ cuda_event_pool* cuda_backend::get_event_pool(device_id dev) const {
 std::string cuda_backend::get_name() const {
   return "CUDA";
 }
-  
+
 }
 }

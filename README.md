@@ -98,6 +98,3 @@ Instructions for using hipSYCL in CMake projects can also be found in the docume
 * [SYCL Extensions implemented in hipSYCL](doc/extensions.md)
 * [Macros used by hipSYCL](doc/macros.md)
 * [Environment variables supported by hipSYCL](doc/env_variables.md)
-
-
-

@@ -101,11 +101,11 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   print_info(
       "Number of execution lanes for data transfers",
       b->get_executor(dev)->get_memcpy_execution_lane_range(dev).num_lanes, 2);
-  
+
   std::cout << " Device support queries:" << std::endl;
 #define PRINT_DEVICE_SUPPORT_ASPECT(name) \
   print_info(#name, hw->has(rt::device_support_aspect::name), 2);
-  
+
   PRINT_DEVICE_SUPPORT_ASPECT(images)
   PRINT_DEVICE_SUPPORT_ASPECT(error_correction)
   PRINT_DEVICE_SUPPORT_ASPECT(host_unified_memory)

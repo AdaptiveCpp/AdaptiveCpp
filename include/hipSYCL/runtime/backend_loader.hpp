@@ -58,7 +58,7 @@ public:
   ~backend_loader();
 
   void query_backends();
-  
+
   std::size_t get_num_backends() const;
   std::string get_backend_name(std::size_t index) const;
   bool has_backend(const std::string &name) const;
@@ -75,4 +75,3 @@ private:
 }
 
 #endif
-

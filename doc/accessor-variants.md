@@ -33,7 +33,7 @@ q.submit([&](sycl::handler& cgh){
   sycl::accessor<int> acc2 {b2, cgh, sycl::no_init};
 
   cgh.parallel_for(sycl::range{1024}, [=](sycl::id<1> idx){
-    
+
   });
 });
 ```
@@ -286,7 +286,7 @@ public:
   accessor& operator=(const accessor& other) = default;
 
   // Only available for read-only accessors.
-  // Not available if, for a source accessor variant S 
+  // Not available if, for a source accessor variant S
   // and a destination accessor variant D:
   // * S is a raw accessor
   // * S is ranged and D is unranged
@@ -296,7 +296,7 @@ public:
                           access_mode::read_write, accessTarget, P> &other);
 
   // Conversion between different accessor variants
-  // Not available if, for a source accessor variant S 
+  // Not available if, for a source accessor variant S
   // and a destination accessor variant D:
   // * S is a raw accessor
   // * S is ranged and D is unranged
@@ -305,7 +305,7 @@ public:
   accessor(const accessor<dataT, dimensions, access_mode::read_write,
                           accessTarget, OtherV> &other);
 
-  
+
   // Only available if the accessor is not a raw accessor, or
   // the dimensionality is 0.
   size_t get_size() const noexcept;
@@ -317,7 +317,7 @@ public:
   // Only available if the accessor is not a raw accessor, or
   // the dimensionality is 0.
   size_t get_count() const noexcept;
-  
+
   // Only available if the accessor is not a raw accessor, or
   // the dimensionality is 0.
   size_t byte_size() const noexcept;
@@ -334,16 +334,16 @@ public:
   // Only available if the accessor is not a raw accessor
   range<dimensions> get_range() const noexcept;
 
-  // Only available when dimensions > 0 
+  // Only available when dimensions > 0
   id<dimensions> get_offset() const noexcept;
-  
+
   // Only available for non-atomic accessors that either
   // * are not raw accessors
   // * are raw accessors of dimensionality <= 1. In this case,
   //   the access offset will not be taken into account.
   reference operator[](id<dimensions> index) const noexcept;
-  
-  // Only available for non-atomic accessors of dimensionality 1 
+
+  // Only available for non-atomic accessors of dimensionality 1
   // that either
   // * are not raw accessors
   // * are raw accessors of dimensionality <= 1. In this case,

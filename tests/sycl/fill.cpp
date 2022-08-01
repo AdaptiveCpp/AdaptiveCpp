@@ -34,7 +34,7 @@ BOOST_FIXTURE_TEST_SUITE(fill_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
   test_dimensions::type) {
-  
+
   constexpr auto d = _dimensions::value;
   namespace s = cl::sycl;
 
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fill_buffer, _dimensions,
 
   auto buff_size = make_test_value<s::range, d>({64}, {64, 64}, {64, 64, 64});
   s::buffer<s::id<d>, d> buff{buff_size};
-  
+
   q.submit([&](s::handler& cgh){
     auto buff_acc = buff.template get_access<s::access::mode::discard_write>(cgh);
     cgh.parallel_for<kernel_name<class fill_init_kernel, d>>(buff_size,

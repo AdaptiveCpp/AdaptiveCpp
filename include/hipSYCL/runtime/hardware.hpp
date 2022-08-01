@@ -128,7 +128,7 @@ public:
   virtual std::string get_device_arch() const = 0;
 
   virtual bool has(device_support_aspect aspect) const = 0;
-  
+
   virtual std::size_t get_property(device_uint_property prop) const = 0;
 
   virtual std::vector<std::size_t>
@@ -136,7 +136,7 @@ public:
 
   virtual std::string get_driver_version() const = 0;
   virtual std::string get_profile() const = 0;
-  
+
   virtual ~hardware_context(){}
 };
 

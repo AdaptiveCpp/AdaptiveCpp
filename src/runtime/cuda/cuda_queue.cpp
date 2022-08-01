@@ -59,10 +59,10 @@ namespace {
 
 void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
                                    void *userData) {
-  
+
   assert(userData);
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
-  
+
   if(status != cudaSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"cuda_queue callback: CUDA returned error code.",
@@ -78,7 +78,7 @@ void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
 class cuda_instrumentation_guard {
 public:
   cuda_instrumentation_guard(cuda_queue *q,
-                             operation &op, dag_node_ptr node) 
+                             operation &op, dag_node_ptr node)
                              : _queue{q}, _operation{&op}, _node{node} {
     assert(q);
     assert(_node);
@@ -254,7 +254,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
     err = cudaMemcpyAsync(
         op.dest().get_access_ptr(), op.source().get_access_ptr(),
         op.get_num_transferred_bytes(), copy_kind, get_stream());
-    
+
   } else if (dimension == 2) {
     err = cudaMemcpy2DAsync(
         op.dest().get_access_ptr(),
@@ -267,9 +267,9 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
             op.source().get_element_size(),
         extract_from_range3<2>(op.get_num_transferred_elements())[0], copy_kind,
         get_stream());
-    
+
   } else {
-    
+
     cudaMemcpy3DParms params = {0};
     params.srcPtr = make_cudaPitchedPtr(op.source().get_access_ptr(),
                                         op.source().get_allocation_shape()[2] *
@@ -295,7 +295,7 @@ result cuda_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
                       error_info{"cuda_queue: Couldn't submit memcpy",
                                   error_code{"CUDA", err}});
   }
-  
+
   return make_success();
 }
 
@@ -308,7 +308,7 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
-  
+
   cuda_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
 
@@ -317,9 +317,9 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 
 result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
 #ifndef _WIN32
-  
+
   cudaError_t err = cudaSuccess;
-  
+
   cuda_instrumentation_guard instrumentation{this, op, node};
   if (op.get_target().is_host()) {
     err = cudaMemPrefetchAsync(op.get_pointer(), op.get_num_bytes(),
@@ -345,10 +345,10 @@ result cuda_queue::submit_prefetch(prefetch_operation& op, dag_node_ptr node) {
 result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
   cuda_instrumentation_guard instrumentation{this, op, node};
-  
+
   cudaError_t err = cudaMemsetAsync(op.get_pointer(), op.get_pattern(),
                                     op.get_num_bytes(), get_stream());
-  
+
 
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
@@ -366,7 +366,7 @@ result cuda_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
 
   inorder_queue_event<cudaEvent_t> *cuda_evt =
       cast<inorder_queue_event<cudaEvent_t>>(evt.get());
-  
+
   auto err = cudaStreamWaitEvent(_stream, cuda_evt->request_backend_event(), 0);
   if (err != cudaSuccess) {
     return make_error(__hipsycl_here(),
@@ -383,7 +383,7 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
   assert(user_data);
   *user_data = node;
 
-  auto err = 
+  auto err =
       cudaStreamAddCallback(_stream, host_synchronization_callback,
                            reinterpret_cast<void *>(user_data), 0);
 
@@ -392,7 +392,7 @@ result cuda_queue::submit_external_wait_for(dag_node_ptr node) {
                       error_info{"cuda_queue: Couldn't submit stream callback",
                                  error_code{"CUDA", err}});
   }
-  
+
   return make_success();
 }
 
@@ -485,7 +485,7 @@ result cuda_queue::submit_kernel_from_code_object(
         return nullptr;
       if(!tn->has_binary_data_attached())
         return nullptr;
-      
+
       std::string source_code;
       if(!hcf->get_binary_attachment(tn, source_code)) {
         HIPSYCL_DEBUG_ERROR << "cuda_queue: Could not extract PTX code from "
@@ -502,7 +502,7 @@ result cuda_queue::submit_kernel_from_code_object(
         rt::kernel_cache::get().recursive_get_or_construct_code_object(
             *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
             source_object_selector, source_object_constructor));
-    
+
     cuda_executable_object* exec_obj = new cuda_executable_object{source, device};
     result r = exec_obj->get_build_result();
 
@@ -564,7 +564,7 @@ result cuda_queue::submit_kernel_from_code_object(
                       error_info{"cuda_queue: could not submit kernel from module",
                                  error_code{"CU", static_cast<int>(err)}});
   }
-  
+
   return make_success();
 }
 
@@ -621,4 +621,3 @@ result cuda_code_object_invoker::submit_kernel(
 
 }
 }
-

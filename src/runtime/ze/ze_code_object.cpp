@@ -71,7 +71,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   ze_module_desc_t desc;
   desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
   desc.pNext = nullptr;
-  
+
   if(_format == ze_source_format::spirv) {
     desc.format = ZE_MODULE_FORMAT_IL_SPIRV;
   } else {
@@ -79,7 +79,7 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
         __hipsycl_here(), error_info{"ze_executable_object: Invalid module format"});
     return;
   }
-  
+
   desc.inputSize = code_image.size();
   desc.pInputModule = reinterpret_cast<const uint8_t *>(code_image.c_str());
   // TODO: We may want to expose some of the build flags, e.g. to
@@ -211,7 +211,7 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
       << "ze_executable_object: Constructed new kernel for cache: "
       << kernel_name << std::endl;
 
-  return make_success();  
+  return make_success();
 }
 
 }

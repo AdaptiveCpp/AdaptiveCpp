@@ -32,7 +32,7 @@ using namespace cl;
 BOOST_FIXTURE_TEST_SUITE(info_queries, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(device_queries) {
-  
+
   sycl::device d{sycl::default_selector{}};
   sycl::queue q{d};
 
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(device_queries) {
   // TODO Add tests for more queries
 }
 BOOST_AUTO_TEST_CASE(kernel_specific_queries) {
-  
+
   sycl::queue q;
 
   sycl::program p{q.get_context()};
@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE(kernel_specific_queries) {
       k.get_info<sycl::info::kernel_device_specific::max_sub_group_size>(
           q.get_device());
   BOOST_TEST(max_sg_size > 0);
-  
+
   // TODO Add tests for more queries
 }
 

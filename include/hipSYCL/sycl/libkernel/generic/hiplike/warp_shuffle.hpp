@@ -169,4 +169,3 @@ T __hipsycl_shuffle_xor_impl(T x, int lane_mask) {
 } // namespace hipsycl
 
 #endif // HIPSYCL_DETAIL_WARP_SHUFFLE
-

@@ -138,7 +138,7 @@ public:
     _uid.id[0] = reinterpret_cast<uint64_t>(ptr);
     _uid.id[1] = 0;
   }
-  
+
   HIPSYCL_UNIVERSAL_TARGET
   friend bool operator==(const embedded_pointer &a, const embedded_pointer &b) {
     return a._uid == b._uid;
@@ -166,7 +166,7 @@ struct kernel_blob {
     // if we are sure there are no cases where this
     // might go wrong
     for(int i = 0; i + sizeof(unique_id) <= sizeof(Blob);) {
-    
+
       char* chunk_ptr = blob_ptr + i;
 
       if(std::memcmp(chunk_ptr, &pointer_id, sizeof(unique_id))==0) {
@@ -177,7 +177,7 @@ struct kernel_blob {
         std::memset(chunk_ptr, 0, sizeof(unique_id));
         // Set first 8 bytes of embedded pointer to ptr
         std::memcpy(chunk_ptr, &ptr, sizeof(void*));
-        
+
         found = true;
         // we cannot stop after having found an embedded pointer
         // because there might be multiple copies of the same pointer
@@ -188,7 +188,7 @@ struct kernel_blob {
       } else {
         ++i;
       }
-    
+
     }
 
     return found;

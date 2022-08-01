@@ -59,7 +59,7 @@ public:
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
   virtual result submit_prefetch(prefetch_operation &, dag_node_ptr) override;
   virtual result submit_memset(memset_operation&, dag_node_ptr) override;
-  
+
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
@@ -94,7 +94,7 @@ public:
 private:
   const std::vector<std::shared_ptr<dag_node_event>>&
   get_enqueued_synchronization_ops() const;
-  
+
   std::vector<ze_event_handle_t>
   get_enqueued_event_handles() const;
 

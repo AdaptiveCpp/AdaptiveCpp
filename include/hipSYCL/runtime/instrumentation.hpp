@@ -82,14 +82,14 @@ inline constexpr bool is_instrumentation_v
 
 class instrumentation_set {
 public:
-  /// Wait for the given instrumentation to make results available. 
+  /// Wait for the given instrumentation to make results available.
   /// Returns nullptr if the given instrumentation was not set up.
   template<typename Instr> const std::shared_ptr<Instr> get() const {
     // First wait until all instrumentations have been set up
     if(!_registration_complete_signal.has_signalled()){
       _registration_complete_signal.wait();
     }
-    
+
     std::shared_ptr<Instr> i = nullptr;
 
     for(const auto& current : _instrs) {

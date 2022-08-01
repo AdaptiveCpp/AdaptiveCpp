@@ -186,7 +186,7 @@ T initialize_type(elementType<T> init) {
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_KERNEL_TARGET
 T get_offset(size_t margin, size_t divisor = 1) {
-  
+
   if (std::numeric_limits<T>::max() <= margin) {
     return T{};
   }

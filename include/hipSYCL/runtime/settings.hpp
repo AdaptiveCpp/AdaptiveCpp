@@ -150,7 +150,7 @@ private:
   T get_environment_variable_or_default(const T &default_value) {
     const char *env = std::getenv(get_environment_variable_name<S>().c_str());
     if (env) {
-      
+
       T val;
       std::stringstream sstr{std::string{env}};
       sstr >> val;

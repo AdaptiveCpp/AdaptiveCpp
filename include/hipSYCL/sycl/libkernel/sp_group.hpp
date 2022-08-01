@@ -165,7 +165,7 @@ struct sp_group
   using id_type = typename group<dimensions>::id_type;
   using range_type = typename group<dimensions>::range_type;
   using linear_id_type = typename group<dimensions>::linear_id_type;
-  
+
   static constexpr memory_scope fence_scope = memory_scope::work_group;
 
   HIPSYCL_KERNEL_TARGET
@@ -608,7 +608,7 @@ private:
 /// * On device, relies on sycl::sub_group. sub_group is a 1D object,
 /// in 2D and 3D will return e.g. (1, subgroup_size) or (1,1,subgroup_size).
 ///   In general, this cannot tesselate a 2D/3D work group! Additionally,
-///   the local range mapped to one sub_group can not even be represented 
+///   the local range mapped to one sub_group can not even be represented
 ///   by a 2d/3d rectangle! It is therefore recommended to use this class
 ///   for 1D kernels only.
 
@@ -622,7 +622,7 @@ public:
   using range_type = sycl::range<dimensions>;
   using linear_id_type = uint32_t;
   using linear_range_type = uint32_t;
-  
+
   static constexpr memory_scope fence_scope = memory_scope::sub_group;
 
   sp_sub_group(const id_type& global_offset) noexcept
@@ -726,7 +726,7 @@ public:
         return sycl::sub_group{}.get_local_linear_id();
       } else {
         return 0;
-      } 
+      }
     }
   }
 
@@ -844,7 +844,7 @@ public:
   using range_type = sycl::range<dimensions>;
   using linear_id_type = uint32_t;
   using linear_range_type = uint32_t;
-  
+
   static constexpr memory_scope fence_scope = memory_scope::sub_group;
 
   sp_sub_group(const id_type &group_id, const range_type &num_groups,
@@ -1091,7 +1091,7 @@ template<class PropertyDescriptor, class NestedF>
 HIPSYCL_KERNEL_TARGET
 inline void subdivide_group(
   const sp_scalar_group<PropertyDescriptor>& g, NestedF f) noexcept {
-  
+
   // The next level when we already have a scalar group is a group
   // that is in a 1-element group iteration space and has id 0.
   //
@@ -1111,7 +1111,7 @@ template<class PropertyDescriptor, class NestedF>
 HIPSYCL_KERNEL_TARGET
 inline  void subdivide_group(
   const sp_sub_group<PropertyDescriptor>& g, NestedF f) noexcept {
- 
+
   constexpr int dim = sp_sub_group<PropertyDescriptor>::dimensions;
   using next_property_descriptor =
       sp_next_level_descriptor_t<PropertyDescriptor>;
@@ -1128,11 +1128,11 @@ inline  void subdivide_group(
     __hipsycl_if_target_device(
       sycl::id<dim> subgroup_global_offset =
           get_group_global_id_offset(g) + g.get_physical_local_id();
-      
+
       sp_scalar_group<next_property_descriptor> subgroup{
           g.get_physical_local_id(), g.get_physical_local_range(),
           subgroup_global_offset};
-      
+
       f(subgroup);
     );
   } else {
@@ -1148,7 +1148,7 @@ inline  void subdivide_group(
               f(subgroup);
             });
       } else {
-        glue::host::iterate_range_tiles(g.get_logical_local_range(), 
+        glue::host::iterate_range_tiles(g.get_logical_local_range(),
           next_property_descriptor::get_fixed_group_size(), [&](sycl::id<dim>& idx){
             // TODO: Multi-Level static tiling on CPU
             //sp_sub_group<next_property_descriptor> subgroup{};
@@ -1163,28 +1163,28 @@ template<class PropertyDescriptor, class NestedF>
 HIPSYCL_KERNEL_TARGET
 inline  void subdivide_group(
   const sp_group<PropertyDescriptor>& g, NestedF f) noexcept {
- 
+
   constexpr int dim = sp_group<PropertyDescriptor>::dimensions;
   using next_property_descriptor =
       sp_next_level_descriptor_t<PropertyDescriptor>;
-  
+
   // Need to store global range to allow querying global range in items
   sp_global_kernel_state<PropertyDescriptor::dimensions>::configure_global_range(
     g.get_group_range() * g.get_logical_local_range());
-  
+
   if constexpr(is_host_property_descriptor<PropertyDescriptor>()){
     static_assert(is_host_property_descriptor<next_property_descriptor>(),
       "Host property descriptor cannot spawn device property descriptor");
-  
+
     const auto subgroup_size = next_property_descriptor::get_fixed_group_size();
     const auto num_groups = g.get_logical_local_range() / subgroup_size;
-  
+
     glue::host::iterate_range_tiles(
         g.get_logical_local_range(), subgroup_size, [&](const sycl::id<dim> &idx) {
 
           sp_sub_group<next_property_descriptor> subgroup{
               idx, num_groups, get_group_global_id_offset(g) + idx * subgroup_size};
-          
+
           f(subgroup);
         });
   } else {
@@ -1203,12 +1203,12 @@ inline  void subdivide_group(
     } else {
       sycl::id<dim> subgroup_global_offset =
         get_group_global_id_offset(g) + g.get_physical_local_id();
-      
+
       sp_scalar_group<next_property_descriptor> subgroup{g.get_physical_local_id(),
         g.get_physical_local_range(), subgroup_global_offset};
       f(subgroup);
     }
-    
+
   }
 }
 

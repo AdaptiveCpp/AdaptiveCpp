@@ -4,7 +4,7 @@ set -o xtrace
 if [ "$#" -lt 1 ]; then
   echo "
   Responsible for creating the packages from the built containers where the hipSYCL stack is installed.
-  Currently there are two modes supported hipsycl and base. hipsycl will only build the base packages, base will build all the 
+  Currently there are two modes supported hipsycl and base. hipsycl will only build the base packages, base will build all the
   base packages, (rocm, base,)
   Usage: <distro> <mode>
   "
@@ -19,7 +19,7 @@ HIPSYCL_PKG_BUILD_BASE=ON
 HIPSYCL_PKG_BUILD_HIPSYCL=ON
 
 if [ "$option" = "hipsycl" ]; then
-  HIPSYCL_PKG_BUILD_BASE=OFF 
+  HIPSYCL_PKG_BUILD_BASE=OFF
   HIPSYCL_PKG_BUILD_ROCM=OFF
 elif [ "$option" = "base" ]; then
   HIPSYCL_PKG_BUILD_HIPSYCL=OFF

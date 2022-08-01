@@ -43,12 +43,12 @@ BOOST_AUTO_TEST_CASE(default_hints) {
   rt::device_id id{rt::backend_descriptor{rt::hardware_platform::cpu,
                                           rt::api_platform::omp},
                    12345};
-  
+
   hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(id));
   rt::dag_builder builder{rt.get()};
 
   auto reqs = rt::requirements_list{rt.get()};
-  
+
   auto dummy_kernel_op = rt::make_operation<rt::kernel_operation>(
       "test_kernel",
       std::vector<std::unique_ptr<rt::backend_kernel_launcher>>{},

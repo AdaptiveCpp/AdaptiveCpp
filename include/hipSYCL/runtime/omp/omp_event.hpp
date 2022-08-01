@@ -38,7 +38,7 @@ namespace rt {
 class omp_node_event
     : public inorder_queue_event<std::shared_ptr<signal_channel>> {
 public:
-  
+
   omp_node_event();
   ~omp_node_event();
 

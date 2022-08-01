@@ -94,7 +94,7 @@ HIPSYCL_KERNEL_TARGET T __hipsycl_group_reduce(group<Dim> g, T x,
 
 // broadcast
 template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET 
+HIPSYCL_KERNEL_TARGET
 T __hipsycl_group_broadcast(
     group<Dim> g, T x,
     typename group<Dim>::linear_id_type local_linear_id = 0) {
@@ -156,7 +156,7 @@ bool __hipsycl_leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+HIPSYCL_KERNEL_TARGET
 bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last,
                             Predicate pred) {
   const bool result = detail::__hipsycl_leader_any_of(g, first, last, pred);
@@ -245,7 +245,7 @@ inline bool __hipsycl_all_of_group(sub_group g, bool pred) {
 namespace detail { // until scoped-parallelism can be detected
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+HIPSYCL_KERNEL_TARGET
 bool __hipsycl_leader_none_of(Group g, Ptr first,
                               Ptr last, Predicate pred) {
   bool result = true;
@@ -264,7 +264,7 @@ bool __hipsycl_leader_none_of(Group g, Ptr first,
 
 template <typename Group, typename Ptr, typename Predicate,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
+HIPSYCL_KERNEL_TARGET
 bool __hipsycl_joint_none_of(Group g, Ptr first, Ptr last,
                              Predicate pred) {
   auto result = detail::__hipsycl_leader_none_of(g, first, last, pred);
@@ -301,7 +301,7 @@ namespace detail { // until scoped-parallelism can be detected
 template<typename Group, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_leader_reduce(Group g, T *first, T *last, 
+T __hipsycl_leader_reduce(Group g, T *first, T *last,
                           BinaryOperation binary_op) {
   T result{};
 
@@ -320,7 +320,7 @@ T __hipsycl_leader_reduce(Group g, T *first, T *last,
 template<typename Group, typename V, typename T, typename BinaryOperation,
           std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_leader_reduce(Group g, T *first, T *last, V init, 
+T __hipsycl_leader_reduce(Group g, T *first, T *last, V init,
                           BinaryOperation binary_op) {
   auto result = __hipsycl_leader_reduce(g, first, last, binary_op);
 
@@ -660,4 +660,3 @@ HIPSYCL_KERNEL_TARGET T __hipsycl_select_from_group(
 #endif
 
 #endif // HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
-

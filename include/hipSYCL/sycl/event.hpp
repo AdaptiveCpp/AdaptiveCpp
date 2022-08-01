@@ -69,7 +69,7 @@ public:
       }
 
       return events;
-      
+
     }
     return std::vector<event>{};
   }
@@ -79,7 +79,7 @@ public:
     if(this->_node){
       if(!this->_node->is_submitted())
         _requires_runtime.get()->dag().flush_sync();
-      
+
       assert(this->_node->is_submitted());
       this->_node->wait();
     }
@@ -176,7 +176,7 @@ public:
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::submission_timestamp>();
-      
+
       if(!submission)
           throw invalid_object_error(
               "Operation not profiled: No submission timestamp available");
@@ -198,7 +198,7 @@ public:
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::execution_finish_timestamp>();
-      
+
       if(!finish)
           throw invalid_object_error(
               "Operation not profiled: No execution end timestamp available");

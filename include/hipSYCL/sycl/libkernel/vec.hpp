@@ -103,7 +103,7 @@ public:
   : _original_data{s} {}
 
   HIPSYCL_UNIVERSAL_TARGET
-  value_type &operator[](int i) { 
+  value_type &operator[](int i) {
     return _original_data[_swizzled_indices[i]];
   }
 
@@ -135,7 +135,7 @@ public:
   void for_each(F&& f) const {
     (f(SwizzleIndices, _original_data.template get<SwizzleIndices>()), ...);
   }
-  
+
   HIPSYCL_UNIVERSAL_TARGET
   interop_type interop() const {
     return _original_data.interop();
@@ -338,7 +338,7 @@ public:
                   "Reinterpreting swizzled vectors directly is not supported");
 
     vec<AsT, N> result;
-    
+
     AsT* in_ptr = reinterpret_cast<AsT*>(&_data[0]);
     for(int i = 0; i < OtherN; ++i)
       result[i] = in_ptr[i];
@@ -347,7 +347,7 @@ public:
   }
 
   template<int... SwizzleIndices>
-  HIPSYCL_UNIVERSAL_TARGET  
+  HIPSYCL_UNIVERSAL_TARGET
   auto swizzle() const {
 
     using swizzle_view_type =
@@ -563,7 +563,7 @@ public:
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(&, t)
-  
+
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(|, t)
@@ -575,7 +575,7 @@ public:
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(>>, t)
-  
+
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_BINARY_VEC_OP_VEC_VEC(<<, t)
@@ -721,7 +721,7 @@ public:
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(|=, t)
-  
+
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(^=, t)
@@ -729,7 +729,7 @@ public:
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(>>=, t)
-  
+
   template <typename t = T,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
   HIPSYCL_DEFINE_INPLACE_VEC_OP_VEC_SCALAR(<<=, t)
@@ -865,11 +865,11 @@ private:
     } else {
       // Assume we are dealing with another vector
       constexpr int count = count_num_elements<Arg>();
-      
+
       for(int i = 0; i < count; ++i) {
         _data[i + current_init_index] = x[i];
       }
-      
+
       current_init_index += count;
     }
   }

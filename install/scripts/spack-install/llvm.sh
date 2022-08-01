@@ -24,11 +24,10 @@ sed -i 's|projects.append("clang-tools-extra")|#projects.append("clang-tools-ext
 . $SPACK_ROOT/share/spack/setup-env.sh
 llvm_version=$HIPSYCL_PKG_LLVM_VERSION_MAJOR.$HIPSYCL_PKG_LLVM_VERSION_MINOR.$HIPSYCL_PKG_LLVM_VERSION_PATCH
 parallel --lb -N0 spack install llvm@$llvm_version cuda=False libcxx=True polly=False lldb=False lld=True internal_unwind=False gold=False target=x86_64 build_type=MinSizeRel -flang ::: {1..16} || error=1
-if [ "$error" = "1" ]; then 
-  spack install llvm@$llvm_version -flang cuda=False libcxx=True polly=False lldb=False lld=True internal_unwind=False gold=False target=x86_64 build_type=MinSizeRel 
+if [ "$error" = "1" ]; then
+  spack install llvm@$llvm_version -flang cuda=False libcxx=True polly=False lldb=False lld=True internal_unwind=False gold=False target=x86_64 build_type=MinSizeRel
 fi
 #spack install llvm@$llvm_version cuda=False libcxx=False target=x86_64
 spack load llvm
 spack compiler find /opt/hipSYCL/llvm/llvm/
 spack unload llvm
-

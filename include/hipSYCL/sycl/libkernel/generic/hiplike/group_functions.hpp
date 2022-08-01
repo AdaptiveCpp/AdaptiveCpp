@@ -674,4 +674,3 @@ __device__ T __hipsycl_select_from_group(
 
 #endif
 #endif // HIPSYCL_LIBKERNEL_DEVICE_GROUP_FUNCTIONS_HPP
-

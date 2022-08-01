@@ -16,4 +16,3 @@ do
 	mv $f.sig $ARCH_REPO_DIR
 	repo-add --sign -k B2B75080 $ARCH_REPO_DIR/hipsycl.db.tar $ARCH_REPO_DIR/$f
 done
-

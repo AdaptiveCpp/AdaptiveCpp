@@ -105,6 +105,6 @@ hip_event_pool* hip_backend::get_event_pool(device_id dev) const {
 std::string hip_backend::get_name() const {
   return "HIP";
 }
-  
+
 }
 }

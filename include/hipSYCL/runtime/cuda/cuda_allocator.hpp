@@ -33,7 +33,7 @@
 namespace hipsycl {
 namespace rt {
 
-class cuda_allocator : public backend_allocator 
+class cuda_allocator : public backend_allocator
 {
 public:
   cuda_allocator(backend_descriptor desc, int cuda_device);
@@ -42,7 +42,7 @@ public:
 
   virtual void *allocate_optimized_host(size_t min_alignment,
                                         size_t bytes) override;
-  
+
   virtual void free(void *mem) override;
 
   virtual void *allocate_usm(size_t bytes) override;

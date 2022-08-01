@@ -10,7 +10,7 @@ If you use a very recent CUDA version, you might get a warning when compiling wi
 
 CMake variables:
 * `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda` to point hipSYCL to the CUDA root installation directory (e.g. `/usr/local/cuda`), if cmake doesn't find the right CUDA installation.
-* `-DWITH_CUDA_BACKEND=ON` if hipSYCL does not automatically enable the CUDA backend 
+* `-DWITH_CUDA_BACKEND=ON` if hipSYCL does not automatically enable the CUDA backend
 
 ## If using nvc++
 
@@ -19,6 +19,6 @@ Please install CUDA 10.0 or later. You can also rely on the CUDA bundled with th
 
 CMake variables:
 * `-DNVCXX_COMPILER=/path/to/nvc++`
-* You can use the CUDA bundled with nvc++. Make sure to point hipSYCL to the right CUDA installation using `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda`. 
+* You can use the CUDA bundled with nvc++. Make sure to point hipSYCL to the right CUDA installation using `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda`.
 * `-DWITH_CUDA_BACKEND=ON` if hipSYCL does not automatically enable the CUDA backend
 * `-DWITH_CUDA_NVCXX_ONLY=ON` enable if you want to use the CUDA backend exclusively with nvc++ and not clang. This will allow you to use nvc++ without having to install LLVM.

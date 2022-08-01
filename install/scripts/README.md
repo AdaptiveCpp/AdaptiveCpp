@@ -18,7 +18,7 @@ Installing using the repositories is beneficial because the hipSYCL installation
 
 We provide the following packages in both versions:
 
-Base packages: 
+Base packages:
 * `hipSYCL-base<-nightly>`
 * `hipSYCL-base-rocm<-nightly>`
 HipSYCL packages:
@@ -61,7 +61,7 @@ Note that there are two type of installation scripts available at the moment the
 
 ## Pre-built singularity containers
 
-We provide pre-built singularity images for all supported distributions. The containers are available here: http://repo.urz.uni-heidelberg.de/sycl/singularity/ 
+We provide pre-built singularity images for all supported distributions. The containers are available here: http://repo.urz.uni-heidelberg.de/sycl/singularity/
 
 The images are validated by building the hipSYCL unit tests for all supported backends, and running them for OpenMP and CUDA.
 
@@ -85,6 +85,6 @@ This script will generate three packages:
 Creating CUDA packages is also possible, but this functionality is separate since we do not distribute CUDA binary packages for legal reasons. In order to create a CUDA package, just run the `make-ubuntu-cuda.sh` (for Ubuntu, analogously for other distributions) script. This script can be run on its own and does not require the building the entire stack including container image.
 Note: If you only intend to install hipSYCL's CUDA stack on a single machine for home use, it may be easier and faster to just install it directly using the install script: Run
 ```
-sudo sh install-cuda.sh 
+sudo sh install-cuda.sh
 ```
 which will install it directly to `/opt/hipSYCL/cuda` where hipSYCL expects it.

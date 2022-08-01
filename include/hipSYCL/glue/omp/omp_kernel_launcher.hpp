@@ -410,7 +410,7 @@ inline void parallel_region(Function f,
         });
 
         sycl::detail::host_local_memory::release();
-        
+
       },
       reductions...);
 }

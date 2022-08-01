@@ -42,7 +42,7 @@ public:
   host_timestamped_event(inorder_queue* q)
   : host_timestamped_event{q->insert_event()} {}
 
-  host_timestamped_event(std::shared_ptr<dag_node_event> evt) 
+  host_timestamped_event(std::shared_ptr<dag_node_event> evt)
   : _evt{evt} {
     _evt->wait();
     _time = profiler_clock::now();

@@ -36,4 +36,3 @@
 #define HIPSYCL_VERSION_TYPE "git"
 
 #endif
-

@@ -3,13 +3,13 @@
 set -e
 set -o xtrace
 if [ $1 = "--help" ]; then
-  echo " 
+  echo "
    This file is responsible for driving the packaging, building, and testing process for the hipSYCL packaging system.
-   It sets and exports defaults for the important environment variables that might concern the builds 
-   
+   It sets and exports defaults for the important environment variables that might concern the builds
+
    Usage: $ update_repo.sh <distro> <action> [option]
    distro: centos-7, ubuntu-18.04 etc...
-   action: build_base, build_hipsycl, package, deploy, test" 
+   action: build_base, build_hipsycl, package, deploy, test"
   exit -1
 fi
 
@@ -75,7 +75,7 @@ if [ "$action" = "package" ]; then
   bash $HIPSYCL_PKG_DEVOPS_DIR/create_pkgs.sh $distro $option
 fi
 
-if [ "$action" = "deploy" ]; then 
+if [ "$action" = "deploy" ]; then
   bash $HIPSYCL_PKG_DEVOPS_DIR/create_repos.sh $distro
 fi
 
@@ -94,5 +94,5 @@ fi
 
 
 if [ "$action" = "pub_cont" ]; then
-   bash $HIPSYCL_PKG_DEVOPS_DIR/publish_test_container.sh $distro 
+   bash $HIPSYCL_PKG_DEVOPS_DIR/publish_test_container.sh $distro
 fi

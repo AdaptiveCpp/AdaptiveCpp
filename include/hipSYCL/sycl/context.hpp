@@ -88,7 +88,7 @@ public:
       async_handler handler = [](exception_list e) {
         glue::default_async_handler(e);
       }) {
-    
+
     if(deviceList.empty())
       throw platform_error{"context: Cannot construct context for empty device list"};
 
@@ -122,14 +122,14 @@ public:
                  "multiple backends/platforms. Only returning last platform"
               << std::endl;
         }
-        
+
         last_backend = b;
         found_device_backend = true;
       }
     });
 
     if (!found_device_backend) {
-      last_backend = detail::get_host_device().get_backend(); 
+      last_backend = detail::get_host_device().get_backend();
     }
 
     return platform{last_backend};
@@ -175,14 +175,14 @@ private:
       _impl->devices.add(detail::get_host_device());
     }
   }
-  
+
   struct context_impl {
     rt::runtime_keep_alive_token requires_runtime;
     rt::unique_device_list devices;
 
     context_impl() : devices{requires_runtime.get()} {}
 
-    async_handler handler;    
+    async_handler handler;
   };
 
   std::shared_ptr<context_impl> _impl;

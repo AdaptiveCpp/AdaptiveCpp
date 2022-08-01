@@ -86,7 +86,7 @@ bool omp_allocator::is_usm_accessible_from(backend_descriptor b) const {
 }
 
 result omp_allocator::query_pointer(const void *ptr, pointer_info &out) const {
-  
+
   // For a host device, USM is the same as host memory?
   out.is_optimized_host = true;
   out.is_usm = true;

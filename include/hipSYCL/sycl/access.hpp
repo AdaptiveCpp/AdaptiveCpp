@@ -169,7 +169,7 @@ inline std::ostream &operator<<(std::ostream &out,
 }
 
 inline std::ostream &operator<<(std::ostream &out,
-                         const sycl::access::fence_space value) 
+                         const sycl::access::fence_space value)
 {
   switch (value) {
   case sycl::access::fence_space::global_and_local:

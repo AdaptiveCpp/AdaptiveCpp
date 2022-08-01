@@ -18,11 +18,10 @@ sed -i 's|all: .*$|all: ${PACKAGE}|' spack/etc/spack/defaults/config.yaml
 sed -i 's|# build_jobs: .*$|build_jobs: 16|' spack/etc/spack/defaults/config.yaml
 . $SPACK_ROOT/share/spack/setup-env.sh
 spack compiler find /opt/hipSYCL/llvm/llvm/bin/
-# Spack distributed build in this form causes Timeouts sometimes.... maybe use a upstream solution... yeah probably.... 
+# Spack distributed build in this form causes Timeouts sometimes.... maybe use a upstream solution... yeah probably....
 
 parallel --joblog /tmp/spack-install-boost.exit --lb -N0 spack install boost%clang@$llvm_version context=True fiber=True target=x86_64 cxxstd=11 ::: {1..16} || error=1
-if [ "$error" = "1" ]; then 
+if [ "$error" = "1" ]; then
   spack install boost%clang@$llvm_version context=True fiber=True target=x86_64 cxxstd=11
 fi
 spack gc -y
-

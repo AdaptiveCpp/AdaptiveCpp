@@ -40,7 +40,7 @@
 namespace hipsycl {
 namespace rt {
 
-/// Represents a DAG that can be transformed for execution (e.g., turning 
+/// Represents a DAG that can be transformed for execution (e.g., turning
 /// by requirements into actual operations).
 ///
 /// Thread safety: None

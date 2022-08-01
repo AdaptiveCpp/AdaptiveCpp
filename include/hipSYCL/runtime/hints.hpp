@@ -85,7 +85,7 @@ namespace hints {
 class bind_to_device : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
+  static constexpr execution_hint_type type =
     execution_hint_type::bind_to_device;
 
   explicit bind_to_device(device_id d);
@@ -99,7 +99,7 @@ private:
 class bind_to_device_group : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
+  static constexpr execution_hint_type type =
     execution_hint_type::bind_to_device_group;
 
   bind_to_device_group(const std::vector<device_id> &devs)
@@ -152,7 +152,7 @@ class coarse_grained_synchronization : public execution_hint
 public:
   static constexpr execution_hint_type type =
       execution_hint_type::coarse_grained_synchronization;
-  
+
   coarse_grained_synchronization()
   : execution_hint{execution_hint_type::coarse_grained_synchronization} {}
 };
@@ -198,7 +198,7 @@ public:
   void add_hint(execution_hint_ptr hint);
   void overwrite_with(const execution_hints &other);
   void overwrite_with(execution_hint_ptr hint);
-  
+
   bool has_hint(execution_hint_type type) const;
   execution_hint* get_hint(execution_hint_type type) const;
 

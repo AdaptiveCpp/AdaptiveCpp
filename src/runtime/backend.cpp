@@ -57,7 +57,7 @@ backend_manager::backend_manager()
       HIPSYCL_DEBUG_ERROR << "backend_manager: Backend creation failed" << std::endl;
     }
   }
-  
+
   this->for_each_backend([](backend *b) {
     HIPSYCL_DEBUG_INFO << "Discovered devices from backend '" << b->get_name()
                        << "': " << std::endl;
@@ -75,7 +75,7 @@ backend_manager::backend_manager()
     }
   });
 
-  if(std::none_of(_backends.cbegin(), _backends.cend(), 
+  if(std::none_of(_backends.cbegin(), _backends.cend(),
                   [](const std::unique_ptr<backend>& b){
                     return b->get_hardware_platform() == hardware_platform::cpu;
                     }))
@@ -95,7 +95,7 @@ backend *backend_manager::get(backend_id id) const {
                          [id](const std::unique_ptr<backend> &b) -> bool {
                            return b->get_backend_descriptor().id == id;
                          });
-  
+
   if(it == _backends.end()){
     register_error(
         __hipsycl_here(),
@@ -112,7 +112,7 @@ hw_model &backend_manager::hardware_model()
   return *_hw_model;
 }
 
-const hw_model &backend_manager::hardware_model() const 
+const hw_model &backend_manager::hardware_model() const
 {
   return *_hw_model;
 }

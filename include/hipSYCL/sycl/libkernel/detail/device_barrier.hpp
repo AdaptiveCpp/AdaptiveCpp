@@ -46,7 +46,7 @@ inline void local_device_barrier(
   );
   __hipsycl_if_target_spirv(
     uint32_t flags =  0;
-    
+
     if (space == access::fence_space::global_space) {
       flags = static_cast<uint32_t>(
                     __spv::MemorySemanticsMask::SequentiallyConsistent |

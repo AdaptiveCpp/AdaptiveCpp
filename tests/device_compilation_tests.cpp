@@ -384,4 +384,3 @@ BOOST_AUTO_TEST_CASE(generic_lambda_outlining) {
   });
 }
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line
-

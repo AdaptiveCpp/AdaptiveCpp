@@ -70,27 +70,27 @@ namespace sycl {
 namespace detail::buffer_policy {
 
 class destructor_waits : public buffer_property
-{ 
-public: 
-  destructor_waits(bool v): _v{v}{} 
+{
+public:
+  destructor_waits(bool v): _v{v}{}
   bool value() const {return _v;}
 private:
   bool _v;
 };
 
 class writes_back : public buffer_property
-{ 
-public: 
-  writes_back(bool v): _v{v}{} 
+{
+public:
+  writes_back(bool v): _v{v}{}
   bool value() const {return _v;}
 private:
   bool _v;
 };
 
 class use_external_storage : public buffer_property
-{ 
-public: 
-  use_external_storage(bool v): _v{v}{} 
+{
+public:
+  use_external_storage(bool v): _v{v}{}
   bool value() const {return _v;}
 private:
   bool _v;
@@ -186,7 +186,7 @@ struct buffer_impl
   void* writeback_ptr;
   // Only used if a shared_ptr is passed to the buffer constructor
   std::shared_ptr<void> shared_host_data;
-  
+
   std::size_t write_back_node_group;
 
   std::shared_ptr<rt::buffer_data_region> data;
@@ -206,7 +206,7 @@ struct buffer_impl
         HIPSYCL_DEBUG_INFO
             << "buffer_impl::~buffer_impl: Preparing submission of writeback..."
             << std::endl;
-        
+
         if (data->has_allocation(get_host_device()) &&
             (data->get_memory(get_host_device()) != this->writeback_ptr)) {
           // We are writing back to an external location, i.e. a location
@@ -270,7 +270,7 @@ private:
           write_back_node_group));
     }
   }
-  
+
   rt::dag_node_ptr submit_copy(rt::device_id source_dev, void* dest) {
 
     std::shared_ptr<rt::buffer_data_region> data_src = this->data;
@@ -289,7 +289,7 @@ private:
 
     rt::memory_location source_location{source_dev, rt::id<3>{},
                                         data_src};
-    
+
     rt::memory_location dest_location{detail::get_host_device(), dest,
                                       rt::id<3>{}, data_src->get_num_elements(),
                                       data_src->get_element_size()};
@@ -445,7 +445,7 @@ public:
     dpol.destructor_waits = true;
     dpol.use_external_storage = false;
     dpol.writes_back = false;
-    
+
     init_policies_from_properties_or_default(dpol);
 
     this->init(bufferRange);
@@ -474,7 +474,7 @@ public:
     dpol.destructor_waits = true;
     dpol.use_external_storage = true;
     dpol.writes_back = true;
-    
+
     init_policies_from_properties_or_default(dpol);
 
     if(_impl->use_external_storage)
@@ -597,7 +597,7 @@ public:
             typename = std::enable_if_t<D == 1>>
   buffer(InputIterator first, InputIterator last,
          const property_list &propList = {})
-  : buffer(first, last, AllocatorT(), propList) 
+  : buffer(first, last, AllocatorT(), propList)
   {}
 
   buffer(buffer<T, dimensions, AllocatorT> b,
@@ -703,7 +703,7 @@ public:
   {
     std::lock_guard<std::mutex> lock {_impl->lock};
     set_write_back_target(finalData.get());
-    
+
     _impl->writeback_buffer = finalData;
   }
 
@@ -740,7 +740,7 @@ public:
     new_buffer._alloc = _alloc;
     new_buffer._impl = _impl;
     new_buffer._range = reinterpretRange;
-    
+
     return new_buffer;
   }
 
@@ -905,7 +905,7 @@ public:
 
     buffer_allocation::descriptor<T> result = null_allocation();
     bool found = _impl->data->find_and_handle_allocation(
-        static_cast<void *>(const_cast<T*>(ptr)), 
+        static_cast<void *>(const_cast<T*>(ptr)),
         [&](const auto &rt_allocation) {
       result = rt_data_allocation_to_buffer_alloc(rt_allocation);
     });
@@ -919,12 +919,12 @@ public:
 
   // -- End of hipSYCL buffer-USM introspection API
 private:
-  
+
   struct default_policies
   {
     bool destructor_waits;
     bool writes_back;
-    bool use_external_storage; 
+    bool use_external_storage;
   };
 
   static buffer_allocation::descriptor<T>
@@ -946,8 +946,8 @@ private:
 
     return result;
   }
-  
-  
+
+
   template <typename Destination = std::nullptr_t>
   void set_write_back_target(Destination finalData = nullptr)
   {
@@ -1006,7 +1006,7 @@ private:
   {
     _impl->destructor_waits = get_policy_from_property_or_default<
         detail::buffer_policy::destructor_waits>(dpol.destructor_waits);
-    
+
     _impl->writes_back =
         get_policy_from_property_or_default<detail::buffer_policy::writes_back>(
             dpol.writes_back);
@@ -1032,11 +1032,11 @@ private:
     return default_value;
   }
 
-  
+
   buffer()
   : detail::property_carrying_object {property_list {}}
   {}
-  
+
   void init_data_backend(const range<dimensions>& range)
   {
     this->_range = range;
@@ -1168,19 +1168,19 @@ private:
 
 // Deduction guides
 template <class InputIterator, class AllocatorT>
-buffer(InputIterator, InputIterator, AllocatorT, const property_list & = {}) 
+buffer(InputIterator, InputIterator, AllocatorT, const property_list & = {})
 -> buffer<typename std::iterator_traits<InputIterator>::value_type, 1, AllocatorT>;
 
 template <class InputIterator>
-buffer(InputIterator, InputIterator, const property_list & = {}) 
--> buffer<typename std::iterator_traits<InputIterator>::value_type, 1>; 
+buffer(InputIterator, InputIterator, const property_list & = {})
+-> buffer<typename std::iterator_traits<InputIterator>::value_type, 1>;
 
 template <class T, int dimensions, class AllocatorT>
 buffer(const T *, const range<dimensions> &, AllocatorT, const property_list & = {})
 -> buffer<T, dimensions, AllocatorT>;
 
 template <class T, int dimensions>
-buffer(const T *, const range<dimensions> &, const property_list & = {}) 
+buffer(const T *, const range<dimensions> &, const property_list & = {})
 -> buffer<T, dimensions, buffer_allocator<std::remove_const_t<T>>>;
 
 template <class T, int dimensions>

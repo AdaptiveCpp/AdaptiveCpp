@@ -122,7 +122,7 @@ public:
       // when entering the first group
       barrier();
     }
-    
+
     _group_barrier.wait();
   }
 
@@ -134,7 +134,7 @@ private:
     iterate_range(_local_size, [&](sycl::id<Dim> local_id) {
       // First work item will be processed by master fiber
       if (n != 0) {
-        
+
         std::size_t master_offset = _master_group_position;
         _fibers[n] = boost::fibers::fiber([local_id, this, master_offset]() {
           std::size_t current_group = 0;

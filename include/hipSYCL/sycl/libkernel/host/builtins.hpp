@@ -577,7 +577,7 @@ HIPSYCL_BUILTIN T __hipsycl_sign(T x) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
   return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
@@ -585,9 +585,9 @@ __hipsycl_cross3(const VecType &a, const VecType &b) noexcept {
 }
 
 template <typename VecType>
-HIPSYCL_BUILTIN VecType 
+HIPSYCL_BUILTIN VecType
 __hipsycl_cross4(const VecType &a, const VecType &b) noexcept {
-  return {a.y() * b.z() - a.z() * b.y(), 
+  return {a.y() * b.z() - a.z() * b.y(),
           a.z() * b.x() - a.x() * b.z(),
           a.x() * b.y() - a.y() * b.x(),
           typename VecType::element_type{0}};

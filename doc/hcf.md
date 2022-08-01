@@ -15,8 +15,8 @@ The hipSYCL runtime can be instructed to dump the HCF data embedded in the appli
 <ReadableHeader> ::= <NodeContentLines>
 <NodeContentLines> ::= <KeyValueLine> | <Subnode> | <KeyValueLine><NodeContentLines> | <Subnode><NodeContentLines> | ø
 <KeyValueLine> ::= [<Whitespaces>]<Key>[<Whitespaces>] '=' [<Whitespaces>]<Value>[<Whitespaces>]'\n'
-<Subnode> ::= [<Whitespaces>] '{.'<UniqueSubnodeName> [<Whitespaces>] '\n' 
-    <NodeContentLines> 
+<Subnode> ::= [<Whitespaces>] '{.'<UniqueSubnodeName> [<Whitespaces>] '\n'
+    <NodeContentLines>
     [<Whitespaces>] '}.' <UniqueSubnodeName> [<Whitespaces>]  '\n'
 ```
 

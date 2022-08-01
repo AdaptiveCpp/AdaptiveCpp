@@ -193,7 +193,7 @@ public:
   }
 
   bool attach_binary_content(node* n, const std::string& binary_content) {
-    
+
     node* binary_node = n->add_subnode(_binary_marker);
     if(!binary_node)
       return false;
@@ -250,7 +250,7 @@ private:
     std::string node_start_id = std::string{_node_start_id};
 
     trim_left(processed_data);
-    
+
     if(processed_data.find(node_start_id) != 0) {
       HIPSYCL_DEBUG_ERROR << "hcf: Invalid node start: " << processed_data
                           << std::endl;
@@ -266,7 +266,7 @@ private:
     return true;
   }
 
-  bool parse_node_interior(const std::vector<std::string>& lines, 
+  bool parse_node_interior(const std::vector<std::string>& lines,
                            std::size_t node_start_line,
                            std::size_t node_end_line,
                            node& current_node) const {
@@ -287,7 +287,7 @@ private:
 
         std::size_t num_node_lines = std::string::npos;
         std::string node_end_marker = _node_end_id + new_node.node_id;
-        
+
         for(int j = i + 1; j < node_end_line; ++j) {
           if(lines[j] == node_end_marker) {
             num_node_lines = j-i;
@@ -330,7 +330,7 @@ private:
     std::string line;
 
     std::vector<std::string> lines;
-    
+
     while(std::getline(ss,line)){
       trim_left(line);
       trim_right(line);

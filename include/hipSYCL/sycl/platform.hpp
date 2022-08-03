@@ -63,8 +63,9 @@ public:
   std::vector<device>
   get_devices(info::device_type type = info::device_type::all) const {
     std::vector<device> result;
-    rt::backend *b = rt::application::backends().get(_platform.get_backend());
-    
+    rt::backend *b =
+        _requires_runtime.get()->backends().get(_platform.get_backend());
+
     int num_devices = b->get_hardware_manager()->get_num_devices();
     for (int dev = 0; dev < num_devices; ++dev) {
       bool is_cpu = b->get_hardware_manager()->get_device(dev)->is_cpu();
@@ -98,8 +99,8 @@ public:
 
 
   bool is_host() const {
-    return rt::application::get_backend(_platform.get_backend())
-               .get_backend_descriptor()
+    return _requires_runtime.get()->backends().get(_platform.get_backend())
+               ->get_backend_descriptor()
                .hw_platform == rt::hardware_platform::cpu;
   }
 
@@ -116,7 +117,9 @@ public:
 
   static std::vector<platform> get_platforms() {
     std::vector<platform> result;
-    rt::application::backends().for_each_backend([&](rt::backend *b) {
+    rt::runtime_keep_alive_token requires_runtime;
+
+    requires_runtime.get()->backends().for_each_backend([&](rt::backend *b) {
       result.push_back(platform{b->get_unique_backend_id()});
     });
 
@@ -131,8 +134,13 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<rt::platform_id>{}(_platform);
+  }
+
 private:
   rt::platform_id _platform;
+  rt::runtime_keep_alive_token _requires_runtime;
 };
 
 
@@ -150,7 +158,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(platform, version)
 HIPSYCL_SPECIALIZE_GET_INFO(platform, name)
 {
   rt::backend_id b = _platform.get_backend();
-  return rt::application::get_backend(b).get_name();
+  return _requires_runtime.get()->backends().get(b)->get_name();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(platform, vendor)
@@ -169,5 +177,18 @@ inline platform device::get_platform() const  {
 
 }// namespace sycl
 }// namespace hipsycl
+
+namespace std {
+
+template <>
+struct hash<hipsycl::sycl::platform>
+{
+  std::size_t operator()(const hipsycl::sycl::platform& p) const
+  {
+    return p.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

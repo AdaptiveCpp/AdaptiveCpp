@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,71 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_CUDA_MODULE_HPP
-#define HIPSYCL_CUDA_MODULE_HPP
+#ifndef HIPSYCL_HIP_CODE_OBJECT_HPP
+#define HIPSYCL_HIP_CODE_OBJECT_HPP
 
 #include <vector>
 #include <string>
 
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
-#include "hipSYCL/runtime/module_invoker.hpp"
-#include "hipSYCL/glue/generic/module.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
 
-struct CUmod_st;
+
+struct ihipModule_t;
 
 namespace hipsycl {
 namespace rt {
 
-using cuda_module_id_t = module_id_t;
-class cuda_queue;
 
-class cuda_module {
+class hip_executable_object : public code_object {
 public:
-  cuda_module(cuda_module_id_t module_id, const std::string &target,
-              const std::string &code_content);
-  
-  const std::vector<std::string>& get_kernel_names() const;
+  virtual ~hip_executable_object();
+  hip_executable_object(hcf_object_id origin, const std::string &target,
+                        const std::string &hip_fat_binary, int device);
 
-  std::string get_content() const;
+  result get_build_result() const;
 
-  bool guess_kernel_name(const std::string &kernel_group_name,
-                         const std::string &kernel_component_name,
-                         std::string &guessed_name) const;
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
 
-  cuda_module_id_t get_id() const;
-  const std::string& get_target() const;
-  
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+
+  ihipModule_t* get_module() const;
+  int get_device() const;
 private:
-  cuda_module_id_t _id;
+  result build(const std::string& hip_fat_binary);
+
+  hcf_object_id _origin;
   std::string _target;
-  std::string _content;
-  std::vector<std::string> _kernel_names;
-  
+  result _build_result;
+  int _device;
+  ihipModule_t* _module;
 };
 
-class cuda_module_manager {
-public:
-  cuda_module_manager() = default;
-  cuda_module_manager(std::size_t num_devices);
-  ~cuda_module_manager();
-
-  const cuda_module &obtain_module(cuda_module_id_t id,
-                                   const std::string &target,
-                                   const std::string &content);
-
-  result load(rt::device_id dev, const cuda_module &module, CUmod_st*& out);
-
-private:
-  std::size_t _num_devices;
-
-  // Cache constructed modules
-  std::vector<cuda_module> _modules;
-
-  // Store active CUDA module per device
-  std::vector<CUmod_st *> _cuda_modules;
-  std::vector<cuda_module_id_t> _active_modules;
-};
 
 }
 }

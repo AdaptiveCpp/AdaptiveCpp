@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(kernel_name_mangling) {
 
 template<class AccessorT>
 struct KernelFunctor {
-  
+
   KernelFunctor(AccessorT acc) : acc(acc) {};
 
   void operator() (cl::sycl::item<1> item) const {
@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE(forward_declared_function) {
   q.submit([&](cl::sycl::handler& cgh){
     cgh.single_task<forward_declared_test_kernel<int>>([=](){
       forward_declared1<int>();
-    });  
+    });
   });
 
   q.wait_and_throw();
@@ -339,7 +339,7 @@ BOOST_AUTO_TEST_CASE(optional_lambda_naming) {
         });
       };
   lambda();
-  
+
   q.wait_and_throw();
 }
 #endif

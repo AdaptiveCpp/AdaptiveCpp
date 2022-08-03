@@ -35,8 +35,6 @@
 
 #include "../hardware.hpp"
 #include "../error.hpp"
-#include "hipSYCL/runtime/module_invoker.hpp"
-#include "ze_module.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -121,10 +119,6 @@ public:
 
   uint32_t get_ze_global_memory_ordinal() const;
 
-  result obtain_module(module_id_t id, const std::string &variant,
-                       const std::string *module_image,
-                       ze_module* &out);
-
 private:
   ze_driver_handle_t _driver;
   ze_device_handle_t _device;
@@ -133,7 +127,6 @@ private:
   ze_device_properties_t _props;
   ze_device_compute_properties_t _compute_props;
   std::vector<ze_device_memory_properties_t> _memory_props;
-  std::vector<std::shared_ptr<ze_module>> _modules;
 };
 
 class ze_hardware_manager : public backend_hardware_manager

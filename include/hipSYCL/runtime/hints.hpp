@@ -51,6 +51,7 @@ enum class execution_hint_type
   bind_to_device_group,
   prefer_execution_lane,
   node_group,
+  coarse_grained_synchronization,
 
   request_instrumentation_submission_timestamp,
   request_instrumentation_start_timestamp,
@@ -144,6 +145,16 @@ public:
   }
 private:
   std::size_t _group_id;
+};
+
+class coarse_grained_synchronization : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::coarse_grained_synchronization;
+  
+  coarse_grained_synchronization()
+  : execution_hint{execution_hint_type::coarse_grained_synchronization} {}
 };
 
 class request_instrumentation_submission_timestamp : public execution_hint {

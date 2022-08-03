@@ -37,10 +37,15 @@
 namespace hipsycl {
 namespace rt {
 
+class runtime;
+
 class dag_direct_scheduler {
 public:
-
+  dag_direct_scheduler(runtime* rt);
   void submit(dag_node_ptr node);
+
+private:
+  runtime* _rt;
 };
 
 }

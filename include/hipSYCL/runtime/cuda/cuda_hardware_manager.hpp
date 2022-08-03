@@ -39,6 +39,9 @@ struct cudaDeviceProp;
 namespace hipsycl {
 namespace rt {
 
+class cuda_allocator;
+class cuda_event_pool;
+
 class cuda_hardware_context : public hardware_context
 {
 public:
@@ -69,8 +72,12 @@ public:
 
   virtual ~cuda_hardware_context();
 
+  cuda_allocator* get_allocator() const;
+  cuda_event_pool* get_event_pool() const;
 private:
   std::unique_ptr<cudaDeviceProp> _properties;
+  std::unique_ptr<cuda_allocator> _allocator;
+  std::unique_ptr<cuda_event_pool> _event_pool;
   int _dev;
 };
 

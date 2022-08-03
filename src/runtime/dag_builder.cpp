@@ -127,8 +127,7 @@ class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
 
-dag_builder::dag_builder(){}
-
+dag_builder::dag_builder(runtime *rt) : _rt{rt} {}
 
 dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
                                      const requirements_list& requirements,
@@ -161,7 +160,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
             if(user_ptr && is_conflicting_access(mem_req, user))
             {
               // No reason to take a dependency into account that is alreay completed
-              if(!user_ptr->is_complete())
+              if(!user_ptr->is_known_complete())
                 req_node->add_requirement(user_ptr);
             }
           });
@@ -171,7 +170,7 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
   };
 
   auto operation_node = std::make_shared<dag_node>(
-      hints, requirements.get(), std::move(op));
+      hints, requirements.get(), std::move(op), _rt);
   
   bool is_req = operation_node->get_operation()->is_requirement();
 
@@ -183,8 +182,10 @@ dag_node_ptr dag_builder::build_node(std::unique_ptr<operation> op,
     // with our requirements, but with the node itself
     add_conflicts_as_requirements(operation_node);
   
-  for (auto node : operation_node->get_requirements())
-    add_conflicts_as_requirements(node);
+  for (auto weak_node : operation_node->get_requirements()) {
+    if(auto node = weak_node.lock())
+      add_conflicts_as_requirements(node);
+  }
 
   // if this is an explicit requirement, we need to add *this*
   // operation to the users of the requirement it refers to.
@@ -269,14 +270,20 @@ dag dag_builder::finish_and_reset()
   dag final_dag = _current_dag;
   _current_dag = dag{};
 
-  final_dag.for_each_node([](dag_node_ptr node) {
-    HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operation: "
-                       << dump(node->get_operation()) << " @node " << node.get()
-                       << std::endl;
-    for (dag_node_ptr req : node->get_requirements()) {
-      HIPSYCL_DEBUG_INFO << "    --> requires: " << dump(req->get_operation())
-                         << " @node " << req.get() << std::endl;
+  HIPSYCL_DEBUG_INFO << "dag_builder: DAG contains operations: " << std::endl;
+  int operation_index = 0;
+  final_dag.for_each_node([&](dag_node_ptr node) {
+    HIPSYCL_DEBUG_INFO << operation_index << ". " << dump(node->get_operation())
+                       << " @node " << node.get() << std::endl;
+
+    for (auto weak_req : node->get_requirements()) {
+      if(auto req = weak_req.lock()) {
+        HIPSYCL_DEBUG_INFO << "    --> requires node @" << req.get()
+                          << " " << dump(req->get_operation()) << std::endl;
+      }
     }
+
+    ++operation_index;
   });
 
   return final_dag;

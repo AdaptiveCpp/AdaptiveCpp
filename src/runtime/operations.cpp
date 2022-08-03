@@ -51,8 +51,7 @@ kernel_operation::kernel_operation(
     if(op->is_requirement()){
       requirement* req = cast<requirement>(op);
       if(req->is_memory_requirement()){
-        memory_requirement* mreq = cast<memory_requirement>(req);
-        _requirements.push_back(mreq);
+        _requirements.push_back(req_node);
       }
     }
   }
@@ -66,10 +65,6 @@ const kernel_launcher&
 kernel_operation::get_launcher() const
 { return _launcher; }
 
-const std::vector<memory_requirement*>& 
-kernel_operation::get_memory_requirements() const
-{ return _requirements; }
-
 
 
 void requirements_list::add_requirement(std::unique_ptr<requirement> req)
@@ -77,7 +72,8 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
   auto node = std::make_shared<dag_node>(
     execution_hints{}, 
     std::vector<dag_node_ptr>{},
-    std::move(req));
+    std::move(req),
+    _rt);
   
   add_node_requirement(node);
 }

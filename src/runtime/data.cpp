@@ -35,11 +35,6 @@
 namespace hipsycl {
 namespace rt {
 
-void generic_pointer_free(device_id d, void* ptr)
-{
-  application::get_backend(d.get_backend()).get_allocator(d)->free(ptr);
-}
-
 data_user_tracker::data_user_tracker(const data_user_tracker& other){
   _users = other._users;
 }
@@ -87,7 +82,7 @@ void data_user_tracker::release_dead_users()
                                 auto u = user.user.lock();
                                 if (!u)
                                   return true;
-                                return u->is_complete();
+                                return u->is_known_complete();
                               }),
                _users.end());
 }

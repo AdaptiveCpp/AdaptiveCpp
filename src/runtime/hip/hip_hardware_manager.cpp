@@ -26,6 +26,8 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
+#include "hipSYCL/runtime/hip/hip_event_pool.hpp"
+#include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include <exception>
@@ -53,7 +55,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {
-    _devices.push_back(hip_hardware_context{dev});
+    _devices.push_back(std::move(hip_hardware_context{dev}));
   }
 
 }
@@ -87,8 +89,9 @@ device_id hip_hardware_manager::get_device_id(std::size_t index) const {
 
 
 hip_hardware_context::hip_hardware_context(int dev) : _dev{dev} {
+  _properties = std::make_unique<hipDeviceProp_t>();
 
-  auto err = hipGetDeviceProperties(&_properties, dev);
+  auto err = hipGetDeviceProperties(_properties.get(), dev);
 
   if (err != hipSuccess) {
     register_error(
@@ -96,6 +99,18 @@ hip_hardware_context::hip_hardware_context(int dev) : _dev{dev} {
         error_info{"hip_hardware_manager: Could not query device properties ",
                    error_code{"HIP", err}});
   }
+
+  _allocator = std::make_unique<hip_allocator>(
+      backend_descriptor{hardware_platform::rocm, api_platform::hip}, _dev);
+  _event_pool = std::make_unique<hip_event_pool>(_dev);
+}
+
+hip_allocator* hip_hardware_context::get_allocator() const {
+  return _allocator.get();
+}
+
+hip_event_pool* hip_hardware_context::get_event_pool() const {
+  return _event_pool.get();
 }
 
 bool hip_hardware_context::is_cpu() const {
@@ -111,7 +126,7 @@ bool hip_hardware_context::is_gpu() const {
 }
 
 std::size_t hip_hardware_context::get_max_kernel_concurrency() const {
-  return _properties.concurrentKernels + 1;
+  return _properties->concurrentKernels + 1;
 }
 
 std::size_t hip_hardware_context::get_max_memcpy_concurrency() const {
@@ -120,7 +135,7 @@ std::size_t hip_hardware_context::get_max_memcpy_concurrency() const {
 }
 
 std::string hip_hardware_context::get_device_name() const {
-  return _properties.name;
+  return _properties->name;
 }
 
 std::string hip_hardware_context::get_vendor_name() const {
@@ -136,7 +151,7 @@ std::string hip_hardware_context::get_vendor_name() const {
 }
 
 std::string hip_hardware_context::get_device_arch() const {
-  return _properties.gcnArchName;
+  return _properties->gcnArchName;
 }
 
 bool hip_hardware_context::has(device_support_aspect aspect) const {
@@ -200,22 +215,22 @@ std::size_t
 hip_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
-    return _properties.multiProcessorCount;
+    return _properties->multiProcessorCount;
     break;
   case device_uint_property::max_global_size0:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[0];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[0];
     break;
   case device_uint_property::max_global_size1:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[1];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[1];
     break;
   case device_uint_property::max_global_size2:
-    return _properties.maxThreadsPerBlock * _properties.maxGridSize[2];
+    return _properties->maxThreadsPerBlock * _properties->maxGridSize[2];
     break;
   case device_uint_property::max_group_size:
-    return _properties.maxThreadsPerBlock;
+    return _properties->maxThreadsPerBlock;
     break;
   case device_uint_property::max_num_sub_groups:
-    return _properties.maxThreadsPerBlock / _properties.warpSize;
+    return _properties->maxThreadsPerBlock / _properties->warpSize;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
@@ -260,10 +275,10 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return 2;
     break;
   case device_uint_property::max_clock_speed:
-    return _properties.clockRate / 1000;
+    return _properties->clockRate / 1000;
     break;
   case device_uint_property::max_malloc_size:
-    return _properties.totalGlobalMem;
+    return _properties->totalGlobalMem;
     break;
   case device_uint_property::address_bits:
     return 64;
@@ -308,19 +323,19 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return 128; //TODO
     break;
   case device_uint_property::global_mem_cache_size:
-    return _properties.l2CacheSize; // TODO
+    return _properties->l2CacheSize; // TODO
     break;
   case device_uint_property::global_mem_size:
-    return _properties.totalGlobalMem;
+    return _properties->totalGlobalMem;
     break;
   case device_uint_property::max_constant_buffer_size:
-    return _properties.totalConstMem;
+    return _properties->totalConstMem;
     break;
   case device_uint_property::max_constant_args:
     return std::numeric_limits<std::size_t>::max();
     break;
   case device_uint_property::local_mem_size:
-    return _properties.sharedMemPerBlock;
+    return _properties->sharedMemPerBlock;
     break;
   case device_uint_property::printf_buffer_size:
     return std::numeric_limits<std::size_t>::max();
@@ -341,7 +356,7 @@ hip_hardware_context::get_property(device_uint_list_property prop) const {
   switch (prop) {
   case device_uint_list_property::sub_group_sizes:
     return std::vector<std::size_t>{
-        static_cast<std::size_t>(_properties.warpSize)};
+        static_cast<std::size_t>(_properties->warpSize)};
     break;
   }
   assert(false && "Invalid device property");

@@ -101,8 +101,7 @@ struct kernel_name_traits<__hipsycl_unnamed_kernel, KernelBodyT> {
 
   static constexpr bool is_unnamed = true;
 };
-
-}
+} // namespace glue
 } // namespace hipsycl
 
 #endif

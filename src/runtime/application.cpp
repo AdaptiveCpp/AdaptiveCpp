@@ -27,9 +27,11 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/async_errors.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/hw_model/hw_model.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 #include <memory>
 #include <mutex>
 #include <atomic>
@@ -37,98 +39,39 @@
 namespace hipsycl {
 namespace rt {
 
-namespace {
-
-class rt_manager
-{
-public:
-  void shutdown() {
-    // TODO Thread safety...
-    delete _rt;
-    _rt.store(nullptr);
-  }
-
-  void reset() {
-    HIPSYCL_DEBUG_INFO << "rt_manager: Restarting runtime..." << std::endl;
-
-    // TODO: This is not really thread-safe.
-    runtime *old_rt = get_runtime();
-    if (old_rt){
-      old_rt->dag().flush_sync();
-      old_rt->dag().wait();
-    }
-    // If there is work to be done in the destructor,
-    // (in particular freeing resources) this might be
-    // executed already be the new runtime.
-    // While not beautiful, this should not be a problem
-    // in practice.
-    old_rt = _rt.exchange(new runtime{});
-    if (old_rt)
-      delete old_rt;
-  }
-
-  runtime *get_runtime() {
-    return _rt.load();
-  }
-
-  static rt_manager& get() {
-    static rt_manager mgr;
-    return mgr;
-  }
-
-
-private:
-  rt_manager() {
-    _rt.store(new runtime{});
-  }
-  // We cannot use a mutex since this can easily lead to a deadlock:
-  // during destruction of the runtime, the destructor waits for
-  // the async worker threads (processing scheduling) to finish.
-  // The scheduler however also needs to access the runtime to do its work
-  // -> deadlock
-  std::atomic<runtime*> _rt;
-};
-
-class global_settings
-{
-public:
-  static global_settings& get() {
-    static global_settings g;
-    return g;
-  }
-
-  settings &get_settings() {
-    return _settings;
-  }
-private:
-  global_settings() {}
-  settings _settings;
-};
-
+runtime_keep_alive_token::runtime_keep_alive_token()
+: _rt{application::get_runtime_pointer()} {
+  assert(_rt);
 }
 
-runtime& application::get_runtime(){
-  return *rt_manager::get().get_runtime();
+runtime* runtime_keep_alive_token::get() const {
+  return _rt.get();
 }
 
-dag_manager &application::dag()
-{ return get_runtime().dag(); }
+std::shared_ptr<runtime> application::get_runtime_pointer() {
+  static std::mutex mutex;
+  static std::weak_ptr<runtime> rt;
 
-backend &application::get_backend(hipsycl::rt::backend_id id)
-{
-  return *(get_runtime().backends().get(id));
+  std::lock_guard<std::mutex> lock{mutex};
+
+  std::shared_ptr<runtime> rt_ptr = rt.lock();
+  if(!rt_ptr) {
+    rt_ptr = std::make_shared<runtime>();
+    rt = rt_ptr;
+  }
+  assert(rt_ptr);
+  return rt_ptr;
 }
-
-backend_manager &application::backends() {
-  return get_runtime().backends();
-}
-
-void application::reset() { rt_manager::get().reset(); }
 
 settings &application::get_settings() {
-  return global_settings::get().get_settings();
+  static settings s;
+  return s;
 }
 
+async_error_list& application::errors() {
+  static async_error_list errors;
+  return errors;
+}
 
 
 }

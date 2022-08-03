@@ -33,8 +33,9 @@
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
+#include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/event.hpp"
-#include "ze_module.hpp"
+#include "ze_code_object.hpp"
 
 
 namespace hipsycl {
@@ -42,11 +43,9 @@ namespace rt {
 
 class ze_hardware_manager;
 class ze_queue;
-class ze_module_invoker;
 
 class ze_queue : public inorder_queue
 {
-  friend class ze_module_invoker;
 public:
   ze_queue(ze_hardware_manager* hw_manager, std::size_t device_index);
 
@@ -54,6 +53,7 @@ public:
 
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
+  virtual std::shared_ptr<dag_node_event> create_queue_completion_event() override;
 
   virtual result submit_memcpy(memcpy_operation&, dag_node_ptr) override;
   virtual result submit_kernel(kernel_operation&, dag_node_ptr) override;
@@ -65,13 +65,17 @@ public:
   virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
+  virtual result wait() override;
+
   virtual device_id get_device() const override;
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const override;
 
   /// Get a module invoker to launch kernels from module images,
   /// if the backend supports this. Returns nullptr if unsupported.
-  virtual module_invoker* get_module_invoker() override;
+  virtual code_object_invoker* get_code_object_invoker() override;
+
+  virtual result query_status(inorder_queue_status& status) override;
 
   ze_command_list_handle_t get_ze_command_list() const {
     return _command_list;
@@ -80,6 +84,12 @@ public:
   ze_hardware_manager* get_hardware_manager() const {
     return _hw_manager;
   }
+
+  result submit_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+      void **kernel_args, const std::size_t *arg_sizes, std::size_t num_args);
 
 private:
   const std::vector<std::shared_ptr<dag_node_event>>&
@@ -95,7 +105,7 @@ private:
   ze_command_list_handle_t _command_list;
   ze_hardware_manager* _hw_manager;
   std::size_t _device_index;
-  ze_module_invoker _module_invoker;
+  ze_code_object_invoker _code_object_invoker;
 
   std::shared_ptr<dag_node_event> _last_submitted_op_event;
   std::vector<std::shared_ptr<dag_node_event>> _enqueued_synchronization_ops;

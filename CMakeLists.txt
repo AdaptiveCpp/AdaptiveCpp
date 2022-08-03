@@ -5,7 +5,7 @@ endif()
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
-set(HIPSYCL_VERSION_PATCH 1)
+set(HIPSYCL_VERSION_PATCH 2)
 
 project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
 
@@ -78,23 +78,47 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
+if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
+set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+else()
+set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+endif()
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
   find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
   message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
+
+  find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)
   set(DEFAULT_PLATFORM "rocm")
 else()
   set(DEFAULT_PLATFORM "cpu")
 endif()
 
-if(WITH_CUDA_BACKEND OR WITH_ROCM_BACKEND)
-  set(BUILD_CLANG_PLUGIN true)
+if(WITH_CUDA_NVCXX_ONLY)
+  if(NVCXX_COMPILER MATCHES "-NOTFOUND")
+      message(SEND_ERROR "Could not find nvc++ executable, specifiy with -DNVCXX_COMPILER=")
+  endif()
 endif()
 
+
+if(WITH_ACCELERATED_CPU) # sanitize input
+  set(WITH_ACCELERATED_CPU true)
+  set(BUILD_CLANG_PLUGIN true)
+else()
+  set(WITH_ACCELERATED_CPU false)
+endif()
+
+if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
+if(WITH_ROCM_BACKEND)
+  set(BUILD_CLANG_PLUGIN true)
+endif()
 
 if(BUILD_CLANG_PLUGIN)
   find_package(LLVM CONFIG)
@@ -117,8 +141,8 @@ if(BUILD_CLANG_PLUGIN)
   endif()
   message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
 
-  get_filename_component(LLVM_BIN_DIR ${CLANG_EXECUTABLE_PATH} DIRECTORY)
-  get_filename_component(LLVM_PREFIX_DIR ${LLVM_BIN_DIR} DIRECTORY)
+  get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
+  get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
   # The path to the internal clang includes is currently required on ROCm
   # to let syclcc-clang fix a wrong order of system includes (clang's internal 
   # includes are not of high enough priority in the include path search order).
@@ -141,6 +165,10 @@ if(BUILD_CLANG_PLUGIN)
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
     message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
   endif()
+  if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
+    message(WARNING "clang version to old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
+    set(WITH_ACCELERATED_CPU false)
+  endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
 
@@ -148,6 +176,7 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+option(HIPSYCL_NO_DEVICE_MANGLER "Disable the use of DeviceMangler. necessary for LLVM 13 distributed with the rocm packages." OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -166,15 +195,15 @@ else()
 endif()
 
 if(Boost_FIBER_LIBRARY_DEBUG)
-  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_DEBUG} DIRECTORY)
+  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_DEBUG}" DIRECTORY)
 elseif(Boost_FIBER_LIBRARY_RELEASE)
-  get_filename_component(Boost_LIBRARY_DIR ${Boost_FIBER_LIBRARY_RELEASE} DIRECTORY)
+  get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_RELEASE}" DIRECTORY)
 else()
   get_target_property(FIBER_IMPORT_LIBRARY Boost::fiber IMPORTED_LOCATION_DEBUG)
   if(NOT FIBER_IMPORT_LIBRARY)
     get_target_property(FIBER_IMPORT_LIBRARY Boost::fiber IMPORTED_LOCATION_RELEASE)
   endif()
-  get_filename_component(Boost_LIBRARY_DIR "${FIBER_IMPORT_LIBRARY}" ABSOLUTE)
+  get_filename_component(Boost_LIBRARY_DIR "${FIBER_IMPORT_LIBRARY}" DIRECTORY)
   get_target_property(Boost_INCLUDE_DIR Boost::fiber INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
@@ -203,11 +232,11 @@ else()
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME ${Boost_CONTEXT_LIBRARY_DEBUG} NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME ${Boost_FIBER_LIBRARY_DEBUG} NAME)
+  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_DEBUG}" NAME)
+  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_DEBUG}" NAME)
 else()
-  get_filename_component(Boost_CONTEXT_LIBRARY_NAME ${Boost_CONTEXT_LIBRARY_RELEASE} NAME)
-  get_filename_component(Boost_FIBER_LIBRARY_NAME ${Boost_FIBER_LIBRARY_RELEASE} NAME)
+  get_filename_component(Boost_CONTEXT_LIBRARY_NAME "${Boost_CONTEXT_LIBRARY_RELEASE}" NAME)
+  get_filename_component(Boost_FIBER_LIBRARY_NAME "${Boost_FIBER_LIBRARY_RELEASE}" NAME)
 endif()
 set(DEFAULT_WIN32_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} ${DEFAULT_OMP_FLAG}")
 set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PREFIX}${Boost_CONTEXT_LIBRARY_NAME} ${DEFAULT_LINK_PREFIX}${Boost_FIBER_LIBRARY_NAME} -llibomp")
@@ -216,7 +245,7 @@ set(DEFAULT_WIN32_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} ${DEFAULT_LINK_PR
 set(DEFAULT_APPLE_OMP_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${DEFAULT_OMP_FLAG} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
 set(DEFAULT_APPLE_SEQUENTIAL_LINK_LINE "${DEFAULT_BOOST_LIBRARIES} ${hipSYCL_OpenMP_CXX_LIBRARIES}")
 set(DEFAULT_OMP_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR} ${DEFAULT_OMP_FLAG}")
-set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -lomp -Wl,-rpath=${Boost_LIBRARY_DIR}")
+set(DEFAULT_SEQUENTIAL_LINK_LINE "-L${Boost_LIBRARY_DIR} -lboost_context -lboost_fiber -Wl,-rpath=${Boost_LIBRARY_DIR}")
 
 # If no link lines given, set to default.
 if(NOT ROCM_LINK_LINE)
@@ -271,16 +300,29 @@ if(NOT CUDA_CXX_FLAGS)
   set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
+# always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
 if(NOT OMP_CXX_FLAGS) 
-  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG}" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
+  set(OMP_CXX_FLAGS "-I${Boost_INCLUDE_DIR} ${DEFAULT_OMP_FLAG} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications with OpenMP")
 endif()
 
 if(NOT SEQUENTIAL_CXX_FLAGS) 
-  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR}" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+  set(SEQUENTIAL_CXX_FLAGS "-I${Boost_INCLUDE_DIR} -D_ENABLE_EXTENDED_ALIGNED_STORAGE" CACHE STRING "Arguments passed to compiler to compile SYCL applications on host")
+endif()
+
+if(BUILD_CLANG_PLUGIN)
+  set(PLUGIN_LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
+else()
+  set(PLUGIN_LLVM_VERSION_MAJOR 0)
 endif()
 
 set(SYCLCC_CONFIG_FILE "{
+  \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
+  \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
+  \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
+  \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
+  \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
+  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
@@ -288,6 +330,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
+  \"default-use-accelerated-cpu\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
   \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",

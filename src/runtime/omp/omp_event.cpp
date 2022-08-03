@@ -51,5 +51,9 @@ omp_node_event::get_signal_channel() const {
   return _signal_channel;
 }
 
+std::shared_ptr<signal_channel> omp_node_event::request_backend_event() {
+  return get_signal_channel();
+}
+
 }
 }

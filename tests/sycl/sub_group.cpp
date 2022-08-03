@@ -26,6 +26,7 @@
  */
 
 
+#include "hipSYCL/sycl/info/device.hpp"
 #include "sycl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(sub_group_tests, reset_device_fixture)
@@ -42,7 +43,7 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   s::range<1> local_size1d{128};
   s::range<2> local_size2d{16, 16};
   s::range<3> local_size3d{4, 8, 8};
-  
+
   s::buffer<uint32_t, 1> buff1d{size1d};
   s::buffer<uint32_t, 2> buff2d{size2d};
   s::buffer<uint32_t, 3> buff3d{size3d};
@@ -79,23 +80,26 @@ BOOST_AUTO_TEST_CASE(sub_group) {
   auto host_acc2 = buff2d.get_access<s::access::mode::read>();
   auto host_acc3 = buff3d.get_access<s::access::mode::read>();
 
-#if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
-  const uint32_t subgroup_size = static_cast<uint32_t>(warpSize);
-#elif defined(__HIPSYCL_ENABLE_CUDA_TARGET__)
-  const uint32_t subgroup_size = 32;
-#else
-  const uint32_t subgroup_size = 1;
-#endif
+  const s::device dev = q.get_device();
+  const std::vector<size_t> supported_subgroup_sizes =
+      dev.get_info<cl::sycl::info::device::sub_group_sizes>();
+  BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
+  const unsigned int max_num_subgroups =
+      dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
+  BOOST_CHECK(max_num_subgroups >= 1U);
+
+  uint32_t subgroup_size = supported_subgroup_sizes[0];
 
   for (size_t i = 0; i < size1d[0]; ++i) {
     size_t lid = i % local_size1d[0];
-    BOOST_CHECK(host_acc1[i] == lid % subgroup_size);
+    BOOST_TEST_INFO("i: " << i);
+    BOOST_CHECK_EQUAL(host_acc1[i], lid % subgroup_size);
   }
   for (size_t i = 0; i < size2d[0]; ++i) {
     for (size_t j = 0; j < size2d[1]; ++j) {
       auto id = s::id<2>{i, j};
       auto lid = id % local_size2d;
-      BOOST_CHECK(host_acc2[id] == (lid[1] + lid[0]*local_size2d[1]) % subgroup_size);
+      BOOST_CHECK_EQUAL(host_acc2[id], (lid[1] + lid[0]*local_size2d[1]) % subgroup_size);
     }
   }
   for (size_t i = 0; i < size3d[0]; ++i) {
@@ -103,22 +107,13 @@ BOOST_AUTO_TEST_CASE(sub_group) {
       for (size_t k = 0; k < size3d[2]; ++k) {
         auto id = s::id<3>{i, j, k};
         auto lid = id % local_size3d;
-        BOOST_CHECK(host_acc3[id] ==
+        BOOST_CHECK_EQUAL(host_acc3[id],
                     (lid[2] + lid[1] * local_size3d[2] +
                      lid[0] * local_size3d[1] * local_size3d[2]) %
                         subgroup_size);
       }
     }
   }
-
-  const s::device dev = q.get_device();
-  const std::vector<size_t> supported_subgroup_sizes =
-      dev.get_info<cl::sycl::info::device::sub_group_sizes>();
-  BOOST_CHECK(supported_subgroup_sizes.size() >= 1);
-  BOOST_CHECK(supported_subgroup_sizes[0] == subgroup_size);
-  const unsigned int max_num_subgroups =
-      dev.get_info<cl::sycl::info::device::max_num_sub_groups>();
-  BOOST_CHECK(max_num_subgroups >= 1U);
 }
 
 

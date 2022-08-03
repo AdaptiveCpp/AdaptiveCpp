@@ -29,7 +29,6 @@
 #ifndef HIPSYCL_RANGE_DECOMPOSITION_HPP
 #define HIPSYCL_RANGE_DECOMPOSITION_HPP
 
-#include <omp.h>
 #include <vector>
 #include <cassert>
 

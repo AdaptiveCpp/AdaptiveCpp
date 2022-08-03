@@ -43,6 +43,7 @@
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 
@@ -219,8 +220,9 @@ public:
   get_devices(info::device_type deviceType = info::device_type::all) {
 
     std::vector<device> result;
+    rt::runtime_keep_alive_token requires_runtime;
 
-    rt::application::backends().for_each_backend(
+    requires_runtime.get()->backends().for_each_backend(
         [&](rt::backend *b) {
           rt::backend_descriptor bd = b->get_backend_descriptor();
           std::size_t num_devices =
@@ -260,12 +262,21 @@ public:
   backend get_backend() const noexcept {
     return _device_id.get_backend();
   }
+
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<hipsycl::rt::device_id>{}(_device_id);
+  }
+
+  rt::runtime* hipSYCL_runtime() const {
+    return _requires_runtime.get();
+  }
 private:
   rt::device_id _device_id;
+  rt::runtime_keep_alive_token _requires_runtime;
 
   rt::hardware_context *get_rt_device() const {
-    auto ptr = rt::application::get_backend(_device_id.get_backend())
-                   .get_hardware_manager()
+    auto ptr = _requires_runtime.get()->backends().get(_device_id.get_backend())
+                   ->get_hardware_manager()
                    ->get_device(_device_id.get_id());
     if (!ptr) {
       throw runtime_error{"Could not access device"};
@@ -724,6 +735,17 @@ inline rt::device_id extract_rt_device(const device &d) {
 } // namespace sycl
 } // namespace hipsycl
 
+namespace std {
 
+template <>
+struct hash<hipsycl::sycl::device>
+{
+  std::size_t operator()(const hipsycl::sycl::device& d) const
+  {
+    return d.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

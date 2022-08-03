@@ -25,12 +25,19 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/hip/hip_backend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_device_manager.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
+#include "hipSYCL/runtime/hip/hip_code_object.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/queue_completion_event.hpp"
+#include "hipSYCL/runtime/kernel_cache.hpp"
+
 
 #include <cassert>
 #include <memory>
@@ -121,7 +128,8 @@ void hip_queue::activate_device() const {
   hip_device_manager::get().activate_device(_dev.get_id());
 }
 
-hip_queue::hip_queue(device_id dev) : _dev{dev}, _stream{nullptr} {
+hip_queue::hip_queue(hip_backend *be, device_id dev)
+    : _dev{dev}, _stream{nullptr}, _backend{be}, _code_object_invoker{this} {
   this->activate_device();
 
   auto err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
@@ -148,19 +156,15 @@ hip_queue::~hip_queue() {
 
 /// Inserts an event into the stream
 std::shared_ptr<dag_node_event> hip_queue::insert_event() {
-  this->activate_device();
-
   hipEvent_t evt;
-  auto err = hipEventCreate(&evt);
-  if(err != hipSuccess) {
-    register_error(
-        __hipsycl_here(),
-        error_info{"hip_queue: Couldn't create event", error_code{"HIP", err}});
+  auto event_creation_result =
+      _backend->get_event_pool(_dev)->obtain_event(evt);
+  if(!event_creation_result.is_success()) {
+    register_error(event_creation_result);
     return nullptr;
   }
 
-
-  err = hipEventRecord(evt, this->get_stream());
+  hipError_t err = hipEventRecord(evt, this->get_stream());
   if (err != hipSuccess) {
     register_error(
         __hipsycl_here(),
@@ -168,8 +172,15 @@ std::shared_ptr<dag_node_event> hip_queue::insert_event() {
     return nullptr;
   }
 
-  return std::make_shared<hip_node_event>(_dev, std::move(evt));
+  return std::make_shared<hip_node_event>(_dev, std::move(evt),
+                                          _backend->get_event_pool(_dev));
 }
+
+std::shared_ptr<dag_node_event> hip_queue::create_queue_completion_event() {
+  return std::make_shared<queue_completion_event<hipEvent_t, hip_node_event>>(
+      this);
+}
+
 
 
 result hip_queue::submit_memcpy(memcpy_operation & op, dag_node_ptr node) {
@@ -343,13 +354,42 @@ result hip_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
+result hip_queue::wait() {
+
+  auto err = hipStreamSynchronize(_stream);
+
+  if(err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Couldn't synchronize with stream",
+                                 error_code{"HIP", err}});
+  }
+
+  return make_success();
+}
+
+result hip_queue::query_status(inorder_queue_status &status) {
+  auto err = hipStreamQuery(_stream);
+  if(err == hipSuccess) {
+    status = inorder_queue_status{true};
+  } else if(err == hipErrorNotReady) {
+    status = inorder_queue_status{false};
+  } else {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Could not query stream status",
+                                 error_code{"HIP", static_cast<int>(err)}});
+  }
+
+  return make_success();
+}
+
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
 result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
-  assert(dynamic_is<hip_node_event>(evt.get()));
+  assert(dynamic_is<inorder_queue_event<hipEvent_t>>(evt.get()));
 
-  hip_node_event* hip_evt = cast<hip_node_event>(evt.get());
-  auto err = hipStreamWaitEvent(_stream, hip_evt->get_event(), 0);
+  inorder_queue_event<hipEvent_t> *hip_evt =
+      cast<inorder_queue_event<hipEvent_t>>(evt.get());
+  auto err = hipStreamWaitEvent(_stream, hip_evt->request_backend_event(), 0);
   if (err != hipSuccess) {
     return make_error(__hipsycl_here(),
                       error_info{"hip_queue: hipStreamWaitEvent() failed",
@@ -384,9 +424,158 @@ void *hip_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
 }
 
-module_invoker *hip_queue::get_module_invoker() {
-  return nullptr;
+code_object_invoker* hip_queue::get_code_object_invoker() {
+  return &_code_object_invoker;
 }
+
+result hip_queue::submit_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+      void **kernel_args, std::size_t* arg_sizes, std::size_t num_args) {
+
+  this->activate_device();
+  
+  std::string global_kernel_name = op.get_global_kernel_name();
+  const kernel_cache::kernel_name_index_t *kidx =
+      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+
+  if(!kidx) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Could not obtain kernel index for kernel " +
+                   global_kernel_name});
+  }
+
+  const common::hcf_container *hcf =
+        rt::kernel_cache::get().get_hcf(hcf_object);
+  if (!hcf)
+    return make_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Could not access requested HCF object"});
+
+  assert(hcf->root_node());
+  std::vector<std::string> available_targets = hcf->root_node()->get_subnodes();
+  assert(!available_targets.empty());
+
+  // TODO Select correct target based on actual device - currently
+  // we just use the first device image no matter which device it was
+  // compiled for
+  std::string selected_target = available_targets[0];
+  int device = _dev.get_id();
+
+  auto code_object_selector = [&](const code_object* candidate) -> bool {
+    // Also no need to check for HIP backend since the kernel cache already
+    // guarantees that we are only given candidates for the requested backend (CUDA).
+    return (candidate->target_arch() == selected_target) &&
+           (candidate->state() == code_object_state::executable) &&
+           (static_cast<const hip_executable_object *>(candidate)
+                ->get_device() == device);
+  };
+
+  // Will be invoked by the kernel cache in case there is a miss in the kernel
+  // cache and we have to construct a new code object
+
+  auto code_object_constructor = [&]() -> code_object * {
+
+    const common::hcf_container::node* target_node =
+      hcf->root_node()->get_subnode(selected_target);
+    if(!target_node)
+      return nullptr;
+    if(!target_node->has_binary_data_attached())
+      return nullptr;
+
+    std::string kernel_image;
+    if(!hcf->get_binary_attachment(target_node, kernel_image)){
+      HIPSYCL_DEBUG_ERROR
+          << "hip_queue: Could not extract hip fat binary code from "
+             "HCF node; invalid HCF data?"
+          << std::endl;
+      return nullptr;
+    }
+
+    hip_executable_object *exec_obj =
+        new hip_executable_object{hcf_object, selected_target, kernel_image, device};
+    result r = exec_obj->get_build_result();
+
+    if (!r.is_success()) {
+      register_error(r);
+      delete exec_obj;
+      return nullptr;
+    }
+
+    return exec_obj;
+  };
+
+  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+      *kidx, backend_kernel_name, backend_id::hip, hcf_object,
+      code_object_selector, code_object_constructor);
+
+  
+  if(!obj) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: Code object construction failed"});
+  }
+
+  // Since we only support explicit multipass in HIP with clang >= 13 and therefore
+  // are in the new kernel name mangling logic path, we can assume that we know
+  // the full kernel name, and don't need to query available kernels in the device image
+  // as in the CUDA backend.
+  hipFunction_t kernel_func;
+  hipError_t err = hipModuleGetFunction(
+      &kernel_func,
+      static_cast<const hip_executable_object *>(obj)->get_module(),
+      backend_kernel_name.c_str());
+
+  if(err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: could not extract kernel from module",
+                                 error_code{"HIP", static_cast<int>(err)}});
+  }
+
+  err = hipModuleLaunchKernel(kernel_func, 
+    static_cast<unsigned>(grid_size.get(0)),
+                       static_cast<unsigned>(grid_size.get(1)),
+                       static_cast<unsigned>(grid_size.get(2)),
+                       static_cast<unsigned>(block_size.get(0)),
+                       static_cast<unsigned>(block_size.get(1)),
+                       static_cast<unsigned>(block_size.get(2)),
+                       dynamic_shared_mem, _stream, kernel_args, nullptr);
+
+  if (err != hipSuccess) {
+    return make_error(__hipsycl_here(),
+                      error_info{"hip_queue: could not submit kernel from module",
+                                 error_code{"HIP", static_cast<int>(err)}});
+  }
+  
+  return make_success();
+}
+
+hip_code_object_invoker::hip_code_object_invoker(hip_queue *q) : _queue{q} {}
+
+
+result hip_code_object_invoker::submit_kernel(
+    const kernel_operation& op,
+    hcf_object_id hcf_object,
+    const rt::range<3> &num_groups,
+    const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    const std::string &kernel_name_tag,
+    const std::string &kernel_body_name) {
+
+  assert(_queue);
+
+  std::string kernel_name = kernel_body_name;
+  if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
+    kernel_name = kernel_name_tag;
+
+  return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,
+                                                num_groups, group_size,
+                                                local_mem_size, args,
+                                                arg_sizes, num_args);
+}
+
 
 }
 }

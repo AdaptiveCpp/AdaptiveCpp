@@ -49,11 +49,8 @@ public:
                                                        T *data)
       : _data{data}, _grp{grp} {}
 
-  private_memory_access(const private_memory_access&) = delete;
-  private_memory_access& operator=(const private_memory_access&) = delete;
-
   HIPSYCL_KERNEL_TARGET
-  T& operator()(const detail::sp_item<dimensions>& idx) noexcept
+  T& operator()(const detail::sp_item<dimensions>& idx) const noexcept
   {
     return get(idx.get_local_id(_grp), idx.get_local_range(_grp));
   }
@@ -64,8 +61,13 @@ private:
 
   HIPSYCL_KERNEL_TARGET
   T &get(const sycl::id<dimensions> &id,
-         const sycl::range<dimensions> &local_range) noexcept {
-    return _data[detail::linear_id<dimensions>::get(id, local_range)];
+         const sycl::range<dimensions> &local_range) const noexcept {
+    __hipsycl_if_target_host(
+      return _data[detail::linear_id<dimensions>::get(id, local_range)];
+    );
+    __hipsycl_if_target_device(
+      return *_data;
+    );
   }
 };
 

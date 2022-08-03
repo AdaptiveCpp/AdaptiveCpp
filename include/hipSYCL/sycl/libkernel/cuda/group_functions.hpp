@@ -25,8 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef SYCL_DEVICE_ONLY
-#ifdef HIPSYCL_PLATFORM_CUDA
 
 #ifndef HIPSYCL_LIBKERNEL_CUDA_GROUP_FUNCTIONS_HPP
 #define HIPSYCL_LIBKERNEL_CUDA_GROUP_FUNCTIONS_HPP
@@ -38,26 +36,29 @@
 #include "../vec.hpp"
 #include <type_traits>
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
+
 namespace hipsycl {
-namespace sycl {
+namespace sycl::detail::hiplike_builtins {
 
 // barrier
-template<int Dim>
-HIPSYCL_KERNEL_TARGET
-inline void group_barrier(group<Dim> g, memory_scope fence_scope) {
+template <int Dim>
+__device__ inline void __hipsycl_group_barrier(group<Dim> g,
+                                               memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   }
   __syncthreads();
 }
+
 template<int Dim>
-HIPSYCL_KERNEL_TARGET
-inline void group_barrier(group<Dim> g) {
+__device__
+inline void __hipsycl_group_barrier(group<Dim> g) {
   __syncthreads();
 }
 
-HIPSYCL_KERNEL_TARGET
-inline void group_barrier(sub_group g, memory_scope fence_scope) {
+__device__ inline void __hipsycl_group_barrier(sub_group g,
+                                               memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
     __threadfence_system();
   } else if (fence_scope == memory_scope::work_group) {
@@ -65,33 +66,34 @@ inline void group_barrier(sub_group g, memory_scope fence_scope) {
   }
   __syncwarp(); // not necessarily needed, but might improve performance
 }
-HIPSYCL_KERNEL_TARGET
-inline void group_barrier(sub_group g) {
+
+__device__
+inline void __hipsycl_group_barrier(sub_group g) {
   __syncwarp(); // not necessarily needed, but might improve performance
 }
 
 // any_of
-HIPSYCL_KERNEL_TARGET
-inline bool any_of_group(sub_group g, bool pred) {
+__device__
+inline bool __hipsycl_any_of_group(sub_group g, bool pred) {
   return __any_sync(detail::AllMask, pred);
 }
 
 // all_of
-HIPSYCL_KERNEL_TARGET
-inline bool all_of_group(sub_group g, bool pred) {
+__device__
+inline bool __hipsycl_all_of_group(sub_group g, bool pred) {
   return __all_sync(detail::AllMask, pred);
 }
 
 // none_of
-HIPSYCL_KERNEL_TARGET
-inline bool none_of_group(sub_group g, bool pred) {
+__device__
+inline bool __hipsycl_none_of_group(sub_group g, bool pred) {
   return !__any_sync(detail::AllMask, pred);
 }
 
 // reduce
-template<typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
-T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
+template <typename T, typename BinaryOperation>
+__device__ T __hipsycl_reduce_over_group(sub_group g, T x,
+                                         BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
   const unsigned int activemask = __activemask();
@@ -99,17 +101,17 @@ T reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
   auto local_x = x;
 
   for (size_t i = lrange / 2; i > 0; i /= 2) {
-    auto other_x = detail::shuffle_impl(local_x, lid + i);
+    auto other_x = detail::__hipsycl_shuffle_impl(local_x, lid + i);
     if (activemask & (1 << (lid + i)))
       local_x = binary_op(local_x, other_x);
   }
-  return detail::shuffle_impl(local_x, 0);
+  return detail::__hipsycl_shuffle_impl(local_x, 0);
 }
 
 // exclusive_scan
-template<typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
-T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op) {
+template <typename V, typename T, typename BinaryOperation>
+__device__ T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init,
+                                                 BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
   const unsigned int activemask = __activemask();
@@ -121,7 +123,7 @@ T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op)
     if (i > lid)
       next_id = 0;
 
-    auto other_x = detail::shuffle_impl(local_x, next_id);
+    auto other_x = detail::__hipsycl_shuffle_impl(local_x, next_id);
     if (activemask & (1 << (next_id)) && i <= lid && lid < lrange)
       local_x = binary_op(local_x, other_x);
   }
@@ -130,7 +132,7 @@ T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op)
   if (g.leader())
     next_id = 0;
 
-  auto return_value = detail::shuffle_impl(local_x, next_id);
+  auto return_value = detail::__hipsycl_shuffle_impl(local_x, next_id);
 
   if (g.leader())
     return init;
@@ -139,9 +141,9 @@ T exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op)
 }
 
 // inclusive_scan
-template<typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET
-T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
+template <typename T, typename BinaryOperation>
+__device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
+                                                 BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
   const unsigned int activemask = __activemask();
@@ -153,7 +155,7 @@ T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
     if (i > lid)
       next_id = 0;
 
-    auto other_x = detail::shuffle_impl(local_x, next_id);
+    auto other_x = detail::__hipsycl_shuffle_impl(local_x, next_id);
     if (activemask & (1 << (next_id)) && i <= lid && lid < lrange)
       local_x = binary_op(local_x, other_x);
   }
@@ -164,6 +166,6 @@ T inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
 } // namespace sycl
 } // namespace hipsycl
 
+#endif
 #endif // HIPSYCL_LIBKERNEL_CUDA_GROUP_FUNCTIONS_HPP
-#endif // HIPSYCL_PLATFORM_CUDA
-#endif // SYCL_DEVICE_ONLY
+

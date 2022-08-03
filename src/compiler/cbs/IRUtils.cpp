@@ -1,0 +1,520 @@
+/*
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ *
+ * Copyright (c) 2021 Aksel Alpay and contributors
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "hipSYCL/compiler/cbs/IRUtils.hpp"
+
+#include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
+
+#include <llvm/Analysis/LoopInfo.h>
+#include <llvm/Analysis/RegionInfo.h>
+#include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/Dominators.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/IntrinsicInst.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/Local.h>
+#include <llvm/Transforms/Utils/PromoteMemToReg.h>
+
+namespace hipsycl::compiler::utils {
+llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
+                          llvm::Function &F) {
+  DT.reset();
+  DT.recalculate(F);
+  LI.releaseMemory();
+  LI.analyze(DT);
+  return LI.getLoopFor(B);
+}
+
+bool isBarrier(const llvm::Instruction *I, const SplitterAnnotationInfo &SAA) {
+  if (const auto *CI = llvm::dyn_cast<llvm::CallInst>(I))
+    return CI->getCalledFunction() && SAA.isSplitterFunc(CI->getCalledFunction());
+  return false;
+}
+
+bool blockHasBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return std::any_of(BB->begin(), BB->end(), [&SAA](const auto &I) { return isBarrier(&I, SAA); });
+}
+
+// Returns true in case the given basic block starts with a barrier,
+// that is, contains a branch instruction after possible PHI nodes.
+bool startsWithBarrier(const llvm::BasicBlock *BB,
+                       const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return isBarrier(BB->getFirstNonPHI(), SAA);
+}
+
+// Returns true in case the given basic block ends with a barrier,
+// that is, contains only a branch instruction after a barrier call.
+bool endsWithBarrier(const llvm::BasicBlock *BB,
+                     const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  const llvm::Instruction *T = BB->getTerminator();
+  assert(T);
+  return BB->size() > 1 && T->getPrevNode() && isBarrier(T->getPrevNode(), SAA);
+}
+
+bool hasOnlyBarrier(const llvm::BasicBlock *BB,
+                    const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  return endsWithBarrier(BB, SAA) && BB->size() == 2;
+}
+
+// Returns true in case the given function is a kernel with work-group
+// barriers inside it.
+bool hasBarriers(const llvm::Function &F, const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
+  for (auto &BB : F) {
+    if (blockHasBarrier(&BB, SAA)) {
+
+      // Ignore the implicit entry and exit barriers.
+      if (hasOnlyBarrier(&BB, SAA) && &BB == &F.getEntryBlock())
+        continue;
+
+      if (hasOnlyBarrier(&BB, SAA) && BB.getTerminator()->getNumSuccessors() == 0)
+        continue;
+
+      return true;
+    }
+  }
+  return false;
+}
+
+llvm::CallInst *createBarrier(llvm::Instruction *InsertBefore, SplitterAnnotationInfo &SAA) {
+  llvm::Module *M = InsertBefore->getParent()->getParent()->getParent();
+
+  if (InsertBefore != &InsertBefore->getParent()->front() &&
+      isBarrier(InsertBefore->getPrevNode(), SAA))
+    return llvm::cast<llvm::CallInst>(InsertBefore->getPrevNode());
+  llvm::Function *F = llvm::cast<llvm::Function>(
+      M->getOrInsertFunction(BarrierIntrinsicName, llvm::Type::getVoidTy(M->getContext()))
+          .getCallee());
+
+  F->addFnAttr(llvm::Attribute::NoDuplicate);
+  F->setLinkage(llvm::GlobalValue::LinkOnceAnyLinkage);
+  SAA.addSplitter(F);
+
+  return llvm::CallInst::Create(F, "", InsertBefore);
+}
+
+bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
+  if (CI->getCalledFunction()->isIntrinsic() ||
+      CI->getCalledFunction()->getName() == BarrierIntrinsicName)
+    return false;
+
+  // needed to be valid for success log
+  const auto CalleeName = CI->getCalledFunction()->getName().str();
+
+  llvm::InlineFunctionInfo IFI;
+#if LLVM_VERSION_MAJOR <= 10
+  llvm::InlineResult ILR = llvm::InlineFunction(CI, IFI, nullptr);
+  if (!static_cast<bool>(ILR)) {
+    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << calleeName << ">: '"
+                          << ILR.message << "'\n";
+#else
+  llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
+  if (!ILR.isSuccess()) {
+    HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
+                          << ILR.getFailureReason() << "'\n";
+#endif
+    return false;
+  }
+
+  HIPSYCL_DEBUG_INFO << PassPrefix << " inlined function <" << CalleeName << ">\n";
+  return true;
+}
+
+bool isAnnotatedParallel(llvm::Loop *TheLoop) { // from llvm for debugging.
+  llvm::MDNode *DesiredLoopIdMetadata = TheLoop->getLoopID();
+
+  if (!DesiredLoopIdMetadata)
+    return false;
+
+  llvm::MDNode *ParallelAccesses =
+      llvm::findOptionMDForLoop(TheLoop, "llvm.loop.parallel_accesses");
+  llvm::SmallPtrSet<llvm::MDNode *, 4> ParallelAccessGroups; // For scalable 'contains' check.
+  if (ParallelAccesses) {
+    for (const llvm::MDOperand &MD : llvm::drop_begin(ParallelAccesses->operands(), 1)) {
+      llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(MD.get());
+      assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+      ParallelAccessGroups.insert(AccGroup);
+    }
+  }
+
+  // The loop branch contains the parallel loop metadata. In order to ensure
+  // that any parallel-loop-unaware optimization pass hasn't added loop-carried
+  // dependencies (thus converted the loop back to a sequential loop), check
+  // that all the memory instructions in the loop belong to an access group that
+  // is parallel to this loop.
+  for (llvm::BasicBlock *BB : TheLoop->blocks()) {
+    for (llvm::Instruction &I : *BB) {
+      if (!I.mayReadOrWriteMemory())
+        continue;
+
+      if (llvm::MDNode *AccessGroup = I.getMetadata(llvm::LLVMContext::MD_access_group)) {
+        auto ContainsAccessGroup = [&ParallelAccessGroups](llvm::MDNode *AG) -> bool {
+          if (AG->getNumOperands() == 0) {
+            assert(llvm::isValidAsAccessGroup(AG) && "Item must be an access group");
+            return ParallelAccessGroups.count(AG);
+          }
+
+          for (const llvm::MDOperand &AccessListItem : AG->operands()) {
+            llvm::MDNode *AccGroup = llvm::cast<llvm::MDNode>(AccessListItem.get());
+            assert(llvm::isValidAsAccessGroup(AccGroup) && "List item must be an access group");
+            if (ParallelAccessGroups.count(AccGroup))
+              return true;
+          }
+          return false;
+        };
+
+        if (ContainsAccessGroup(AccessGroup))
+          continue;
+      }
+      auto ReturnFalse = [&I]() {
+        HIPSYCL_DEBUG_EXECUTE_WARNING(llvm::outs()
+                                          << HIPSYCL_DEBUG_PREFIX_WARNING << "loop not parallel: ";
+                                      I.print(llvm::outs()); llvm::outs() << "\n";)
+        return false;
+      };
+      // The memory instruction can refer to the loop identifier metadata
+      // directly or indirectly through another list metadata (in case of
+      // nested parallel loops). The loop identifier metadata refers to
+      // itself so we can check both cases with the same routine.
+      llvm::MDNode *LoopIdMD = I.getMetadata(llvm::LLVMContext::MD_mem_parallel_loop_access);
+
+      if (!LoopIdMD)
+        return ReturnFalse();
+
+      if (!llvm::is_contained(LoopIdMD->operands(), DesiredLoopIdMetadata))
+        return ReturnFalse();
+    }
+  }
+  return true;
+}
+
+void createParallelAccessesMdOrAddAccessGroup(const llvm::Function *F, llvm::Loop *const &L,
+                                              llvm::MDNode *MDAccessGroup) {
+  // findOptionMDForLoopID also checks if there's a loop id, so this is fine
+  if (auto *ParAccesses =
+          llvm::findOptionMDForLoopID(L->getLoopID(), "llvm.loop.parallel_accesses")) {
+    llvm::SmallVector<llvm::Metadata *, 4> AccessGroups{
+        ParAccesses->op_begin(), ParAccesses->op_end()}; // contains .parallel_accesses
+    AccessGroups.push_back(MDAccessGroup);
+    auto *NewParAccesses = llvm::MDNode::get(F->getContext(), AccessGroups);
+
+    const auto *const PIt =
+        std::find(L->getLoopID()->op_begin(), L->getLoopID()->op_end(), ParAccesses);
+    auto PIdx = std::distance(L->getLoopID()->op_begin(), PIt);
+    L->getLoopID()->replaceOperandWith(PIdx, NewParAccesses);
+  } else {
+    auto *NewParAccesses = llvm::MDNode::get(
+        F->getContext(),
+        {llvm::MDString::get(F->getContext(), "llvm.loop.parallel_accesses"), MDAccessGroup});
+    L->setLoopID(llvm::makePostTransformationMetadata(F->getContext(), L->getLoopID(), {},
+                                                      {NewParAccesses}));
+  }
+}
+
+void addAccessGroupMD(llvm::Instruction *I, llvm::MDNode *MDAccessGroup) {
+  if (auto *PresentMD = I->getMetadata(llvm::LLVMContext::MD_access_group)) {
+    llvm::SmallVector<llvm::Metadata *, 4> MDs;
+    if (PresentMD->getNumOperands() == 0)
+      MDs.push_back(PresentMD);
+    else
+      MDs.append(PresentMD->op_begin(), PresentMD->op_end());
+    MDs.push_back(MDAccessGroup);
+    auto *CombinedMDAccessGroup = llvm::MDNode::getDistinct(I->getContext(), MDs);
+    I->setMetadata(llvm::LLVMContext::MD_access_group, CombinedMDAccessGroup);
+  } else
+    I->setMetadata(llvm::LLVMContext::MD_access_group, MDAccessGroup);
+}
+
+llvm::SmallPtrSet<llvm::BasicBlock *, 8> getBasicBlocksInWorkItemLoops(const llvm::LoopInfo &LI) {
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> BBSet;
+  for (auto *WIL : utils::getLoopsInPreorder(LI))
+    if (isWorkItemLoop(*WIL))
+      for (auto *BB : WIL->blocks())
+        if (BB != WIL->getLoopLatch() && BB != WIL->getHeader() && BB != WIL->getExitBlock())
+          BBSet.insert(BB);
+  HIPSYCL_DEBUG_EXECUTE_VERBOSE(HIPSYCL_DEBUG_INFO << "WorkItemLoop BBs:\n"; for (auto *BB
+                                                                                  : BBSet) {
+    HIPSYCL_DEBUG_INFO << "  " << BB->getName() << "\n";
+  })
+  return BBSet;
+}
+
+bool isWorkItemLoop(const llvm::Loop &L) {
+  return llvm::findOptionMDForLoop(&L, hipsycl::compiler::MDKind::WorkItemLoop);
+}
+
+bool isInWorkItemLoop(const llvm::Loop &L) {
+  llvm::Loop *PL = L.getParentLoop();
+  while (PL) {
+    if (isWorkItemLoop(*PL))
+      return true;
+    PL = PL->getParentLoop();
+  }
+  return false;
+}
+
+bool isInWorkItemLoop(const llvm::Region &R, const llvm::LoopInfo &LI) {
+  if (auto *L = LI.getLoopFor(R.getEntry()))
+    return isWorkItemLoop(*L) || isInWorkItemLoop(*L);
+  return false;
+}
+
+llvm::Loop *getOneWorkItemLoop(const llvm::LoopInfo &LI) {
+  for (auto *L : LI) {
+    if (isWorkItemLoop(*L))
+      return L;
+  }
+  return nullptr;
+}
+
+llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
+  llvm::BasicBlock *Entry;
+  for (auto *Succ : llvm::successors(WILoop->getHeader())) {
+    if (Succ != WILoop->getExitBlock()) {
+      Entry = Succ;
+      break;
+    }
+  }
+  return Entry;
+}
+
+llvm::SmallVector<llvm::Loop *, 4> getLoopsInPreorder(const llvm::LoopInfo &LI) {
+  return const_cast<llvm::LoopInfo &>(LI).getLoopsInPreorder();
+}
+
+llvm::BasicBlock *simplifyLatch(const llvm::Loop *L, llvm::BasicBlock *Latch, llvm::LoopInfo &LI,
+                                llvm::DominatorTree &DT) {
+  assert(L->getCanonicalInductionVariable() && "must be canonical loop!");
+  llvm::Value *InductionValue = L->getCanonicalInductionVariable()->getIncomingValueForBlock(Latch);
+  auto *InductionInstr = llvm::cast<llvm::Instruction>(InductionValue);
+  return llvm::SplitBlock(Latch, InductionInstr, &DT, &LI, nullptr, Latch->getName() + ".latch");
+}
+
+llvm::BasicBlock *splitEdge(llvm::BasicBlock *Root, llvm::BasicBlock *&Target, llvm::LoopInfo *LI,
+                            llvm::DominatorTree *DT) {
+  auto *NewBlockAtEdge = llvm::SplitEdge(Root, Target, DT, LI, nullptr);
+#if LLVM_VERSION_MAJOR < 12
+  // NewBlockAtEdge should be between Root and Target
+  // SplitEdge behaviour was fixed in LLVM 12 to actually ensure this.
+  if (NewBlockAtEdge->getTerminator()->getSuccessor(0) != Target)
+    std::swap(NewBlockAtEdge, Target);
+#endif
+  assert(NewBlockAtEdge->getTerminator()->getSuccessor(0) == Target &&
+         "NewBlockAtEdge must be predecessor to Target");
+  return NewBlockAtEdge;
+}
+
+void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
+                    llvm::AssumptionCache &AC) {
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  while (true) {
+    WL.clear();
+    for (auto &I : *EntryBlock) {
+      if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+        if (llvm::isAllocaPromotable(Alloca))
+          WL.push_back(Alloca);
+      }
+    }
+    if (WL.empty())
+      break;
+    llvm::PromoteMemToReg(WL, DT, &AC);
+  }
+}
+
+llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
+  if (auto *BI = llvm::dyn_cast_or_null<llvm::BranchInst>(BB.getTerminator()))
+    if (BI->isConditional()) {
+      if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
+        return CmpI;
+      if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
+        return SelectI;
+    }
+  return nullptr;
+}
+
+void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *Idx,
+                     const llvm::DominatorTree &DT) {
+  assert(Idx && "Valid WI-Index required");
+
+  auto *MDAlloca =
+      llvm::MDNode::get(EntryBlock->getContext(),
+                        {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+
+  auto &LoopBlocks = L.getBlocksSet();
+  llvm::SmallVector<llvm::AllocaInst *, 8> WL;
+  for (auto &I : *EntryBlock) {
+    if (auto *Alloca = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+      if (llvm::MDNode *MD = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified))
+        continue; // already arrayificated
+      if (!std::all_of(Alloca->user_begin(), Alloca->user_end(), [&LoopBlocks](llvm::User *User) {
+            auto *Inst = llvm::dyn_cast<llvm::Instruction>(User);
+            return Inst && LoopBlocks.contains(Inst->getParent());
+          }))
+        continue;
+      WL.push_back(Alloca);
+    }
+  }
+
+  for (auto *I : WL) {
+    llvm::IRBuilder AllocaBuilder{I};
+    llvm::Type *T = I->getAllocatedType();
+    if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
+      auto ArrSize = ArrSizeC->getLimitedValue();
+      if (ArrSize > 1) {
+        T = llvm::ArrayType::get(T, ArrSize);
+        HIPSYCL_DEBUG_WARNING << "Caution, alloca was array\n";
+      }
+    }
+
+    auto *Alloca = AllocaBuilder.CreateAlloca(
+        T, AllocaBuilder.getInt32(hipsycl::compiler::NumArrayElements), I->getName() + "_alloca");
+    Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
+    Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+    llvm::Instruction *GepIp = nullptr;
+    for (auto *U : I->users()) {
+      if (auto *UI = llvm::dyn_cast<llvm::Instruction>(U)) {
+        if (!GepIp || DT.dominates(UI, GepIp))
+          GepIp = UI;
+      }
+    }
+    if (GepIp) {
+      llvm::IRBuilder LoadBuilder{GepIp};
+      auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
+          Alloca->getAllocatedType(), Alloca, Idx, I->getName() + "_gep"));
+      GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+      I->replaceAllUsesWith(GEP);
+      I->eraseFromParent();
+    }
+  }
+}
+
+llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
+                                llvm::Instruction *InsertionPoint, llvm::Value *Idx,
+                                size_t NumElements, llvm::MDTuple *MDAlloca) {
+  assert(Idx && "Valid WI-Index required");
+
+  if (!MDAlloca)
+    MDAlloca =
+        llvm::MDNode::get(IPAllocas->getContext(),
+                          {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+
+  auto *T = ToArrayify->getType();
+  llvm::IRBuilder AllocaBuilder{IPAllocas};
+  auto *Alloca = AllocaBuilder.CreateAlloca(
+      T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
+      ToArrayify->getName() + "_alloca");
+  if (NumElements > 1)
+    Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
+  Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+
+  const llvm::DataLayout &Layout =
+      InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
+
+  llvm::IRBuilder WriteBuilder{InsertionPoint};
+  llvm::Value *StoreTarget = Alloca;
+  if (NumElements != 1) {
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(WriteBuilder.CreateInBoundsGEP(
+        Alloca->getAllocatedType(), Alloca, Idx, ToArrayify->getName() + "_gep"));
+    GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+    StoreTarget = GEP;
+  }
+  WriteBuilder.CreateStore(ToArrayify, StoreTarget);
+  return Alloca;
+}
+
+llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
+                                      llvm::Value *Idx, size_t NumElements,
+                                      llvm::MDTuple *MDAlloca) {
+  llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
+  if (llvm::isa<llvm::PHINode>(ToArrayify))
+    InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
+
+  return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
+}
+
+llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
+                               llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix) {
+  assert(Idx && "Valid WI-Index required");
+  auto *MDAlloca = Alloca->getMetadata(hipsycl::compiler::MDKind::Arrayified);
+
+  llvm::IRBuilder LoadBuilder{InsertBefore};
+  llvm::Value *LoadFrom = Alloca;
+  if (Alloca->isArrayAllocation()) {
+    auto *GEP = llvm::cast<llvm::GetElementPtrInst>(LoadBuilder.CreateInBoundsGEP(
+        Alloca->getAllocatedType(), Alloca, Idx, NamePrefix + "_lgep"));
+    GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
+    LoadFrom = GEP;
+  }
+  auto *Load = LoadBuilder.CreateLoad(Alloca->getAllocatedType(), LoadFrom, NamePrefix + "_load");
+  return Load;
+}
+
+llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
+  llvm::AllocaInst *Alloca = nullptr;
+  if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(GEPI->getPointerOperand());
+  } else {
+    Alloca = llvm::dyn_cast<llvm::AllocaInst>(LInst.getPointerOperand());
+  }
+  if (Alloca && Alloca->hasMetadata(hipsycl::compiler::MDKind::Arrayified))
+    return Alloca;
+  return nullptr;
+}
+
+void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
+  llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
+  llvm::findDbgValues(DbgValues, From);
+  if (!DbgValues.empty()) {
+    auto *DbgValue = DbgValues.back();
+    llvm::DIBuilder DbgBuilder{*InsertBefore->getParent()->getParent()->getParent()};
+    DbgBuilder.insertDbgValueIntrinsic(To, DbgValue->getVariable(), DbgValue->getExpression(),
+                                       DbgValue->getDebugLoc(), InsertBefore);
+  }
+}
+void dropDebugLocation(llvm::Instruction &I) {
+#if LLVM_VERSION_MAJOR >= 12
+  I.dropLocation();
+#else
+  I.setDebugLoc({});
+#endif
+}
+
+void dropDebugLocation(llvm::BasicBlock *BB) {
+  for (auto &I : *BB) {
+    auto *CI = llvm::dyn_cast<llvm::CallInst>(&I);
+    if (!CI || !llvm::isDbgInfoIntrinsic(CI->getIntrinsicID())) {
+      dropDebugLocation(I);
+    }
+  }
+}
+
+} // namespace hipsycl::compiler::utils

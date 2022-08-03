@@ -33,7 +33,7 @@
 #include "cuda_allocator.hpp"
 #include "cuda_queue.hpp"
 #include "cuda_hardware_manager.hpp"
-#include "cuda_module.hpp"
+#include "cuda_event_pool.hpp"
 
 #ifndef HIPSYCL_CUDA_BACKEND_HPP
 #define HIPSYCL_CUDA_BACKEND_HPP
@@ -58,14 +58,10 @@ public:
   
   virtual ~cuda_backend(){}
 
-  const cuda_module_manager &get_module_manager() const { return _modules; }
-  cuda_module_manager &get_module_manager() { return _modules; }
-
+  cuda_event_pool* get_event_pool(device_id dev) const;
 private:
   mutable cuda_hardware_manager _hw_manager;
   mutable multi_queue_executor _executor;
-  mutable std::vector<cuda_allocator> _allocators;
-  cuda_module_manager _modules;
 };
 
 }

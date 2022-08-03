@@ -148,6 +148,19 @@ public:
     throw unimplemented{"context::get_info() is unimplemented"};
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
+  }
+
+  friend bool operator ==(const context& lhs, const context& rhs)
+  { return lhs._impl == rhs._impl; }
+
+  friend bool operator!=(const context& lhs, const context &rhs)
+  { return !(lhs == rhs); }
+
+  rt::runtime* hipSYCL_runtime() const {
+    return _impl->requires_runtime.get();
+  }
 private:
   void init(async_handler handler) {
     _impl = std::make_shared<context_impl>();
@@ -164,8 +177,12 @@ private:
   }
   
   struct context_impl {
+    rt::runtime_keep_alive_token requires_runtime;
     rt::unique_device_list devices;
-    async_handler handler;
+
+    context_impl() : devices{requires_runtime.get()} {}
+
+    async_handler handler;    
   };
 
   std::shared_ptr<context_impl> _impl;
@@ -198,6 +215,17 @@ inline const rt::unique_device_list &extract_context_devices(const context &ctx)
 } // namespace sycl
 } // namespace hipsycl
 
+namespace std {
 
+template <>
+struct hash<hipsycl::sycl::context>
+{
+  std::size_t operator()(const hipsycl::sycl::context& c) const
+  {
+    return c.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

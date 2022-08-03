@@ -74,6 +74,10 @@ ze_event_handle_t ze_node_event::get_event_handle() const {
   return _evt;
 }
 
+ze_event_handle_t ze_node_event::request_backend_event() {
+  return get_event_handle();
+}
+
 }
 }
 

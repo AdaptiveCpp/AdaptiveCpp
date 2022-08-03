@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_DAG_MANAGER_HPP
 #define HIPSYCL_DAG_MANAGER_HPP
 
+#include <mutex>
+
 #include "dag.hpp"
 #include "dag_builder.hpp"
 #include "dag_direct_scheduler.hpp"
@@ -39,13 +41,13 @@
 namespace hipsycl {
 namespace rt {
 
-class dag_interpreter;
+class runtime;
 
 class dag_manager
 {
   friend class dag_build_guard;
 public:
-  dag_manager();
+  dag_manager(runtime* rt);
   ~dag_manager();
 
   // Submits operations asynchronously
@@ -71,6 +73,11 @@ private:
   dag_direct_scheduler _direct_scheduler;
   dag_unbound_scheduler _unbound_scheduler;
   dag_submitted_ops _submitted_ops;
+
+  // Should only be used for flush_async()
+  std::mutex _flush_mutex;
+
+  runtime* _rt;
 };
 
 class dag_build_guard

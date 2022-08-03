@@ -28,6 +28,7 @@
 
 #include <algorithm>
 
+#include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/executor.hpp"
@@ -43,9 +44,11 @@ namespace rt {
 namespace {
 
 void abort_submission(dag_node_ptr node) {
-  for (auto req : node->get_requirements()) {
-    if (!req->is_submitted()) {
-      req->cancel();
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock()) {
+      if (!req->is_submitted()) {
+        req->cancel();
+      }
     }
   }
   node->cancel();
@@ -85,8 +88,9 @@ void initialize_memory_access(buffer_memory_requirement *bmem_req,
                      << device_pointer << std::endl;
 }
 
-result ensure_allocation_exists(buffer_memory_requirement *bmem_req,
-                              device_id target_dev) {
+result ensure_allocation_exists(runtime *rt,
+                                buffer_memory_requirement *bmem_req,
+                                device_id target_dev) {
   assert(bmem_req);
   if (!bmem_req->get_data_region()->has_allocation(target_dev)) {
     const std::size_t num_bytes =
@@ -95,9 +99,9 @@ result ensure_allocation_exists(buffer_memory_requirement *bmem_req,
     const std::size_t min_align = // max requested alignment the size of a sycl::vec<double, 16>
         std::min(bmem_req->get_data_region()->get_element_size(), sizeof(double) * 16);
 
-    void *ptr = application::get_backend(target_dev.get_backend())
-                    .get_allocator(target_dev)
-                    ->allocate(min_align, num_bytes);
+    backend_allocator *allocator =
+        rt->backends().get(target_dev.get_backend())->get_allocator(target_dev);
+    void *ptr = allocator->allocate(min_align, num_bytes);
 
     if(!ptr)
       return register_error(
@@ -106,7 +110,8 @@ result ensure_allocation_exists(buffer_memory_requirement *bmem_req,
                      "dag_direct_scheduler: Lazy memory allocation has failed.",
                      error_type::memory_allocation_error});
 
-    bmem_req->get_data_region()->add_empty_allocation(target_dev, ptr);
+    bmem_req->get_data_region()->add_empty_allocation(target_dev, ptr,
+                                                      allocator);
   }
 
   return make_success();
@@ -164,7 +169,7 @@ void for_each_explicit_operation(
   }
 }
 
-backend_executor *select_executor(dag_node_ptr node, operation *op) {
+backend_executor *select_executor(runtime* rt, dag_node_ptr node, operation *op) {
   device_id dev = node->get_assigned_device();
 
   assert(!op->is_requirement());
@@ -172,9 +177,9 @@ backend_executor *select_executor(dag_node_ptr node, operation *op) {
   if (op->has_preferred_backend(executor_backend, preferred_device))
     // If we want an executor from a different backend, we may need to pass
     // a different device id.
-    return application::get_backend(executor_backend).get_executor(preferred_device);
+    return rt->backends().get(executor_backend)->get_executor(preferred_device);
   else {
-    return application::get_backend(dev.get_backend()).get_executor(dev);
+    return rt->backends().get(dev.get_backend())->get_executor(dev);
   }
 }
 
@@ -186,23 +191,22 @@ void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
       reqs.push_back(req);
   });
   // Compress requirements by removing complete requirements
-  reqs.erase(
-      std::remove_if(reqs.begin(), reqs.end(),
-                     [](dag_node_ptr elem) { return elem->is_complete(); }),
-      reqs.end());
-
+  reqs.erase(std::remove_if(
+                 reqs.begin(), reqs.end(),
+                 [](dag_node_ptr elem) { return elem->is_known_complete(); }),
+             reqs.end());
 
   node->assign_to_executor(executor);
   
   executor->submit_directly(node, op, reqs);
-
+  assert(node->is_submitted());
   // After node submission, no additional instrumentations can be added.
   // Marking as complete causes code that waits for instrumentation results
   // to proceed to waiting on the requested instrumentation.
   op->get_instrumentations().mark_set_complete();
 }
 
-result submit_requirement(dag_node_ptr req) {
+result submit_requirement(runtime* rt, dag_node_ptr req) {
   if (!req->get_operation()->is_requirement() || req->is_submitted())
     return make_success();
 
@@ -212,7 +216,7 @@ result submit_requirement(dag_node_ptr req) {
   // (they must exist when we try initialize device pointers!)
   result res = make_success();
   execute_if_buffer_requirement(req, [&](buffer_memory_requirement *bmem_req) {
-    res = ensure_allocation_exists(bmem_req, req->get_assigned_device());
+    res = ensure_allocation_exists(rt, bmem_req, req->get_assigned_device());
     access_mode = bmem_req->get_access_mode();
   });
   if (!res.is_success())
@@ -245,7 +249,7 @@ result submit_requirement(dag_node_ptr req) {
                   "as operations generated from implicit requirements.",
                   error_type::feature_not_supported});
         } else {
-          backend_executor *executor = select_executor(req, op);
+          backend_executor *executor = select_executor(rt, req, op);
           // TODO What if we need to copy between two device backends through
           // host?
           submit(executor, req, op);
@@ -289,6 +293,9 @@ result submit_requirement(dag_node_ptr req) {
 }
 }
 
+dag_direct_scheduler::dag_direct_scheduler(runtime* rt)
+: _rt{rt} {}
+
 void dag_direct_scheduler::submit(dag_node_ptr node) {
   if (!node->get_execution_hints().has_hint<hints::bind_to_device>()) {
     register_error(__hipsycl_here(),
@@ -304,32 +311,36 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
                                 ->get_device_id();
   node->assign_to_device(target_device);
   
-  for (auto req : node->get_requirements())
-    assign_devices_or_default(req, target_device);
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock())
+      assign_devices_or_default(req, target_device);
+  }
 
-  for (auto req : node->get_requirements()) {
-    if (!req->get_operation()->is_requirement()) {
-      if (!req->is_submitted()) {
-        register_error(__hipsycl_here(),
-                   error_info{"dag_direct_scheduler: Direct scheduler does not "
-                              "support processing multiple unsubmitted nodes",
-                              error_type::feature_not_supported});
-        abort_submission(node);
-        return;
-      }
-    } else {
-      result res = submit_requirement(req);
+  for (auto weak_req : node->get_requirements()) {
+    if(auto req = weak_req.lock()) {
+      if (!req->get_operation()->is_requirement()) {
+        if (!req->is_submitted()) {
+          register_error(__hipsycl_here(),
+                    error_info{"dag_direct_scheduler: Direct scheduler does not "
+                                "support processing multiple unsubmitted nodes",
+                                error_type::feature_not_supported});
+          abort_submission(node);
+          return;
+        }
+      } else {
+        result res = submit_requirement(_rt, req);
 
-      if (!res.is_success()) {
-        register_error(res);
-        abort_submission(node);
-        return;
+        if (!res.is_success()) {
+          register_error(res);
+          abort_submission(node);
+          return;
+        }
       }
     }
   }
 
   if (node->get_operation()->is_requirement()) {
-    result res = submit_requirement(node);
+    result res = submit_requirement(_rt, node);
     
     if (!res.is_success()) {
       register_error(res);
@@ -339,12 +350,9 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
   } else {
     // TODO What if this is an explicit copy between two device backends through
     // host?
-    backend_executor *exec = select_executor(node, node->get_operation());
+    backend_executor *exec = select_executor(_rt, node, node->get_operation());
     rt::submit(exec, node, node->get_operation());
   }
-  // Register node as submitted with the runtime
-  // (only relevant for queue::wait() operations)
-  application::dag().register_submitted_ops(node);
 }
 
 }

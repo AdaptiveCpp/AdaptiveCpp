@@ -32,10 +32,6 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
-#if !defined(__HIPSYCL_CLANG__)
- #error "This file needs the hipSYCL clang plugin."
-#endif
-
 #if (defined(__clang__) && defined(__HIP__)) || (defined(__clang__) && defined(__CUDA__))
 
 #define __sycl_kernel __attribute__((diagnose_if(false,"hipsycl_kernel","warning")))

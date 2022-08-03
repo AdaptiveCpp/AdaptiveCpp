@@ -31,6 +31,7 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/sycl/exception.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
@@ -97,7 +98,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 
   // Don't try to compile host kernel during device passes
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__) && \
-   !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
+   !defined(SYCL_DEVICE_ONLY)
   {
     auto launcher = std::make_unique<omp_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,

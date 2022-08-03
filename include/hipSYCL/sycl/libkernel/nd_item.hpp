@@ -39,10 +39,8 @@
 #include "device_event.hpp"
 #include "detail/mem_fence.hpp"
 
-#ifdef SYCL_DEVICE_ONLY
 #include "detail/thread_hierarchy.hpp"
 #include "detail/device_barrier.hpp"
-#endif
 
 namespace hipsycl {
 namespace sycl {
@@ -280,15 +278,16 @@ struct nd_item
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET
+  HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET
   void barrier(access::fence_space space =
       access::fence_space::global_and_local) const
   {
-#ifdef SYCL_DEVICE_ONLY
-    detail::local_device_barrier(space);
-#else
-    (*_group_barrier)();
-#endif
+    __hipsycl_if_target_device(
+      detail::local_device_barrier(space);
+    );
+    __hipsycl_if_target_host(
+      (*_group_barrier)(); 
+    );
   }
 
   template <access::mode accessMode = access::mode::read_write>
@@ -347,7 +346,7 @@ struct nd_item
   {}
 #else
   HIPSYCL_KERNEL_TARGET
-  nd_item(id<dimensions>* offset, 
+  nd_item(const id<dimensions>* offset,
           id<dimensions> group_id, id<dimensions> local_id, 
           range<dimensions> local_range, range<dimensions> num_groups,
           detail::host_barrier_type* host_group_barrier = nullptr,
@@ -360,9 +359,9 @@ struct nd_item
       _global_id{group_id * local_range + local_id},
       _local_memory_ptr(local_memory_ptr)
   {
-#ifndef SYCL_DEVICE_ONLY
-    _group_barrier = host_group_barrier;
-#endif
+    __hipsycl_if_target_host(
+      _group_barrier = host_group_barrier;
+    );
   }
 #endif
 

@@ -815,6 +815,14 @@ public:
     return !(lhs == rhs);
   }
 
+  std::size_t hipSYCL_hash_code() const {
+    // TODO: This only really guarantees unique hash codes
+    // outside of kernels, on the host side.
+    // Once on device, the UID will contain the device pointer
+    // which might be aliased by multiple accessors.
+    return get_uid().hipSYCL_hash_code();
+  }
+
   HIPSYCL_UNIVERSAL_TARGET
   bool is_placeholder() const noexcept
   {
@@ -1038,7 +1046,7 @@ private:
     bind_to_buffer(buff, offset, access_range);
 
     if (accessTarget == access::target::host_buffer) {
-      init_host_buffer(is_no_init_access);
+      init_host_buffer(buff.hipSYCL_runtime(), is_no_init_access);
     }
   }
   
@@ -1111,12 +1119,13 @@ private:
   void bind_to_buffer(BufferType &buff,
                       sycl::id<dimensions> accessOffset,
                       sycl::range<dimensions> accessRange) {
-#ifndef SYCL_DEVICE_ONLY
-    auto buffer_region = detail::extract_buffer_data_region(buff);
-    this->detail::accessor::
-        conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
-            detail::mobile_shared_ptr{buffer_region});
-#endif
+    __hipsycl_if_target_host(
+      auto buffer_region = detail::extract_buffer_data_region(buff);
+      this->detail::accessor::
+          conditional_buffer_pointer_storage<has_buffer_pointer>::attempt_set(
+              detail::mobile_shared_ptr{buffer_region});
+    );
+
     this->detail::accessor::conditional_access_range_storage<
         has_access_range,
         dimensions>::attempt_set(detail::accessor::access_range<dimensions>{
@@ -1127,7 +1136,7 @@ private:
         dimensions>::attempt_set(detail::extract_buffer_range(buff));
   }
 
-  void init_host_buffer(bool is_no_init) {
+  void init_host_buffer(rt::runtime* rt, bool is_no_init) {
     // TODO: Maybe unify code with handler::update_host()?
     HIPSYCL_DEBUG_INFO << "accessor [host]: Initializing host access" << std::endl;
 
@@ -1139,7 +1148,7 @@ private:
 
     rt::dag_node_ptr node;
     {
-      rt::dag_build_guard build{rt::application::dag()};
+      rt::dag_build_guard build{rt->dag()};
       
       const rt::range<dimensions> buffer_shape = rt::make_range(get_buffer_shape());
       auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
@@ -1161,13 +1170,13 @@ private:
               detail::get_host_device()));
 
       node = build.builder()->add_explicit_mem_requirement(
-          std::move(explicit_requirement), rt::requirements_list{},
+          std::move(explicit_requirement), rt::requirements_list{rt},
           enforce_bind_to_host);
       
       HIPSYCL_DEBUG_INFO << "accessor [host]: forcing DAG flush for host access..." << std::endl;
-      rt::application::dag().flush_sync();
+      rt->dag().flush_sync();
     }
-    if(rt::application::get_runtime().errors().num_errors() == 0){
+    if(rt::application::errors().num_errors() == 0){
       HIPSYCL_DEBUG_INFO << "accessor [host]: Waiting for completion of host access..." << std::endl;
 
       assert(node);
@@ -1569,6 +1578,10 @@ public:
   // const_reverse_iterator crbegin() const noexcept;
   // const_reverse_iterator crend() const noexcept;
 
+  std::size_t hipSYCL_hash_code() const {
+    return _impl.hipSYCL_hash_code();
+  }
+
 private:
   accessor_type _impl;
 };
@@ -1675,6 +1688,10 @@ public:
   friend bool operator!=(const accessor& lhs, const accessor& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return _addr;
   }
 
   [[deprecated("get_size() was removed for SYCL 2020, use byte_size() instead")]]
@@ -1824,5 +1841,31 @@ glue::unique_id get_unique_id(const AccessorType& acc) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename dataT, int dimensions, hipsycl::sycl::access_mode accessmode,
+          hipsycl::sycl::target accessTarget,
+          hipsycl::sycl::accessor_variant AccessorVariant>
+struct hash<hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant>> {
+  std::size_t
+  operator()(const hipsycl::sycl::accessor<dataT, dimensions, accessmode, accessTarget,
+                                    AccessorVariant> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+// accessor also covers the local_accessor specialization
+
+template<typename dataT, int dimensions, hipsycl::sycl::access_mode A>
+struct hash<hipsycl::sycl::host_accessor<dataT, dimensions, A>> {
+
+  std::size_t operator()(
+      const hipsycl::sycl::host_accessor<dataT, dimensions, A> &acc) const {
+    return acc.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

@@ -26,6 +26,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/application.hpp"
 #include "runtime_test_suite.hpp"
 
 #include <vector>
@@ -36,6 +37,7 @@ using namespace hipsycl;
 
 BOOST_FIXTURE_TEST_SUITE(dag_builder, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(default_hints) {
+  rt::runtime_keep_alive_token rt;
   rt::execution_hints hints;
   // Construct imaginary device
   rt::device_id id{rt::backend_descriptor{rt::hardware_platform::cpu,
@@ -43,9 +45,9 @@ BOOST_AUTO_TEST_CASE(default_hints) {
                    12345};
   
   hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(id));
-  rt::dag_builder builder{};
+  rt::dag_builder builder{rt.get()};
 
-  auto reqs = rt::requirements_list{};
+  auto reqs = rt::requirements_list{rt.get()};
   
   auto dummy_kernel_op = rt::make_operation<rt::kernel_operation>(
       "test_kernel",

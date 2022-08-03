@@ -3,15 +3,15 @@ name: Linux build and test
 on: [push, pull_request]
 
 jobs:
-  test:
+  test-clang-based:
     name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11]
+        clang_version: [11, 12, 13, 14]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04, ubuntu-18.04]
-        cuda: [10.0, 10.2, 11.0]
+        cuda: [11.0]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -77,21 +77,61 @@ jobs:
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-        cmake -DHIPSYCL_PLATFORM=cpu -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_TARGETS="omp" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
         make -j2
     - name: build CUDA tests
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cuda
-        cmake -DHIPSYCL_PLATFORM=cuda -DHIPSYCL_GPU_ARCH=sm_60 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_TARGETS="cuda:sm_60" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        make -j2
+    - name: build explicit multipass tests
+      run: |
+        mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-emp
+        cd /home/runner/work/hipSYCL/hipSYCL/build/tests-emp
+        cmake -DHIPSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
         make -j2
     - name: build ROCm tests
       run: |
         mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-rocm
-        cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: run CPU tests
       run: |
         cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
         LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests
+  test-nvcxx-based:
+    name: nvcxx, ${{matrix.os}}, CUDA ${{matrix.cuda_version}}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04]
+        cuda_version: ['11.5']
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: install dependencies
+      run : |
+        sudo apt update
+        sudo apt install cmake libboost-all-dev wget
+    - name: install nvcxx
+      run: |
+        wget https://developer.download.nvidia.com/hpc-sdk/22.1/nvhpc-22-1_22.1_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/22.1/nvhpc-2022_22.1_amd64.deb
+        sudo apt install ./nvhpc-*
+    - name: build hipSYCL
+      run: |
+        mkdir build && cd build
+        export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/22.1
+        export NV_HPC_CUDA_ROOT=${NV_HPC_SDK_ROOT}/cuda/${{matrix.cuda_version}}
+        cmake -DNVCXX_COMPILER=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ -DWITH_CUDA_BACKEND=ON -DWITH_CUDA_NVCXX_ONLY=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=${NV_HPC_CUDA_ROOT} ..
+        make -j2 install
+        cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
+        cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
+    - name: build tests
+      run: |
+        mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-nvcxx
+        cmake -DHIPSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/hipSYCL/hipSYCL/tests
+        make -j2

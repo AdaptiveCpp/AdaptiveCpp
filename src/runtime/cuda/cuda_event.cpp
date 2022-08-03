@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
+#include "hipSYCL/runtime/cuda/cuda_event_pool.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
 #include <cuda_runtime_api.h>
@@ -34,16 +35,13 @@ namespace hipsycl {
 namespace rt {
 
 
-cuda_node_event::cuda_node_event(device_id dev, cudaEvent_t evt)
-: _dev{dev}, _evt{evt}
+cuda_node_event::cuda_node_event(device_id dev, cudaEvent_t evt, cuda_event_pool* pool)
+: _dev{dev}, _evt{evt}, _pool{pool}
 {}
 
 cuda_node_event::~cuda_node_event() {
-  auto err = cudaEventDestroy(_evt);
-  if (err != cudaSuccess) {
-    register_error(__hipsycl_here(),
-                   error_info{"cuda_node_event: Couldn't destroy event",
-                              error_code{"CUDA", err}});
+  if(_pool) {
+    _pool->release_event(_evt);
   }
 }
 
@@ -68,7 +66,7 @@ void cuda_node_event::wait()
   }
 }
 
-CUevent_st* cuda_node_event::get_event() const
+cuda_node_event::backend_event_type cuda_node_event::get_event() const
 {
   return _evt;
 }
@@ -76,6 +74,11 @@ CUevent_st* cuda_node_event::get_event() const
 device_id cuda_node_event::get_device() const
 {
   return _dev;
+}
+
+cuda_node_event::backend_event_type
+cuda_node_event::request_backend_event() {
+  return get_event();
 }
 
 }

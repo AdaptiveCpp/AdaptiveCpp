@@ -1,14 +1,14 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
+ * this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
@@ -26,31 +26,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_MODULE_INVOKER_HPP
-#define HIPSYCL_MODULE_INVOKER_HPP
+#ifndef HIPSYCL_KERNELFLATTENING_HPP
+#define HIPSYCL_KERNELFLATTENING_HPP
 
-#include "error.hpp"
-#include "util.hpp"
+#include <llvm/IR/PassManager.h>
+#include <llvm/Pass.h>
 
 namespace hipsycl {
-namespace rt {
-
-using module_id_t = unsigned long long;
-
-class module_invoker {
+namespace compiler {
+class KernelFlatteningPassLegacy : public llvm::FunctionPass {
 public:
-  virtual result
-  submit_kernel(module_id_t id, const std::string &module_variant,
-                const std::string *module_image, const rt::range<3> &num_groups,
-                const rt::range<3>& group_size, unsigned local_mem_size,
-                void **args, std::size_t* arg_sizes, std::size_t num_args,
-                const std::string &kernel_name_tag,
-                const std::string &kernel_body_name) = 0;
+  static char ID;
 
-  virtual ~module_invoker() {}
+  explicit KernelFlatteningPassLegacy() : llvm::FunctionPass(ID) {}
+
+  llvm::StringRef getPassName() const override { return "hipSYCL kernel flattening pass"; }
+
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
+
+  bool runOnFunction(llvm::Function &F) override;
 };
 
-}
-} // namespace hipsycl
+class KernelFlatteningPass : public llvm::PassInfoMixin<KernelFlatteningPass> {
+public:
+  explicit KernelFlatteningPass() {}
 
-#endif
+  llvm::PreservedAnalyses run(llvm::Function &F, llvm::FunctionAnalysisManager &AM);
+  static bool isRequired() { return false; }
+};
+} // namespace compiler
+} // namespace hipsycl
+#endif // HIPSYCL_KERNELFLATTENING_HPP

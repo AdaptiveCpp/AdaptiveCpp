@@ -29,6 +29,7 @@
 #define HIPSYCL_RT_SETTINGS_HPP
 
 #include "hipSYCL/runtime/device_id.hpp"
+
 #include <ios>
 #include <optional>
 #include <string>
@@ -54,7 +55,10 @@ enum class setting {
   dag_req_optimization_depth,
   mqe_lane_statistics_max_size,
   mqe_lane_statistics_decay_time_sec,
-  default_selector_behavior
+  default_selector_behavior,
+  hcf_dump_directory,
+  persistent_runtime,
+  max_cached_nodes
 };
 
 template <setting S> struct setting_trait {};
@@ -76,6 +80,10 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_decay_time_sec,
                               "rt_mqe_lane_statistics_decay_time_sec", double);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::default_selector_behavior,
                               "default_selector_behavior", default_selector_behavior);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::hcf_dump_directory,
+                              "hcf_dump_directory", std::string);
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::persistent_runtime, "persistent_runtime", bool)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::max_cached_nodes, "rt_max_cached_nodes", std::size_t)
 
 class settings
 {
@@ -96,6 +104,12 @@ public:
       return _mqe_lane_statistics_decay_time_sec;
     } else if constexpr (S == setting::default_selector_behavior) {
       return _default_selector_behavior;
+    } else if constexpr (S == setting::hcf_dump_directory) {
+      return _hcf_dump_directory;
+    } else if constexpr (S == setting::persistent_runtime) {
+      return _persistent_runtime;
+    } else if constexpr (S == setting::max_cached_nodes) {
+      return _max_cached_nodes;
     }
     return typename setting_trait<S>::type{};
   }
@@ -122,6 +136,13 @@ public:
     _default_selector_behavior =
         get_environment_variable_or_default<setting::default_selector_behavior>(
             default_selector_behavior::strict);
+    _hcf_dump_directory =
+        get_environment_variable_or_default<setting::hcf_dump_directory>(
+            std::string{});
+    _persistent_runtime =
+        get_environment_variable_or_default<setting::persistent_runtime>(false);
+    _max_cached_nodes =
+        get_environment_variable_or_default<setting::max_cached_nodes>(100);
   }
 
 private:
@@ -158,6 +179,9 @@ private:
   std::size_t _mqe_lane_statistics_max_size;
   double _mqe_lane_statistics_decay_time_sec;
   default_selector_behavior _default_selector_behavior;
+  std::string _hcf_dump_directory;
+  bool _persistent_runtime;
+  std::size_t _max_cached_nodes;
 };
 
 }

@@ -42,6 +42,7 @@ class operation;
 class backend_executor;
 
 class dag_node;
+class runtime;
 using dag_node_ptr = std::shared_ptr<dag_node>;
 
 class dag_node
@@ -49,7 +50,8 @@ class dag_node
 public:
   dag_node(const execution_hints& hints,
           const std::vector<dag_node_ptr>& requirements,
-          std::unique_ptr<operation> op);
+          std::unique_ptr<operation> op,
+          runtime* rt);
 
   ~dag_node();
 
@@ -70,7 +72,7 @@ public:
   /// Only to be called by the backend executor/scheduler
   void assign_to_device(device_id dev);
   /// Only to be called by the backend executor/scheduler
-  void assign_to_execution_lane(std::size_t lane_id);
+  void assign_to_execution_lane(std::pair<std::size_t, void*> lane);
   /// Can be used by the backend executor to store
   /// ordering information between nodes.
   /// Only to be called by the backend executor/scheduler
@@ -85,7 +87,9 @@ public:
 
   device_id get_assigned_device() const;
   backend_executor *get_assigned_executor() const;
-  std::size_t get_assigned_execution_lane() const;
+  // Returns pair of lane index and potential additional information
+  // maintained by the backend executor.
+  std::pair<std::size_t, void*> get_assigned_execution_lane() const;
   std::size_t get_assigned_execution_index() const;
 
   const execution_hints& get_execution_hints() const;
@@ -94,12 +98,15 @@ public:
   // Add requirement if not already present
   void add_requirement(dag_node_ptr requirement);
   operation* get_operation() const;
-  const std::vector<dag_node_ptr>& get_requirements() const;
+  const std::vector<std::weak_ptr<dag_node>>& get_requirements() const;
 
   // Wait until the associated event has completed.
   // Can be invoked before the event has been set (pre-submission),
   // in which case the function will additionally wait
   // until the event exists.
+  //
+  // Waiting will cause the node and all its requirements to return true
+  // for is_known_complete().
   void wait() const;
 
   std::shared_ptr<dag_node_event> get_event() const;
@@ -116,13 +123,15 @@ public:
     else
       h(_operation.get());
   }
+
+  runtime* get_runtime() const;
 private:
   execution_hints _hints;
-  std::vector<dag_node_ptr> _requirements;
+  std::vector<std::weak_ptr<dag_node>> _requirements;
 
   device_id _assigned_device;
   backend_executor *_assigned_executor;
-  std::size_t _assigned_execution_lane;
+  std::pair<std::size_t, void*> _assigned_execution_lane;
   std::size_t _assigned_execution_index;
 
   std::shared_ptr<dag_node_event> _event;
@@ -137,6 +146,8 @@ private:
   mutable std::atomic<bool> _is_complete;
   bool _is_virtual;
   std::atomic<bool> _is_cancelled;
+
+  runtime* _rt;
 
 };
 

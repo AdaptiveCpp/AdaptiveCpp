@@ -28,28 +28,36 @@
 #ifndef HIPSYCL_HIP_EVENT_HPP
 #define HIPSYCL_HIP_EVENT_HPP
 
-#include "../event.hpp"
-#include "hip_target.hpp"
+#include "../inorder_queue_event.hpp"
+
+struct ihipEvent_t;
 
 namespace hipsycl {
 namespace rt {
 
-
-class hip_node_event : public dag_node_event
+class hip_event_pool;
+class hip_node_event : public inorder_queue_event<ihipEvent_t*>
 {
 public:
-  /// \c evt Must have been properly initialized and recorded.
-  hip_node_event(device_id dev, hipEvent_t evt);
+  using backend_event_type = ihipEvent_t*;
+  /// \param evt Must have been properly initialized and recorded.
+  /// \param pool the pool managing the event. If not null, the destructor
+  /// will return the event to the pool.
+  hip_node_event(device_id dev, backend_event_type evt, hip_event_pool* pool = nullptr);
+
   ~hip_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
 
-  hipEvent_t get_event() const;
+  ihipEvent_t* get_event() const;
   device_id get_device() const;
+
+  virtual backend_event_type request_backend_event() override;
 private:
   device_id _dev;
-  hipEvent_t _evt;
+  backend_event_type _evt;
+  hip_event_pool* _pool;
 };
 
 }

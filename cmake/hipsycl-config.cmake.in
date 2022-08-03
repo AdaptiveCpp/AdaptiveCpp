@@ -135,6 +135,20 @@ if(HIPSYCL_CPU_CXX)
   endif()
 endif()
 
+set(HIPSYCL_USE_ACCELERATED_CPU "${HIPSYCL_USE_ACCELERATED_CPU}" CACHE STRING "Enable compiler support for the nd_range parallel_for paradigm to accelerate it. Requires using clang as host compiler.")
+if(NOT HIPSYCL_USE_ACCELERATED_CPU)
+  set(HIPSYCL_USE_ACCELERATED_CPU_ENV $ENV{HIPSYCL_USE_ACCELERATED_CPU})
+  if(HIPSYCL_USE_ACCELERATED_CPU_ENV)
+    message("Found HIPSYCL_USE_ACCELERATED_CPU from environment: ${HIPSYCL_USE_ACCELERATED_CPU_ENV}")
+    set(HIPSYCL_USE_ACCELERATED_CPU "${HIPSYCL_USE_ACCELERATED_CPU_ENV}")
+  endif()
+endif()
+if(HIPSYCL_USE_ACCELERATED_CPU)
+  set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-use-accelerated-cpu")
+elseif(NOT HIPSYCL_USE_ACCELERATED_CPU STREQUAL "")
+  set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS} --hipsycl-use-accelerated-cpu=false")
+endif()
+
 # To invoke syclcc, the add_sycl_to_target function sets a compiler and linker launch rule on the target that will pass
 # the entire GCC or Clang command line to lib/cmake/hipSYCL/syclcc-launcher. The launcher will prepend syclcc-specific
 # arguments from HIPSYCL_SYCLCC_EXTRA_ARGS and replace GCC or Clang with syclcc in the command line.

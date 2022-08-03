@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
 project(hipSYCL_clang)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 
@@ -10,21 +8,53 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
 endif()
 
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if(WITH_ACCELERATED_CPU)
+  add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
+endif()
+
+if(WITH_ACCELERATED_CPU)
+  set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
+    cbs/SplitterAnnotationAnalysis.cpp
+    cbs/IRUtils.cpp
+    cbs/KernelFlattening.cpp
+    cbs/LoopsParallelMarker.cpp
+    cbs/PHIsToAllocas.cpp
+    cbs/RemoveBarrierCalls.cpp
+    cbs/CanonicalizeBarriers.cpp
+    cbs/SimplifyKernel.cpp
+    cbs/LoopSimplify.cpp
+    cbs/PipelineBuilder.cpp
+    cbs/SubCfgFormation.cpp
+    cbs/UniformityAnalysis.cpp
+    cbs/VectorShape.cpp
+    cbs/VectorizationInfo.cpp
+    cbs/AllocaSSA.cpp
+    cbs/VectorShapeTransformer.cpp
+    cbs/Region.cpp
+    cbs/SyncDependenceAnalysis.cpp)
+else()
+  set(CBS_PLUGIN "")
+endif()
 
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
+  ${CBS_PLUGIN}
 )
 
 target_include_directories(hipSYCL_clang PRIVATE
+  ../../include
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}/include
-  ../../include)
+  ${CMAKE_BINARY_DIR}/include)
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   
+if(HIPSYCL_NO_DEVICE_MANGLER)
+  target_compile_definitions(hipSYCL_clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
+endif()
+
 if(NOT ${LLVM_ENABLE_EH})
   target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
 endif()
@@ -34,8 +64,7 @@ if(NOT ${LLVM_ENABLE_RTTI})
 endif()
 
 target_link_libraries(hipSYCL_clang
-  ${LLVM_LIBS}
-  ${Boost_LIBRARIES})
+  ${LLVM_LIBS})
 if(APPLE)
   target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)

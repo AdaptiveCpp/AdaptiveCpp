@@ -27,9 +27,13 @@
 
 
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/backend.hpp"
 #include "hipSYCL/sycl/buffer.hpp"
 #include "hipSYCL/sycl/event.hpp"
+#include "hipSYCL/sycl/info/event.hpp"
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
+#include "hipSYCL/sycl/libkernel/cuda/cuda_backend.hpp"
+#include "hipSYCL/sycl/libkernel/hip/hip_backend.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/handler.hpp"
 #include "hipSYCL/sycl/queue.hpp"
@@ -166,7 +170,8 @@ BOOST_AUTO_TEST_CASE(custom_pfwi_synchronization_extension) {
   }
 }
 #endif
-#ifdef HIPSYCL_EXT_SCOPED_PARALLELISM_V2
+#if defined(HIPSYCL_EXT_SCOPED_PARALLELISM_V2) &&                              \
+    !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) // nvc++ currently crashed with sp code
 
 template<class KernelName, int N>
 class enumerated_kernel_name;
@@ -200,7 +205,8 @@ void test_distribute_groups(){
           s::distribute_groups(grp, [&](auto subgrp) {
             s::distribute_groups(subgrp, [&](auto subsubgrp) {
               s::distribute_items(subsubgrp, [&](s::s_item<Dim> idx) {
-                acc[idx.get_global_linear_id()] =
+                int* ptr = acc.get_pointer();
+                ptr[idx.get_global_linear_id()] =
                     idx.get_global_linear_id();
               });
             });
@@ -251,6 +257,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(scoped_parallelism_api, _dimensions,
   test_distribute_groups<nd_kernel_name<class ScopedParallelismDistrGroups, d>,
                          d>();
 }
+
 BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
   namespace s = cl::sycl;
   s::queue q;
@@ -308,7 +315,8 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_reduction) {
     
     BOOST_TEST(host_result == host_acc[grp * Group_size]);
   }
-}
+} 
+
 BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
   namespace s = cl::sycl;
 
@@ -418,22 +426,14 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_odd_group_size) {
       BOOST_CHECK(hacc[i] == i);
   }
 }
+
 #endif
 #ifdef HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION
-BOOST_AUTO_TEST_CASE(custom_enqueue) {
+
+template<cl::sycl::backend B>
+void test_interop(cl::sycl::queue& q) {
   using namespace cl;
 
-#ifdef HIPSYCL_PLATFORM_CUDA
-  constexpr sycl::backend target_be = sycl::backend::cuda;
-#elif defined(HIPSYCL_PLATFORM_HIP)
-  constexpr sycl::backend target_be = sycl::backend::hip;
-#elif defined(HIPSYCL_PLATFORM_SPIRV)
-  constexpr sycl::backend target_be = sycl::backend::level_zero;
-#else
-  constexpr sycl::backend target_be = sycl::backend::omp;
-#endif
-
-  sycl::queue q;
   const std::size_t test_size = 1024;
 
   std::vector<int> initial_data(test_size, 14);
@@ -447,39 +447,65 @@ BOOST_AUTO_TEST_CASE(custom_enqueue) {
 
     cgh.hipSYCL_enqueue_custom_operation([=](sycl::interop_handle &h) {
       // All backends support obtaining native memory
-      void *native_mem = h.get_native_mem<target_be>(acc);
+      void *native_mem = h.get_native_mem<B>(acc);
 
       // OpenMP backend doesn't support extracting a native queue or device
-#ifdef HIPSYCL_PLATFORM_CUDA
-      auto stream = h.get_native_queue<target_be>();
-      // dev is not really used, just test that this function call works for now
-      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
-          h.get_native_device<target_be>();
-
-      cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
-                      cudaMemcpyDeviceToHost, stream);
-
-#elif defined(HIPSYCL_PLATFORM_HIP)
-      
-      auto stream = h.get_native_queue<target_be>();
-      // dev is not really used, just test that this function call works for now
-      sycl::backend_traits<target_be>::native_type<sycl::device> dev =
-          h.get_native_device<target_be>();
-
-      hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
-                      hipMemcpyDeviceToHost, stream);
+      if constexpr(B == sycl::backend::cuda) {
+        auto stream = h.get_native_queue<B>();
+        // dev is not really used, just test that this function call works for now
+        typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
+            h.get_native_device<B>();
+        
+        // Even though we can target multiple backends simultaneously,
+        // the HIP headers cannot be included simultaneously with CUDA.
+        // We can therefore only directly call either CUDA or HIP runtime functions.
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
+        cudaMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                        cudaMemcpyDeviceToHost, stream);
 #endif
+      }
+      else if constexpr(B == sycl::backend::hip) {
+      
+        auto stream = h.get_native_queue<B>();
+        // dev is not really used, just test that this function call works for now
+        typename sycl::backend_traits<B>::template native_type<sycl::device> dev =
+            h.get_native_device<B>();
+        
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
+        hipMemcpyAsync(target_ptr, native_mem, test_size * sizeof(int),
+                        hipMemcpyDeviceToHost, stream);
+#endif
+      }
     });
   });
 
   q.wait();
 
-  if constexpr (target_be == sycl::backend::cuda ||
-                target_be == sycl::backend::hip) {
+  constexpr bool has_hip_memcpy_test = (B == sycl::backend::hip) &&
+                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP;
+  constexpr bool has_cuda_memcpy_test = (B == sycl::backend::cuda) &&
+                    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA;
+  if constexpr (has_hip_memcpy_test || has_cuda_memcpy_test) {
     for (std::size_t i = 0; i < test_size; ++i) {
       BOOST_TEST(initial_data[i] == target_data[i]);
     }
   }
+}
+
+BOOST_AUTO_TEST_CASE(custom_enqueue) {
+  using namespace cl;
+
+  sycl::queue q;
+  sycl::backend b = q.get_device().get_backend();
+  
+  if(b == sycl::backend::cuda)
+    test_interop<sycl::backend::cuda>(q);
+  else if(b == sycl::backend::hip)
+    test_interop<sycl::backend::hip>(q);
+  else if(b == sycl::backend::level_zero)
+    test_interop<sycl::backend::level_zero>(q);
+  else if(b == sycl::backend::omp)
+    test_interop<sycl::backend::omp>(q);
 }
 #endif
 #ifdef HIPSYCL_EXT_CG_PROPERTY_RETARGET
@@ -524,18 +550,16 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
 }
 #endif
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || \
-    defined(HIPSYCL_PLATFORM_HIP) || \
-    defined(HIPSYCL_PLATFORM_SPIRV)
+
 HIPSYCL_KERNEL_TARGET
 int get_total_group_size() {
-#ifdef SYCL_DEVICE_ONLY
-  return __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-#else
-  return 0;
-#endif
+  int group_size = 0;
+  __hipsycl_if_target_device(
+    group_size = __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+  );
+  return group_size;
 }
-#endif
+
 
 #ifdef HIPSYCL_EXT_CG_PROPERTY_PREFER_GROUP_SIZE
 BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
@@ -558,15 +582,20 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
                group_size1d}},
            [&](sycl::handler &cgh) {
              cgh.parallel_for<class property_preferred_group_size1>(
-                 sycl::range{1000}, [=](sycl::id<1> idx) {
-                   if (idx[0] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
-                     gsize[0] = get_total_group_size();
+                sycl::range{1000}, [=](sycl::id<1> idx) {
+                  if (idx[0] == 0) {
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
+                      gsize[0] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                      gsize[0] = 1;
+                    );
 #else
-                     gsize[0] = 1;
+                    gsize[0] = 1;
 #endif
-                   }
-                 });
+                  }
+                });
            });
 
   q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
@@ -575,8 +604,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size2>(
                  sycl::range{30,30}, [=](sycl::id<2> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
-                     gsize[1] = get_total_group_size();
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
+                      gsize[1] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                      gsize[1] = 2;
+                    );
 #else
                      gsize[1] = 2;
 #endif
@@ -591,8 +625,13 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size3>(
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(SYCL_DEVICE_ONLY) && defined(HIPLIKE_MODEL)
+#if defined(HIPLIKE_MODEL)
+                    __hipsycl_if_target_device(
                      gsize[2] = get_total_group_size();
+                    );
+                    __hipsycl_if_target_host(
+                     gsize[2] = 3;
+                    );
 #else
                      gsize[2] = 3;
 #endif
@@ -602,15 +641,16 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
 
   q.wait();
 
-#ifdef HIPLIKE_MODEL
-  BOOST_TEST(gsize[0] == group_size1d.size());
-  BOOST_TEST(gsize[1] == group_size2d.size());
-  BOOST_TEST(gsize[2] == group_size3d.size());
-#else
-  BOOST_TEST(gsize[0] == 1);
-  BOOST_TEST(gsize[1] == 2);
-  BOOST_TEST(gsize[2] == 3);
-#endif
+  if(q.get_device().get_backend() == sycl::backend::cuda || 
+    q.get_device().get_backend() == sycl::backend::hip) {
+    BOOST_TEST(gsize[0] == group_size1d.size());
+    BOOST_TEST(gsize[1] == group_size2d.size());
+    BOOST_TEST(gsize[2] == group_size3d.size());
+  } else {
+    BOOST_TEST(gsize[0] == 1);
+    BOOST_TEST(gsize[1] == 2);
+    BOOST_TEST(gsize[2] == 3);
+  }
 
   sycl::free(gsize, q);
 }
@@ -1109,5 +1149,29 @@ BOOST_AUTO_TEST_CASE(multi_device_queue) {
   BOOST_CHECK(hacc[0] == 102);
 }
 #endif
-
+#ifdef HIPSYCL_EXT_COARSE_GRAINED_EVENTS
+BOOST_AUTO_TEST_CASE(coarse_grained_events) {
+  using namespace cl;
+  sycl::queue q{sycl::property::queue::hipSYCL_coarse_grained_events{}};
+  
+  auto e1 = q.single_task([=](){});
+  std::vector<sycl::event> events;
+  for(int i=0; i < 10; ++i) {
+    auto e = q.submit(
+        {sycl::property::command_group::hipSYCL_prefer_execution_lane{
+            static_cast<std::size_t>(
+                i)}}, // Make sure we alternate across all lanes/streams
+        [&](sycl::handler &cgh) {
+          cgh.depends_on(e1); // Test depends_on synchronization
+          cgh.single_task([=]() {});
+        });
+    events.push_back(e);
+  }
+  for(auto& e : events) {
+    e.wait();
+    BOOST_CHECK(e.get_info<sycl::info::event::command_execution_status>() ==
+                sycl::info::event_command_status::complete);
+  }
+}
+#endif
 BOOST_AUTO_TEST_SUITE_END()

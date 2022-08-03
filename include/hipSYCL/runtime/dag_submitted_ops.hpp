@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "dag_node.hpp"
+#include "generic/async_worker.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -41,14 +42,27 @@ namespace rt {
 class dag_submitted_ops
 {
 public:
+  // Asynchronously waits on the nodes to complete, and, once complete,
+  // removes them (and other completed) nodes from the submitted list.
+  //
+  // All nodes in the provided argument vector must have been registered
+  // previously with update_with_submission()
+  //
+  // For best performance, the provided nodes should be in submission order.
+  void async_wait_and_unregister(const std::vector<dag_node_ptr>& nodes);
   void update_with_submission(dag_node_ptr single_node);
   
   void wait_for_all();
   void wait_for_group(std::size_t node_group);
   std::vector<dag_node_ptr> get_group(std::size_t node_group);
+
+  bool contains_node(dag_node_ptr node) const;
 private:
+  void purge_known_completed();
+
   std::vector<dag_node_ptr> _ops;
-  std::mutex _lock;
+  mutable std::mutex _lock;
+  worker_thread _updater_thread;
 };
 
 

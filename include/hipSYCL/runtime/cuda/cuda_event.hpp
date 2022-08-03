@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_CUDA_EVENT_HPP
 #define HIPSYCL_CUDA_EVENT_HPP
 
-#include "../event.hpp"
+#include "../inorder_queue_event.hpp"
 
 // Note: CUevent_st* == cudaEvent_t 
 struct CUevent_st;
@@ -36,21 +36,29 @@ struct CUevent_st;
 namespace hipsycl {
 namespace rt {
 
-class cuda_node_event : public dag_node_event
+class cuda_event_pool;
+class cuda_node_event : public inorder_queue_event<CUevent_st*>
 {
 public:
-  /// \c evt Must have been properly initialized and recorded.
-  cuda_node_event(device_id dev, CUevent_st* evt);
+  using backend_event_type = CUevent_st*;
+  /// \param evt cuda event; must have been properly initialized and recorded.
+  /// \param pool the pool managing the event. If not null, the destructor will return the event
+  /// to the pool.
+  cuda_node_event(device_id dev, CUevent_st* evt, cuda_event_pool* pool = nullptr);
+
   ~cuda_node_event();
 
   virtual bool is_complete() const override;
   virtual void wait() override;
 
-  CUevent_st* get_event() const;
+  backend_event_type get_event() const;
   device_id get_device() const;
+
+  backend_event_type request_backend_event() override;
 private:
   device_id _dev;
-  CUevent_st* _evt;
+  backend_event_type _evt;
+  cuda_event_pool* _pool;
 };
 
 }

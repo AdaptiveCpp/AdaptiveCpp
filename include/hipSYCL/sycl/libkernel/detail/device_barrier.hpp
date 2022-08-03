@@ -28,47 +28,46 @@
 #ifndef HIPSYCL_DEVICE_BARRIER_HPP
 #define HIPSYCL_DEVICE_BARRIER_HPP
 
+#include <cassert>
+
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/access.hpp"
-
-#if !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP &&                                \
-    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA &&                               \
-    !HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
-#error "This file requires a device compiler"
-#endif
 
 namespace hipsycl {
 namespace sycl {
 namespace detail {
 
 HIPSYCL_KERNEL_TARGET
-void local_device_barrier(
+inline void local_device_barrier(
     access::fence_space space = access::fence_space::global_and_local) {
-#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                   \
-HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
-  __syncthreads();
-#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
-  uint32_t flags =  0;
-  
-  if (space == access::fence_space::global_space) {
-    flags = static_cast<uint32_t>(
-                   __spv::MemorySemanticsMask::SequentiallyConsistent |
-                   __spv::MemorySemanticsMask::CrossWorkgroupMemory);
-  } else if (space == access::fence_space::local_space){
-    flags = static_cast<uint32_t>(
-                         __spv::MemorySemanticsMask::SequentiallyConsistent |
-                         __spv::MemorySemanticsMask::WorkgroupMemory);
-  } else {
-    flags = static_cast<uint32_t>(__spv::MemorySemanticsMask::SequentiallyConsistent |
-                       __spv::MemorySemanticsMask::CrossWorkgroupMemory |
-                       __spv::MemorySemanticsMask::WorkgroupMemory);
-  }
-  __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
-                           flags);
-#else
-  #warning device barrier called on CPU, this should not happen
-#endif
+
+  __hipsycl_if_target_hiplike(
+    __syncthreads();
+  );
+  __hipsycl_if_target_spirv(
+    uint32_t flags =  0;
+    
+    if (space == access::fence_space::global_space) {
+      flags = static_cast<uint32_t>(
+                    __spv::MemorySemanticsMask::SequentiallyConsistent |
+                    __spv::MemorySemanticsMask::CrossWorkgroupMemory);
+    } else if (space == access::fence_space::local_space){
+      flags = static_cast<uint32_t>(
+                          __spv::MemorySemanticsMask::SequentiallyConsistent |
+                          __spv::MemorySemanticsMask::WorkgroupMemory);
+    } else {
+      flags = static_cast<uint32_t>(__spv::MemorySemanticsMask::SequentiallyConsistent |
+                        __spv::MemorySemanticsMask::CrossWorkgroupMemory |
+                        __spv::MemorySemanticsMask::WorkgroupMemory);
+    }
+    __spirv_ControlBarrier(__spv::Scope::Workgroup, __spv::Scope::Workgroup,
+                            flags);
+  );
+  __hipsycl_if_target_host(
+    assert(false && "device barrier called on CPU, this should not happen");
+  );
 }
+
 }
 }
 }

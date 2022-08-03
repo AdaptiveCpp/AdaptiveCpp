@@ -37,20 +37,28 @@ BOOST_FIXTURE_TEST_SUITE(atomic_tests, reset_device_fixture)
 
 template<class T, class IntT>
 T int_to_t(IntT i) {
+  T result{};
+
   if constexpr(std::is_pointer_v<T>) {
-    return reinterpret_cast<T>(i);
+    result = reinterpret_cast<T>(i);
   } else {
-    return static_cast<T>(i);
+    result = static_cast<T>(i);
   }
+
+  return result;
 }
 
 template<class T>
 unsigned long long t_to_int(T x) {
+  unsigned long long result = 0ull;
+
   if constexpr(std::is_pointer_v<T>) {
-    return reinterpret_cast<unsigned long long>(x);
+    result = reinterpret_cast<unsigned long long>(x);
   } else {
-    return static_cast<unsigned long long>(x);
+    result = static_cast<unsigned long long>(x);
   }
+  
+  return result;
 }
 
 using exchange_test_types =

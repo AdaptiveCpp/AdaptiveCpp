@@ -26,19 +26,20 @@
  */
 
 #include <memory>
+#include <mutex>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
 
 namespace hipsycl {
 namespace rt {
-
-namespace {
-constexpr int max_cached_dag_nodes = 100;
-}
 
 
 dag_build_guard::~dag_build_guard()
@@ -46,9 +47,9 @@ dag_build_guard::~dag_build_guard()
   _mgr->trigger_flush_opportunity();
 }
 
-dag_manager::dag_manager()
-: _builder{std::make_unique<dag_builder>()}
-{
+dag_manager::dag_manager(runtime *rt)
+    : _builder{std::make_unique<dag_builder>(rt)},
+      _direct_scheduler{rt}, _unbound_scheduler{rt}, _rt{rt} {
   HIPSYCL_DEBUG_INFO << "dag_manager: DAG manager is alive!" << std::endl;
 }
 
@@ -56,6 +57,7 @@ dag_manager::~dag_manager()
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: Waiting for async worker..." << std::endl;
   
+  flush_sync();
   wait();
 
   HIPSYCL_DEBUG_INFO << "dag_manager: Shutdown." << std::endl;
@@ -71,60 +73,85 @@ void dag_manager::flush_async()
 {
   HIPSYCL_DEBUG_INFO << "dag_manager: Submitting asynchronous flush..."
                      << std::endl;
+  // This lock ensures that the submission process has atomic semantics.
+  // In particular, it is important that once we have popped the latest
+  // nodes from the DAG builder using finish_and_reset(), we directly submit them
+  // to the worker thread.
+  // Otherwise, the order in which submissions are processed in the worker thread
+  // can be incorrect. This can cause queue::submit();flush_sync() to fail in
+  // actually ensuring submission, or introduce dependencies in nodes during submission
+  //  to other nodes that have not yet been submitted.
+  std::lock_guard<std::mutex> lock{_flush_mutex};
 
-  _worker([this](){
-    if(_builder->get_current_dag_size() > 0){
-      // Construct new DAG
-      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
+  if(_builder->get_current_dag_size() > 0){
+    dag new_dag = _builder->finish_and_reset();
 
-      dag new_dag = _builder->finish_and_reset();
-      
-      // Release any old users of memory buffers used in this dag
-      for(dag_node_ptr req : new_dag.get_memory_requirements()){
-        assert_is<memory_requirement>(req->get_operation());
+    if(new_dag.num_nodes() > 0) {
+      _worker([this, new_dag](){
+        HIPSYCL_DEBUG_INFO << "dag_manager [async]: Flushing!" << std::endl;
+        
+        for(dag_node_ptr req : new_dag.get_memory_requirements()){
+          assert_is<memory_requirement>(req->get_operation());
 
-        memory_requirement *mreq =
-            cast<memory_requirement>(req->get_operation());
+          memory_requirement *mreq =
+              cast<memory_requirement>(req->get_operation());
 
-        if(mreq->is_buffer_requirement()) {
-          
+          if(mreq->is_buffer_requirement()) {
+            
+            HIPSYCL_DEBUG_INFO
+                << "dag_manager [async]: Releasing dead users of data region "
+                << cast<buffer_memory_requirement>(mreq)->get_data_region().get()
+                << std::endl;
+
+            cast<buffer_memory_requirement>(mreq)
+                ->get_data_region()
+                ->get_users()
+                .release_dead_users();
+          }
+          else
+            assert(false && "Non-buffer requirements are unsupported");
+        }
+
+        // Go!!!
+        scheduler_type stype =
+            application::get_settings().get<setting::scheduler_type>();
+        
+        // This is okay because get_command_groups() returns
+        // the nodes in the order they were submitted. This
+        // makes it safe to submit them in this order to the direct scheduler.
+        for(auto node : new_dag.get_command_groups()){
           HIPSYCL_DEBUG_INFO
-              << "dag_manager [async]: Releasing dead users of data region "
-              << cast<buffer_memory_requirement>(mreq)->get_data_region().get()
-              << std::endl;
-
-          cast<buffer_memory_requirement>(mreq)
-              ->get_data_region()
-              ->get_users()
-              .release_dead_users();
+                << "dag_manager [async]: Submitting node to scheduler!"
+                << std::endl;
+          if(stype == scheduler_type::direct) {
+            _direct_scheduler.submit(node);
+          } else if(stype == scheduler_type::unbound) {
+            _unbound_scheduler.submit(node);
+          }
         }
-        else
-          assert(false && "Non-buffer requirements are unsupported");
-      }
+        HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
+                          << std::endl;
 
-      // Go!!!
-      scheduler_type stype =
-          application::get_settings().get<setting::scheduler_type>();
-      
-      // This is okay because get_command_groups() returns
-      // the nodes in the order they were submitted. This
-      // makes it safe to submit them in this order to the direct scheduler.
-      for(auto node : new_dag.get_command_groups()){
-        HIPSYCL_DEBUG_INFO
-              << "dag_manager [async]: Submitting node to scheduler!"
-              << std::endl;
-        if(stype == scheduler_type::direct) {
-          _direct_scheduler.submit(node);
-        } else if(stype == scheduler_type::unbound) {
-          _unbound_scheduler.submit(node);
-        }
-      }
-      HIPSYCL_DEBUG_INFO << "dag_manager [async]: DAG flush complete."
-                         << std::endl;
-    } else {
-      HIPSYCL_DEBUG_INFO << "dag_manager [async]: Nothing to do" << std::endl;
+        // Register nodes as submitted with the runtime
+        for(auto node : new_dag.get_command_groups())
+          this->register_submitted_ops(node);
+        for(auto node : new_dag.get_memory_requirements())
+          this->register_submitted_ops(node);
+              
+        // We do not need to wait for the requirements explicitly
+        // because they will also have completed by the time
+        // their command groups have finished and can
+        // be purged together with them.
+        //
+        // This is the case, because dag_node::wait() also
+        // marks all its requirements as complete.
+        this->_submitted_ops.async_wait_and_unregister(
+            new_dag.get_command_groups());
+      });
     }
-  });
+  } else {
+    HIPSYCL_DEBUG_INFO << "dag_manager: Nothing to do" << std::endl;
+  }
 }
 
 void dag_manager::flush_sync()
@@ -159,7 +186,8 @@ void dag_manager::trigger_flush_opportunity()
     // Direct scheduler always needs flushing
     flush_async();
   } else {
-    if(builder()->get_current_dag_size() > max_cached_dag_nodes)
+    if (builder()->get_current_dag_size() >
+        application::get_settings().get<setting::max_cached_nodes>())
       flush_async();
   }
 }

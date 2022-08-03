@@ -239,77 +239,78 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_ptr, T, test_types) {
   }
 }
 
-#if defined(HIPSYCL_PLATFORM_CUDA) || defined(HIPSYCL_PLATFORM_HIP)
 BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_reduce, T, test_types) {
-  const uint32_t subgroup_size       = static_cast<uint32_t>(warpSize);
-  const size_t   elements_per_thread = 1;
-  const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
-                                 size_t global_size) {
-    for (size_t i = 0; i < v.size(); ++i)
-      v[i] =
-          detail::initialize_type<T>(i) + detail::get_offset<T>(global_size, global_size);
-  };
-
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] = sycl::reduce_over_group(sg, local_value, std::plus<T>());
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      for (size_t i = 0; i < global_size / local_size; ++i) {
-        T    expected         = T{};
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
-        for (size_t j = 0; j < actual_warp_size; ++j)
-          expected = expected + vOrig[i * local_size + j];
-
-        T computed = vIn[i * local_size];
-        BOOST_TEST(detail::compare_type(expected, computed),
-                   detail::type_to_string(computed)
-                       << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for local_size "
-                       << local_size << " and case: no init");
-        if (!detail::compare_type(expected, computed))
-          break;
-      }
+  if(!sycl::queue{}.get_device().is_host()) {
+    const size_t   elements_per_thread = 1;
+    const auto     data_generator      = [](std::vector<T> &v, size_t local_size,
+                                  size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i)
+        v[i] =
+            detail::initialize_type<T>(i) + detail::get_offset<T>(global_size, global_size);
     };
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
+    {
+      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                      auto g, T local_value) {
+        acc[global_linear_id] = sycl::reduce_over_group(sg, local_value, std::plus<T>());
+      };
+      const auto validation_function = [](const std::vector<T> &vIn,
+                                          const std::vector<T> &vOrig, size_t local_size,
+                                          size_t global_size) {
+        auto subgroup_size = detail::get_subgroup_size();
+        for (size_t i = 0; i < global_size / local_size; ++i) {
+          T    expected         = T{};
+          auto actual_warp_size = local_size < subgroup_size ? local_size : subgroup_size;
+          for (size_t j = 0; j < actual_warp_size; ++j)
+            expected = expected + vOrig[i * local_size + j];
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] = sycl::reduce_over_group(
-          sg, local_value, detail::initialize_type<T>(10), std::plus<T>());
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      for (size_t i = 0; i < global_size / local_size; ++i) {
-        T    expected         = detail::initialize_type<T>(10);
-        auto actual_warp_size = local_size < warpSize ? local_size : warpSize;
-        for (size_t j = 0; j < actual_warp_size; ++j)
-          expected = expected + vOrig[i * local_size + j];
+          T computed = vIn[i * local_size];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                    detail::type_to_string(computed)
+                        << " at position " << i << " instead of "
+                        << detail::type_to_string(expected) << " for local_size "
+                        << local_size << " and case: no init");
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      };
 
-        T computed = vIn[i * local_size];
-        BOOST_TEST(detail::compare_type(expected, computed),
-                   detail::type_to_string(computed)
-                       << " at position " << i << " instead of "
-                       << detail::type_to_string(expected) << " for local_size "
-                       << local_size << " and case: init");
-        if (!detail::compare_type(expected, computed))
-          break;
-      }
-    };
+      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+    }
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+    {
+      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                      auto g, T local_value) {
+        acc[global_linear_id] = sycl::reduce_over_group(
+            sg, local_value, detail::initialize_type<T>(10), std::plus<T>());
+      };
+      const auto validation_function = [](const std::vector<T> &vIn,
+                                          const std::vector<T> &vOrig, size_t local_size,
+                                          size_t global_size) {
+        auto subgroup_size = detail::get_subgroup_size();
+        for (size_t i = 0; i < global_size / local_size; ++i) {
+          T    expected         = detail::initialize_type<T>(10);
+          auto actual_warp_size = local_size < subgroup_size ? local_size : subgroup_size;
+          for (size_t j = 0; j < actual_warp_size; ++j)
+            expected = expected + vOrig[i * local_size + j];
+
+          T computed = vIn[i * local_size];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                    detail::type_to_string(computed)
+                        << " at position " << i << " instead of "
+                        << detail::type_to_string(expected) << " for local_size "
+                        << local_size << " and case: init");
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      };
+
+      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function, validation_function);
+    }
   }
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()
 

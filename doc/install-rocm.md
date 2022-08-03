@@ -1,22 +1,19 @@
-# hipSYCL installation notes for ROCm
+# hipSYCL installation instructions for ROCm
 
-In general, hipSYCL on ROCm requires a clang installation that satisfies the following conditions:
-* clang must **not** be compiled with the `_DEBUG` macro enabled (otherwise, hipSYCL triggers incorrect `assert()` statements inside clang due to the, from clang's perpective, unusual way in which it employs the HIP/CUDA toolchain). Regular clang release builds as they can be found in distributions usually meet this requirement.
-* clang versions older than 8 are not supported because HIP support was introduced in 8.
-* By default, hipSYCL uses `--rocm-path` and `--rocm-device-lib-path` clang flags which were introduced in clang 11. You will have to change hipSYCL's `ROCM_CXX_FLAGS` manually to use older clang versions.
-* clang must have been built with the AMDGPU backend enabled (which is usually the case)
-* lld is also required.
-* By default, hipSYCL uses ROCm features that are only available in recent ROCm versions (e.g. >=4.0) such as the managed memory API. You can build against an older ROCm version, but will have to define `HIPSYCL_RT_NO_HIP_MANAGED_MEMORY` when compiling hipSYCL.
+Please install ROCm 4.0 or later as described in the ROCm readme. Make sure to also install HIP (runtime libraries and headers).
 
-Additionally, please take note of the following:
-* **regular LLVM/clang distributions:** hipSYCL can run with regular clang/LLVM distributions, as long as you have matching ROCm device and runtime libraries installed. This is usually **the easiest way and therefore recommended.**
-* **clang distributions from AMD:**
-  * In principle, clang forks from AMD like `aomp` releases can be used as well, however at least the aomp 0.7 binary packages are compiled with the `_DEBUG` macro enabled, which is unsupported as described above. Additionally, the way that aomp currently advertises its version causes cmake's version identification to discard it as incompatible.
+*Note: Newer ROCm versions may require building hipSYCL against newer clang versios as well. For example, ROCm 4.5 requires clang 13+.*
 
-Once you have a suitable clang installed, make sure to compile hipSYCL against this clang. 
+*Note: Instead of building hipSYCL against a regular clang/LLVM, it is also possible to build hipSYCL against the clang/LLVM that ships with ROCm. This can be interesting if other available clang/LLVM installations are not new enough to work with the ROCm installation.* 
+* **Such configurations typically work, but are generally less tested.**
+* Also note that the LLVM distributions shipping with ROCm are not official LLVM releases, and depending on when the upstream development was last merged, may have slightly diverging functionality. There are multiple known cases where this causes problems: 
+  * The clang 13 from ROCm 4.5 lacks functionality that is present in official clang 13 releases and that hipSYCL's clang 13 code paths need. In that case you will need to set `-DHIPSYCL_NO_DEVICE_MANGLER=ON` when compiling hipSYCL. This will however break [explicit multipass](compilation.md) support.
+  * Similarly, the clang 14 from ROCm 5.0 lacks functionality that is present in official clang 14 releases that are required by hipSYCL's compiler acceleration for CPU targets. You can work around those issues by setting `-DWITH_ACCELERATED_CPU=OFF` at the expense of reduced kernel performance on CPUs.
 
-The following cmake variables may be relevant:
-* Use `ROCM_PATH` to point hipSYCL to ROCm, if you haven't installed it in /opt/rocm.
+*Note: hipSYCL is by default configured to utilize the ROCm compilation flags that apply for recent clang and ROCm versions. If you are using an older clang (<= 10) or ROCm < 4, you might have to adjust `-DROCM_CXX_FLAGS` (not recommended!).*
 
-
+CMake variables:
+* `-DROCM_PATH=/path/to/rocm` (default: /opt/rocm)
+* `-DWITH_ROCM_BACKEND=ON` if hipSYCL does not automatically enable the ROCm backend 
+* `-DHIPSYCL_NO_DEVICE_MANGLER=OFF/ON` *if and only if* you build against ROCm's clang and hit the issue that it lacks functionality that regular clang 13 provides, and you cannot build hipSYCL otherwise. This *will* break [explicit multipass](compilation.md) support, i.e. you will not be able to compile for multiple device backends simultaneously.
 

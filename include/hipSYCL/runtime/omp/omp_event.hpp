@@ -28,15 +28,15 @@
 #ifndef HIPSYCL_OMP_EVENT_HPP
 #define HIPSYCL_OMP_EVENT_HPP
 
-#include "../event.hpp"
+#include "../inorder_queue_event.hpp"
 #include "../signal_channel.hpp"
+#include <memory>
 
 namespace hipsycl {
 namespace rt {
 
-
-class omp_node_event : public dag_node_event
-{
+class omp_node_event
+    : public inorder_queue_event<std::shared_ptr<signal_channel>> {
 public:
   
   omp_node_event();
@@ -46,12 +46,12 @@ public:
   virtual void wait() override;
 
   std::shared_ptr<signal_channel> get_signal_channel() const;
+
+  virtual std::shared_ptr<signal_channel> request_backend_event() override;
 private:
 
   std::shared_ptr<signal_channel> _signal_channel;
 };
-
-
 }
 }
 

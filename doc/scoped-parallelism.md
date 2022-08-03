@@ -257,7 +257,7 @@ int main(){
           // The *_and_wait variants of distribute_groups and distribute_items
           // invoke a group_barrier at the end.
           sycl::distribute_items_and_wait(grp, 
-            [&](sycl::sub_group sg, sycl::logical_item<1> idx){
+            [&](sycl::s_item<1> idx){
             size_t lid = idx.get_innermost_local_id(0);
             if(lid < i)
               scratch[lid] += scratch[lid+i];
@@ -620,7 +620,7 @@ class ScopedGroup {
 The following group algorithms are supported for scoped parallelism groups:
 * `group_barrier()`
 * `joint_*` functions (not yet implemented)
-* `*_over_group` functions for arguments of type `const s_private_memory<T>&` (not yet implemented)
+* `*_over_group` functions for arguments of private memory wrapper type obtained from `sycl::memory_environment()` (not yet implemented)
 
 Group algorithms must be invoked outside of a `distribute_items()` call.
 

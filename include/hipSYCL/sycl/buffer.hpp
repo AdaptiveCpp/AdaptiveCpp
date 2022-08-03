@@ -177,6 +177,8 @@ extract_buffer_data_region(const BufferT &buff);
 
 struct buffer_impl
 {
+  rt::runtime_keep_alive_token requires_runtime;
+
   std::mutex lock;
   // Only used if a shared_ptr is passed to set_final_data()
   std::shared_ptr<void> writeback_buffer;
@@ -215,7 +217,7 @@ struct buffer_impl
           // there is a device that has up-to-date data.
           submit_copy(detail::get_host_device(), writeback_ptr);
         } else {
-          rt::dag_build_guard build{rt::application::dag()};
+          rt::dag_build_guard build{requires_runtime.get()->dag()};
 
           auto explicit_requirement =
               rt::make_operation<rt::buffer_memory_requirement>(
@@ -226,8 +228,8 @@ struct buffer_impl
           add_writeback_hints(detail::get_host_device(), hints);
 
           build.builder()->add_explicit_mem_requirement(
-              std::move(explicit_requirement), rt::requirements_list{},
-              hints);
+              std::move(explicit_requirement),
+              rt::requirements_list{requires_runtime.get()}, hints);
         }
       }
     }
@@ -246,7 +248,7 @@ struct buffer_impl
                   "but not marked as submitted, performing emergency DAG flush."
                 << std::endl;
 
-            rt::application::dag().flush_sync();
+            requires_runtime.get()->dag().flush_sync();
           }
           assert(user_ptr->is_submitted());
           user_ptr->wait();
@@ -273,11 +275,11 @@ private:
 
     std::shared_ptr<rt::buffer_data_region> data_src = this->data;
 
-    rt::dag_build_guard build{rt::application::dag()};
+    rt::dag_build_guard build{requires_runtime.get()->dag()};
     rt::execution_hints hints;
     add_writeback_hints(source_dev, hints);
 
-    rt::requirements_list reqs;
+    rt::requirements_list reqs{requires_runtime.get()};
 
     auto req = std::make_unique<rt::buffer_memory_requirement>(
         data_src, rt::id<3>{}, data_src->get_num_elements(), access_mode::read,
@@ -310,6 +312,9 @@ private:
 namespace buffer_allocation {
 
 // This class is part of the USM-buffer interop API
+//
+// TODO Currently cannot represent allocations from
+// malloc_host()
 template <class T> struct descriptor {
   // the USM allocation used for this device
   T *ptr;
@@ -613,14 +618,24 @@ public:
     return _range;
   }
 
-  std::size_t get_count() const
+  std::size_t size() const noexcept
   {
     return _range.size();
   }
 
+  std::size_t byte_size() const noexcept
+  {
+    return size() * sizeof(T);
+  }
+
   std::size_t get_size() const
   {
-    return get_count() * sizeof(T);
+    return byte_size();
+  }
+
+  std::size_t get_count() const
+  {
+    return size();
   }
 
   AllocatorT get_allocator() const
@@ -752,6 +767,14 @@ public:
   friend bool operator!=(const buffer& lhs, const buffer& rhs)
   {
     return !(lhs == rhs);
+  }
+
+  std::size_t hipSYCL_hash_code() const {
+    return std::hash<void*>{}(_impl.get());
+  }
+
+  rt::runtime* hipSYCL_runtime() const {
+    return _impl->requires_runtime.get();
   }
 
   // --- The following methods are part the hipSYCL buffer introspection API
@@ -1033,19 +1056,20 @@ private:
   {
     void* host_ptr = nullptr;
     rt::device_id host_device = detail::get_host_device();
+    rt::runtime* rt = _impl->requires_runtime.get();
 
     if(!_impl->data->has_allocation(host_device)){
       if(this->has_property<property::buffer::use_optimized_host_memory>()){
         // TODO: Actually may need to use non-host backend here...
         host_ptr =
-            rt::application::get_backend(host_device.get_backend())
-                .get_allocator(host_device)
+            rt->backends().get(host_device.get_backend())
+                ->get_allocator(host_device)
                 ->allocate_optimized_host(
                     alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       } else {
         host_ptr =
-            rt::application::get_backend(host_device.get_backend())
-                .get_allocator(host_device)
+            rt->backends().get(host_device.get_backend())
+                ->get_allocator(host_device)
                 ->allocate(
                     alignof(T), _impl->data->get_num_elements().size() * sizeof(T));
       }
@@ -1053,9 +1077,11 @@ private:
       if(!host_ptr)
         throw runtime_error{"buffer: host memory allocation failed"};
 
-      
-      _impl->data->add_empty_allocation(host_device, host_ptr,
-                                        true /*takes_ownership*/);
+      _impl->data->add_empty_allocation(
+          host_device, host_ptr,
+          rt->backends().get(host_device.get_backend())
+              ->get_allocator(host_device),
+          true /*takes_ownership*/);
     }
   }
 
@@ -1090,7 +1116,12 @@ private:
 
     this->init_data_backend(range);
 
+    rt::device_id host_device = detail::get_host_device();
     _impl->data->add_nonempty_allocation(detail::get_host_device(), host_memory,
+                                         _impl->requires_runtime.get()
+                                             ->backends()
+                                             .get(host_device.get_backend())
+                                             ->get_allocator(host_device),
                                          false /*takes_ownership*/);
     // Remember host_memory in case of potential write back
     _impl->writeback_ptr = host_memory;
@@ -1113,14 +1144,18 @@ private:
         throw invalid_parameter_error{"buffer: Invalid USM input pointer"};
       }
 
+      rt::device_id dev = detail::extract_rt_device(desc.desc.dev);
+      rt::backend_allocator *allocator = _impl->requires_runtime.get()
+                                             ->backends()
+                                             .get(dev.get_backend())
+                                             ->get_allocator(dev);
+
       if (desc.is_recent) {
         _impl->data->add_nonempty_allocation(
-            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
-            desc.desc.is_owned);
+            dev, desc.desc.ptr, allocator, desc.desc.is_owned);
       } else {
         _impl->data->add_empty_allocation(
-            detail::extract_rt_device(desc.desc.dev), desc.desc.ptr,
-            desc.desc.is_owned);
+            dev, desc.desc.ptr, allocator, desc.desc.is_owned);
       }
     }
   }
@@ -1181,5 +1216,19 @@ extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff) {
 
 } // sycl
 } // hipsycl
+
+namespace std {
+
+template <typename T, int dimensions,
+          typename AllocatorT>
+struct hash<hipsycl::sycl::buffer<T, dimensions, AllocatorT>>
+{
+  std::size_t
+  operator()(const hipsycl::sycl::buffer<T, dimensions, AllocatorT> &b) const {
+    return b.hipSYCL_hash_code();
+  }
+};
+
+}
 
 #endif

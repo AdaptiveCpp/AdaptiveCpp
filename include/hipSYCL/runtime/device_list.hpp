@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "application.hpp"
+#include "runtime.hpp"
 #include "device_id.hpp"
 
 namespace hipsycl {
@@ -39,6 +39,9 @@ namespace rt {
 
 class unique_device_list {
 public:
+  unique_device_list(runtime* rt)
+  : _rt{rt} {}
+
   void add(const rt::device_id dev) {
     if (std::find(_devices.begin(), _devices.end(), dev) == _devices.end()) {
       _devices.push_back((dev));
@@ -81,7 +84,7 @@ public:
     std::size_t count = 0;
 
     for_each_backend([&](backend_id b) {
-      if (application::get_backend(b).get_hardware_platform() == plat)
+      if (_rt->backends().get(b)->get_hardware_platform() == plat)
         ++count;
     });
     
@@ -111,9 +114,14 @@ public:
   bool contains_device(const device_id& dev) const {
     return std::find(_devices.begin(), _devices.end(), dev) != _devices.end();
   }
+
+  runtime* get_runtime() const {
+    return _rt;
+  }
 private:
   std::vector<device_id> _devices;
   std::vector<backend_id> _backends;
+  runtime* _rt;
 };
 
 }

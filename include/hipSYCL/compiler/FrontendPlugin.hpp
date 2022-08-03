@@ -62,7 +62,7 @@ protected:
 
     return true;
   }
-  
+
   void PrintHelp(llvm::raw_ostream& ros) {}
 
   clang::PluginASTAction::ActionType getActionType() override 

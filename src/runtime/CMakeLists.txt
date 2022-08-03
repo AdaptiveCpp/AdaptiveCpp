@@ -1,9 +1,18 @@
+find_package(Threads REQUIRED)
 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(HIPSYCL_RT_EXTRA_CXX_FLAGS "")
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
+set(HIPSYCL_RT_SANITIZE "" CACHE STRING
+    "Enable building hipSYCL runtime with specified sanitizers")
 
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 find_package(Filesystem REQUIRED)
 list(POP_FRONT CMAKE_MODULE_PATH)
+
+if(NOT ${HIPSYCL_RT_SANITIZE} STREQUAL "")
+  set(HIPSYCL_RT_EXTRA_CXX_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
+  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
+endif()
 
 add_library(hipSYCL-rt SHARED
   application.cpp
@@ -15,6 +24,7 @@ add_library(hipSYCL-rt SHARED
   device_id.cpp
   operations.cpp
   data.cpp
+  kernel_cache.cpp
   multi_queue_executor.cpp
   dag.cpp
   dag_node.cpp
@@ -27,6 +37,9 @@ add_library(hipSYCL-rt SHARED
   generic/async_worker.cpp
   hw_model/memcpy.cpp
   serialization/serialization.cpp)
+
+target_compile_options(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
@@ -73,19 +86,23 @@ install(TARGETS hipSYCL-rt
 if(WITH_CUDA_BACKEND)
   add_library(rt-backend-cuda SHARED
     cuda/cuda_event.cpp
+    cuda/cuda_event_pool.cpp
     cuda/cuda_queue.cpp
     cuda/cuda_instrumentation.cpp
     cuda/cuda_allocator.cpp
     cuda/cuda_device_manager.cpp
     cuda/cuda_hardware_manager.cpp
     cuda/cuda_backend.cpp
-    cuda/cuda_module.cpp)
+    cuda/cuda_code_object.cpp)
 
   target_include_directories(rt-backend-cuda PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include
     ${CUDA_TOOLKIT_ROOT_DIR}/include)
   
   target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY})
+
+  target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
   install(TARGETS rt-backend-cuda
         RUNTIME DESTINATION bin/hipSYCL
@@ -98,12 +115,14 @@ if(WITH_ROCM_BACKEND)
 
   add_library(rt-backend-hip SHARED
     hip/hip_event.cpp
+    hip/hip_event_pool.cpp
     hip/hip_queue.cpp
     hip/hip_instrumentation.cpp
     hip/hip_allocator.cpp
     hip/hip_device_manager.cpp
     hip/hip_hardware_manager.cpp
-    hip/hip_backend.cpp)
+    hip/hip_backend.cpp
+    hip/hip_code_object.cpp)
 
   target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_TARGET_ROCM=1)
   if(ENABLE_ROCM_UNIFIED_MEMORY_API)
@@ -119,6 +138,9 @@ if(WITH_ROCM_BACKEND)
     target_link_libraries(rt-backend-hip PRIVATE hipSYCL-rt  hip::host)
   endif()
 
+  target_compile_options(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -132,11 +154,13 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_allocator.cpp
     ze/ze_event.cpp
     ze/ze_queue.cpp
-    ze/ze_module.cpp)
+    ze/ze_code_object.cpp)
   
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
   target_link_libraries(rt-backend-ze PRIVATE hipSYCL-rt -lze_loader)
 
+  target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
   install(TARGETS rt-backend-ze
         LIBRARY DESTINATION lib/hipSYCL
@@ -176,9 +200,12 @@ if(WITH_CPU_BACKEND)
 
   target_link_libraries(rt-backend-omp PRIVATE hipSYCL-rt  OpenMP::OpenMP_CXX)
 
-    install(TARGETS rt-backend-omp
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+  target_compile_options(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-omp PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  install(TARGETS rt-backend-omp
+      RUNTIME DESTINATION bin/hipSYCL
+      LIBRARY DESTINATION lib/hipSYCL
+      ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 

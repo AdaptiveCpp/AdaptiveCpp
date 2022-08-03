@@ -28,12 +28,9 @@
 #ifndef HIPSYCL_TESTS_RESET_HPP
 #define HIPSYCL_TESTS_RESET_HPP
 
-#include <hipSYCL/runtime/application.hpp>
-
-
 struct reset_device_fixture {
   ~reset_device_fixture() {
-    hipsycl::rt::application::reset();
+    // Runtime should automatically reset
   }
 };
 

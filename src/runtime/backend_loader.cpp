@@ -34,25 +34,14 @@
 
 #include <cassert>
 
-#define HIPSYCL_FILESYSTEM_PROVIDER_CXX17
-
-#ifdef HIPSYCL_FILESYSTEM_PROVIDER_CXX17
-#include <filesystem>
-namespace fs = std::filesystem;
-#elif defined(HIPSYCL_FILESYSTEM_PROVIDER_EXPERIMENTAL)
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
-#elif defined(HIPSYCL_FILESYSTEM_PROVIDER_BOOST)
-#include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
-#endif
-
-
 #ifndef _WIN32
 #include <dlfcn.h>
 #else
 #include <windows.h> 
 #endif
+
+#include HIPSYCL_CXX_FILESYSTEM_HEADER
+namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
 
 namespace {
 
@@ -228,11 +217,7 @@ void backend_loader::query_backends() {
     for (const fs::directory_entry &entry :
         fs::directory_iterator(backend_lib_path)) {
 
-#ifdef HIPSYCL_FILESYSTEM_PROVIDER_CXX17
-      if (entry.is_regular_file()) {
-#else
       if(fs::is_regular_file(entry.status())){
-#endif
         auto p = entry.path();
         if (p.extension().string() == shared_lib_extension) {
           std::string backend_name;

@@ -27,6 +27,11 @@ The ``COMPONENTS`` argument to this module supports the following values:
 
     Finds the final C++17 standard version of the filesystem library.
 
+.. find-component:: Boost
+    :name: fs.Boost
+
+    Finds the Boost-provided of the filesystem library.
+
 If no components are provided, behaves as if the
 :find-component:`fs.Final` component was specified.
 
@@ -64,6 +69,12 @@ Variables
 
     Set to ``TRUE`` when the :find-component:`fs.Experimental` version of C++
     filesystem library was found, otherwise ``FALSE``.
+
+.. variable:: CXX_FILESYSTEM_IS_BOOST
+
+    Set to ``TRUE`` when the :find-component:`fs.Boost` version of C++
+    filesystem library was found, otherwise ``FALSE``.
+
 
 .. variable:: CXX_FILESYSTEM_HAVE_FS
 
@@ -137,7 +148,7 @@ endif()
 
 # Warn on any unrecognized components
 set(extra_components ${want_components})
-list(REMOVE_ITEM extra_components Final Experimental)
+list(REMOVE_ITEM extra_components Final Experimental Boost)
 foreach(component IN LISTS extra_components)
     message(WARNING "Extraneous find_package component for Filesystem: ${component}")
 endforeach()
@@ -145,11 +156,15 @@ endforeach()
 # Detect which of Experimental and Final we should look for
 set(find_experimental TRUE)
 set(find_final TRUE)
+set(find_boost TRUE)
 if(NOT "Final" IN_LIST want_components)
     set(find_final FALSE)
 endif()
 if(NOT "Experimental" IN_LIST want_components)
     set(find_experimental FALSE)
+endif()
+if(NOT "Boost" IN_LIST want_components)
+    set(find_boost FALSE)
 endif()
 
 if(find_final)
@@ -159,6 +174,7 @@ if(find_final)
         # We found the non-experimental header. Don't bother looking for the
         # experimental one.
         set(find_experimental FALSE)
+        set(find_boost FALSE)
     endif()
 else()
     set(_CXX_FILESYSTEM_HAVE_HEADER FALSE)
@@ -167,20 +183,38 @@ endif()
 if(find_experimental)
     check_include_file_cxx("experimental/filesystem" _CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER)
     mark_as_advanced(_CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER)
+    set(find_boost FALSE)
 else()
     set(_CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER FALSE)
 endif()
+
+if(find_boost)
+    find_package(Boost COMPONENTS filesystem)
+    set(_CXX_FILESYSTEM_HAVE_BOOST_HEADER ${Boost_FOUND})
+    mark_as_advanced(_CXX_FILESYSTEM_HAVE_BOOST_HEADER)
+else()
+    set(_CXX_FILESYSTEM_HAVE_BOOST_HEADER FALSE)
+endif()
+
 
 if(_CXX_FILESYSTEM_HAVE_HEADER)
     set(_have_fs TRUE)
     set(_fs_header filesystem)
     set(_fs_namespace std::filesystem)
     set(_is_experimental FALSE)
+    set(_is_boost FALSE)
 elseif(_CXX_FILESYSTEM_HAVE_EXPERIMENTAL_HEADER)
     set(_have_fs TRUE)
     set(_fs_header experimental/filesystem)
     set(_fs_namespace std::experimental::filesystem)
     set(_is_experimental TRUE)
+    set(_is_boost FALSE)
+elseif(_CXX_FILESYSTEM_HAVE_BOOST_HEADER)
+    set(_have_fs TRUE)
+    set(_fs_header boost/filesystem.hpp)
+    set(_fs_namespace boost::filesystem)
+    set(_is_experimental FALSE)
+    set(_is_boost TRUE)
 else()
     set(_have_fs FALSE)
 endif()
@@ -189,10 +223,11 @@ set(CXX_FILESYSTEM_HAVE_FS ${_have_fs} CACHE BOOL "TRUE if we have the C++ files
 set(CXX_FILESYSTEM_HEADER ${_fs_header} CACHE STRING "The header that should be included to obtain the filesystem APIs")
 set(CXX_FILESYSTEM_NAMESPACE ${_fs_namespace} CACHE STRING "The C++ namespace that contains the filesystem APIs")
 set(CXX_FILESYSTEM_IS_EXPERIMENTAL ${_is_experimental} CACHE BOOL "TRUE if the C++ filesystem library is the experimental version")
+set(CXX_FILESYSTEM_IS_BOOST ${_is_boost} CACHE BOOL "TRUE if the Cfilesystem library is provided by Boost")
 
 set(_found FALSE)
 
-if(CXX_FILESYSTEM_HAVE_FS)
+if(CXX_FILESYSTEM_HAVE_FS AND NOT CXX_FILESYSTEM_IS_BOOST)
     # We have some filesystem library available. Do link checks
     string(CONFIGURE [[
         #include <cstdlib>
@@ -237,6 +272,10 @@ if(CXX_FILESYSTEM_HAVE_FS)
             set_property(TARGET std::filesystem APPEND PROPERTY INTERFACE_LINK_LIBRARIES -lc++fs)
         endif()
     endif()
+elseif(CXX_FILESYSTEM_HAVE_FS AND CXX_FILESYSTEM_IS_BOOST)
+    # We trust that FindBoost did a good job
+    add_library(std::filesystem ALIAS Boost::filesystem)
+    set(_found TRUE)
 endif()
 
 cmake_pop_check_state()

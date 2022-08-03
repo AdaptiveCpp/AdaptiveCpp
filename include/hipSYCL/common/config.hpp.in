@@ -35,5 +35,9 @@
 #define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
 #define HIPSYCL_VERSION_TYPE "git"
 
+// Macros to switch between proper std::filesystem, experimental version found in GCC 7, or Boost::filesystem
+#define HIPSYCL_CXX_FILESYSTEM_HEADER <@CXX_FILESYSTEM_HEADER@>
+#define HIPSYCL_CXX_FILESYSTEM_NAMESPACE @CXX_FILESYSTEM_NAMESPACE@
+
 #endif
 

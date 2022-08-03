@@ -36,10 +36,20 @@ else()
   set(CBS_PLUGIN "")
 endif()
 
+set(WITH_SSCP_COMPILER true)
+
+if(WITH_SSCP_COMPILER)
+  set(SSCP_COMPILER sscp/KernelOutliningAnalysisPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
+else()
+  set(SSCP_COMPILER "")
+endif()
+
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
+  ${SSCP_COMPILER}
 )
 
 target_include_directories(hipSYCL_clang PRIVATE

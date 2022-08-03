@@ -1478,6 +1478,57 @@ class omp_sequential_invocation:
   def get_linker_flags(self):
     return self._linker_args
 
+
+class llvm_sscp_invocation:
+
+  @property
+  def unique_name(self):
+    return "llvm"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = config.omp_link_line
+    self._cxx_flags = config.omp_cxx_flags
+
+    if len(targets) != 0:
+      raise RuntimeError("llvm sscp backend does not support specifiying target architecture")
+
+    self._clang_path = config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._clang_path, 10)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__"]
+    if not sys.platform.startswith("win32"):
+      flags += [
+        "-fplugin=" + config.hipsycl_plugin_path
+        , "-fpass-plugin=" + config.hipsycl_plugin_path
+      ]
+    flags += self._cxx_flags
+
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
 class compiler:
   def __init__(self, config):
     self._user_args = config.forwarded_compiler_arguments

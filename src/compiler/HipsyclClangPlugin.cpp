@@ -35,6 +35,10 @@
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #endif
 
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+#include "hipSYCL/compiler/sscp/KernelOutliningAnalysisPass.hpp"
+#endif
+
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
 #include "llvm/Pass.h"
@@ -101,6 +105,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
+
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+          PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
+            MAM.registerPass([] { return KernelOutliningAnalysis{}; });
+          });
+#endif
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU
           PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {

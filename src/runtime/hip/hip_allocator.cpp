@@ -97,6 +97,8 @@ void hip_allocator::free(void *mem) {
 
 void * hip_allocator::allocate_usm(size_t bytes)
 {
+  hip_device_manager::get().activate_device(_dev);
+
   void *ptr;
   auto err = hipMallocManaged(&ptr, bytes);
   if (err != hipSuccess) {

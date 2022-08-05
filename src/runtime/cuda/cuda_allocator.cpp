@@ -98,6 +98,8 @@ void cuda_allocator::free(void *mem) {
 
 void * cuda_allocator::allocate_usm(size_t bytes)
 {
+  cuda_device_manager::get().activate_device(_dev);
+  
   void *ptr;
   auto err = cudaMallocManaged(&ptr, bytes);
   if (err != cudaSuccess) {

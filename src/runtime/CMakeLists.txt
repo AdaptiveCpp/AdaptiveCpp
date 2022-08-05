@@ -5,6 +5,12 @@ set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "")
 set(HIPSYCL_RT_SANITIZE "" CACHE STRING
     "Enable building hipSYCL runtime with specified sanitizers")
 
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
+find_package(Filesystem REQUIRED Final Experimental Boost)
+set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
+set(CXX_FILESYSTEM_NAMESPACE "${CXX_FILESYSTEM_NAMESPACE}" PARENT_SCOPE)
+list(REMOVE_AT CMAKE_MODULE_PATH 0)
+
 if(NOT ${HIPSYCL_RT_SANITIZE} STREQUAL "")
   set(HIPSYCL_RT_EXTRA_CXX_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
   set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
@@ -61,7 +67,7 @@ if(WIN32)
     set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_RT_LIBRARY_OUTPUT_NAME}.dll" PARENT_SCOPE)
   endif()
 else()
-  target_link_libraries(hipSYCL-rt PRIVATE dl)
+  target_link_libraries(hipSYCL-rt PRIVATE dl std::filesystem)
 
   # ensure actual output and expected are equivalent
   set_target_properties(hipSYCL-rt PROPERTIES LIBRARY_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})

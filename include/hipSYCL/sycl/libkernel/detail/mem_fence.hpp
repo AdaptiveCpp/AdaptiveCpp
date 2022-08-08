@@ -52,7 +52,9 @@ struct mem_fence_impl
                           __spv::MemorySemanticsMask::WorkgroupMemory);
     );
     // TODO What about CPU?
-    __hipsycl_if_target_host(/* todo */);
+    // Empty __hipsycl_if_target_* breaks nvc++ due to nvc++ bug;
+    // so comment out that statement for now
+    //__hipsycl_if_target_host(/* todo */);
   }
 
 };

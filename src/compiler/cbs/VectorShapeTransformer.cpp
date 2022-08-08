@@ -25,7 +25,7 @@
 using namespace hipsycl::compiler;
 using namespace llvm;
 
-#if LLVM_VERSION_MAJOR < 13
+#if LLVM_VERSION_MAJOR < 13 || (LLVM_VERSION_MAJOR == 13 && defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR < 5)
 #define IS_OPAQUE(pointer) constexpr(false)
 #define HAS_TYPED_PTR 1
 #elif LLVM_VERSION_MAJOR < 16

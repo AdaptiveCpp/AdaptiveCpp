@@ -189,6 +189,14 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN(rsqrt)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sqrt)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sin)
 
+template<class T, class FloatPtr>
+HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
+  *cosval = spirv_builtins::__hipsycl_cos(x);
+  return spirv_builtins::__hipsycl_sin(x);
+}
+
+HIPSYCL_DEFINE_SPIRV_BUILTIN(sinh)
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
   return spirv_builtins::__hipsycl_sin(x * M_PI);

@@ -216,6 +216,14 @@ HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_rsqrt(double x) noexcept {
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sin, sinf, sin)
 
+template<class T, class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
+  *cosval = hiplike_builtins::__hipsycl_cos(x);
+  return hiplike_builtins::__hipsycl_sin(x);
+}
+
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sinh, sinhf, sinh)
+
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sinpi(T x) noexcept {
   return hiplike_builtins::__hipsycl_sin(x * M_PI);

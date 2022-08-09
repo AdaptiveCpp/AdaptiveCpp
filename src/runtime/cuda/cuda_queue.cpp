@@ -137,11 +137,17 @@ void cuda_queue::activate_device() const {
   cuda_device_manager::get().activate_device(_dev.get_id());
 }
 
-cuda_queue::cuda_queue(cuda_backend* be, device_id dev)
+cuda_queue::cuda_queue(cuda_backend* be, device_id dev, int priority)
     : _dev{dev}, _code_object_invoker{this}, _stream{nullptr}, _backend{be} {
   this->activate_device();
 
-  auto err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
+  cudaError_t err;
+  if(priority == 0) {
+    err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
+  } else {
+    // TODO Clamp priority to priority range allowed by CUDA.
+    err = cudaStreamCreateWithPriority(&_stream, cudaStreamNonBlocking, priority);
+  }
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
                    error_info{"cuda_queue: Couldn't construct backend stream",

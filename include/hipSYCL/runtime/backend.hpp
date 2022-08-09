@@ -63,6 +63,17 @@ public:
     return backend_descriptor{this->get_hardware_platform(),
                               this->get_api_platform()};
   }
+
+  // This is optional; backends can use it to expose inorder executors
+  // that might be used by in-order queues for explicit scheduling control
+  // by the user.
+  //
+  // If unsupported by the backend, returns nullptr.
+  //
+  // priority can be used to define an inorder executor with particular execution
+  // priority. It is backend-specific if or how this will affect execution.
+  virtual std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) = 0;
 };
 
 class backend_manager

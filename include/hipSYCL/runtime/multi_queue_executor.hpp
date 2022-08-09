@@ -35,7 +35,8 @@
 #include "backend.hpp"
 #include "device_id.hpp"
 #include "executor.hpp"
-#include "inorder_queue.hpp"
+#include "hipSYCL/runtime/hints.hpp"
+#include "inorder_executor.hpp"
 #include "generic/multi_event.hpp"
 
 namespace hipsycl {
@@ -136,11 +137,11 @@ public:
 
   // The range of lanes to use for the given device
   backend_execution_lane_range
-  get_memcpy_execution_lane_range(device_id dev) const override;
+  get_memcpy_execution_lane_range(device_id dev) const;
 
   // The range of lanes to use for the given device
   backend_execution_lane_range
-  get_kernel_execution_lane_range(device_id dev) const override;
+  get_kernel_execution_lane_range(device_id dev) const;
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
@@ -148,23 +149,30 @@ public:
 
   template <class F> void for_each_queue(rt::device_id dev, F handler) const {
     assert(dev.get_id() < _device_data.size());
-    for (std::size_t i = 0; i < _device_data[dev.get_id()].queues.size(); ++i)
-      handler(_device_data[dev.get_id()].queues[i].get());
+    for (std::size_t i = 0; i < _device_data[dev.get_id()].executors.size(); ++i)
+      handler(_device_data[dev.get_id()].executors[i]->get_queue());
   }
+
+  virtual bool can_execute_on_device(const device_id& dev) const override;
+  virtual bool is_submitted_by_me(dag_node_ptr node) const override;
+
+  bool find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const;
 private:
-  using final_nodes_map = std::unordered_map<inorder_queue*, dag_node_ptr>;
+  
 
   struct per_device_data
   {
     backend_execution_lane_range memcpy_lanes;
     backend_execution_lane_range kernel_lanes;
-    std::vector<std::unique_ptr<inorder_queue>> queues;
+    std::vector<std::unique_ptr<inorder_executor>> executors;
 
     moving_statistics submission_statistics;
   };
 
   std::vector<per_device_data> _device_data;
   std::size_t _num_submitted_operations;
+  std::vector<inorder_queue*> _managed_queues;
+  backend_id _backend;
 };
 
 }

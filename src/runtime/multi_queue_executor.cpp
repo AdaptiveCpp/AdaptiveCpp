@@ -27,6 +27,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/inorder_executor.hpp"
 #include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
@@ -42,41 +43,6 @@ namespace hipsycl {
 namespace rt {
 
 namespace {
-
-class queue_operation_dispatcher : public operation_dispatcher
-{
-public:
-  queue_operation_dispatcher(inorder_queue* q)
-  : _queue{q}
-  {}
-
-  virtual ~queue_operation_dispatcher(){}
-
-  virtual result dispatch_kernel(kernel_operation *op,
-                                 dag_node_ptr node) final override {
-
-    return _queue->submit_kernel(*op, node);
-  }
-
-  virtual result dispatch_memcpy(memcpy_operation *op,
-                                 dag_node_ptr node) final override {
-    return _queue->submit_memcpy(*op, node);
-  }
-
-  virtual result dispatch_prefetch(prefetch_operation *op,
-                                   dag_node_ptr node) final override {
-    return _queue->submit_prefetch(*op, node);
-  }
-
-  virtual result dispatch_memset(memset_operation *op,
-                                 dag_node_ptr node) final override {
-    return _queue->submit_memset(*op, node);
-  }
-
-private:
-  inorder_queue* _queue;
-};
-
 
 std::size_t determine_target_lane(dag_node_ptr node,
                                   const std::vector<dag_node_ptr>& nonvirtual_reqs,
@@ -100,8 +66,8 @@ std::size_t determine_target_lane(dag_node_ptr node,
     assert(req);
     assert(req->is_submitted());
 
-    if(req->get_assigned_executor() == executor) {
-      std::size_t lane_id = req->get_assigned_execution_lane().first;
+    std::size_t lane_id = 0;
+    if(executor->find_assigned_lane_index(req, lane_id)) {
       if (lane_id >= lane_range.begin &&
           lane_id < lane_range.begin + lane_range.num_lanes) {
         
@@ -142,26 +108,13 @@ std::size_t determine_target_lane(dag_node_ptr node,
   return current_best_lane;
 }
 
-std::size_t
-get_maximum_execution_index_for_lane(const std::vector<dag_node_ptr> &nodes,
-                                     multi_queue_executor *executor,
-                                     std::size_t lane) {
-  std::size_t index = 0;
-  for (const auto &node : nodes) {
-    if (node->is_submitted() && node->get_assigned_executor() == executor &&
-        node->get_assigned_execution_lane().first == lane) {
-      if(node->get_assigned_execution_index() > index)
-        index = node->get_assigned_execution_index();
-    }
-  }
-  return index;
-}
+
 
 } // anonymous namespace
 
 multi_queue_executor::multi_queue_executor(
     const backend &b, queue_factory_function queue_factory)
-    : _num_submitted_operations{0} {
+    : _num_submitted_operations{0}, _backend{b.get_unique_backend_id()} {
   std::size_t num_devices = b.get_hardware_manager()->get_num_devices();
 
 
@@ -176,14 +129,20 @@ multi_queue_executor::multi_queue_executor(
     std::size_t kernel_concurrency = hw_context->get_max_kernel_concurrency();
 
     for (std::size_t i = 0; i < memcpy_concurrency; ++i) {
-      _device_data[dev].queues.push_back(queue_factory(dev_id));
+      std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
+      _managed_queues.push_back(new_queue.get());
+      _device_data[dev].executors.push_back(
+          std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
     _device_data[dev].memcpy_lanes.begin = 0;
     _device_data[dev].memcpy_lanes.num_lanes = memcpy_concurrency;
 
     for(std::size_t i  = 0; i < kernel_concurrency; ++i) {
-      _device_data[dev].queues.push_back(queue_factory(dev_id));
+      std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
+      _managed_queues.push_back(new_queue.get());
+      _device_data[dev].executors.push_back(
+          std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
     _device_data[dev].kernel_lanes.begin = memcpy_concurrency;
@@ -196,7 +155,7 @@ multi_queue_executor::multi_queue_executor(
 
     _device_data[dev].submission_statistics = moving_statistics{
         max_statistics_size,
-        _device_data[dev].queues.size(),
+        _device_data[dev].executors.size(),
         static_cast<std::size_t>(1e9 * statistics_decay_time_sec)};
   }
 
@@ -272,99 +231,53 @@ void multi_queue_executor::submit_directly(
   _device_data[node->get_assigned_device().get_id()]
       .submission_statistics.insert(op_target_lane);
   
-  inorder_queue *q = _device_data[node->get_assigned_device().get_id()]
-                         .queues[op_target_lane]
+  inorder_executor *executor = _device_data[node->get_assigned_device().get_id()]
+                         .executors[op_target_lane]
                          .get();
-
-  node->assign_to_execution_lane(
-      std::pair<std::size_t, void *>{op_target_lane, q});
-  node->assign_execution_index(_num_submitted_operations);
-  ++_num_submitted_operations;
-
-
-  // Submit synchronization mechanisms
-
-  result res;
-  for (auto req : reqs) {
-    // The scheduler should not hand us virtual requirements
-    assert(!req->is_virtual());
-    assert(req->is_submitted());
-
-    // Nothing to do if we have to synchronize with
-    // an operation that is already known to have completed
-    if(!req->is_known_complete()) {
-      if (req->get_assigned_executor() != this) {
-        HIPSYCL_DEBUG_INFO
-            << " --> Synchronizes with external node: " << req
-            << std::endl;
-        res = q->submit_external_wait_for(req);
-      } else {
-        if (req->get_assigned_execution_lane().first == op_target_lane) {
-          HIPSYCL_DEBUG_INFO
-            << " --> (Skipping same-lane synchronization with node: " << req
-            << ")" << std::endl;
-          // Nothing to synchronize, the requirement was enqueued on the same
-          // inorder queue and will therefore be executed before
-          // the new node
-        } else {
-          assert(req->get_event());
-
-          std::size_t lane = req->get_assigned_execution_lane().first;
-
-          HIPSYCL_DEBUG_INFO << " --> Synchronizes with other queue for node: "
-                            << req
-                            << " lane = " << lane
-                            << std::endl;
-          // We only need to actually synchronize with the lane if this req
-          // is the operation that has been submitted *last* to the lane
-          // out of all requirements in reqs.
-          // (Follows from execution lanes being in-order queues)
-          //
-          // Find the maximum execution index out of all our requirements.
-          // Since the execution index is incremented after each submission,
-          // this allows us to identify the requirement that was submitted last.
-          std::size_t maximum_execution_index =
-              get_maximum_execution_index_for_lane(reqs, this, lane);
-          
-          if(req->get_assigned_execution_index() != maximum_execution_index) {
-            HIPSYCL_DEBUG_INFO
-                << "  --> (Skipping unnecessary synchronization; another "
-                   "requirement follows in the same inorder queue)"
-                << std::endl;
-          } else {
-            res = q->submit_queue_wait_for(req->get_event());
-          }
-        }
-      }
-      if (!res.is_success()) {
-        register_error(res);
-        node->cancel();
-        return;
-      }
-    }
-  }
 
   HIPSYCL_DEBUG_INFO
       << "multi_queue_executor: Dispatching to lane " << op_target_lane << ": "
       << dump(op) << std::endl;
   
-  queue_operation_dispatcher dispatcher{q};
-  res = op->dispatch(&dispatcher, node);
-  if (!res.is_success()) {
-    register_error(res);
-    node->cancel();
-    return;
-  }
-
-  if (node->get_execution_hints()
-          .has_hint<hints::coarse_grained_synchronization>()) {
-    node->mark_submitted(q->create_queue_completion_event());
-  } else {
-    node->mark_submitted(q->insert_event());
-  }
+  return executor->submit_directly(node, op, reqs);
 }
 
+bool multi_queue_executor::can_execute_on_device(const device_id &dev) const {
+  return _backend == dev.get_backend();
+}
 
+bool multi_queue_executor::is_submitted_by_me(dag_node_ptr node) const {
+  if(!node->is_submitted())
+    return false;
+
+  for(const auto& d : _device_data) {
+    for(const auto& executor : d.executors) {
+      if(executor->is_submitted_by_me(node))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+bool multi_queue_executor::find_assigned_lane_index(dag_node_ptr node, std::size_t& index_out) const {
+  if(!node->is_submitted())
+    return false;
+
+  std::size_t dev_id = node->get_assigned_device().get_id();
+  std::size_t lane_id = 0;
+
+  for(const auto& executor : _device_data[dev_id].executors) {
+    if(executor->is_submitted_by_me(node)) {
+      index_out = lane_id;
+      return true;
+    }
+
+    ++lane_id;
+  }
+
+  return false;
+}
 
 }
 }

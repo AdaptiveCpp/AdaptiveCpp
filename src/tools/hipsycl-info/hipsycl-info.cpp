@@ -95,12 +95,6 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   print_info("Is in-order queue", b->get_executor(dev)->is_inorder_queue(), 2);
   print_info("Is out-of-order queue", b->get_executor(dev)->is_outoforder_queue(), 2);
   print_info("Is task graph", b->get_executor(dev)->is_taskgraph(), 2);
-  print_info(
-      "Number of execution lanes for kernels",
-      b->get_executor(dev)->get_kernel_execution_lane_range(dev).num_lanes, 2);
-  print_info(
-      "Number of execution lanes for data transfers",
-      b->get_executor(dev)->get_memcpy_execution_lane_range(dev).num_lanes, 2);
   
   std::cout << " Device support queries:" << std::endl;
 #define PRINT_DEVICE_SUPPORT_ASPECT(name) \

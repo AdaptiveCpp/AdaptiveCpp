@@ -59,6 +59,9 @@ public:
   virtual ~cuda_backend(){}
 
   cuda_event_pool* get_event_pool(device_id dev) const;
+
+  virtual std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) override;
 private:
   mutable cuda_hardware_manager _hw_manager;
   mutable multi_queue_executor _executor;

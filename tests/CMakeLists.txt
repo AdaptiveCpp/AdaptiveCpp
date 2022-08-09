@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.12)
 
 set(Boost_USE_STATIC_LIBS off)
 set(BUILD_SHARED_LIBS on)
+set(REDUCED_LOCAL_MEM_USAGE OFF CACHE BOOL "Only run tests with reduced local memory usage to allow running on hardware with little local memory.")
+
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
 find_package(hipSYCL REQUIRED)
@@ -31,6 +33,10 @@ if(CMAKE_GENERATOR STREQUAL "Ninja" AND
   # Force colored warnings in Ninja's output, if the compiler has -fdiagnostics-color support.
   # Rationale in https://github.com/ninja-build/ninja/issues/814
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
+endif()
+
+if(REDUCED_LOCAL_MEM_USAGE)
+  add_definitions(-DREDUCED_LOCAL_MEM_USAGE)
 endif()
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,42 +25,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_OMP_BACKEND_HPP
-#define HIPSYCL_OMP_BACKEND_HPP
 
-#include "../backend.hpp"
-#include "../multi_queue_executor.hpp"
-#include "omp_allocator.hpp"
-#include "omp_hardware_manager.hpp"
+#ifndef HIPSYCL_INORDER_EXECUTOR_HPP
+#define HIPSYCL_INORDER_EXECUTOR_HPP
+
+#include "executor.hpp"
+#include "inorder_queue.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-
-class omp_backend : public backend
+class inorder_executor : public backend_executor
 {
 public:
-  omp_backend();
+  inorder_executor(std::unique_ptr<inorder_queue> q);
 
-  virtual api_platform get_api_platform() const override;
-  virtual hardware_platform get_hardware_platform() const override;
-  virtual backend_id get_unique_backend_id() const override;
-  
-  virtual backend_hardware_manager* get_hardware_manager() const override;
-  virtual backend_executor* get_executor(device_id dev) const override;
-  virtual backend_allocator *get_allocator(device_id dev) const override;
+  virtual ~inorder_executor();
 
-  virtual std::string get_name() const override;
-  
-  virtual ~omp_backend(){}
+  bool is_inorder_queue() const final override;
+  bool is_outoforder_queue() const final override;
+  bool is_taskgraph() const final override;
 
-  std::unique_ptr<backend_executor>
-  create_inorder_executor(device_id dev, int priority) override;
+  virtual void
+  submit_directly(dag_node_ptr node, operation *op,
+                  const std::vector<dag_node_ptr> &reqs) override;
+
+  inorder_queue* get_queue() const;
+
+  bool can_execute_on_device(const device_id& dev) const override;
+  bool is_submitted_by_me(dag_node_ptr node) const override;
 private:
-  mutable omp_allocator _allocator;
-  mutable omp_hardware_manager _hw;
-  mutable multi_queue_executor _executor;
-}; 
+  std::unique_ptr<inorder_queue> _q;
+  std::size_t _num_submitted_operations;
+};
 
 }
 }

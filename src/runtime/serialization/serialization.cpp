@@ -132,7 +132,7 @@ void prefetch_operation::dump(std::ostream& ostr, int indentation) const {
 void memset_operation::dump(std::ostream &ostr, int indentation) const {
   ostr << get_indentation(indentation);
   ostr << "Memset: @" << _ptr << " " << _num_bytes << " bytes of value "
-       << get_pattern();
+       << static_cast<int>(get_pattern());
 }
 
 void memory_location::dump(std::ostream &ostr) const {

@@ -325,6 +325,17 @@ HIPSYCL_BUILTIN T __hipsycl_sin(T x) noexcept {
   return std::sin(x);
 }
 
+template<class T, class FloatPtr>
+HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
+  *cosval = host_builtins::__hipsycl_cos(x);
+  return  host_builtins::__hipsycl_sin(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_sinh(T x) noexcept {
+  return std::sinh(x);
+}
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_sinpi(T x) noexcept {
   return std::sin(x * M_PI);

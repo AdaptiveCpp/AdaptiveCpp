@@ -58,6 +58,9 @@ public:
 
   virtual ~hip_backend(){}
 
+  virtual std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) override;
+
   hip_event_pool* get_event_pool(device_id dev) const;
 private:
   mutable hip_hardware_manager _hw_manager;

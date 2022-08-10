@@ -40,8 +40,8 @@ hip_allocator::hip_allocator(backend_descriptor desc, int hip_device)
 void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
-  auto err = hipSetDevice(_dev);
-  err = hipMalloc(&ptr, size_bytes);
+  hip_device_manager::get().activate_device(_dev);
+  hipError_t err = hipMalloc(&ptr, size_bytes);
 
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
@@ -57,9 +57,9 @@ void *hip_allocator::allocate(size_t min_alignment, size_t size_bytes)
 void *hip_allocator::allocate_optimized_host(size_t min_alignment,
                                              size_t bytes) {
   void *ptr;
-  auto err = hipSetDevice(_dev);
+  hip_device_manager::get().activate_device(_dev);
 
-  err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);
+  hipError_t err = hipHostMalloc(&ptr, bytes, hipHostMallocDefault);
 
   if (err != hipSuccess) {
     register_error(__hipsycl_here(),
@@ -97,6 +97,8 @@ void hip_allocator::free(void *mem) {
 
 void * hip_allocator::allocate_usm(size_t bytes)
 {
+  hip_device_manager::get().activate_device(_dev);
+
   void *ptr;
   auto err = hipMallocManaged(&ptr, bytes);
   if (err != hipSuccess) {

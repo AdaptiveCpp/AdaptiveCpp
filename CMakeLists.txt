@@ -165,6 +165,24 @@ if(BUILD_CLANG_PLUGIN)
   if(NOT EXISTS ${CLANG_INCLUDE_PATH})
     message(SEND_ERROR "clang include path ${CLANG_INCLUDE_PATH} does not exist. Please provide clang's internal include path manually: Find the directory where __clang_cuda_runtime_wrapper.h is. Provide this directory for older ROCm versions and the parent directory for newer ones.")
   endif()
+  if(WITH_ROCM_BACKEND)
+    execute_process(COMMAND ${CLANG_EXECUTABLE_PATH} "--version"
+      OUTPUT_VARIABLE CLANG_VERBOSE_OUTPUT)
+    string(REGEX MATCH "clang version [0-9]+.[0-9]+.[0-9]+ \\(.+ roc-([0-9]+).([0-9]+).([0-9]+)" AMD_CLANG_VERSION ${CLANG_VERBOSE_OUTPUT})
+
+    if(AMD_CLANG_VERSION)
+      set(ROCM_VERSION_MAJOR ${CMAKE_MATCH_1})
+      set(ROCM_VERSION_MINOR ${CMAKE_MATCH_2})
+      set(ROCM_VERSION_PATCH ${CMAKE_MATCH_3})
+      message(STATUS "AMD clang version: ${ROCM_VERSION_MAJOR}.${ROCM_VERSION_MINOR}.${ROCM_VERSION_PATCH}")
+
+      if(${LLVM_VERSION_MAJOR} EQUAL 13 AND NOT DEFINED ${HIPSYCL_NO_DEVICE_MANGLER})
+        message(SEND_ERROR "AMD clang version not compatible with hipSYCL explicit multipass. "
+                           "To disable explicit multipass set -DHIPSYCL_NO_DEVICE_MANGLER=ON. "
+                           "This also disables simultaneous compilation for CUDA and HIP devices.")
+      endif()
+    endif()
+  endif()
   if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
     message(WARNING "clang version to old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
     set(WITH_ACCELERATED_CPU false)

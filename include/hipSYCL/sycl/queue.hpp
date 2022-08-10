@@ -34,7 +34,10 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
-
+#include "hipSYCL/runtime/inorder_executor.hpp"
+#include "hipSYCL/runtime/inorder_queue.hpp"
+#include "hipSYCL/runtime/runtime.hpp"
+#include "hipSYCL/sycl/backend.hpp"
 #include "types.hpp"
 #include "exception.hpp"
 
@@ -108,6 +111,13 @@ class enable_profiling : public detail::property
 
 class hipSYCL_coarse_grained_events : public detail::queue_property
 {};
+
+struct hipSYCL_priority : public detail::queue_property {
+  hipSYCL_priority(int queue_execution_priority)
+  : priority{queue_execution_priority} {}
+
+  int priority;
+};
 
 }
 
@@ -969,6 +979,28 @@ private:
     _lock = std::make_shared<std::mutex>();
     _previous_submission = std::make_shared<std::weak_ptr<rt::dag_node>>();
 
+    if(_is_in_order && get_devices().size() == 1) {
+      int priority = 0;
+      if(this->has_property<property::queue::hipSYCL_priority>()) {
+        priority = this->get_property<property::queue::hipSYCL_priority>().priority;
+      }
+
+      rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
+      // Dedicated executor may not be supported by all backends,
+      // so this might return nullptr.
+      std::shared_ptr<rt::backend_executor> dedicated_executor =
+          _requires_runtime.get()
+              ->backends()
+              .get(rt_dev.get_backend())
+              ->create_inorder_executor(rt_dev, priority);
+      
+      if(dedicated_executor) {
+        _default_hints.add_hint(
+            rt::make_execution_hint<rt::hints::prefer_executor>(
+                dedicated_executor));
+      }
+    }
+
     this->_hooks = detail::queue_submission_hooks_ptr{
           new detail::queue_submission_hooks{}};
   }
@@ -978,7 +1010,8 @@ private:
   {
     return _hooks;
   }
-  
+
+  rt::runtime_keep_alive_token _requires_runtime;  
   detail::queue_submission_hooks_ptr _hooks;
 
   rt::execution_hints _default_hints;
@@ -989,8 +1022,6 @@ private:
   std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
-
-  rt::runtime_keep_alive_token _requires_runtime;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

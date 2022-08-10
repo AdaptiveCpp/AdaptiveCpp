@@ -41,8 +41,8 @@ cuda_allocator::cuda_allocator(backend_descriptor desc, int cuda_device)
 void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
 {
   void *ptr;
-  auto err = cudaSetDevice(_dev);
-  err = cudaMalloc(&ptr, size_bytes);
+  cuda_device_manager::get().activate_device(_dev);
+  cudaError_t err = cudaMalloc(&ptr, size_bytes);
 
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
@@ -58,9 +58,9 @@ void *cuda_allocator::allocate(size_t min_alignment, size_t size_bytes)
 void *cuda_allocator::allocate_optimized_host(size_t min_alignment,
                                              size_t bytes) {
   void *ptr;
-  auto err = cudaSetDevice(_dev);
+  cuda_device_manager::get().activate_device(_dev);
 
-  err = cudaMallocHost(&ptr, bytes);
+  cudaError_t err = cudaMallocHost(&ptr, bytes);
 
   if (err != cudaSuccess) {
     register_error(__hipsycl_here(),
@@ -98,6 +98,8 @@ void cuda_allocator::free(void *mem) {
 
 void * cuda_allocator::allocate_usm(size_t bytes)
 {
+  cuda_device_manager::get().activate_device(_dev);
+  
   void *ptr;
   auto err = cudaMallocManaged(&ptr, bytes);
   if (err != cudaSuccess) {

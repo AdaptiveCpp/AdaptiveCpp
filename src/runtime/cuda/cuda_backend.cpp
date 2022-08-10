@@ -30,6 +30,8 @@
 #include "hipSYCL/runtime/cuda/cuda_backend.hpp"
 #include "hipSYCL/runtime/cuda/cuda_event.hpp"
 #include "hipSYCL/runtime/cuda/cuda_queue.hpp"
+#include "hipSYCL/runtime/inorder_executor.hpp"
+
 
 HIPSYCL_PLUGIN_API_EXPORT
 hipsycl::rt::backend *hipsycl_backend_plugin_create() {
@@ -96,6 +98,14 @@ cuda_event_pool* cuda_backend::get_event_pool(device_id dev) const {
 std::string cuda_backend::get_name() const {
   return "CUDA";
 }
-  
+
+std::unique_ptr<backend_executor>
+cuda_backend::create_inorder_executor(device_id dev, int priority) {
+  std::unique_ptr<inorder_queue> q =
+      std::make_unique<cuda_queue>(this, dev, priority);
+
+  return std::make_unique<inorder_executor>(std::move(q));
+}
+
 }
 }

@@ -29,6 +29,7 @@
 #define HIPSYCL_EXECUTOR_HPP
 
 #include "dag_node.hpp"
+#include "device_id.hpp"
 #include "operations.hpp"
 #include "hints.hpp"
 
@@ -36,7 +37,6 @@
 namespace hipsycl {
 namespace rt {
 
-class dag_direct_scheduler;
 
 struct backend_execution_lane_range
 {
@@ -52,17 +52,12 @@ public:
   virtual bool is_outoforder_queue() const = 0;
   virtual bool is_taskgraph() const = 0;
 
-  // The range of lanes to use for the given device
-  virtual backend_execution_lane_range
-  get_memcpy_execution_lane_range(device_id dev) const = 0;
-
-  // The range of lanes to use for the given device
-  virtual backend_execution_lane_range
-  get_kernel_execution_lane_range(device_id dev) const = 0;
-
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
                   const std::vector<dag_node_ptr> &reqs) = 0;
+
+  virtual bool can_execute_on_device(const device_id& dev) const = 0;
+  virtual bool is_submitted_by_me(dag_node_ptr node) const = 0;
 
   virtual ~backend_executor(){}
 };

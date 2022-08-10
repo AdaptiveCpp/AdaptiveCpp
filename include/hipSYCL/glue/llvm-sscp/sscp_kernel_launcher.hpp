@@ -35,6 +35,7 @@
 static std::size_t __hipsycl_local_sscp_hcf_object_id;
 static std::size_t __hipsycl_local_sscp_hcf_object_size;
 static const char* __hipsycl_local_sscp_hcf_content;
+static int  __hipsycl_sscp_is_host;
 
 // TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
 // macro. We cannot use this macro directly because it expects

@@ -33,12 +33,15 @@
 #include "hipSYCL/runtime/device_id.hpp"
 
 #include <cassert>
-#include <filesystem>
+
 #ifndef _WIN32
 #include <dlfcn.h>
 #else
 #include <windows.h> 
 #endif
+
+#include HIPSYCL_CXX_FILESYSTEM_HEADER
+namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
 
 namespace {
 
@@ -137,15 +140,15 @@ hipsycl::rt::backend *create_backend(void *plugin_handle) {
   return nullptr;
 }
 
-std::vector<std::filesystem::path> get_plugin_search_paths()
+std::vector<fs::path> get_plugin_search_paths()
 {
-  std::vector<std::filesystem::path> paths;
+  std::vector<fs::path> paths;
 #ifndef _WIN32
   Dl_info info;
   if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
-    paths.emplace_back(std::filesystem::path{info.dli_fname}.parent_path() / "hipSYCL");
+    paths.emplace_back(fs::path{info.dli_fname}.parent_path() / "hipSYCL");
   }
-  const auto install_prefixed_path = std::filesystem::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
+  const auto install_prefixed_path = fs::path{HIPSYCL_INSTALL_PREFIX} / "lib" / "hipSYCL";
 #else
   if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
   {
@@ -159,9 +162,9 @@ std::vector<std::filesystem::path> get_plugin_search_paths()
 #endif
 
   if(paths.empty()
-      || !std::filesystem::is_directory(paths.back())
-      || (std::filesystem::is_directory(install_prefixed_path)
-          && !std::filesystem::equivalent(install_prefixed_path, paths.back())))
+      || !fs::is_directory(paths.back())
+      || (fs::is_directory(install_prefixed_path)
+          && !fs::equivalent(install_prefixed_path, paths.back())))
     paths.emplace_back(std::move(install_prefixed_path));
   return paths;
 }
@@ -191,7 +194,7 @@ namespace hipsycl {
 namespace rt {
 
 void backend_loader::query_backends() {
-  std::vector<std::filesystem::path> backend_lib_paths = get_plugin_search_paths();
+  std::vector<fs::path> backend_lib_paths = get_plugin_search_paths();
 
 #ifdef __APPLE__
   std::string shared_lib_extension = ".dylib";
@@ -201,8 +204,8 @@ void backend_loader::query_backends() {
   std::string shared_lib_extension = ".so";
 #endif
 
-  for(const std::filesystem::path& backend_lib_path : backend_lib_paths) {
-    if(!std::filesystem::is_directory(backend_lib_path)) {
+  for(const fs::path& backend_lib_path : backend_lib_paths) {
+    if(!fs::is_directory(backend_lib_path)) {
       HIPSYCL_DEBUG_INFO << "backend_loader: Backend lib search path candidate does not exists: "
                         << backend_lib_path << std::endl;
       continue;
@@ -211,10 +214,10 @@ void backend_loader::query_backends() {
     HIPSYCL_DEBUG_INFO << "backend_loader: Searching path for backend libs: '"
                       << backend_lib_path << "'" << std::endl;
 
-    for (const std::filesystem::directory_entry &entry :
-        std::filesystem::directory_iterator(backend_lib_path)) {
+    for (const fs::directory_entry &entry :
+        fs::directory_iterator(backend_lib_path)) {
 
-      if (entry.is_regular_file()) {
+      if(fs::is_regular_file(entry.status())){
         auto p = entry.path();
         if (p.extension().string() == shared_lib_extension) {
           std::string backend_name;

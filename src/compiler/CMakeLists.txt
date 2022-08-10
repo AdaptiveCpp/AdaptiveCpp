@@ -39,7 +39,10 @@ endif()
 set(WITH_SSCP_COMPILER true)
 
 if(WITH_SSCP_COMPILER)
-  set(SSCP_COMPILER sscp/KernelOutliningAnalysisPass.cpp)
+  set(SSCP_COMPILER 
+    sscp/KernelOutliningAnalysisPass.cpp
+    sscp/IRConstantReplacer.cpp
+    sscp/TargetSeparationPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
 else()
   set(SSCP_COMPILER "")
@@ -60,7 +63,10 @@ target_include_directories(hipSYCL_clang PRIVATE
 
 target_compile_definitions(hipSYCL_clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  
+
+if(ROCM_VERSION_MAJOR)
+  target_compile_definitions(hipSYCL_clang PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
+endif()
 if(HIPSYCL_NO_DEVICE_MANGLER)
   target_compile_definitions(hipSYCL_clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
 endif()

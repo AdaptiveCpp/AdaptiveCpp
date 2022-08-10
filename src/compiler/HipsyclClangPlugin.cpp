@@ -36,7 +36,7 @@
 #endif
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-#include "hipSYCL/compiler/sscp/KernelOutliningAnalysisPass.hpp"
+#include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
 #endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
@@ -107,9 +107,10 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           });
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-          PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
-            MAM.registerPass([] { return KernelOutliningAnalysis{}; });
-          });
+          PB.registerPipelineStartEPCallback(
+              [&](llvm::ModulePassManager &MPM, OptLevel Level) {
+                MPM.addPass(TargetSeparationPass{});
+              });
 #endif
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU

@@ -71,7 +71,7 @@ private:
 class cuda_queue : public inorder_queue
 {
 public:
-  cuda_queue(cuda_backend* be, device_id dev);
+  cuda_queue(cuda_backend* be, device_id dev, int priority = 0);
 
   CUstream_st* get_stream() const;
 

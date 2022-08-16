@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_KERNEL_OUTLINING_ANALYSIS_PASS_HPP
-#define HIPSYCL_KERNEL_OUTLINING_ANALYSIS_PASS_HPP
+#ifndef HIPSYCL_KERNEL_OUTLINING_PASS_HPP
+#define HIPSYCL_KERNEL_OUTLINING_PASS_HPP
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
@@ -35,10 +35,8 @@
 namespace hipsycl {
 namespace compiler {
 
-class KernelOutliningAnalysis : public llvm::AnalysisInfoMixin<KernelOutliningAnalysis> {
-  friend llvm::AnalysisInfoMixin<KernelOutliningAnalysis>;
-  static llvm::AnalysisKey Key;
-
+//  Removes all code not belonging to kernels
+class KernelOutliningPass : public llvm::PassInfoMixin<KernelOutliningPass>{
 public:
 
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);

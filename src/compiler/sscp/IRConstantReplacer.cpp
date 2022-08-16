@@ -28,6 +28,7 @@
 
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include <climits>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -54,7 +55,10 @@ void setStringConstant(llvm::Module &M, llvm::GlobalVariable &Var, const std::st
   Var.setConstant(true);
   Var.setExternallyInitialized(false);
 
-  llvm::Constant *Str = llvm::ConstantDataArray::getString(M.getContext(), value.c_str(), true);
+  llvm::StringRef RawData {value};
+
+  llvm::Constant *Str =
+      llvm::ConstantDataArray::getRaw(RawData, value.size(), llvm::Type::getInt8Ty(M.getContext()));
   Var.setInitializer(Str);
 }
 }

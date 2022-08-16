@@ -40,7 +40,7 @@ set(WITH_SSCP_COMPILER true)
 
 if(WITH_SSCP_COMPILER)
   set(SSCP_COMPILER 
-    sscp/KernelOutliningAnalysisPass.cpp
+    sscp/KernelOutliningPass.cpp
     sscp/IRConstantReplacer.cpp
     sscp/TargetSeparationPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)

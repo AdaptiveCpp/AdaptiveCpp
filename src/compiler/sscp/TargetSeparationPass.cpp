@@ -28,36 +28,38 @@
 
 #include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
+#include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/common/hcf_container.hpp"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar/DCE.h>
 #include <llvm/Transforms/Scalar/SCCP.h>
 
+#include <string>
+#include <system_error>
+
 namespace hipsycl {
 namespace compiler {
 
-static std::size_t __hipsycl_local_sscp_hcf_object_id;
-static std::size_t __hipsycl_local_sscp_hcf_object_size;
-static const char* __hipsycl_local_sscp_hcf_content;
-static int  __hipsycl_sscp_is_host;
 
 void removeSuperfluousBranches(llvm::Module& M, llvm::ModuleAnalysisManager& MAM) {
-
+  
   for(auto& F: M.getFunctionList()) {
     llvm::FunctionAnalysisManager FM;
+    FM.clear();
     llvm::DCEPass dce;
     llvm::SCCPPass sccp;
-
+    
     sccp.run(F, FM);
     dce.run(F, FM);
   }
 }
 
-std::string generateHCFKernels(llvm::Module& M,
-                              llvm::ModuleAnalysisManager& MAM,
-                              std::size_t HcfObjectId) {
+void stripToDeviceCode(llvm::Module &M, llvm::ModuleAnalysisManager &MAM, std::size_t HcfObjectId) {
   IRConstantReplacer DeviceSideReplacer {
     {{"__hipsycl_sscp_is_host", 0}},
     {{"__hipsycl_local_sscp_hcf_object_id", 0 /* Dummy value */},
@@ -67,17 +69,43 @@ std::string generateHCFKernels(llvm::Module& M,
 
   DeviceSideReplacer.run(M, MAM);
 
-  //removeSuperfluousBranches(M, MAM);
+  removeSuperfluousBranches(M, MAM);
 
-  return "This is an HCF string";
+  KernelOutliningPass KP;
+  KP.run(M, MAM);
+}
+
+std::string generateHCFKernels(llvm::Module& DeviceModule,
+                              llvm::ModuleAnalysisManager& MAM,
+                              std::size_t HcfObjectId) {
+
+  std::string ModuleContent;
+  llvm::raw_string_ostream OutputStream{ModuleContent};
+  llvm::WriteBitcodeToFile(DeviceModule, OutputStream);
+
+  // Debug purposes
+  std::error_code EC;
+  llvm::raw_fd_ostream test_out{"test.bc", EC};
+  llvm::WriteBitcodeToFile(DeviceModule, test_out);
+  test_out.close();
+
+  common::hcf_container HcfObject;
+  HcfObject.root_node()->set("object-id", std::to_string(HcfObjectId));
+  HcfObject.root_node()->set("generator", "hipSYCL SSCP/clang");
+  auto* LLVMIRNode = HcfObject.root_node()->add_subnode("format.llvm-ir");
+  HcfObject.attach_binary_content(LLVMIRNode, ModuleContent);
+
+  return HcfObject.serialize();
 }
 
 llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
                                                   llvm::ModuleAnalysisManager &MAM) {
 
-  std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
-
   std::size_t HcfObjectId = 0; // TODO
+
+  std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
+  stripToDeviceCode(*DeviceModule, MAM, HcfObjectId);
+
   std::string HcfString = generateHCFKernels(*DeviceModule, MAM, HcfObjectId); 
 
   IRConstantReplacer HostSideReplacer {
@@ -88,7 +116,7 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
   };
 
   HostSideReplacer.run(M, MAM);
-
+  
   removeSuperfluousBranches(M, MAM);
 
   return llvm::PreservedAnalyses::none();

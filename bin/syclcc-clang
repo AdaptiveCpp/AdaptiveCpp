@@ -1515,7 +1515,7 @@ class llvm_sscp_invocation:
 
   def get_cxx_flags(self):
     flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
-            "-Xclang", "-disable-O0-optnone"]
+            "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
 
     if not sys.platform.startswith("win32"):
       flags += [

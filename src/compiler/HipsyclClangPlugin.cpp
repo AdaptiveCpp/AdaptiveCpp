@@ -44,9 +44,16 @@
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/CommandLine.h"
+
 
 namespace hipsycl {
 namespace compiler {
+
+static llvm::cl::opt<bool> EnableLLVMSSCP{
+    "hipsycl-sscp", llvm::cl::init(false),
+    llvm::cl::desc{"Enable hipSYCL LLVM SSCP compilation flow"}};
+
 // Register and activate passes
 
 static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction>
@@ -107,10 +114,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           });
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
-          PB.registerPipelineStartEPCallback(
-              [&](llvm::ModulePassManager &MPM, OptLevel Level) {
-                MPM.addPass(TargetSeparationPass{});
-              });
+          if(EnableLLVMSSCP){
+            PB.registerPipelineStartEPCallback(
+                [&](llvm::ModulePassManager &MPM, OptLevel Level) {
+                  MPM.addPass(TargetSeparationPass{});
+                });
+          }
 #endif
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU

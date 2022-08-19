@@ -30,12 +30,15 @@
 
 #include "hipSYCL/glue/generic/code_object.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
-
-// These variables need to be initialized by the clang plugin.
-static std::size_t __hipsycl_local_sscp_hcf_object_id;
-static std::size_t __hipsycl_local_sscp_hcf_object_size;
-static const char* __hipsycl_local_sscp_hcf_content;
-static int  __hipsycl_sscp_is_host;
+#include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/item.hpp"
+#include "hipSYCL/sycl/libkernel/nd_item.hpp"
+#include "hipSYCL/sycl/libkernel/sp_item.hpp"
+#include "hipSYCL/sycl/libkernel/sp_group.hpp"
+#include "hipSYCL/sycl/libkernel/group.hpp"
+#include "ir_constants.hpp"
 
 // TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
 // macro. We cannot use this macro directly because it expects
@@ -70,6 +73,90 @@ kernel_parallel_for(const KernelType& kernel) {
 }
 
 }
+
+
+class sscp_kernel_launcher : public rt::backend_kernel_launcher
+{
+public:
+
+  sscp_kernel_launcher() {}
+  virtual ~sscp_kernel_launcher(){}
+
+  virtual void set_params(void*) override {}
+
+  template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
+            typename... Reductions>
+  void bind(sycl::id<Dim> offset, sycl::range<Dim> global_range,
+            sycl::range<Dim> local_range, std::size_t dynamic_local_memory,
+            Kernel k, Reductions... reductions) {
+
+    this->_type = type;
+    this->_invoker = [=] (rt::dag_node* node) mutable {
+
+      static_cast<rt::kernel_operation *>(node->get_operation())
+          ->initialize_embedded_pointers(k, reductions...);
+
+      bool is_with_offset = false;
+      for (std::size_t i = 0; i < Dim; ++i)
+        if (offset[i] != 0)
+          is_with_offset = true;
+
+      auto get_grid_range = [&]() {
+        for (int i = 0; i < Dim; ++i){
+          if (global_range[i] % local_range[i] != 0) {
+            rt::register_error(__hipsycl_here(),
+                               rt::error_info{"sscp_dispatch: global range is "
+                                              "not divisible by local range"});
+          }
+        }
+
+        return global_range / local_range;
+      };
+
+      if constexpr(type == rt::kernel_type::single_task){
+
+        sscp_dispatch::kernel_single_task(k);
+
+      } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
+
+        
+
+      } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
+
+
+      } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
+
+      } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
+
+        
+      } else if constexpr (type == rt::kernel_type::custom) {
+        // TODO
+      }
+      else {
+        assert(false && "Unsupported kernel type");
+      }
+
+    };
+  }
+
+  virtual rt::backend_id get_backend() const final override {
+    // TODO
+    return rt::backend_id::omp;
+  }
+
+  virtual void invoke(rt::dag_node* node) final override {
+    _invoker(node);
+  }
+
+  virtual rt::kernel_type get_kernel_type() const final override {
+    return _type;
+  }
+
+private:
+
+  std::function<void (rt::dag_node*)> _invoker;
+  rt::kernel_type _type;
+};
 
 
 }

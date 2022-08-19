@@ -52,6 +52,10 @@
 #include "ze/ze_kernel_launcher.hpp"
 #endif
 
+#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#include "llvm-sscp/sscp_kernel_launcher.hpp"
+#endif
+
 namespace hipsycl {
 namespace glue {
 
@@ -90,6 +94,15 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
 #ifdef __HIPSYCL_ENABLE_SPIRV_TARGET__
   {
     auto launcher = std::make_unique<ze_kernel_launcher>();
+    launcher->bind<name_traits, Type>(offset, global_range, local_range,
+                                      dynamic_local_memory, k, reductions...);
+    launchers.emplace_back(std::move(launcher));
+  }
+#endif
+
+#ifdef __HIPSYCL_ENABLE_LLVM_SSCP_TARGET__
+  {
+    auto launcher = std::make_unique<sscp_kernel_launcher>();
     launcher->bind<name_traits, Type>(offset, global_range, local_range,
                                       dynamic_local_memory, k, reductions...);
     launchers.emplace_back(std::move(launcher));

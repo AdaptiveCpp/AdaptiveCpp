@@ -41,6 +41,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
     if(F && (Annotation.compare(SSCPKernelMarker) == 0)) {
       HIPSYCL_DEBUG_INFO << "Found SSCP Kernel entrypoint: " << F->getName() << "\n";
       SSCPKernels.insert(F);
+      this->KernelNames.push_back(F->getName().str());
     }
   });
 

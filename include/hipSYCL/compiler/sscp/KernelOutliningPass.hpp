@@ -31,6 +31,7 @@
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <vector>
 
 namespace hipsycl {
 namespace compiler {
@@ -41,8 +42,11 @@ public:
 
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
 
+  const std::vector<std::string>& getKernelNames() const {
+    return KernelNames;
+  }
 private:
-  std::unordered_map<std::string, llvm::Module> Kernels;
+  std::vector<std::string> KernelNames;
 };
 
 

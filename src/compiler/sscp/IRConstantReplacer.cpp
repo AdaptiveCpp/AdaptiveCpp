@@ -44,7 +44,7 @@ template<class IntT>
 void setIntConstant(llvm::Module& M, llvm::GlobalVariable& Var, IntT Value) {
   Var.setConstant(true);
   Var.setExternallyInitialized(false);
-
+  
   bool isSigned = std::is_signed_v<IntT>;
   int nBits = sizeof(IntT) * CHAR_BIT;
   llvm::ConstantInt *C = llvm::ConstantInt::get(M.getContext(), llvm::APInt(nBits, Value, isSigned));

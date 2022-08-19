@@ -1483,7 +1483,7 @@ class llvm_sscp_invocation:
 
   @property
   def unique_name(self):
-    return "llvm"
+    return "sscp"
 
   @property
   def is_integrated_multipass(self):
@@ -1498,7 +1498,7 @@ class llvm_sscp_invocation:
     self._cxx_flags = config.omp_cxx_flags
 
     if len(targets) != 0:
-      raise RuntimeError("llvm sscp backend does not support specifiying target architecture")
+      raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
 
     self._clang_path = config.clang_path
 
@@ -1514,7 +1514,9 @@ class llvm_sscp_invocation:
     }
 
   def get_cxx_flags(self):
-    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__"]
+    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
+            "-Xclang", "-disable-O0-optnone"]
+
     if not sys.platform.startswith("win32"):
       flags += [
         "-fplugin=" + config.hipsycl_plugin_path
@@ -1603,6 +1605,8 @@ class compiler:
       elif backend == 'spirv':
         self._multipass_backends.append(
           spirv_multipass_invocation(config))
+      elif backend == 'sscp' or backend == 'generic':
+        self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
       else:
         raise RuntimeError("Unknown backend: " + backend)
 

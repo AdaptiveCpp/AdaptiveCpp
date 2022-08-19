@@ -64,23 +64,6 @@ static const char *SscpHcfObjectSizeIdentifier = "__hipsycl_local_sscp_hcf_objec
 static const char *SscpHcfContentIdentifier = "__hipsycl_local_sscp_hcf_content";
 
 template<class IntT>
-class random {
-public:
-  static IntT generate() {
-
-  }
-
-private:
-  random() : Rng{Dev()} {
-
-  }
-
-  std::random_device Dev;
-  std::mt19937 Rng;
-  std::mutex Mutex;
-};
-
-template<class IntT>
 IntT generateRandomNumber() {
   static std::mutex M;
   static std::random_device Dev;

@@ -36,8 +36,6 @@ else()
   set(CBS_PLUGIN "")
 endif()
 
-set(WITH_SSCP_COMPILER true)
-
 if(WITH_SSCP_COMPILER)
   set(SSCP_COMPILER 
     sscp/KernelOutliningPass.cpp

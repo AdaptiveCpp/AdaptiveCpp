@@ -41,14 +41,21 @@
 #include <llvm/Transforms/Scalar/ADCE.h>
 #include <llvm/Transforms/Scalar/SCCP.h>
 #include <llvm/Transforms/Utils/Mem2Reg.h>
+#include <llvm/Support/CommandLine.h>
 
 #include <memory>
 #include <string>
-#include <system_error>
+#include <fstream>
 #include <random>
+
 
 namespace hipsycl {
 namespace compiler {
+
+static llvm::cl::opt<bool> SSCPEmitHcf{
+    "hipsycl-sscp-emit-hcf", llvm::cl::init(false),
+    llvm::cl::desc{"Emit HCF from hipSYCL LLVM SSCP compilation flow"}};
+
 
 static const char *SscpIsHostIdentifier = "__hipsycl_sscp_is_host";
 static const char *SscpIsDeviceIdentifier = "__hipsycl_sscp_is_device";
@@ -128,12 +135,6 @@ std::string generateHCF(llvm::Module& DeviceModule,
   llvm::raw_string_ostream OutputStream{ModuleContent};
   llvm::WriteBitcodeToFile(DeviceModule, OutputStream);
 
-  // Debug purposes
-  std::error_code EC;
-  llvm::raw_fd_ostream test_out{"test.bc", EC};
-  llvm::WriteBitcodeToFile(DeviceModule, test_out);
-  test_out.close();
-
   common::hcf_container HcfObject;
   HcfObject.root_node()->set("object-id", std::to_string(HcfObjectId));
   HcfObject.root_node()->set("generator", "hipSYCL SSCP");
@@ -171,6 +172,13 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     std::unique_ptr<llvm::Module> DeviceIR = generateDeviceIR(M, KernelNames);
 
     HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames); 
+
+    if(SSCPEmitHcf) {
+      std::string Filename = M.getSourceFileName()+".hcf";
+      std::ofstream OutputFile{Filename.c_str(), std::ios::trunc|std::ios::binary};
+      OutputFile.write(HcfString.c_str(), HcfString.size());
+      OutputFile.close();
+    }
   }
 
   IRConstantReplacer HostSideReplacer{

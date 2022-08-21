@@ -393,7 +393,7 @@ public:
       }
     }
 
-    for(auto* F : HostNDKernels) {
+    auto MakeKernelsNoexcept = [&](clang::FunctionDecl* F) {
       detail::CompleteCallSet CCS(F);
       for (auto &D : CCS.getReachableDecls()) {
         if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
@@ -402,6 +402,13 @@ public:
           D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
         }
       }
+    };
+
+    for(auto* F : HostNDKernels) {
+      MakeKernelsNoexcept(F);
+    }
+    for(auto* F : SSCPKernels) {
+      MakeKernelsNoexcept(F);
     }
   }
 
@@ -429,6 +436,7 @@ private:
   std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
 
   std::unordered_set<clang::FunctionDecl*> HostNDKernels;
+  std::unordered_set<clang::FunctionDecl*> SSCPKernels;
 
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
   // Only used on clang 13+. Name mangler that takes into account
@@ -448,6 +456,11 @@ private:
   void markAsNDKernel(clang::FunctionDecl* F)
   {
     this->HostNDKernels.insert(F);
+  }
+
+  void markAsSSCPKernel(clang::FunctionDecl* F)
+  {
+    this->SSCPKernels.insert(F);
   }
 
   void processFunctionDecl(clang::FunctionDecl* f)
@@ -471,6 +484,8 @@ private:
     if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
       if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
         markAsNDKernel(f);
+      } else if(AAttr->getAnnotation() == "hipsycl_sscp_kernel") {
+        markAsSSCPKernel(f);
       }
     }
   }

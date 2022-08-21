@@ -33,9 +33,12 @@
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Scalar/ADCE.h>
@@ -56,6 +59,11 @@ static llvm::cl::opt<bool> SSCPEmitHcf{
     "hipsycl-sscp-emit-hcf", llvm::cl::init(false),
     llvm::cl::desc{"Emit HCF from hipSYCL LLVM SSCP compilation flow"}};
 
+static llvm::cl::opt<bool> PreoptimizeSSCPKernels{
+    "hipsycl-sscp-preoptimize", llvm::cl::init(false),
+    llvm::cl::desc{
+        "Preoptimize SYCL kernels in LLVM IR instead of embedding unoptimized kernels and relying "
+        "on optimization at runtime."}};
 
 static const char *SscpIsHostIdentifier = "__hipsycl_sscp_is_host";
 static const char *SscpIsDeviceIdentifier = "__hipsycl_sscp_is_device";
@@ -74,6 +82,7 @@ IntT generateRandomNumber() {
   return dist(Rng);
 }
 
+// This should only be used for the host IR
 void removeSuperfluousBranches(llvm::Module& M, llvm::ModuleAnalysisManager& MAM) {
 
   auto PromoteAdaptor = llvm::createModuleToFunctionPassAdaptor(llvm::PromotePass{});
@@ -89,8 +98,19 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                std::vector<std::string> &KernelNamesOutput) {
 
   std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
-
+  DeviceModule->setModuleIdentifier("device." + DeviceModule->getModuleIdentifier());
+  
+  llvm::LoopAnalysisManager LAM;
+  llvm::FunctionAnalysisManager FAM;
+  llvm::CGSCCAnalysisManager CGAM;
   llvm::ModuleAnalysisManager DeviceMAM;
+  llvm::PassBuilder PB;
+  PB.registerModuleAnalyses(DeviceMAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
+
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
   // SscpIsHostIdentifier can also be used in device code.
@@ -98,14 +118,22 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       {{SscpIsHostIdentifier, 0}, {SscpIsDeviceIdentifier, 1}},
       {{SscpHcfContentIdentifier, 0 /* Dummy value */}, {SscpHcfObjectSizeIdentifier, 0}},
       {{SscpHcfContentIdentifier, std::string{}}}};
-
   DeviceSideReplacer.run(*DeviceModule, DeviceMAM);
 
-  //removeSuperfluousBranches(*DeviceModule, DeviceMAM);
+  removeSuperfluousBranches(*DeviceModule, DeviceMAM);
+
+  if(!PreoptimizeSSCPKernels) {
+    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
+    MPM.run(*DeviceModule, DeviceMAM);
+  } else {
+    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+    MPM.run(*DeviceModule, DeviceMAM);
+  }
 
   KernelOutliningPass KP;
   KP.run(*DeviceModule, DeviceMAM);
   KernelNamesOutput = KP.getKernelNames();
+
 
   return std::move(DeviceModule);
 }

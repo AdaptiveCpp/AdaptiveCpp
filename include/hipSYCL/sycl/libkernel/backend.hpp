@@ -32,6 +32,9 @@
 #include "cuda/cuda_backend.hpp"
 #include "hip/hip_backend.hpp"
 #include "spirv/spirv_backend.hpp"
+// These need to be included last, since they need to
+// know if we are in any device pass of the other backends.
+#include "sscp/sscp_backend.hpp"
 #include "host/host_backend.hpp"
 
 // define (legacy?) platform identification macros
@@ -48,13 +51,19 @@
  #define HIPSYCL_PLATFORM_SPIRV
 #endif
 
+#if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
+ #define HIPSYCL_PLATFORM_SSCP
+ #define HIPSYCL_PLATFORM_LLVM
+#endif
+
 #ifndef HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
  #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 0
 #endif
 
 #if HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP ||                                 \
     HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA ||                                \
-    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV
+    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SPIRV ||                               \
+    HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 1
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_DEVICE 0
@@ -141,6 +150,11 @@
  #define __hipsycl_if_target_spirv(...) __hipsycl_if_target_device(__VA_ARGS__)
 #else
  #define __hipsycl_if_target_spirv(...)
+#endif
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+ #define __hipsycl_if_target_sscp(...) __hipsycl_if_target_device(__VA_ARGS__)
+#else
+ #define __hipsycl_if_target_sscp(...)
 #endif
 
 #define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \

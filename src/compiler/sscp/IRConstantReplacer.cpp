@@ -31,6 +31,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/PassManager.h>
 #include <type_traits>
@@ -44,6 +45,7 @@ template<class IntT>
 void setIntConstant(llvm::Module& M, llvm::GlobalVariable& Var, IntT Value) {
   Var.setConstant(true);
   Var.setExternallyInitialized(false);
+  Var.setLinkage(llvm::GlobalValue::InternalLinkage);
   
   bool isSigned = std::is_signed_v<IntT>;
   int nBits = sizeof(IntT) * CHAR_BIT;
@@ -54,6 +56,7 @@ void setIntConstant(llvm::Module& M, llvm::GlobalVariable& Var, IntT Value) {
 void setStringConstant(llvm::Module &M, llvm::GlobalVariable &Var, const std::string &value) {
   Var.setConstant(true);
   Var.setExternallyInitialized(false);
+  Var.setLinkage(llvm::GlobalValue::InternalLinkage);
 
   llvm::StringRef RawData {value};
 

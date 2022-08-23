@@ -142,7 +142,7 @@ private:
               _my_group_region, [&, this](sycl::id<Dim> group_id) {
                 if (current_group >= master_offset) {
                   barrier();
-                  execute_work_item(local_id, group_id + master_offset);
+                  execute_work_item(local_id, group_id);
                 }
                 ++current_group;
               });

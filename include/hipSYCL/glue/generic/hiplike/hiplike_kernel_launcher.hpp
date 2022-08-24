@@ -871,8 +871,8 @@ public:
     };
   }
 
-  virtual rt::backend_id get_backend() const final override {
-    return Backend_id;
+  virtual int get_backend_score(rt::backend_id b) const final override {
+    return (b == Backend_id) ? 2 : -1;
   }
 
   virtual void invoke(rt::dag_node* node) final override {

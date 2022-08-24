@@ -74,6 +74,9 @@ kernel_parallel_for(const KernelType& kernel) {
 
 }
 
+#define __hipsycl_invoke_kernel(f, ...)                                        \
+  if (__hipsycl_sscp_is_device)                                                \
+    f(__VA_ARGS__);
 
 class sscp_kernel_launcher : public rt::backend_kernel_launcher
 {
@@ -139,9 +142,13 @@ public:
     };
   }
 
-  virtual rt::backend_id get_backend() const final override {
-    // TODO
-    return rt::backend_id::omp;
+  virtual int get_backend_score(rt::backend_id b) const final override {
+    // The other backends return 2 for exact matches,
+    // so this means that SSCP is currently preferred when no
+    // other exactly matching backend kernel launcher was found.
+    // TODO: Should we prevent selection of SSCP if the backend
+    // does not support SSCP runtime compilation?
+    return 1;
   }
 
   virtual void invoke(rt::dag_node* node) final override {
@@ -162,6 +169,7 @@ private:
 }
 }
 
+#undef __hipsycl_invoke_kernel
 #undef __sycl_kernel
 
 #endif

@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_KERNEL_LAUNCHER_HPP
 
+#include <limits>
 #include <vector>
 #include <memory>
 
@@ -56,7 +57,7 @@ class backend_kernel_launcher
 public:
   virtual ~backend_kernel_launcher(){}
 
-  virtual backend_id get_backend() const = 0;
+  virtual int get_backend_score(backend_id b) const = 0;
   virtual kernel_type get_kernel_type() const = 0;
   virtual void set_params(void*) = 0;
   virtual void invoke(dag_node* node) = 0;
@@ -77,16 +78,23 @@ public:
   }
 
   backend_kernel_launcher* find_launcher(backend_id id) const {
+    int max_score = -1;
+    backend_kernel_launcher* selected_launcher = nullptr;
+
     for (auto &backend_launcher : _kernels) {
-      if (backend_launcher->get_backend() == id) {
-        return backend_launcher.get();
+      int score = backend_launcher->get_backend_score(id);
+      if (score >= 0 && score > max_score) {
+        max_score = score;
+        selected_launcher = backend_launcher.get();
       }
     }
-    register_error(
-        __hipsycl_here(),
-        error_info{"No kernel launcher is present for requested backend",
-                   error_type::invalid_parameter_error});
-    return nullptr;
+    if(!selected_launcher){
+      register_error(
+          __hipsycl_here(),
+          error_info{"No kernel launcher is present for requested backend",
+                    error_type::invalid_parameter_error});
+    }
+    return selected_launcher;
   }
 
 private:

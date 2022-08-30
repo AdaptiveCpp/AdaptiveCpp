@@ -31,9 +31,13 @@
 #include <llvm/IR/Module.h>
 #include <memory>
 #include <cassert>
+#include <vector>
 
 namespace hipsycl {
 namespace compiler {
+
+LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
+    : KernelNames{KN} {}
 
 bool LLVMToSpirvTranslator::fullTransformation(const std::string &LLVMIR, std::string &out) {
   llvm::LLVMContext ctx;

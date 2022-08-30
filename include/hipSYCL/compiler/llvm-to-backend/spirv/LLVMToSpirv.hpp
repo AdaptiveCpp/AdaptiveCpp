@@ -31,18 +31,23 @@
 
 #include "../LLVMToBackend.hpp"
 
+#include <vector>
+#include <string>
 
 namespace hipsycl {
 namespace compiler {
 
 class LLVMToSpirvTranslator : public LLVMToBackendTranslator{
 public:
-  
+  LLVMToSpirvTranslator(const std::vector<std::string>& KernelNames);
+
   virtual ~LLVMToSpirvTranslator() {}
 
   virtual bool fullTransformation(const std::string &LLVMIR, std::string &out) override;
   virtual bool toBackendFlavor(llvm::Module &M) override;
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
+private:
+  std::vector<std::string> KernelNames;
 };
 
 }

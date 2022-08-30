@@ -94,3 +94,5 @@ install(TARGETS hipSYCL_clang
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib)
+
+add_subdirectory(llvm-to-backend)

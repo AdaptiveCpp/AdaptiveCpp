@@ -34,15 +34,32 @@
 #include <fstream>
 #include <functional>
 #include "LLVMToBackend.hpp"
+#include "hipSYCL/common/hcf_container.hpp"
 
 namespace hipsycl {
 namespace compiler {
+namespace translation_tool {
+
+inline bool getHcfKernelNames(const hipsycl::common::hcf_container &HCF,
+                              std::vector<std::string> &KernelNamesOut) {
+  if(!HCF.root_node())
+    return false;
+  
+  auto* KernelsNode = HCF.root_node()->get_subnode("kernels");
+  if(!KernelsNode)
+    return false;
+
+  KernelNamesOut = KernelsNode->get_subnodes();
+  return true;
+}
 
 using TranslatorFactory =
-    std::function<std::unique_ptr<hipsycl::compiler::LLVMToBackendTranslator>()>;
+    std::function<std::unique_ptr<hipsycl::compiler::LLVMToBackendTranslator>(
+      const hipsycl::common::hcf_container& HCF
+    )>;
 
 inline void help() {
-  std::cout << "Usage: llvm-to-<backend> <inputfile> <outputfile>"
+  std::cout << "Usage: llvm-to-<backend> <HCF inputfile> <outputfile> <device-image-name>"
             << std::endl;
 }
 
@@ -81,7 +98,7 @@ inline bool writeFile(const std::string& Filename, const std::string& Data){
 
 inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&createTranslator) {
 
-  if(argc < 3) {
+  if(argc < 4) {
     help();
     return -1;
   }
@@ -95,15 +112,38 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
 
   std::string InputFile = argv[1];
   std::string OutputFile = argv[2];
+  std::string ImageName = argv[3];
 
-  auto Translator = createTranslator();
-
-  std::string Input, Output;
-  if(!readFile(InputFile, Input)) {
+  std::string HcfInput, Output;
+  if(!readFile(InputFile, HcfInput)) {
     std::cout << "Could not open file: " << InputFile << std::endl;
   }
 
-  if(!Translator->fullTransformation(Input, Output)){
+  common::hcf_container HCF{HcfInput};
+  auto* ImgNode = HCF.root_node()->get_subnode("images");
+  if(!ImgNode) {
+    std::cout << "Invalid HCF: Could not find 'images' node" << std::endl;
+    return -1;
+  }
+  ImgNode = ImgNode->get_subnode(ImageName);
+  if(!ImgNode) {
+    std::cout << "Invalid HCF: Could not find specified device image node" << std::endl;
+    return -1;
+  }
+  if(!ImgNode->has_binary_data_attached()){
+    std::cout << "Invalid HCF: Specified node has no data attached to it." << std::endl;
+    return -1;
+  }
+
+  std::string IR;
+  HCF.get_binary_attachment(ImgNode, IR);
+
+  auto Translator = createTranslator(HCF);
+  if(!Translator) {
+    std::cout << "Could not construct backend translation object." << std::endl;
+    return -1;
+  }
+  if(!Translator->fullTransformation(IR, Output)){
     std::cout << "Transformation failed." << std::endl;
     if(!Translator->getErrorLog().empty()) {
       std::cout << "The following issues have been encountered:" << std::endl;
@@ -121,6 +161,7 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
   return 0;
 }
 
+}
 }
 }
 

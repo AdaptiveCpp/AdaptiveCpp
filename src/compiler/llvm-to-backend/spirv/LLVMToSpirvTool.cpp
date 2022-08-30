@@ -25,16 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackendTool.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include <memory>
 
+namespace tool = hipsycl::compiler::translation_tool;
+
 std::unique_ptr<hipsycl::compiler::LLVMToBackendTranslator>
-createSpirvTranslator() {
-  return std::make_unique<hipsycl::compiler::LLVMToSpirvTranslator>();
+createSpirvTranslator(const hipsycl::common::hcf_container& HCF) {
+  std::vector<std::string> KernelNames;
+  if(!tool::getHcfKernelNames(HCF, KernelNames)) {
+    return nullptr;
+  }
+  return std::make_unique<hipsycl::compiler::LLVMToSpirvTranslator>(KernelNames);
 }
 
 int main(int argc, char* argv[]) {
-  return hipsycl::compiler::LLVMToBackendToolMain(argc, argv, createSpirvTranslator);
+  return tool::LLVMToBackendToolMain(argc, argv, createSpirvTranslator);
 }

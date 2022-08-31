@@ -39,9 +39,13 @@ If you are a student at Heidelberg University and wish to work on hipSYCL, pleas
 
 hipSYCL is a research project. As such, if you use hipSYCL in your research, we kindly request that you cite:
 
+*Aksel Alpay, Bálint Soproni, Holger Wünsche, and Vincent Heuveline. 2022. Exploring the possibility of a hipSYCL-based implementation of oneAPI. In International Workshop on OpenCL (IWOCL'22). Association for Computing Machinery, New York, NY, USA, Article 10, 1–12. https://doi.org/10.1145/3529538.3530005*
+
+or, depending on your focus,
+
 *Aksel Alpay and Vincent Heuveline. 2020. SYCL beyond OpenCL: The architecture, current state and future direction of hipSYCL. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 8, 1. DOI:https://doi.org/10.1145/3388333.3388658*
 
-(This is a talk and available [online](https://www.youtube.com/watch?v=kYrY80J4ZAs). Note that some of the content in this talk is outdated by now)
+(The latter is a talk and available [online](https://www.youtube.com/watch?v=kYrY80J4ZAs). Note that some of the content in this talk is outdated by now)
 
 ### Acknowledgements
 
@@ -56,7 +60,21 @@ hipSYCL has been repeatedly shown to deliver very competitive performance compar
 * *Tom Deakin and Simon McIntosh-Smith. 2020. Evaluating the performance of HPC-style SYCL applications. In Proceedings of the International Workshop on OpenCL (IWOCL ’20). Association for Computing Machinery, New York, NY, USA, Article 12, 1–11. DOI:https://doi.org/10.1145/3388333.3388643*
 
 
-### Benchmarking hipSYCL
+### Extracting performance & benchmarking hipSYCL
+
+#### General performance hints
+
+* Building hipSYCL against newer LLVM generally results in better performance for backends that are relying on LLVM.
+* Unlike other SYCL implementations that may rely on kernel compilation at runtime, hipSYCL relies heavily on ahead-of-time compilation. So make sure to use appropriate optimization flags when compiling.
+* For the CPU backend:
+   * Don't forget that, due to hipSYCL's ahead-of-time compilation nature, you may also want to enable latest vectorization instruction sets when compiling, e.g. using `-march=native`.
+   * Enable OpenMP thread pinning (e.g. `OMP_PROC_BIND=true`). hipSYCL uses asynchronous worker threads for some light-weight tasks such as garbage collection, and these additional threads can interfere with kernel execution if OpenMP threads are not bound to cores.
+   * Don't use `nd_range` parallel for unless you absolutely have to, as it is difficult to map efficiently to CPUs. 
+      * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
+      * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
+      * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](doc/compilation.md) for details.
+
+#### Comparing against other LLVM-based compilers
 
 When targeting the CUDA or HIP backends, hipSYCL just massages the AST slightly to get `clang -x cuda` and `clang -x hip` to accept SYCL code. hipSYCL is not involved in the actual code generation. Therefore *any significant deviation in kernel performance compared to clang-compiled CUDA or clang-compiled HIP is unexpected.*
 

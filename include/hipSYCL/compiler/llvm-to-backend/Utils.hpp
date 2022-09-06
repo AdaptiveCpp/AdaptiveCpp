@@ -35,6 +35,7 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Passes/PassBuilder.h>
 
 namespace hipsycl {
 namespace compiler {
@@ -53,6 +54,23 @@ inline llvm::Error loadModuleFromString(const std::string &LLVMIR, llvm::LLVMCon
 
   return llvm::Error::success();
 }
+
+template<class F>
+inline void constructPassBuilder(F&& handler) {
+  llvm::LoopAnalysisManager LAM;
+  llvm::FunctionAnalysisManager FAM;
+  llvm::CGSCCAnalysisManager CGAM;
+  llvm::ModuleAnalysisManager MAM;
+  llvm::PassBuilder PB;
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  handler(PB, LAM, FAM, CGAM, MAM);
+}
+
 }
 }
 

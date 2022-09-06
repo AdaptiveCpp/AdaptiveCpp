@@ -28,14 +28,35 @@
 #ifndef HIPSYCL_IR_CONSTANTS_HPP
 #define HIPSYCL_IR_CONSTANTS_HPP
 
+#define HIPSYCL_SSCP_STAGE1_IR_CONST extern "C"
+#define HIPSYCL_SSCP_STAGE2_IR_CONST extern "C" inline
 
 // These variables need to be initialized by the clang plugin.
-extern "C" unsigned long long __hipsycl_local_sscp_hcf_object_id;
-extern "C" unsigned long long __hipsycl_local_sscp_hcf_object_size;
-extern "C" const char  __hipsycl_local_sscp_hcf_content [];
+HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
+    __hipsycl_local_sscp_hcf_object_id;
 
-extern "C" int  __hipsycl_sscp_is_host;
-extern "C" int  __hipsycl_sscp_is_device;
+HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
+    __hipsycl_local_sscp_hcf_object_size;
 
+HIPSYCL_SSCP_STAGE1_IR_CONST const char __hipsycl_local_sscp_hcf_content[];
+
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_host;
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_device;
+
+
+// TODO We should not initialize here
+HIPSYCL_SSCP_STAGE2_IR_CONST int __hipsycl_sscp_backend = -1;
+
+namespace hipsycl {
+namespace sycl {
+namespace sscp::target {
+
+inline constexpr int spirv = 0;
+inline constexpr int ptx = 1;
+inline constexpr int amdgcn = 2;
+
+}
+}
+}
 
 #endif

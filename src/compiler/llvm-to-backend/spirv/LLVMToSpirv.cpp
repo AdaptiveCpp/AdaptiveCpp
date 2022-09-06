@@ -27,10 +27,16 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <cassert>
+#include <system_error>
 #include <vector>
 
 namespace hipsycl {
@@ -57,10 +63,45 @@ bool LLVMToSpirvTranslator::fullTransformation(const std::string &LLVMIR, std::s
 }
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
+  M.setTargetTriple("spir64-unknown-unknown");
+  for(auto KernelName : KernelNames) {
+    if(auto* F = M.getFunction(KernelName)) {
+      F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+    }
+  }
   return true;
 }
 
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
+  constructPassBuilder([&](llvm::PassBuilder &PB, auto &LAM, auto &FAM, auto &CGAM, auto &MAM) {
+    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+    MPM.run(FlavoredModule, MAM);
+  });
+
+  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%.spv");
+
+  auto E = InputFile.takeError();
+  if(!E.success()){
+    this->registerError("Could not create temp file: "+InputFile->TmpName);
+    return false;
+  }
+
+  E = OutputFile.takeError();
+  if(!E.success()){
+    this->registerError("Could not create temp file: "+OutputFile->TmpName);
+    return false;
+  }
+
+  std::error_code EC;
+  llvm::raw_fd_ostream InputStream{InputFile->TmpName, EC};
+  
+  llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
+
+  if(!InputFile->discard().success() || !OutputFile->discard().success()) {
+    this->registerError("Discarding temp file failed");
+  }
+
   return true;
 }
 

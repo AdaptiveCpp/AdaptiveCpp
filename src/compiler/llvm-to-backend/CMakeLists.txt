@@ -9,7 +9,7 @@ if(WITH_SSCP_COMPILER)
     ${CMAKE_BINARY_DIR}/include)
   
   target_compile_definitions(llvm-to-spirv PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  llvm_config(llvm-to-spirv core support irreader)
+  llvm_config(llvm-to-spirv core support irreader passes)
 
   add_executable(llvm-to-spirv-tool spirv/LLVMToSpirvTool.cpp)
   target_compile_definitions(llvm-to-spirv-tool PRIVATE -DHIPSYCL_TOOL_COMPONENT)

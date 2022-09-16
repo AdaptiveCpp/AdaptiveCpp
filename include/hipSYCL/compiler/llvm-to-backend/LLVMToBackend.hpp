@@ -32,6 +32,8 @@
 
 #include <string>
 #include <vector>
+#include <typeinfo>
+#include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 namespace llvm {
 class Module;
@@ -40,10 +42,20 @@ class Module;
 namespace hipsycl {
 namespace compiler {
 
+class IRConstantHandler {
+
+};
+
 class LLVMToBackendTranslator {
 public:
-  
+  LLVMToBackendTranslator(int S2IRConstantCurrentBackendId);
+
   virtual ~LLVMToBackendTranslator() {}
+
+  template<auto& ConstantName, class T>
+  void setS2IRConstant(const T& value) {
+    std::string name = typeid(__hipsycl_sscp_s2_ir_constant<ConstantName, T>).name();
+  }
 
   virtual bool setBuildOptions(const std::string& Opts) {
     return true;
@@ -62,7 +74,9 @@ protected:
     Errors.push_back(E);
   }
 private:
+  int S2IRConstantBackendId;
   std::vector<std::string> Errors;
+  //std::vector<std::pair<std::string, std::
 };
 
 }

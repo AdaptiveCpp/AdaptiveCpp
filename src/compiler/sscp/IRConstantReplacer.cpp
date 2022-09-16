@@ -33,62 +33,36 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
-#include <llvm/IR/PassManager.h>
 #include <type_traits>
 
 namespace hipsycl {
 namespace compiler {
 
-namespace {
-
-template<class IntT>
-void setIntConstant(llvm::Module& M, llvm::GlobalVariable& Var, IntT Value) {
-  Var.setConstant(true);
-  Var.setExternallyInitialized(false);
-  Var.setLinkage(llvm::GlobalValue::InternalLinkage);
-  
-  bool isSigned = std::is_signed_v<IntT>;
-  int nBits = sizeof(IntT) * CHAR_BIT;
-  llvm::ConstantInt *C = llvm::ConstantInt::get(M.getContext(), llvm::APInt(nBits, Value, isSigned));
-  Var.setInitializer(C);
-}
-
-void setStringConstant(llvm::Module &M, llvm::GlobalVariable &Var, const std::string &value) {
-  Var.setConstant(true);
-  Var.setExternallyInitialized(false);
-  Var.setLinkage(llvm::GlobalValue::InternalLinkage);
-
-  llvm::StringRef RawData {value};
-
-  llvm::Constant *Str =
-      llvm::ConstantDataArray::getRaw(RawData, value.size(), llvm::Type::getInt8Ty(M.getContext()));
-  Var.setInitializer(Str);
-}
-}
-
-IRConstantReplacer::IRConstantReplacer(
+S1IRConstantReplacer::S1IRConstantReplacer(
     const std::unordered_map<std::string, int> &IntConstants,
     const std::unordered_map<std::string, uint64_t> &UInt64Constants,
     const std::unordered_map<std::string, std::string> &StringConstants)
     : IntConstants{IntConstants}, UInt64Constants{UInt64Constants}, StringConstants{
                                                                         StringConstants} {}
 
-llvm::PreservedAnalyses IRConstantReplacer::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+llvm::PreservedAnalyses S1IRConstantReplacer::run(llvm::Module &M,
+                                                  llvm::ModuleAnalysisManager &MAM) {
   for(llvm::GlobalVariable& V : M.getGlobalList()) {
+    IRConstant C{M, V};
+
     if(IntConstants.find(V.getName().str()) != IntConstants.end()) {
-      setIntConstant(M, V, IntConstants[V.getName().str()]);
+      C.set<int>(IntConstants[V.getName().str()]);
     }
     if(UInt64Constants.find(V.getName().str()) != UInt64Constants.end()) {
-      setIntConstant(M, V, UInt64Constants[V.getName().str()]);
+      C.set<uint64_t>(UInt64Constants[V.getName().str()]);
     }
     if(StringConstants.find(V.getName().str()) != StringConstants.end()){
-      setStringConstant(M, V, StringConstants[V.getName().str()]);
+      C.set<std::string>(StringConstants[V.getName().str()]);
     }
   }
 
   // TODO Make this more specific
   return llvm::PreservedAnalyses::none();
 }
-
 }
 }

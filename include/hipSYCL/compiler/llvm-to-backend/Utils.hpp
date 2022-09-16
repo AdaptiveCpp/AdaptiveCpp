@@ -71,6 +71,22 @@ inline void constructPassBuilder(F&& handler) {
   handler(PB, LAM, FAM, CGAM, MAM);
 }
 
+template<class F>
+inline void constructPassBuilderAndMAM(F&& handler) {
+  llvm::LoopAnalysisManager LAM;
+  llvm::FunctionAnalysisManager FAM;
+  llvm::CGSCCAnalysisManager CGAM;
+  llvm::ModuleAnalysisManager MAM;
+  llvm::PassBuilder PB;
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  handler(PB, MAM);
+}
+
 }
 }
 

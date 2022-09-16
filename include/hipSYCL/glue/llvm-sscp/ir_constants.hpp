@@ -28,35 +28,35 @@
 #ifndef HIPSYCL_IR_CONSTANTS_HPP
 #define HIPSYCL_IR_CONSTANTS_HPP
 
-#define HIPSYCL_SSCP_STAGE1_IR_CONST extern "C"
-#define HIPSYCL_SSCP_STAGE2_IR_CONST extern "C" inline
+#include "s1_ir_constants.hpp"
+#include "s2_ir_constants.hpp"
 
-// These variables need to be initialized by the clang plugin.
-HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
-    __hipsycl_local_sscp_hcf_object_id;
+template<auto& ConstantName, class ValueT>
+struct __hipsycl_sscp_s2_ir_constant {
+  static ValueT get(ValueT default_value) noexcept {
+    // Compiler will emit a global variable in LLVM IR, that we will
+    // turn into a constant during S2 compilation.
+    //
+    // TODO We may have to suppress compiler warnings about uninitialized data
+    // here
+    //
+    // Compiler will look for special identifier __hipsycl_ir_constant_v to
+    // distinguish the actual IR constant from other global variables related to
+    // this class.
+    static ValueT __hipsycl_ir_constant_v;
+    if(__hipsycl_sscp_is_device) {
+      return __hipsycl_ir_constant_v;
+    } else {
+      return default_value;
+    }
+  }
 
-HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
-    __hipsycl_local_sscp_hcf_object_size;
+  using value_type = ValueT;
+};
 
-HIPSYCL_SSCP_STAGE1_IR_CONST const char __hipsycl_local_sscp_hcf_content[];
-
-HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_host;
-HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_device;
-
-
-// TODO We should not initialize here
-HIPSYCL_SSCP_STAGE2_IR_CONST int __hipsycl_sscp_backend = -1;
-
-namespace hipsycl {
-namespace sycl {
-namespace sscp::target {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgcn = 2;
-
-}
-}
+template<auto& ConstantName, class ValueT>
+ValueT ir_constant(ValueT default_value = ValueT{}) noexcept {
+  return __hipsycl_sscp_s2_ir_constant<ConstantName, ValueT>::get(default_value);
 }
 
 #endif

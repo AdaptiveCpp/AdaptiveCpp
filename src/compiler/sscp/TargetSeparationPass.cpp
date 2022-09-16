@@ -41,9 +41,6 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Scalar/ADCE.h>
-#include <llvm/Transforms/Scalar/SCCP.h>
-#include <llvm/Transforms/Utils/Mem2Reg.h>
 #include <llvm/Support/CommandLine.h>
 
 #include <memory>
@@ -63,7 +60,7 @@ static llvm::cl::opt<bool> PreoptimizeSSCPKernels{
     "hipsycl-sscp-preoptimize", llvm::cl::init(false),
     llvm::cl::desc{
         "Preoptimize SYCL kernels in LLVM IR instead of embedding unoptimized kernels and relying "
-        "on optimization at runtime."}};
+        "on optimization at runtime. This is mainly for hipSYCL developers and NOT supported!"}};
 
 static const char *SscpIsHostIdentifier = "__hipsycl_sscp_is_host";
 static const char *SscpIsDeviceIdentifier = "__hipsycl_sscp_is_device";
@@ -80,18 +77,6 @@ IntT generateRandomNumber() {
 
   std::lock_guard<std::mutex> lock {M};
   return dist(Rng);
-}
-
-// This should only be used for the host IR
-void removeSuperfluousBranches(llvm::Module& M, llvm::ModuleAnalysisManager& MAM) {
-
-  auto PromoteAdaptor = llvm::createModuleToFunctionPassAdaptor(llvm::PromotePass{});
-  auto SCCPAdaptor = llvm::createModuleToFunctionPassAdaptor(llvm::SCCPPass{});
-  auto ADCEAdaptor = llvm::createModuleToFunctionPassAdaptor(llvm::ADCEPass{});
-
-  PromoteAdaptor.run(M, MAM);
-  SCCPAdaptor.run(M, MAM);
-  ADCEAdaptor.run(M, MAM);
 }
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
@@ -114,13 +99,13 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
   // SscpIsHostIdentifier can also be used in device code.
-  IRConstantReplacer DeviceSideReplacer{
+  S1IRConstantReplacer DeviceSideReplacer{
       {{SscpIsHostIdentifier, 0}, {SscpIsDeviceIdentifier, 1}},
       {{SscpHcfContentIdentifier, 0 /* Dummy value */}, {SscpHcfObjectSizeIdentifier, 0}},
       {{SscpHcfContentIdentifier, std::string{}}}};
   DeviceSideReplacer.run(*DeviceModule, DeviceMAM);
 
-  removeSuperfluousBranches(*DeviceModule, DeviceMAM);
+  IRConstant::optimizeCodeAfterConstantModification(*DeviceModule, DeviceMAM);
 
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
@@ -192,14 +177,14 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     }
   }
 
-  IRConstantReplacer HostSideReplacer{
+  S1IRConstantReplacer HostSideReplacer{
       {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
       {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
       {{SscpHcfContentIdentifier, HcfString}}};
 
   HostSideReplacer.run(M, MAM);
   
-  removeSuperfluousBranches(M, MAM);
+  IRConstant::optimizeCodeAfterConstantModification(M, MAM);
 
   return llvm::PreservedAnalyses::none();
 }

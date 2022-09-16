@@ -1,26 +1,107 @@
 
-if(WITH_SSCP_COMPILER)
+set(LLVM_TO_BACKEND_INCLUDE_DIRS 
+  ../../../include
+  ${LLVM_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}/include)
 
-  set(LLVM_TO_BACKEND_INCLUDE_DIRS 
-    ../../../include
-    ${LLVM_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_BINARY_DIR}/include)
-  
-  add_library(llvm-to-spirv SHARED
-    spirv/LLVMToSpirv.cpp)
-  target_include_directories(llvm-to-spirv PRIVATE
+
+function(create_llvm_based_library)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(CREATE_LLVM_LIBRARY
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set(target ${CREATE_LLVM_LIBRARY_TARGET})
+  set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
+
+  add_library(${target} SHARED
+    ${sources})
+
+  target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   
-  target_compile_definitions(llvm-to-spirv PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  llvm_config(llvm-to-spirv core support irreader passes)
+  target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
+  llvm_config(${target} core support irreader passes)
 
-  add_executable(llvm-to-spirv-tool spirv/LLVMToSpirvTool.cpp)
-  target_compile_definitions(llvm-to-spirv-tool PRIVATE -DHIPSYCL_TOOL_COMPONENT)
-  target_include_directories(llvm-to-spirv-tool PRIVATE
-  ${LLVM_TO_BACKEND_INCLUDE_DIRS})
-  target_link_libraries(llvm-to-spirv-tool llvm-to-spirv)
+  install(TARGETS ${target} DESTINATION lib/hipSYCL/llvm-to-backend)
+endfunction()
 
-  install(TARGETS llvm-to-spirv DESTINATION lib/hipSYCL/llvm-to-backend)
-  install(TARGETS llvm-to-spirv-tool DESTINATION lib/hipSYCL/llvm-to-backend)
+function(create_llvm_to_backend_library)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(CREATE_LLVM_LIBRARY
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set(target ${CREATE_LLVM_LIBRARY_TARGET})
+  set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
+
+  create_llvm_based_library(TARGET ${target} SOURCES ${sources})
+  target_link_libraries(${target} PRIVATE llvm-to-backend)
+endfunction()
+
+function(create_llvm_to_backend_tool)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(CREATE_LLVM_TOOL
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set(target ${CREATE_LLVM_TOOL_TARGET})
+  set(sources ${CREATE_LLVM_TOOL_SOURCES})
+ 
+  add_executable(${target}-tool ${sources})
+
+  target_include_directories(${target}-tool PRIVATE
+    ${LLVM_TO_BACKEND_INCLUDE_DIRS})
+  
+  target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
+  llvm_config(${target}-tool core support irreader passes)
+  target_link_libraries(${target}-tool PRIVATE ${target})
+
+  install(TARGETS ${target}-tool DESTINATION lib/hipSYCL/llvm-to-backend)
+endfunction()
+
+function(add_hipsycl_llvm_backend)
+  set(options)
+  set(one_value_keywords BACKEND)
+  set(multi_value_keywords LIBRARY TOOL)
+  cmake_parse_arguments(ADD_BACKEND
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set(backend_name ${ADD_BACKEND_BACKEND})
+  set(tool_sources ${ADD_BACKEND_TOOL})
+  set(library_sources ${ADD_BACKEND_LIBRARY})
+
+  create_llvm_to_backend_library(TARGET llvm-to-${backend_name} SOURCES ${library_sources})
+  create_llvm_to_backend_tool(TARGET llvm-to-${backend_name} SOURCES ${tool_sources})
+endfunction()
+
+if(WITH_SSCP_COMPILER)
+  create_llvm_based_library(
+    TARGET llvm-to-backend
+    SOURCES LLVMToBackend.cpp)
+
+  add_hipsycl_llvm_backend(
+    BACKEND spirv 
+    LIBRARY spirv/LLVMToSpirv.cpp 
+    TOOL spirv/LLVMToSpirvTool.cpp)
 endif()

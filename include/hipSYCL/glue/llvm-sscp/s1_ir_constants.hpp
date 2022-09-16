@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,17 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
-#include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
+#ifndef HIPSYCL_S1_IR_CONSTANTS_HPP
+#define HIPSYCL_S1_IR_CONSTANTS_HPP
 
-namespace hipsycl {
-namespace compiler {
+#define HIPSYCL_SSCP_STAGE1_IR_CONST extern "C"
 
-LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId)
-: S2IRConstantBackendId(S2IRConstantCurrentBackendId) {
-  setS2IRConstant<sycl::sscp::current_backend, int>(
-      S2IRConstantCurrentBackendId);
-}
+// Stage 1 IR constants
+// These variables need to be initialized by the clang plugin.
+HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
+    __hipsycl_local_sscp_hcf_object_id;
 
-}
-}
+HIPSYCL_SSCP_STAGE1_IR_CONST unsigned long long
+    __hipsycl_local_sscp_hcf_object_size;
+
+HIPSYCL_SSCP_STAGE1_IR_CONST const char __hipsycl_local_sscp_hcf_content[];
+
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_host;
+HIPSYCL_SSCP_STAGE1_IR_CONST int  __hipsycl_sscp_is_device;
+
+
+#endif

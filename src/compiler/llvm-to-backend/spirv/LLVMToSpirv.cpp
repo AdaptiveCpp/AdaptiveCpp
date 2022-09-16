@@ -27,6 +27,8 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
+#include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
@@ -34,6 +36,7 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/Program.h>
 #include <memory>
 #include <cassert>
 #include <system_error>
@@ -43,7 +46,7 @@ namespace hipsycl {
 namespace compiler {
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
-    : KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::sscp::target::spirv}, KernelNames{KN} {}
 
 bool LLVMToSpirvTranslator::fullTransformation(const std::string &LLVMIR, std::string &out) {
   llvm::LLVMContext ctx;
@@ -69,14 +72,20 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     }
   }
+
+  constructPassBuilderAndMAM([&](auto& PB, auto& MAM){
+    S2IRConstant::optimizeCodeAfterConstantModification(M, MAM);
+
+    // Other transform code here
+
+    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+    MPM.run(M, MAM);
+  });
+
   return true;
 }
 
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
-  constructPassBuilder([&](llvm::PassBuilder &PB, auto &LAM, auto &FAM, auto &CGAM, auto &MAM) {
-    llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
-    MPM.run(FlavoredModule, MAM);
-  });
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%.spv");
@@ -94,9 +103,19 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
 
   std::error_code EC;
-  llvm::raw_fd_ostream InputStream{InputFile->TmpName, EC};
+  llvm::raw_fd_ostream InputStream{InputFile->FD, false};
   
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
+  InputStream.flush();
+
+  int R =
+      llvm::sys::ExecuteAndWait("llvm-spirv", {"-o=" + OutputFile->TmpName, InputFile->TmpName});
+  if(R != 0) {
+    this->registerError("llvm-spirv invocation failed with exit code " + std::to_string(R));
+    return false;
+  }
+
+  
 
   if(!InputFile->discard().success() || !OutputFile->discard().success()) {
     this->registerError("Discarding temp file failed");

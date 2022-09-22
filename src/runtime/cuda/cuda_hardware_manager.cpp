@@ -219,6 +219,15 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_global_size2:
     return _properties->maxThreadsPerBlock * _properties->maxGridSize[2];
     break;
+  case device_uint_property::max_group_size0:
+    return _properties->maxThreadsDim[0];
+    break;
+  case device_uint_property::max_group_size1:
+    return _properties->maxThreadsDim[1];
+    break;
+  case device_uint_property::max_group_size2:
+    return _properties->maxThreadsDim[2];
+    break;
   case device_uint_property::max_group_size:
     return _properties->maxThreadsPerBlock;
     break;

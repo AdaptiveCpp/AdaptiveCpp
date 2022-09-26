@@ -325,6 +325,11 @@ public:
 
   void applyAttributes()
   {
+    const auto& PPMacros = Instance.getPreprocessor().getPreprocessorOpts().Macros;
+    const bool ForceInlineAll = std::any_of(PPMacros.begin(), PPMacros.end(),
+            [](const auto& v){ return v.first == "__HIPSYCL_FORCE_INLINE_ALL__";});
+    HIPSYCL_DEBUG_INFO << "AST processing: Adding always_inline attribute to all device functions\n";
+
     for(auto F : MarkedHostDeviceFunctions)
     {
       // Strictly speaking, setting these attributes is not even necessary!
@@ -361,6 +366,9 @@ public:
         {
           RD->addAttr(clang::CUDAHostAttr::CreateImplicit(Instance.getASTContext()));
           RD->addAttr(clang::CUDADeviceAttr::CreateImplicit(Instance.getASTContext()));
+        }
+        if (ForceInlineAll && !RD->hasAttr<clang::AlwaysInlineAttr>()) {
+          RD->addAttr(clang::AlwaysInlineAttr::CreateImplicit(Instance.getASTContext()));
         }
       }
 

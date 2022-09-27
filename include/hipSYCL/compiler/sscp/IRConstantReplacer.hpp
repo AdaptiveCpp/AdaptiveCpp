@@ -82,8 +82,11 @@ public:
       int Bits = sizeof(T) * CHAR_BIT;
       Initializer = llvm::ConstantInt::get(M->getContext(), llvm::APInt(Bits, Value, IsSigned));
     } else if constexpr(std::is_floating_point_v<T>) {
-      
-      Initializer = llvm::ConstantFP::get(llvm::APFloat(Value), Value);
+      if constexpr (std::is_same_v<float, T>) {
+        Initializer = llvm::ConstantFP::get(llvm::Type::getFloatTy(M->getContext()), Value);
+      } else {
+        Initializer = llvm::ConstantFP::get(llvm::Type::getDoubleTy(M->getContext()), Value);
+      }
     } else if constexpr(std::is_same_v<T, std::string>) {
       llvm::StringRef RawData {Value};
       Initializer = llvm::ConstantDataArray::getRaw(RawData, Value.size(),

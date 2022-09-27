@@ -30,10 +30,15 @@
 
 
 
+#include <optional>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <vector>
 #include <typeinfo>
+#include <functional>
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
+#include "hipSYCL/runtime/util.hpp"
 
 namespace llvm {
 class Module;
@@ -42,8 +47,10 @@ class Module;
 namespace hipsycl {
 namespace compiler {
 
-class IRConstantHandler {
-
+struct TranslationHints {
+  std::optional<std::size_t> RequestedLocalMemSize;
+  std::optional<std::size_t> SubgroupSize;
+  std::optional<rt::range<3>> WorkGroupSize;
 };
 
 class LLVMToBackendTranslator {
@@ -54,29 +61,43 @@ public:
 
   template<auto& ConstantName, class T>
   void setS2IRConstant(const T& value) {
+    static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>,
+                  "Unsupported type for S2 IR constant");
+
     std::string name = typeid(__hipsycl_sscp_s2_ir_constant<ConstantName, T>).name();
+    setS2IRConstant<T>(name, value);
   }
 
   virtual bool setBuildOptions(const std::string& Opts) {
     return true;
   }
-  virtual bool fullTransformation(const std::string& LLVMIR, std::string& out) = 0;
+  
+  bool fullTransformation(const std::string& LLVMIR, std::string& out);
+  bool prepareIR(llvm::Module& M);
+  bool translatePreparedIR(llvm::Module& FlavoredModule, std::string& out);
 
-  virtual bool toBackendFlavor(llvm::Module &M) = 0;
-  virtual bool translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) = 0;
 
   const std::vector<std::string>& getErrorLog() const {
     return Errors;
   }
 
 protected:
+  // If backend needs to set IR constants, it should do so here.
+  virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
+  // Transform LLVM IR as much as required to backend-specific flavor
+  virtual bool toBackendFlavor(llvm::Module &M) = 0;
+  virtual bool translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) = 0;
+
   void registerError(const std::string& E) {
     Errors.push_back(E);
   }
 private:
+  template<class T>
+  void setS2IRConstant(const std::string& name, T value);
+
   int S2IRConstantBackendId;
   std::vector<std::string> Errors;
-  //std::vector<std::pair<std::string, std::
+  std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
 };
 
 }

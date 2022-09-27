@@ -43,7 +43,7 @@ public:
 
   virtual ~LLVMToSpirvTranslator() {}
 
-  virtual bool fullTransformation(const std::string &LLVMIR, std::string &out) override;
+  virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
   virtual bool toBackendFlavor(llvm::Module &M) override;
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
 private:

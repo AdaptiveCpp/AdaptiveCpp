@@ -60,7 +60,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
   for(auto F : PureHostFunctions) {
     if(F) {
-      HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Stripping host function " << F->getName().str() << "\n";
+      HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Stripping function " << F->getName().str() << "\n";
       F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
       F->eraseFromParent();
     }

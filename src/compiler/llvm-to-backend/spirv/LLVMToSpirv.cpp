@@ -46,27 +46,14 @@ namespace hipsycl {
 namespace compiler {
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::target::spirv}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::sscp::backend::spirv}, KernelNames{KN} {}
 
-bool LLVMToSpirvTranslator::fullTransformation(const std::string &LLVMIR, std::string &out) {
-  llvm::LLVMContext ctx;
-  std::unique_ptr<llvm::Module> M;
-  auto err = loadModuleFromString(LLVMIR, ctx, M);
-
-  if(!err.success())
-    return false;
-  
-  assert(M);
-  if(!toBackendFlavor(*M))
-    return false;
-  if(!translateToBackendFormat(*M, out));
-    return false;
-  
-  return true;
-}
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
   M.setTargetTriple("spir64-unknown-unknown");
+  M.setDataLayout(
+      "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024");
+
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);

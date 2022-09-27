@@ -118,10 +118,10 @@ public:
 
       if constexpr(type == rt::kernel_type::single_task){
 
-        sscp_dispatch::kernel_single_task(k);
+        sscp_dispatch::kernel_single_task<Kernel>(k);
 
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
-
+        sscp_dispatch::kernel_parallel_for<Kernel>(const KernelType &kernel);
         
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {

@@ -47,7 +47,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   create_llvm_based_library(TARGET ${target} SOURCES ${sources})
-  target_link_libraries(${target} PRIVATE llvm-to-backend)
+  target_link_libraries(${target} PUBLIC llvm-to-backend)
 endfunction()
 
 function(create_llvm_to_backend_tool)
@@ -98,7 +98,7 @@ endfunction()
 if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     TARGET llvm-to-backend
-    SOURCES LLVMToBackend.cpp)
+    SOURCES LLVMToBackend.cpp ../sscp/KernelOutliningPass.cpp)
 
   add_hipsycl_llvm_backend(
     BACKEND spirv 

@@ -31,28 +31,25 @@
 #include "s1_ir_constants.hpp"
 #include "s2_ir_constants.hpp"
 
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept {
-    // Compiler will emit a global variable in LLVM IR, that we will
-    // turn into a constant during S2 compilation.
-    //
-    // TODO We may have to suppress compiler warnings about uninitialized data
-    // here
-    //
-    // Compiler will look for special identifier __hipsycl_ir_constant_v to
-    // distinguish the actual IR constant from other global variables related to
-    // this class.
-    static ValueT __hipsycl_ir_constant_v;
-    if(__hipsycl_sscp_is_device) {
-      return __hipsycl_ir_constant_v;
-    } else {
-      return default_value;
-    }
+template <auto &ConstantName, class ValueT>
+ValueT __hipsycl_sscp_s2_ir_constant<ConstantName, ValueT>::get(
+    ValueT default_value) noexcept {
+  // The static variable will cause clang to emit a global variable in LLVM IR,
+  // that we will turn into a constant during S2 compilation.
+  //
+  // TODO We may have to suppress compiler warnings about uninitialized data
+  // here
+  //
+  // S2 Compiler will look for special identifier __hipsycl_ir_constant_v to
+  // distinguish the actual IR constant from other global variables related to
+  // this class (e.g. type information).
+  static ValueT __hipsycl_ir_constant_v;
+  if (__hipsycl_sscp_is_device) {
+    return __hipsycl_ir_constant_v;
+  } else {
+    return default_value;
   }
-
-  using value_type = ValueT;
-};
+}
 
 template<auto& ConstantName, class ValueT>
 ValueT ir_constant(ValueT default_value = ValueT{}) noexcept {

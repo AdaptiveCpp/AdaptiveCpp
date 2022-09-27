@@ -39,14 +39,20 @@
 // S2 IR constants can be identified from their usage of
 // __hipsycl_sscp_s2_ir_constant
 template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant;
+struct __hipsycl_sscp_s2_ir_constant {
+  static ValueT get(ValueT default_value) noexcept;
+
+  using value_type = ValueT;
+};
+
+
 namespace hipsycl::glue::sscp {
   struct ir_constant_name {};
 }
 
 namespace hipsycl::sycl::sscp {
 
-namespace target {
+namespace backend {
 
 inline constexpr int spirv = 0;
 inline constexpr int ptx = 1;

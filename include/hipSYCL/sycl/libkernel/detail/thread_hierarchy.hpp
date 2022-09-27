@@ -39,43 +39,101 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
-    name, cuda_variable, hip_variable, spirv_variable, host_variable)          \
+#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(name, cuda_variable,             \
+                                              hip_variable, spirv_variable,    \
+                                              sscp_variable, host_variable)    \
   HIPSYCL_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
     __hipsycl_if_target_cuda(return cuda_variable;);                           \
     __hipsycl_if_target_hip(return hip_variable;);                             \
     __hipsycl_if_target_spirv(return spirv_variable;);                         \
+    __hipsycl_if_target_sscp(return sscp_variable(););                         \
     __hipsycl_if_target_host(return 0;);                                       \
   }
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x, 
-  threadIdx.x, hipThreadIdx_x, __spirv_BuiltInLocalInvocationId.x, 0)
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y,
-  threadIdx.y, hipThreadIdx_y, __spirv_BuiltInLocalInvocationId.y, 0)
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z,
-  threadIdx.z, hipThreadIdx_z, __spirv_BuiltInLocalInvocationId.z, 0)
+  threadIdx.x,
+  hipThreadIdx_x,
+  __spirv_BuiltInLocalInvocationId.x,
+  __hipsycl_sscp_get_local_id_x,
+  0)
+
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y, 
+  threadIdx.y,
+  hipThreadIdx_y,
+  __spirv_BuiltInLocalInvocationId.y,
+  __hipsycl_sscp_get_local_id_y,
+  0)
+
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z, 
+  threadIdx.z,
+  hipThreadIdx_z,
+  __spirv_BuiltInLocalInvocationId.z,
+  __hipsycl_sscp_get_local_id_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_x,
-  blockIdx.x, hipBlockIdx_x, __spirv_BuiltInWorkgroupId.x, 0)
+  blockIdx.x,
+  hipBlockIdx_x,
+  __spirv_BuiltInWorkgroupId.x,
+  __hipsycl_sscp_get_group_id_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_y,
-  blockIdx.y, hipBlockIdx_y, __spirv_BuiltInWorkgroupId.y, 0)
+  blockIdx.y,
+  hipBlockIdx_y,
+  __spirv_BuiltInWorkgroupId.y,
+  __hipsycl_sscp_get_group_id_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_z,
-  blockIdx.z, hipBlockIdx_z, __spirv_BuiltInWorkgroupId.z, 0)
+  blockIdx.z,
+  hipBlockIdx_z,
+  __spirv_BuiltInWorkgroupId.z,
+  __hipsycl_sscp_get_group_id_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_x,
-  blockDim.x, hipBlockDim_x, __spirv_BuiltInWorkgroupSize.x, 0)
+  blockDim.x,
+  hipBlockDim_x,
+  __spirv_BuiltInWorkgroupSize.x, 
+  __hipsycl_sscp_get_local_size_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_y,
-  blockDim.y, hipBlockDim_y, __spirv_BuiltInWorkgroupSize.y, 0)
+  blockDim.y,
+  hipBlockDim_y,
+  __spirv_BuiltInWorkgroupSize.y,
+  __hipsycl_sscp_get_local_size_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_z,
-  blockDim.z, hipBlockDim_z, __spirv_BuiltInWorkgroupSize.z, 0)
+  blockDim.z,
+  hipBlockDim_z,
+  __spirv_BuiltInWorkgroupSize.z,
+  __hipsycl_sscp_get_local_size_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_x,
-  gridDim.x, hipGridDim_x, __spirv_BuiltInNumWorkgroups.x, 0)
+  gridDim.x,
+  hipGridDim_x,
+  __spirv_BuiltInNumWorkgroups.x,
+  __hipsycl_sscp_get_num_groups_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_y,
-  gridDim.y, hipGridDim_y, __spirv_BuiltInNumWorkgroups.y, 0)
+  gridDim.y,
+  hipGridDim_y,
+  __spirv_BuiltInNumWorkgroups.y,
+  __hipsycl_sscp_get_num_groups_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
-  gridDim.z, hipGridDim_z, __spirv_BuiltInNumWorkgroups.z, 0)
+  gridDim.z,
+  hipGridDim_z,
+  __spirv_BuiltInNumWorkgroups.z,
+  __hipsycl_sscp_get_num_groups_z,
+  0)
 
 #define __hipsycl_lid_x ::hipsycl::sycl::detail::__hipsycl_get_lid_x()
 #define __hipsycl_lid_y ::hipsycl::sycl::detail::__hipsycl_get_lid_y()

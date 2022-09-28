@@ -141,6 +141,15 @@ omp_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_global_size2:
     return std::numeric_limits<std::size_t>::max();
     break;
+  case device_uint_property::max_group_size0:
+    return 1024;
+    break;
+  case device_uint_property::max_group_size1:
+    return 1024;
+    break;
+  case device_uint_property::max_group_size2:
+    return 1024;
+    break;
   case device_uint_property::max_group_size:
     return 1024;
     break;

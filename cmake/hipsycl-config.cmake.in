@@ -30,7 +30,7 @@ check_backend("hip")
 list(JOIN HIPSYCL_PLATFORM_OPTIONS " | " HIPSYCL_PLATFORMS_STRING)
 
 set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to syclcc.")
-set(HIPSYCL_SYCLCC_EXTRA_ARGS_DEVICE_ONLY "${HIPSYCL_SYCLCC_EXTRA_ARGS_DEVICE_ONLY}" CACHE STRING "Arguments to pass through directly to syclcc, only for sources listed explicitly in add_sycl_to_target.")
+set(HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS "${HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
 
 set(HIPSYCL_TARGETS_DESC "in the format HIPSYCL_TARGETS=<platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>] where platforms are one of ${HIPSYCL_PLATFORMS_STRING}")
 set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS}" CACHE STRING "The platforms and architectures hipSYCL should target, ${HIPSYCL_TARGETS_DESC}.")
@@ -181,7 +181,7 @@ function(add_sycl_to_target)
   )
 
   set_property(SOURCE ${ADD_SYCL_SOURCES} APPEND PROPERTY COMPILE_OPTIONS
-      ${HIPSYCL_SYCLCC_EXTRA_ARGS_DEVICE_ONLY})
+      ${HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS})
 
   # The compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
   # also set for all files in the list.

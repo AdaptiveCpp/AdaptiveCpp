@@ -93,8 +93,7 @@ template <typename T, typename BinaryOperation>
 __device__ T __hipsycl_reduce_over_group(sub_group g, T x,
                                          BinaryOperation binary_op) {
   auto     local_x = x;
-  uint64_t activemask;
-  asm("s_mov_b64 %0, exec" : "=r"(activemask));
+  uint64_t activemask = __ballot(1);
 
   auto lid = g.get_local_linear_id();
 
@@ -119,8 +118,7 @@ __device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
   auto         local_x = x;
   const size_t lid     = g.get_local_linear_id();
 
-  uint64_t activemask;
-  asm("s_mov_b64 %0, exec" : "=r"(activemask));
+  uint64_t activemask = __ballot(1);
 
   size_t lrange = g.get_local_linear_range();
 

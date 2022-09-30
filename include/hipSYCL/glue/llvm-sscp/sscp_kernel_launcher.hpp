@@ -31,6 +31,7 @@
 #include "hipSYCL/glue/generic/code_object.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/sycl/libkernel/detail/thread_hierarchy.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
 #include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/libkernel/item.hpp"
@@ -54,29 +55,87 @@ struct __hipsycl_static_sscp_hcf_registration {
 static __hipsycl_static_sscp_hcf_registration
     __hipsycl_register_sscp_hcf_object;
 
-#define __sycl_kernel [[clang::annotate("hipsycl_sscp_kernel")]]
 
 namespace hipsycl {
 namespace glue {
 namespace sscp_dispatch {
 
-template <typename KernelName, typename KernelType>
-__sycl_kernel void
-kernel_single_task(const KernelType &kernel) {
+template <int Dimensions, bool WithOffset>
+bool item_is_in_range(const sycl::item<Dimensions, WithOffset> &item,
+                      const sycl::range<Dimensions> &execution_range,
+                      const sycl::id<Dimensions>& offset = {}) {
+
+  for(int i = 0; i < Dimensions; ++i) {
+    if constexpr(WithOffset) {
+      if(item.get_id(i) >= offset.get(i) + execution_range.get(i))
+        return false;
+    } else {
+      if(item.get_id(i) >= execution_range.get(i))
+        return false;
+    }
+  }
+  return true;
+}
+
+template<class UserKernel>
+class single_task {
+public:
+  single_task(const UserKernel& k)
+  : _k{k} {}
+
+  void operator()() const {
+    _k();
+  }
+private:
+  UserKernel _k;
+};
+
+template<class UserKernel, int Dimensions>
+class basic_parallel_for {
+public:
+  basic_parallel_for(const UserKernel &k,
+                     sycl::range<Dimensions> execution_range)
+      : _k{k}, _range{execution_range} {}
+
+  void operator()() const {
+    auto this_item = sycl::detail::make_item<Dimensions>(
+      sycl::detail::get_global_id<Dimensions>(), _range
+    );
+    if(item_is_in_range(this_item, _range))
+      _k(this_item);
+  }
+private:
+  UserKernel _k;
+  sycl::range<Dimensions> _range;
+};
+
+template<class UserKernel, int Dimensions>
+class basic_parallel_for_offset {
+public:
+  basic_parallel_for_offset(const UserKernel &k, sycl::id<Dimensions> offset,
+                            sycl::range<Dimensions> execution_range)
+      : _k{k}, _range{execution_range}, _offset{offset} {}
+
+  void operator()() const {
+    auto this_item = sycl::detail::make_item<Dimensions>(
+        sycl::detail::get_global_id<Dimensions>() + _offset, _range, _offset);
+    
+    if(item_is_in_range(this_item, _range, _offset))
+      _k(this_item);
+  }
+private:
+  UserKernel _k;
+  sycl::range<Dimensions> _range;
+  sycl::id<Dimensions> _offset;
+};
+
+template <typename KernelType>
+[[clang::annotate("hipsycl_sscp_kernel")]]
+void kernel_entry_point(const KernelType &kernel) {
   kernel();
 }
 
-template <typename KernelName, typename KernelType>
-__sycl_kernel void
-kernel_parallel_for(const KernelType& kernel) {
-  kernel();
 }
-
-}
-
-#define __hipsycl_invoke_kernel(f, ...)                                        \
-  if (__hipsycl_sscp_is_device)                                                \
-    f(__VA_ARGS__);
 
 class sscp_kernel_launcher : public rt::backend_kernel_launcher
 {
@@ -117,20 +176,19 @@ public:
       };
 
       if constexpr(type == rt::kernel_type::single_task){
-
-        sscp_dispatch::kernel_single_task<Kernel>(k);
-
+        generate_kernel(sscp_dispatch::single_task{k});
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
-        sscp_dispatch::kernel_parallel_for<Kernel>(const KernelType &kernel);
-        
-
+        if(offset == sycl::id<Dim>{}) {
+          generate_kernel(sscp_dispatch::basic_parallel_for{k, global_range});
+        } else {
+          generate_kernel(sscp_dispatch::basic_parallel_for_offset{k, offset, global_range});
+        }
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
 
       } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
 
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
-
         
       } else if constexpr (type == rt::kernel_type::custom) {
         // TODO
@@ -160,6 +218,11 @@ public:
   }
 
 private:
+  template<class Kernel>
+  static void generate_kernel(const Kernel& k) {
+    if (__hipsycl_sscp_is_device)
+      sscp_dispatch::kernel_entry_point(k);
+  }
 
   std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
@@ -168,8 +231,5 @@ private:
 
 }
 }
-
-#undef __hipsycl_invoke_kernel
-#undef __sycl_kernel
 
 #endif

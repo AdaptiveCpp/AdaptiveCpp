@@ -36,6 +36,7 @@
 #if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) &&                            \
     !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
  #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
+ #include "builtins/core.hpp"
 
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP 1
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP 1

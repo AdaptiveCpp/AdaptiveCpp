@@ -27,7 +27,7 @@ function(create_llvm_based_library)
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  llvm_config(${target} core support irreader passes)
+  llvm_config(${target} USE_SHARED core support irreader passes)
 
   install(TARGETS ${target} DESTINATION lib/hipSYCL/llvm-to-backend)
 endfunction()

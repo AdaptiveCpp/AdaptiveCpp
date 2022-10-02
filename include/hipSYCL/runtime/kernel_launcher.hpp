@@ -37,6 +37,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 
 #include "backend.hpp"
 
@@ -99,6 +100,7 @@ public:
 
 private:
   std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+  glue::kernel_configuration _kernel_config;
 };
 
 

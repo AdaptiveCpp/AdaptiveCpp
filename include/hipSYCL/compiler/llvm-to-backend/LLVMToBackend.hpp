@@ -55,7 +55,8 @@ struct TranslationHints {
 
 class LLVMToBackendTranslator {
 public:
-  LLVMToBackendTranslator(int S2IRConstantCurrentBackendId);
+  LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
+    const std::vector<std::string>& OutliningEntrypoints);
 
   virtual ~LLVMToBackendTranslator() {}
 
@@ -96,6 +97,7 @@ private:
   void setS2IRConstant(const std::string& name, T value);
 
   int S2IRConstantBackendId;
+  std::vector<std::string> OutliningEntrypoints;
   std::vector<std::string> Errors;
   std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
 };

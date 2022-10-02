@@ -96,6 +96,10 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
 
+  EntrypointPreparationPass EPP;
+  EPP.run(*DeviceModule, DeviceMAM);
+  KernelNamesOutput = EPP.getKernelNames();
+
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
   // SscpIsHostIdentifier can also be used in device code.
@@ -107,6 +111,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   IRConstant::optimizeCodeAfterConstantModification(*DeviceModule, DeviceMAM);
 
+
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
     MPM.run(*DeviceModule, DeviceMAM);
@@ -115,10 +120,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     MPM.run(*DeviceModule, DeviceMAM);
   }
 
-  KernelOutliningPass KP;
+  KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
   KP.run(*DeviceModule, DeviceMAM);
-  KernelNamesOutput = KP.getKernelNames();
-
 
   return std::move(DeviceModule);
 }

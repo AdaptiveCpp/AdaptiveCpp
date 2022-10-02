@@ -40,8 +40,9 @@ namespace hipsycl {
 namespace compiler {
 
 
-LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId)
-: S2IRConstantBackendId(S2IRConstantCurrentBackendId) {
+LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
+  const std::vector<std::string>& OutliningEPs)
+: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {
   setS2IRConstant<sycl::sscp::current_backend, int>(
       S2IRConstantCurrentBackendId);
 }
@@ -88,7 +89,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     IRConstant::optimizeCodeAfterConstantModification(M, MAM);
     // Rerun kernel outlining pass so that we don't include unneeded functions
     // that are specific to other backends.
-    KernelOutliningPass KP;
+    KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
     FlavoringResult = this->toBackendFlavor(M);

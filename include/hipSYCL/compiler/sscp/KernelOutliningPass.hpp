@@ -36,17 +36,31 @@
 namespace hipsycl {
 namespace compiler {
 
-//  Removes all code not belonging to kernels
-class KernelOutliningPass : public llvm::PassInfoMixin<KernelOutliningPass>{
+class EntrypointPreparationPass : public llvm::PassInfoMixin<EntrypointPreparationPass> {
 public:
-
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
 
   const std::vector<std::string>& getKernelNames() const {
     return KernelNames;
   }
+
+  const std::vector<std::string>& getOutliningEntrypoints() const {
+    return OutliningEntrypoints;
+  }
 private:
   std::vector<std::string> KernelNames;
+  std::vector<std::string> OutliningEntrypoints;
+};
+
+//  Removes all code not belonging to kernels
+class KernelOutliningPass : public llvm::PassInfoMixin<KernelOutliningPass>{
+public:
+  KernelOutliningPass(const std::vector<std::string>& OutliningEntrypoints);
+
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+
+private:
+  std::vector<std::string> OutliningEntrypoints;
 };
 
 

@@ -131,6 +131,7 @@ private:
 
 template <typename KernelType>
 [[clang::annotate("hipsycl_sscp_kernel")]]
+[[clang::annotate("hipsycl_sscp_outlining")]]
 void kernel_entry_point(const KernelType &kernel) {
   kernel();
 }

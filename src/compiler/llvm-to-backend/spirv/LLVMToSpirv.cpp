@@ -46,7 +46,7 @@ namespace hipsycl {
 namespace compiler {
 
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::spirv}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
 
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {

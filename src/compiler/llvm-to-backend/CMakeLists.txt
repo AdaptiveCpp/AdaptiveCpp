@@ -70,7 +70,6 @@ function(create_llvm_to_backend_tool)
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   
   target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
-  llvm_config(${target}-tool core support irreader passes)
   target_link_libraries(${target}-tool PRIVATE ${target})
 
   install(TARGETS ${target}-tool DESTINATION lib/hipSYCL/llvm-to-backend)

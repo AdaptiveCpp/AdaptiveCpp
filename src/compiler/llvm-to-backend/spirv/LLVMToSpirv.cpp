@@ -111,5 +111,10 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   return true;
 }
 
+std::unique_ptr<LLVMToBackendTranslator>
+createLLVMToSpirvTranslator(const std::vector<std::string> &KernelNames) {
+  return std::make_unique<LLVMToSpirvTranslator>(KernelNames);
+}
+
 }
 }

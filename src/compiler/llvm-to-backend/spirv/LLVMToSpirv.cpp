@@ -72,6 +72,17 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
   return true;
 }
 
+struct DiscardTempFileWhenDestroyed {
+  llvm::sys::fs::TempFile& TempFile;
+
+  DiscardTempFileWhenDestroyed(llvm::sys::fs::TempFile& TF)
+  : TempFile{TF} {}
+
+  ~DiscardTempFileWhenDestroyed() {
+    auto Err = TempFile.discard();
+  }
+};
+
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
@@ -83,11 +94,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
     return false;
   }
 
+  DiscardTempFileWhenDestroyed InputFileDestructionGuard(InputFile.get());
+  
   E = OutputFile.takeError();
   if(E){
     this->registerError("Could not create temp file: "+OutputFile->TmpName);
     return false;
   }
+
+  DiscardTempFileWhenDestroyed OutputFileDestructionGuard(OutputFile.get());
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
@@ -96,17 +111,10 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   InputStream.flush();
 
   int R =
-      llvm::sys::ExecuteAndWait("llvm-spirv", {"-o=" + OutputFile->TmpName, InputFile->TmpName});
+      llvm::sys::ExecuteAndWait("/usr/bin/llvm-spirv", {"-o=" + OutputFile->TmpName, InputFile->TmpName});
   if(R != 0) {
     this->registerError("llvm-spirv invocation failed with exit code " + std::to_string(R));
     return false;
-  }
-
-  
-  auto ErrInputDiscard = InputFile->discard();
-  auto ErrOutputDiscard = OutputFile->discard();
-  if(ErrInputDiscard || ErrOutputDiscard) {
-    this->registerError("Discarding temp file failed");
   }
 
   return true;

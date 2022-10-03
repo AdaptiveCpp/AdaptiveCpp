@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13, 14]
+        clang_version: [11, 12, 13, 14, 15]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04, ubuntu-18.04]
         cuda: [11.0]

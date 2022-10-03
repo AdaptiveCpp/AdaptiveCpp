@@ -137,7 +137,7 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
 
   std::string IR;
   HCF.get_binary_attachment(ImgNode, IR);
-
+  
   auto Translator = createTranslator(HCF);
   if(!Translator) {
     std::cout << "Could not construct backend translation object." << std::endl;

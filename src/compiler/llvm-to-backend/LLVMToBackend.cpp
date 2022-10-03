@@ -30,10 +30,12 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
+#include <clang/Basic/Diagnostic.h>
 #include <cstdint>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Support/Error.h>
 #include <string>
 
 namespace hipsycl {
@@ -60,8 +62,13 @@ bool LLVMToBackendTranslator::fullTransformation(const std::string &LLVMIR, std:
   std::unique_ptr<llvm::Module> M;
   auto err = loadModuleFromString(LLVMIR, ctx, M);
 
-  if (!err.success())
+  if (err) {
+    this->registerError("Could not load LLVM module");
+    llvm::handleAllErrors(std::move(err), [&](llvm::ErrorInfoBase &EIB) {
+      this->registerError(EIB.message());
+    });
     return false;
+  }
 
   assert(M);
   if (!prepareIR(*M))
@@ -81,7 +88,8 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
   }
 
   bool ContainsUnsetIRConstants = false;
-  bool FlavoringResult = false;
+  bool FlavoringSuccessful = false;
+  bool OptimizationSuccessful = false;
 
   constructPassBuilderAndMAM([&](llvm::PassBuilder &PB, llvm::ModuleAnalysisManager &MAM) {
     // Optimize away unnecessary branches due to backend-specific S2IR constants
@@ -92,11 +100,15 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
-    FlavoringResult = this->toBackendFlavor(M);
-    if(FlavoringResult) {
+    FlavoringSuccessful = this->toBackendFlavor(M);
+    if(FlavoringSuccessful) {
       // Run optimizations
-      llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
-      MPM.run(M, MAM);
+
+      PassHandler PH {&PB, &MAM};
+      OptimizationSuccessful = optimizeFlavoredIR(M, PH);
+      if(!OptimizationSuccessful) {
+        this->registerError("Optimization failed");
+      }
 
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
@@ -110,11 +122,21 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     }
   });
 
-  return FlavoringResult && !ContainsUnsetIRConstants;
+  return FlavoringSuccessful && OptimizationSuccessful && !ContainsUnsetIRConstants;
 }
 
 bool LLVMToBackendTranslator::translatePreparedIR(llvm::Module &FlavoredModule, std::string &out) {
   return this->translateToBackendFormat(FlavoredModule, out);
+}
+
+bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
+  assert(PH.PassBuilder);
+  assert(PH.ModuleAnalysisManager);
+
+  llvm::ModulePassManager MPM =
+      PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+  MPM.run(M, *PH.ModuleAnalysisManager);
+  return true;
 }
 
 #define HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(type)                                              \

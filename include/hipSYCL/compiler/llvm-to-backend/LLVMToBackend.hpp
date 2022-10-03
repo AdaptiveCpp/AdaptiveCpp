@@ -47,6 +47,8 @@ class Module;
 namespace hipsycl {
 namespace compiler {
 
+struct PassHandler;
+
 struct TranslationHints {
   std::optional<std::size_t> RequestedLocalMemSize;
   std::optional<std::size_t> SubgroupSize;
@@ -88,6 +90,10 @@ protected:
   // Transform LLVM IR as much as required to backend-specific flavor
   virtual bool toBackendFlavor(llvm::Module &M) = 0;
   virtual bool translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) = 0;
+
+  // By default, just runs regular O3 pipeline. Backends may override
+  // if they want to do something more specific.
+  virtual bool optimizeFlavoredIR(llvm::Module& M, PassHandler& PH);
 
   void registerError(const std::string& E) {
     Errors.push_back(E);

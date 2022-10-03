@@ -28,10 +28,12 @@
 #ifndef HIPSYCL_LLVM_TO_BACKEND_UTILS_HPP
 #define HIPSYCL_LLVM_TO_BACKEND_UTILS_HPP
 
+#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
@@ -39,6 +41,11 @@
 
 namespace hipsycl {
 namespace compiler {
+
+struct PassHandler {
+  llvm::PassBuilder* PassBuilder;
+  llvm::ModuleAnalysisManager* ModuleAnalysisManager;
+};
 
 inline llvm::Error loadModuleFromString(const std::string &LLVMIR, llvm::LLVMContext &ctx,
                                         std::unique_ptr<llvm::Module> &out) {

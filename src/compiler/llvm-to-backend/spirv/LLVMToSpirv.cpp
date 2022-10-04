@@ -29,12 +29,14 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Program.h>
 #include <memory>
@@ -42,6 +44,7 @@
 #include <system_error>
 #include <vector>
 
+#include <iostream>
 namespace hipsycl {
 namespace compiler {
 
@@ -72,37 +75,36 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
   return true;
 }
 
-struct DiscardTempFileWhenDestroyed {
-  llvm::sys::fs::TempFile& TempFile;
 
-  DiscardTempFileWhenDestroyed(llvm::sys::fs::TempFile& TF)
-  : TempFile{TF} {}
+template<class F>
+class AtScopeExit {
+public:
+  AtScopeExit(F&& f)
+  : Handler(f) {}
 
-  ~DiscardTempFileWhenDestroyed() {
-    auto Err = TempFile.discard();
-  }
+  ~AtScopeExit() {Handler();}
+private:
+  std::function<void()> Handler;
 };
 
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.spv");
-
+  
+  llvm::SmallVector<char> OutputFilenameSmallVec;
+  llvm::sys::fs::createTemporaryFile("hipsycl-sscp-spirv", "spv", OutputFilenameSmallVec);
+  std::string OutputFilename;
+  for(auto c : OutputFilenameSmallVec)
+    OutputFilename += c;
+  
   auto E = InputFile.takeError();
   if(E){
     this->registerError("Could not create temp file: "+InputFile->TmpName);
     return false;
   }
 
-  DiscardTempFileWhenDestroyed InputFileDestructionGuard(InputFile.get());
-  
-  E = OutputFile.takeError();
-  if(E){
-    this->registerError("Could not create temp file: "+OutputFile->TmpName);
-    return false;
-  }
-
-  DiscardTempFileWhenDestroyed OutputFileDestructionGuard(OutputFile.get());
+  AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
+  AtScopeExit DestroyOutputFile([&]() { llvm::sys::fs::remove(OutputFilename); });
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
@@ -110,12 +112,23 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
-  int R =
-      llvm::sys::ExecuteAndWait("/usr/bin/llvm-spirv", {"-o=" + OutputFile->TmpName, InputFile->TmpName});
+  std::string LLVMSpirVTranslator = "/usr/bin/llvm-spirv";
+  int R = llvm::sys::ExecuteAndWait(
+      LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
   if(R != 0) {
     this->registerError("llvm-spirv invocation failed with exit code " + std::to_string(R));
     return false;
   }
+  
+  auto ReadResult =
+      llvm::MemoryBuffer::getFile(OutputFilename);
+  
+  if(auto Err = ReadResult.getError()) {
+    this->registerError("Could not read result file"+Err.message());
+    return false;
+  }
+  
+  out = ReadResult->get()->getBuffer();
 
   return true;
 }

@@ -44,7 +44,6 @@
 #include <system_error>
 #include <vector>
 
-#include <iostream>
 namespace hipsycl {
 namespace compiler {
 
@@ -92,15 +91,11 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.spv");
   
-  //llvm::SmallVector<char, 128> OutputFilenameSmallVec;
-  //llvm::sys::fs::createTemporaryFile("hipsycl-sscp-spirv", "spv", OutputFilenameSmallVec);
   std::string OutputFilename = OutputFile->TmpName;
-  //for(auto c : OutputFilenameSmallVec)
-  //  OutputFilename += c;
   
   auto E = InputFile.takeError();
   if(E){
-    this->registerError("Could not create temp file: "+InputFile->TmpName);
+    this->registerError("LLVMToSpirv: Could not create temp file: "+InputFile->TmpName);
     return false;
   }
 
@@ -117,7 +112,8 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   int R = llvm::sys::ExecuteAndWait(
       LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
   if(R != 0) {
-    this->registerError("llvm-spirv invocation failed with exit code " + std::to_string(R));
+    this->registerError("LLVMToSpirv: llvm-spirv invocation failed with exit code " +
+                        std::to_string(R));
     return false;
   }
   
@@ -125,7 +121,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
       llvm::MemoryBuffer::getOpenFile(OutputFile->FD, OutputFile->TmpName, -1);
   
   if(auto Err = ReadResult.getError()) {
-    this->registerError("Could not read result file"+Err.message());
+    this->registerError("LLVMToSpirv: Could not read result file"+Err.message());
     return false;
   }
   

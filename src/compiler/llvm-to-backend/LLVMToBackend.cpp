@@ -30,10 +30,11 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
-#include <clang/Basic/Diagnostic.h>
+
 #include <cstdint>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
+#include <llvm/Linker/Linker.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/Error.h>
 #include <string>
@@ -63,7 +64,7 @@ bool LLVMToBackendTranslator::fullTransformation(const std::string &LLVMIR, std:
   auto err = loadModuleFromString(LLVMIR, ctx, M);
 
   if (err) {
-    this->registerError("Could not load LLVM module");
+    this->registerError("LLVMToBackend: Could not load LLVM module");
     llvm::handleAllErrors(std::move(err), [&](llvm::ErrorInfoBase &EIB) {
       this->registerError(EIB.message());
     });
@@ -107,14 +108,14 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       PassHandler PH {&PB, &MAM};
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
       if(!OptimizationSuccessful) {
-        this->registerError("Optimization failed");
+        this->registerError("LLVMToBackend: Optimization failed");
       }
 
       S2IRConstant::forEachS2IRConstant(M, [&](S2IRConstant C) {
         if (C.isValid()) {
           if (!C.isInitialized()) {
             ContainsUnsetIRConstants = true;
-            this->registerError("hipSYCL S2IR constant was not set: " +
+            this->registerError("LLVMToBackend: hipSYCL S2IR constant was not set: " +
                                 C.getGlobalVariable()->getName().str());
           }
         }
@@ -137,6 +138,35 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
       PH.PassBuilder->buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
   MPM.run(M, *PH.ModuleAnalysisManager);
   return true;
+}
+
+bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode) {
+  std::unique_ptr<llvm::Module> OtherModule;
+  auto err = loadModuleFromString(Bitcode, M.getContext(), OtherModule);
+
+  if (err) {
+    this->registerError("LLVMToBackend: Could not load LLVM module");
+    llvm::handleAllErrors(std::move(err), [&](llvm::ErrorInfoBase &EIB) {
+      this->registerError(EIB.message());
+    });
+    return false;
+  }
+
+  // Returns true on error
+  if(llvm::Linker::linkModules(M, std::move(OtherModule))) {
+    this->registerError("LLVMToBackend: Linking module failed");
+    return false;
+  }
+  return true;
+}
+
+bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module& M, const std::string& BitcodeFile) {
+  auto F = llvm::MemoryBuffer::getFile(BitcodeFile);
+  if(auto Err = F.getError()) {
+    this->registerError("LLVMToBackend: Could not open file " + BitcodeFile);
+    return false;
+  }
+  return linkBitcodeString(M, std::string{F.get()->getBuffer()});
 }
 
 #define HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(type)                                              \

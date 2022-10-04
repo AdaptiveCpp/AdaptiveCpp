@@ -85,6 +85,8 @@ public:
   }
 
 protected:
+  bool linkBitcodeFile(llvm::Module& M, const std::string& BitcodeFile);
+  bool linkBitcodeString(llvm::Module& M, const std::string& Bitcode);
   // If backend needs to set IR constants, it should do so here.
   virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
   // Transform LLVM IR as much as required to backend-specific flavor

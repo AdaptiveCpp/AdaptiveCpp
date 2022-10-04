@@ -90,12 +90,13 @@ private:
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.spv");
   
-  llvm::SmallVector<char> OutputFilenameSmallVec;
-  llvm::sys::fs::createTemporaryFile("hipsycl-sscp-spirv", "spv", OutputFilenameSmallVec);
-  std::string OutputFilename;
-  for(auto c : OutputFilenameSmallVec)
-    OutputFilename += c;
+  //llvm::SmallVector<char, 128> OutputFilenameSmallVec;
+  //llvm::sys::fs::createTemporaryFile("hipsycl-sscp-spirv", "spv", OutputFilenameSmallVec);
+  std::string OutputFilename = OutputFile->TmpName;
+  //for(auto c : OutputFilenameSmallVec)
+  //  OutputFilename += c;
   
   auto E = InputFile.takeError();
   if(E){
@@ -104,7 +105,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
 
   AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
-  AtScopeExit DestroyOutputFile([&]() { llvm::sys::fs::remove(OutputFilename); });
+  AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
 
   std::error_code EC;
   llvm::raw_fd_ostream InputStream{InputFile->FD, false};
@@ -121,7 +122,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
   
   auto ReadResult =
-      llvm::MemoryBuffer::getFile(OutputFilename);
+      llvm::MemoryBuffer::getOpenFile(OutputFile->FD, OutputFile->TmpName, -1);
   
   if(auto Err = ReadResult.getError()) {
     this->registerError("Could not read result file"+Err.message());

@@ -29,6 +29,7 @@
 #include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
@@ -78,6 +79,8 @@ IntT generateRandomNumber() {
   std::lock_guard<std::mutex> lock {M};
   return dist(Rng);
 }
+
+
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
                                                std::vector<std::string> &KernelNamesOutput) {
@@ -164,7 +167,8 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
   std::string HcfString;
 
 
-  // Only run SSCP kernel extraction in the host pass
+  // Only run SSCP kernel extraction in the host pass in case
+  // there are also CUDA/HIP compilation flows going on
   if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
     
     std::vector<std::string> KernelNames;
@@ -179,6 +183,9 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
       OutputFile.close();
     }
   }
+
+  HostKernelNameExtractionPass KernelNamingPass;
+  KernelNamingPass.run(M, MAM);
 
   S1IRConstantReplacer HostSideReplacer{
       {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},

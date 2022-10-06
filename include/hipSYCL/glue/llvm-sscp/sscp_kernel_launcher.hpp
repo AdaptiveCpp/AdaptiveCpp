@@ -56,6 +56,31 @@ static __hipsycl_static_sscp_hcf_registration
     __hipsycl_register_sscp_hcf_object;
 
 
+template <typename KernelType>
+// hipsycl_sscp_kernel causes kernel entries to be emitted to the HCF
+[[clang::annotate("hipsycl_sscp_kernel")]]
+// hipsycl_sscp_outlining creates an entrypoint for outlining of device code
+[[clang::annotate("hipsycl_sscp_outlining")]]
+void __hipsycl_sscp_kernel(const KernelType kernel) {
+  if(__hipsycl_sscp_is_device)
+    kernel();
+}
+
+// The SSCP compiler will use this invocation to connect the kernel function
+// to a global variable where the kernel name can be stored.
+// First argument has to be a function pointer to the kernel,
+// second one a pointer to a global variable.
+// No indirection is allowed! If I say, the argument has to be a global variable,
+// I mean it. Directly. No passing through other functions first.
+template <class Kernel>
+void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
+                                        const char *target);
+
+template<class Kernel>
+struct __hipsycl_sscp_kernel_name {
+  static const char value [];
+};
+
 namespace hipsycl {
 namespace glue {
 namespace sscp_dispatch {
@@ -129,12 +154,6 @@ private:
   sycl::id<Dimensions> _offset;
 };
 
-template <typename KernelType>
-[[clang::annotate("hipsycl_sscp_kernel")]]
-[[clang::annotate("hipsycl_sscp_outlining")]]
-void kernel_entry_point(const KernelType &kernel) {
-  kernel();
-}
 
 }
 
@@ -176,13 +195,15 @@ public:
         return global_range / local_range;
       };
 
+      std::string kernel_name;
+
       if constexpr(type == rt::kernel_type::single_task){
-        generate_kernel(sscp_dispatch::single_task{k});
+        generate_kernel(sscp_dispatch::single_task{k}, kernel_name);
       } else if constexpr (type == rt::kernel_type::basic_parallel_for) {
         if(offset == sycl::id<Dim>{}) {
-          generate_kernel(sscp_dispatch::basic_parallel_for{k, global_range});
+          generate_kernel(sscp_dispatch::basic_parallel_for{k, global_range}, kernel_name);
         } else {
-          generate_kernel(sscp_dispatch::basic_parallel_for_offset{k, offset, global_range});
+          generate_kernel(sscp_dispatch::basic_parallel_for_offset{k, offset, global_range}, kernel_name);
         }
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
@@ -197,7 +218,6 @@ public:
       else {
         assert(false && "Unsupported kernel type");
       }
-
     };
   }
 
@@ -220,9 +240,15 @@ public:
 
 private:
   template<class Kernel>
-  static void generate_kernel(const Kernel& k) {
-    if (__hipsycl_sscp_is_device)
-      sscp_dispatch::kernel_entry_point(k);
+  static void generate_kernel(const Kernel& k, std::string& kernel_name) {
+    if (__hipsycl_sscp_is_device) {
+      __hipsycl_sscp_kernel(k);
+    }
+    
+    __hipsycl_sscp_extract_kernel_name<Kernel>(
+        &__hipsycl_sscp_kernel<Kernel>,
+        &__hipsycl_sscp_kernel_name<Kernel>::value[0]);
+    kernel_name = std::string{&__hipsycl_sscp_kernel_name<Kernel>::value[0]};
   }
 
   std::function<void (rt::dag_node*)> _invoker;

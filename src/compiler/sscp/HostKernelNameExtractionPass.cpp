@@ -92,6 +92,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
               // Now set GV to the kernel name
               HIPSYCL_DEBUG_INFO << "HostKernelNameExtractionPass: Exposing kernel name "
                                  << KernelName << " in global symbol " << GV->getName() << "\n";
+             
               IRConstant IRC{M, *GV};
               IRC.set<std::string>(KernelName + '\0');
             }

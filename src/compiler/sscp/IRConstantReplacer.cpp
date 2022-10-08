@@ -47,19 +47,19 @@ S1IRConstantReplacer::S1IRConstantReplacer(
 
 llvm::PreservedAnalyses S1IRConstantReplacer::run(llvm::Module &M,
                                                   llvm::ModuleAnalysisManager &MAM) {
-  for(llvm::GlobalVariable& V : M.getGlobalList()) {
-    IRConstant C{M, V};
+  auto setConstants = [&](const auto& ConstantReplacementTable) {
+    for(const auto& IC : ConstantReplacementTable) {
+      if(llvm::GlobalVariable* G = M.getGlobalVariable(IC.first, true)) {
+        IRConstant C{M, *G};
+        C.set(IC.second);
+      }
+    }
+  };
 
-    if(IntConstants.find(V.getName().str()) != IntConstants.end()) {
-      C.set<int>(IntConstants[V.getName().str()]);
-    }
-    if(UInt64Constants.find(V.getName().str()) != UInt64Constants.end()) {
-      C.set<uint64_t>(UInt64Constants[V.getName().str()]);
-    }
-    if(StringConstants.find(V.getName().str()) != StringConstants.end()){
-      C.set<std::string>(StringConstants[V.getName().str()]);
-    }
-  }
+  setConstants(IntConstants);
+  setConstants(UInt64Constants);
+  setConstants(StringConstants);
+
 
   // TODO Make this more specific
   return llvm::PreservedAnalyses::none();

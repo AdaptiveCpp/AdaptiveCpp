@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_IR_CONSTANT_REPLACER_HPP
 #define HIPSYCL_IR_CONSTANT_REPLACER_HPP
 
+#include <cassert>
 #include <climits>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/StringRef.h>
@@ -67,10 +68,15 @@ public:
     return Var->hasInitializer();
   }
 
+  // Set IR constant. Note that for std::string, this may replace the GlobalVariable
+  // with a new one, so pointers the to global variable may be invalid
+  // afterwards.
   template<class T>
   void set(T Value) {
     if(!isValid())
       return;
+    
+    assert(!isInitialized());
 
     Var->setConstant(true);
     Var->setExternallyInitialized(false);
@@ -88,9 +94,32 @@ public:
         Initializer = llvm::ConstantFP::get(llvm::Type::getDoubleTy(M->getContext()), Value);
       }
     } else if constexpr(std::is_same_v<T, std::string>) {
-      llvm::StringRef RawData {Value};
-      Initializer = llvm::ConstantDataArray::getRaw(RawData, Value.size(),
+      
+      Initializer = llvm::ConstantDataArray::getRaw(Value+'\0', Value.size()+1,
                                                     llvm::Type::getInt8Ty(M->getContext()));
+      
+      // string case in general is more complicated because we expect
+      // that strings can change size. This changes the type of the global
+      // variable, since string length enters the LLVM type.
+      if(Initializer->getType() != Var->getValueType()) {
+        std::string Name = std::string{Var->getName()};
+
+        // 1.) The idea is to create a new global variable of the appropriate type
+        llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(*M, Initializer->getType(), true,
+                                                                llvm::GlobalValue::InternalLinkage,
+                                                                Initializer, Name + ".initialized");
+        // 2.) Replace all uses of the old var with the new one
+        //     We annot use replaceAllUsesWith because it requires same type, so
+        //     we first have to create a cast
+        llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, Var->getType());
+        Var->replaceAllUsesWith(V);
+        Var->eraseFromParent();
+        
+        Var = NewVar; 
+      } else {
+        Var->setInitializer(Initializer);
+      }
+      
     } else {
       M->getContext().emitError("Attempted setting hipSYCL IR constant of unsupported type");
     }

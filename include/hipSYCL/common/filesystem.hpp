@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_COMMON_CONFIG_HPP
-#define HIPSYCL_COMMON_CONFIG_HPP
+#ifndef HIPSYCL_COMMON_FILESYSTEM_HPP
+#define HIPSYCL_COMMON_FILESYSTEM_HPP
 
-#define HIPSYCL_VERSION_MAJOR @HIPSYCL_VERSION_MAJOR@
-#define HIPSYCL_VERSION_MINOR @HIPSYCL_VERSION_MINOR@
-#define HIPSYCL_VERSION_PATCH @HIPSYCL_VERSION_PATCH@
-#define HIPSYCL_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-#define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
-#define HIPSYCL_COMMON_LIBRARY_NAME "@HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME@"
-#define HIPSYCL_VERSION_TYPE "git"
+#include <string>
+#include <vector>
 
-// Macros to switch between proper std::filesystem, experimental version found in GCC 7, or Boost::filesystem
-#define HIPSYCL_CXX_FILESYSTEM_HEADER <@CXX_FILESYSTEM_HEADER@>
-#define HIPSYCL_CXX_FILESYSTEM_NAMESPACE @CXX_FILESYSTEM_NAMESPACE@
+namespace hipsycl {
+namespace common {
+
+namespace filesystem {
+
+std::string get_install_directory();
+std::vector<std::string> get_component_candidate_locations();
+
+std::vector<std::string> list_regular_files(const std::string &directory);
+std::vector<std::string> list_regular_files(const std::string &directory,
+                                            const std::string &extension);
+}
+
+}
+}
 
 #endif
-

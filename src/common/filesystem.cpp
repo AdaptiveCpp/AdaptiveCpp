@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_COMMON_CONFIG_HPP
-#define HIPSYCL_COMMON_CONFIG_HPP
+#include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/config.hpp"
 
-#define HIPSYCL_VERSION_MAJOR @HIPSYCL_VERSION_MAJOR@
-#define HIPSYCL_VERSION_MINOR @HIPSYCL_VERSION_MINOR@
-#define HIPSYCL_VERSION_PATCH @HIPSYCL_VERSION_PATCH@
-#define HIPSYCL_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-#define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
-#define HIPSYCL_COMMON_LIBRARY_NAME "@HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME@"
-#define HIPSYCL_VERSION_TYPE "git"
 
-// Macros to switch between proper std::filesystem, experimental version found in GCC 7, or Boost::filesystem
-#define HIPSYCL_CXX_FILESYSTEM_HEADER <@CXX_FILESYSTEM_HEADER@>
-#define HIPSYCL_CXX_FILESYSTEM_NAMESPACE @CXX_FILESYSTEM_NAMESPACE@
-
+#ifndef _WIN32
+#include <dlfcn.h>
+#else
+#include <windows.h> 
 #endif
+
+#include HIPSYCL_CXX_FILESYSTEM_HEADER
+namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
+
+
+namespace hipsycl {
+namespace common {
+namespace filesystem {
+
+std::string get_install_directory() {
+
+  std::vector<fs::path> paths;
+#ifndef _WIN32
+  Dl_info info;
+  if (dladdr(reinterpret_cast<void*>(&get_install_directory), &info)) {
+    auto lib_path = fs::path{info.dli_fname}.parent_path();
+    if(lib_path.has_parent_path())
+      paths.emplace_back(lib_path.parent_path());
+  }
+  
+#else
+  if(HMODULE handle = GetModuleHandleA(HIPSYCL_COMMON_LIBRARY_NAME))
+  {
+    std::vector<char> path_buffer(MAX_PATH);
+    if(GetModuleFileNameA(handle, path_buffer.data(), path_buffer.size()))
+    {
+      auto lib_path = fs::path{path_buffer.data()}.parent_path();
+      if(lib_path.has_parent_path())
+        paths.emplace_back(lib_path.parent_path());
+    }
+  }
+  
+#endif
+  if(paths.empty())
+    return fs::path{HIPSYCL_INSTALL_PREFIX};
+  return *paths.begin();
+}
+
+}
+}
+}
 

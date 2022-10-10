@@ -1,5 +1,7 @@
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+add_subdirectory(common)
+
 if(BUILD_CLANG_PLUGIN)
   add_subdirectory(compiler)
   add_subdirectory(libkernel)

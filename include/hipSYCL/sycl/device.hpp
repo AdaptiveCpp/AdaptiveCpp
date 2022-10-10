@@ -313,11 +313,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_global_size0));
+      rt::device_uint_property::max_group_size0));
   std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_global_size1));
+      rt::device_uint_property::max_group_size1));
   std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
-      rt::device_uint_property::max_global_size2));
+      rt::device_uint_property::max_group_size2));
   return id<3>{size0, size1, size2};
 }
 

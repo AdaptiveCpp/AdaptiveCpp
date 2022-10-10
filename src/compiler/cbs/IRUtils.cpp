@@ -135,7 +135,7 @@ bool checkedInlineFunction(llvm::CallBase *CI, llvm::StringRef PassPrefix) {
     HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << calleeName << ">: '"
                           << ILR.message << "'\n";
 #else
-  llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI, nullptr);
+  llvm::InlineResult ILR = llvm::InlineFunction(*CI, IFI);
   if (!ILR.isSuccess()) {
     HIPSYCL_DEBUG_WARNING << PassPrefix << " failed to inline function <" << CalleeName << ">: '"
                           << ILR.getFailureReason() << "'\n";

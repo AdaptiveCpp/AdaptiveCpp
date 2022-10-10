@@ -943,12 +943,16 @@ private:
   
 #if defined(__HIPSYCL_MULTIPASS_CUDA_HEADER__) || defined(__HIPSYCL_MULTIPASS_HIP_HEADER__)
 
+    std::size_t local_hcf_object_id = 0;
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
-    const std::size_t local_hcf_object_id =
-        __hipsycl_local_cuda_hcf_object_id;
-#else
-    const std::size_t local_hcf_object_id =
-        __hipsycl_local_hip_hcf_object_id;
+    if(Backend_id == rt::backend_id::cuda) {
+      local_hcf_object_id = __hipsycl_local_cuda_hcf_object_id;
+    }
+#endif
+#ifdef __HIPSYCL_MULTIPASS_HIP_HEADER__
+    if(Backend_id == rt::backend_id::hip) {
+      local_hcf_object_id = __hipsycl_local_hip_hcf_object_id;
+    }
 #endif
 
     std::array<void *, sizeof...(Args)> kernel_args{

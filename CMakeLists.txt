@@ -5,7 +5,7 @@ endif()
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
-set(HIPSYCL_VERSION_PATCH 2)
+set(HIPSYCL_VERSION_PATCH 3)
 
 project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
 
@@ -185,7 +185,7 @@ if(BUILD_CLANG_PLUGIN)
       set(ROCM_VERSION_PATCH ${CMAKE_MATCH_3})
       message(STATUS "AMD clang version: ${ROCM_VERSION_MAJOR}.${ROCM_VERSION_MINOR}.${ROCM_VERSION_PATCH}")
 
-      if(${LLVM_VERSION_MAJOR} EQUAL 13 AND NOT DEFINED ${HIPSYCL_NO_DEVICE_MANGLER})
+      if(${LLVM_VERSION_MAJOR} EQUAL 13 AND NOT DEFINED HIPSYCL_NO_DEVICE_MANGLER)
         message(SEND_ERROR "AMD clang version not compatible with hipSYCL explicit multipass. "
                            "To disable explicit multipass set -DHIPSYCL_NO_DEVICE_MANGLER=ON. "
                            "This also disables simultaneous compilation for CUDA and HIP devices.")

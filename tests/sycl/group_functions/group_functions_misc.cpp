@@ -297,7 +297,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_broadcast, T, test_types) {
   }
 }
 
-
+#if !defined(REDUCED_LOCAL_MEM_USAGE)
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
   const size_t elements_per_thread = 1;
   const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
@@ -446,7 +446,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_shuffle_like, T, test_types) {
                                            tested_function, validation_function);
   }
 }
-
+#endif
 BOOST_AUTO_TEST_CASE_TEMPLATE(subgroup_shuffle_like, T, test_types) {
   if(!sycl::queue{}.get_device().is_host()) {
     const size_t elements_per_thread = 1;

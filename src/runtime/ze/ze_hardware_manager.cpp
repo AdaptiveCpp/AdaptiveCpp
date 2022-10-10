@@ -317,6 +317,15 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_global_size2:
     return _compute_props.maxGroupSizeZ * _compute_props.maxGroupCountZ;
     break;
+  case device_uint_property::max_group_size0:
+    return _compute_props.maxGroupSizeX;
+    break;
+  case device_uint_property::max_group_size1:
+    return _compute_props.maxGroupSizeY;
+    break;
+  case device_uint_property::max_group_size2:
+    return _compute_props.maxGroupSizeZ;
+    break;
   case device_uint_property::max_group_size:
     return _compute_props.maxTotalGroupSize;
     break;

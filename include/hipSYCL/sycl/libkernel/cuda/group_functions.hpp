@@ -96,7 +96,7 @@ __device__ T __hipsycl_reduce_over_group(sub_group g, T x,
                                          BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
-  const unsigned int activemask = __activemask();
+  const unsigned int activemask = __ballot_sync(0xffffffff, 1);
 
   auto local_x = x;
 
@@ -114,7 +114,7 @@ __device__ T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init,
                                                  BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
-  const unsigned int activemask = __activemask();
+  const unsigned int activemask = __ballot_sync(0xffffffff, 1);
 
   auto local_x = x;
 
@@ -146,7 +146,7 @@ __device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
                                                  BinaryOperation binary_op) {
   const size_t       lid        = g.get_local_linear_id();
   const size_t       lrange     = g.get_local_linear_range();
-  const unsigned int activemask = __activemask();
+  const unsigned int activemask = __ballot_sync(0xffffffff, 1);
 
   auto local_x = x;
 

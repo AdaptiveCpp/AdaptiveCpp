@@ -30,6 +30,7 @@ check_backend("hip")
 list(JOIN HIPSYCL_PLATFORM_OPTIONS " | " HIPSYCL_PLATFORMS_STRING)
 
 set(HIPSYCL_SYCLCC_EXTRA_ARGS "${HIPSYCL_SYCLCC_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to syclcc.")
+set(HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS "${HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
 
 set(HIPSYCL_TARGETS_DESC "in the format HIPSYCL_TARGETS=<platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>] where platforms are one of ${HIPSYCL_PLATFORMS_STRING}")
 set(HIPSYCL_TARGETS "${HIPSYCL_TARGETS}" CACHE STRING "The platforms and architectures hipSYCL should target, ${HIPSYCL_TARGETS_DESC}.")
@@ -179,19 +180,21 @@ function(add_sycl_to_target)
     ${ARGN}
   )
 
-  # The SOURCES argument to add_sycl_to_target is ignored and exists only for compatibility with ComputeCpp, since
-  # the compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
-  # also set for all files in the list.
-  get_target_property(ADD_SYCL_SOURCES "${ADD_SYCL_TARGET}" SOURCES)
+  set_property(SOURCE ${ADD_SYCL_SOURCES} APPEND PROPERTY COMPILE_OPTIONS
+      ${HIPSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS})
 
-  foreach(ADD_SYCL_SOURCE_ITER IN LISTS ADD_SYCL_SOURCES)
-    get_source_file_property(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_SOURCE_ITER}" OBJECT_DEPENDS)
+  # The compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
+  # also set for all files in the list.
+  get_target_property(ADD_SYCL_TARGET_ALL_SOURCES "${ADD_SYCL_TARGET}" SOURCES)
+
+  foreach(SOURCE_FILE_ITER IN LISTS ADD_SYCL_TARGET_ALL_SOURCES)
+    get_source_file_property(ADD_SYCL_OBJECT_DEPENDS "${SOURCE_FILE_ITER}" OBJECT_DEPENDS)
     if(ADD_SYCL_OBJECT_DEPENDS)
       set(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS};${HIPSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
     else()
       set(ADD_SYCL_OBJECT_DEPENDS "${HIPSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
     endif()
-    set_source_files_properties("${ADD_SYCL_SOURCE_ITER}" PROPERTIES OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS}")
+    set_source_files_properties("${SOURCE_FILE_ITER}" PROPERTIES OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS}")
   endforeach()
 
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${HIPSYCL_SYCLCC_LAUNCH_RULE}")

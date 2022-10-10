@@ -108,7 +108,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
-  std::string LLVMSpirVTranslator = "/usr/bin/llvm-spirv";
+  std::string LLVMSpirVTranslator = HIPSYCL_LLVMSPIRV_PATH;
   int R = llvm::sys::ExecuteAndWait(
       LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
   if(R != 0) {

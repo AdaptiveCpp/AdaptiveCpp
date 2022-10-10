@@ -94,6 +94,8 @@ function(add_hipsycl_llvm_backend)
   create_llvm_to_backend_tool(TARGET llvm-to-${backend_name} SOURCES ${tool_sources})
 endfunction()
 
+include(ExternalProject)
+
 if(WITH_SSCP_COMPILER)
   create_llvm_based_library(
     TARGET llvm-to-backend
@@ -103,4 +105,25 @@ if(WITH_SSCP_COMPILER)
     BACKEND spirv 
     LIBRARY spirv/LLVMToSpirv.cpp 
     TOOL spirv/LLVMToSpirvTool.cpp)
+
+# Install LLVM-SPIRV translator for llvm-to-spirv
+  set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
+  set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/ext/llvm-spirv)
+  set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
+
+  ExternalProject_Add(LLVMSpirvTranslator
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+    GIT_TAG origin/${LLVMSPIRV_BRANCH}
+    GIT_SHALLOW ON
+    BUILD_ALWAYS OFF
+    INSTALL_DIR ${LLVMSPIRV_INSTALLDIR}
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
+    CMAKE_CACHE_ARGS
+      -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
+      -DLLVM_DIR:PATH=${LLVM_DIR}
+		  -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
+    )
+  
+  target_compile_definitions(llvm-to-spirv PRIVATE -DHIPSYCL_LLVMSPIRV_PATH="${LLVMSPIRV_PATH}")
 endif()

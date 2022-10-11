@@ -920,7 +920,12 @@ public:
   template <
       int D = dimensions, access::mode M = accessmode,
       bool IsAllowed = has_subscript_operators,
-      std::enable_if_t<(D > 0) && IsAllowed && (M != access::mode::atomic),
+      // Note: spec says D==1 here, however this can lead to ambiguity when item<1>
+      // is passed as argument
+      // with respect to the SYCL 2020 implicit conversion from id<1>/item<1> to size_t
+      // since we also have operator[](size_t).
+      // Because of this, we only enable this for D > 1.
+      std::enable_if_t<(D > 1) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
   HIPSYCL_UNIVERSAL_TARGET reference
   operator[](id<dimensions> index) const noexcept {

@@ -47,6 +47,18 @@ namespace detail {
 template <int dimensions>
 struct item_base
 {
+protected:
+  struct not_convertible_to_scalar {};
+
+  static constexpr auto get_scalar_conversion_type() {
+    if constexpr(dimensions == 1)
+      return std::size_t{};
+    else
+      return not_convertible_to_scalar {};
+  }
+
+  using scalar_conversion_type = decltype(get_scalar_conversion_type());
+public:
   HIPSYCL_KERNEL_TARGET 
   item_base(const sycl::id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)
@@ -83,6 +95,7 @@ struct item_base
     return detail::linear_id<dimensions>::get(this->global_id,
       this->global_size);
   }
+
 protected:
   sycl::id<dimensions> global_id;
   sycl::range<dimensions> global_size;
@@ -135,6 +148,14 @@ struct item<dimensions, true> : detail::item_base<dimensions>
     return !(lhs==rhs);
   }
 
+  // We cannot use enable_if since the involved templates would
+  // prevent implicit type conversion to other integer types.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+      const {
+    return this->global_id[0];
+  }
+
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc
@@ -175,6 +196,13 @@ struct item<dimensions, false> : detail::item_base<dimensions>
     return !(lhs==rhs);
   }
 
+  // We cannot use enable_if since the involved templates would
+  // prevent implicit type conversion to other integer types.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+      const {
+    return this->global_id[0];
+  }
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc

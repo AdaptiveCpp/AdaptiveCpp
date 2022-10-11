@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -81,10 +82,14 @@ bool LLVMToBackendTranslator::fullTransformation(const std::string &LLVMIR, std:
 }
 
 bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Preparing backend flavoring...\n";
+
   if(!this->prepareBackendFlavor(M))
     return false;
   
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Applying S2 IR constants...\n";
   for(auto& A : S2IRConstantApplicators) {
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Setting S2 IR constant " << A.first << "\n";
     A.second(M);
   }
 
@@ -95,16 +100,19 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
   constructPassBuilderAndMAM([&](llvm::PassBuilder &PB, llvm::ModuleAnalysisManager &MAM) {
     // Optimize away unnecessary branches due to backend-specific S2IR constants
     // This is what allows us to specialize code for different backends.
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing branches post S2 IR constant application...\n";
     IRConstant::optimizeCodeAfterConstantModification(M, MAM);
     // Rerun kernel outlining pass so that we don't include unneeded functions
     // that are specific to other backends.
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Reoutlining kernels...\n";
     KernelOutliningPass KP{OutliningEntrypoints};
     KP.run(M, MAM);
 
+    HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
     FlavoringSuccessful = this->toBackendFlavor(M);
     if(FlavoringSuccessful) {
       // Run optimizations
-
+      HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
       PassHandler PH {&PB, &MAM};
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
       if(!OptimizationSuccessful) {
@@ -120,6 +128,8 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
           }
         }
       });
+    } else {
+      HIPSYCL_DEBUG_INFO << "LLVMToBackend: Flavoring failed\n";
     }
   });
 
@@ -127,6 +137,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
 }
 
 bool LLVMToBackendTranslator::translatePreparedIR(llvm::Module &FlavoredModule, std::string &out) {
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Invoking translation to backend-specific format\n";
   return this->translateToBackendFormat(FlavoredModule, out);
 }
 
@@ -166,6 +177,7 @@ bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module& M, const std::string
     this->registerError("LLVMToBackend: Could not open file " + BitcodeFile);
     return false;
   }
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Linking with bitcode file: " << BitcodeFile << "\n";
   return linkBitcodeString(M, std::string{F.get()->getBuffer()});
 }
 

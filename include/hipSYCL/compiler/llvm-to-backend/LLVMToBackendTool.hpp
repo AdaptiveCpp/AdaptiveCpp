@@ -59,7 +59,7 @@ using TranslatorFactory =
     )>;
 
 inline void help() {
-  std::cout << "Usage: llvm-to-<backend> <HCF inputfile> <outputfile> <device-image-name>"
+  std::cout << "Usage: llvm-to-<backend> [--ir] <HCF inputfile> <outputfile> <device-image-name>"
             << std::endl;
 }
 
@@ -110,9 +110,22 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
     }
   }
 
-  std::string InputFile = argv[1];
-  std::string OutputFile = argv[2];
-  std::string ImageName = argv[3];
+  bool PartialTranslation = false;
+
+  int GeneralArgsStart = 1;
+  if(argv[GeneralArgsStart] == std::string{"--ir"}) {
+    PartialTranslation = true;
+    ++GeneralArgsStart;
+  }
+
+  if(GeneralArgsStart+3 >= argc) {
+    help();
+    return -1;
+  }
+
+  std::string InputFile = argv[GeneralArgsStart+1];
+  std::string OutputFile = argv[GeneralArgsStart+2];
+  std::string ImageName = argv[GeneralArgsStart+3];
 
   std::string HcfInput, Output;
   if(!readFile(InputFile, HcfInput)) {
@@ -143,7 +156,15 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
     std::cout << "Could not construct backend translation object." << std::endl;
     return -1;
   }
-  if(!Translator->fullTransformation(IR, Output)){
+
+  bool Result = false;
+  if(!PartialTranslation) {
+    Result = Translator->fullTransformation(IR, Output);
+  } else {
+    Result = Translator->partialTransformation(IR, Output);
+  }
+
+  if(!Result){
     std::cout << "Transformation failed." << std::endl;
     if(!Translator->getErrorLog().empty()) {
       std::cout << "The following issues have been encountered:" << std::endl;

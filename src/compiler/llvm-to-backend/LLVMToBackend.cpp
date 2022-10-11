@@ -59,6 +59,28 @@ void LLVMToBackendTranslator::setS2IRConstant(const std::string& name, T value){
   };
 }
 
+bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, std::string &out) {
+  llvm::LLVMContext ctx;
+  std::unique_ptr<llvm::Module> M;
+  auto err = loadModuleFromString(LLVMIR, ctx, M);
+
+  if (err) {
+    this->registerError("LLVMToBackend: Could not load LLVM module");
+    llvm::handleAllErrors(std::move(err), [&](llvm::ErrorInfoBase &EIB) {
+      this->registerError(EIB.message());
+    });
+    return false;
+  }
+
+  assert(M);
+  if (!prepareIR(*M))
+    return false;
+  
+  // TODO write module to string
+
+  return true;
+}
+
 bool LLVMToBackendTranslator::fullTransformation(const std::string &LLVMIR, std::string &out) {
   llvm::LLVMContext ctx;
   std::unique_ptr<llvm::Module> M;

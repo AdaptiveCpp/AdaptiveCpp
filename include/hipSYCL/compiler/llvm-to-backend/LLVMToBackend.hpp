@@ -75,6 +75,10 @@ public:
     return true;
   }
   
+  // Does partial transformation to backend-flavored LLVM IR
+  bool partialTransformation(const std::string& LLVMIR, std::string& out);
+
+  // Does full transformation to backend specific format
   bool fullTransformation(const std::string& LLVMIR, std::string& out);
   bool prepareIR(llvm::Module& M);
   bool translatePreparedIR(llvm::Module& FlavoredModule, std::string& out);

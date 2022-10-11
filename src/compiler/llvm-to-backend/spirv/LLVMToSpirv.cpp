@@ -29,6 +29,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/CallingConv.h>
@@ -61,6 +62,12 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     }
   }
+
+  std::string BuiltinBitcodeFile = 
+    common::filesystem::join_path(common::filesystem::get_install_directory(),
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
+  
+  this->linkBitcodeFile(M, BuiltinBitcodeFile);
 
   constructPassBuilderAndMAM([&](auto& PB, auto& MAM){
     S2IRConstant::optimizeCodeAfterConstantModification(M, MAM);
@@ -108,7 +115,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
-  std::string LLVMSpirVTranslator = HIPSYCL_LLVMSPIRV_PATH;
+  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
+      hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
+
   int R = llvm::sys::ExecuteAndWait(
       LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
   if(R != 0) {

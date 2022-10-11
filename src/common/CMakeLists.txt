@@ -41,3 +41,9 @@ else()
     set(HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME "lib${HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME}.so" PARENT_SCOPE)
   endif()
 endif()
+
+install(TARGETS hipSYCL-common
+        EXPORT install_exports
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib)

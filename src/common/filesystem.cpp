@@ -67,9 +67,46 @@ std::string get_install_directory() {
   }
   
 #endif
-  if(paths.empty())
+  if(paths.empty() || !fs::is_directory(paths.back()))
     return fs::path{HIPSYCL_INSTALL_PREFIX};
-  return *paths.begin();
+  return paths.back();
+}
+
+std::string join_path(const std::string& base, const std::string& extra) {
+  return (fs::path(base) / extra).string();
+}
+
+std::string
+join_path(const std::string &base,
+          const std::vector<std::string> &additional_components) {
+  std::string current = base;
+  for(const auto& extra : additional_components) {
+    current = join_path(current, extra);
+  }
+  return current;
+}
+
+std::vector<std::string> list_regular_files(const std::string& directory) {
+  fs::path p{directory};
+  std::vector<std::string> result;
+  for(const fs::directory_entry& entry : fs::directory_iterator(p)) {
+    if(fs::is_regular_file(entry.status())) {
+      result.push_back(entry.path().string());
+    }
+  }
+  return result;
+}
+
+std::vector<std::string> list_regular_files(const std::string& directory,
+  const std::string& extension) { 
+  
+  auto all_files = list_regular_files(directory);
+  std::vector<std::string> result;
+  for(const auto& f : all_files) {
+    if(fs::path(f).extension().string() == extension)
+      result.push_back(f);
+  }
+  return result;
 }
 
 }

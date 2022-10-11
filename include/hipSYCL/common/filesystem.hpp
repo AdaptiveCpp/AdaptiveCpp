@@ -37,7 +37,12 @@ namespace common {
 namespace filesystem {
 
 std::string get_install_directory();
-std::vector<std::string> get_component_candidate_locations();
+
+std::string join_path(const std::string& base, const std::string& extra);
+
+std::string
+join_path(const std::string &base,
+          const std::vector<std::string> &additional_components);
 
 std::vector<std::string> list_regular_files(const std::string &directory);
 std::vector<std::string> list_regular_files(const std::string &directory,

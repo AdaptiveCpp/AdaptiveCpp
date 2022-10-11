@@ -47,7 +47,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   create_llvm_based_library(TARGET ${target} SOURCES ${sources})
-  target_link_libraries(${target} PUBLIC llvm-to-backend)
+  target_link_libraries(${target} PUBLIC llvm-to-backend hipSYCL-common)
 endfunction()
 
 function(create_llvm_to_backend_tool)
@@ -108,8 +108,10 @@ if(WITH_SSCP_COMPILER)
 
 # Install LLVM-SPIRV translator for llvm-to-spirv
   set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
-  set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/ext/llvm-spirv)
+  set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
+  set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
   set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
+  set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
   ExternalProject_Add(LLVMSpirvTranslator
     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
@@ -125,5 +127,5 @@ if(WITH_SSCP_COMPILER)
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
     )
   
-  target_compile_definitions(llvm-to-spirv PRIVATE -DHIPSYCL_LLVMSPIRV_PATH="${LLVMSPIRV_PATH}")
+  target_compile_definitions(llvm-to-spirv PRIVATE -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
 endif()

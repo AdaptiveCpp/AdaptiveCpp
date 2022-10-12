@@ -64,11 +64,18 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
     }
   }
 
+  for(auto& F : M.getFunctionList()) {
+    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL &&
+      F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
+      F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
+  }
+
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
   
-  this->linkBitcodeFile(M, BuiltinBitcodeFile);
+  if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
+    return false;
 
   return true;
 }

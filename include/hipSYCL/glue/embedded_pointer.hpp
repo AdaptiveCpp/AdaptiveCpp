@@ -119,29 +119,41 @@ inline std::ostream &operator<<(std::ostream &ostr, const unique_id &id) {
 template<class T>
 class embedded_pointer {
 public:
+  static_assert(sizeof(unique_id) == 2 * sizeof(void*));
+
+  embedded_pointer() {
+    __hipsycl_if_target_host(
+      unique_id uid;
+      std::memcpy(&_ptrs[0], &uid, sizeof(unique_id));
+    );
+  }
+
+  embedded_pointer(const embedded_pointer&) = default;
+
   HIPSYCL_UNIVERSAL_TARGET
   T* get() const {
-    static_assert(sizeof(T*) == sizeof(uint64_t));
-    static_assert(sizeof(T*) == sizeof(unique_id) / 2);
 
-    return reinterpret_cast<T*>(_uid.id[0]);
+    return reinterpret_cast<T*>(_ptrs[0]);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const unique_id& get_uid() const {
-    return _uid;
+  unique_id get_uid() const {
+    // Initialize to 0 to avoid generating new id
+    unique_id id{0};
+    std::memcpy(&id, &_ptrs[0], sizeof(unique_id));
+    return id;
   }
 
   // this is only necessary when no initialization
   // from within a kernel blob happens
   void explicit_init(void* ptr) {
-    _uid.id[0] = reinterpret_cast<uint64_t>(ptr);
-    _uid.id[1] = 0;
+    _ptrs[0] = ptr;
+    _ptrs[1] = 0;
   }
   
   HIPSYCL_UNIVERSAL_TARGET
   friend bool operator==(const embedded_pointer &a, const embedded_pointer &b) {
-    return a._uid == b._uid;
+    return a._ptrs[0] == b._ptrs[0] && a._ptrs[1] == b._ptrs[1];
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -150,7 +162,7 @@ public:
   }
 
 private:
-  unique_id _uid;
+  void* _ptrs [2];
 };
 
 struct kernel_blob {

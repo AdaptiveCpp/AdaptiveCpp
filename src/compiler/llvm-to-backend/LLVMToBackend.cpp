@@ -38,6 +38,7 @@
 #include <llvm/Linker/Linker.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/Error.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <string>
 
 namespace hipsycl {
@@ -59,7 +60,7 @@ void LLVMToBackendTranslator::setS2IRConstant(const std::string& name, T value){
   };
 }
 
-bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, std::string &out) {
+bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, std::string &Out) {
   llvm::LLVMContext ctx;
   std::unique_ptr<llvm::Module> M;
   auto err = loadModuleFromString(LLVMIR, ctx, M);
@@ -76,7 +77,8 @@ bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, s
   if (!prepareIR(*M))
     return false;
   
-  // TODO write module to string
+  llvm::raw_string_ostream OutputStream{Out};
+  llvm::WriteBitcodeToFile(*M, OutputStream);
 
   return true;
 }

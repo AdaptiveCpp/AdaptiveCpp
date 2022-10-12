@@ -118,14 +118,14 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
     ++GeneralArgsStart;
   }
 
-  if(GeneralArgsStart+3 >= argc) {
+  if(GeneralArgsStart+3 > argc) {
     help();
     return -1;
   }
 
-  std::string InputFile = argv[GeneralArgsStart+1];
-  std::string OutputFile = argv[GeneralArgsStart+2];
-  std::string ImageName = argv[GeneralArgsStart+3];
+  std::string InputFile = argv[GeneralArgsStart];
+  std::string OutputFile = argv[GeneralArgsStart+1];
+  std::string ImageName = argv[GeneralArgsStart+2];
 
   std::string HcfInput, Output;
   if(!readFile(InputFile, HcfInput)) {

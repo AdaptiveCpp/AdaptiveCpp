@@ -33,6 +33,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -65,9 +66,18 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
   }
 
   for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL &&
-      F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
-      F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
+    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
+      // All functions must be marked as spir_func
+      if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
+        F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
+      
+      // All callers must use spir_func calling convention
+      for(auto U : F.users()) {
+        if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
+          CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+        }
+      }
+    }
   }
 
   std::string BuiltinBitcodeFile = 
@@ -76,6 +86,15 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
+  
+  for(auto& F : M.getFunctionList()) {
+    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL) {
+      // When we are already lowering to device specific format,
+      // we can expect that we have no external users anymore.
+      // All linking should be done by now.
+      F.setLinkage(llvm::GlobalValue::InternalLinkage);
+    }
+  }
 
   return true;
 }

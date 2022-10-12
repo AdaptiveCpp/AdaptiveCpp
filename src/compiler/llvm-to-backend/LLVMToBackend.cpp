@@ -188,7 +188,9 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
   }
 
   // Returns true on error
-  if(llvm::Linker::linkModules(M, std::move(OtherModule))) {
+  if (llvm::Linker::linkModules(M, std::move(OtherModule),
+                                llvm::Linker::Flags::LinkOnlyNeeded |
+                                    llvm::Linker::Flags::OverrideFromSrc)) {
     this->registerError("LLVMToBackend: Linking module failed");
     return false;
   }

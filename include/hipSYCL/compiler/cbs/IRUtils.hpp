@@ -31,6 +31,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Constants.h>
 
 namespace llvm {
 class Region;

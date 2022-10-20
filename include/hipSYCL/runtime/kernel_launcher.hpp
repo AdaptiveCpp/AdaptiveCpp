@@ -29,6 +29,7 @@
 #define HIPSYCL_KERNEL_LAUNCHER_HPP
 
 #include <limits>
+#include <optional>
 #include <vector>
 #include <memory>
 
@@ -44,6 +45,9 @@
 namespace hipsycl {
 namespace rt {
 
+class code_object_invoker;
+class sscp_code_object_invoker;
+
 enum class kernel_type {
   single_task,
   basic_parallel_for,
@@ -53,6 +57,32 @@ enum class kernel_type {
   custom
 };
 
+class backend_kernel_launch_capabilities {
+public:
+  void provide_multipass_invoker(code_object_invoker* invoker) {
+    _multipass_invoker = invoker;
+  }
+
+  void provide_sscp_invoker(sscp_code_object_invoker* invoker) {
+    _sscp_invoker = invoker;
+  }
+
+  std::optional<code_object_invoker*> get_multipass_invoker() const {
+    if(_multipass_invoker)
+      return _multipass_invoker;
+    return {};
+  }
+
+  std::optional<sscp_code_object_invoker*> get_sscp_invoker() const {
+    if(_sscp_invoker)
+      return _sscp_invoker;
+    return {};
+  }
+private:
+  code_object_invoker* _multipass_invoker = nullptr;
+  sscp_code_object_invoker* _sscp_invoker = nullptr;
+};
+
 class backend_kernel_launcher
 {
 public:
@@ -60,8 +90,19 @@ public:
 
   virtual int get_backend_score(backend_id b) const = 0;
   virtual kernel_type get_kernel_type() const = 0;
+  // Additional backend-specific parameters (e.g. queue)
   virtual void set_params(void*) = 0;
   virtual void invoke(dag_node* node) = 0;
+
+  void set_backend_capabilities(const backend_kernel_launch_capabilities& cap) {
+    _capabilities = cap;
+  }
+
+  const backend_kernel_launch_capabilities& get_launch_capabilities() const {
+    return _capabilities;
+  }
+private:
+  backend_kernel_launch_capabilities _capabilities;
 };
 
 class kernel_launcher

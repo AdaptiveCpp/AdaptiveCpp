@@ -34,6 +34,8 @@
 #include <string>
 #include <typeindex>
 #include <vector>
+#include <functional>
+#include <cassert>
 
 namespace hipsycl {
 namespace glue {
@@ -41,14 +43,18 @@ namespace glue {
 class kernel_configuration {
 
   class configuration_entry {
+    static constexpr std::size_t buffer_size = 8;
+
     std::string _name;
     std::type_index _type;
-    std::array<unsigned char, 8> _value;
+    std::array<int8_t, buffer_size> _value;
     std::size_t _data_size;
+    
 
     template<class T>
     void store(const T& val) {
-      static_assert(sizeof(T) <= 8, "Unsupported kernel configuration value type");
+      static_assert(sizeof(T) <= buffer_size,
+                    "Unsupported kernel configuration value type");
       for(int i = 0; i < _value.size(); ++i)
         _value[i] = 0;
       
@@ -64,10 +70,16 @@ class kernel_configuration {
 
     template<class T>
     T get_value() const {
-      static_assert(sizeof(T) <= 8, "Unsupported kernel configuration value type");
+      static_assert(sizeof(T) <= buffer_size,
+                    "Unsupported kernel configuration value type");
       T v;
       memcpy(&v, _value.data(), sizeof(T));
       return v;
+    }
+
+    template<class T>
+    bool is_type() const {
+      return _type == typeid(T);
     }
 
     const void* get_data_buffer() const {
@@ -87,9 +99,13 @@ public:
 
   template<class T>
   void set(const std::string& config_parameter_name, const T& value) {
-    static_assert(sizeof(T) <= 8, "Kernel configuration values of more than 8 "
-                                  "bytes size are not yet supported");
     configuration_entry entry{config_parameter_name, value};
+    for(int i = 0; i < _configurations.size(); ++i) {
+      if(_configurations[i].get_name() == config_parameter_name) {
+        _configurations[i] = entry;
+        return;
+      }
+    }
     _configurations.push_back(entry);
   }
 
@@ -109,7 +125,9 @@ public:
     return result;
   }
 
-
+  const std::vector<configuration_entry>& entries() const {
+    return _configurations;
+  }
 private:
 
   class stable_hash {

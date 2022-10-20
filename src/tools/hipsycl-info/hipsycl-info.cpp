@@ -116,6 +116,7 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   PRINT_DEVICE_SUPPORT_ASPECT(usm_atomic_shared_allocations)
   PRINT_DEVICE_SUPPORT_ASPECT(usm_system_allocations)
   PRINT_DEVICE_SUPPORT_ASPECT(execution_timestamps)
+  PRINT_DEVICE_SUPPORT_ASPECT(sscp_kernels)
   std::cout << " Device properties:" << std::endl;
 
 #define PRINT_DEVICE_UINT_PROPERTY(name)                                       \

@@ -204,6 +204,11 @@ result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
     return make_error(__hipsycl_here(),
                       error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
+  
+  rt::backend_kernel_launch_capabilities cap;
+  cap.provide_multipass_invoker(&_code_object_invoker);
+  l->set_backend_capabilities(cap);
+
   l->invoke(node.get());
 
   return make_success();
@@ -268,10 +273,6 @@ device_id ze_queue::get_device() const {
 
 void* ze_queue::get_native_type() const {
   return static_cast<void*>(_command_list);
-}
-
-code_object_invoker* ze_queue::get_code_object_invoker() {
-  return &_code_object_invoker;
 }
 
 const std::vector<std::shared_ptr<dag_node_event>>&

@@ -71,6 +71,13 @@ public:
     setS2IRConstant<T>(name, value);
   }
 
+  template<class T>
+  void setS2IRConstant(const std::string& name, T value) {
+    setS2IRConstant(name, static_cast<const void*>(&value));
+  }
+
+  void setS2IRConstant(const std::string& name, const void* ValueBuffer);
+
   virtual bool setBuildOptions(const std::string& Opts) {
     return true;
   }
@@ -86,6 +93,16 @@ public:
 
   const std::vector<std::string>& getErrorLog() const {
     return Errors;
+  }
+
+  std::string getErrorLogAsString() const {
+    std::string Result;
+    for(int i = 0; i < getErrorLog().size(); ++i) {
+      Result += std::to_string(i);
+      Result += ": ";
+      Result += getErrorLog()[i] + '\n';
+    }
+    return Result;
   }
 
 protected:
@@ -105,8 +122,6 @@ protected:
     Errors.push_back(E);
   }
 private:
-  template<class T>
-  void setS2IRConstant(const std::string& name, T value);
 
   int S2IRConstantBackendId;
   std::vector<std::string> OutliningEntrypoints;

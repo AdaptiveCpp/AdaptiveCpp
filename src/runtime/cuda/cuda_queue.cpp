@@ -40,6 +40,7 @@
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
+#include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/util.hpp"
@@ -314,6 +315,9 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
 
+  rt::backend_kernel_launch_capabilities cap;
+  cap.provide_multipass_invoker(&_code_object_invoker);
+  l->set_backend_capabilities(cap);
   
   cuda_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
@@ -580,10 +584,6 @@ device_id cuda_queue::get_device() const {
 
 void *cuda_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
-}
-
-code_object_invoker *cuda_queue::get_code_object_invoker() {
-  return &_code_object_invoker;
 }
 
 cuda_code_object_invoker::cuda_code_object_invoker(cuda_queue *q) : _queue{q} {}

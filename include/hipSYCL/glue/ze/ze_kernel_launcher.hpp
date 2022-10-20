@@ -426,7 +426,9 @@ private:
     std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
-    rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
+    assert(this->get_launch_capabilities().get_multipass_invoker());
+    rt::code_object_invoker *invoker =
+        this->get_launch_capabilities().get_multipass_invoker().value();
 
     assert(invoker &&
             "Runtime backend does not support invoking kernels from modules");

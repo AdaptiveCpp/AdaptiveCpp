@@ -129,6 +129,28 @@ public:
     }
   }
 
+  void set(const void* Buffer) {
+    if(!isValid())
+      return;
+    
+    if(Var->getType()->isIntegerTy(8)) {
+      set(bit_cast<int8_t>(Buffer));
+    } else if(Var->getType()->isIntegerTy(16)) {
+      set(bit_cast<int16_t>(Buffer));
+    } else if(Var->getType()->isIntegerTy(32)) {
+      set(bit_cast<int32_t>(Buffer));
+    } else if(Var->getType()->isIntegerTy(64)) {
+      set(bit_cast<int64_t>(Buffer));
+    } else if(Var->getType()->isFloatTy()) {
+      set(bit_cast<float>(Buffer));
+    } else if(Var->getType()->isDoubleTy()) {
+      set(bit_cast<double>(Buffer));
+    } else {
+      M->getContext().emitError(
+          "Attempted setting hipSYCL IR constant from buffer of unsupported type");
+    }
+  }
+
   llvm::GlobalVariable* getGlobalVariable() const {
     return Var;
   }
@@ -148,6 +170,14 @@ public:
 protected:
   llvm::Module* M;
   llvm::GlobalVariable* Var;
+private:
+  template <class ToT>
+  ToT bit_cast(const void* src) noexcept
+  {
+    ToT dst;
+    memcpy(&dst, src, sizeof(ToT));
+    return dst;
+  }
 };
 
 class S2IRConstant : public IRConstant {

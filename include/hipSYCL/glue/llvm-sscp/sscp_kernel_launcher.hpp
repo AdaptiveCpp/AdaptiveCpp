@@ -239,6 +239,11 @@ public:
   }
 
 private:
+  template<class Kernel, int Dim>
+  void launch_kernel() {
+
+  }
+
   template<class Kernel>
   static void generate_kernel(const Kernel& k, std::string& kernel_name) {
     if (__hipsycl_sscp_is_device) {

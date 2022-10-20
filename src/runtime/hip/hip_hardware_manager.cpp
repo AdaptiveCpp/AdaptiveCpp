@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
@@ -205,6 +206,9 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::execution_timestamps:
     return true;
+    break;
+  case device_support_aspect::sscp_kernels:
+    return false;
     break;
   }
   assert(false && "Unknown device aspect");

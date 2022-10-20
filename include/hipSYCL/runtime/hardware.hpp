@@ -51,7 +51,8 @@ enum class device_support_aspect {
   usm_shared_allocations,
   usm_atomic_shared_allocations,
   usm_system_allocations,
-  execution_timestamps
+  execution_timestamps,
+  sscp_kernels
 };
 
 enum class device_uint_property {

@@ -71,10 +71,6 @@ public:
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const override;
 
-  /// Get a module invoker to launch kernels from module images,
-  /// if the backend supports this. Returns nullptr if unsupported.
-  virtual code_object_invoker* get_code_object_invoker() override;
-
   virtual result query_status(inorder_queue_status& status) override;
 
   ze_command_list_handle_t get_ze_command_list() const {

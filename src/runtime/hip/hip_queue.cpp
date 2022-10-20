@@ -306,6 +306,10 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   if (!l)
     return make_error(__hipsycl_here(), error_info{"Could not obtain backend kernel launcher"});
   l->set_params(this);
+  
+  rt::backend_kernel_launch_capabilities cap;
+  cap.provide_multipass_invoker(&_code_object_invoker);
+  l->set_backend_capabilities(cap);
 
   hip_instrumentation_guard instrumentation{this, op, node};
   l->invoke(node.get());
@@ -428,10 +432,6 @@ device_id hip_queue::get_device() const { return _dev; }
 
 void *hip_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
-}
-
-code_object_invoker* hip_queue::get_code_object_invoker() {
-  return &_code_object_invoker;
 }
 
 result hip_queue::submit_kernel_from_code_object(

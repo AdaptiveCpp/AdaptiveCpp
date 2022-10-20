@@ -170,7 +170,12 @@ public:
     if(_device_id.get_backend() == rt::backend_id::level_zero)
       return true;
 #endif
-    
+
+#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+    if (get_rt_device()->has(rt::device_support_aspect::sscp_kernels))
+      return true;
+#endif
+
     return false;
   }
 

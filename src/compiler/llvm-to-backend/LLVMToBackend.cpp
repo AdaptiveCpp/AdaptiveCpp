@@ -52,14 +52,6 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
       S2IRConstantCurrentBackendId);
 }
 
-template<class T>
-void LLVMToBackendTranslator::setS2IRConstant(const std::string& name, T value){
-  S2IRConstantApplicators[name] = [=](llvm::Module& M){
-    S2IRConstant C = S2IRConstant::getFromConstantName(M, name);
-    C.set<T>(value);
-  };
-}
-
 bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, std::string &Out) {
   llvm::LLVMContext ctx;
   std::unique_ptr<llvm::Module> M;
@@ -206,20 +198,12 @@ bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module& M, const std::string
   return linkBitcodeString(M, std::string{F.get()->getBuffer()});
 }
 
-#define HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(type)                                              \
-  template void LLVMToBackendTranslator::setS2IRConstant<type>(const std::string &, type);
-
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(int8_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(uint8_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(int16_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(uint16_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(int32_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(uint32_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(int64_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(uint64_t)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(float)
-HIPSYCL_INSTANTIATE_S2IRCONSTANT_SETTER(double)
-
+void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const void *ValueBuffer) {
+  S2IRConstantApplicators[name] = [=](llvm::Module& M){
+    S2IRConstant C = S2IRConstant::getFromConstantName(M, name);
+    C.set(ValueBuffer);
+  };
+}
 }
 }
 

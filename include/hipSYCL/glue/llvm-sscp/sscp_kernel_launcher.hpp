@@ -322,14 +322,15 @@ private:
 
     auto* invoker = sscp_invoker.value();
 
-    std::array<void*, 1> args{&k};
+    std::array<const void*, 1> args{&k};
     std::size_t arg_size = sizeof(k);
 
     std::string kernel_name = generate_kernel(k);
 
     assert(_configuration);
     invoker->submit_kernel(*op, __hipsycl_local_sscp_hcf_object_id, num_groups,
-                           group_size, local_mem_size, args.data(), &arg_size,
+                           group_size, local_mem_size,
+                           const_cast<void **>(args.data()), &arg_size,
                            args.size(), kernel_name, *_configuration);
   }
 

@@ -65,7 +65,13 @@ public:
     if(!isValid())
       return false;
     
-    return Var->hasInitializer();
+    if(!Var->hasInitializer())
+      return false;
+    
+    if(Var->getName().find(".initialized") == std::string::npos)
+      return false;
+    
+    return true;
   }
 
   // Set IR constant. Note that for std::string, this may replace the GlobalVariable
@@ -82,22 +88,27 @@ public:
     Var->setExternallyInitialized(false);
     Var->setLinkage(llvm::GlobalValue::InternalLinkage);
 
-    llvm::Constant* Initializer = nullptr;
     if constexpr(std::is_integral_v<T>){
       bool IsSigned = std::is_signed_v<T>;
       int Bits = sizeof(T) * CHAR_BIT;
-      Initializer = llvm::ConstantInt::get(M->getContext(), llvm::APInt(Bits, Value, IsSigned));
+
+      llvm::Constant *Initializer =
+          llvm::ConstantInt::get(M->getContext(), llvm::APInt(Bits, Value, IsSigned));
+      
+      Var->setInitializer(Initializer);
     } else if constexpr(std::is_floating_point_v<T>) {
+      llvm::Constant *Initializer = nullptr;
       if constexpr (std::is_same_v<float, T>) {
         Initializer = llvm::ConstantFP::get(llvm::Type::getFloatTy(M->getContext()), Value);
       } else {
         Initializer = llvm::ConstantFP::get(llvm::Type::getDoubleTy(M->getContext()), Value);
       }
+      Var->setInitializer(Initializer);
     } else if constexpr(std::is_same_v<T, std::string>) {
-      
-      Initializer = llvm::ConstantDataArray::getRaw(Value+'\0', Value.size()+1,
-                                                    llvm::Type::getInt8Ty(M->getContext()));
-      
+
+      llvm::Constant *Initializer = llvm::ConstantDataArray::getRaw(
+          Value + '\0', Value.size() + 1, llvm::Type::getInt8Ty(M->getContext()));
+
       // string case in general is more complicated because we expect
       // that strings can change size. This changes the type of the global
       // variable, since string length enters the LLVM type.
@@ -124,8 +135,8 @@ public:
       M->getContext().emitError("Attempted setting hipSYCL IR constant of unsupported type");
     }
     
-    if(Initializer) {
-      Var->setInitializer(Initializer);
+    if(Var->getName().find(".initialized") == std::string::npos) {
+      Var->setName(Var->getName()+".initialized");
     }
   }
 

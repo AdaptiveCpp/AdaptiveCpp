@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
@@ -875,7 +876,8 @@ public:
     return (b == Backend_id) ? 2 : -1;
   }
 
-  virtual void invoke(rt::dag_node* node) final override {
+  virtual void invoke(rt::dag_node *node,
+                      const kernel_configuration &) final override {
     _invoker(node);
   }
 

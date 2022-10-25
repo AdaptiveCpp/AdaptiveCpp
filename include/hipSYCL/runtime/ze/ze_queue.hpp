@@ -81,11 +81,18 @@ public:
     return _hw_manager;
   }
 
-  result submit_kernel_from_code_object(
+  result submit_multipass_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
       const std::string &backend_kernel_name, const rt::range<3> &grid_size,
       const rt::range<3> &block_size, unsigned dynamic_shared_mem,
       void **kernel_args, const std::size_t *arg_sizes, std::size_t num_args);
+
+  result submit_sscp_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &kernel_name, const rt::range<3> &num_groups,
+      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+      std::size_t *arg_sizes, std::size_t num_args,
+      const glue::kernel_configuration &config);
 
 private:
   const std::vector<std::shared_ptr<dag_node_event>>&
@@ -101,7 +108,8 @@ private:
   ze_command_list_handle_t _command_list;
   ze_hardware_manager* _hw_manager;
   std::size_t _device_index;
-  ze_code_object_invoker _code_object_invoker;
+  ze_multipass_code_object_invoker _multipass_code_object_invoker;
+  ze_sscp_code_object_invoker _sscp_code_object_invoker;
 
   std::shared_ptr<dag_node_event> _last_submitted_op_event;
   std::vector<std::shared_ptr<dag_node_event>> _enqueued_synchronization_ops;

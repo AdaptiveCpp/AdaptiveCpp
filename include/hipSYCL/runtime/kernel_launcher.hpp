@@ -92,7 +92,8 @@ public:
   virtual kernel_type get_kernel_type() const = 0;
   // Additional backend-specific parameters (e.g. queue)
   virtual void set_params(void*) = 0;
-  virtual void invoke(dag_node* node) = 0;
+  virtual void invoke(dag_node *node,
+                      const glue::kernel_configuration &config) = 0;
 
   void set_backend_capabilities(const backend_kernel_launch_capabilities& cap) {
     _capabilities = cap;
@@ -116,7 +117,7 @@ public:
   kernel_launcher(const kernel_launcher &) = delete;
 
   void invoke(backend_id id, rt::dag_node_ptr node) const {
-    find_launcher(id)->invoke(node.get());
+    find_launcher(id)->invoke(node.get(), _kernel_config);
   }
 
   backend_kernel_launcher* find_launcher(backend_id id) const {
@@ -139,6 +140,9 @@ public:
     return selected_launcher;
   }
 
+  const glue::kernel_configuration& get_kernel_configuration() const {
+    return _kernel_config;
+  }
 private:
   std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
   glue::kernel_configuration _kernel_config;

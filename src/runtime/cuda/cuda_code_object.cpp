@@ -98,6 +98,10 @@ hcf_object_id cuda_source_object::hcf_source() const { return _origin; }
 
 std::string cuda_source_object::target_arch() const { return _target_arch; }
 
+compilation_flow cuda_source_object::source_compilation_flow() const {
+  return compilation_flow::explicit_multipass;
+}
+
 std::vector<std::string>
 cuda_source_object::supported_backend_kernel_names() const {
   return _kernel_names;
@@ -170,6 +174,10 @@ hcf_object_id cuda_executable_object::hcf_source() const {
 
 std::string cuda_executable_object::target_arch() const {
   return _source->target_arch();
+}
+
+compilation_flow cuda_executable_object::source_compilation_flow() const {
+  return compilation_flow::explicit_multipass;
 }
 
 std::vector<std::string>

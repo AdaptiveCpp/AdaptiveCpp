@@ -312,7 +312,7 @@ result hip_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   l->set_backend_capabilities(cap);
 
   hip_instrumentation_guard instrumentation{this, op, node};
-  l->invoke(node.get());
+  l->invoke(node.get(), op.get_launcher().get_kernel_configuration());
 
   return make_success();
 }

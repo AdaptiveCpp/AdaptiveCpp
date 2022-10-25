@@ -32,6 +32,7 @@
 #include <memory>
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 
@@ -40,6 +41,12 @@
 
 namespace hipsycl {
 namespace rt {
+
+enum class compilation_flow {
+  integrated_multipass,
+  explicit_multipass,
+  sscp
+};
 
 enum class code_format {
   ptx,
@@ -65,6 +72,14 @@ public:
   virtual backend_id managing_backend() const = 0;
   virtual hcf_object_id hcf_source() const = 0;
   virtual std::string target_arch() const = 0;
+  virtual compilation_flow source_compilation_flow() const = 0;
+
+  /// Returns the kernel configuration id. This can e.g. be used
+  /// to distinguish kernels with different specialization constant values /
+  /// S2 IR constant values.
+  virtual glue::kernel_configuration::id_type configuration_id() const {
+    return glue::kernel_configuration::id_type{};
+  }
   
   // Do we really need this? Cannot be implemented on all backends,
   // and may return empty vector in this case. Maybe better to not

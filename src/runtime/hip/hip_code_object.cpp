@@ -84,6 +84,10 @@ std::string hip_executable_object::target_arch() const {
   return _target;
 }
 
+compilation_flow hip_executable_object::source_compilation_flow() const {
+  return compilation_flow::explicit_multipass;
+}
+
 std::vector<std::string>
 hip_executable_object::supported_backend_kernel_names() const {
   // TODO This is currently not easily implementable. Should we throw an

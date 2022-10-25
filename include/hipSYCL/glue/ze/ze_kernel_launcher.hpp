@@ -33,6 +33,7 @@
 #include <tuple>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
@@ -362,7 +363,8 @@ public:
     return (b == rt::backend_id::level_zero) ? 2 : -1;
   }
 
-  virtual void invoke(rt::dag_node* node) final override {
+  virtual void invoke(rt::dag_node *node,
+                      const kernel_configuration &config) final override {
     _invoker(node);
   }
 

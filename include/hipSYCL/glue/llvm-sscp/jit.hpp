@@ -33,6 +33,7 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
+#include <vector>
 
 namespace hipsycl {
 namespace glue {
@@ -55,6 +56,62 @@ public:
     return std::string {};
     
   }
+
+};
+
+// Satisfies the image selector concept, but also
+// finds all kernels associated with the selected image.
+template<class ImageSelector>
+class image_selector_and_kernel_list_extractor {
+public:
+  image_selector_and_kernel_list_extractor(
+      ImageSelector &&sel, std::vector<std::string> *kernel_names_out,
+      const common::hcf_container *hcf)
+      : _selector{sel}, _kernel_names{kernel_names_out}, _hcf{hcf} {}
+
+  std::string operator()(const common::hcf_container::node* kernel_node) const {
+    std::string image_name = _selector(kernel_node);
+
+    if(!image_name.empty() && _kernel_names && _hcf) {
+      *_kernel_names = find_kernels(_hcf, image_name);
+    }
+
+    return image_name;
+  }
+
+private:
+
+  std::vector<std::string> find_kernels(const common::hcf_container *hcf,
+                                        const std::string &image_name) {
+    if(hcf && hcf->root_node()) {
+      
+      std::vector<std::string> result;
+
+      auto* kernels = hcf->root_node()->get_subnode("kernels");
+      if(kernels) {
+        for(const auto& kernel_name : kernels->get_subnodes()) {
+          auto* current_kernel = kernels->get_subnode(kernel_name);
+          for(const auto& format : current_kernel->get_subnodes()) {
+            auto* f = current_kernel->get_subnode(format);
+            for(const auto& variant : f->get_subnodes()) {
+              const std::string* provider = f->get_subnode(variant)->get_value("image-provider");
+              if(provider && (*provider == image_name)) {
+                result.push_back(kernel_name);
+              }
+            }
+          }
+        }
+      }
+
+      return result;
+    }
+
+    return {};
+  }
+
+  ImageSelector _selector;
+  std::vector<std::string>* _kernel_names;
+  const common::hcf_container* _hcf;
 };
 
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,

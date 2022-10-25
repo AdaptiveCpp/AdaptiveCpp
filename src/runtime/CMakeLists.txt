@@ -165,6 +165,11 @@ if(WITH_LEVEL_ZERO_BACKEND)
   target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-ze PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-ze PRIVATE llvm-to-spirv)
+  endif()
+
   install(TARGETS rt-backend-ze
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)

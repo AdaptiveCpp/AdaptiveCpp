@@ -132,7 +132,7 @@ public:
   void set(const void* Buffer) {
     if(!isValid())
       return;
-    
+
     if(Var->getType()->isIntegerTy(8)) {
       set(bit_cast<int8_t>(Buffer));
     } else if(Var->getType()->isIntegerTy(16)) {

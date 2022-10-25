@@ -55,6 +55,7 @@ public:
   virtual backend_id managing_backend() const override;
   virtual hcf_object_id hcf_source() const override;
   virtual std::string target_arch() const override;
+  virtual compilation_flow source_compilation_flow() const override;
 
   virtual std::vector<std::string>
   supported_backend_kernel_names() const override;

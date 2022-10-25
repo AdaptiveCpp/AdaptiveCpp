@@ -80,9 +80,8 @@ public:
   }
 
 private:
-
   std::vector<std::string> find_kernels(const common::hcf_container *hcf,
-                                        const std::string &image_name) {
+                                        const std::string &image_name) const {
     if(hcf && hcf->root_node()) {
       
       std::vector<std::string> result;
@@ -144,7 +143,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 // subnodes are the list of available image formats.
 template<class ProviderSelector>
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
-                          common::hcf_container* hcf,
+                          const common::hcf_container* hcf,
                           const std::string& kernel_name,
                           ProviderSelector&& provider_selector,
                           const glue::kernel_configuration &config,

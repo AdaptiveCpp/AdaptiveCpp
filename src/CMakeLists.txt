@@ -2,12 +2,14 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_subdirectory(common)
 
+list( APPEND CMAKE_INSTALL_RPATH
+  ${CMAKE_INSTALL_PREFIX}/lib
+  ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/llvm-to-backend)
+
 if(BUILD_CLANG_PLUGIN)
   add_subdirectory(compiler)
   add_subdirectory(libkernel)
 endif()
-
-list( APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib )
 
 add_subdirectory(runtime)
 add_subdirectory(tools)

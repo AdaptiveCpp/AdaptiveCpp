@@ -82,10 +82,6 @@ template <class Kernel>
 void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
                                         const char *target);
 
-template<class Kernel>
-struct __hipsycl_sscp_kernel_name {
-  static const char value [];
-};
 
 namespace hipsycl {
 namespace glue {
@@ -340,11 +336,14 @@ private:
     if (__hipsycl_sscp_is_device) {
       __hipsycl_sscp_kernel(k);
     }
+
+    // Compiler will change the number of elements to the kernel name length
+    static char __hipsycl_sscp_kernel_name [] = "kernel-name-extraction-failed";
     
     __hipsycl_sscp_extract_kernel_name<Kernel>(
         &__hipsycl_sscp_kernel<Kernel>,
-        &__hipsycl_sscp_kernel_name<Kernel>::value[0]);
-    return std::string{&__hipsycl_sscp_kernel_name<Kernel>::value[0]};
+        &__hipsycl_sscp_kernel_name[0]);
+    return std::string{&__hipsycl_sscp_kernel_name[0]};
   }
 
   std::function<void (rt::dag_node*)> _invoker;

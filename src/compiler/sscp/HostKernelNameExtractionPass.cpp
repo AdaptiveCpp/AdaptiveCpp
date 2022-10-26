@@ -110,6 +110,16 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
 
   for(llvm::Function* F : SSCPKernelNameExtractionFunctions) {
     // These functions are no longer needed
+    for(auto U : F->users()) {
+      if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
+        CI->replaceAllUsesWith(llvm::UndefValue::get(CI->getType()));
+        CI->eraseFromParent();
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "HostKernelNameExtractionPass: found user of __hipsycl_sscp_extract_kernel_name() "
+               "that is not a function call\n";
+      }
+    }
     F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
     F->eraseFromParent();
   }

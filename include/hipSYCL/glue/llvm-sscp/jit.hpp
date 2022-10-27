@@ -29,6 +29,7 @@
 #define HIPSYCL_GLUE_JIT_HPP
 
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -65,18 +66,38 @@ template<class ImageSelector>
 class image_selector_and_kernel_list_extractor {
 public:
   image_selector_and_kernel_list_extractor(
-      ImageSelector &&sel, std::vector<std::string> *kernel_names_out,
-      const common::hcf_container *hcf)
-      : _selector{sel}, _kernel_names{kernel_names_out}, _hcf{hcf} {}
+      ImageSelector &&sel, const std::string& kernel_name, 
+      std::vector<std::string> *kernel_names_out,
+      const common::hcf_container *hcf) {
+    
+    if(hcf && hcf->root_node()) {
+      auto kernels = hcf->root_node()->get_subnode("kernels");
+      if(!kernels) {
+        HIPSYCL_DEBUG_WARNING
+            << "image_selector_and_kernel_list_extractor: HCF does not contain "
+               "'kernels' subnode, cannot select image"
+            << "\n";
+        return;
+      }
+      
+      if(auto kernel_node = kernels->get_subnode(kernel_name)) {
+        _selected_image = sel(kernel_node);
+      } else {
+        HIPSYCL_DEBUG_WARNING
+            << "image_selector_and_kernel_list_extractor: HCF does not contain "
+               "subnode for kernel, cannot select image"
+            << "\n";
+        return;
+      }
 
-  std::string operator()(const common::hcf_container::node* kernel_node) const {
-    std::string image_name = _selector(kernel_node);
-
-    if(!image_name.empty() && _kernel_names && _hcf) {
-      *_kernel_names = find_kernels(_hcf, image_name);
+      if(kernel_names_out) {
+        *kernel_names_out = find_kernels(hcf, _selected_image);
+      }
     }
+  }
 
-    return image_name;
+  std::string operator()() const {
+    return _selected_image;
   }
 
 private:
@@ -108,9 +129,7 @@ private:
     return {};
   }
 
-  ImageSelector _selector;
-  std::vector<std::string>* _kernel_names;
-  const common::hcf_container* _hcf;
+  std::string _selected_image;
 };
 
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
@@ -142,33 +161,16 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 // node argument will be set to the kernel node in the HCF, such that the
 // subnodes are the list of available image formats.
 template<class ProviderSelector>
-inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
+inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           const common::hcf_container* hcf,
-                          const std::string& kernel_name,
                           ProviderSelector&& provider_selector,
                           const glue::kernel_configuration &config,
                           std::string &output) {
   assert(hcf);
   assert(hcf->root_node());
 
-  auto* kernel_list_node = hcf->root_node()->get_subnode("kernels");
-
-  if(!kernel_list_node) {
-    return rt::make_error(
-        __hipsycl_here(),
-        rt::error_info{
-            "jit::compile: Invalid HCF, no node named 'kernels' was found"});
-  }
-
-  auto kernel_node = kernel_list_node->get_subnode(kernel_name);
-
-  if(!kernel_node) {
-    return rt::make_error(__hipsycl_here(),
-                          rt::error_info{"jit::compile: HCF node for kernel " +
-                                         kernel_name + " not found."});
-  }
-
-  std::string selected_kernel_provider = provider_selector(kernel_node);
+ 
+  std::string selected_kernel_provider = provider_selector();
   
   if(selected_kernel_provider.empty()) {
     return rt::make_error(
@@ -212,9 +214,8 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 }
 
 template<class ProviderSelector>
-inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
+inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           rt::hcf_object_id hcf_object,
-                          const std::string& kernel_name,
                           ProviderSelector&& provider_selector,
                           const glue::kernel_configuration &config,
                           std::string &output) {
@@ -225,7 +226,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
         rt::error_info{"jit::compile: Could not obtain HCF object"});
   }
 
-  return compile(translator, hcf, kernel_name, provider_selector, config,
+  return compile(translator, hcf, provider_selector, config,
                  output);
 }
 

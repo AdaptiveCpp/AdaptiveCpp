@@ -530,16 +530,18 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     // Define image selector that will also fill kernel_names with
     // list of kernels contained in selected image
     glue::jit::image_selector_and_kernel_list_extractor image_selector{
-        glue::jit::default_llvm_image_selector{}, &kernel_names, hcf};
-    
+        glue::jit::default_llvm_image_selector{}, kernel_name, &kernel_names,
+        hcf};
+
     // Construct SPIR-V translator to compile the specified kernels
-    std::unique_ptr<compiler::LLVMToBackendTranslator> translator =
-        std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
+      std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
 
     // Lower kernels to SPIR-V
     std::string compiled_image;
-    auto err = glue::jit::compile(translator.get(), hcf, kernel_name,
-                                  image_selector, config, compiled_image);
+    auto err = glue::jit::compile(translator.get(),
+        hcf, image_selector, config, compiled_image);
+    
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
@@ -577,6 +579,9 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   std::vector<ze_event_handle_t> wait_events =
       get_enqueued_event_handles();
   std::shared_ptr<dag_node_event> completion_evt = create_event();
+
+  HIPSYCL_DEBUG_INFO << "ze_queue: Attempting to submit SSCP kernel"
+                     << std::endl;
 
   auto submission_err = submit_ze_kernel(
       kernel, get_ze_command_list(),

@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/ze/ze_code_object.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
@@ -111,6 +112,10 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   } else {
     _build_status = make_success();
   }
+
+  HIPSYCL_DEBUG_INFO << "ze_executable_object: Successfully created module "
+                        "from code image of size "
+                     << code_image.size() << std::endl;
 
   uint32_t num_kernels = 0;
   err = zeModuleGetKernelNames(_module, &num_kernels, nullptr);
@@ -219,6 +224,13 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
   ze_result_t err = zeKernelCreate(_module, &desc, &kernel);
 
   if(err != ZE_RESULT_SUCCESS) {
+
+    HIPSYCL_DEBUG_INFO << "Kernel name " << kernel_name << std::endl;
+    HIPSYCL_DEBUG_INFO << "Available:\n";
+    for(const auto& K : supported_backend_kernel_names()) {
+      HIPSYCL_DEBUG_INFO << K << std::endl;
+    }
+
     return make_error(__hipsycl_here(),
                       error_info{"ze_executable_object: Couldn't construct kernel",
                                  error_code{"ze", static_cast<int>(err)}});

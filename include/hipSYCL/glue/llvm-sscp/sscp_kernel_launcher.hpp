@@ -324,10 +324,14 @@ private:
     std::string kernel_name = generate_kernel(k);
 
     assert(_configuration);
-    invoker->submit_kernel(*op, __hipsycl_local_sscp_hcf_object_id, num_groups,
-                           group_size, local_mem_size,
-                           const_cast<void **>(args.data()), &arg_size,
-                           args.size(), kernel_name, *_configuration);
+    auto err = invoker->submit_kernel(
+        *op, __hipsycl_local_sscp_hcf_object_id, num_groups, group_size,
+        local_mem_size, const_cast<void **>(args.data()), &arg_size,
+        args.size(), kernel_name, *_configuration);
+
+    if(!err.is_success()) {
+      rt::register_error(err);
+    }
   }
 
   // Generate SSCP kernel and return name of the generated kernel
@@ -339,7 +343,7 @@ private:
 
     // Compiler will change the number of elements to the kernel name length
     static char __hipsycl_sscp_kernel_name [] = "kernel-name-extraction-failed";
-    
+
     __hipsycl_sscp_extract_kernel_name<Kernel>(
         &__hipsycl_sscp_kernel<Kernel>,
         &__hipsycl_sscp_kernel_name[0]);

@@ -70,3 +70,4 @@ function(libkernel_generate_bitcode_target)
 endfunction()
 
 add_subdirectory(spirv)
+add_subdirectory(ptx)

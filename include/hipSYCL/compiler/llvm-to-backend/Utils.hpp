@@ -42,6 +42,17 @@
 namespace hipsycl {
 namespace compiler {
 
+template<class F>
+class AtScopeExit {
+public:
+  AtScopeExit(F&& f)
+  : Handler(f) {}
+
+  ~AtScopeExit() {Handler();}
+private:
+  std::function<void()> Handler;
+};
+
 struct PassHandler {
   llvm::PassBuilder* PassBuilder;
   llvm::ModuleAnalysisManager* ModuleAnalysisManager;

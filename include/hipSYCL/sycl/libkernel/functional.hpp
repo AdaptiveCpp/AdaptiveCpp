@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_SYCL_FUNCTIONAL_HPP
 #define HIPSYCL_SYCL_FUNCTIONAL_HPP
 
+#include <limits>
+
 #include "backend.hpp"
 #include "vec.hpp"
 

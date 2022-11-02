@@ -49,6 +49,10 @@ public:
   using value_type = T;
 
   HIPSYCL_UNIVERSAL_TARGET
+  constexpr vec_storage()
+  : _storage{} {}
+
+  HIPSYCL_UNIVERSAL_TARGET
   constexpr T& operator[](int i) { return _storage[i]; }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -86,7 +90,7 @@ public:
   }
 
 private:
-  alignas(alignment) T _storage [effective_size] = {0};
+  alignas(alignment) T _storage [effective_size];
 };
 
 // An alternative implementation of the vec_storage concept

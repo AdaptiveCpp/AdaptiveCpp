@@ -53,9 +53,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_mul, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = detail::initialize_type<T>(10);
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j){
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] * vOrig[i * local_size + j - 1];
+          asm(""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -99,9 +101,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = T{};
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j){
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] + vOrig[i * local_size + j - 1];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -137,9 +141,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = detail::initialize_type<T>(10);
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j){
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] + vOrig[i * local_size + j - 1];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -189,9 +195,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * 2 * local_size] = T{};
-        for (size_t j = 1; j < local_size * 2; ++j)
+        for (size_t j = 1; j < local_size * 2; ++j){
           expected[i * 2 * local_size + j] =
               expected[i * 2 * local_size + j - 1] + vOrig[i * 2 * local_size + j - 1];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * 2 * local_size; j < (i + 1) * local_size * 2; ++j) {
           T computed = vIn[j + global_size * 2];
@@ -233,9 +241,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_ptr, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * 2 * local_size] = detail::initialize_type<T>(10);
-        for (size_t j = 1; j < local_size * 2; ++j)
+        for (size_t j = 1; j < local_size * 2; ++j){
           expected[i * 2 * local_size + j] =
               expected[i * 2 * local_size + j - 1] + vOrig[i * 2 * local_size + j - 1];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * 2 * local_size; j < (i + 1) * local_size * 2; ++j) {
           T computed = vIn[j + global_size * 2];
@@ -281,9 +291,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
         for (size_t i = 0; i < global_size / local_size; ++i) {
           expected[i * local_size] = T{};
           auto actual_warp_size    = local_size < subgroup_size ? local_size : subgroup_size;
-          for (size_t j = 1; j < actual_warp_size; ++j)
+          for (size_t j = 1; j < actual_warp_size; ++j){
             expected[i * local_size + j] =
                 expected[i * local_size + j - 1] + vOrig[i * local_size + j - 1];
+            asm (""); // prevent gcc from optimizing this loop away
+          }
 
           for (size_t j = i * local_size; j < (i + 1) * actual_warp_size; ++j) {
             T computed = vIn[j];
@@ -318,9 +330,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_exclusive_scan, T, test_types) {
         for (size_t i = 0; i < global_size / local_size; ++i) {
           expected[i * local_size] = detail::initialize_type<T>(10);
           auto actual_warp_size    = local_size < subgroup_size ? local_size : subgroup_size;
-          for (size_t j = 1; j < actual_warp_size; ++j)
+          for (size_t j = 1; j < actual_warp_size; ++j){
             expected[i * local_size + j] =
                 expected[i * local_size + j - 1] + vOrig[i * local_size + j - 1];
+            asm (""); // prevent gcc from optimizing this loop away
+          }
 
           for (size_t j = i * local_size; j < (i + 1) * actual_warp_size; ++j) {
             T computed = vIn[j];
@@ -362,9 +376,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_mul, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = vOrig[i * local_size];
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j){
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] * vOrig[i * local_size + j];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -408,9 +424,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = vOrig[i * local_size];
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j){
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] + vOrig[i * local_size + j];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -445,9 +463,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * local_size] = vOrig[i * local_size] + detail::initialize_type<T>(10);
-        for (size_t j = 1; j < local_size; ++j)
+        for (size_t j = 1; j < local_size; ++j) {
           expected[i * local_size + j] =
               expected[i * local_size + j - 1] + vOrig[i * local_size + j];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * local_size; j < (i + 1) * local_size; ++j) {
           T computed = vIn[j];
@@ -497,9 +517,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
 
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * 2 * local_size] = vOrig[i * 2 * local_size];
-        for (size_t j = 1; j < local_size * 2; ++j)
+        for (size_t j = 1; j < local_size * 2; ++j){
           expected[i * 2 * local_size + j] =
               expected[i * 2 * local_size + j - 1] + vOrig[i * 2 * local_size + j];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * 2 * local_size; j < (i + 1) * local_size * 2; ++j) {
           T computed = vIn[j + 2 * global_size];
@@ -541,9 +563,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_inclusive_scan_ptr, T, test_types) {
       for (size_t i = 0; i < global_size / local_size; ++i) {
         expected[i * 2 * local_size] =
             vOrig[i * 2 * local_size] + detail::initialize_type<T>(10);
-        for (size_t j = 1; j < local_size * 2; ++j)
+        for (size_t j = 1; j < local_size * 2; ++j){
           expected[i * 2 * local_size + j] =
               expected[i * 2 * local_size + j - 1] + vOrig[i * 2 * local_size + j];
+          asm (""); // prevent gcc from optimizing this loop away
+        }
 
         for (size_t j = i * 2 * local_size; j < (i + 1) * local_size * 2; ++j) {
           T computed = vIn[j + 2 * global_size];
@@ -591,9 +615,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
         for (size_t i = 0; i < global_size / local_size; ++i) {
           expected[i * local_size] = vOrig[i * local_size];
           auto actual_warp_size    = local_size < subgroup_size ? local_size : subgroup_size;
-          for (size_t j = 1; j < actual_warp_size; ++j)
+          for (size_t j = 1; j < actual_warp_size; ++j){
             expected[i * local_size + j] =
                 expected[i * local_size + j - 1] + vOrig[i * local_size + j];
+            asm (""); // prevent gcc from optimizing this loop away
+          }
 
           for (size_t j = i * local_size; j < (i + 1) * actual_warp_size; ++j) {
             T computed = vIn[j];
@@ -627,9 +653,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(sub_group_inclusive_scan, T, test_types) {
         for (size_t i = 0; i < global_size / local_size; ++i) {
           expected[i * local_size] = vOrig[i * local_size] + detail::initialize_type<T>(10);
           auto actual_warp_size    = local_size < subgroup_size ? local_size : subgroup_size;
-          for (size_t j = 1; j < actual_warp_size; ++j)
+          for (size_t j = 1; j < actual_warp_size; ++j){
             expected[i * local_size + j] =
                 expected[i * local_size + j - 1] + vOrig[i * local_size + j];
+            asm (""); // prevent gcc from optimizing this loop away
+          }
 
           for (size_t j = i * local_size; j < (i + 1) * actual_warp_size; ++j) {
             T computed = vIn[j];

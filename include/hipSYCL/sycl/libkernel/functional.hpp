@@ -29,6 +29,8 @@
 #ifndef HIPSYCL_SYCL_FUNCTIONAL_HPP
 #define HIPSYCL_SYCL_FUNCTIONAL_HPP
 
+#include <limits>
+
 #include "backend.hpp"
 #include "vec.hpp"
 
@@ -191,12 +193,19 @@ struct minmax_identity<T, std::enable_if_t<std::numeric_limits<T>::has_infinity>
 
 // TODO is_arithmetic implicitly covers the current pseudo half = ushort type, resolve once half is implemented
 HIPSYCL_DEFINE_IDENTITY(plus, std::is_arithmetic_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(std::plus, std::is_arithmetic_v<element_type_t<T>>, T{});
 HIPSYCL_DEFINE_IDENTITY(multiplies, std::is_arithmetic_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(1)});
+HIPSYCL_DEFINE_IDENTITY(std::multiplies, std::is_arithmetic_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(1)});
 HIPSYCL_DEFINE_IDENTITY(bit_or, std::is_integral_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(std::bit_or, std::is_integral_v<element_type_t<T>>, T{});
 HIPSYCL_DEFINE_IDENTITY(bit_and, std::is_integral_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(~element_type_t<T>{})});
+HIPSYCL_DEFINE_IDENTITY(std::bit_and, std::is_integral_v<element_type_t<T>>, T{static_cast<element_type_t<T>>(~element_type_t<T>{})});
 HIPSYCL_DEFINE_IDENTITY(bit_xor, std::is_integral_v<element_type_t<T>>, T{});
+HIPSYCL_DEFINE_IDENTITY(std::bit_xor, std::is_integral_v<element_type_t<T>>, T{});
 HIPSYCL_DEFINE_IDENTITY(logical_or, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{false});
+HIPSYCL_DEFINE_IDENTITY(std::logical_or, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{false});
 HIPSYCL_DEFINE_IDENTITY(logical_and, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{true});
+HIPSYCL_DEFINE_IDENTITY(std::logical_and, (std::is_same_v<element_type_t<std::remove_cv_t<T>>, bool>), T{true});
 HIPSYCL_DEFINE_IDENTITY(minimum, std::is_arithmetic_v<element_type_t<T>>, T{minmax_identity<element_type_t<std::remove_cv_t<T>>>::min_id});
 HIPSYCL_DEFINE_IDENTITY(maximum, std::is_arithmetic_v<element_type_t<T>>, T{minmax_identity<element_type_t<std::remove_cv_t<T>>>::max_id});
 

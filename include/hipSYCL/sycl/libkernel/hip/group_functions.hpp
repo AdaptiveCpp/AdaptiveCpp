@@ -46,7 +46,7 @@ template<int Dim>
 __device__
 inline void __hipsycl_group_barrier(group<Dim> g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
-    __threadfence_system();
+    __threadfence();
   }
   __syncthreads();
 }
@@ -60,39 +60,65 @@ inline void __hipsycl_group_barrier(group<Dim> g) {
 __device__
 inline void __hipsycl_group_barrier(sub_group g, memory_scope fence_scope) {
   if (fence_scope == memory_scope::device) {
-    __threadfence_system();
+    __threadfence();
   } else if (fence_scope == memory_scope::work_group) {
     __threadfence_block();
   }
   // threads run in lock-step no sync needed
 }
 __device__
-inline void __hipsycl_group_barrier(sub_group g) {
+inline void __hipsycl_group_barrier(sub_group g) {}
+
+template<typename Group, std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
+__device__
+inline void __hipsycl_group_barrier(Group g, memory_scope fence_scope) {
+  if constexpr (Group::fence_scope == memory_scope::sub_group) {
+    if (fence_scope == memory_scope::device) {
+      __threadfence();
+    }
+    __syncthreads();
+  } else {
+    // nothing to do
+  }
 }
 
-// any_of
+template<typename Group, std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 __device__
-inline bool __hipsycl_any_of_group(sub_group g, bool pred) {
+inline void __hipsycl_group_barrier(Group g) {
+  if constexpr (Group::fence_scope == memory_scope::sub_group) {
+    __syncthreads();
+  } else {
+    // nothing to do
+  }
+}
+
+namespace detail {
+// any_of
+template<typename Group>
+__device__
+inline bool __hipsycl_any_of_sub_group(Group g, bool pred) {
   return __any(pred);
 }
 
 // all_of
+template<typename Group>
 __device__
-inline bool __hipsycl_all_of_group(sub_group g, bool pred) {
+inline bool __hipsycl_all_of_sub_group(Group g, bool pred) {
   return __all(pred);
 }
 
 // none_of
+template<typename Group>
 __device__
-inline bool __hipsycl_none_of_group(sub_group g, bool pred) {
+inline bool __hipsycl_none_of_sub_group(Group g, bool pred) {
   return !__any(pred);
 }
 
 // reduce
-template <typename T, typename BinaryOperation>
-__device__ T __hipsycl_reduce_over_group(sub_group g, T x,
-                                         BinaryOperation binary_op) {
-  auto     local_x = x;
+template<typename T, typename BinaryOperation>
+__device__
+T __hipsycl_reduce_over_sub_group(sub_group g, T x, BinaryOperation binary_op) {
+  auto local_x = x;
   uint64_t activemask = __ballot(1);
 
   auto lid = g.get_local_linear_id();
@@ -111,12 +137,14 @@ __device__ T __hipsycl_reduce_over_group(sub_group g, T x,
   return detail::__hipsycl_shuffle_impl(local_x, 0);
 }
 
+} // namespace detail
+
 // inclusive_scan
-template <typename T, typename BinaryOperation>
-__device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
-                                                 BinaryOperation binary_op) {
-  auto         local_x = x;
-  const size_t lid     = g.get_local_linear_id();
+template<typename T, typename BinaryOperation>
+__device__
+T __hipsycl_inclusive_scan_over_group(sub_group g, T x, BinaryOperation binary_op) {
+  auto local_x = x;
+  const size_t lid = g.get_local_linear_id();
 
   uint64_t activemask = __ballot(1);
 
@@ -136,11 +164,11 @@ __device__ T __hipsycl_inclusive_scan_over_group(sub_group g, T x,
 }
 
 // exclusive_scan
-template <typename V, typename T, typename BinaryOperation>
-__device__ T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init,
-                                                 BinaryOperation binary_op) {
-  const size_t lid     = g.get_local_linear_id();
-  auto         local_x = x;
+template<typename V, typename T, typename BinaryOperation>
+__device__
+T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init, BinaryOperation binary_op) {
+  const size_t lid = g.get_local_linear_id();
+  auto local_x = x;
 
   local_x = detail::__hipsycl_shuffle_up_impl(local_x, 1);
   if (lid == 0)
@@ -149,9 +177,8 @@ __device__ T __hipsycl_exclusive_scan_over_group(sub_group g, V x, T init,
   return __hipsycl_inclusive_scan_over_group(g, local_x, binary_op);
 }
 
-} // namespace sycl
+} // namespace sycl::detail::hiplike_builtins
 } // namespace hipsycl
 
-#endif 
+#endif
 #endif // HIPSYCL_LIBKERNEL_HIP_GROUP_FUNCTIONS_HPP
-

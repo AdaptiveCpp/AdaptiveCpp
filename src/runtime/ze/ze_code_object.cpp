@@ -102,14 +102,35 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   desc.pBuildFlags = nullptr;
   desc.pConstants = nullptr;
 
-  ze_result_t err = zeModuleCreate(ctx, dev, &desc, &_module, nullptr);
+  ze_module_build_log_handle_t build_log;
+  ze_result_t err = zeModuleCreate(ctx, dev, &desc, &_module, &build_log);
 
   if(err != ZE_RESULT_SUCCESS) {
+    std::size_t build_log_size;
+    std::string build_log_content;
+
+    if (zeModuleBuildLogGetString(build_log, &build_log_size, nullptr) ==
+        ZE_RESULT_SUCCESS) {
+      std::vector<char> build_log_buffer(build_log_size);
+      if (zeModuleBuildLogGetString(build_log, &build_log_size,
+                                    build_log_buffer.data()) ==
+          ZE_RESULT_SUCCESS) {
+        build_log_content = std::string{build_log_buffer.data(), build_log_buffer.size()};
+      }
+    }
+
+    std::string msg = "ze_executable_object: Couldn't create module handle";
+    if(!build_log_content.empty()) {
+      msg += "\nBuild log: ";
+      msg += build_log_content;
+    }
     _build_status = register_error(__hipsycl_here(),
-                   error_info{"ze_executable_object: Couldn't create module handle",
+                   error_info{msg,
                               error_code{"ze", static_cast<int>(err)}});
+    zeModuleBuildLogDestroy(build_log);
     return;
   } else {
+    zeModuleBuildLogDestroy(build_log);
     _build_status = make_success();
   }
 

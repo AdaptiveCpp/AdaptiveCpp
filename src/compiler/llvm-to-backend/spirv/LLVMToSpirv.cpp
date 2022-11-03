@@ -136,7 +136,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   }
   
   auto ReadResult =
-      llvm::MemoryBuffer::getOpenFile(OutputFile->FD, OutputFile->TmpName, -1);
+      llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
   
   if(auto Err = ReadResult.getError()) {
     this->registerError("LLVMToSpirv: Could not read result file"+Err.message());

@@ -133,4 +133,5 @@ if(WITH_SSCP_COMPILER)
     )
   
   target_compile_definitions(llvm-to-spirv PRIVATE -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
+  target_compile_definitions(llvm-to-ptx PRIVATE -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
 endif()

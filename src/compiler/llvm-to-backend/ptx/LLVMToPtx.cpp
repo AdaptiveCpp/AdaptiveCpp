@@ -35,6 +35,7 @@
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
@@ -71,6 +72,8 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M) {
 
       M.getOrInsertNamedMetadata("nvvm.annotations")
           ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+
+      F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }
 
@@ -85,8 +88,9 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M) {
     if (std::find(KernelNames.begin(), KernelNames.end(), F.getName()) == KernelNames.end()) {
       // When we are already lowering to device specific format,
       // we can expect that we have no external users anymore.
-      // All linking should be done by now.
-      F.setLinkage(llvm::GlobalValue::InternalLinkage);
+      // All linking should be done by now. The exception are llvm intrinsics.
+      if(F.getName().find("llvm.") != 0)
+        F.setLinkage(llvm::GlobalValue::InternalLinkage);
     }
   }
 
@@ -94,7 +98,57 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M) {
 }
 
 bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
-  // TODO
+
+  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.s");
+  
+  std::string OutputFilename = OutputFile->TmpName;
+  
+  auto E = InputFile.takeError();
+  if(E){
+    this->registerError("LLVMToPtx: Could not create temp file: "+InputFile->TmpName);
+    return false;
+  }
+
+  AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
+  AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
+
+  std::error_code EC;
+  llvm::raw_fd_ostream InputStream{InputFile->FD, false};
+  
+  llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
+  InputStream.flush();
+
+  std::string ClangPath = HIPSYCL_CLANG_PATH;
+
+  HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ClangPath << "\n";
+
+  int R = llvm::sys::ExecuteAndWait(
+      ClangPath, {ClangPath,
+      "-cc1", "-triple", "nvptx64-nvidia-cuda",
+      // TODO: Add ptx/sm version e.g.  -target-feature +ptx75 -target-cpu sm_70 
+      "-O3",
+       "-S",
+       "-x", "ir", 
+       "-o" , OutputFilename,
+       InputFile->TmpName});
+  
+  if(R != 0) {
+    this->registerError("LLVMToPtx: clang invocation failed with exit code " +
+                        std::to_string(R));
+    return false;
+  }
+  
+  auto ReadResult =
+      llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
+  
+  if(auto Err = ReadResult.getError()) {
+    this->registerError("LLVMToPtx: Could not read result file"+Err.message());
+    return false;
+  }
+  
+  out = ReadResult->get()->getBuffer();
+
   return true;
 }
 

@@ -28,61 +28,56 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
 #include <stddef.h>
 
-#define SPIRV_BUILTIN_VAR extern "C" const
 
-typedef size_t vec3 __attribute__((ext_vector_type(3)));
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInGlobalSize;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInGlobalInvocationId;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInWorkgroupSize;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInNumWorkgroups;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInLocalInvocationId;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInWorkgroupId;
-SPIRV_BUILTIN_VAR vec3 __spirv_BuiltInGlobalOffset;
+size_t __spirv_BuiltInLocalInvocationId(int);
+size_t __spirv_BuiltInWorkgroupId(int);
+size_t __spirv_BuiltInWorkgroupSize(int);
+size_t __spirv_BuiltInNumWorkgroups(int);
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_id_x() {
-  return __spirv_BuiltInLocalInvocationId.x;
+  return __spirv_BuiltInLocalInvocationId(0);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_id_y() {
-  return __spirv_BuiltInLocalInvocationId.y;
+  return __spirv_BuiltInLocalInvocationId(1);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_id_z() {
-  return __spirv_BuiltInLocalInvocationId.z;
+  return __spirv_BuiltInLocalInvocationId(2);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_group_id_x() {
-  return __spirv_BuiltInWorkgroupId.x;
+  return __spirv_BuiltInWorkgroupId(0);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_group_id_y() {
-  return __spirv_BuiltInWorkgroupId.y;
+  return __spirv_BuiltInWorkgroupId(1);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_group_id_z() {
-  return __spirv_BuiltInWorkgroupId.z;
+  return __spirv_BuiltInWorkgroupId(2);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_size_x() {
-  return __spirv_BuiltInWorkgroupSize.x;
+  return __spirv_BuiltInWorkgroupSize(0);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_size_y() {
-  return __spirv_BuiltInWorkgroupSize.y;
+  return __spirv_BuiltInWorkgroupSize(1);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_local_size_z() {
-  return __spirv_BuiltInWorkgroupSize.z;
+  return __spirv_BuiltInWorkgroupSize(2);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_num_groups_x() {
-  return __spirv_BuiltInNumWorkgroups.x;
+  return __spirv_BuiltInNumWorkgroups(0);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_num_groups_y() {
-  return __spirv_BuiltInNumWorkgroups.y;
+  return __spirv_BuiltInNumWorkgroups(1);
 }
 
 HIPSYCL_SSCP_CORE_BUILTIN size_t __hipsycl_sscp_get_num_groups_z() {
-  return __spirv_BuiltInNumWorkgroups.z;
+  return __spirv_BuiltInNumWorkgroups(2);
 }

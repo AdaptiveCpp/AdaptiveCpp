@@ -65,6 +65,9 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                         const rt::range<3> &num_groups, void **kernel_args,
                         const std::size_t *arg_sizes, std::size_t num_args) {
 
+  HIPSYCL_DEBUG_INFO << "ze_queue: Configuring kernel launch for group size "
+                     << group_size[0] << " " << group_size[1] << " "
+                     << group_size[2] << std::endl;
   ze_result_t err =
       zeKernelSetGroupSize(kernel, static_cast<uint32_t>(group_size[0]),
                            static_cast<uint32_t>(group_size[1]),
@@ -76,6 +79,9 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                    error_code{"ze", static_cast<int>(err)}});
   }
 
+  HIPSYCL_DEBUG_INFO << "ze_queue: Configuring kernel launch for group count "
+                     << num_groups[0] << " " << num_groups[1] << " "
+                     << num_groups[2] << std::endl;
   ze_group_count_t group_count;
   group_count.groupCountX = static_cast<uint32_t>(num_groups[0]);
   group_count.groupCountY = static_cast<uint32_t>(num_groups[1]);

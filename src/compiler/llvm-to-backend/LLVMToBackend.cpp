@@ -114,6 +114,8 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
   bool OptimizationSuccessful = false;
 
   constructPassBuilderAndMAM([&](llvm::PassBuilder &PB, llvm::ModuleAnalysisManager &MAM) {
+    PassHandler PH {&PB, &MAM};
+
     // Optimize away unnecessary branches due to backend-specific S2IR constants
     // This is what allows us to specialize code for different backends.
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing branches post S2 IR constant application...\n";
@@ -125,11 +127,11 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     KP.run(M, MAM);
 
     HIPSYCL_DEBUG_INFO << "LLVMToBackend: Adding backend-specific flavor to IR...\n";
-    FlavoringSuccessful = this->toBackendFlavor(M);
+    FlavoringSuccessful = this->toBackendFlavor(M, PH);
     if(FlavoringSuccessful) {
       // Run optimizations
       HIPSYCL_DEBUG_INFO << "LLVMToBackend: Optimizing flavored IR...\n";
-      PassHandler PH {&PB, &MAM};
+      
       OptimizationSuccessful = optimizeFlavoredIR(M, PH);
       if(!OptimizationSuccessful) {
         this->registerError("LLVMToBackend: Optimization failed");

@@ -44,7 +44,7 @@ public:
   virtual ~LLVMToSpirvTranslator() {}
 
   virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
-  virtual bool toBackendFlavor(llvm::Module &M) override;
+  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
 private:
   std::vector<std::string> KernelNames;

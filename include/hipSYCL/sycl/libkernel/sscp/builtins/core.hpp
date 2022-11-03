@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_SSCP_BUILTINS_CORE_HPP
 #define HIPSYCL_SSCP_BUILTINS_CORE_HPP
 
-#define HIPSYCL_SSCP_CORE_BUILTIN extern "C"
+#define HIPSYCL_SSCP_CORE_BUILTIN extern "C" __attribute__((always_inline))
 
 #include <stddef.h>
 

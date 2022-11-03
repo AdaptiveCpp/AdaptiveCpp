@@ -26,7 +26,9 @@
  */
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
@@ -54,12 +56,30 @@ LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
 
 
-bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
+bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setTargetTriple("spir64-unknown-unknown");
   M.setDataLayout(
       "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024");
 
+  AddressSpaceMap ASMap;
+
+  // By default, llvm-spirv translator uses the mapping where
+  // ASMap[AddressSpace::Generic] = 4;
+  // ASMap[AddressSpace::Private] = 0;
+  // We currently require a different mapping where the default address
+  // space is the generic address space, which requires a patched llvm-spirv.
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 4;
+  ASMap[AddressSpace::Constant] = 2;
+
+  // llvm-spirv translator expects by-value kernel arguments such as our
+  // kernel lambda to be passed in through private address space
+  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
+
   for(auto KernelName : KernelNames) {
+    HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     }
@@ -91,10 +111,15 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL) {
       // When we are already lowering to device specific format,
       // we can expect that we have no external users anymore.
-      // All linking should be done by now.
-      F.setLinkage(llvm::GlobalValue::InternalLinkage);
+      // All linking should be done by now. The exception are intrinsics.
+      if(F.getName().find("__spirv") == std::string::npos)
+        F.setLinkage(llvm::GlobalValue::InternalLinkage);
     }
   }
+
+  AddressSpaceInferencePass ASIPass{ASMap};
+
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
 
   return true;
 }
@@ -140,6 +165,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 
   int R = llvm::sys::ExecuteAndWait(
       LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
+      //LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, "kernel.bc"});
   if(R != 0) {
     this->registerError("LLVMToSpirv: llvm-spirv invocation failed with exit code " +
                         std::to_string(R));

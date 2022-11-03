@@ -111,7 +111,7 @@ protected:
   // If backend needs to set IR constants, it should do so here.
   virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
   // Transform LLVM IR as much as required to backend-specific flavor
-  virtual bool toBackendFlavor(llvm::Module &M) = 0;
+  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) = 0;
   virtual bool translateToBackendFormat(llvm::Module& FlavoredModule, std::string& out) = 0;
 
   // By default, just runs regular O3 pipeline. Backends may override

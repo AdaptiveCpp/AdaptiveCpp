@@ -106,6 +106,11 @@ if(WITH_SSCP_COMPILER)
     LIBRARY spirv/LLVMToSpirv.cpp 
     TOOL spirv/LLVMToSpirvTool.cpp)
 
+  add_hipsycl_llvm_backend(
+    BACKEND ptx 
+    LIBRARY ptx/LLVMToPtx.cpp 
+    TOOL ptx/LLVMToPtxTool.cpp)
+
 # Install LLVM-SPIRV translator for llvm-to-spirv
   set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
   set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
@@ -128,4 +133,5 @@ if(WITH_SSCP_COMPILER)
     )
   
   target_compile_definitions(llvm-to-spirv PRIVATE -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
+  target_compile_definitions(llvm-to-ptx PRIVATE -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
 endif()

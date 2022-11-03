@@ -25,10 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/ptx/LLVMToPtx.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
@@ -37,7 +35,9 @@
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/CallingConv.h>
+#include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
@@ -52,89 +52,61 @@
 namespace hipsycl {
 namespace compiler {
 
-LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
+LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
 
 
-bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  M.setTargetTriple("spir64-unknown-unknown");
-  M.setDataLayout(
-      "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024");
-
-  AddressSpaceMap ASMap;
-
-  // By default, llvm-spirv translator uses the mapping where
-  // ASMap[AddressSpace::Generic] = 4;
-  // ASMap[AddressSpace::Private] = 0;
-  // We currently require a different mapping where the default address
-  // space is the generic address space, which requires a patched llvm-spirv.
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 4;
-  ASMap[AddressSpace::Constant] = 2;
-
-  // llvm-spirv translator expects by-value kernel arguments such as our
-  // kernel lambda to be passed in through private address space
-  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
+bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
+  M.setTargetTriple("nvptx64-nvidia-cuda");
+  M.setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
+                  "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
 
   for(auto KernelName : KernelNames) {
-    HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
-    }
-  }
-
-  for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
-      // All functions must be marked as spir_func
-      if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
-        F.setCallingConv(llvm::CallingConv::SPIR_FUNC);
       
-      // All callers must use spir_func calling convention
-      for(auto U : F.users()) {
-        if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
-          CI->setCallingConv(llvm::CallingConv::SPIR_FUNC);
-        }
-      }
+      llvm::SmallVector<llvm::Metadata*, 4> Operands;
+      Operands.push_back(llvm::ValueAsMetadata::get(F));
+      Operands.push_back(llvm::MDString::get(M.getContext(), "kernel"));
+      Operands.push_back(llvm::ValueAsMetadata::getConstant(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 1)));
+
+      M.getOrInsertNamedMetadata("nvvm.annotations")
+          ->addOperand(llvm::MDTuple::get(M.getContext(), Operands));
+
+      F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
   
   for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL) {
+    if (std::find(KernelNames.begin(), KernelNames.end(), F.getName()) == KernelNames.end()) {
       // When we are already lowering to device specific format,
       // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are intrinsics.
-      if(F.getName().find("__spirv") == std::string::npos)
+      // All linking should be done by now. The exception are llvm intrinsics.
+      if(F.getName().find("llvm.") != 0)
         F.setLinkage(llvm::GlobalValue::InternalLinkage);
     }
   }
 
-  AddressSpaceInferencePass ASIPass{ASMap};
-
-  ASIPass.run(M, *PH.ModuleAnalysisManager);
-
   return true;
 }
 
+bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
-bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
-
-  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.spv");
+  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-ptx-%%%%%%.s");
   
   std::string OutputFilename = OutputFile->TmpName;
   
   auto E = InputFile.takeError();
   if(E){
-    this->registerError("LLVMToSpirv: Could not create temp file: "+InputFile->TmpName);
+    this->registerError("LLVMToPtx: Could not create temp file: "+InputFile->TmpName);
     return false;
   }
 
@@ -147,16 +119,22 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
   InputStream.flush();
 
-  std::string LLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
-      hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
+  std::string ClangPath = HIPSYCL_CLANG_PATH;
 
-  HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Invoking " << LLVMSpirVTranslator << "\n";
+  HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ClangPath << "\n";
 
   int R = llvm::sys::ExecuteAndWait(
-      LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
-      //LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, "kernel.bc"});
+      ClangPath, {ClangPath,
+      "-cc1", "-triple", "nvptx64-nvidia-cuda",
+      // TODO: Add ptx/sm version e.g.  -target-feature +ptx75 -target-cpu sm_70 
+      "-O3",
+       "-S",
+       "-x", "ir", 
+       "-o" , OutputFilename,
+       InputFile->TmpName});
+  
   if(R != 0) {
-    this->registerError("LLVMToSpirv: llvm-spirv invocation failed with exit code " +
+    this->registerError("LLVMToPtx: clang invocation failed with exit code " +
                         std::to_string(R));
     return false;
   }
@@ -165,7 +143,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
       llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
   
   if(auto Err = ReadResult.getError()) {
-    this->registerError("LLVMToSpirv: Could not read result file"+Err.message());
+    this->registerError("LLVMToPtx: Could not read result file"+Err.message());
     return false;
   }
   
@@ -175,8 +153,8 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
 }
 
 std::unique_ptr<LLVMToBackendTranslator>
-createLLVMToSpirvTranslator(const std::vector<std::string> &KernelNames) {
-  return std::make_unique<LLVMToSpirvTranslator>(KernelNames);
+createLLVMToPtxTranslator(const std::vector<std::string> &KernelNames) {
+  return std::make_unique<LLVMToPtxTranslator>(KernelNames);
 }
 
 }

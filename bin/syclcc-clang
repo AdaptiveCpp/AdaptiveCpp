@@ -1665,7 +1665,7 @@ class compiler:
   @property
   def common_cxx_flags(self):
     args = [
-      "-isystem" + self._hipsycl_include_path,
+      "-isystem", self._hipsycl_include_path,
       "-D__HIPSYCL__"
     ] + self._common_compiler_args
 

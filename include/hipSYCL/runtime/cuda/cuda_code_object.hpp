@@ -31,6 +31,7 @@
 #include <vector>
 #include <string>
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -68,10 +69,19 @@ private:
 
 class cuda_executable_object : public code_object {
 public:
-  virtual ~cuda_executable_object();
-  cuda_executable_object(const cuda_source_object* source, int device);
+  virtual ~cuda_executable_object() {}
+  virtual CUmod_st* get_module() const = 0;
+  virtual result get_build_result() const = 0;
+  virtual int get_device() const = 0;
+};
 
-  result get_build_result() const;
+class cuda_multipass_executable_object : public cuda_executable_object {
+public:
+  virtual ~cuda_multipass_executable_object();
+  cuda_multipass_executable_object(const cuda_source_object *source,
+                                   int device);
+
+  virtual result get_build_result() const override;
 
   virtual code_object_state state() const override;
   virtual code_format format() const override;
@@ -84,8 +94,8 @@ public:
   supported_backend_kernel_names() const override;
   virtual bool contains(const std::string &backend_kernel_name) const override;
 
-  CUmod_st* get_module() const;
-  int get_device() const;
+  virtual CUmod_st* get_module() const override;
+  virtual int get_device() const override;
 private:
   result build();
 
@@ -95,6 +105,43 @@ private:
   CUmod_st* _module;
 };
 
+class cuda_sscp_executable_object : public cuda_executable_object {
+public:
+  cuda_sscp_executable_object(const std::string &ptx_source,
+                              const std::string &target_arch,
+                              hcf_object_id hcf_source,
+                              const std::vector<std::string> &kernel_names,
+                              int device,
+                              const glue::kernel_configuration &config);
+
+  virtual ~cuda_sscp_executable_object();
+
+  virtual result get_build_result() const override;
+
+  virtual code_object_state state() const override;
+  virtual code_format format() const override;
+  virtual backend_id managing_backend() const override;
+  virtual hcf_object_id hcf_source() const override;
+  virtual std::string target_arch() const override;
+  virtual compilation_flow source_compilation_flow() const override;
+
+  virtual std::vector<std::string>
+  supported_backend_kernel_names() const override;
+  virtual bool contains(const std::string &backend_kernel_name) const override;
+
+  virtual CUmod_st* get_module() const override;
+  virtual int get_device() const override;
+private:
+  result build(const std::string& source);
+
+  std::string _target_arch;
+  hcf_object_id _hcf;
+  std::vector<std::string> _kernel_names;
+  result _build_result;
+  glue::kernel_configuration::id_type _id;
+  int _device;
+  CUmod_st* _module;
+};
 
 }
 }

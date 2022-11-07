@@ -968,7 +968,7 @@ private:
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
     assert(this->get_launch_capabilities().get_multipass_invoker());
-    rt::code_object_invoker *invoker =
+    rt::multipass_code_object_invoker *invoker =
         this->get_launch_capabilities().get_multipass_invoker().value();
 
     assert(invoker &&

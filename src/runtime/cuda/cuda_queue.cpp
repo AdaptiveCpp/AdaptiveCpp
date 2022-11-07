@@ -46,6 +46,13 @@
 #include "hipSYCL/runtime/util.hpp"
 #include "hipSYCL/runtime/queue_completion_event.hpp"
 
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+
+#include "hipSYCL/compiler/llvm-to-backend/ptx/LLVMToPtxFactory.hpp"
+#include "hipSYCL/glue/llvm-sscp/jit.hpp"
+
+#endif
+
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h> //for make_cudaPitchedPtr
 #include <cuda.h> // For kernels launched from modules
@@ -131,6 +138,37 @@ private:
   std::shared_ptr<dag_node_event> _task_start;
 };
 
+result launch_kernel_from_module(CUmodule module,
+                                 const std::string &kernel_name,
+                                 const rt::range<3> &grid_size,
+                                 const rt::range<3> &block_size,
+                                 unsigned shared_memory, cudaStream_t stream,
+                                 void **kernel_args) {
+  CUfunction f;
+  CUresult err = cuModuleGetFunction(&f, module, kernel_name.c_str());
+
+  if (err != CUDA_SUCCESS) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: could not extract kernel from module",
+                                 error_code{"CU", static_cast<int>(err)}});
+  }
+
+  err = cuLaunchKernel(f, static_cast<unsigned>(grid_size.get(0)),
+                       static_cast<unsigned>(grid_size.get(1)),
+                       static_cast<unsigned>(grid_size.get(2)),
+                       static_cast<unsigned>(block_size.get(0)),
+                       static_cast<unsigned>(block_size.get(1)),
+                       static_cast<unsigned>(block_size.get(2)),
+                       shared_memory, stream, kernel_args, nullptr);
+
+  if (err != CUDA_SUCCESS) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_queue: could not submit kernel from module",
+                                 error_code{"CU", static_cast<int>(err)}});
+  }
+  
+  return make_success();
+}
 }
 
 
@@ -138,8 +176,9 @@ void cuda_queue::activate_device() const {
   cuda_device_manager::get().activate_device(_dev.get_id());
 }
 
-cuda_queue::cuda_queue(cuda_backend* be, device_id dev, int priority)
-    : _dev{dev}, _code_object_invoker{this}, _stream{nullptr}, _backend{be} {
+cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
+    : _dev{dev}, _multipass_code_object_invoker{this},
+      _sscp_code_object_invoker{this}, _stream{nullptr}, _backend{be} {
   this->activate_device();
 
   cudaError_t err;
@@ -316,7 +355,8 @@ result cuda_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   l->set_params(this);
 
   rt::backend_kernel_launch_capabilities cap;
-  cap.provide_multipass_invoker(&_code_object_invoker);
+  cap.provide_multipass_invoker(&_multipass_code_object_invoker);
+  cap.provide_sscp_invoker(&_sscp_code_object_invoker);
   l->set_backend_capabilities(cap);
   
   cuda_instrumentation_guard instrumentation{this, op, node};
@@ -419,14 +459,11 @@ result cuda_queue::wait() {
   return make_success();
 }
 
-result cuda_queue::submit_kernel_from_code_object(
-                                 const kernel_operation& op,
-                                 hcf_object_id hcf_object,
-                                 const std::string &backend_kernel_name,
-                                 const rt::range<3> &grid_size,
-                                 const rt::range<3> &block_size,
-                                 unsigned dynamic_shared_mem,
-                                 void **kernel_args, std::size_t num_args) {
+result cuda_queue::submit_multipass_kernel_from_code_object(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const std::string &backend_kernel_name, const rt::range<3> &grid_size,
+    const rt::range<3> &block_size, unsigned dynamic_shared_mem,
+    void **kernel_args, std::size_t num_args) {
 
   this->activate_device();
 
@@ -473,7 +510,9 @@ result cuda_queue::submit_kernel_from_code_object(
     return (candidate->target_arch() == selected_target) &&
            (candidate->state() == code_object_state::executable) &&
            (static_cast<const cuda_executable_object *>(candidate)
-                ->get_device() == device);
+                ->get_device() == device) &&
+           (candidate->source_compilation_flow() ==
+            compilation_flow::explicit_multipass);
   };
 
   // Will be invoked by the kernel cache in case there is a miss in the kernel
@@ -512,8 +551,9 @@ result cuda_queue::submit_kernel_from_code_object(
         rt::kernel_cache::get().recursive_get_or_construct_code_object(
             *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
             source_object_selector, source_object_constructor));
-    
-    cuda_executable_object* exec_obj = new cuda_executable_object{source, device};
+
+    cuda_executable_object *exec_obj =
+        new cuda_multipass_executable_object{source, device};
     result r = exec_obj->get_build_result();
 
     if(!r.is_success()) {
@@ -552,30 +592,112 @@ result cuda_queue::submit_kernel_from_code_object(
                       error_info{"cuda_queue: Could not discover full kernel "
                                  "name from partial backend kernel name"});
 
-  CUfunction f;
-  CUresult err = cuModuleGetFunction(&f, cumodule, full_kernel_name.c_str());
+  return launch_kernel_from_module(cumodule, full_kernel_name, grid_size,
+                                   block_size, dynamic_shared_mem, _stream,
+                                   kernel_args);
+}
 
-  if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
-                      error_info{"cuda_queue: could not extract kernel from module",
-                                 error_code{"CU", static_cast<int>(err)}});
+
+result cuda_queue::submit_sscp_kernel_from_code_object(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const std::string &kernel_name, const rt::range<3> &num_groups,
+    const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+    std::size_t *arg_sizes, std::size_t num_args,
+    const glue::kernel_configuration &config) {
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+  std::string global_kernel_name = op.get_global_kernel_name();
+  const kernel_cache::kernel_name_index_t* kidx =
+      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+
+  if(!kidx) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"cuda_queue: Could not obtain kernel index for kernel " +
+                   global_kernel_name});
   }
 
-  err = cuLaunchKernel(f, static_cast<unsigned>(grid_size.get(0)),
-                       static_cast<unsigned>(grid_size.get(1)),
-                       static_cast<unsigned>(grid_size.get(2)),
-                       static_cast<unsigned>(block_size.get(0)),
-                       static_cast<unsigned>(block_size.get(1)),
-                       static_cast<unsigned>(block_size.get(2)),
-                       dynamic_shared_mem, _stream, kernel_args, nullptr);
+  auto configuration_id = config.generate_id();
+  int device = this->_dev.get_id();
+  std::string target_arch_name = this->_backend->get_hardware_manager()
+                                     ->get_device(device)
+                                     ->get_device_arch();
 
-  if (err != CUDA_SUCCESS) {
+  auto code_object_selector = [&](const code_object *candidate) -> bool {
+    if ((candidate->managing_backend() != backend_id::cuda) ||
+        (candidate->source_compilation_flow() != compilation_flow::sscp) ||
+        (candidate->state() != code_object_state::executable))
+      return false;
+
+    const cuda_sscp_executable_object *obj =
+        static_cast<const cuda_sscp_executable_object *>(candidate);
+    
+    if(obj->configuration_id() != configuration_id)
+      return false;
+
+    return obj->get_device() == device;
+  };
+
+  auto code_object_constructor = [&]() -> code_object* {
+    const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+    
+    std::vector<std::string> kernel_names;
+    // Define image selector that will also fill kernel_names with
+    // list of kernels contained in selected image
+    glue::jit::image_selector_and_kernel_list_extractor image_selector{
+        glue::jit::default_llvm_image_selector{}, kernel_name, &kernel_names,
+        hcf};
+
+    // Construct PTX translator to compile the specified kernels
+    std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
+      std::move(compiler::createLLVMToPtxTranslator(kernel_names));
+
+    // Lower kernels to PTX
+    std::string ptx_image;
+    auto err = glue::jit::compile(translator.get(),
+        hcf, image_selector, config, ptx_image);
+    
+    if(!err.is_success()) {
+      register_error(err);
+      return nullptr;
+    }
+
+    cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
+        ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
+    result r = exec_obj->get_build_result();
+
+    if(!r.is_success()) {
+      register_error(r);
+      delete exec_obj;
+      return nullptr;
+    }
+
+    return exec_obj;
+  };
+
+  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+      *kidx, kernel_name, backend_id::cuda, hcf_object,
+      code_object_selector, code_object_constructor);
+
+  if(!obj) {
     return make_error(__hipsycl_here(),
-                      error_info{"cuda_queue: could not submit kernel from module",
-                                 error_code{"CU", static_cast<int>(err)}});
+                      error_info{"cuda_queue: Code object construction failed"});
   }
-  
+
+  CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
+  assert(cumodule);
+
+  return launch_kernel_from_module(cumodule, kernel_name, num_groups,
+                                   group_size, local_mem_size, _stream,
+                                   args);
+
   return make_success();
+#else
+  return make_error(
+      __hipsycl_here(),
+      error_info{
+          "cuda_queue: SSCP kernel launch was requested, but hipSYCL was "
+          "not built with CUDA SSCP support."});
+#endif
 }
 
 device_id cuda_queue::get_device() const {
@@ -586,7 +708,9 @@ void *cuda_queue::get_native_type() const {
   return static_cast<void*>(get_stream());
 }
 
-cuda_code_object_invoker::cuda_code_object_invoker(cuda_queue *q) : _queue{q} {}
+cuda_multipass_code_object_invoker::cuda_multipass_code_object_invoker(
+    cuda_queue *q)
+    : _queue{q} {}
 
 result cuda_queue::query_status(inorder_queue_status &status) {
   auto err = cudaStreamQuery(_stream);
@@ -603,7 +727,7 @@ result cuda_queue::query_status(inorder_queue_status &status) {
   return make_success();
 }
 
-result cuda_code_object_invoker::submit_kernel(
+result cuda_multipass_code_object_invoker::submit_kernel(
     const kernel_operation& op,
     hcf_object_id hcf_object,
     const rt::range<3> &num_groups,
@@ -619,11 +743,22 @@ result cuda_code_object_invoker::submit_kernel(
   if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
     kernel_name = kernel_name_tag;
 
-  return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,
-                                                num_groups, group_size,
-                                                local_mem_size, args, num_args);
+  return _queue->submit_multipass_kernel_from_code_object(
+      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
+      num_args);
 }
 
+result cuda_sscp_code_object_invoker::submit_kernel(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const std::string &kernel_name,
+    const glue::kernel_configuration &config) {
+
+  return _queue->submit_sscp_kernel_from_code_object(
+      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
+      arg_sizes, num_args, config);
+}
 
 }
 }

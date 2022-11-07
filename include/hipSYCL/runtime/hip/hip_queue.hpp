@@ -45,7 +45,7 @@ class hip_queue;
 class hip_backend;
 
 
-class hip_code_object_invoker : public code_object_invoker{
+class hip_code_object_invoker : public multipass_code_object_invoker{
 public:
   hip_code_object_invoker(hip_queue* q);
 

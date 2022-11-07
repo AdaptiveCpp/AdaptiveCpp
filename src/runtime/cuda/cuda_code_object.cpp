@@ -35,8 +35,10 @@
 #include <cuda.h>
 
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/cuda/cuda_code_object.hpp"
 #include "hipSYCL/runtime/cuda/cuda_device_manager.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/common/debug.hpp"
 
@@ -58,6 +60,50 @@ void trim_right_space_and_parenthesis(std::string &s) {
     }).base(), s.end());
 }
 
+void unload_cuda_module(CUmod_st* module, int device) {
+  if (module) {
+    cuda_device_manager::get().activate_device(device);
+
+    auto err = cuModuleUnload(module);
+
+    if (err != CUDA_SUCCESS && 
+        // It can happen that during shutdown of the CUDA
+        // driver we cannot unload anymore.
+        // TODO: Find a better solution
+        err != CUDA_ERROR_DEINITIALIZED) {
+      register_error(
+          __hipsycl_here(),
+          error_info{"cuda_executable_object: could not unload module",
+                     error_code{"CU", static_cast<int>(err)}});
+    }
+  }
+}
+
+result build_cuda_module_from_ptx(CUmod_st *&module, int device,
+                                  const std::string &source) {
+  if (module != nullptr)
+    return make_success();
+  
+  cuda_device_manager::get().activate_device(device);
+  // This guarantees that the CUDA runtime API initializes the CUDA
+  // context on that device. This is important for the subsequent driver
+  // API calls which assume that CUDA context has been created.
+  cudaFree(0);
+  
+  auto err = cuModuleLoadDataEx(
+      &module, static_cast<void *>(const_cast<char *>(source.c_str())),
+      0, nullptr, nullptr);
+
+  if (err != CUDA_SUCCESS) {
+    return make_error(__hipsycl_here(),
+                      error_info{"cuda_executable_object: could not load module",
+                                error_code{"CU", static_cast<int>(err)}});
+  }
+  
+  assert(module);
+
+  return make_success();
+}
 }
 
 cuda_source_object::cuda_source_object(hcf_object_id origin,
@@ -120,12 +166,8 @@ bool cuda_source_object::contains(
 
 const std::string &cuda_source_object::get_source() const { return _source; }
 
-
-
-
-
-cuda_executable_object::cuda_executable_object(const cuda_source_object *source,
-                                               int device)
+cuda_multipass_executable_object::cuda_multipass_executable_object(
+    const cuda_source_object *source, int device)
     : _source{source}, _device{device}, _module{nullptr} {
 
   assert(source);
@@ -133,98 +175,118 @@ cuda_executable_object::cuda_executable_object(const cuda_source_object *source,
   this->_build_result = build();
 }
 
-result cuda_executable_object::get_build_result() const {
+result cuda_multipass_executable_object::get_build_result() const {
   return _build_result;
 }
 
-cuda_executable_object::~cuda_executable_object() {
-  if (_module) {
-    cuda_device_manager::get().activate_device(_device);
-
-    auto err = cuModuleUnload(_module);
-
-    if (err != CUDA_SUCCESS && 
-        // It can happen that during shutdown of the CUDA
-        // driver we cannot unload anymore.
-        // TODO: Find a better solution
-        err != CUDA_ERROR_DEINITIALIZED) {
-      register_error(
-          __hipsycl_here(),
-          error_info{"cuda_executable_object: could not unload module",
-                     error_code{"CU", static_cast<int>(err)}});
-    }
-  }
+cuda_multipass_executable_object::~cuda_multipass_executable_object() {
+  unload_cuda_module(_module, _device);
 }
 
-code_object_state cuda_executable_object::state() const {
-  return _module ? code_object_state::executable : code_object_state::source;
+code_object_state cuda_multipass_executable_object::state() const {
+  return _module ? code_object_state::executable : code_object_state::invalid;
 }
 
-code_format cuda_executable_object::format() const {
+code_format cuda_multipass_executable_object::format() const {
   return code_format::ptx;
 }
 
-backend_id cuda_executable_object::managing_backend() const {
+backend_id cuda_multipass_executable_object::managing_backend() const {
   return backend_id::cuda;
 }
 
-hcf_object_id cuda_executable_object::hcf_source() const {
+hcf_object_id cuda_multipass_executable_object::hcf_source() const {
   return _source->hcf_source();
 }
 
-std::string cuda_executable_object::target_arch() const {
+std::string cuda_multipass_executable_object::target_arch() const {
   return _source->target_arch();
 }
 
-compilation_flow cuda_executable_object::source_compilation_flow() const {
+compilation_flow
+cuda_multipass_executable_object::source_compilation_flow() const {
   return compilation_flow::explicit_multipass;
 }
 
 std::vector<std::string>
-cuda_executable_object::supported_backend_kernel_names() const {
+cuda_multipass_executable_object::supported_backend_kernel_names() const {
   return _source->supported_backend_kernel_names();
 }
 
-bool cuda_executable_object::contains(
+bool cuda_multipass_executable_object::contains(
     const std::string &backend_kernel_name) const {
   return _source->contains(backend_kernel_name);
 }
 
-CUmod_st* cuda_executable_object::get_module() const {
+CUmod_st* cuda_multipass_executable_object::get_module() const {
   return _module;
 }
 
-result cuda_executable_object::build() {
-  if(_module != nullptr)
-    return make_success();
-  
-  cuda_device_manager::get().activate_device(_device);
-  // This guarantees that the CUDA runtime API initializes the CUDA
-  // context on that device. This is important for the subsequent driver
-  // API calls which assume that CUDA context has been created.
-  cudaFree(0);
-  
-  auto err = cuModuleLoadDataEx(
-      &_module, static_cast<void *>(const_cast<char *>(_source->get_source().c_str())),
-      0, nullptr, nullptr);
-
-  if (err != CUDA_SUCCESS) {
-    return make_error(__hipsycl_here(),
-                      error_info{"cuda_executable_object: could not load module",
-                                error_code{"CU", static_cast<int>(err)}});
-  }
-  
-  assert(_module);
-
-  return make_success();
+result cuda_multipass_executable_object::build() {
+  return build_cuda_module_from_ptx(_module, _device, _source->get_source());
 }
 
-int cuda_executable_object::get_device() const {
+int cuda_multipass_executable_object::get_device() const {
   return _device;
 }
 
+cuda_sscp_executable_object::cuda_sscp_executable_object(
+    const std::string &ptx_source, const std::string &target_arch,
+    hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
+    int device, const glue::kernel_configuration &config)
+    : _target_arch{target_arch}, _hcf{hcf_source},
+      _kernel_names{kernel_names}, _device{device}, _id{config.generate_id()} {
+  _build_result = build(ptx_source);
+}
 
+cuda_sscp_executable_object::~cuda_sscp_executable_object() {
+  unload_cuda_module(_module, _device);
+}
 
+result cuda_sscp_executable_object::get_build_result() const {
+  return _build_result;
+}
+
+code_object_state cuda_sscp_executable_object::state() const {
+  return _module ? code_object_state::executable : code_object_state::invalid;
+}
+
+code_format cuda_sscp_executable_object::format() const {
+  return code_format::ptx;
+}
+
+backend_id cuda_sscp_executable_object::managing_backend() const {
+  return backend_id::cuda;
+}
+
+hcf_object_id cuda_sscp_executable_object::hcf_source() const {
+  return _hcf;
+}
+
+std::string cuda_sscp_executable_object::target_arch() const {
+  return _target_arch;
+}
+
+compilation_flow cuda_sscp_executable_object::source_compilation_flow() const {
+  return compilation_flow::sscp;
+}
+
+std::vector<std::string>
+cuda_sscp_executable_object::supported_backend_kernel_names() const {
+  return _kernel_names;
+}
+
+CUmod_st* cuda_sscp_executable_object::get_module() const {
+  return _module;
+}
+
+int cuda_sscp_executable_object::get_device() const {
+  return _device;
+}
+
+result cuda_sscp_executable_object::build(const std::string& source) {
+  return build_cuda_module_from_ptx(_module, _device, source);
+}
 
 } // namespace rt
 } // namespace hipsycl

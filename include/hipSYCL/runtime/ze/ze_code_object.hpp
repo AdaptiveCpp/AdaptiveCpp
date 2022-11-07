@@ -42,7 +42,7 @@ namespace rt {
 
 class ze_queue;
 
-class ze_multipass_code_object_invoker : public code_object_invoker {
+class ze_multipass_code_object_invoker : public multipass_code_object_invoker {
 public:
   ze_multipass_code_object_invoker(ze_queue* queue)
   : _queue{queue} {}

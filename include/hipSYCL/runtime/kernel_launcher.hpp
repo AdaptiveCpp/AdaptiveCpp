@@ -45,7 +45,7 @@
 namespace hipsycl {
 namespace rt {
 
-class code_object_invoker;
+class multipass_code_object_invoker;
 class sscp_code_object_invoker;
 
 enum class kernel_type {
@@ -59,7 +59,7 @@ enum class kernel_type {
 
 class backend_kernel_launch_capabilities {
 public:
-  void provide_multipass_invoker(code_object_invoker* invoker) {
+  void provide_multipass_invoker(multipass_code_object_invoker* invoker) {
     _multipass_invoker = invoker;
   }
 
@@ -67,7 +67,7 @@ public:
     _sscp_invoker = invoker;
   }
 
-  std::optional<code_object_invoker*> get_multipass_invoker() const {
+  std::optional<multipass_code_object_invoker*> get_multipass_invoker() const {
     if(_multipass_invoker)
       return _multipass_invoker;
     return {};
@@ -79,7 +79,7 @@ public:
     return {};
   }
 private:
-  code_object_invoker* _multipass_invoker = nullptr;
+  multipass_code_object_invoker* _multipass_invoker = nullptr;
   sscp_code_object_invoker* _sscp_invoker = nullptr;
 };
 

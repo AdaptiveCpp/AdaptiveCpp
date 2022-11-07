@@ -55,6 +55,7 @@ enum class code_format {
 };
 
 enum class code_object_state {
+  invalid,
   executable,
   compiled,
   device_ir,

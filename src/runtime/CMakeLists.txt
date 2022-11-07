@@ -107,6 +107,11 @@ if(WITH_CUDA_BACKEND)
   target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-cuda PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-cuda PRIVATE llvm-to-ptx)
+  endif()
+
   install(TARGETS rt-backend-cuda
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL

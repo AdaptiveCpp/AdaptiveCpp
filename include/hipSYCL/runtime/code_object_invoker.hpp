@@ -38,7 +38,7 @@
 namespace hipsycl {
 namespace rt {
 
-class code_object_invoker {
+class multipass_code_object_invoker {
 public:
   virtual result submit_kernel(const kernel_operation& op,
                                hcf_object_id hcf_object,
@@ -48,7 +48,7 @@ public:
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name_tag,
                                const std::string &kernel_body_name) = 0;
-  virtual ~code_object_invoker(){}
+  virtual ~multipass_code_object_invoker(){}
 };
 
 class sscp_code_object_invoker {

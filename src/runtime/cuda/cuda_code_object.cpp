@@ -288,5 +288,13 @@ result cuda_sscp_executable_object::build(const std::string& source) {
   return build_cuda_module_from_ptx(_module, _device, source);
 }
 
+bool cuda_sscp_executable_object::contains(const std::string &backend_kernel_name) const {
+  for(const auto& kernel_name : _kernel_names) {
+    if(kernel_name == backend_kernel_name)
+      return true;
+  }
+  return false;
+}
+
 } // namespace rt
 } // namespace hipsycl

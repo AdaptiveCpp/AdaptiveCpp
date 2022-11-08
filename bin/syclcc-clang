@@ -339,7 +339,8 @@ class syclcc_config:
                                          (see --hipsycl-explicit-multipass)
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
-      * spirv - use clang SYCL driver to generate spirv""")
+      * spirv - use clang SYCL driver to generate spirv
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--hipsycl-use-accelerated-cpu", "HIPSYCL_USE_ACCELERATED_CPU",

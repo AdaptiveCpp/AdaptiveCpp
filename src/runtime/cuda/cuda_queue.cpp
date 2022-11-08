@@ -605,6 +605,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     std::size_t *arg_sizes, std::size_t num_args,
     const glue::kernel_configuration &config) {
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
+
+  this->activate_device();
+
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
       kernel_cache::get().get_global_kernel_index(global_kernel_name);
@@ -664,6 +667,10 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
         ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
     result r = exec_obj->get_build_result();
+
+    HIPSYCL_DEBUG_INFO
+        << "cuda_queue: Successfully compiled SSCP kernels to module " << exec_obj->get_module()
+        << std::endl;
 
     if(!r.is_success()) {
       register_error(r);

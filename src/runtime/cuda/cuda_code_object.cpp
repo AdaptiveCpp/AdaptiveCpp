@@ -81,8 +81,6 @@ void unload_cuda_module(CUmod_st* module, int device) {
 
 result build_cuda_module_from_ptx(CUmod_st *&module, int device,
                                   const std::string &source) {
-  if (module != nullptr)
-    return make_success();
   
   cuda_device_manager::get().activate_device(device);
   // This guarantees that the CUDA runtime API initializes the CUDA
@@ -223,6 +221,9 @@ CUmod_st* cuda_multipass_executable_object::get_module() const {
 }
 
 result cuda_multipass_executable_object::build() {
+  if (_module != nullptr)
+    return make_success();
+
   return build_cuda_module_from_ptx(_module, _device, _source->get_source());
 }
 
@@ -234,8 +235,8 @@ cuda_sscp_executable_object::cuda_sscp_executable_object(
     const std::string &ptx_source, const std::string &target_arch,
     hcf_object_id hcf_source, const std::vector<std::string> &kernel_names,
     int device, const glue::kernel_configuration &config)
-    : _target_arch{target_arch}, _hcf{hcf_source},
-      _kernel_names{kernel_names}, _device{device}, _id{config.generate_id()} {
+    : _target_arch{target_arch}, _hcf{hcf_source}, _kernel_names{kernel_names},
+      _device{device}, _id{config.generate_id()}, _module{nullptr} {
   _build_result = build(ptx_source);
 }
 
@@ -285,6 +286,9 @@ int cuda_sscp_executable_object::get_device() const {
 }
 
 result cuda_sscp_executable_object::build(const std::string& source) {
+  if (_module != nullptr)
+    return make_success();
+
   return build_cuda_module_from_ptx(_module, _device, source);
 }
 

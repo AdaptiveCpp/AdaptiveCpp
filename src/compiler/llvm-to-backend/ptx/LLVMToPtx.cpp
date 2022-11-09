@@ -53,7 +53,7 @@ namespace hipsycl {
 namespace compiler {
 
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
-    : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
+    : LLVMToBackendTranslator{sycl::sscp::backend::ptx, KN}, KernelNames{KN} {}
 
 
 bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {

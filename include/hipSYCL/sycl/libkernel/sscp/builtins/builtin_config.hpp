@@ -1,3 +1,4 @@
+
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
@@ -25,27 +26,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SSCP_BUILTINS_CORE_HPP
-#define HIPSYCL_SSCP_BUILTINS_CORE_HPP
+#ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
+#define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
-#include "builtin_config.hpp"
+#define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
+#define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
+#define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 
-#include <stddef.h>
-
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_x();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_y();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_z();
-
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_x();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_y();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_z();
-
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_x();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_y();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_z();
-
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_x();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_y();
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_z();
 
 #endif

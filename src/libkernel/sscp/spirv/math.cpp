@@ -27,8 +27,6 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
-#include <stdint.h>
-#include <stddef.h>
 
 #define PI 3.14159265358979323846
 
@@ -125,20 +123,20 @@ double __spirv_ocl_fract(double x, double* y);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_fract_f32(float x, float* y ) { return __spirv_ocl_fract(x, y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_fract_f64(double x, double* y) { return __spirv_ocl_fract(x, y); }
 
-float __spirv_ocl_frexp(float x, int32_t* y);
-double __spirv_ocl_frexp(double x, int64_t* y);
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float x, int32_t* y ) { return __spirv_ocl_frexp(x, y); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double x, int64_t* y) { return __spirv_ocl_frexp(x, y); }
+float __spirv_ocl_frexp(float x, __hipsycl_int32* y);
+double __spirv_ocl_frexp(double x, __hipsycl_int64* y);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float x, __hipsycl_int32* y ) { return __spirv_ocl_frexp(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double x, __hipsycl_int64* y) { return __spirv_ocl_frexp(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(hypot)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(ilogb)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tgamma)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(lgamma)
 
-float __spirv_ocl_lgamma_r(float x, int32_t* y);
-double __spirv_ocl_lgamma_r(double x, int64_t* y);
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_r_f32(float x, int32_t* y ) { return __spirv_ocl_lgamma_r(x, y); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_r_f64(double x, int64_t* y) { return __spirv_ocl_lgamma_r(x, y); }
+float __spirv_ocl_lgamma_r(float x, __hipsycl_int32* y);
+double __spirv_ocl_lgamma_r(double x, __hipsycl_int64* y);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_r_f32(float x, __hipsycl_int32* y ) { return __spirv_ocl_lgamma_r(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_r_f64(double x, __hipsycl_int64* y) { return __spirv_ocl_lgamma_r(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(log)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(log2)
@@ -154,21 +152,21 @@ double __spirv_ocl_modf(double, double*);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_modf_f32(float x, float* y ) { return __spirv_ocl_modf(x, y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_modf_f64(double x, double* y) { return __spirv_ocl_modf(x, y); }
 
-float __spirv_ocl_pown(float, int32_t);
-double __spirv_ocl_pown(double, int64_t);
+float __spirv_ocl_pown(float, __hipsycl_int32);
+double __spirv_ocl_pown(double, __hipsycl_int64);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float x, int32_t y) { return __spirv_ocl_pown(x, y); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x, int64_t y) {return __spirv_ocl_pown(x, y); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float x, __hipsycl_int32 y) { return __spirv_ocl_pown(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x, __hipsycl_int64 y) {return __spirv_ocl_pown(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(remainder)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(rint)
 
 
-float __spirv_ocl_rootn(float, int32_t);
-double __spirv_ocl_rootn(double, int64_t);
+float __spirv_ocl_rootn(float, __hipsycl_int32);
+double __spirv_ocl_rootn(double, __hipsycl_int64);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float x, int32_t y) { return __spirv_ocl_rootn(x, y); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double x, int64_t y) {return __spirv_ocl_rootn(x, y); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float x, __hipsycl_int32 y) { return __spirv_ocl_rootn(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double x, __hipsycl_int64 y) {return __spirv_ocl_rootn(x, y); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(round)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(rsqrt)

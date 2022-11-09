@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_SSCP_MATH_BUILTINS_HPP
 #define HIPSYCL_SSCP_MATH_BUILTINS_HPP
 
-#include <stdint.h>
 #include "builtin_config.hpp"
 
 
@@ -128,8 +127,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_fmod_f64(double, double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_fract_f32(float, float*);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_fract_f64(double, double*);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float, int32_t*);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double, int64_t*);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float, __hipsycl_int32*);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double, __hipsycl_int64*);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_hypot_f32(float, float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_hypot_f64(double, double);
@@ -140,8 +139,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_ilogb_f64(double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_f64(double);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_r_f32(float, int32_t*);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_r_f64(double, int64_t*);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_r_f32(float, __hipsycl_int32*);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_r_f64(double, __hipsycl_int64*);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_log_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_log_f64(double);
@@ -179,8 +178,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pow_f64(double, double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_powr_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_powr_f64(double);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float, int32_t);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double, int64_t);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float, __hipsycl_int32);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double, __hipsycl_int64);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_remainder_f32(float, float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_remainder_f64(double, double);
@@ -188,8 +187,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_remainder_f64(double, double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rint_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rint_f64(double);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float, int32_t);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double, int64_t);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float, __hipsycl_int32);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double, __hipsycl_int64);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_round_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_round_f64(double);

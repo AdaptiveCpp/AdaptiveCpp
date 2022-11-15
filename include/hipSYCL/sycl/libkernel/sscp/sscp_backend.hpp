@@ -45,6 +45,9 @@
   #define HIPSYCL_LIBKERNEL_DEVICE_PASS
  #endif
 
+ #ifdef HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+  #undef HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS
+ #endif
  #define HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS 1
 
  #define __hipsycl_if_target_host(...)                                         \

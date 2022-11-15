@@ -152,6 +152,8 @@ double __spirv_ocl_modf(double, double*);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_modf_f32(float x, float* y ) { return __spirv_ocl_modf(x, y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_modf_f64(double x, double* y) { return __spirv_ocl_modf(x, y); }
 
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(powr)
+
 float __spirv_ocl_pown(float, __hipsycl_int32);
 double __spirv_ocl_pown(double, __hipsycl_int64);
 

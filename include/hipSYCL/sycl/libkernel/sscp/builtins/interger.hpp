@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2021 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
-#define HIPSYCL_LIBKERNEL_BUILTIN_DISPATCH_HPP
+#ifndef HIPSYCL_SSCP_INTEGER_BUILTINS_HPP
+#define HIPSYCL_SSCP_INTEGER_BUILTINS_HPP
 
-#include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "builtin_config.hpp"
 
-#define HIPSYCL_DISPATCH_BUILTIN(name, ...)                                    \
-  __hipsycl_if_target_hiplike(hiplike_builtins::name(__VA_ARGS__););           \
-  __hipsycl_if_target_spirv(spirv_builtins::name(__VA_ARGS__););               \
-  __hipsycl_if_target_host(host_builtins::name(__VA_ARGS__););                 \
-  __hipsycl_if_target_sscp(sscp_builtins::name(__VA_ARGS__););
-#define HIPSYCL_RETURN_DISPATCH_BUILTIN(name, ...)                             \
-  __hipsycl_if_target_hiplike(return hiplike_builtins::name(__VA_ARGS__););    \
-  __hipsycl_if_target_spirv(return spirv_builtins::name(__VA_ARGS__););        \
-  __hipsycl_if_target_host(return host_builtins::name(__VA_ARGS__););          \
-  __hipsycl_if_target_sscp(return sscp_builtins::name(__VA_ARGS__););
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b);
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b);
 
 #endif

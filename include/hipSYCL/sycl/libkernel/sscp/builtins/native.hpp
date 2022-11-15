@@ -54,8 +54,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log2_f64(double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log10_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log10_f64(double);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_powr_f32(float);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_powr_f32(float, float);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double, double);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_recip_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_recip_f64(double);

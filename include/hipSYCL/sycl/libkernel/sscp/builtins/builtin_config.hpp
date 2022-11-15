@@ -34,6 +34,7 @@
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 
 using __hipsycl_int32 = int;
+using __hipsycl_uint32 = unsigned int;
 using __hipsycl_int64 = long long;
 
 #endif

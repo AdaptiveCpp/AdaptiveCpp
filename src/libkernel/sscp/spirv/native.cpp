@@ -53,8 +53,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log2_f64(double x) { return __
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log10_f32(float x) { return __hipsycl_sscp_log10_f32(x); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log10_f64(double x) { return __hipsycl_sscp_log10_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_powr_f32(float x) { return __hipsycl_sscp_powr_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double x) { return __hipsycl_sscp_powr_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_powr_f32(float x, float y) { return __hipsycl_sscp_powr_f32(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double x, double y) { return __hipsycl_sscp_powr_f64(x, y); }
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_recip_f32(float x) { return 1.f / x; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_recip_f64(double x) { return 1. / x; }

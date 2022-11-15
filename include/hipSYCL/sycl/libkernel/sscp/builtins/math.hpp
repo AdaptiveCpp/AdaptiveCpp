@@ -175,8 +175,8 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_nextafter_f64(double, double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pow_f32(float, float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pow_f64(double, double);
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_powr_f32(float);
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_powr_f64(double);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_powr_f32(float, float);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_powr_f64(double, double);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float, __hipsycl_int32);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double, __hipsycl_int64);

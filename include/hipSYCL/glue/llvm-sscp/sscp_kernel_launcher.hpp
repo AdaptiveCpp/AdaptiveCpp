@@ -72,6 +72,11 @@ void __hipsycl_sscp_kernel(const KernelType kernel) {
     kernel();
 }
 
+
+// hipSYCL SSCP LLVM magic will add definition, but clang warns - suppress until
+// we find a better solution to implement things
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-internal" 
 // The SSCP compiler will use this invocation to connect the kernel function
 // to a global variable where the kernel name can be stored.
 // First argument has to be a function pointer to the kernel,
@@ -81,7 +86,7 @@ void __hipsycl_sscp_kernel(const KernelType kernel) {
 template <class Kernel>
 void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
                                         const char *target);
-
+#pragma clang diagnostic pop
 
 namespace hipsycl {
 namespace glue {

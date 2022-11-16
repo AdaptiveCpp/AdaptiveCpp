@@ -88,10 +88,10 @@ bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last,
 
 template<int Dim>
 HIPSYCL_BUILTIN
-inline bool __hipsycl_any_of_group(group<Dim> g, bool pred);
+bool __hipsycl_any_of_group(group<Dim> g, bool pred);
 
 HIPSYCL_BUILTIN
-inline bool __hipsycl_any_of_group(sub_group g, bool pred);
+bool __hipsycl_any_of_group(sub_group g, bool pred);
 
 // all_of
 
@@ -102,10 +102,10 @@ HIPSYCL_BUILTIN bool __hipsycl_joint_all_of(Group g, Ptr first, Ptr last,
 
 template<int Dim>
 HIPSYCL_BUILTIN
-inline bool __hipsycl_all_of_group(group<Dim> g, bool pred);
+bool __hipsycl_all_of_group(group<Dim> g, bool pred);
 
 HIPSYCL_BUILTIN
-inline bool __hipsycl_all_of_group(sub_group g, bool pred);
+bool __hipsycl_all_of_group(sub_group g, bool pred);
 
 // none_of
 
@@ -117,10 +117,10 @@ bool __hipsycl_joint_none_of(Group g, Ptr first, Ptr last,
 
 template<int Dim>
 HIPSYCL_BUILTIN
-inline bool __hipsycl_none_of_group(group<Dim> g, bool pred);
+bool __hipsycl_none_of_group(group<Dim> g, bool pred);
 
 HIPSYCL_BUILTIN
-inline bool __hipsycl_none_of_group(sub_group g, bool pred);
+bool __hipsycl_none_of_group(sub_group g, bool pred);
 
 // reduce
 

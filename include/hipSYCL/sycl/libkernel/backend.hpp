@@ -157,6 +157,21 @@
  #define __hipsycl_if_target_sscp(...)
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP // Same as: host pass, with SSCP enabled
+#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code,    \
+                                 spirv_code)                                   \
+  if (__hipsycl_sscp_is_host) {                                                \
+    host_code;                                                                 \
+  } else {                                                                     \
+    sscp_code;                                                                 \
+  }
+#else
+#define __hipsycl_backend_switch(host_code, sscp_code, cuda_code, hip_code,    \
+                                 spirv_code)                                   \
+  __hipsycl_if_target_host(host_code) __hipsycl_if_target_cuda(cuda_code)      \
+      __hipsycl_if_target_hip(hip_code) __hipsycl_if_target_spirv(spirv_code)
+#endif
+
 #define HIPSYCL_LIBKERNEL_IS_EXCLUSIVE_PASS(backend)                           \
   ((HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_##backend) &&                             \
    !HIPSYCL_LIBKERNEL_IS_UNIFIED_HOST_DEVICE_PASS)

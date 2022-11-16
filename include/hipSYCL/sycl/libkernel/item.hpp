@@ -137,8 +137,7 @@ struct item<dimensions, true> : detail::item_base<dimensions>
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, true> lhs, const item<dimensions, true> rhs)
   {
-    return lhs.my_id == rhs.my_id &&
-           lhs.global_id == rhs.global_id &&
+    return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size &&
            lhs.offset == rhs.offset;
   }
@@ -186,8 +185,7 @@ struct item<dimensions, false> : detail::item_base<dimensions>
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, false> lhs, const item<dimensions, false> rhs)
   {
-    return lhs.my_id == rhs.my_id &&
-           lhs.global_id == rhs.global_id &&
+    return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size;
   }
 

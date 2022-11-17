@@ -33,6 +33,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/Attributes.h>
@@ -46,17 +47,48 @@
 #include <llvm/Support/Program.h>
 #include <memory>
 #include <cassert>
+#include <string>
 #include <system_error>
 #include <vector>
 
 namespace hipsycl {
 namespace compiler {
 
+namespace {
+
+bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
+  llvm::GlobalVariable* GV = M.getGlobalVariable("__hipsycl_sscp_spirv_dynamic_local_mem");
+
+  if(!GV) {
+    // If non-zero number of bytes are needed, not finding the global variable is
+    // an error.
+    return numBytes == 0;
+  }
+
+  if(numBytes > 0) {
+    unsigned AddressSpace = GV->getAddressSpace();
+    unsigned numInts = (numBytes + 4 - 1) / 4;
+    llvm::Type* T = llvm::ArrayType::get(llvm::Type::getInt32Ty(M.getContext()), numInts);
+
+    llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
+        M, T, false, llvm::GlobalValue::InternalLinkage, nullptr, GV->getName() + ".resized", nullptr,
+        llvm::GlobalVariable::ThreadLocalMode::NotThreadLocal, AddressSpace);
+
+    llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
+    GV->replaceAllUsesWith(V);
+    GV->eraseFromParent();
+  }
+  return true;
+}
+
+}
+
 LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{sycl::sscp::backend::spirv, KN}, KernelNames{KN} {}
 
 
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
+  
   M.setTargetTriple("spir64-unknown-unknown");
   M.setDataLayout(
       "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024");
@@ -117,6 +149,14 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
+  // Set up local memory
+  if(DynamicLocalMemSize > 0) {
+    if(!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
+      this->registerError("Could not set dynamic local memory size");
+      return false;
+    }
+  }
+
   AddressSpaceInferencePass ASIPass{ASMap};
 
   ASIPass.run(M, *PH.ModuleAnalysisManager);
@@ -172,6 +212,15 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   out = ReadResult->get()->getBuffer();
 
   return true;
+}
+
+bool LLVMToSpirvTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+  if(Option == "spirv-dynamic-local-mem-allocation-size") {
+    this->DynamicLocalMemSize = static_cast<unsigned>(std::stoi(Value));
+    return true;
+  }
+
+  return false;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

@@ -59,8 +59,10 @@ using TranslatorFactory =
     )>;
 
 inline void help() {
-  std::cout << "Usage: llvm-to-<backend> [--ir] <HCF inputfile> <outputfile> <device-image-name>"
-            << std::endl;
+  std::cout
+      << "Usage: llvm-to-<backend> [--ir] [--build-opt <BackendBuildOptionName>=<Value>] "
+         "[--build-flag <BackendBuildFlagName>] <HCF inputfile> <outputfile> <device-image-name>"
+      << std::endl;
 }
 
 inline bool readFile(const std::string& Filename, std::string& Out) {
@@ -96,6 +98,17 @@ inline bool writeFile(const std::string& Filename, const std::string& Data){
   return true;
 }
 
+inline bool splitBuildArg(const std::string& S, std::string& ArgNameOut, std::string& ArgValueOut) {
+  std::size_t pos = S.find("=");
+  if(pos == std::string::npos || pos == S.size() - 1)
+    return false;
+
+  ArgNameOut = S.substr(0, pos);
+  ArgValueOut = S.substr(pos+1);
+
+  return true;
+}
+
 inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&createTranslator) {
 
   if(argc < 4) {
@@ -111,8 +124,46 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
   }
 
   bool PartialTranslation = false;
+  std::vector<std::string> BuildFlags;
+  std::vector<std::pair<std::string, std::string>> BuildOptions;
 
   int GeneralArgsStart = 1;
+  bool GeneralArgEncountered = false;
+
+  while(GeneralArgsStart < argc && !GeneralArgEncountered) {
+    if(argv[GeneralArgsStart] == std::string{"--ir"}) {
+      PartialTranslation = true;
+    } else if (argv[GeneralArgsStart] == std::string{"--build-opt"}) {
+      if(GeneralArgsStart + 1 < argc) {
+        ++GeneralArgsStart;
+      } else {
+        help();
+        return -1;
+      }
+
+      std::string ArgName, ArgValue;
+      if(!splitBuildArg(argv[GeneralArgsStart], ArgName, ArgValue)) {
+        help();
+        return -1;
+      }
+
+      BuildOptions.push_back(std::make_pair(ArgName, ArgValue));
+    } else if (argv[GeneralArgsStart] == std::string{"--build-flag"}) {
+      if(GeneralArgsStart + 1 < argc) {
+        ++GeneralArgsStart;
+      } else {
+        help();
+        return -1;
+      }
+
+      BuildFlags.push_back(argv[GeneralArgsStart]);
+    } else {
+      GeneralArgEncountered = true;
+    }
+
+    if(!GeneralArgEncountered)
+      ++GeneralArgsStart;
+  }
   if(argv[GeneralArgsStart] == std::string{"--ir"}) {
     PartialTranslation = true;
     ++GeneralArgsStart;

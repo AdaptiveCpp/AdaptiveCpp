@@ -78,10 +78,18 @@ public:
 
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
 
-  virtual bool setBuildOptions(const std::string& Opts) {
-    return true;
+  virtual bool setBuildFlag(const std::string &Flag) { return false; }
+  virtual bool setBuildOption(const std::string &Option, const std::string &Value) { return false; }
+  virtual bool setBuildToolArguments(const std::string &ToolName,
+                                     const std::vector<std::string> &Args) {
+    return false;
   }
-  
+
+  template<class T>
+  bool setBuildOption(const std::string& Option, const T& Value) {
+    return setBuildOption(Option, std::to_string(Value));
+  }
+
   // Does partial transformation to backend-flavored LLVM IR
   bool partialTransformation(const std::string& LLVMIR, std::string& out);
 

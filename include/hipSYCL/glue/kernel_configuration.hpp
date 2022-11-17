@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <array>
 #include <string>
 #include <typeindex>

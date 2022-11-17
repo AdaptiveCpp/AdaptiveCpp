@@ -494,9 +494,10 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       const std::string &kernel_name, const rt::range<3> &num_groups,
       const rt::range<3> &group_size, unsigned local_mem_size, void **args,
       std::size_t *arg_sizes, std::size_t num_args,
-      const glue::kernel_configuration &config) {
+      const glue::kernel_configuration &initial_config) {
 
 #ifdef HIPSYCL_WITH_SSCP_COMPILER
+
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
       kernel_cache::get().get_global_kernel_index(global_kernel_name);
@@ -512,6 +513,11 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       _hw_manager->get_device(_device_index));
   ze_context_handle_t ctx = hw_ctx->get_ze_context();
   ze_device_handle_t dev = hw_ctx->get_ze_device();
+
+  // Need to create custom config to ensure we can distinguish other
+  // kernels compiled with different values e.g. of local mem allocation size
+  glue::kernel_configuration config = initial_config;
+  config.set("spirv-dynamic-local-mem-allocation-size", local_mem_size);
   auto configuration_id = config.generate_id();
 
   auto code_object_selector = [&](const code_object *candidate) -> bool {
@@ -542,6 +548,9 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     // Construct SPIR-V translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       std::move(compiler::createLLVMToSpirvTranslator(kernel_names));
+
+    translator->setBuildOption("spirv-dynamic-local-mem-allocation-size",
+                               local_mem_size);
 
     // Lower kernels to SPIR-V
     std::string compiled_image;

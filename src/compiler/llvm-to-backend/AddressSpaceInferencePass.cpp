@@ -168,7 +168,7 @@ void rewriteKernelArgumentAddressSpacesTo(unsigned AddressSpace, llvm::Module &M
         }
 
         auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs,
-                                            "" + KernelName, BB);
+                                            "", BB);
         llvm::ReturnInst::Create(M.getContext(), BB);
       }
     }

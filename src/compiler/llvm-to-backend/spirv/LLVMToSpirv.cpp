@@ -33,6 +33,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm-13/llvm/ADT/StringRef.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -190,11 +191,19 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   std::string LLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
       hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
 
-  HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Invoking " << LLVMSpirVTranslator << "\n";
+  std::string OutputArg = "-o=" + OutputFilename;
+  llvm::SmallVector<llvm::StringRef, 16> Invocation{LLVMSpirVTranslator, OutputArg,
+                                                    InputFile->TmpName};
+  std::string ArgString;
+  for(const auto& S : Invocation) {
+    ArgString += S;
+    ArgString += " ";
+  }
+  HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Invoking " << ArgString << "\n";
 
   int R = llvm::sys::ExecuteAndWait(
-      LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, InputFile->TmpName});
-      //LLVMSpirVTranslator, {LLVMSpirVTranslator, "-o=" + OutputFilename, "kernel.bc"});
+      LLVMSpirVTranslator, Invocation);
+
   if(R != 0) {
     this->registerError("LLVMToSpirv: llvm-spirv invocation failed with exit code " +
                         std::to_string(R));

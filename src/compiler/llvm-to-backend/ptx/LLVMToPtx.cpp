@@ -46,6 +46,7 @@
 #include <llvm/Support/Program.h>
 #include <memory>
 #include <cassert>
+#include <string>
 #include <system_error>
 #include <vector>
 
@@ -121,17 +122,31 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
 
   std::string ClangPath = HIPSYCL_CLANG_PATH;
 
-  HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ClangPath << "\n";
+  llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
+                                                    "-cc1",
+                                                    "-triple",
+                                                    "nvptx64-nvidia-cuda",
+                                                    "-target-feature",
+                                                    "+ptx" + std::to_string(PtxVersion),
+                                                    "-target-cpu",
+                                                    "sm_" + std::to_string(PtxTarget),
+                                                    "-O3",
+                                                    "-S",
+                                                    "-x",
+                                                    "ir",
+                                                    "-o",
+                                                    OutputFilename,
+                                                    InputFile->TmpName};
+
+  std::string ArgString;
+  for(const auto& S : Invocation) {
+    ArgString += S;
+    ArgString += " ";
+  }
+  HIPSYCL_DEBUG_INFO << "LLVMToPtx: Invoking " << ArgString << "\n";
 
   int R = llvm::sys::ExecuteAndWait(
-      ClangPath, {ClangPath,
-      "-cc1", "-triple", "nvptx64-nvidia-cuda",
-      // TODO: Add ptx/sm version e.g.  -target-feature +ptx75 -target-cpu sm_70 
-      "-O3",
-       "-S",
-       "-x", "ir", 
-       "-o" , OutputFilename,
-       InputFile->TmpName});
+      ClangPath, Invocation);
   
   if(R != 0) {
     this->registerError("LLVMToPtx: clang invocation failed with exit code " +
@@ -150,6 +165,18 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   out = ReadResult->get()->getBuffer();
 
   return true;
+}
+
+bool LLVMToPtxTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+  if(Option == "ptx-version") {
+    this->PtxVersion = std::stoi(Value);
+    return true;
+  } else if(Option == "ptx-target-device") {
+    this->PtxTarget = std::stoi(Value);
+    return true;
+  }
+
+  return false;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

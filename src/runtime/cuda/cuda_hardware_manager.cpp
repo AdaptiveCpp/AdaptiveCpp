@@ -388,6 +388,9 @@ std::string cuda_hardware_context::get_profile() const {
 
 cuda_hardware_context::~cuda_hardware_context(){}
 
+unsigned cuda_hardware_context::get_compute_capability() const {
+  return _properties->major * 10 + _properties->minor;
+}
 
 }
 }

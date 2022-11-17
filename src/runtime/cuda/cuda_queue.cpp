@@ -621,9 +621,12 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
 
   auto configuration_id = config.generate_id();
   int device = this->_dev.get_id();
-  std::string target_arch_name = this->_backend->get_hardware_manager()
-                                     ->get_device(device)
-                                     ->get_device_arch();
+
+  cuda_hardware_context *ctx = static_cast<cuda_hardware_context *>(
+      this->_backend->get_hardware_manager()->get_device(device));
+
+  std::string target_arch_name = ctx->get_device_arch();
+  unsigned compute_capability = ctx->get_compute_capability();
 
   auto code_object_selector = [&](const code_object *candidate) -> bool {
     if ((candidate->managing_backend() != backend_id::cuda) ||
@@ -653,6 +656,11 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     // Construct PTX translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
       std::move(compiler::createLLVMToPtxTranslator(kernel_names));
+
+    // TODO Shouldn't we compile with the most recent ptx version supported
+    // by clang/CUDA?
+    translator->setBuildOption("ptx-version", compute_capability);
+    translator->setBuildOption("ptx-target-device", compute_capability);
 
     // Lower kernels to PTX
     std::string ptx_image;

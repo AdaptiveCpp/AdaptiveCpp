@@ -114,8 +114,14 @@ public:
   }
 
 protected:
-  bool linkBitcodeFile(llvm::Module& M, const std::string& BitcodeFile);
-  bool linkBitcodeString(llvm::Module& M, const std::string& Bitcode);
+  // Link against bitcode contained in file or string. If ForcedTriple/ForcedDataLayout are non-empty,
+  // sets triple and data layout in contained bitcode to the provided values.
+  bool linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
+                       const std::string &ForcedTriple = "",
+                       const std::string &ForcedDataLayout = "");
+  bool linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
+                         const std::string &ForcedTriple = "",
+                         const std::string &ForcedDataLayout = "");
   // If backend needs to set IR constants, it should do so here.
   virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
   // Transform LLVM IR as much as required to backend-specific flavor

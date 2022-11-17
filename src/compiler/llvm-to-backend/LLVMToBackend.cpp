@@ -169,9 +169,16 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
   return true;
 }
 
-bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode) {
+bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
+                                                const std::string &ForcedTriple,
+                                                const std::string &ForcedDataLayout) {
   std::unique_ptr<llvm::Module> OtherModule;
   auto err = loadModuleFromString(Bitcode, M.getContext(), OtherModule);
+
+  if(!ForcedTriple.empty())
+    OtherModule->setTargetTriple(ForcedTriple);
+  if(!ForcedDataLayout.empty())
+    OtherModule->setDataLayout(ForcedDataLayout);
 
   if (err) {
     this->registerError("LLVMToBackend: Could not load LLVM module");
@@ -190,14 +197,16 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
   return true;
 }
 
-bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module& M, const std::string& BitcodeFile) {
+bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
+                                              const std::string &ForcedTriple,
+                                              const std::string &ForcedDataLayout) {
   auto F = llvm::MemoryBuffer::getFile(BitcodeFile);
   if(auto Err = F.getError()) {
     this->registerError("LLVMToBackend: Could not open file " + BitcodeFile);
     return false;
   }
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Linking with bitcode file: " << BitcodeFile << "\n";
-  return linkBitcodeString(M, std::string{F.get()->getBuffer()});
+  return linkBitcodeString(M, std::string{F.get()->getBuffer()}, ForcedTriple, ForcedDataLayout);
 }
 
 void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const void *ValueBuffer) {

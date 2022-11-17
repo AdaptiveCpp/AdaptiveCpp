@@ -53,14 +53,67 @@
 namespace hipsycl {
 namespace compiler {
 
+namespace {
+
+
+
+class LibdevicePath {
+public:
+  static bool get(std::string& Out) {
+    static LibdevicePath P;
+
+    if(P.IsFound)
+      Out = P.Path;
+    return P.IsFound;
+  }
+private:
+  LibdevicePath() {
+    IsFound = findLibdevice(Path);
+
+    if(IsFound) {
+      HIPSYCL_DEBUG_INFO << "LLVMToPtx: Found libdevice: " << Path << "\n";
+    } else {
+      HIPSYCL_DEBUG_INFO << "LLVMToPtx: Could not find CUDA libdevice!\n";
+    }
+  }
+
+  bool findLibdevice(std::string& Out) {
+    
+    std::string CUDAPath = HIPSYCL_CUDA_PATH;
+    std::vector<std::string> SubDir {"nvvm", "libdevice"};
+    std::string BitcodeDir = common::filesystem::join_path(CUDAPath, SubDir);
+
+    try {
+      auto Files = common::filesystem::list_regular_files(BitcodeDir);
+      for(const auto& F : Files) {
+        if (F.find("libdevice.") != std::string::npos && F.find(".bc") != std::string::npos) {
+          Out = F;
+          return true;
+        }
+      }
+    }catch(...) { /* false will be returned anyway at this point */ }
+
+    return false;
+  }
+
+  std::string Path;
+  bool IsFound;
+};
+
+}
+
 LLVMToPtxTranslator::LLVMToPtxTranslator(const std::vector<std::string> &KN)
     : LLVMToBackendTranslator{sycl::sscp::backend::ptx, KN}, KernelNames{KN} {}
 
 
 bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
-  M.setTargetTriple("nvptx64-nvidia-cuda");
-  M.setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
-                  "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64");
+  std::string Triple = "nvptx64-nvidia-cuda";
+  std::string DataLayout =
+      "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-i128:128:128-f32:32:32-"
+      "f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64";
+
+  M.setTargetTriple(Triple);
+  M.setDataLayout(DataLayout);
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
@@ -82,7 +135,15 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
   
+  std::string LibdeviceFile;
+  if(!LibdevicePath::get(LibdeviceFile)) {
+    this->registerError("LLVMToPtx: Could not find CUDA libdevice bitcode library");
+    return false;
+  }
+
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
+    return false;
+  if(!this->linkBitcodeFile(M, LibdeviceFile, Triple, DataLayout))
     return false;
   
   for(auto& F : M.getFunctionList()) {

@@ -1,4 +1,3 @@
-
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
@@ -26,19 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
-#define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
-#define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
-#define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
+#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
 
-using __hipsycl_int8 = signed char;
-using __hipsycl_int16 = short;
-using __hipsycl_uint16 = unsigned short;
-using __hipsycl_int32 = int;
-using __hipsycl_uint32 = unsigned int;
-using __hipsycl_int64 = long long;
-using __hipsycl_uint64 = unsigned long long;
+extern "C" __hipsycl_int32  __nv_mul24(__hipsycl_int32, __hipsycl_int32);
+extern "C" __hipsycl_uint32 __nv_umul24(__hipsycl_uint32, __hipsycl_uint32);
 
-#endif
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
+  return __nv_mul24(a, b);
+}
+
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
+  return __nv_umul24(a, b);
+}

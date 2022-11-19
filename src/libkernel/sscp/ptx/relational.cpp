@@ -1,8 +1,7 @@
-
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
-#define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
-#define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
-#define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
+extern "C" int __nv_isnanf(float);
+extern "C" int __nv_isnand(double);
 
-using __hipsycl_int8 = signed char;
-using __hipsycl_int16 = short;
-using __hipsycl_uint16 = unsigned short;
-using __hipsycl_int32 = int;
-using __hipsycl_uint32 = unsigned int;
-using __hipsycl_int64 = long long;
-using __hipsycl_uint64 = unsigned long long;
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
+  return __nv_isnanf(x);
+}
 
-#endif
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
+  return __nv_isnand(x);
+}

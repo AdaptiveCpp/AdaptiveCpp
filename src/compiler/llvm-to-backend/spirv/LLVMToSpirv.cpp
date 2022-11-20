@@ -28,7 +28,6 @@
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
-#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"

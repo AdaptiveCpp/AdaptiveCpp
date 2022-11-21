@@ -157,9 +157,7 @@ private:
               + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
       return tid;
     );
-    __hipsycl_if_target_host(
-      return 0;
-    );
+    return 0;
   }
 
   HIPSYCL_KERNEL_TARGET

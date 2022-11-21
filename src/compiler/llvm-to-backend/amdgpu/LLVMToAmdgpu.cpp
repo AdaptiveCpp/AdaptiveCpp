@@ -32,6 +32,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -66,12 +67,33 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       "v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7");
 
 
-  // TODO: Do we need to rewrite kernel argument address spaces?
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 4;
+  ASMap[AddressSpace::Constant] = 2;
+
+  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
 
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
       F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
+      // AMDGPU backend expects arguments to be passed as byref instead of byval
+      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+        if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
+          auto ByValAttr = F->getParamAttribute(i, llvm::Attribute::ByVal);
+          llvm::Type* ParamPointeeType = ByValAttr.getValueAsType();
+          F->removeParamAttr(i, llvm::Attribute::ByVal);
+          
+          if(!F->hasParamAttribute(i, llvm::Attribute::ByRef)) {
+            F->addParamAttr(i, llvm::Attribute::getWithByRefType(M.getContext(), ParamPointeeType));
+          }
+        }
+      }
+      F->print(llvm::outs());
     }
   }
   
@@ -126,6 +148,8 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
                                                     "-S",
                                                     "-x",
                                                     "ir",
+                                                    "-mllvm","-amdgpu-early-inline-all=true",
+                                                    "-mllvm","-amdgpu-function-calls=false",
                                                     "-o",
                                                     OutputFilename,
                                                     InputFile->TmpName};

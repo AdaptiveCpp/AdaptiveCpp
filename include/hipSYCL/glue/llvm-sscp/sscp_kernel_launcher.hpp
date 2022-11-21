@@ -162,6 +162,46 @@ private:
 };
 
 
+template<class UserKernel, int Dimensions>
+class ndrange_parallel_for {
+public:
+  ndrange_parallel_for(const UserKernel& k)
+  : _k{k} {}
+
+  void operator()() const {
+    const sycl::id<Dimensions> zero_offset{};
+    sycl::nd_item<Dimensions> this_item{
+        &zero_offset, sycl::detail::get_group_id<Dimensions>(),
+        sycl::detail::get_local_id<Dimensions>(),
+        sycl::detail::get_local_size<Dimensions>(),
+        sycl::detail::get_grid_size<Dimensions>()};
+
+    _k(this_item);
+  };
+private:
+  UserKernel _k;
+};
+
+template<class UserKernel, int Dimensions>
+class ndrange_parallel_for_offset {
+public:
+  ndrange_parallel_for_offset(const UserKernel& k, sycl::id<Dimensions> offset)
+  : _k{k}, _offset{offset} {}
+
+  void operator()() const {
+    sycl::nd_item<Dimensions> this_item{
+        &_offset, sycl::detail::get_group_id<Dimensions>(),
+        sycl::detail::get_local_id<Dimensions>(),
+        sycl::detail::get_local_size<Dimensions>(),
+        sycl::detail::get_grid_size<Dimensions>()};
+
+    _k(this_item);
+  };
+private:
+  UserKernel _k;
+  const sycl::id<Dimensions> _offset;
+};
+
 }
 
 class sscp_kernel_launcher : public rt::backend_kernel_launcher
@@ -220,6 +260,15 @@ public:
 
       } else if constexpr (type == rt::kernel_type::ndrange_parallel_for) {
 
+        if(offset == sycl::id<Dim>{}) {
+          launch_kernel_with_global_range(
+              sscp_dispatch::ndrange_parallel_for{k}, operation,
+              global_range, local_range, dynamic_local_memory);
+        } else {
+          launch_kernel_with_global_range(
+              sscp_dispatch::ndrange_parallel_for{k, offset},
+              operation, global_range, local_range, dynamic_local_memory);
+        }
 
       } else if constexpr (type == rt::kernel_type::hierarchical_parallel_for) {
 

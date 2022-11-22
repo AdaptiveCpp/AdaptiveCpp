@@ -262,11 +262,11 @@ public:
 
         if(offset == sycl::id<Dim>{}) {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for{k}, operation,
+              sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
               global_range, local_range, dynamic_local_memory);
         } else {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for{k, offset},
+              sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
               operation, global_range, local_range, dynamic_local_memory);
         }
 

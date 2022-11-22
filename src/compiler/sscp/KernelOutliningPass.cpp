@@ -2,6 +2,8 @@
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
+#include <llvm/IR/GlobalAlias.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/CallGraph.h>
@@ -64,6 +66,22 @@ KernelOutliningPass::KernelOutliningPass(const std::vector<std::string>& Outlini
 
 llvm::PreservedAnalyses
 KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
+
+  // Some backends (e.g. PTX) don't like aliases. We need to replace
+  // them early on, because it can get difficult to handle them once
+  // we have removed what their aliasees. 
+  llvm::SmallVector<llvm::GlobalAlias*, 16> AliasesToRemove;
+  for(auto& A : M.getAliasList()) 
+    AliasesToRemove.push_back(&A);    
+  // Need separate iteration, so that we don't erase stuff from the list
+  // we are iterating over.
+  for(auto* A : AliasesToRemove) {
+    if(A) {
+      if(A->getAliasee())
+        A->replaceAllUsesWith(A->getAliasee());
+      A->eraseFromParent();  
+    }
+  }
 
   llvm::SmallPtrSet<llvm::Function*, 16> SSCPEntrypoints;
   for(const auto& EntrypointName : OutliningEntrypoints) {

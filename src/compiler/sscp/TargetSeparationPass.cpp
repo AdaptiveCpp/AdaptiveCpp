@@ -34,6 +34,7 @@
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
+#include <llvm-13/llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
@@ -98,6 +99,28 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.registerFunctionAnalyses(FAM);
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
+
+
+  llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;
+  llvm::SmallVector<std::string, 16> StringAttrsToRemove;
+  AttrsToRemove.push_back(llvm::Attribute::AttrKind::UWTable);
+  StringAttrsToRemove.push_back("frame-pointer");
+  StringAttrsToRemove.push_back("min-legal-vector-width");
+  StringAttrsToRemove.push_back("no-trapping-math");
+  StringAttrsToRemove.push_back("stack-protector-buffer-size");
+  StringAttrsToRemove.push_back("target-cpu");
+  StringAttrsToRemove.push_back("target-features");
+  StringAttrsToRemove.push_back("tune-cpu");
+  for(auto& F : DeviceModule->getFunctionList()) {
+    for(auto& A : AttrsToRemove) {
+      if(F.hasFnAttribute(A))
+        F.removeFnAttr(A);
+    }
+    for(auto& A : StringAttrsToRemove) {
+      if(F.hasFnAttribute(A))
+        F.removeFnAttr(A);
+    }
+  }
 
   EntrypointPreparationPass EPP;
   EPP.run(*DeviceModule, DeviceMAM);

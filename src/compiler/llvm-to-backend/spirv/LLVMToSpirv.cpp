@@ -33,6 +33,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -56,8 +57,10 @@ namespace compiler {
 
 namespace {
 
+static const char* DynamicLocalMemArrayName = "__hipsycl_sscp_spirv_dynamic_local_mem";
+
 bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
-  llvm::GlobalVariable* GV = M.getGlobalVariable("__hipsycl_sscp_spirv_dynamic_local_mem");
+  llvm::GlobalVariable* GV = M.getGlobalVariable(DynamicLocalMemArrayName);
 
   if(!GV) {
     // If non-zero number of bytes are needed, not finding the global variable is
@@ -76,6 +79,15 @@ bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
 
     llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
     GV->replaceAllUsesWith(V);
+    GV->eraseFromParent();
+  }
+  return true;
+}
+
+bool removeDynamicLocalMemorySupport(llvm::Module& M) {
+  llvm::GlobalVariable* GV = M.getGlobalVariable(DynamicLocalMemArrayName);
+  if(GV) {
+    GV->replaceAllUsesWith(llvm::ConstantPointerNull::get(GV->getType()));
     GV->eraseFromParent();
   }
   return true;
@@ -151,10 +163,15 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   // Set up local memory
   if(DynamicLocalMemSize > 0) {
+    HIPSYCL_DEBUG_INFO << "Configuring kernel for " << DynamicLocalMemSize
+                       << " bytes of local memory\n";
     if(!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
       this->registerError("Could not set dynamic local memory size");
       return false;
     }
+  } else {
+    HIPSYCL_DEBUG_INFO << "Removing dynamic local memory support from module\n";
+    removeDynamicLocalMemorySupport(M);
   }
 
   AddressSpaceInferencePass ASIPass{ASMap};

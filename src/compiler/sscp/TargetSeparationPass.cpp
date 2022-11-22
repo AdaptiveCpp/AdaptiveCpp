@@ -34,7 +34,7 @@
 #include "hipSYCL/common/hcf_container.hpp"
 
 #include <cstddef>
-#include <llvm-13/llvm/IR/Attributes.h>
+#include <llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>

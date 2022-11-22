@@ -337,10 +337,7 @@ private:
                      unsigned local_mem_size) {
 
     auto flip_range = [](const sycl::range<Dim> &r) {
-      rt::range<3> rt_range;
-
-      for (int i = 0; i < rt_range.size(); ++i)
-        rt_range[i] = 1;
+      rt::range<3> rt_range{1,1,1};
 
       for (int i = 0; i < Dim; ++i) {
         rt_range[i] = r[Dim - i - 1];

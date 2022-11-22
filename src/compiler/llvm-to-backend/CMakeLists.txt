@@ -118,21 +118,21 @@ if(WITH_SSCP_COMPILER)
   set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
   set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
-  ExternalProject_Add(LLVMSpirvTranslator
-   GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
-   GIT_TAG origin/${LLVMSPIRV_BRANCH}
-   GIT_SHALLOW ON
-   GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
-   BUILD_ALWAYS OFF
-   INSTALL_DIR ${LLVMSPIRV_INSTALLDIR}
-   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-   CMAKE_CACHE_ARGS
-     -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
-     -DLLVM_DIR:PATH=${LLVM_DIR}
-	  -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-   BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
-   PATCH_COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch || true
-  )
+  #ExternalProject_Add(LLVMSpirvTranslator
+  # GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+  # GIT_TAG origin/${LLVMSPIRV_BRANCH}
+  # GIT_SHALLOW ON
+  # GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+  # BUILD_ALWAYS OFF
+  # INSTALL_DIR ${LLVMSPIRV_INSTALLDIR}
+  # BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
+  # CMAKE_CACHE_ARGS
+  #   -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
+  #   -DLLVM_DIR:PATH=${LLVM_DIR}
+	#  -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+  # BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
+  # PATCH_COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch || true
+  #)
   
   target_compile_definitions(llvm-to-spirv PRIVATE
     -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")

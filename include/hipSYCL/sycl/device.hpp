@@ -541,8 +541,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_type)
           rt::device_support_aspect::global_mem_cache_read_only))
     return info::global_mem_cache_type::read_only;
   else if (get_rt_device()->has(
-          rt::device_support_aspect::global_mem_cache_write_only))
-    return info::global_mem_cache_type::write_only;
+          rt::device_support_aspect::global_mem_cache_read_write))
+    return info::global_mem_cache_type::read_write;
 
   return info::global_mem_cache_type::none;
 }

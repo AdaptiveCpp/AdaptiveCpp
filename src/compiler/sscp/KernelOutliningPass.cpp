@@ -1,5 +1,6 @@
 
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
 #include <llvm/IR/GlobalAlias.h>
@@ -22,6 +23,8 @@
 namespace hipsycl {
 namespace compiler {
 
+namespace {
+
 template<class FunctionSetT>
 void descendCallGraphAndAdd(llvm::Function* F, llvm::CallGraph& CG, FunctionSetT& Set){
   if(!F || Set.contains(F))
@@ -34,6 +37,23 @@ void descendCallGraphAndAdd(llvm::Function* F, llvm::CallGraph& CG, FunctionSetT
   for(unsigned i = 0; i < CGN->size(); ++i){
     descendCallGraphAndAdd((*CGN)[i]->getFunction(), CG, Set);
   }
+}
+
+// Check whether F is used by an instruction from any function contained in
+// a set S
+template<class Set>
+bool isCalledFromAnyFunctionOfSet(llvm::Function* F, const Set& S) {
+  for(auto* U : F->users()) {
+    if(auto* I = llvm::dyn_cast<llvm::Instruction>(U)) {
+      auto* UsingFunc = I->getFunction();
+      if(UsingFunc && S.contains(UsingFunc)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }
 
 llvm::PreservedAnalyses
@@ -97,18 +117,36 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   for(auto F: SSCPEntrypoints)
     descendCallGraphAndAdd(F, CG, DeviceFunctions);
 
+  for(auto* F : DeviceFunctions) {
+    //HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Function is device function: "
+    //                   << F->getName().str() << "\n";
+  }
   
   llvm::SmallVector<llvm::Function*, 16> PureHostFunctions;
   for(auto& F: M.getFunctionList()) {
-    if(!DeviceFunctions.contains(&F))
+    // Called Intrinsics don't show up in our device functions list,
+    // so we need to treat them specially
+    if(F.isIntrinsic()) {
+      if(!isCalledFromAnyFunctionOfSet(&F, DeviceFunctions)) {
+        PureHostFunctions.push_back(&F);
+      }
+    } else if(!DeviceFunctions.contains(&F)) {
       PureHostFunctions.push_back(&F);
+    }
   }
 
   for(auto F : PureHostFunctions) {
     if(F) {
-      //HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Stripping function " << F->getName().str() << "\n";
-      F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
-      F->eraseFromParent();
+      bool SafeToRemove = !isCalledFromAnyFunctionOfSet(F, DeviceFunctions);
+      if(!SafeToRemove) {
+        HIPSYCL_DEBUG_WARNING << "KernelOutliningPass: Attempted to remove " << F->getName()
+                              << ", but it is still used by functions marked as device functions.\n";
+      }
+      // Better safe than sorry!
+      if(SafeToRemove) {
+        F->replaceAllUsesWith(llvm::UndefValue::get(F->getType()));
+        F->eraseFromParent();
+      }
     }
   }
 

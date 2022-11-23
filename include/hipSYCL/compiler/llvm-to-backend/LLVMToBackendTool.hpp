@@ -208,6 +208,13 @@ inline int LLVMToBackendToolMain(int argc, char **argv, TranslatorFactory &&crea
     return -1;
   }
 
+  for(const auto& F : BuildFlags) {
+    Translator->setBuildFlag(F);
+  }
+  for(const auto& O : BuildOptions) {
+    Translator->setBuildOption(O.first, O.second);
+  }
+
   bool Result = false;
   if(!PartialTranslation) {
     Result = Translator->fullTransformation(IR, Output);

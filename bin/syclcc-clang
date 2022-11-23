@@ -621,7 +621,8 @@ class syclcc_config:
   @property
   def runtime_backends(self):
     backend_path = os.path.join(self.hipsycl_installation_path, "lib", "hipSYCL")
-    return os.listdir(backend_path)
+    content = os.listdir(backend_path)
+    return [c for c in content if os.path.isfile(os.path.join(backend_path, c))]
 
   @property
   def targets(self):

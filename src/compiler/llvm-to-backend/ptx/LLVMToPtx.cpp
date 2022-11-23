@@ -151,7 +151,7 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       // When we are already lowering to device specific format,
       // we can expect that we have no external users anymore.
       // All linking should be done by now. The exception are llvm intrinsics.
-      if(F.getName().find("llvm.") != 0)
+      if(!F.isIntrinsic())
         F.setLinkage(llvm::GlobalValue::InternalLinkage);
     }
   }

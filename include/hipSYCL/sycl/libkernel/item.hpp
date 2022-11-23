@@ -171,7 +171,7 @@ private:
     : detail::item_base<dimensions>(my_id, global_size), offset{offset}
   {}
 
-  const sycl::id<dimensions> offset;
+  sycl::id<dimensions> offset;
 };
 
 template <int dimensions>

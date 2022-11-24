@@ -67,20 +67,8 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       "v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7");
 
 
-  AddressSpaceMap ASMap;
-
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 4;
-  ASMap[AddressSpace::Constant] = 2;
-
-  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
-
   for(auto KernelName : KernelNames) {
-    HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
     if(auto* F = M.getFunction(KernelName)) {
-      F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
       // AMDGPU backend expects arguments to be passed as byref instead of byval
       for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
         if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
@@ -93,10 +81,26 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
           }
         }
       }
-      F->print(llvm::outs());
     }
   }
+
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 4;
+  ASMap[AddressSpace::Constant] = 2;
+
+  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
   
+  for(auto KernelName : KernelNames) {
+    HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
+    if(auto* F = M.getFunction(KernelName)) {
+      F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
+    }
+  }
+
   // TODO Link ocml/ockl bitcode libraries
   
   for(auto& F : M.getFunctionList()) {
@@ -104,8 +108,8 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       // When we are already lowering to device specific format,
       // we can expect that we have no external users anymore.
       // All linking should be done by now. The exception are intrinsics.
-      
-      F.setLinkage(llvm::GlobalValue::InternalLinkage);
+      if(!F.isIntrinsic() && F.getName().find("__hipsycl_sscp") == std::string::npos)
+        F.setLinkage(llvm::GlobalValue::InternalLinkage);
     }
   }
 
@@ -124,7 +128,7 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
   
   auto E = InputFile.takeError();
   if(E){
-    this->registerError("LLVMToPtx: Could not create temp file: "+InputFile->TmpName);
+    this->registerError("LLVMToAmdgpu: Could not create temp file: "+InputFile->TmpName);
     return false;
   }
 
@@ -141,13 +145,11 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
                                                     "-cc1",
-                                                    "-triple",
-                                                    "amdgcn-amd-amdhsa",
+                                                    "-triple", "amdgcn-amd-amdhsa",
                                                     // TODO Set AMD target CPU
                                                     "-O3",
-                                                    "-S",
-                                                    "-x",
-                                                    "ir",
+                                                    //"-S", //-- only for debugging
+                                                    "-x", "ir",
                                                     "-mllvm","-amdgpu-early-inline-all=true",
                                                     "-mllvm","-amdgpu-function-calls=false",
                                                     "-o",
@@ -174,12 +176,12 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
       llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
   
   if(auto Err = ReadResult.getError()) {
-    this->registerError("LLVMToPtx: Could not read result file"+Err.message());
+    this->registerError("LLVMToAmdgpu: Could not read result file"+Err.message());
     return false;
   }
   
   out = ReadResult->get()->getBuffer();
-
+  
   return true;
 }
 

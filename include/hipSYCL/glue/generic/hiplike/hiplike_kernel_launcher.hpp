@@ -420,6 +420,11 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
   sycl::range<Dimensions> current_num_groups = num_groups;
   sycl::range<Dimensions> current_num_work_items = global_size;
 
+  for (int i=0; i < Dimensions; ++i)
+    // Check if local_size == 1, this would cause an infinite loop
+    if (local_size[i] == 1)
+      local_size[i] = 128;
+  
   while(current_num_groups.size() > 1) {
 
     current_num_work_items = current_num_groups;

@@ -138,13 +138,25 @@ if(WITH_SSCP_COMPILER)
    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
    PATCH_COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch || true
   )
-  
+
   target_compile_definitions(llvm-to-spirv PRIVATE
     -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
   target_compile_definitions(llvm-to-ptx PRIVATE
     -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
     -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+
   target_compile_definitions(llvm-to-amdgpu PRIVATE
-    -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
     -DHIPSYCL_ROCM_PATH="${ROCM_PATH}")
+  if(HIPSYCL_SSCP_AMDGPU_USE_ROCM_CLANG)
+    find_program(ROCM_CLANG_PATH NAMES clang++ HINTS ${ROCM_PATH}/llvm/bin)
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+      -DHIPSYCL_CLANG_PATH="${ROCM_CLANG_PATH}")
+  else()
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+      -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
+  endif()
+  if(HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+      -DHIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
+  endif()
 endif()

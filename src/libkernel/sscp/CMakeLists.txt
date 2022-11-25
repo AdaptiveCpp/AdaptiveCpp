@@ -71,3 +71,4 @@ endfunction()
 
 add_subdirectory(spirv)
 add_subdirectory(ptx)
+add_subdirectory(amdgpu)

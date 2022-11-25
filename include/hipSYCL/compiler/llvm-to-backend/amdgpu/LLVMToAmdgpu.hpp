@@ -48,8 +48,12 @@ public:
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) override;
   
   virtual bool setBuildOption(const std::string &Option, const std::string &Value) override;
+  virtual bool setBuildFlag(const std::string& Flag) override;
 private:
   std::vector<std::string> KernelNames;
+  std::string RocmDeviceLibsPath;
+  std::string TargetDevice = "gfx900";
+  bool OnlyGenerateAssembly = false;
 };
 
 }

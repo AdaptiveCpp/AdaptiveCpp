@@ -90,10 +90,10 @@ struct nd_range
   }
 
 private:
-  const range<dimensions> _global_range;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
-  const id<dimensions> _offset;
+  range<dimensions> _global_range;
+  range<dimensions> _local_range;
+  range<dimensions> _num_groups;
+  id<dimensions> _offset;
 };
 
 

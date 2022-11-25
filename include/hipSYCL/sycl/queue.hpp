@@ -397,7 +397,7 @@ public:
   }
 
   template <typename T>
-  event submit(T cgf, const queue &secondaryQueue,
+  event submit(T cgf, queue &secondaryQueue,
                const property_list &prop_list = {}) {
     try {
 

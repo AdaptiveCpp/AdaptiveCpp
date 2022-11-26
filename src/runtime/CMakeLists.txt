@@ -149,6 +149,11 @@ if(WITH_ROCM_BACKEND)
   target_compile_options(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-hip PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-hip PRIVATE llvm-to-amdgpu)
+  endif()
+
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL

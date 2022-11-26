@@ -127,8 +127,9 @@ void rewriteKernelArgumentAddressSpacesTo(unsigned AddressSpace, llvm::Module &M
         llvm::Type* CurrentParamType = OriginalFType->getParamType(i);
         if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(CurrentParamType)) {
           if(PT->getAddressSpace() != AddressSpace) {
-            Params.push_back(
-                llvm::PointerType::getWithSamePointeeType(PT, AddressSpace));
+            llvm::Type *NewT =
+                llvm::PointerType::getWithSamePointeeType(PT, AddressSpace);
+            Params.push_back(NewT);
           }
         } else {
           Params.push_back(CurrentParamType);

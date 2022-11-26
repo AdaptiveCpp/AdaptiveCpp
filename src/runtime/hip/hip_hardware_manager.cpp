@@ -208,7 +208,7 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
     return true;
     break;
   case device_support_aspect::sscp_kernels:
-    return false;
+    return true;
     break;
   }
   assert(false && "Unknown device aspect");

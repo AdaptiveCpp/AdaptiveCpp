@@ -78,7 +78,7 @@ public:
           std::string ABIVersionString =
               F.substr(PosBeg + Begin.size(), PosEnd - PosBeg - Begin.size());
           int ABIVersion = std::stoi(ABIVersionString);
-          if(ABIVersion > MaxABIVersion) {
+          if(ABIVersion < MaxABIVersion) {
             OclABIVersionLib = F;
             MaxABIVersion = ABIVersion;
           }

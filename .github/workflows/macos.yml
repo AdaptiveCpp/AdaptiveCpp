@@ -22,6 +22,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake .. \
+        -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
@@ -30,6 +31,7 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp \
+        -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

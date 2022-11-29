@@ -54,6 +54,8 @@ private:
   std::string RocmDeviceLibsPath;
   std::string TargetDevice = "gfx900";
   bool OnlyGenerateAssembly = false;
+
+  bool hiprtcJitLink(const std::string& Bitcode, std::string& Output);
 };
 
 }

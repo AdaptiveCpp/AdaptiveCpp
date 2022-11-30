@@ -24,9 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ocml.hpp"
 

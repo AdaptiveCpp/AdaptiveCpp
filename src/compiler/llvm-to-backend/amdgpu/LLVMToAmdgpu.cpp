@@ -45,14 +45,27 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Program.h>
+#include <algorithm>
 #include <memory>
 #include <cassert>
 #include <string>
 #include <system_error>
 #include <vector>
 
+#ifdef HIPSYCL_SSCP_AMDGPU_USE_HIPRTC
+#define __HIP_PLATFORM_AMD__
+#include <hip/hiprtc.h>
+#endif
+
 namespace hipsycl {
 namespace compiler {
+
+namespace {
+
+const char* TargetTriple = "amdgcn-amd-amdhsa";
+
+}
+
 
 class RocmDeviceLibs {
 public:
@@ -71,7 +84,7 @@ public:
           std::string ABIVersionString =
               F.substr(PosBeg + Begin.size(), PosEnd - PosBeg - Begin.size());
           int ABIVersion = std::stoi(ABIVersionString);
-          if(ABIVersion > MaxABIVersion) {
+          if(ABIVersion < MaxABIVersion) {
             OclABIVersionLib = F;
             MaxABIVersion = ABIVersion;
           }
@@ -93,11 +106,10 @@ LLVMToAmdgpuTranslator::LLVMToAmdgpuTranslator(const std::vector<std::string> &K
 
 bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
-  M.setTargetTriple("amdgcn-amd-amdhsa");
+  M.setTargetTriple(TargetTriple);
   M.setDataLayout(
       "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-"
       "v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7");
-
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
@@ -152,22 +164,38 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
 
-  // Needed as a workaround for some ROCm versions
-#ifdef HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION
-  std::string OclABIVersionLib;
-  if (!RocmDeviceLibs::getOclAbiVersionLibrary(RocmDeviceLibsPath, OclABIVersionLib)) {
-    this->registerError("Could not find ROCm oclc ABI version bitcode library");
-    return false;
-  }
-  if(!this->linkBitcodeFile(M, OclABIVersionLib))
-    return false;
+#if! defined(HIPSYCL_SSCP_AMDGPU_USE_HIPRTC)
+
+    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ockl.bc")))
+      return false;
+    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ocml.bc")))
+      return false;
+    // Needed as a workaround for some ROCm versions
+  #ifdef HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION
+    std::string OclABIVersionLib;
+    if (!RocmDeviceLibs::getOclAbiVersionLibrary(RocmDeviceLibsPath, OclABIVersionLib)) {
+      this->registerError("Could not find ROCm oclc ABI version bitcode library");
+      return false;
+    }
+    if(!this->linkBitcodeFile(M, OclABIVersionLib))
+      return false;
+  #endif
 #endif
+
   return true;
 }
 
 
-bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
+bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) {
+#ifdef HIPSYCL_SSCP_AMDGPU_USE_HIPRTC
+  HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking hipRTC...\n";
 
+  std::string ModuleString;
+  llvm::raw_string_ostream StrOstream{ModuleString};
+  llvm::WriteBitcodeToFile(FlavoredModule, StrOstream);
+
+  return hiprtcJitLink(ModuleString, Out);
+#else
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.bc");
   auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.hipfb");
   
@@ -197,7 +225,7 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
 
   if(OnlyGenerateAssembly) {
     Invocation = {ClangPath, "-cc1",
-                  "-triple", "amdgcn-amd-amdhsa",
+                  "-triple", TargetTriple,
                   "-target-cpu", TargetDevice,
                   "-O3",
                   "-S",
@@ -214,6 +242,7 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
       RocmPathFlag,
       RocmDeviceLibsFlag,
       OffloadArchFlag,
+      "-nogpuinc",
       "-mllvm", "-amdgpu-early-inline-all=true",
       "-mllvm", "-amdgpu-function-calls=false",
       "-Xclang", "-mlink-bitcode-file", "-Xclang", InputFile->TmpName,
@@ -245,9 +274,10 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
     return false;
   }
   
-  out = ReadResult->get()->getBuffer();
+  Out = ReadResult->get()->getBuffer();
   
   return true;
+#endif
 }
 
 bool LLVMToAmdgpuTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
@@ -269,6 +299,53 @@ bool LLVMToAmdgpuTranslator::setBuildFlag(const std::string &Flag) {
   }
 
   return false;
+}
+
+bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::string &Output) {
+#ifdef HIPSYCL_SSCP_AMDGPU_USE_HIPRTC
+  // Currently hipRTC link does not take into account options anyway.
+  // It just compiles for the currently active HIP device.
+  std::vector<hiprtcJIT_option> options {};
+  std::vector<void*> option_vals {};
+    
+  hiprtcLinkState LS;
+  auto err = hiprtcLinkCreate(options.size(), options.data(),
+                              option_vals.data(), &LS);
+  if(err != HIPRTC_SUCCESS) {
+    this->registerError("LLVMToAmdgpu: Could not create hipRTC link state");
+    return false;
+  }
+
+  void* Data = static_cast<void*>(const_cast<char*>(Bitcode.data()));
+  err = hiprtcLinkAddData(LS, HIPRTC_JIT_INPUT_LLVM_BITCODE, Data, Bitcode.size(),
+                          "hipSYCL SSCP Bitcode", 0, 0, 0);
+
+  if(err != HIPRTC_SUCCESS) {
+    this->registerError("LLVMToAmdgpu: Could not add hipRTC data for bitcode linking");
+    return false;
+  }
+
+  void* Binary = nullptr;
+  std::size_t Size = 0;
+  err = hiprtcLinkComplete(LS, &Binary, &Size);
+  if(err != HIPRTC_SUCCESS) {
+    this->registerError("LLVMToAmdgpu: hiprtcLinkComplete() failed");
+    return false;
+  }
+    
+  Output.resize(Size);
+  std::copy(static_cast<char *>(Binary), static_cast<char *>(Binary) + Size, Output.begin());
+    
+  err = hiprtcLinkDestroy(LS);
+  if(err != HIPRTC_SUCCESS) {
+    this->registerError("LLVMToAmdgpu: hiprtcLinkDestroy() failed");
+    return false;
+  }
+
+  return true;
+#else
+  return false;
+#endif
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

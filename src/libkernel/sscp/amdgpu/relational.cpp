@@ -25,14 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
+#include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ocml.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
 
 HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
-  return __nv_isnanf(x);
+  return __ocml_isnan_f32(x);
 }
 
 HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
-  return __nv_isnand(x);
+  return __ocml_isnan_f64(x);
 }

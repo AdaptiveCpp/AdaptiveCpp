@@ -23,6 +23,8 @@ jobs:
       run: |
         mkdir build && cd build
         cmake .. \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_LIB_NAMES=libomp \
         -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install

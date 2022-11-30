@@ -34,6 +34,7 @@ jobs:
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: test hipSYCL build
+      run: |
         install/bin/syclcc
     - name: build CPU tests
       run: |

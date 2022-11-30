@@ -30,6 +30,7 @@ jobs:
         -DOpenMP_CXX_LIB_NAMES=libomp \
         -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
+        -DWITH_ACCELERATED_CPU=ON \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: test hipSYCL build
@@ -38,6 +39,7 @@ jobs:
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
+        -DHIPSYCL_TARGETS=omp \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

@@ -23,7 +23,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_libomp_LIBRARY=/usr/local/Cellar/libomp/15.0.5/lib \
+        -DOpenMP_libomp_LIBRARY=/usr/local/Cellar/libomp/15.0.5/lib/libomp.a \
         -DOpenMP_C_LIB_NAMES=libomp \
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \

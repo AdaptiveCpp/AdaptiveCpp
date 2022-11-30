@@ -201,9 +201,6 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x,
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(remainder, __nv_remainderf, __nv_remainder)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(rint, __nv_rintf, __nv_rint)
 
-float __spirv_ocl_rootn(float, __hipsycl_int32);
-double __spirv_ocl_rootn(double, __hipsycl_int64);
-
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float x, __hipsycl_int32 y) { return __hipsycl_sscp_pow_f32(x, 1.f/y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double x, __hipsycl_int64 y) {return __hipsycl_sscp_pow_f64(x, 1./y); }
 

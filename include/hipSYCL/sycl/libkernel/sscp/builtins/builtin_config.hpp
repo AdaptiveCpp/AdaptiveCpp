@@ -34,11 +34,37 @@
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 
 using __hipsycl_int8 = signed char;
+using __hipsycl_uint8 = unsigned char;
 using __hipsycl_int16 = short;
 using __hipsycl_uint16 = unsigned short;
 using __hipsycl_int32 = int;
 using __hipsycl_uint32 = unsigned int;
 using __hipsycl_int64 = long long;
 using __hipsycl_uint64 = unsigned long long;
+// To be set by a backend when including this header
+#ifdef HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
+using __hipsycl_f16 = _Float16;
+#else
+using __hipsycl_f16 = __hipsycl_int16;
+#endif
+
+using __hipsycl_f32 = float;
+using __hipsycl_f64 = double;
+
+#define HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(base_type) \
+    using base_type##_2 = base_type __attribute__((ext_vector_type(2))); \
+    using base_type##_4 = base_type __attribute__((ext_vector_type(4))); \
+
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_f16)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_f32)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_f64)
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int16);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint16);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int32);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint32);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_int64);
+HIPSYCL_SSCP_BUILTIN_CONFIG_DECLARE_VEC_TYPES(__hipsycl_uint64);
+
+
 
 #endif

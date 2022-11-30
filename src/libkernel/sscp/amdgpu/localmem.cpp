@@ -31,6 +31,9 @@
 
 
 
+unsigned __llvm_amdgcn_groupstaticsize() __asm("llvm.amdgcn.groupstaticsize");
+inline static __attribute__((address_space(3))) void* __to_local(unsigned x) { return (__attribute__((address_space(3))) void*)x; }
+
 __attribute__((address_space(3))) void* __hipsycl_sscp_get_dynamic_local_memory() {
-  return __amdgcn_get_dynamicgroupbaseptr();
+  return __to_local(__llvm_amdgcn_groupstaticsize());
 }

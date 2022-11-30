@@ -48,11 +48,11 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_size() {
   }
 }
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_subgroup_max_size() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_max_size() {
   return 32;
 }
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_subgroup_id() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_get_subgroup_id() {
   size_t local_tid =
       __hipsycl_sscp_get_local_id_x() +
       __hipsycl_sscp_get_local_id_y() * __hipsycl_sscp_get_local_size_x() +

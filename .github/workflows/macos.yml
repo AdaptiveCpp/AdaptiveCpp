@@ -23,10 +23,12 @@ jobs:
       run: |
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_libomp_LIBRARY=/usr/local/Cellar/libomp/15.0.5/lib \
         -DOpenMP_C_LIB_NAMES=libomp \
-        -DOpenMP_libomp_LIBRARY=/usr/local/Cellar/libomp/15.0.5/lib
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
+        -DOpenMP_CXX_LIB_NAMES=libomp \
+        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON

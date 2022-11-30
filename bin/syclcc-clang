@@ -696,7 +696,7 @@ class syclcc_config:
     if sys.platform.startswith('win32'):
       return os.path.join(self.hipsycl_installation_path, "bin", "hipSYCL_clang.dll")
     elif sys.platform == "darwin":
-      return os.path.join(self.hipsycl_installation_path, "lib", "hipSYCL_clang.dylib")
+      return os.path.join(self.hipsycl_installation_path, "lib", "libhipSYCL_clang.dylib")
     else:
       return os.path.join(self.hipsycl_installation_path, "lib", "libhipSYCL_clang.so")
 

@@ -30,11 +30,12 @@ jobs:
         -DOpenMP_CXX_LIB_NAMES=libomp \
         -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
+        -DWITH_ACCELERATED_CPU=ON \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: test hipSYCL build
       run: |
-        install/bin/syclcc
+        /Users/runner/work/hipSYCL/hipSYCL/build/install/bin/syclcc
     - name: build CPU tests
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu

@@ -117,7 +117,12 @@ public:
   }
 
   marray& operator=(const marray<DataT, NumElements>& rhs) = default;
-  marray& operator=(const DataT& rhs) = default;
+  marray& operator=(const DataT& rhs) {
+    for(int i = 0; i < NumElements; ++i) {
+      _data[i] = rhs;
+    }
+    return *this;
+  }
 
   // iterator functions
   // These rely on device_array having contiguous memory layout --

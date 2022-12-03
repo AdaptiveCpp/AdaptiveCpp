@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 #define HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 
+#include "int_types.hpp"
+
 #ifdef __clang__
 #define HIPSYCL_HALF_HAS_FP16_TYPE
 
@@ -43,6 +45,7 @@
 
 #include "fp16/fp16.h"
 
+
 namespace hipsycl::fp16 {
 
 struct generic_half {
@@ -53,10 +56,10 @@ struct generic_half {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     _Float16 native_fp16_representation;
 #endif
-    __hipsycl_uint16 int_representation;
 #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
     __half cuda_representation;
 #endif
+    __hipsycl_uint16 int_representation;
   };
 
   generic_half() = default;
@@ -83,7 +86,7 @@ struct generic_half {
     emulated_fp16_repesentation = static_cast<__fp16>(f);
 #else
     int_representation =
-        hipsycl::sycl::detail::fp16::fp16_ieee_from_fp32_value(f);
+        hipsycl::fp16::fp16_ieee_from_fp32_value(f);
 #endif
   }
 
@@ -100,7 +103,7 @@ struct generic_half {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
     return static_cast<float>(emulated_fp16_repesentation);
 #else
-    return hipsycl::sycl::detail::fp16::fp16_ieee_to_fp32_value(
+    return hipsycl::fp16::fp16_ieee_to_fp32_value(
         int_representation);
 #endif
   }

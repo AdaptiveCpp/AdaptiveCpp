@@ -35,6 +35,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
 #endif
 
+
 namespace hipsycl {
 namespace sycl {
 
@@ -68,7 +69,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_add(a._data, b._data),
       return __hipsycl_sscp_half_add(a._data, b._data),
-      return __hadd(a.cuda_representation, b.cuda_representation),
+      return __hadd(a._data.cuda_representation, b._data.cuda_representation),
       // HIP uses compiler builtin addition for native _Float16 type
       return fp16::generic_half::builtin_add(a._data, b._data),
       return fp16::generic_half::builtin_add(a._data, b._data))
@@ -79,7 +80,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return __hipsycl_sscp_half_sub(a._data, b._data),
-      return __hsub(a.cuda_representation, b.cuda_representation),
+      return __hsub(a._data.cuda_representation, b._data.cuda_representation),
       // HIP uses compiler builtin subtraction for native _Float16 type
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return fp16::generic_half::builtin_sub(a._data, b._data))
@@ -90,7 +91,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_mul(a._data, b._data),
       return __hipsycl_sscp_half_mul(a._data, b._data),
-      return __hmul(a.cuda_representation, b.cuda_representation),
+      return __hmul(a._data.cuda_representation, b._data.cuda_representation),
       // HIP uses compiler builtin mul for native _Float16 type
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return fp16::generic_half::builtin_sub(a._data, b._data))
@@ -101,7 +102,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_div(a._data, b._data),
       return __hipsycl_sscp_half_div(a._data, b._data),
-      return __hdiv(a.cuda_representation, b.cuda_representation),
+      return __hdiv(a._data.cuda_representation, b._data.cuda_representation),
       // HIP uses compiler builtin div for native _Float16 type
       return fp16::generic_half::builtin_div(a._data, b._data),
       return fp16::generic_half::builtin_div(a._data, b._data))
@@ -139,7 +140,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_less_than(a._data, b._data),
       return __hipsycl_sscp_half_lt(a._data, b._data),
-      return __hlt(a.cuda_representation, b.cuda_representation),
+      return __hlt(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_less_than(a._data, b._data),
       return fp16::generic_half::builtin_less_than(a._data, b._data))
   }
@@ -148,7 +149,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_lte(a._data, b._data),
-      return __hlte(a.cuda_representation, b.cuda_representation),
+      return __hlte(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data))
   }
@@ -157,7 +158,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_greater_than(a._data, b._data),
       return __hipsycl_sscp_half_gt(a._data, b._data),
-      return __hgt(a.cuda_representation, b.cuda_representation),
+      return __hgt(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_greater_than(a._data, b._data),
       return fp16::generic_half::builtin_greater_than(a._data, b._data))
   }
@@ -166,7 +167,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_gte(a._data, b._data),
-      return __hgte(a.cuda_representation, b.cuda_representation),
+      return __hgte(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data))
   }

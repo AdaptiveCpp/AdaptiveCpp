@@ -27,33 +27,42 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
 
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
 __hipsycl_sscp_half_add(hipsycl::fp16::generic_half a,
                         hipsycl::fp16::generic_half b) {
-                            
-  return hipsycl::fp16::generic_half{a.promote_to_float() +
-                                     b.promote_to_float()};
+  hipsycl::fp16::generic_half result;
+  asm("{add.f16 %0,%1,%2;\n}"
+    : "=h"(result.int_representation)
+    : "h"(a.int_representation),"h"(b.int_representation));
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
 __hipsycl_sscp_half_sub(hipsycl::fp16::generic_half a,
                         hipsycl::fp16::generic_half b) {
-  return hipsycl::fp16::generic_half{a.promote_to_float() -
-                                     b.promote_to_float()};
+  hipsycl::fp16::generic_half result;
+  asm("{sub.f16 %0,%1,%2;\n}"
+    : "=h"(result.int_representation)
+    : "h"(a.int_representation),"h"(b.int_representation));
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
 __hipsycl_sscp_half_mul(hipsycl::fp16::generic_half a,
                         hipsycl::fp16::generic_half b) {
-  return hipsycl::fp16::generic_half{a.promote_to_float() *
-                                     b.promote_to_float()};
+  hipsycl::fp16::generic_half result;
+  asm("{mul.f16 %0,%1,%2;\n}"
+    : "=h"(result.int_representation)
+    : "h"(a.int_representation),"h"(b.int_representation));
+  return result;
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
 __hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
                         hipsycl::fp16::generic_half b) {
-  return hipsycl::fp16::generic_half{a.promote_to_float() /
-                                     b.promote_to_float()};
+  return hipsycl::fp16::generic_half{__nv_fast_fdividef(a.promote_to_float(),
+                                     b.promote_to_float())};
 }

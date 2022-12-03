@@ -40,6 +40,12 @@ HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_mul(
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_div(
     hipsycl::fp16::generic_half a, hipsycl::fp16::generic_half b);
 
-
-
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
+                                                 hipsycl::fp16::generic_half b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
+                                                  hipsycl::fp16::generic_half b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
+                                                 hipsycl::fp16::generic_half b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
+                                                 hipsycl::fp16::generic_half b);
 #endif

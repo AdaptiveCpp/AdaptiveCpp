@@ -126,6 +126,50 @@ public:
     a = a / b;
     return a;
   }
+
+  friend bool operator==(const half& a, const half& b) noexcept {
+    return a._data.int_representation == b._data.int_representation;
+  }
+
+  friend bool operator!=(const half& a, const half& b) noexcept {
+    return a._data.int_representation != b._data.int_representation;
+  }
+
+  friend bool operator<(const half& a, const half& b) noexcept {
+    __hipsycl_backend_switch(
+      return fp16::generic_half::builtin_less_than(a._data, b._data),
+      return __hipsycl_sscp_half_lt(a._data, b._data),
+      return __hlt(a.cuda_representation, b.cuda_representation),
+      return fp16::generic_half::builtin_less_than(a._data, b._data),
+      return fp16::generic_half::builtin_less_than(a._data, b._data))
+  }
+
+  friend bool operator<=(const half& a, const half& b) noexcept {
+    __hipsycl_backend_switch(
+      return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
+      return __hipsycl_sscp_half_lte(a._data, b._data),
+      return __hlte(a.cuda_representation, b.cuda_representation),
+      return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
+      return fp16::generic_half::builtin_less_than_equal(a._data, b._data))
+  }
+
+  friend bool operator>(const half& a, const half& b) noexcept {
+    __hipsycl_backend_switch(
+      return fp16::generic_half::builtin_greater_than(a._data, b._data),
+      return __hipsycl_sscp_half_gt(a._data, b._data),
+      return __hgt(a.cuda_representation, b.cuda_representation),
+      return fp16::generic_half::builtin_greater_than(a._data, b._data),
+      return fp16::generic_half::builtin_greater_than(a._data, b._data))
+  }
+
+  friend bool operator>=(const half& a, const half& b) noexcept {
+    __hipsycl_backend_switch(
+      return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
+      return __hipsycl_sscp_half_gte(a._data, b._data),
+      return __hgte(a.cuda_representation, b.cuda_representation),
+      return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
+      return fp16::generic_half::builtin_greater_than_equal(a._data, b._data))
+  }
 private:
   fp16::generic_half _data;
 };

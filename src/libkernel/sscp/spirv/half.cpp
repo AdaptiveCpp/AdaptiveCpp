@@ -58,3 +58,24 @@ __hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
   return hipsycl::fp16::generic_half{a.promote_to_float() /
                                      b.promote_to_float()};
 }
+
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  return a.promote_to_float() < b.promote_to_float();
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return a.promote_to_float() <= b.promote_to_float();
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  return a.promote_to_float() > b.promote_to_float();
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return a.promote_to_float() >= b.promote_to_float();
+}

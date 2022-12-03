@@ -147,6 +147,39 @@ struct generic_half {
                                          b.promote_to_float()};
 #endif
   }
+
+  static bool builtin_less_than(generic_half a, generic_half b) noexcept {
+#ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
+    return a.native_fp16_representation < b.native_fp16_representation;
+#else
+    return a.promote_to_float() < b.promote_to_float();
+#endif
+  }
+
+  static bool builtin_less_than_equal(generic_half a, generic_half b) noexcept {
+#ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
+    return a.native_fp16_representation <= b.native_fp16_representation;
+#else
+    return a.promote_to_float() <= b.promote_to_float();
+#endif
+  }
+
+  static bool builtin_greater_than(generic_half a, generic_half b) noexcept {
+#ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
+    return a.native_fp16_representation > b.native_fp16_representation;
+#else
+    return a.promote_to_float() > b.promote_to_float();
+#endif
+  }
+
+  static bool builtin_greater_than_equal(generic_half a,
+                                         generic_half b) noexcept {
+#ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
+    return a.native_fp16_representation >= b.native_fp16_representation;
+#else
+    return a.promote_to_float() >= b.promote_to_float();
+#endif
+  }
 };
 
 }

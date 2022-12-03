@@ -27,6 +27,7 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
+#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
 
 
@@ -65,4 +66,46 @@ __hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
                         hipsycl::fp16::generic_half b) {
   return hipsycl::fp16::generic_half{__nv_fast_fdividef(a.promote_to_float(),
                                      b.promote_to_float())};
+}
+
+
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  __hipsycl_uint16 v;
+  asm( "{ .reg .pred __$temp3;\n"
+      "  setp.lt.f16  __$temp3, %1, %2;\n"
+      "  selp.u16 %0, 1, 0, __$temp3;}"
+      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+  return v != 0;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  __hipsycl_uint16 v;
+  asm( "{ .reg .pred __$temp3;\n"
+      "  setp.le.f16  __$temp3, %1, %2;\n"
+      "  selp.u16 %0, 1, 0, __$temp3;}"
+      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+  return v != 0;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  __hipsycl_uint16 v;
+  asm( "{ .reg .pred __$temp3;\n"
+      "  setp.gt.f16  __$temp3, %1, %2;\n"
+      "  selp.u16 %0, 1, 0, __$temp3;}"
+      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+  return v != 0;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  __hipsycl_uint16 v;
+  asm( "{ .reg .pred __$temp3;\n"
+      "  setp.ge.f16  __$temp3, %1, %2;\n"
+      "  selp.u16 %0, 1, 0, __$temp3;}"
+      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+  return v != 0;
 }

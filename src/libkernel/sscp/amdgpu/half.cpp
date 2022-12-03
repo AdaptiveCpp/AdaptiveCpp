@@ -56,3 +56,24 @@ __hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
   return hipsycl::fp16::generic_half{a.native_fp16_representation /
                                      b.native_fp16_representation};
 }
+
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  return a.native_fp16_representation < b.native_fp16_representation;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return a.native_fp16_representation <= b.native_fp16_representation;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
+                       hipsycl::fp16::generic_half b) {
+  return a.native_fp16_representation > b.native_fp16_representation;
+}
+HIPSYCL_SSCP_BUILTIN bool
+__hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return a.native_fp16_representation >= b.native_fp16_representation;
+}

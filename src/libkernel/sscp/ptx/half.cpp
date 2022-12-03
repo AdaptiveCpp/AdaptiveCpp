@@ -25,15 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
+#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
 
-
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
-  return __ockl_mul24_i32(a, b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
+__hipsycl_sscp_half_add(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+                            
+  return hipsycl::fp16::generic_half{a.promote_to_float() +
+                                     b.promote_to_float()};
 }
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
-  return __ockl_mul24_u32(a, b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
+__hipsycl_sscp_half_sub(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return hipsycl::fp16::generic_half{a.promote_to_float() -
+                                     b.promote_to_float()};
+}
+
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
+__hipsycl_sscp_half_mul(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return hipsycl::fp16::generic_half{a.promote_to_float() *
+                                     b.promote_to_float()};
+}
+
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
+__hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
+                        hipsycl::fp16::generic_half b) {
+  return hipsycl::fp16::generic_half{a.promote_to_float() /
+                                     b.promote_to_float()};
 }

@@ -107,7 +107,6 @@ using sp_float = float;
 using dp_float = double;
 } //detail
 
-using half = detail::hp_float;
 } // sycl
 } // hipsycl
 

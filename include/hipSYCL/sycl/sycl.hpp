@@ -65,6 +65,7 @@
 #include "libkernel/memory_environment.hpp"
 #include "libkernel/private_memory.hpp"
 #include "libkernel/local_memory.hpp"
+#include "libkernel/half.hpp"
 #include "libkernel/vec.hpp"
 #include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"

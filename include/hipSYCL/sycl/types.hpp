@@ -86,6 +86,8 @@ using exception_ptr = exception_ptr_class;
 using exception_list = vector_class<exception_ptr>;
 using async_handler = function_class<void(sycl::exception_list)>;
 
+class half;
+
 // \todo Better use uint32_t etc
 namespace detail {
 // Define types in analogy to OpenCL cl_* types
@@ -99,8 +101,8 @@ using s_short = __hipsycl_int16;
 using s_int = __hipsycl_int32;
 using s_long = __hipsycl_int64;
 
-// ToDo: Proper half type
-using hp_float = u_short;
+
+using hp_float = sycl::half;
 using sp_float = float;
 using dp_float = double;
 } //detail

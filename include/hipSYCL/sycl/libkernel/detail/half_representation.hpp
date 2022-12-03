@@ -38,6 +38,7 @@
 #endif
 
 #include "fp16/fp16.h"
+
 namespace hipsycl::fp16 {
 
 struct generic_half {

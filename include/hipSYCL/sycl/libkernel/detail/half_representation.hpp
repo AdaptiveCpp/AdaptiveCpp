@@ -31,10 +31,14 @@
 #ifdef __clang__
 #define HIPSYCL_HALF_HAS_FP16_TYPE
 
-#if defined(__x86_64__) || defined(__AMDGPU__) || defined(__SPIR__) ||         \
-    defined(__SPIR64__) || defined(__arm__) || defined(__aarch64__)
-#define HIPSYCL_HALF_HAS_FLOAT16_TYPE
+#if (defined(__x86_64__) && __clang_major__ > 14) || defined(__arm__) ||       \
+    defined(__aarch64__) || defined(__AMDGPU__) || defined(__SPIR__) ||        \
+    defined(__SPIR64__)
+  // These targets support _Float16
+  #define HIPSYCL_HALF_HAS_FLOAT16_TYPE
 #endif
+
+
 #endif
 
 #include "fp16/fp16.h"

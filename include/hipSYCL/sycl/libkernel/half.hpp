@@ -151,7 +151,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_lte(a._data, b._data),
-      return __hlte(a._data.cuda_representation, b._data.cuda_representation),
+      return __hle(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data))
   }
@@ -171,7 +171,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_gte(a._data, b._data),
-      return __hgte(a._data.cuda_representation, b._data.cuda_representation),
+      return __hge(a._data.cuda_representation, b._data.cuda_representation),
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data))
   }

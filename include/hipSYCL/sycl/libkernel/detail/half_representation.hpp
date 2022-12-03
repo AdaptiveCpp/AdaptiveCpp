@@ -40,7 +40,10 @@
   #define HIPSYCL_HALF_HAS_FLOAT16_TYPE
 #endif
 
+#endif
 
+#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+  #define HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
 #endif
 
 #include "fp16/fp16.h"
@@ -56,7 +59,7 @@ struct generic_half {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     _Float16 native_fp16_representation;
 #endif
-#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+#ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
     __half cuda_representation;
 #endif
     __hipsycl_uint16 int_representation;
@@ -73,6 +76,11 @@ struct generic_half {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   generic_half(_Float16 f)
   : native_fp16_representation{f} {}
+#endif
+
+#ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
+  generic_half(__half f)
+  : cuda_representation{f} {}
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE

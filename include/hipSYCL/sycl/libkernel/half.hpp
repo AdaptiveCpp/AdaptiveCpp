@@ -43,10 +43,10 @@ class half {
 public:
   half() = default;
   
-  half(float f) noexcept
+  explicit half(float f) noexcept
   : _data{f} {}
   
-  half(double f) noexcept
+  explicit half(double f) noexcept
   : _data{f} {}
 
   half(fp16::generic_half f) noexcept
@@ -69,7 +69,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_add(a._data, b._data),
       return __hipsycl_sscp_half_add(a._data, b._data),
-      return __hadd(a._data.cuda_representation, b._data.cuda_representation),
+      return fp16::generic_half{__hadd(a._data.cuda_representation, b._data.cuda_representation)},
       // HIP uses compiler builtin addition for native _Float16 type
       return fp16::generic_half::builtin_add(a._data, b._data),
       return fp16::generic_half::builtin_add(a._data, b._data))
@@ -80,7 +80,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return __hipsycl_sscp_half_sub(a._data, b._data),
-      return __hsub(a._data.cuda_representation, b._data.cuda_representation),
+      return fp16::generic_half{__hsub(a._data.cuda_representation, b._data.cuda_representation)},
       // HIP uses compiler builtin subtraction for native _Float16 type
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return fp16::generic_half::builtin_sub(a._data, b._data))
@@ -91,7 +91,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_mul(a._data, b._data),
       return __hipsycl_sscp_half_mul(a._data, b._data),
-      return __hmul(a._data.cuda_representation, b._data.cuda_representation),
+      return fp16::generic_half{__hmul(a._data.cuda_representation, b._data.cuda_representation)},
       // HIP uses compiler builtin mul for native _Float16 type
       return fp16::generic_half::builtin_sub(a._data, b._data),
       return fp16::generic_half::builtin_sub(a._data, b._data))
@@ -102,7 +102,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_div(a._data, b._data),
       return __hipsycl_sscp_half_div(a._data, b._data),
-      return __hdiv(a._data.cuda_representation, b._data.cuda_representation),
+      return fp16::generic_half{__hdiv(a._data.cuda_representation, b._data.cuda_representation)},
       // HIP uses compiler builtin div for native _Float16 type
       return fp16::generic_half::builtin_div(a._data, b._data),
       return fp16::generic_half::builtin_div(a._data, b._data))
@@ -136,6 +136,7 @@ public:
     return a._data.int_representation != b._data.int_representation;
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator<(const half& a, const half& b) noexcept {
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_less_than(a._data, b._data),
@@ -145,6 +146,7 @@ public:
       return fp16::generic_half::builtin_less_than(a._data, b._data))
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator<=(const half& a, const half& b) noexcept {
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data),
@@ -154,6 +156,7 @@ public:
       return fp16::generic_half::builtin_less_than_equal(a._data, b._data))
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator>(const half& a, const half& b) noexcept {
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_greater_than(a._data, b._data),
@@ -163,6 +166,7 @@ public:
       return fp16::generic_half::builtin_greater_than(a._data, b._data))
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
   friend bool operator>=(const half& a, const half& b) noexcept {
     __hipsycl_backend_switch(
       return fp16::generic_half::builtin_greater_than_equal(a._data, b._data),

@@ -328,9 +328,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
   test_two_reductions<T>(128*128, 128);
 }
 
+#ifdef BOOST_SIGACTION_BASED_SIGNAL_HANDLING
 BOOST_AUTO_TEST_CASE(local_size_one_reduction, * boost::unit_test::timeout(2)) {
   test_single_reduction(128, 1, 0, sycl::plus<int>{});
 }
+#endif
 
 BOOST_AUTO_TEST_CASE(accessor_reduction) {
   sycl::queue q;

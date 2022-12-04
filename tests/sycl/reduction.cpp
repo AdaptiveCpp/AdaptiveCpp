@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <boost/test/unit_test_suite.hpp>
 #include <numeric>
 #include <algorithm>
 #include <type_traits>
@@ -325,6 +326,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(oversized_group_size, T, all_test_types) {
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
   test_two_reductions<T>(128*128, 128);
+}
+
+BOOST_AUTO_TEST_CASE(local_size_one_reduction, * boost::unit_test::timeout(2)) {
+  test_single_reduction(128, 1, 0, sycl::plus<int>{});
 }
 
 BOOST_AUTO_TEST_CASE(accessor_reduction) {

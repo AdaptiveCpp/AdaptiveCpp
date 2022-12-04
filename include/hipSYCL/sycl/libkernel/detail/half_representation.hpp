@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 #define HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 
+#include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "int_types.hpp"
 
 #ifdef __clang__
@@ -42,7 +43,7 @@
 
 #endif
 
-#ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA
   #define HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
 #endif
 

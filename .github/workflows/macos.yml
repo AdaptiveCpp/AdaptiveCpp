@@ -37,6 +37,8 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \
+        -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
+        -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.5/include \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

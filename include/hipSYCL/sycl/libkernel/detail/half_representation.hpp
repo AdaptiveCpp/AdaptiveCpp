@@ -55,7 +55,7 @@ namespace hipsycl::fp16 {
 struct generic_half {
   union {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
-    __fp16 emulated_fp16_repesentation;
+    __fp16 emulated_fp16_representation;
 #endif
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     _Float16 native_fp16_representation;
@@ -92,7 +92,7 @@ struct generic_half {
 
   void truncate_from(float f) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
-    emulated_fp16_repesentation = static_cast<__fp16>(f);
+    emulated_fp16_representation = static_cast<__fp16>(f);
 #else
     int_representation =
         hipsycl::fp16::fp16_ieee_from_fp32_value(f);
@@ -101,7 +101,7 @@ struct generic_half {
 
   void truncate_from(double f) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
-    emulated_fp16_repesentation = static_cast<__fp16>(f);
+    emulated_fp16_representation = static_cast<__fp16>(f);
 #else
     truncate_from(static_cast<float>(f));
 #endif
@@ -110,7 +110,7 @@ struct generic_half {
 
   float promote_to_float() const noexcept {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
-    return static_cast<float>(emulated_fp16_repesentation);
+    return static_cast<float>(emulated_fp16_representation);
 #else
     return hipsycl::fp16::fp16_ieee_to_fp32_value(
         int_representation);
@@ -119,7 +119,7 @@ struct generic_half {
 
   double promote_to_double() const noexcept {
 #ifdef HIPSYCL_HALF_HAS_FP16_TYPE
-    return static_cast<double>(emulated_fp16_repesentation);
+    return static_cast<double>(emulated_fp16_representation);
 #else
     return static_cast<double>(promote_to_float());
 #endif

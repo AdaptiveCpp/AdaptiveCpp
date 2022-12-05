@@ -16,20 +16,23 @@ jobs:
         brew update
         brew install cmake
         brew install libomp
-        brew list libomp
         brew install boost
         set -e
+    - name: set libomp version
+      run:
+        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
+        echo $OMP_ROOT
     - name: build
       run: |
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_libomp_LIBRARY=/usr/local/Cellar/libomp/15.0.6/lib/libomp.a \
+        -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
         -DOpenMP_C_LIB_NAMES=libomp \
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.6/include \
+        -DOpenMP_C_INCLUDE_DIR=$OMP_ROOT/include \
         -DOpenMP_CXX_LIB_NAMES=libomp \
         -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.6/include \
+        -DOpenMP_CXX_INCLUDE_DIR=$OMP_ROOT/include \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
@@ -37,8 +40,9 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \
-        -DOpenMP_C_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.6/include \
-        -DOpenMP_CXX_INCLUDE_DIR=/usr/local/Cellar/libomp/15.0.6/include \
+        -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
+        -DOpenMP_C_INCLUDE_DIR=$OMP_ROOT/include \
+        -DOpenMP_CXX_INCLUDE_DIR=$OMP_ROOT/include \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

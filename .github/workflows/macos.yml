@@ -18,12 +18,9 @@ jobs:
         brew install libomp
         brew install boost
         set -e
-    - name: set libomp version
-      run:
-        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
-        echo $OMP_ROOT
     - name: build
       run: |
+        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build && cd build
         cmake .. \
         -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \

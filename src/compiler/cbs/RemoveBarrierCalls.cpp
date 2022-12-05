@@ -27,16 +27,30 @@
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 
 namespace {
+
 bool deleteGlobalVariable(llvm::Module *M, llvm::StringRef VarName) {
   if (auto *GV = M->getGlobalVariable(VarName)) {
-    if (GV->getNumUses() == 0) {
+    llvm::SmallVector<llvm::Instruction *, 8> WL;
+    for (auto U : GV->users())
+      if (auto LI = llvm::dyn_cast<llvm::LoadInst>(U); LI && LI->user_empty())
+        WL.push_back(LI);
+    for (auto *LI : WL)
+      LI->eraseFromParent();
+
+    if (GV->getNumUses() == 0 ||
+        std::none_of(GV->user_begin(), GV->user_end(), [GV](llvm::User *U) { return U != GV; })) {
       HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Clean-up global variable " << *GV << "\n";
       GV->eraseFromParent();
       return true;
     }
+    HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] Global variable still in use " << VarName << "\n";
+    for (auto *U : GV->users()) {
+      HIPSYCL_DEBUG_INFO << "[RemoveBarrierCalls] >>> " << *U << "\n";
+    }
   }
   return false;
 }
+
 bool removeBarrierCalls(llvm::Function &F, hipsycl::compiler::SplitterAnnotationInfo &SAA) {
   if (!SAA.isKernelFunc(&F))
     return false;

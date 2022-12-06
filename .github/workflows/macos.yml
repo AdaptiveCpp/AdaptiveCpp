@@ -40,6 +40,8 @@ jobs:
         -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
         -DOpenMP_C_INCLUDE_DIR=$OMP_ROOT/include \
         -DOpenMP_CXX_INCLUDE_DIR=$OMP_ROOT/include \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

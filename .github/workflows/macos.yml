@@ -25,10 +25,10 @@ jobs:
         cmake .. \
         -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
         -DOpenMP_C_LIB_NAMES=libomp \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
         -DOpenMP_C_INCLUDE_DIR=$OMP_ROOT/include \
         -DOpenMP_CXX_LIB_NAMES=libomp \
-        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
         -DOpenMP_CXX_INCLUDE_DIR=$OMP_ROOT/include \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON

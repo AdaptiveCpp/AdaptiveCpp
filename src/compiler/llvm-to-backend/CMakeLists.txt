@@ -101,7 +101,7 @@ if(WITH_SSCP_COMPILER)
     TARGET llvm-to-backend
     SOURCES LLVMToBackend.cpp AddressSpaceInferencePass.cpp ../sscp/KernelOutliningPass.cpp)
 
-  if(WITH_LEVEL_ZERO_BACKEND)
+  if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
       BACKEND spirv 
       LIBRARY spirv/LLVMToSpirv.cpp 
@@ -134,7 +134,7 @@ if(WITH_SSCP_COMPILER)
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
   endif()
 
-  if(WITH_CUDA_BACKEND)
+  if(WITH_LLVM_TO_PTX)
     add_hipsycl_llvm_backend(
       BACKEND ptx 
       LIBRARY ptx/LLVMToPtx.cpp 
@@ -145,7 +145,7 @@ if(WITH_SSCP_COMPILER)
       -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
   endif()
 
-  if(WITH_ROCM_BACKEND)
+  if(WITH_LLVM_TO_AMDGPU_AMDHSA)
     add_hipsycl_llvm_backend(
       BACKEND amdgpu 
       LIBRARY amdgpu/LLVMToAmdgpu.cpp 

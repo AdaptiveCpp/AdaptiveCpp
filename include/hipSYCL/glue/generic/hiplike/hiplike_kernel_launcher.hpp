@@ -429,6 +429,10 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
   if (local_size[0] == 1)
     local_size[0] = 128;
 
+  num_groups[0] = num_groups.size();
+  for (int i=1; i<Dimensions; ++i)
+    num_groups[i] = 1;
+
   sycl::range<Dimensions> current_num_groups = num_groups;
   sycl::range<Dimensions> current_num_work_items = global_size;
   

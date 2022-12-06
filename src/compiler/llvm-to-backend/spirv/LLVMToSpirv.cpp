@@ -162,14 +162,14 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   // Set up local memory
   if(DynamicLocalMemSize > 0) {
-    HIPSYCL_DEBUG_INFO << "Configuring kernel for " << DynamicLocalMemSize
+    HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Configuring kernel for " << DynamicLocalMemSize
                        << " bytes of local memory\n";
     if(!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
       this->registerError("Could not set dynamic local memory size");
       return false;
     }
   } else {
-    HIPSYCL_DEBUG_INFO << "Removing dynamic local memory support from module\n";
+    HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Removing dynamic local memory support from module\n";
     removeDynamicLocalMemorySupport(M);
   }
 

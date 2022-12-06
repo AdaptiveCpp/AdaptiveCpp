@@ -38,21 +38,72 @@ BOOST_FIXTURE_TEST_SUITE(reduction_tests, reset_device_fixture)
 
 auto tolerance = boost::test_tools::tolerance(0.001f);
 
-template <class T, class Generator, class Handler, class BinaryOp>
+template <class T, class Generator, class Handler, class BinaryOp, int Dim=1>
 void test_scalar_reduction(sycl::queue &q, const T& identity,
-                           std::size_t num_elements,
+                           sycl::range<Dim> num_elements,
                            BinaryOp op, Generator gen, Handler h) {
-  T* test_data = sycl::malloc_shared<T>(num_elements, q);
-  T* output_data = sycl::malloc_shared<T>(1, q);
+  // determine type of data array depending on dimension
+  typedef typename std::conditional<
+    Dim == 1,
+    T*,
+    typename std::conditional<Dim == 2, T**, T***>::type
+    >::type ptrT;
 
-  for(std::size_t i = 0; i < num_elements;++i)
-    test_data[i] = gen(i);
+  ptrT test_data;
+  if constexpr (Dim == 1) {
+    test_data = sycl::malloc_shared<T>(num_elements[0], q);
+    for(std::size_t i = 0; i < num_elements[0]; ++i)
+      test_data[i] = gen(i);
+  }
+  else if constexpr (Dim == 2) {
+    test_data = sycl::malloc_shared<T*>(num_elements[0], q);
+    for(std::size_t i = 0; i < num_elements[0]; ++i) {
+      test_data[i] = sycl::malloc_shared<T>(num_elements[1], q);
+      for (std::size_t j = 0; j < num_elements[1]; ++j) {
+        test_data[i][j] = gen(i + j);
+      }
+    }
+  } else if constexpr (Dim == 3) {
+    test_data = sycl::malloc_shared<T**>(num_elements[0], q);
+    for(std::size_t i = 0; i < num_elements[0]; ++i) {
+      test_data[i] = sycl::malloc_shared<T*>(num_elements[1], q);
+      for (std::size_t j = 0; j < num_elements[1]; ++j) {
+        test_data[i][j] = sycl::malloc_shared<T>(num_elements[2], q);
+        for (std::size_t k = 0; k < num_elements[2]; ++k) 
+          test_data[i][j][k] = gen(i);
+      }
+    }
+  }
+  
+  T* output_data = sycl::malloc_shared<T>(1, q);
   
   h(test_data, output_data);
   q.wait();
 
-  T expected_result =
-      std::accumulate(test_data, test_data + num_elements, identity, op);
+  T expected_result;
+
+  if constexpr (Dim == 1) {
+    expected_result =
+      std::accumulate(test_data, test_data + num_elements[0], identity, op);
+  } else if constexpr (Dim == 2) {
+    expected_result = identity;
+    for (std::size_t i = 0; i < num_elements[0]; ++i) {
+      expected_result = op(expected_result,
+                           std::accumulate(test_data[i],
+                                           test_data[i] + num_elements[1],
+                                           identity, op));
+    }
+  } else if constexpr (Dim == 3) {
+    expected_result = identity;
+    for (std::size_t i = 0; i < num_elements[0]; ++i) {
+      for (std::size_t j = 0; j < num_elements[1]; ++j) {
+        expected_result = op(expected_result,
+                             std::accumulate(test_data[i][j],
+                                             test_data[i][j] + num_elements[2],
+                                             identity, op));
+      }
+    }
+  }
   
   if constexpr(std::is_floating_point_v<T>) {
     BOOST_TEST(expected_result == *output_data, tolerance);
@@ -60,7 +111,22 @@ void test_scalar_reduction(sycl::queue &q, const T& identity,
     BOOST_TEST(expected_result == *output_data);
   }
 
-  sycl::free(test_data, q);
+  if constexpr (Dim == 1) {
+    sycl::free(test_data, q);
+  } else if constexpr (Dim == 2) {
+    for (size_t i=0; i<num_elements[0]; ++i) {
+      sycl::free(test_data[i], q);
+    }
+    sycl::free(test_data, q);
+  } else if constexpr (Dim == 3) {
+    for (size_t i=0; i<num_elements[0]; ++i) {
+      for (size_t j=0; j<num_elements[1]; ++j) 
+        sycl::free(test_data[i][j], q);
+      sycl::free(test_data[i], q);
+    }
+    sycl::free(test_data, q);
+  }
+
   sycl::free(output_data, q);
 }
 
@@ -100,7 +166,7 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
   };
 
   test_scalar_reduction(q, identity, 
-    input_size, op, input_gen,
+                        sycl::range{input_size}, op, input_gen,
     [&](T* input, T* output){
 
       q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
@@ -114,7 +180,7 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
 
   if(input_size % local_size == 0) {
     test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
+                          sycl::range{input_size}, op, input_gen,
       [&](T* input, T* output){
 
         q.parallel_for<reduction_kernel<T,BinaryOp,__LINE__>>(
@@ -130,7 +196,7 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
     std::size_t num_groups = input_size / local_size;
 
     test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
+                          sycl::range{input_size}, op, input_gen,
       [&](T* input, T* output){
 
         q.submit([&](sycl::handler& cgh){
@@ -146,7 +212,7 @@ void test_single_reduction(std::size_t input_size, std::size_t local_size,
       });
    
     test_scalar_reduction(q, identity,
-      input_size, op, input_gen,
+                          sycl::range{input_size}, op, input_gen,
       [&](T* input, T* output){
 
         q.parallel<reduction_kernel<T,BinaryOp,__LINE__>>(
@@ -289,6 +355,92 @@ void test_two_reductions(std::size_t input_size, std::size_t local_size){
   
 }
 
+template<class T, class BinaryOp>
+void test_2d_reduction(sycl::range<2> input_size, sycl::range<2> local_size, 
+                       const T& identity, BinaryOp op){
+  sycl::queue q;
+
+  auto input_gen = [&](std::size_t i){
+    return input_generator<T,BinaryOp>{}(i);
+  };
+
+  test_scalar_reduction(q, identity,
+                        input_size, op, input_gen,
+                        [&](T** input, T* output){
+                          q.parallel_for<
+                            reduction_kernel<T,BinaryOp,__LINE__>
+                            >(input_size, 
+                              sycl::reduction(output, identity, op),
+                              [=](sycl::item<2> idx, auto& reducer){
+                                auto idx0 = idx[0];
+                                auto idx1 = idx[1];
+                                reducer.combine(input[idx0][idx1]);
+                              });
+                        });
+
+  if(input_size[0] % local_size[0] == 0 and input_size[1] % local_size[1] == 0) {
+    test_scalar_reduction(q, identity,
+                          input_size, op, input_gen,
+      [&](T** input, T* output){
+
+        q.parallel_for<
+          reduction_kernel<T,BinaryOp,__LINE__>
+          >(sycl::nd_range{input_size, local_size}, 
+            sycl::reduction(output, identity, op), 
+            [=](sycl::nd_item<2> idx, auto& reducer){
+              auto idx0 = idx.get_global_id(0);
+              auto idx1 = idx.get_global_id(1);
+              reducer.combine(input[idx0][idx1]);
+            });
+      });    
+  }
+}
+
+template<class T, class BinaryOp>
+void test_3d_reduction(sycl::range<3> input_size, sycl::range<3> local_size, 
+                       const T& identity, BinaryOp op){
+  sycl::queue q;
+
+  auto input_gen = [&](std::size_t i){
+    return input_generator<T,BinaryOp>{}(i);
+  };
+
+  test_scalar_reduction(q, identity,
+                        input_size, op, input_gen,
+                        [&](T*** input, T* output){
+                          q.parallel_for<
+                            reduction_kernel<T,BinaryOp,__LINE__>
+                            >(input_size, 
+                              sycl::reduction(output, identity, op),
+                              [=](sycl::item<3> idx, auto& reducer){
+                                auto idx0 = idx[0];
+                                auto idx1 = idx[1];
+                                auto idx2 = idx[2];
+                                reducer.combine(input[idx0][idx1][idx2]);
+                              });
+                        });
+
+  if(input_size[0] % local_size[0] == 0 and
+     input_size[1] % local_size[1] == 0 and
+     input_size[2] % local_size[2] == 0) {
+    test_scalar_reduction(q, identity,
+                          input_size, op, input_gen,
+      [&](T*** input, T* output){
+
+        q.parallel_for<
+          reduction_kernel<T,BinaryOp,__LINE__>
+          >(sycl::nd_range{input_size, local_size}, 
+            sycl::reduction(output, identity, op), 
+            [=](sycl::nd_item<3> idx, auto& reducer){
+              auto idx0 = idx.get_global_id(0);
+              auto idx1 = idx.get_global_id(1);
+              auto idx2 = idx.get_global_id(2);
+              reducer.combine(input[idx0][idx1][idx2]);
+            });
+      });    
+  }
+}
+
 
 using all_test_types = boost::mpl::list<char, unsigned int, int, long long, float, 
   double>;
@@ -328,11 +480,19 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(two_reductions, T, large_test_types) {
   test_two_reductions<T>(128*128, 128);
 }
 
-#ifdef BOOST_SIGACTION_BASED_SIGNAL_HANDLING
-BOOST_AUTO_TEST_CASE(local_size_one_reduction, * boost::unit_test::timeout(2)) {
-  test_single_reduction(128, 1, 0, sycl::plus<int>{});
+BOOST_AUTO_TEST_CASE_TEMPLATE(nd_reduction, T, all_test_types) {
+  test_2d_reduction<T>({64,16}, {64,16}, T{0}, sycl::plus<T>{});
+  test_2d_reduction<T>({64,16}, {64,16}, T{1}, sycl::multiplies<T>{});
+
+  test_3d_reduction<T>({16,8,4}, {16,16,4}, T{0}, sycl::plus<T>{});
+  test_3d_reduction<T>({4,4,4}, {4,4,4}, T{1}, sycl::multiplies<T>{});
 }
-#endif
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(local_size_one_reduction, T, all_test_types) {
+  test_single_reduction<T>(128, 1, 0, sycl::plus<T>{});
+  test_2d_reduction<T>({64,16}, {1,1}, T{0}, sycl::plus<T>{});
+  test_3d_reduction<T>({16,4,4}, {1,1,1}, T{0}, sycl::plus<T>{});
+}
 
 BOOST_AUTO_TEST_CASE(accessor_reduction) {
   sycl::queue q;

@@ -84,10 +84,6 @@ public:
     
     assert(!isInitialized());
 
-    Var->setConstant(true);
-    Var->setExternallyInitialized(false);
-    Var->setLinkage(llvm::GlobalValue::InternalLinkage);
-
     if constexpr(std::is_integral_v<T>){
       bool IsSigned = std::is_signed_v<T>;
       int Bits = sizeof(T) * CHAR_BIT;
@@ -138,6 +134,10 @@ public:
     if(Var->getName().find(".initialized") == std::string::npos) {
       Var->setName(Var->getName()+".initialized");
     }
+
+    Var->setConstant(true);
+    Var->setExternallyInitialized(false);
+    Var->setLinkage(llvm::GlobalValue::InternalLinkage);
   }
 
   void set(const void* Buffer) {

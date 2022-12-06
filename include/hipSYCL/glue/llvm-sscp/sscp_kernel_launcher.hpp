@@ -47,20 +47,6 @@
 
 #include <array>
 
-// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
-// macro. We cannot use this macro directly because it expects
-// the object id to be constexpr, which it is not for the SSCP case.
-struct __hipsycl_static_sscp_hcf_registration {
-  __hipsycl_static_sscp_hcf_registration() {
-    ::hipsycl::rt::kernel_cache::get().register_hcf_object(
-        ::hipsycl::common::hcf_container{std::string{
-            reinterpret_cast<const char *>(__hipsycl_local_sscp_hcf_content),
-            __hipsycl_local_sscp_hcf_object_size}});
-  }
-};
-static __hipsycl_static_sscp_hcf_registration
-    __hipsycl_register_sscp_hcf_object;
-
 
 template <typename KernelType>
 // hipsycl_sscp_kernel causes kernel entries to be emitted to the HCF
@@ -90,6 +76,30 @@ void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
 
 namespace hipsycl {
 namespace glue {
+
+namespace sscp {
+
+static std::string get_local_hcf_object() {
+  return std::string{
+      reinterpret_cast<const char *>(__hipsycl_local_sscp_hcf_content),
+      __hipsycl_local_sscp_hcf_object_size};
+}
+
+// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
+// macro. We cannot use this macro directly because it expects
+// the object id to be constexpr, which it is not for the SSCP case.
+struct static_hcf_registration {
+  static_hcf_registration(const std::string& hcf_data) {
+    ::hipsycl::rt::kernel_cache::get().register_hcf_object(
+        ::hipsycl::common::hcf_container{hcf_data});
+  }
+};
+static static_hcf_registration
+    __hipsycl_register_sscp_hcf_object{get_local_hcf_object()};
+
+
+}
+
 namespace sscp_dispatch {
 
 template <int Dimensions, bool WithOffset>

@@ -34,6 +34,7 @@ jobs:
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
       run: |
+        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \

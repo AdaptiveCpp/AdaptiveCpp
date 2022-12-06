@@ -36,7 +36,7 @@ jobs:
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
-        -HIPSYCL_TARGETS=omp.library-only \
+        -DHIPSYCL_TARGETS=omp.library-only \
         -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
         -DOpenMP_C_LIB_NAMES=libomp \
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" \

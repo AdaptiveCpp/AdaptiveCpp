@@ -23,7 +23,7 @@ jobs:
         OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
+        -DOMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
@@ -32,7 +32,6 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \
-        -DCMAKE_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

@@ -16,6 +16,8 @@ jobs:
         brew update
         brew install cmake
         brew install libomp
+        export LDFLAGS="-L/usr/local/opt/libomp/lib"
+        export CPPFLAGS="-I/usr/local/opt/libomp/include"
         brew install boost
         set -e
     - name: build
@@ -23,13 +25,8 @@ jobs:
         OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
-        -DOpenMP_C_LIB_NAMES=libomp \
-        -DOpenMP_CXX_LIB_NAMES=libomp \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
-        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
-        -DOMP_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
-        -DOMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests

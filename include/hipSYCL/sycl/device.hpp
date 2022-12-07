@@ -64,7 +64,6 @@ rt::device_id extract_rt_device(const device&);
 
 }
 
-class device_selector;
 class platform;
 
 class device {
@@ -75,11 +74,10 @@ class device {
 public:
   device(rt::device_id id)
       : _device_id{id} {}
- 
-  device()
-      : _device_id(detail::get_host_device()) {}
 
   // Implemented in device_selector.hpp
+  device();
+  
   template <class DeviceSelector>
   explicit device(const DeviceSelector &deviceSelector);
 
@@ -231,8 +229,7 @@ public:
           for (std::size_t dev = 0; dev < num_devices; ++dev) {
             rt::device_id d_id{bd, static_cast<int>(dev)};
 
-            device d;
-            d._device_id = d_id;
+            device d{d_id};
 
             if (deviceType == info::device_type::all ||
                 (deviceType == info::device_type::accelerator &&

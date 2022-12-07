@@ -265,11 +265,15 @@ auto aspect_selector() {
   return aspect_selector(aspectList...);
 }
 
+inline device::device()
+  : device::device(default_selector_v)
+{}
+  
 template <class DeviceSelector>
 inline device::device(const DeviceSelector &deviceSelector) {
   this->_device_id = detail::select_devices(deviceSelector)[0]._device_id;
 }
-
+  
 namespace detail {
 
 template <class Selector>

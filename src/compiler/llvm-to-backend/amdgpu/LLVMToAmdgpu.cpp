@@ -114,17 +114,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
       // AMDGPU backend expects arguments to be passed as byref instead of byval
-      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
-        if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
-          auto ByValAttr = F->getParamAttribute(i, llvm::Attribute::ByVal);
-          llvm::Type* ParamPointeeType = ByValAttr.getValueAsType();
-          F->removeParamAttr(i, llvm::Attribute::ByVal);
-          
-          if(!F->hasParamAttribute(i, llvm::Attribute::ByRef)) {
-            F->addParamAttr(i, llvm::Attribute::getWithByRefType(M.getContext(), ParamPointeeType));
-          }
-        }
-      }
+      forceAllUsedPointerArgumentsToByRef(M, F);
     }
   }
 

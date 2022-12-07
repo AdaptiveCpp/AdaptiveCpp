@@ -117,6 +117,14 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
+      // NVVM wants to have structures like our kernel lambda
+      // be passed in as pointers with ByVal attribute
+      forceAllUsedPointerArgumentsToByVal(M, F);
+    }
+  }
+
+  for(auto KernelName : KernelNames) {
+    if(auto* F = M.getFunction(KernelName)) {
       
       llvm::SmallVector<llvm::Metadata*, 4> Operands;
       Operands.push_back(llvm::ValueAsMetadata::get(F));

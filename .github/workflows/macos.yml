@@ -38,6 +38,8 @@ jobs:
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \
+        -DCMAKE_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
+        -DCMAKE_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include -L$OMP_ROOT/lib/libomp.a" \
         -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
         /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON

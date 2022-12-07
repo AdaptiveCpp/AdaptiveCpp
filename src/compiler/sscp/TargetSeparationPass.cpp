@@ -101,6 +101,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
 
 
+  // Fix attributes for generic IR representation
   llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;
   llvm::SmallVector<std::string, 16> StringAttrsToRemove;
   AttrsToRemove.push_back(llvm::Attribute::AttrKind::UWTable);
@@ -120,6 +121,11 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       if(F.hasFnAttribute(A))
         F.removeFnAttr(A);
     }
+    // Need to enable inlining so that we can efficiently JIT even when
+    // the user compiles with -O0
+    if(F.hasFnAttribute(llvm::Attribute::NoInline)) {
+      F.removeFnAttr(llvm::Attribute::NoInline);
+    }
   }
 
   EntrypointPreparationPass EPP;
@@ -137,6 +143,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   IRConstant::optimizeCodeAfterConstantModification(*DeviceModule, DeviceMAM);
 
+  KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
+  KP.run(*DeviceModule, DeviceMAM);
 
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
@@ -145,9 +153,6 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
     MPM.run(*DeviceModule, DeviceMAM);
   }
-
-  KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
-  KP.run(*DeviceModule, DeviceMAM);
 
   return std::move(DeviceModule);
 }

@@ -28,8 +28,6 @@ jobs:
         -DOpenMP_CXX_LIB_NAMES=libomp \
         -DOpenMP_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
         -DOpenMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
-        -DOMP_C_FLAGS="-Xclang -fopenmp" \
-        -DOMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests

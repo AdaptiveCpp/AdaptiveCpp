@@ -164,8 +164,9 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::global_mem_cache_read_only:
     return false;
     break;
-  case device_support_aspect::global_mem_cache_write_only:
-    return false;
+  case device_support_aspect::global_mem_cache_read_write:
+    // NVIDIA GPUs have read/write cache at least since Fermi architecture
+    return true;
     break;
   case device_support_aspect::images:
     return false;

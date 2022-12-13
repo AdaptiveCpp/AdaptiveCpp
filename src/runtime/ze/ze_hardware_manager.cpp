@@ -261,7 +261,7 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
     return true;
     break;
   case device_support_aspect::global_mem_cache_read_only:
-    return false;
+    return true;
     break;
   case device_support_aspect::global_mem_cache_read_write:
     return false;

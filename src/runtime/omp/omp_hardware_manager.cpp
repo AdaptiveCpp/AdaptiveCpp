@@ -84,7 +84,7 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
     return false;
     break;
   case device_support_aspect::global_mem_cache_read_write:
-    return false;
+    return true;
     break;
   case device_support_aspect::images:
     return false;

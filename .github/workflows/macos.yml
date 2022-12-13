@@ -23,11 +23,7 @@ jobs:
         OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build && cd build
         cmake .. \
-        -DOpenMP_libomp_LIBRARY=$OMP_ROOT/lib/libomp.a \
-        -DOpenMP_C_LIB_NAMES=libomp \
-        -DOpenMP_CXX_LIB_NAMES=libomp \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
-        -DOpenMP_CXX_FLAGS="-Xclang -fopenmp -I$OMP_ROOT/include" \
+        -DOpenMP_ROOT=$OMP_ROOT \
         -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests

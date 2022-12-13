@@ -20,13 +20,21 @@ jobs:
         set -e
     - name: build
       run: |
+        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build && cd build
-        cmake .. -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
+        cmake .. \
+        -DOpenMP_ROOT=$OMP_ROOT \
+        -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
       run: |
+        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build/tests-cpu && cd build/tests-cpu
-        cmake -DHIPSYCL_TARGETS=omp -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL /Users/runner/work/hipSYCL/hipSYCL/tests
+        cmake \
+        -DHIPSYCL_TARGETS=omp.library-only \
+        -DCMAKE_CXX_FLAGS=-I$OMP_ROOT/include \
+        -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
+        /Users/runner/work/hipSYCL/hipSYCL/tests
         make -j 2 VERBOSE=ON
     - name: run CPU tests
       run: |

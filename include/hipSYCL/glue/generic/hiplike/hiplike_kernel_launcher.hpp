@@ -426,8 +426,8 @@ determine_reduction_stages(sycl::range<Dimensions> global_size,
   for (int i=1; i<Dimensions; ++i)
     local_size[i] = 1;
   // Check if local_size == 1, this would cause an infinite loop
-  if (local_size[0] == 1)
-    local_size[0] = 128;
+  if (local_size[Dimensions - 1] == 1)
+    local_size[Dimensions - 1] = 128;
 
   num_groups[Dimensions - 1] = num_groups.size();
   for (int i=1; i<Dimensions; ++i)

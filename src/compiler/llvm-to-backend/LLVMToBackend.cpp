@@ -71,6 +71,15 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
       S2IRConstantCurrentBackendId);
 }
 
+bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { return applyBuildFlag(Flag); }
+bool LLVMToBackendTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+  return applyBuildOption(Option, Value);
+}
+bool LLVMToBackendTranslator::setBuildToolArguments(const std::string &ToolName,
+                                    const std::vector<std::string> &Args) {
+  return applyBuildToolArguments(ToolName, Args);
+}
+
 bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, std::string &Out) {
   llvm::LLVMContext ctx;
   std::unique_ptr<llvm::Module> M;

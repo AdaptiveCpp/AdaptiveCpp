@@ -46,9 +46,9 @@ public:
   virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
   virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) override;
-  
-  virtual bool setBuildOption(const std::string &Option, const std::string &Value) override;
-  virtual bool setBuildFlag(const std::string& Flag) override;
+protected:
+  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
+  virtual bool applyBuildFlag(const std::string& Flag) override;
 private:
   std::vector<std::string> KernelNames;
   std::string RocmDeviceLibsPath;

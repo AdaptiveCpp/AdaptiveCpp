@@ -246,7 +246,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   return true;
 }
 
-bool LLVMToSpirvTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "spirv-dynamic-local-mem-allocation-size") {
     this->DynamicLocalMemSize = static_cast<unsigned>(std::stoi(Value));
     return true;

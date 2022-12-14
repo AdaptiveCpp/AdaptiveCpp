@@ -238,7 +238,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   return true;
 }
 
-bool LLVMToPtxTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "ptx-version") {
     this->PtxVersion = std::stoi(Value);
     return true;

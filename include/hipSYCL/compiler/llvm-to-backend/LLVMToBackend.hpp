@@ -78,12 +78,9 @@ public:
 
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
 
-  virtual bool setBuildFlag(const std::string &Flag) { return false; }
-  virtual bool setBuildOption(const std::string &Option, const std::string &Value) { return false; }
-  virtual bool setBuildToolArguments(const std::string &ToolName,
-                                     const std::vector<std::string> &Args) {
-    return false;
-  }
+  bool setBuildFlag(const std::string &Flag);
+  bool setBuildOption(const std::string &Option, const std::string &Value);
+  bool setBuildToolArguments(const std::string &ToolName, const std::vector<std::string> &Args);
 
   template<class T>
   bool setBuildOption(const std::string& Option, const T& Value) {
@@ -155,6 +152,13 @@ public:
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
 protected:
+  virtual bool applyBuildFlag(const std::string &Flag) { return false; }
+  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) { return false; }
+  virtual bool applyBuildToolArguments(const std::string &ToolName,
+                                       const std::vector<std::string> &Args) {
+    return false;
+  }
+
   // Link against bitcode contained in file or string. If ForcedTriple/ForcedDataLayout are non-empty,
   // sets triple and data layout in contained bitcode to the provided values.
   

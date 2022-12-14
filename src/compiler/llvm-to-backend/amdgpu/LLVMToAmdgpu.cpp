@@ -270,7 +270,7 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
 #endif
 }
 
-bool LLVMToAmdgpuTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "amdgpu-target-device") {
     TargetDevice = Value;
     return true;
@@ -282,7 +282,7 @@ bool LLVMToAmdgpuTranslator::setBuildOption(const std::string &Option, const std
   return false;
 }
 
-bool LLVMToAmdgpuTranslator::setBuildFlag(const std::string &Flag) {
+bool LLVMToAmdgpuTranslator::applyBuildFlag(const std::string &Flag) {
   if(Flag == "assemble-only") {
     OnlyGenerateAssembly = true;
     return true;

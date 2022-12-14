@@ -71,12 +71,21 @@ LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendI
       S2IRConstantCurrentBackendId);
 }
 
-bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { return applyBuildFlag(Flag); }
+bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
+  return applyBuildFlag(Flag);
+}
+
 bool LLVMToBackendTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build option: " << Option << "=" << Value << "\n";
   return applyBuildOption(Option, Value);
 }
 bool LLVMToBackendTranslator::setBuildToolArguments(const std::string &ToolName,
                                     const std::vector<std::string> &Args) {
+  HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using tool arguments for tool " << ToolName << ":\n";
+  for(const auto& A : Args) {
+    HIPSYCL_DEBUG_INFO << "   " << A << "\n";
+  }
   return applyBuildToolArguments(ToolName, Args);
 }
 

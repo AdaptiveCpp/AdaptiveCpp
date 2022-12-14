@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 
+#include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
@@ -90,9 +91,15 @@ static std::string get_local_hcf_object() {
 // the object id to be constexpr, which it is not for the SSCP case.
 struct static_hcf_registration {
   static_hcf_registration(const std::string& hcf_data) {
-    ::hipsycl::rt::kernel_cache::get().register_hcf_object(
-        ::hipsycl::common::hcf_container{hcf_data});
+    this->_hcf_object = rt::hcf_cache::get().register_hcf_object(
+        common::hcf_container{hcf_data});
   }
+
+  ~static_hcf_registration() {
+    rt::hcf_cache::get().unregister_hcf_object(_hcf_object);
+  }
+private:
+  rt::hcf_object_id _hcf_object;
 };
 static static_hcf_registration
     __hipsycl_register_sscp_hcf_object{get_local_hcf_object()};

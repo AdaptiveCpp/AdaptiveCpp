@@ -90,6 +90,48 @@ public:
   virtual bool contains(const std::string& backend_kernel_name) const = 0;
 };
 
+class hcf_cache {
+public:
+  static hcf_cache& get();
+
+  const common::hcf_container* get_hcf(hcf_object_id obj) const;
+  
+  hcf_object_id register_hcf_object(const common::hcf_container& obj);
+  void unregister_hcf_object(hcf_object_id id);
+
+  struct device_image_id {
+    hcf_object_id hcf_id;
+    const common::hcf_container::node* image_node;
+  };
+
+  using symbol_resolver_list = std::vector<device_image_id>;
+  
+  template<class Handler>
+  void symbol_lookup(const std::vector<std::string>& names, Handler&& h) const {
+    std::lock_guard<std::mutex> lock{_mutex};
+
+    for(const auto& symbol_name : names) {
+      HIPSYCL_DEBUG_INFO << "hcf_cache: Looking up symbol " << symbol_name
+                         << std::endl;
+      auto it = _exported_symbol_providers.find(symbol_name);
+      if(it == _exported_symbol_providers.end()) {
+        HIPSYCL_DEBUG_INFO << "hcf_cache: (Symbol not found)\n";
+        h(symbol_name, {});
+      } else {
+        HIPSYCL_DEBUG_INFO << "hcf_cache: Symbol found\n";
+        h(symbol_name, it->second);
+      }
+    }
+  }
+private:
+  hcf_cache() = default;
+
+  std::unordered_map<hcf_object_id, std::unique_ptr<common::hcf_container>>
+      _hcf_objects;
+  std::unordered_map<std::string, symbol_resolver_list> _exported_symbol_providers;
+  mutable std::mutex _mutex;
+};
+
 class kernel_cache {
 public:
   using code_object_ptr = std::unique_ptr<const code_object>;
@@ -97,13 +139,10 @@ public:
   using kernel_name_index_t = std::size_t;
 
   static kernel_cache& get();
-  
-  void register_hcf_object(const common::hcf_container& obj);
 
   const kernel_name_index_t*
   get_global_kernel_index(const std::string &kernel_name) const;
 
-  const common::hcf_container* get_hcf(hcf_object_id obj) const;
 
   template<class KernelT>
   void register_kernel() {
@@ -124,13 +163,6 @@ public:
   template<class KernelT>
   kernel_name_index_t get_global_kernel_index() const {
     return get_global_kernel_index(get_global_kernel_name<KernelT>());
-  }
-
-  template<class F>
-  void for_each_hcf_object(F&& f) const {
-    for(const auto& v : _hcf_objects) {
-      f(v.first, v.second);
-    }
   }
 
   // Retrieve object for provided kernel and backend, or nullptr
@@ -315,7 +347,7 @@ private:
   // are not thread-safe!
   std::vector<std::string> _kernel_names;
   std::unordered_map<std::string, kernel_name_index_t> _kernel_index_map;
-  std::unordered_map<hcf_object_id, common::hcf_container> _hcf_objects;
+
 
   // These objects are thread-safe and can be written and read from multiple
   // threads at runtime if the mutex is locked.

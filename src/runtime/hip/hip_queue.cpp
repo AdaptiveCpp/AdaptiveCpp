@@ -501,7 +501,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   }
 
   const common::hcf_container *hcf =
-        rt::kernel_cache::get().get_hcf(hcf_object);
+        rt::hcf_cache::get().get_hcf(hcf_object);
   if (!hcf)
     return make_error(
         __hipsycl_here(),
@@ -629,7 +629,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&]() -> code_object * {
     const common::hcf_container *hcf =
-        rt::kernel_cache::get().get_hcf(hcf_object);
+        rt::hcf_cache::get().get_hcf(hcf_object);
 
     std::vector<std::string> kernel_names;
     // Define image selector that will also fill kernel_names with

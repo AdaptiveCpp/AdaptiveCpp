@@ -30,6 +30,7 @@
 
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/small_map.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -132,14 +133,94 @@ private:
   std::string _selected_image;
 };
 
+using symbol_list_t = compiler::LLVMToBackendTranslator::SymbolListType;
+
+class runtime_linker {
+  
+public:
+  using resolver = compiler::LLVMToBackendTranslator::ExternalSymbolResolver;
+  using llvm_module_id = resolver::LLVMModuleId;
+
+
+  runtime_linker(compiler::LLVMToBackendTranslator *translator,
+                            const symbol_list_t &imported_symbol_names) {
+
+    auto symbol_mapper = [this](const symbol_list_t& sl){ return this->map_smybols(sl); };
+
+    auto bitcode_retriever = [this](llvm_module_id id,
+                                    symbol_list_t &imported_symbols) {
+      return this->retrieve_bitcode(id, imported_symbols);
+    };
+
+    translator->provideExternalSymbolResolver(
+        resolver{symbol_mapper, bitcode_retriever, imported_symbol_names});
+  }
+
+
+private:
+
+  std::vector<llvm_module_id> map_smybols(const symbol_list_t& sym_list) {
+    std::vector<llvm_module_id> ir_modules_to_link;
+
+    auto candidate_selector = [&, this](const std::string &symbol_name,
+            const rt::hcf_cache::symbol_resolver_list &images) {
+      for (const auto &img : images) {
+        // Always attempt to link with global LLVM IR for now
+        if (img.image_node->node_id == "llvm-ir.global") {
+          _image_node_to_hcf_map[img.image_node] = img.hcf_id;
+          ir_modules_to_link.push_back(
+              reinterpret_cast<llvm_module_id>(img.image_node));
+        } else {
+
+          HIPSYCL_DEBUG_INFO << "jit::setup_linking: Discarding image "
+                            << img.image_node->node_id << " @"
+                            << img.image_node << " from HCF " << img.hcf_id
+                            << "\n";
+        }
+      }
+    };
+
+    rt::hcf_cache::get().symbol_lookup(
+        sym_list, candidate_selector);
+
+    return ir_modules_to_link;
+  }
+
+  std::string retrieve_bitcode(llvm_module_id id, symbol_list_t& imported_symbols) const {
+
+    const auto* hcf_image_node = reinterpret_cast<common::hcf_container::node*>(id);
+
+    assert(_image_node_to_hcf_map.contains(hcf_image_node));
+
+    auto v = _image_node_to_hcf_map.find(hcf_image_node);
+    
+    if(v == _image_node_to_hcf_map.end())
+      return {};
+    
+    rt::hcf_object_id hcf_id = v->second;
+    imported_symbols = hcf_image_node->get_as_list("imported-symbols");
+
+    std::string bitcode;
+    rt::hcf_cache::get().get_hcf(hcf_id)->get_binary_attachment(hcf_image_node, bitcode);
+
+    return bitcode;
+  }
+
+  // This is used to map images to the owning HCF object ids.
+  common::small_map<const common::hcf_container::node *, rt::hcf_object_id>
+        _image_node_to_hcf_map;
+
+};
+
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           const std::string &source,
                           const glue::kernel_configuration &config,
+                          const symbol_list_t& imported_symbol_names,
                           std::string &output) {
 
   assert(translator);
 
-  // TODO Link with SYCL_EXTERNAL symbols
+  runtime_linker linker {translator, imported_symbol_names};
 
   // Apply configuration
   for(const auto& entry : config.entries()) {
@@ -210,7 +291,10 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
             selected_kernel_provider});
   }
 
-  return compile(translator, source, config, output);
+  symbol_list_t imported_symbol_names =
+      target_image_node->get_as_list("imported-symbols");
+
+  return compile(translator, source, config, imported_symbol_names, output);
 }
 
 template<class ProviderSelector>
@@ -219,7 +303,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           ProviderSelector&& provider_selector,
                           const glue::kernel_configuration &config,
                           std::string &output) {
-  const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+  const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
   if(!hcf) {
     return rt::make_error(
         __hipsycl_here(),

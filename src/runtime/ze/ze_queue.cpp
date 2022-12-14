@@ -426,7 +426,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     if(!hcf) {
       HIPSYCL_DEBUG_ERROR << "ze_queue: Could not retrieve SPIR-V HCF object"
                           << std::endl;
@@ -536,7 +536,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
     // Define image selector that will also fill kernel_names with

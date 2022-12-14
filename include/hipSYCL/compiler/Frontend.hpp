@@ -39,6 +39,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
@@ -407,7 +408,7 @@ public:
     for(auto* F : HostNDKernels) {
       MakeKernelsNoexcept(F);
     }
-    for(auto* F : SSCPKernels) {
+    for(auto* F : SSCPOutliningEntrypoints) {
       MakeKernelsNoexcept(F);
     }
   }
@@ -436,7 +437,7 @@ private:
   std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
 
   std::unordered_set<clang::FunctionDecl*> HostNDKernels;
-  std::unordered_set<clang::FunctionDecl*> SSCPKernels;
+  std::unordered_set<clang::FunctionDecl*> SSCPOutliningEntrypoints;
 
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
   // Only used on clang 13+. Name mangler that takes into account
@@ -458,9 +459,9 @@ private:
     this->HostNDKernels.insert(F);
   }
 
-  void markAsSSCPKernel(clang::FunctionDecl* F)
+  void markAsSSCPOutliningEntrypoint(clang::FunctionDecl* F)
   {
-    this->SSCPKernels.insert(F);
+    this->SSCPOutliningEntrypoints.insert(F);
   }
 
   void processFunctionDecl(clang::FunctionDecl* f)
@@ -481,11 +482,15 @@ private:
       markAsKernel(f); 
     }
 
-    if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
-      if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
-        markAsNDKernel(f);
-      } else if(AAttr->getAnnotation() == "hipsycl_sscp_kernel") {
-        markAsSSCPKernel(f);
+    // Need to iterate over all attributes to support the case
+    // where multiple annotate attributes are present.
+    for(auto* Attr : f->getAttrs()) {
+      if(auto* AAttr = clang::dyn_cast<clang::AnnotateAttr>(Attr)) {
+        if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
+          markAsNDKernel(f);
+        } else if (AAttr->getAnnotation() == "hipsycl_sscp_outlining") {
+          markAsSSCPOutliningEntrypoint(f);
+        }
       }
     }
   }

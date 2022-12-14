@@ -47,9 +47,15 @@ public:
   const std::vector<std::string>& getOutliningEntrypoints() const {
     return OutliningEntrypoints;
   }
+
+  const std::vector<std::string>& getNonKernelOutliningEntrypoints() const {
+    return NonKernelOutliningEntrypoints;
+  }
+
 private:
   std::vector<std::string> KernelNames;
   std::vector<std::string> OutliningEntrypoints;
+  std::vector<std::string> NonKernelOutliningEntrypoints;
 };
 
 //  Removes all code not belonging to kernels

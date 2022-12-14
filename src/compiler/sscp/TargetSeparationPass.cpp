@@ -84,7 +84,9 @@ IntT generateRandomNumber() {
 
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
-                                               std::vector<std::string> &KernelNamesOutput) {
+                                               std::vector<std::string> &KernelNamesOutput,
+                                               std::vector<std::string> &ExportedSymbolsOutput,
+                                               std::vector<std::string> &ImportedSymbolsOutput) {
 
   std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
   DeviceModule->setModuleIdentifier("device." + DeviceModule->getModuleIdentifier());
@@ -131,6 +133,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   EntrypointPreparationPass EPP;
   EPP.run(*DeviceModule, DeviceMAM);
   KernelNamesOutput = EPP.getKernelNames();
+  ExportedSymbolsOutput = EPP.getNonKernelOutliningEntrypoints();
+  
 
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
@@ -143,8 +147,23 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   IRConstant::optimizeCodeAfterConstantModification(*DeviceModule, DeviceMAM);
 
+  // getOutlinigEntrypoints() returns both kernels as well as non-kernel (i.e. SYCL_EXTERNAL)
+  // entrypoints
   KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
   KP.run(*DeviceModule, DeviceMAM);
+
+   // Scan for imported function definitions
+   ImportedSymbolsOutput.clear();
+  for(auto& F : DeviceModule->getFunctionList()) {
+    if(F.getBasicBlockList().size() == 0) {
+      // We currently use the heuristic that functions are imported
+      // if they are not defined, not an intrinsic and don't start with
+      // __ like our hipSYCL builtins. This is a hack, it would
+      // be better if we could tell clang to annotate the declaration for us :(
+      if(!F.isIntrinsic() && !F.getName().startswith("__"))
+        ImportedSymbolsOutput.push_back(F.getName().str());
+    }
+  }
 
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
@@ -159,7 +178,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
 std::string generateHCF(llvm::Module& DeviceModule,
                         std::size_t HcfObjectId,
-                        const std::vector<std::string>& KernelNames) {
+                        const std::vector<std::string>& KernelNames,
+                        const std::vector<std::string>& ExportedSymbols,
+                        const std::vector<std::string>& ImportedSymbols) {
 
   std::string ModuleContent;
   llvm::raw_string_ostream OutputStream{ModuleContent};
@@ -173,6 +194,16 @@ std::string generateHCF(llvm::Module& DeviceModule,
   auto* LLVMIRNode = DeviceImagesNodes->add_subnode("llvm-ir.global");
   HcfObject.attach_binary_content(LLVMIRNode, ModuleContent);
 
+  for(const auto& ES : ExportedSymbols) {
+    HIPSYCL_DEBUG_INFO << "HCF generation: Image exports symbol: " << ES << "\n";
+  }
+  for(const auto& IS : ImportedSymbols) {
+    HIPSYCL_DEBUG_INFO << "HCF generation: Image imports symbol: " << IS << "\n";
+  }
+  
+  LLVMIRNode->set_as_list("exported-symbols", ExportedSymbols);
+  LLVMIRNode->set_as_list("imported-symbols", ImportedSymbols);
+
   auto* KernelsNode = HcfObject.root_node()->add_subnode("kernels");
   for(const auto& KernelName : KernelNames) {
     auto* K = KernelsNode->add_subnode(KernelName);
@@ -181,6 +212,7 @@ std::string generateHCF(llvm::Module& DeviceModule,
     auto* ModuleProvider = F->add_subnode("variant.global-module");
     ModuleProvider->set("image-provider", "llvm-ir.global");
   }
+  
 
   return HcfObject.serialize();
 }
@@ -200,9 +232,13 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
   if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
     
     std::vector<std::string> KernelNames;
-    std::unique_ptr<llvm::Module> DeviceIR = generateDeviceIR(M, KernelNames);
+    std::vector<std::string> ExportedSymbols;
+    std::vector<std::string> ImportedSymbols;
+    
+    std::unique_ptr<llvm::Module> DeviceIR =
+        generateDeviceIR(M, KernelNames, ExportedSymbols, ImportedSymbols);
 
-    HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames); 
+    HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames, ExportedSymbols, ImportedSymbols);
 
     if(SSCPEmitHcf) {
       std::string Filename = M.getSourceFileName()+".hcf";

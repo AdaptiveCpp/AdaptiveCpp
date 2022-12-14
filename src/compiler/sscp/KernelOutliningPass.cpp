@@ -62,21 +62,37 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
   static constexpr const char* SSCPKernelMarker = "hipsycl_sscp_kernel";
   static constexpr const char* SSCPOutliningMarker = "hipsycl_sscp_outlining";
 
+  llvm::SmallSet<std::string, 16> Kernels;
+
   utils::findFunctionsWithStringAnnotations(M, [&](llvm::Function* F, llvm::StringRef Annotation){
     if(F) {
       if(Annotation.compare(SSCPKernelMarker) == 0) {
         HIPSYCL_DEBUG_INFO << "Found SSCP kernel: " << F->getName() << "\n";
         this->KernelNames.push_back(F->getName().str());
+        Kernels.insert(F->getName().str());
       }
       if(Annotation.compare(SSCPOutliningMarker) == 0) {
         HIPSYCL_DEBUG_INFO << "Found SSCP outlining entrypoint: " << F->getName() << "\n";
         // Make kernel have external linkage to avoid having everything optimized away
         F->setLinkage(llvm::GlobalValue::ExternalLinkage);
         
-        this->OutliningEntrypoints.push_back(F->getName().str());
+        // If we have a definition, we need to perform outlining.
+        // Otherwise, we would need to treat the function as imported --
+        // however this cannot really happen as clang does not codegen our
+        // attribute((annotate("hipsycl_sscp_outlining"))) for declarations
+        // without definition.
+        if(F->getBasicBlockList().size() > 0)
+          this->OutliningEntrypoints.push_back(F->getName().str());
       }
     }
   });
+
+
+  for(const auto& EP : OutliningEntrypoints) {
+    if(!Kernels.contains(EP)) {
+      NonKernelOutliningEntrypoints.push_back(EP);
+    }
+  }
 
   return llvm::PreservedAnalyses::none();
 }

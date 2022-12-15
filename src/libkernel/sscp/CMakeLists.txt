@@ -18,7 +18,7 @@ function(libkernel_generate_bitcode_library)
   set(target_output_file ${output})
   add_custom_command(
       OUTPUT ${target_output_file}
-      COMMAND ${CLANG_EXECUTABLE_PATH} -target ${triple} -fno-exceptions -fno-rtti -O3 -emit-llvm
+      COMMAND ${CLANG_EXECUTABLE_PATH} -target ${triple} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17
                     -I ${HIPSYCL_SOURCE_DIR}/include ${additional} -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
       DEPENDS ${source}
       VERBATIM)

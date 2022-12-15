@@ -69,10 +69,10 @@ inline void spirv_barrier(access::fence_space space) {
 inline void sscp_barrier(access::fence_space space) {
   if(space == access::fence_space::local_space) {
     __hipsycl_sscp_work_group_barrier(memory_scope::work_group,
-                                      memory_order::relaxed);
+                                      memory_order::seq_cst);
   } else {
     __hipsycl_sscp_work_group_barrier(memory_scope::device,
-                                      memory_order::relaxed);
+                                      memory_order::seq_cst);
   }
 }
 

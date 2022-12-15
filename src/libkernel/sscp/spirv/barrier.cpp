@@ -32,97 +32,80 @@
 
 namespace __spv {
 
-struct Scope {
-  enum Flag : __hipsycl_uint32 {
-    CrossDevice = 0,
-    Device = 1,
-    Workgroup = 2,
-    Subgroup = 3,
-    Invocation = 4,
-  };
-
-
-  constexpr Scope(Flag flag) : flag_value(flag) {}
-
-  constexpr operator __hipsycl_uint32() const { return flag_value; }
-
-  Flag flag_value;
+enum ScopeFlag : __hipsycl_uint32 {
+  CrossDevice = 0,
+  Device = 1,
+  Workgroup = 2,
+  Subgroup = 3,
+  Invocation = 4,
 };
 
-struct MemorySemanticsMask {
-  enum Flag : __hipsycl_uint32 {
-    None = 0x0,
-    Acquire = 0x2,
-    Release = 0x4,
-    AcquireRelease = 0x8,
-    SequentiallyConsistent = 0x10,
-    UniformMemory = 0x40,
-    SubgroupMemory = 0x80,
-    WorkgroupMemory = 0x100,
-    CrossWorkgroupMemory = 0x200,
-    AtomicCounterMemory = 0x400,
-    ImageMemory = 0x800,
-  };
-
-  constexpr MemorySemanticsMask(Flag flag) : flag_value(flag) {}
-
-  constexpr operator __hipsycl_uint32() const { return flag_value; }
-
-  Flag flag_value;
+enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
+  None = 0x0,
+  Acquire = 0x2,
+  Release = 0x4,
+  AcquireRelease = 0x8,
+  SequentiallyConsistent = 0x10,
+  UniformMemory = 0x40,
+  SubgroupMemory = 0x80,
+  WorkgroupMemory = 0x100,
+  CrossWorkgroupMemory = 0x200,
+  AtomicCounterMemory = 0x400,
+  ImageMemory = 0x800
 };
 
 }
 
 __attribute__((convergent)) extern "C" void
-__spirv_ControlBarrier(__spv::Scope Execution, __spv::Scope Memory,
+__spirv_ControlBarrier(__spv::ScopeFlag Execution, __spv::ScopeFlag Memory,
                        __hipsycl_uint32 Semantics);
 
-__attribute__((always_inline)) __spv::Scope
+__attribute__((always_inline)) __spv::ScopeFlag
 get_spirv_scope(__hipsycl_sscp_memory_scope scope) {
 
   if(scope == __hipsycl_sscp_memory_scope::work_item)
-    return __spv::Scope::Invocation;
+    return __spv::ScopeFlag::Invocation;
   else if(scope == __hipsycl_sscp_memory_scope::sub_group)
-    return __spv::Scope::Subgroup;
+    return __spv::ScopeFlag::Subgroup;
   else if(scope == __hipsycl_sscp_memory_scope::work_group)
-    return __spv::Scope::Workgroup;
+    return __spv::ScopeFlag::Workgroup;
   else if(scope == __hipsycl_sscp_memory_scope::device)
-    return __spv::Scope::Device;
+    return __spv::ScopeFlag::Device;
   else
-    return __spv::Scope::CrossDevice;
+    return __spv::ScopeFlag::CrossDevice;
 }
 
 __attribute__((always_inline)) __hipsycl_uint32
 get_spirv_memory_semantics_from_order(__hipsycl_sscp_memory_order order) {
   if(order == __hipsycl_sscp_memory_order::seq_cst)
-    return __spv::MemorySemanticsMask::SequentiallyConsistent;
+    return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
   else if(order == __hipsycl_sscp_memory_order::acq_rel)
-    return __spv::MemorySemanticsMask::AcquireRelease;
+    return __spv::MemorySemanticsMaskFlag::AcquireRelease;
   else if(order == __hipsycl_sscp_memory_order::release)
-    return __spv::MemorySemanticsMask::Release;
+    return __spv::MemorySemanticsMaskFlag::Release;
   else if(order == __hipsycl_sscp_memory_order::acquire)
-    return __spv::MemorySemanticsMask::Acquire;
+    return __spv::MemorySemanticsMaskFlag::Acquire;
   else // Relaxed TODO: How to best map relaxed to SPIR-V?
-    return __spv::MemorySemanticsMask::SequentiallyConsistent;
+    return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
 }
 
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
     __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                   __hipsycl_sscp_memory_order mem_order) {
-  
+
   __hipsycl_uint32 flags = get_spirv_memory_semantics_from_order(mem_order);
 
   if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
-    flags |= __spv::MemorySemanticsMask::SubgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;
   else if(fence_scope == __hipsycl_sscp_memory_scope::work_group)
-    flags |= __spv::MemorySemanticsMask::WorkgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::WorkgroupMemory;
   else if(fence_scope == __hipsycl_sscp_memory_scope::device)
-    flags |= __spv::MemorySemanticsMask::CrossWorkgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::CrossWorkgroupMemory;
 
-  __spv::Scope mem_fence_scope = get_spirv_scope(fence_scope);
+  __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
 
-  __spirv_ControlBarrier(__spv::Scope::Workgroup, mem_fence_scope, flags);
+  __spirv_ControlBarrier(__spv::ScopeFlag::Workgroup, mem_fence_scope, flags);
 }
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
@@ -131,15 +114,15 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
   __hipsycl_uint32 flags = get_spirv_memory_semantics_from_order(mem_order);
 
   if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
-    flags |= __spv::MemorySemanticsMask::SubgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;
   else if(fence_scope == __hipsycl_sscp_memory_scope::work_group)
-    flags |= __spv::MemorySemanticsMask::WorkgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::WorkgroupMemory;
   else if(fence_scope == __hipsycl_sscp_memory_scope::device)
-    flags |= __spv::MemorySemanticsMask::CrossWorkgroupMemory;
+    flags |= __spv::MemorySemanticsMaskFlag::CrossWorkgroupMemory;
 
-  __spv::Scope mem_fence_scope = get_spirv_scope(fence_scope);
+  __spv::ScopeFlag mem_fence_scope = get_spirv_scope(fence_scope);
 
-  __spirv_ControlBarrier(__spv::Scope::Subgroup, mem_fence_scope, flags);
+  __spirv_ControlBarrier(__spv::ScopeFlag::Subgroup, mem_fence_scope, flags);
   
 }
 

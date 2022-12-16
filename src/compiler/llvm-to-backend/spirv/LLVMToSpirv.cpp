@@ -157,16 +157,6 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
-  
-  for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL) {
-      // When we are already lowering to device specific format,
-      // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are intrinsics.
-      if(F.getName().find("__spirv") == std::string::npos && !F.isIntrinsic())
-        F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
 
   // Set up local memory
   if(DynamicLocalMemSize > 0) {
@@ -255,10 +245,15 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
   return false;
 }
 
+bool LLVMToSpirvTranslator::isKernelAfterFlavoring(llvm::Function& F) {
+  return F.getCallingConv() == llvm::CallingConv::SPIR_KERNEL;
+}
+
 std::unique_ptr<LLVMToBackendTranslator>
 createLLVMToSpirvTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToSpirvTranslator>(KernelNames);
 }
+
 
 }
 }

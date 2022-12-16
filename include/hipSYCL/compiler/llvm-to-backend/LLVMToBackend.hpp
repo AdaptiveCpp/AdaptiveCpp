@@ -42,6 +42,7 @@
 
 namespace llvm {
 class Module;
+class Function;
 }
 
 namespace hipsycl {
@@ -152,6 +153,7 @@ public:
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
 protected:
+  virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
   virtual bool applyBuildFlag(const std::string &Flag) { return false; }
   virtual bool applyBuildOption(const std::string &Option, const std::string &Value) { return false; }
   virtual bool applyBuildToolArguments(const std::string &ToolName,

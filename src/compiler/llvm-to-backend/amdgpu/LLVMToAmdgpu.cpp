@@ -134,16 +134,6 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
     }
   }
-  
-  for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::AMDGPU_KERNEL) {
-      // When we are already lowering to device specific format,
-      // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are intrinsics.
-      if(!F.isIntrinsic() && F.getName().find("__hipsycl_sscp") == std::string::npos)
-        F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
 
   // TODO handle address spaces
 
@@ -336,6 +326,10 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 #else
   return false;
 #endif
+}
+
+bool LLVMToAmdgpuTranslator::isKernelAfterFlavoring(llvm::Function& F) {
+  return F.getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

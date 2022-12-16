@@ -153,16 +153,6 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     return false;
   if(!this->linkBitcodeFile(M, LibdeviceFile, Triple, DataLayout))
     return false;
-  
-  for(auto& F : M.getFunctionList()) {
-    if (std::find(KernelNames.begin(), KernelNames.end(), F.getName()) == KernelNames.end()) {
-      // When we are already lowering to device specific format,
-      // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are llvm intrinsics.
-      if(!F.isIntrinsic())
-        F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
 
   return true;
 }
@@ -247,6 +237,13 @@ bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std:
     return true;
   }
 
+  return false;
+}
+
+bool LLVMToPtxTranslator::isKernelAfterFlavoring(llvm::Function& F) {
+  for(const auto& Name : KernelNames)
+    if(F.getName() == Name)
+      return true;
   return false;
 }
 

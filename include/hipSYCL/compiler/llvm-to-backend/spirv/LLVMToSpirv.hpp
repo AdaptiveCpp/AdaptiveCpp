@@ -48,6 +48,7 @@ public:
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) override;
 protected:
   virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
+  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
 private:
   std::vector<std::string> KernelNames;
   unsigned DynamicLocalMemSize = 0;

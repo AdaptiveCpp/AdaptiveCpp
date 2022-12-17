@@ -27,6 +27,7 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/ptx/LLVMToPtx.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
@@ -139,6 +140,16 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-ptx-full.bc"});
@@ -148,6 +159,9 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     this->registerError("LLVMToPtx: Could not find CUDA libdevice bitcode library");
     return false;
   }
+
+  AddressSpaceInferencePass ASIPass {ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
 
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;

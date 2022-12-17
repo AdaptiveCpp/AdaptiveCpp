@@ -124,6 +124,8 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   ASMap[AddressSpace::Local] = 3;
   ASMap[AddressSpace::Private] = 4;
   ASMap[AddressSpace::Constant] = 2;
+  ASMap[AddressSpace::AllocaDefault] = 4;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
 
   // llvm-spirv translator expects by-value kernel arguments such as our
   // kernel lambda to be passed in through private address space
@@ -172,7 +174,6 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   }
 
   AddressSpaceInferencePass ASIPass{ASMap};
-
   ASIPass.run(M, *PH.ModuleAnalysisManager);
 
   return true;

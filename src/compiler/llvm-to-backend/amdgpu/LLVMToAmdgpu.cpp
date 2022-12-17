@@ -32,6 +32,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
@@ -41,6 +42,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
@@ -123,10 +125,12 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   ASMap[AddressSpace::Generic] = 0;
   ASMap[AddressSpace::Global] = 1;
   ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 4;
-  ASMap[AddressSpace::Constant] = 2;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
 
-  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
+  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Constant], M, KernelNames, PH);
   
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
@@ -135,21 +139,35 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  // TODO handle address spaces
-
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-amdgpu-amdhsa-full.bc"});
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
+  
+  AddressSpaceInferencePass ASIPass {ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+  
+  // amdgpu does not like some function calls, so try to inline
+  // everything. Note: This should be done after ASI pass has fixed
+  // alloca address spaces, in case alloca values are passed as arguments!
+  for(auto& F: M.getFunctionList()) {
+    if(F.getCallingConv() != llvm::CallingConv::AMDGPU_KERNEL) {
+      if(!F.getBasicBlockList().empty()) {
+        F.addFnAttr(llvm::Attribute::AlwaysInline);
+      }
+    }
+  }
+  llvm::AlwaysInlinerPass AIP;
+  AIP.run(M, *PH.ModuleAnalysisManager);
 
 #if! defined(HIPSYCL_SSCP_AMDGPU_USE_HIPRTC)
 
-    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ockl.bc")))
-      return false;
-    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ocml.bc")))
-      return false;
+  if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ockl.bc")))
+    return false;
+  if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ocml.bc")))
+    return false;
     // Needed as a workaround for some ROCm versions
   #ifdef HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION
     std::string OclABIVersionLib;

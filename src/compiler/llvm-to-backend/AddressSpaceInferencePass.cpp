@@ -92,22 +92,6 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   return NewVar;
 }
 
-void setAllPointerOperandsToAddressSpace(llvm::Instruction& I, unsigned AS) {
-  for(int i=0; i < I.getNumOperands(); ++i) {
-    if(I.getOperand(i)->getType()->isPointerTy()) {
-      llvm::Value* V = I.getOperand(i);
-      llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(V->getType());
-      assert(PT);
-      if(PT->getAddressSpace() != AS && PT->getAddressSpace() == 0) {
-
-        auto *ASCastInst =
-            new llvm::AddrSpaceCastInst{V, llvm::PointerType::getWithSamePointeeType(PT, AS), "", &I};
-//        V->replaceAllUsesWith(ASCastInst);
-        I.setOperand(i, ASCastInst);
-      }
-    }
-  }
-}
 
 } // anonymous namespace
 
@@ -192,10 +176,32 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
 
   assert(ASMap[AddressSpace::Generic] == 0);
 
+  // If the target data layout has changed default alloca address space
+  // we can end up with allocas that are in the wrong address space. We
+  // need to fix this now.
+  unsigned AllocaAddrSpace = ASMap[AddressSpace::AllocaDefault];
+  llvm::SmallVector<llvm::Instruction*, 16> InstsToRemove;
+  for(auto& F : M.getFunctionList()) {
+    for(auto& BB : F.getBasicBlockList()) {
+      for(auto& I : BB.getInstList()) {
+        if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+          if(AI->getAddressSpace() != AllocaAddrSpace) {
+            auto *NewAI = new llvm::AllocaInst{AI->getAllocatedType(), AllocaAddrSpace, "", AI};
+            auto* ASCastInst = new llvm::AddrSpaceCastInst{NewAI, AI->getType(), "", AI};
+            AI->replaceAllUsesWith(ASCastInst);
+            InstsToRemove.push_back(AI);
+          }
+        }
+      }
+    }
+  }
+  for(auto* I : InstsToRemove)
+    I->eraseFromParent();
+  
   auto IAS = llvm::createModuleToFunctionPassAdaptor(
       llvm::InferAddressSpacesPass{ASMap[AddressSpace::Generic]});
   IAS.run(M, MAM);
-  
+
   return llvm::PreservedAnalyses::none();
 }
 

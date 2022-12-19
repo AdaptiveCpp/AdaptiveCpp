@@ -31,11 +31,15 @@
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/small_map.hpp"
+#include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
+#include "hipSYCL/runtime/application.hpp"
 #include <vector>
+#include <atomic>
+#include <fstream>
 
 namespace hipsycl {
 namespace glue {
@@ -227,7 +231,29 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());
   }
 
+  // Transform code
   if(!translator->fullTransformation(source, output)) {
+    // In case of failure, if a dump directory for IR is set,
+    // dump the IR
+    auto failure_dump_directory =
+        rt::application::get_settings()
+            .get<rt::setting::sscp_failed_ir_dump_directory>();
+            
+    if(!failure_dump_directory.empty()) {
+      static std::atomic<std::size_t> failure_index = 0;
+      std::string filename = common::filesystem::join_path(
+          failure_dump_directory,
+          "failed_ir_" + std::to_string(failure_index) + ".ll");
+      
+      std::ofstream out{filename.c_str(), std::ios::trunc|std::ios::binary};
+      if(out.is_open()) {
+        const std::string& failed_ir = translator->getFailedIR();
+        out.write(failed_ir.c_str(), failed_ir.size());
+      }
+
+      ++failure_index;
+    }
+    
     return rt::make_error(__hipsycl_here(),
                       rt::error_info{"jit::compile: Encountered errors:\n" +
                                  translator->getErrorLogAsString()});

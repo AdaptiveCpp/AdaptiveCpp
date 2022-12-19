@@ -33,6 +33,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 
 #include <cstdint>
+#include <llvm-13/llvm/Support/raw_ostream.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Linker/Linker.h>
@@ -103,8 +104,10 @@ bool LLVMToBackendTranslator::partialTransformation(const std::string &LLVMIR, s
   }
 
   assert(M);
-  if (!prepareIR(*M))
+  if (!prepareIR(*M)) {
+    setFailedIR(*M);
     return false;
+  }
   
   llvm::raw_string_ostream OutputStream{Out};
   llvm::WriteBitcodeToFile(*M, OutputStream);
@@ -126,10 +129,14 @@ bool LLVMToBackendTranslator::fullTransformation(const std::string &LLVMIR, std:
   }
 
   assert(M);
-  if (!prepareIR(*M))
+  if (!prepareIR(*M)) {
+    setFailedIR(*M);
     return false;
-  if (!translatePreparedIR(*M, out))
+  }
+  if (!translatePreparedIR(*M, out)) {
+    setFailedIR(*M);
     return false;
+  }
 
   return true;
 }
@@ -333,6 +340,11 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
       UnresolvedSymbolsSet = NewUnresolvedSymbolsSet;
     }
   }
+}
+
+void LLVMToBackendTranslator::setFailedIR(llvm::Module& M) {
+  llvm::raw_string_ostream Stream{ErroringCode};
+  M.print(Stream, nullptr);
 }
 
 }

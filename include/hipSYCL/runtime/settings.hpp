@@ -58,7 +58,8 @@ enum class setting {
   default_selector_behavior,
   hcf_dump_directory,
   persistent_runtime,
-  max_cached_nodes
+  max_cached_nodes,
+  sscp_failed_ir_dump_directory
 };
 
 template <setting S> struct setting_trait {};
@@ -84,6 +85,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::hcf_dump_directory,
                               "hcf_dump_directory", std::string);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::persistent_runtime, "persistent_runtime", bool)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::max_cached_nodes, "rt_max_cached_nodes", std::size_t)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::sscp_failed_ir_dump_directory,
+                              "sscp_failed_ir_dump_directory", std::string)
 
 class settings
 {
@@ -110,6 +113,8 @@ public:
       return _persistent_runtime;
     } else if constexpr (S == setting::max_cached_nodes) {
       return _max_cached_nodes;
+    } else if constexpr(S == setting::sscp_failed_ir_dump_directory) {
+      return _sscp_failed_ir_dump_directory;
     }
     return typename setting_trait<S>::type{};
   }
@@ -143,6 +148,8 @@ public:
         get_environment_variable_or_default<setting::persistent_runtime>(false);
     _max_cached_nodes =
         get_environment_variable_or_default<setting::max_cached_nodes>(100);
+    _sscp_failed_ir_dump_directory = get_environment_variable_or_default<
+        setting::sscp_failed_ir_dump_directory>(std::string{});
   }
 
 private:
@@ -182,6 +189,7 @@ private:
   std::string _hcf_dump_directory;
   bool _persistent_runtime;
   std::size_t _max_cached_nodes;
+  std::string _sscp_failed_ir_dump_directory;
 };
 
 }

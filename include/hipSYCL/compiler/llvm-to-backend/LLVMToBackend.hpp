@@ -101,6 +101,11 @@ public:
     return Errors;
   }
 
+  // Returns IR that caused the error in case an error occurs
+  const std::string& getFailedIR() const {
+    return ErroringCode;
+  }
+
   std::string getErrorLogAsString() const {
     std::string Result;
     for(int i = 0; i < getErrorLog().size(); ++i) {
@@ -186,6 +191,7 @@ protected:
 private:
 
   void resolveExternalSymbols(llvm::Module& M);
+  void setFailedIR(llvm::Module& M);
 
   int S2IRConstantBackendId;
   std::vector<std::string> OutliningEntrypoints;
@@ -193,6 +199,9 @@ private:
   std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
   ExternalSymbolResolver SymbolResolver;
   bool HasExternalSymbolResolver = false;
+
+  // In case an error occurs, the code will be stored here
+  std::string ErroringCode;
 };
 
 }

@@ -49,10 +49,60 @@
 #include <string>
 #include <fstream>
 #include <random>
+#include <chrono>
 
 
 namespace hipsycl {
 namespace compiler {
+
+class Timer {
+public:
+  Timer(llvm::StringRef Name, bool PrintAtDestruction = false, llvm::StringRef Description = "")
+  : Name{Name}, Print{PrintAtDestruction}, Description{Description} {
+    Start = std::chrono::high_resolution_clock::now();;
+    IsRunning = true;
+  }
+
+  double stop() {
+    if(IsRunning) {
+      Stop = std::chrono::high_resolution_clock::now();
+      IsRunning = false;
+    }
+
+    auto Ticks = std::chrono::duration_cast<std::chrono::nanoseconds>(Stop - Start).count();
+    return static_cast<double>(Ticks) * 1.e-9;
+
+    return Ticks;
+  }
+
+  double stopAndPrint() {
+    double T = stop();
+    HIPSYCL_DEBUG_INFO << "SSCP: Phase '" << Name << "' took " << T << " seconds\n"; 
+  }
+
+  ~Timer() {
+    if(Print)
+      stopAndPrint();
+    else
+      stop();
+  }
+private:
+  bool Print;
+  bool IsRunning = false;
+  std::string Name, Description;
+
+  using TimePointT = 
+    std::chrono::time_point<std::chrono::high_resolution_clock>;
+  TimePointT Start;
+  TimePointT Stop;
+  
+};
+
+class ScopedPrintingTimer : private Timer {
+public:
+  ScopedPrintingTimer(llvm::StringRef Name, llvm::StringRef Description = "")
+  : Timer{Name, true, Description} {}
+};
 
 static llvm::cl::opt<bool> SSCPEmitHcf{
     "hipsycl-sscp-emit-hcf", llvm::cl::init(false),
@@ -220,46 +270,62 @@ std::string generateHCF(llvm::Module& DeviceModule,
 llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
                                                   llvm::ModuleAnalysisManager &MAM) {
 
-  // TODO If we know that the SSCP compilation flow is the only one using HCF,
-  // we could just enumerate the objects instead of generating (hopefully)
-  // unique random numbers.
-  std::size_t HcfObjectId = generateRandomNumber<std::size_t>();
-  std::string HcfString;
+  {
+    ScopedPrintingTimer totalTimer{"TargetSeparationPass (total)"};
+    // TODO If we know that the SSCP compilation flow is the only one using HCF,
+    // we could just enumerate the objects instead of generating (hopefully)
+    // unique random numbers.
+    std::size_t HcfObjectId = generateRandomNumber<std::size_t>();
+    std::string HcfString;
 
 
-  // Only run SSCP kernel extraction in the host pass in case
-  // there are also CUDA/HIP compilation flows going on
-  if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
-    
-    std::vector<std::string> KernelNames;
-    std::vector<std::string> ExportedSymbols;
-    std::vector<std::string> ImportedSymbols;
-    
-    std::unique_ptr<llvm::Module> DeviceIR =
-        generateDeviceIR(M, KernelNames, ExportedSymbols, ImportedSymbols);
+    // Only run SSCP kernel extraction in the host pass in case
+    // there are also CUDA/HIP compilation flows going on
+    if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
+      
+      std::vector<std::string> KernelNames;
+      std::vector<std::string> ExportedSymbols;
+      std::vector<std::string> ImportedSymbols;
+      
+      
+      Timer IRGenTimer{"generateDeviceIR", true};
+      std::unique_ptr<llvm::Module> DeviceIR =
+          generateDeviceIR(M, KernelNames, ExportedSymbols, ImportedSymbols);
+      IRGenTimer.stopAndPrint();
 
-    HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames, ExportedSymbols, ImportedSymbols);
+      Timer HCFGenTimer{"generateHCF"};
+      HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames, ExportedSymbols, ImportedSymbols);
+      HCFGenTimer.stopAndPrint();
 
-    if(SSCPEmitHcf) {
-      std::string Filename = M.getSourceFileName()+".hcf";
-      std::ofstream OutputFile{Filename.c_str(), std::ios::trunc|std::ios::binary};
-      OutputFile.write(HcfString.c_str(), HcfString.size());
-      OutputFile.close();
+      if(SSCPEmitHcf) {
+        std::string Filename = M.getSourceFileName()+".hcf";
+        std::ofstream OutputFile{Filename.c_str(), std::ios::trunc|std::ios::binary};
+        OutputFile.write(HcfString.c_str(), HcfString.size());
+        OutputFile.close();
+      }
+    }
+
+    {
+      ScopedPrintingTimer Timer {"HostKernelNameExtractionPass"};
+      HostKernelNameExtractionPass KernelNamingPass;
+      KernelNamingPass.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"S1 IR constant application"};
+      S1IRConstantReplacer HostSideReplacer{
+          {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
+          {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
+          {{SscpHcfContentIdentifier, HcfString}}};
+
+      HostSideReplacer.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"S1 IR constant branching optimization"};
+      IRConstant::optimizeCodeAfterConstantModification(M, MAM);
     }
   }
-
-  HostKernelNameExtractionPass KernelNamingPass;
-  KernelNamingPass.run(M, MAM);
-
-  S1IRConstantReplacer HostSideReplacer{
-      {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
-      {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
-      {{SscpHcfContentIdentifier, HcfString}}};
-
-  HostSideReplacer.run(M, MAM);
-  
-  IRConstant::optimizeCodeAfterConstantModification(M, MAM);
-
   return llvm::PreservedAnalyses::none();
 }
 }

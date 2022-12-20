@@ -243,7 +243,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
       static std::atomic<std::size_t> failure_index = 0;
       std::string filename = common::filesystem::join_path(
           failure_dump_directory,
-          "failed_ir_" + std::to_string(failure_index) + ".ll");
+          "failed_ir_" + std::to_string(failure_index) + ".bc");
       
       std::ofstream out{filename.c_str(), std::ios::trunc|std::ios::binary};
       if(out.is_open()) {

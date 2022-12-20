@@ -344,7 +344,7 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
 
 void LLVMToBackendTranslator::setFailedIR(llvm::Module& M) {
   llvm::raw_string_ostream Stream{ErroringCode};
-  M.print(Stream, nullptr);
+  llvm::WriteBitcodeToFile(M, Stream);
 }
 
 }

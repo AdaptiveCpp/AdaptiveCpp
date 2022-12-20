@@ -73,8 +73,9 @@ bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
     llvm::Type* T = llvm::ArrayType::get(llvm::Type::getInt32Ty(M.getContext()), numInts);
 
     llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
-        M, T, false, llvm::GlobalValue::InternalLinkage, nullptr, GV->getName() + ".resized", nullptr,
-        llvm::GlobalVariable::ThreadLocalMode::NotThreadLocal, AddressSpace);
+        M, T, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(T),
+        GV->getName() + ".resized", nullptr, llvm::GlobalVariable::ThreadLocalMode::NotThreadLocal,
+        AddressSpace);
 
     NewVar->setAlignment(GV->getAlign());
     llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());

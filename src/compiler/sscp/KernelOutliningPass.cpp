@@ -18,6 +18,7 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Support/raw_ostream.h>
+
 #include <memory>
 
 namespace hipsycl {
@@ -179,7 +180,6 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
   llvm::GlobalOptPass GO;
   GO.run(M, AM);
-
   return llvm::PreservedAnalyses::none();
 }
 

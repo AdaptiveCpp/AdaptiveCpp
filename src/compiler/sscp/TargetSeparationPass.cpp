@@ -78,6 +78,7 @@ public:
   double stopAndPrint() {
     double T = stop();
     HIPSYCL_DEBUG_INFO << "SSCP: Phase '" << Name << "' took " << T << " seconds\n"; 
+    return T;
   }
 
   ~Timer() {

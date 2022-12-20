@@ -84,7 +84,7 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
   for (auto &BB : F)
     for (auto &I : BB)
       if (auto *UI = llvm::dyn_cast<llvm::CallInst>(&I))
-        if (UI->getCalledFunction()->getName().equals("llvm.var.annotation")) {
+        if (UI->getCalledFunction()->getName().startswith("llvm.var.annotation")) {
           HIPSYCL_DEBUG_INFO << *UI << '\n';
           llvm::GlobalVariable *AnnotateStr = nullptr;
           if (auto *CE = llvm::dyn_cast<llvm::ConstantExpr>(UI->getOperand(1));

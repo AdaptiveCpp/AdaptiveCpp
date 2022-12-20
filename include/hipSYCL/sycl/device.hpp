@@ -64,7 +64,6 @@ rt::device_id extract_rt_device(const device&);
 
 }
 
-class device_selector;
 class platform;
 
 class device {
@@ -75,11 +74,10 @@ class device {
 public:
   device(rt::device_id id)
       : _device_id{id} {}
- 
-  device()
-      : _device_id(detail::get_host_device()) {}
 
   // Implemented in device_selector.hpp
+  device();
+  
   template <class DeviceSelector>
   explicit device(const DeviceSelector &deviceSelector);
 
@@ -231,8 +229,7 @@ public:
           for (std::size_t dev = 0; dev < num_devices; ++dev) {
             rt::device_id d_id{bd, static_cast<int>(dev)};
 
-            device d;
-            d._device_id = d_id;
+            device d{d_id};
 
             if (deviceType == info::device_type::all ||
                 (deviceType == info::device_type::accelerator &&
@@ -541,8 +538,8 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, global_mem_cache_type)
           rt::device_support_aspect::global_mem_cache_read_only))
     return info::global_mem_cache_type::read_only;
   else if (get_rt_device()->has(
-          rt::device_support_aspect::global_mem_cache_write_only))
-    return info::global_mem_cache_type::write_only;
+          rt::device_support_aspect::global_mem_cache_read_write))
+    return info::global_mem_cache_type::read_write;
 
   return info::global_mem_cache_type::none;
 }

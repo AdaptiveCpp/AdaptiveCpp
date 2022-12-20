@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_MOBILE_SHARED_PTR_HPP
 #define HIPSYCL_MOBILE_SHARED_PTR_HPP
 
+
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #include "hipSYCL/sycl/types.hpp"
@@ -55,7 +56,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr() {
     __hipsycl_if_target_host(
-      new (&_data) std::shared_ptr<T>{nullptr};
+      new (&get_shared_ptr_ref()) std::shared_ptr<T>{nullptr};
     );
   }
 
@@ -63,35 +64,35 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(std::shared_ptr<T> ptr){
     __hipsycl_if_target_host(
-      new (&_data) std::shared_ptr<T>{ptr};
+      new (&get_shared_ptr_ref()) std::shared_ptr<T>{ptr};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(const mobile_shared_ptr& other){
     __hipsycl_if_target_host(
-      new (&_data) std::shared_ptr<T>{other._data};
+      new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr(mobile_shared_ptr&& other){
     __hipsycl_if_target_host(
-      new (&_data) std::shared_ptr<T>{other._data};
+      new (&get_shared_ptr_ref()) std::shared_ptr<T>{other.get_shared_ptr_ref()};
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   ~mobile_shared_ptr() {
     __hipsycl_if_target_host(
-      _data.~shared_ptr();
+      get_shared_ptr_ref().~shared_ptr();
     );
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(const mobile_shared_ptr& other) {
     __hipsycl_if_target_host(
-      _data = other._data;
+      get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
     return *this;
@@ -100,7 +101,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   mobile_shared_ptr<T>& operator=(mobile_shared_ptr&& other) {
     __hipsycl_if_target_host(
-      _data = other.data;
+      get_shared_ptr_ref() = other.get_shared_ptr_ref();
     );
 
     return *this;
@@ -114,7 +115,7 @@ public:
       return reinterpret_cast<T*>(sizeof(_data));
     );
     __hipsycl_if_target_host(
-      return _data.get(); 
+      return get_shared_ptr_ref().get(); 
     );
   }
 
@@ -126,7 +127,7 @@ public:
       return reinterpret_cast<T*>(sizeof(_data));
     );
     __hipsycl_if_target_host(
-      return _data.get(); 
+      return get_shared_ptr_ref().get(); 
     );
   }
 
@@ -135,7 +136,7 @@ public:
   HIPSYCL_HOST_TARGET
   shared_ptr_class<T> get_shared_ptr() const {
     __hipsycl_if_target_host(
-      return _data;
+      return get_shared_ptr_ref();
     );
     __hipsycl_if_target_device(
       return nullptr;
@@ -144,9 +145,22 @@ public:
 
 
 private:
-  union {
-    std::shared_ptr<T> _data;
-  };
+  HIPSYCL_HOST_TARGET
+  std::shared_ptr<T>& get_shared_ptr_ref() {
+    return *reinterpret_cast<std::shared_ptr<T>*>(_data);
+  }
+
+  HIPSYCL_HOST_TARGET
+  const std::shared_ptr<T>& get_shared_ptr_ref() const {
+    return *reinterpret_cast<const std::shared_ptr<T>*>(_data);
+  }
+
+  // Do NOT use union {shared_ptr<T>} because that would spill the types
+  // of all T used inside mobile_shared_ptr into device IR. This can be problematic
+  // for SSCP, where some backends (SPIR-V!) may choke even if function pointers
+  // are just mentioned in the type list in the LLVM module.
+  // Because of this, we need to completely erase the type of T.
+  char _data alignas(alignof(std::shared_ptr<T>)) [sizeof(std::shared_ptr<T>)];
 };
 
 }

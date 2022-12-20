@@ -30,56 +30,10 @@
 
 #include <llvm/IR/PassManager.h>
 #include "Utils.hpp"
+#include "AddressSpaceMap.hpp"
 
 namespace hipsycl {
 namespace compiler {
-
-
-enum class AddressSpace {
-  // These numbers do not reflect actual address spaces,
-  // they are just used as indices to look up the address space
-  // number in the address space map.
-  Generic = 0,
-  Global  = 1,
-  Local   = 2,
-  Private = 3,
-  Constant = 4,
-  AllocaDefault = 5,
-  GlobalVariableDefault = 6
-};
-
-class AddressSpaceMap {
-public:
-  AddressSpaceMap() {
-    for(unsigned i = 0; i < ASMap.size(); ++i)
-      ASMap[i] = i;
-  }
-
-  AddressSpaceMap(unsigned GenericAS, unsigned GlobalAS, unsigned LocalAS, unsigned PrivateAS,
-                  unsigned ConstantAS, unsigned AllocaDefaultAS, unsigned GlobalVariableDefaultAS) {
-    (*this)[AddressSpace::Generic] = GenericAS;
-    (*this)[AddressSpace::Global] = GlobalAS;
-    (*this)[AddressSpace::Local] = LocalAS;
-    (*this)[AddressSpace::Private] = PrivateAS;
-    (*this)[AddressSpace::Constant] = ConstantAS;
-    (*this)[AddressSpace::AllocaDefault] = AllocaDefaultAS;
-    (*this)[AddressSpace::GlobalVariableDefault] = GlobalVariableDefaultAS;
-  }
-
-  AddressSpaceMap(unsigned GenericAS, unsigned GlobalAS, unsigned LocalAS, unsigned PrivateAS,
-                  unsigned ConstantAS)
-      : AddressSpaceMap{GenericAS, GlobalAS, LocalAS, PrivateAS, ConstantAS, PrivateAS, GlobalAS} {}
-
-  unsigned operator[](AddressSpace AS) const {
-    return ASMap[static_cast<unsigned>(AS)];
-  }
-
-  unsigned& operator[](AddressSpace AS) {
-    return ASMap[static_cast<unsigned>(AS)];
-  }
-private:
-  std::array<unsigned, 7> ASMap;
-};
 
 void rewriteKernelArgumentAddressSpacesTo(unsigned AddressSpace, llvm::Module &M,
                                           const std::vector<std::string> &KernelNames,

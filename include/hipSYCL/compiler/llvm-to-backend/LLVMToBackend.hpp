@@ -29,7 +29,9 @@
 #define HIPSYCL_LLVM_TO_BACKEND_HPP
 
 
-
+// Note: This file should not include any LLVM headers or include
+// dependencies that rely on LLVM headers in order to not spill
+// LLVM code into the hipSYCL runtime.
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -37,6 +39,7 @@
 #include <vector>
 #include <typeinfo>
 #include <functional>
+#include "AddressSpaceMap.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
@@ -158,6 +161,7 @@ public:
   void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
 
 protected:
+  virtual AddressSpaceMap getAddressSpaceMap() const = 0;
   virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
   virtual bool applyBuildFlag(const std::string &Flag) { return false; }
   virtual bool applyBuildOption(const std::string &Option, const std::string &Value) { return false; }

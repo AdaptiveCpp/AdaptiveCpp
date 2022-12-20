@@ -188,6 +188,9 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
       for(auto& I : BB.getInstList()) {
         if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
           if(AI->getAddressSpace() != AllocaAddrSpace) {
+            HIPSYCL_DEBUG_INFO << "AddressSpaceInferencePass: Found alloca in address space "
+                               << AI->getAddressSpace() << " when it should be in AS "
+                               << AllocaAddrSpace << ", fixing.\n";
             auto *NewAI = new llvm::AllocaInst{AI->getAllocatedType(), AllocaAddrSpace, "", AI};
             auto* ASCastInst = new llvm::AddrSpaceCastInst{NewAI, AI->getType(), "", AI};
             AI->replaceAllUsesWith(ASCastInst);

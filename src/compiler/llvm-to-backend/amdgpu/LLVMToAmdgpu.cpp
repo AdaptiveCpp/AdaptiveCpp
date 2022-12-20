@@ -120,15 +120,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  AddressSpaceMap ASMap;
-
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 5;
-  ASMap[AddressSpace::Constant] = 4;
-  ASMap[AddressSpace::AllocaDefault] = 5;
-  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+  AddressSpaceMap ASMap = getAddressSpaceMap();
 
   rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Constant], M, KernelNames, PH);
   
@@ -348,6 +340,20 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 
 bool LLVMToAmdgpuTranslator::isKernelAfterFlavoring(llvm::Function& F) {
   return F.getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL;
+}
+
+AddressSpaceMap LLVMToAmdgpuTranslator::getAddressSpaceMap() const {
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
+  return ASMap;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

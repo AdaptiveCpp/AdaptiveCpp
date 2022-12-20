@@ -140,15 +140,7 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  AddressSpaceMap ASMap;
-
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 5;
-  ASMap[AddressSpace::Constant] = 4;
-  ASMap[AddressSpace::AllocaDefault] = 5;
-  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+  AddressSpaceMap ASMap = getAddressSpaceMap();
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
@@ -259,6 +251,20 @@ bool LLVMToPtxTranslator::isKernelAfterFlavoring(llvm::Function& F) {
     if(F.getName() == Name)
       return true;
   return false;
+}
+
+AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
+  return ASMap;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

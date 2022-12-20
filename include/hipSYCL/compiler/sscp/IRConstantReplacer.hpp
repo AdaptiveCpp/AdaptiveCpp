@@ -83,6 +83,7 @@ public:
       return;
     
     assert(!isInitialized());
+    auto Alignment = Var->getAlign();
 
     if constexpr(std::is_integral_v<T>){
       bool IsSigned = std::is_signed_v<T>;
@@ -135,6 +136,7 @@ public:
       Var->setName(Var->getName()+".initialized");
     }
 
+    Var->setAlignment(Alignment);
     Var->setConstant(true);
     Var->setExternallyInitialized(false);
     Var->setLinkage(llvm::GlobalValue::InternalLinkage);

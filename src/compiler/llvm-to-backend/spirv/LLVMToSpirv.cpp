@@ -76,6 +76,7 @@ bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
         M, T, false, llvm::GlobalValue::InternalLinkage, nullptr, GV->getName() + ".resized", nullptr,
         llvm::GlobalVariable::ThreadLocalMode::NotThreadLocal, AddressSpace);
 
+    NewVar->setAlignment(GV->getAlign());
     llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
     GV->replaceAllUsesWith(V);
     GV->eraseFromParent();

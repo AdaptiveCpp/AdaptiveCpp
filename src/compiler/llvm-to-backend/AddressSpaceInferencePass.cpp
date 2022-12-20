@@ -84,8 +84,10 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   llvm::Type *NewType = llvm::PointerType::getWithSamePointeeType(GV->getType(), AS);
   llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
       M, NewType, GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName);
-  
+  NewVar->setAlignment(GV->getAlign());
+
   llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
+
   GV->replaceAllUsesWith(V);
   GV->eraseFromParent();
 

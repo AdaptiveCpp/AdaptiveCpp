@@ -45,6 +45,7 @@
 #include <llvm/Transforms/Scalar/ADCE.h>
 #include <llvm/Transforms/Scalar/SCCP.h>
 #include <llvm/Transforms/Utils/Mem2Reg.h>
+#include <llvm/Transforms/IPO/GlobalDCE.h>
 
 namespace hipsycl {
 namespace compiler {
@@ -178,6 +179,12 @@ public:
     PromoteAdaptor.run(M, MAM);
     SCCPAdaptor.run(M, MAM);
     ADCEAdaptor.run(M, MAM);
+    // This is necessary to remove backend-specific function definitions
+    // that might no longer be needed after IR constant application.
+    // In particular on the host side, where the kernel outlining pass
+    // does not run.
+    llvm::GlobalDCEPass GDCE;
+    GDCE.run(M, MAM);
   }
 
 protected:

@@ -103,8 +103,8 @@ LLVMToSpirvTranslator::LLVMToSpirvTranslator(const std::vector<std::string> &KN)
 bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   M.setTargetTriple("spir64-unknown-unknown");
-  M.setDataLayout(
-      "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024");
+  M.setDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:"
+                  "1024-A4-n8:16:32:64");
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
@@ -114,20 +114,8 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  AddressSpaceMap ASMap;
+  AddressSpaceMap ASMap = getAddressSpaceMap();
 
-  // By default, llvm-spirv translator uses the mapping where
-  // ASMap[AddressSpace::Generic] = 4;
-  // ASMap[AddressSpace::Private] = 0;
-  // We currently require a different mapping where the default address
-  // space is the generic address space, which requires a patched llvm-spirv.
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 4;
-  ASMap[AddressSpace::Constant] = 2;
-  ASMap[AddressSpace::AllocaDefault] = 4;
-  ASMap[AddressSpace::GlobalVariableDefault] = 1;
 
   // llvm-spirv translator expects by-value kernel arguments such as our
   // kernel lambda to be passed in through private address space
@@ -158,8 +146,8 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
       {"lib", "hipSYCL", "bitcode", "libkernel-sscp-spirv-full.bc"});
-  
-  if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
+
+  if (!this->linkBitcodeFile(M, BuiltinBitcodeFile, M.getTargetTriple(), M.getDataLayoutStr()))
     return false;
 
   // Set up local memory
@@ -173,6 +161,26 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   } else {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Removing dynamic local memory support from module\n";
     removeDynamicLocalMemorySupport(M);
+  }
+
+  // llvm-spirv translator does not like llvm.lifetime.start/end operate on generic
+  // pointers. TODO: We should only remove them when we actually need to, and attempt
+  // to fix them otherwise.
+  llvm::SmallVector<llvm::CallBase*, 16> Calls;
+  for(auto& F : M.getFunctionList()) {
+    for(auto& BB : F.getBasicBlockList()) {
+      for(auto& I : BB.getInstList()) {
+        if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+          if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
+              CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
+            Calls.push_back(CB);
+          }
+        }
+      }
+    }
+  }
+  for(auto CB : Calls) {
+    CB->eraseFromParent();
   }
 
   AddressSpaceInferencePass ASIPass{ASMap};
@@ -250,6 +258,25 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
 
 bool LLVMToSpirvTranslator::isKernelAfterFlavoring(llvm::Function& F) {
   return F.getCallingConv() == llvm::CallingConv::SPIR_KERNEL;
+}
+
+AddressSpaceMap LLVMToSpirvTranslator::getAddressSpaceMap() const {
+  AddressSpaceMap ASMap;
+
+  // By default, llvm-spirv translator uses the mapping where
+  // ASMap[AddressSpace::Generic] = 4;
+  // ASMap[AddressSpace::Private] = 0;
+  // We currently require a different mapping where the default address
+  // space is the generic address space, which requires a patched llvm-spirv.
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 4;
+  ASMap[AddressSpace::Constant] = 2;
+  ASMap[AddressSpace::AllocaDefault] = 4;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
+  return ASMap;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

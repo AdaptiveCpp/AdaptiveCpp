@@ -2,13 +2,21 @@
 
 # hipSYCL - a SYCL implementation for CPUs and GPUs
 
-hipSYCL is a modern SYCL implementation targeting CPUs and GPUs, with a focus on leveraging existing toolchains such as CUDA or HIP. hipSYCL currently targets the following devices:
-* Any CPU via OpenMP
-* NVIDIA GPUs via CUDA
-   - using clang's CUDA toolchain
-   - as a library for NVIDIA's nvc++ compiler (experimental)
-* AMD GPUs via HIP/ROCm
-* Intel GPUs via oneAPI Level Zero and SPIR-V (*highly* experimental and WIP!)
+hipSYCL is a modern SYCL implementation targeting CPUs and GPUs from all major vendors that supports many use cases and approaches for implementing SYCL:
+
+1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. Support includes:
+   1. NVIDIA CUDA GPUs through PTX;
+   2. AMD ROCm GPUs through amdgcn code;
+   3. Intel GPUs through SPIR-V;
+2. Additionally, **hipSYCL can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. Support includes:
+   1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
+   2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
+   3. AMD ROCm GPUs through the clang HIP toolchain;
+   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental)
+3. Or **hipSYCL can be used in library-only compilation flows**. In these compilation flows, hipSYCL acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
+   1. Any CPU supported by any OpenMP compilers;
+   2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem
+
 
 hipSYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. Additionally, **hipSYCL is the only major SYCL implementation that supports a single-pass compiler design, where the code is only parsed once for both host and target devices**. More information about the supported [compilation flows can be found here](doc/compilation.md).
 

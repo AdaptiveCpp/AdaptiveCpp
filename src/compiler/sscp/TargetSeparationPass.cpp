@@ -132,10 +132,65 @@ IntT generateRandomNumber() {
   return dist(Rng);
 }
 
+enum class ParamType {
+  Integer,
+  FoatingPoint,
+  Ptr,
+  OtherByVal
+};
+
+struct KernelParam {
+  std::size_t ByteSize;
+  std::size_t ArgByteOffset; // Offset relative to first argument in bytes
+  ParamType Type;
+};
+
+struct KernelInfo {
+  std::string Name;
+  std::vector<KernelParam> Parameters;
+
+  KernelInfo() = default;
+  KernelInfo(const std::string& KernelName, llvm::Module& M) {
+    
+    this->Name = KernelName;
+    std::size_t ParamOffset = 0;
+    if(auto* F = M.getFunction(KernelName)) {
+      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+        ParamType PT;
+
+        llvm::Type* ParamT = F->getFunctionType()->getParamType(i);
+        if(ParamT->isIntegerTy()) {
+          PT = ParamType::Integer;
+        } else if(ParamT->isFloatingPointTy()) {
+          PT = ParamType::FoatingPoint;
+        } else if(ParamT->isPointerTy()) {
+          if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
+            PT = ParamType::OtherByVal;
+          } else {
+            PT = ParamType::Ptr;
+          }
+        } else {
+          PT = ParamType::OtherByVal;
+        }
+
+        KernelParam KP;
+        
+        assert(ParamT->hasSize());
+        auto BitSize = M.getDataLayout().getTypeSizeInBits(ParamT);
+        assert(BitSize % CHAR_BIT == 0);
+        KP.ByteSize = BitSize / CHAR_BIT;
+        KP.Type = PT;
+        KP.ArgByteOffset = ParamOffset;
+        this->Parameters.push_back(KP);
+        ParamOffset += KP.ByteSize;
+      }
+    }
+  }
+};
 
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
-                                               std::vector<std::string> &KernelNamesOutput,
+                                               std::vector<KernelInfo> &KernelInfoOutput,
                                                std::vector<std::string> &ExportedSymbolsOutput,
                                                std::vector<std::string> &ImportedSymbolsOutput) {
 
@@ -183,7 +238,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   EntrypointPreparationPass EPP;
   EPP.run(*DeviceModule, DeviceMAM);
-  KernelNamesOutput = EPP.getKernelNames();
+  
   ExportedSymbolsOutput = EPP.getNonKernelOutliningEntrypoints();
   
 
@@ -224,12 +279,18 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     MPM.run(*DeviceModule, DeviceMAM);
   }
 
+  KernelInfoOutput.clear();
+  for(auto Name : EPP.getKernelNames()) {
+    KernelInfo KI{Name, *DeviceModule};
+    KernelInfoOutput.push_back(KI);
+  }
+
   return std::move(DeviceModule);
 }
 
 std::string generateHCF(llvm::Module& DeviceModule,
                         std::size_t HcfObjectId,
-                        const std::vector<std::string>& KernelNames,
+                        const std::vector<KernelInfo>& Kernels,
                         const std::vector<std::string>& ExportedSymbols,
                         const std::vector<std::string>& ImportedSymbols) {
 
@@ -256,12 +317,32 @@ std::string generateHCF(llvm::Module& DeviceModule,
   LLVMIRNode->set_as_list("imported-symbols", ImportedSymbols);
 
   auto* KernelsNode = HcfObject.root_node()->add_subnode("kernels");
-  for(const auto& KernelName : KernelNames) {
-    auto* K = KernelsNode->add_subnode(KernelName);
+  for(const auto& Kernel : Kernels) {
+    auto* K = KernelsNode->add_subnode(Kernel.Name);
 
     auto* F = K->add_subnode("format.llvm-ir");
     auto* ModuleProvider = F->add_subnode("variant.global-module");
     ModuleProvider->set("image-provider", "llvm-ir.global");
+    auto* ParamsNode = K->add_subnode("parameters");
+
+    for(std::size_t i = 0; i < Kernel.Parameters.size(); ++i) {
+      const auto& ParamInfo = Kernel.Parameters[i];
+      auto* P = ParamsNode->add_subnode(std::to_string(i));
+      P->set("byte-offset", std::to_string(ParamInfo.ArgByteOffset));
+      P->set("byte-size", std::to_string(ParamInfo.ByteSize));
+      ParamType Type = ParamInfo.Type;
+      std::string TypeDescription;
+      if(Type == ParamType::Integer) {
+        TypeDescription = "integer";
+      } else if(Type == ParamType::FoatingPoint) {
+        TypeDescription = "floating-point";
+      } else if(Type == ParamType::Ptr) {
+        TypeDescription = "pointer";
+      } else if(Type == ParamType::OtherByVal) {
+        TypeDescription = "other-by-value";
+      }
+      P->set("type", TypeDescription);
+    }
   }
   
 
@@ -284,18 +365,18 @@ llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
     // there are also CUDA/HIP compilation flows going on
     if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
       
-      std::vector<std::string> KernelNames;
+      std::vector<KernelInfo> Kernels;
       std::vector<std::string> ExportedSymbols;
       std::vector<std::string> ImportedSymbols;
       
       
       Timer IRGenTimer{"generateDeviceIR", true};
       std::unique_ptr<llvm::Module> DeviceIR =
-          generateDeviceIR(M, KernelNames, ExportedSymbols, ImportedSymbols);
+          generateDeviceIR(M, Kernels, ExportedSymbols, ImportedSymbols);
       IRGenTimer.stopAndPrint();
 
       Timer HCFGenTimer{"generateHCF"};
-      HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames, ExportedSymbols, ImportedSymbols);
+      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols);
       HCFGenTimer.stopAndPrint();
 
       if(SSCPEmitHcf) {

@@ -106,20 +106,16 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setDataLayout("e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:"
                   "1024-A4-n8:16:32:64");
 
-  for(auto KernelName : KernelNames) {
-    if(auto* F = M.getFunction(KernelName)) {
-      // SPIR-V translator wants to have structures like our kernel lambda
-      // be passed in as pointers with ByVal attribute
-      forceAllUsedPointerArgumentsToByVal(M, F);
-    }
-  }
-
   AddressSpaceMap ASMap = getAddressSpaceMap();
+  KernelFunctionParameterRewriter ParamRewriter{
+    // llvm-spirv wants ByVal attribute for all aggregates passed in by-value
+    KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
+    // Those pointers to by-value data should be in private AS
+    ASMap[AddressSpace::Private],
+    // Actual pointers should be in global memory
+    ASMap[AddressSpace::Global]};
 
-
-  // llvm-spirv translator expects by-value kernel arguments such as our
-  // kernel lambda to be passed in through private address space
-  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
+  ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Setting up kernel " << KernelName << "\n";

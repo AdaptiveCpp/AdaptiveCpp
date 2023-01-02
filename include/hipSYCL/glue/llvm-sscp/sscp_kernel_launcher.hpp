@@ -54,7 +54,8 @@ template <typename KernelType>
 [[clang::annotate("hipsycl_sscp_kernel")]]
 // hipsycl_sscp_outlining creates an entrypoint for outlining of device code
 [[clang::annotate("hipsycl_sscp_outlining")]]
-void __hipsycl_sscp_kernel(const KernelType& kernel) {
+// The argument *must* be by-value! Do not change to const reference.
+void __hipsycl_sscp_kernel(KernelType kernel) {
   if(__hipsycl_sscp_is_device)
     kernel();
 }
@@ -71,7 +72,7 @@ void __hipsycl_sscp_kernel(const KernelType& kernel) {
 // No indirection is allowed! If I say, the argument has to be a global variable,
 // I mean it. Directly. No passing through other functions first.
 template <class Kernel>
-void __hipsycl_sscp_extract_kernel_name(void (*Func)(const Kernel&),
+void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
                                         const char *target);
 #pragma clang diagnostic pop
 

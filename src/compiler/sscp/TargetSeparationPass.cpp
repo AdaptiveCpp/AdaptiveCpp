@@ -304,6 +304,8 @@ std::string generateHCF(llvm::Module& DeviceModule,
 
   auto *DeviceImagesNodes = HcfObject.root_node()->add_subnode("images");
   auto* LLVMIRNode = DeviceImagesNodes->add_subnode("llvm-ir.global");
+  LLVMIRNode->set("variant", "global-module");
+  LLVMIRNode->set("format", "llvm-ir");
   HcfObject.attach_binary_content(LLVMIRNode, ModuleContent);
 
   for(const auto& ES : ExportedSymbols) {
@@ -319,10 +321,7 @@ std::string generateHCF(llvm::Module& DeviceModule,
   auto* KernelsNode = HcfObject.root_node()->add_subnode("kernels");
   for(const auto& Kernel : Kernels) {
     auto* K = KernelsNode->add_subnode(Kernel.Name);
-
-    auto* F = K->add_subnode("format.llvm-ir");
-    auto* ModuleProvider = F->add_subnode("variant.global-module");
-    ModuleProvider->set("image-provider", "llvm-ir.global");
+    K->set_as_list("image-providers", {std::string{"llvm-ir.global"}});
     auto* ParamsNode = K->add_subnode("parameters");
 
     for(std::size_t i = 0; i < Kernel.Parameters.size(); ++i) {

@@ -628,6 +628,15 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   std::string target_arch_name = ctx->get_device_arch();
   unsigned compute_capability = ctx->get_compute_capability();
 
+  const hcf_kernel_info *kernel_info =
+      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
+  if(!kernel_info) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"cuda_queue: Could not obtain hcf kernel info for kernel " +
+            global_kernel_name});
+  }
+
   auto code_object_selector = [&](const code_object *candidate) -> bool {
     if ((candidate->managing_backend() != backend_id::cuda) ||
         (candidate->source_compilation_flow() != compilation_flow::sscp) ||
@@ -647,11 +656,8 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
-    // Define image selector that will also fill kernel_names with
-    // list of kernels contained in selected image
-    glue::jit::image_selector_and_kernel_list_extractor image_selector{
-        glue::jit::default_llvm_image_selector{}, kernel_name, &kernel_names,
-        hcf};
+    std::string selected_image_name =
+        glue::jit::select_image(kernel_info, &kernel_names);
 
     // Construct PTX translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
@@ -665,7 +671,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     // Lower kernels to PTX
     std::string ptx_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, image_selector, config, ptx_image);
+        hcf, selected_image_name, config, ptx_image);
     
     if(!err.is_success()) {
       register_error(err);
@@ -701,11 +707,18 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   CUmodule cumodule = static_cast<const cuda_executable_object*>(obj)->get_module();
   assert(cumodule);
 
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "cuda_queue: Could not map C++ arguments to kernel arguments"});
+  }
   return launch_kernel_from_module(cumodule, kernel_name, num_groups,
                                    group_size, local_mem_size, _stream,
-                                   args);
+                                   arg_mapper.get_mapped_args());
 
-  return make_success();
 #else
   return make_error(
       __hipsycl_here(),

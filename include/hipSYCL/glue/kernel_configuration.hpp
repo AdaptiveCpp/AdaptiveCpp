@@ -37,6 +37,7 @@
 #include <vector>
 #include <functional>
 #include <cassert>
+#include "hipSYCL/common/stable_running_hash.hpp"
 
 namespace hipsycl {
 namespace glue {
@@ -114,7 +115,7 @@ public:
     id_type result {};
 
     for(const auto& entry : _configurations) {
-      stable_hash h;
+      common::stable_running_hash h;
       h(entry.get_name().data(), entry.get_name().size());
       h(entry.get_data_buffer(), entry.get_data_size());
 
@@ -129,31 +130,6 @@ public:
   const std::vector<configuration_entry>& entries() const {
     return _configurations;
   }
-private:
-
-  class stable_hash {
-    static uint64_t constexpr prime = 1099511628211ULL;
-    static uint64_t constexpr offset = 14695981039346656037ULL;
-
-    uint64_t value;
-
-  public:
-    stable_hash()
-    : value {offset} {}
-
-    void operator()(const void* data, std::size_t size) {
-      for(std::size_t i = 0; i < size; ++i) {
-          uint8_t current = static_cast<const uint8_t*>(data)[i];
-          value ^= current;
-          value *= prime;
-      }
-    }
-
-    uint64_t get_current_hash() const {
-      return value;
-    }
-  };
-
 
   std::vector<configuration_entry> _configurations;
 };

@@ -32,6 +32,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include <llvm/IR/Attributes.h>
 #include <llvm/ADT/SmallSet.h>
+#include <llvm/IR/Function.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Instructions.h>
@@ -114,178 +115,139 @@ inline void constructPassBuilderAndMAM(F&& handler) {
   handler(PB, MAM);
 }
 
-// Attempts to determine the pointee type of a pointer function argument
-// by investigating users, and looking for instructions that provide
-// this information, such as getelementptr.
-// This is particularly necessary due to LLVM's move to opaque pointers,
-// where pointer types are no longer associated with the pointee type.
-class FunctionArgPointeeTypeInferrer {
+
+class KernelFunctionParameterRewriter {
 public:
-  llvm::Type* tryInferType(llvm::Function* F, int ArgNo) {
-    VisitedUsers.clear();
+  // Attribute that should be attached to by-value
+  // pointer function arguments
+  enum class ByValueArgAttribute {
+    ByVal, ByRef
+  };
 
-    if(llvm::Value* Arg = F->getArg(ArgNo)) {
-      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
-        
-        // If either byval or byref attributes are present, we can just look up
-        // the pointee type directly.
-        if(F->hasParamAttribute(ArgNo, llvm::Attribute::ByVal))
-          return F->getParamAttribute(ArgNo, llvm::Attribute::ByVal).getValueAsType();
+  /// \param Attr Whether by-value arguments that are passed as pointers
+  /// should have byval or byref attribute. Note: At least one of them
+  /// must already be present.
+  /// \param DesiredByValueArgAddressSpace Address space that pointers
+  /// to by-value arguments should have
+  /// \param DesiredPointerAddressSpace Address space that actual pointers
+  /// should have
+  KernelFunctionParameterRewriter(ByValueArgAttribute Attr, unsigned DesiredByValueArgAddressSpace,
+                                  unsigned DesiredPointerAddressSpace)
+      : Attr{Attr}, ByValueArgAddressSpace{DesiredByValueArgAddressSpace},
+        PointerAddressSpace{DesiredPointerAddressSpace} {}
+
+  void run(llvm::Module &M, const std::vector<std::string> &KernelNames,
+           llvm::ModuleAnalysisManager &MAM) {
+    for(auto KernelName : KernelNames) {
+      if(auto* F = M.getFunction(KernelName)) {
+        run(M, F);
+      }
+    }
+    MAM.invalidate(M, llvm::PreservedAnalyses::none());
+  }
+
+  void run(llvm::Module& M, llvm::Function* F) {
+    auto* OldFType = F->getFunctionType();
+    std::string FunctionName = F->getName().str();
+    F->setName(FunctionName+"_PreKernelParameterRewriting");
+    // Make sure old function can be inlined
+    auto OldLinkage = F->getLinkage();
+    F->setLinkage(llvm::GlobalValue::InternalLinkage);
+
+    llvm::SmallVector<llvm::Type*, 8> Params;
+    for(int i = 0; i < OldFType->getNumParams(); ++i){
+      llvm::Type* CurrentParamType = OldFType->getParamType(i);
+
+      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(CurrentParamType)) {
+        bool HasByRefAttr = F->hasParamAttribute(i, llvm::Attribute::ByRef);
+        bool HasByValAttr = F->hasParamAttribute(i, llvm::Attribute::ByVal);
+
+        unsigned TargetAddressSpace = 0;
+        if(!HasByRefAttr && !HasByValAttr) {
+          // Regular pointer
+          TargetAddressSpace = PointerAddressSpace;
+        } else {
+          // ByVal or ByRef - this probably means that
+          // some struct is passed into the kernel by value.
+          // (the attribute will be handled later)
+          TargetAddressSpace = ByValueArgAddressSpace;
+        }
+        llvm::Type *NewT = llvm::PointerType::getWithSamePointeeType(PT, TargetAddressSpace);
+        Params.push_back(NewT);
       
-        if(F->hasParamAttribute(ArgNo, llvm::Attribute::ByRef))
-          return F->getParamAttribute(ArgNo, llvm::Attribute::ByRef).getValueAsType();
-
-        // Otherwise, we need to investigat    e uses of the argument to check
-        // for clues regarding the pointee type.
-        llvm::SmallSet<llvm::Value*, 1> UserPathsToInvestigate;
-        UserPathsToInvestigate.insert(Arg);
-        
-        return this->extractTypeFromUserTree(UserPathsToInvestigate);
-
       } else {
-        return Arg->getType();
-      }
-    }
-    return nullptr;
-  }
-
-private:
-  // Descend user tree in BFS fashion to find instructions that we can
-  // determine pointee function argument types from.
-  // It is assumed that all nodes \c Roots have already been investigated.
-  // BFS order is important, because it guarantees that the more direct uses will
-  // be preferred.
-  template<unsigned int N>
-  llvm::Type* extractTypeFromUserTree(const llvm::SmallSet<llvm::Value*, N>& Roots) {  
-    if(Roots.empty())
-      return nullptr;
-
-    llvm::SmallSet<llvm::Value*, 16> NextUsers;
-
-    for(llvm::Value* R : Roots) {
-      for(llvm::Value* U : R->users()) {
-
-        llvm::Type* CurrentResult = extractTypeFromUser(U, R, NextUsers);
-
-        if(CurrentResult)
-          return CurrentResult;
+        Params.push_back(CurrentParamType);
       }
     }
 
-    return extractTypeFromUserTree(NextUsers);
-  }
 
-  template<class SmallSetT>
-  llvm::Type* extractTypeFromUser(llvm::Value* U, llvm::Value* Parent, SmallSetT& UsersToInvestigate) {
-    if(VisitedUsers.contains(U)) {
-      return nullptr;
-    }
+    llvm::FunctionType *FType = llvm::FunctionType::get(F->getReturnType(), Params, false);
+    if (auto *NewF = llvm::dyn_cast<llvm::Function>(
+            M.getOrInsertFunction(FunctionName, FType, F->getAttributes()).getCallee())) {
 
-    VisitedUsers.insert(U);
+      // Fix ByVal and ByRef attributes (different backends require different
+      // attributes for kernel arguments)
+      for(int i = 0; i < NewF->getFunctionType()->getNumParams(); ++i) {
+        bool HasByRefAttr = NewF->hasParamAttribute(i, llvm::Attribute::ByRef);
+        bool HasByValAttr = NewF->hasParamAttribute(i, llvm::Attribute::ByVal);
+        if(HasByRefAttr || HasByValAttr) {
+          llvm::Attribute::AttrKind DesiredAttr = (Attr == ByValueArgAttribute::ByRef)
+                                                     ? llvm::Attribute::ByRef
+                                                     : llvm::Attribute::ByVal;
+          llvm::Attribute::AttrKind PresentAttr =
+              HasByRefAttr ? llvm::Attribute::ByRef : llvm::Attribute::ByVal;
+          if(PresentAttr != DesiredAttr) {
+            llvm::Type* ValT = F->getParamAttribute(i, PresentAttr).getValueAsType();
+            assert(ValT);
 
-    if (auto LI = llvm::dyn_cast<llvm::LoadInst>(U)) {
-      return LI->getType();
-    } else if (auto GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(U)) {
-      return GEPI->getSourceElementType();
-    } else if (auto EEI = llvm::dyn_cast<llvm::ExtractElementInst>(U)) {
-      return EEI->getVectorOperand()->getType();
-    } 
-    else if (auto ACI = llvm::dyn_cast<llvm::AddrSpaceCastInst>(U)) {
-      // Follow address space casts, we don't care about pointer address spaces
-      for(llvm::User* NextLevelU : U->users()) {
-        UsersToInvestigate.insert(NextLevelU);   
-      }
-    } else if(auto CI = llvm::dyn_cast<llvm::CallBase>(U)) {
-      // Ugh, the value is forwarded as an argument into some other function, need
-      // to continue looking there...
-      int OperandNumber = 0;
-      for (int i = 0; i < CI->getCalledFunction()->getFunctionType()->getNumParams(); ++i) {
-        if(CI->getArgOperand(i) == Parent) {
-          auto Arg = CI->getCalledFunction()->getArg(i);
-          // Never, ever take into account the callee argument. This should never happen,
-          // but if it does, it will go terribly because we will take into account users of functions,
-          // not arguments anymore.
-          if(!llvm::isa<llvm::Function>(Arg))
-            UsersToInvestigate.insert(Arg);
+            NewF->removeParamAttr(i, PresentAttr);
+            if(DesiredAttr == llvm::Attribute::ByRef)
+              NewF->addParamAttr(i, llvm::Attribute::getWithByRefType(M.getContext(), ValT));
+            else
+              NewF->addParamAttr(i, llvm::Attribute::getWithByValType(M.getContext(), ValT));            
+          }
         }
       }
+
+      // Now create function call to old function
+      llvm::BasicBlock *BB =
+          llvm::BasicBlock::Create(M.getContext(), "", NewF);
+      llvm::SmallVector<llvm::Value*, 8> CallArgs;
+
+      for(int i = 0; i < Params.size(); ++i) {
+        if (llvm::PointerType *NewPT =
+                llvm::dyn_cast<llvm::PointerType>(NewF->getArg(i)->getType())) {
+
+          assert(llvm::isa<llvm::PointerType>(F->getArg(i)->getType()));
+          llvm::PointerType *OldPT = llvm::dyn_cast<llvm::PointerType>(F->getArg(i)->getType());
+
+          if (NewPT->getAddressSpace() != OldPT->getAddressSpace()) {
+            auto *ASCastInst = new llvm::AddrSpaceCastInst{NewF->getArg(i), OldPT, "", BB};
+            CallArgs.push_back(ASCastInst);
+          } else {
+            CallArgs.push_back(NewF->getArg(i));
+          }
+        } else {
+          CallArgs.push_back(NewF->getArg(i));
+        }
+      }
+
+      assert(CallArgs.size() == F->getFunctionType()->getNumParams());
+      for(int i = 0; i < CallArgs.size(); ++i) {
+        assert(CallArgs[i]->getType() == F->getFunctionType()->getParamType(i));
+      }
+
+      auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs,
+                                            "", BB);
+      llvm::ReturnInst::Create(M.getContext(), BB);
     }
-
-    return nullptr;
   }
-
-  llvm::SmallSet<llvm::Value*, 32> VisitedUsers;
+private:
+  ByValueArgAttribute Attr;
+  unsigned ByValueArgAddressSpace;
+  unsigned PointerAddressSpace;
 };
 
-inline void forceByValOrByRefAttr(llvm::Module &M, llvm::Function *F, int ArgNo,
-                                  llvm ::Attribute::AttrKind NewAttr,
-                                  // If arg is a pointer and type is already known, provide it here -
-                                  // otherwise we will try to infer the type if PointeeType is nullptr.
-                                  llvm::Type* KnownPointeeType = nullptr) {
-
-  assert(NewAttr == llvm::Attribute::AttrKind::ByRef ||
-         NewAttr == llvm::Attribute::AttrKind::ByVal);
-
-  llvm::Attribute::AttrKind ConflictingAttr = (NewAttr == llvm::Attribute::AttrKind::ByVal)
-                                                  ? llvm::Attribute::AttrKind::ByRef
-                                                  : llvm::Attribute::AttrKind::ByVal;
-
-  if(ArgNo < F->getFunctionType()->getNumParams()) {
-    llvm::PointerType *PT = llvm::dyn_cast<llvm::PointerType>(F->getArg(ArgNo)->getType());
-    // Nothing to do for non-pointer types
-    if(PT) {
-      // Nothing to do if desired attr is already present
-      if(F->hasParamAttribute(ArgNo, NewAttr)) {
-        return;
-      }
-
-      llvm::Type* PointeeType = KnownPointeeType;
-      if(!PointeeType) {
-        FunctionArgPointeeTypeInferrer PTI;
-        PointeeType = PTI.tryInferType(F, ArgNo);
-
-        if(!PointeeType) {
-          HIPSYCL_DEBUG_WARNING << "forceByValOrByRefAttr(): Pointee Type Inferrence failed, ByVal "
-                                   "or ByRef attributes might be incorrect\n";
-          return;
-        }
-      }
-
-      if(F->hasParamAttribute(ArgNo, ConflictingAttr))
-        F->removeParamAttr(ArgNo, ConflictingAttr);
-      
-      if(NewAttr == llvm::Attribute::AttrKind::ByVal) {
-        F->addParamAttr(ArgNo, llvm::Attribute::getWithByValType(M.getContext(), PointeeType));
-      } else {
-        F->addParamAttr(ArgNo, llvm::Attribute::getWithByRefType(M.getContext(), PointeeType));
-      }
-    }
-  }
-}
-
-inline void forceAllUsedPointerArgumentsToByVal(llvm::Module &M, llvm::Function *F) {
-  for (int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
-    if (llvm::isa<llvm::PointerType>(F->getArg(i)->getType())) {
-      // If there are no uses, ignore - we may not be able to infer
-      // the pointee type in that case to attach the ByVal attribute.
-      if (F->getArg(i)->getNumUses() > 0) {
-        forceByValOrByRefAttr(M, F, i, llvm::Attribute::ByVal);
-      }
-    }
-  }
-}
-
-inline void forceAllUsedPointerArgumentsToByRef(llvm::Module &M, llvm::Function *F) {
-  for (int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
-    if (llvm::isa<llvm::PointerType>(F->getArg(i)->getType())) {
-      // If there are no uses, ignore - we may not be able to infer
-      // the pointee type in that case to attach the ByVal attribute.
-      if (F->getArg(i)->getNumUses() > 0) {
-        forceByValOrByRefAttr(M, F, i, llvm::Attribute::ByRef);
-      }
-    }
-  }
-}
 
 }
 }

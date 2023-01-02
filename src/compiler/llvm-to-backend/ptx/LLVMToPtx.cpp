@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/compiler/llvm-to-backend/ptx/LLVMToPtx.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
@@ -116,13 +117,17 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setTargetTriple(Triple);
   M.setDataLayout(DataLayout);
 
-  for(auto KernelName : KernelNames) {
-    if(auto* F = M.getFunction(KernelName)) {
-      // NVVM wants to have structures like our kernel lambda
-      // be passed in as pointers with ByVal attribute
-      forceAllUsedPointerArgumentsToByVal(M, F);
-    }
-  }
+  AddressSpaceMap ASMap = getAddressSpaceMap();
+  
+  KernelFunctionParameterRewriter ParamRewriter{
+      // PTX wants ByVal attribute for all aggregates passed in by-value
+      KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
+      // Those pointers to by-value data can be in generic AS
+      ASMap[AddressSpace::Generic],
+      // Actual pointers should be in global memory
+      ASMap[AddressSpace::Global]};
+  
+  ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
@@ -139,8 +144,6 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       F->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
     }
   }
-
-  AddressSpaceMap ASMap = getAddressSpaceMap();
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),

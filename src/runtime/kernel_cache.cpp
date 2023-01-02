@@ -29,6 +29,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <fstream>
 #include <memory>
 #include <mutex>
@@ -57,6 +58,129 @@ void for_each_exported_symbol_list(const common::hcf_container& hcf, F&& handler
   });
 }
 
+}
+
+hcf_kernel_info::hcf_kernel_info(
+    hcf_object_id id, const common::hcf_container::node *kernel_node)
+    : _id{id} {
+
+  if(!kernel_node->has_subnode("image-providers"))
+    return;
+  _image_providers = kernel_node->get_as_list("image-providers");
+
+  // investigate parameters
+  auto *parameters_node = kernel_node->get_subnode("parameters");
+
+  if (!parameters_node)
+    return;
+
+  std::size_t num_subnodes = parameters_node->get_subnodes().size();
+
+  for (int i = 0; i < num_subnodes; ++i) {
+    const auto *param_info_node =
+        parameters_node->get_subnode(std::to_string(i));
+
+    if (!param_info_node)
+      return;
+
+    auto *byte_size = param_info_node->get_value("byte-size");
+    auto *byte_offset = param_info_node->get_value("byte-offset");
+
+    if (!byte_size)
+      return;
+    if (!byte_offset)
+      return;
+
+    std::size_t arg_size = std::stoll(*byte_size);
+    std::size_t arg_offset = std::stoll(*byte_offset);
+    _global_arg_offsets.push_back(arg_offset);
+    _arg_sizes.push_back(arg_size);
+  }
+
+  _parsing_successful = true;
+}
+
+std::size_t hcf_kernel_info::get_num_parameters() const {
+  return _arg_sizes.size();
+}
+
+const std::vector<std::size_t> &
+hcf_kernel_info::get_global_argument_offsets() const {
+  return _global_arg_offsets;
+}
+
+const std::vector<std::size_t> &hcf_kernel_info::get_argument_sizes() const {
+  return _arg_sizes;
+}
+
+bool hcf_kernel_info::is_valid() const {
+  return _parsing_successful;
+}
+
+
+std::size_t hcf_kernel_info::get_global_argument_offset(std::size_t i) const {
+  return _global_arg_offsets[i];
+}
+
+std::size_t hcf_kernel_info::get_argument_size(std::size_t i) const {
+  return _arg_sizes[i];
+}
+
+const std::vector<std::string> &
+hcf_kernel_info::get_images_containing_kernel() const {
+  return _image_providers;
+}
+
+hcf_object_id hcf_kernel_info::get_hcf_object_id() const {
+  return _id;
+}
+
+const std::string& hcf_image_info::get_format() const {
+  return _format;
+}
+
+const std::string& hcf_image_info::get_variant() const {
+  return _variant;
+}
+
+hcf_image_info::hcf_image_info(const common::hcf_container *hcf,
+                               const common::hcf_container::node *image_node) {
+  assert(hcf);
+  assert(image_node);
+  if(!image_node->has_key("format"))
+    return;
+  if(!image_node->has_key("variant"))
+    return;
+  
+  _format = *image_node->get_value("format");
+  _variant = *image_node->get_value("variant");
+
+  // Currently we need to obtain contained kernels list
+  // by walking through all kernels, and matching against their image-providers.
+  auto* kernels = hcf->root_node()->get_subnode("kernels");
+  if(!kernels)
+    return;
+  
+  std::string image_name = image_node->node_id;
+  for(const auto& kernel : kernels->get_subnodes()) {
+    std::vector<std::string> image_providers =
+        kernels->get_subnode(kernel)->get_as_list("image-providers");
+    for(const std::string& provider : image_providers) {
+      if(provider == image_name)
+        _contained_kernels.push_back(kernel);
+    }
+  }
+
+  _parsing_successful = true;
+
+}
+
+const std::vector<std::string> &hcf_image_info::get_contained_kernels() const {
+  return _contained_kernels;
+}
+
+bool hcf_image_info::is_valid() const {
+  return _parsing_successful;
 }
 
 kernel_cache& kernel_cache::get() {
@@ -110,6 +234,43 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
                                << " @" << image_node << std::endl;
           }
         });
+    // See if stored object has kernel nodes that we can parse
+    if(auto* kernels_node = stored_obj->root_node()->get_subnode("kernels")) {
+      for(const auto& kernel_name : kernels_node->get_subnodes()) {
+        std::unique_ptr<hcf_kernel_info> kernel_info{
+            new hcf_kernel_info{id, kernels_node->get_subnode(kernel_name)}};
+        if(kernel_info->is_valid()) {
+          HIPSYCL_DEBUG_INFO << "hcf_cache: Registering kernel info for kernel "
+                             << kernel_name << " from HCF object " << id
+                             << std::endl;
+          HIPSYCL_DEBUG_INFO << "  kernel_info: hcf object id = "
+                             << kernel_info->get_hcf_object_id() << std::endl;
+          for(int i = 0; i < kernel_info->get_num_parameters(); ++i) {
+            HIPSYCL_DEBUG_INFO
+                << "  kernel_info: parameter " << i
+                << ": offset = " << kernel_info->get_global_argument_offset(i)
+                << " size = " << kernel_info->get_argument_size(i) << std::endl;
+          }
+          _hcf_kernel_info[std::make_pair(id, kernel_name)] =
+              std::move(kernel_info);
+        }
+      }
+    }
+    // Same for image nodes
+    if(auto* images_node = stored_obj->root_node()->get_subnode("images")) {
+      for(const auto& image_name : images_node->get_subnodes()) {
+        std::unique_ptr<hcf_image_info> image_info{new hcf_image_info{
+            stored_obj, images_node->get_subnode(image_name)}};
+        
+        if(image_info->is_valid()) {
+          HIPSYCL_DEBUG_INFO << "hcf_cache: Registering image info for image "
+                             << image_name << " from HCF object " << id
+                             << std::endl;
+          _hcf_image_info[std::make_pair(id, image_name)] =
+              std::move(image_info);
+        }
+      }
+    }
   }
 
   std::string hcf_dump_dir =
@@ -162,7 +323,10 @@ void hcf_cache::unregister_hcf_object(hcf_object_id id) {
                 symbol_providers.end());
           }
         });
-    // Then we can remove the HCF itself
+    // Then we can remove the HCF itself.
+    // Note: We don't necessarily need to remove the HCF kernel info, since
+    // just maintaining this data won't have any side effects as long as 
+    // the HCF object is no longer selected for execution.
     _hcf_objects.erase(id);
   }
 }
@@ -176,6 +340,25 @@ const common::hcf_container* hcf_cache::get_hcf(hcf_object_id obj) const {
   return it->second.get();
 }
 
+const hcf_kernel_info *
+hcf_cache::get_kernel_info(hcf_object_id obj,
+                           const std::string &kernel_name) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  auto it = _hcf_kernel_info.find(std::make_pair(obj, kernel_name));
+  if(it == _hcf_kernel_info.end())
+    return nullptr;
+  return it->second.get();
+}
+
+const hcf_image_info *
+hcf_cache::get_image_info(hcf_object_id obj,
+                          const std::string &image_name) const {
+  std::lock_guard<std::mutex> lock{_mutex};
+  auto it = _hcf_image_info.find(std::make_pair(obj, image_name));
+  if(it == _hcf_image_info.end())
+    return nullptr;
+  return it->second.get();
+}
 
 const kernel_cache::kernel_name_index_t*
 kernel_cache::get_global_kernel_index(const std::string &kernel_name) const {

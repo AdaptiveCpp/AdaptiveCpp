@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,27 +25,38 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_SSCP_ADDRESS_SPACE_INFERENCE_PASS_HPP
-#define HIPSYCL_SSCP_ADDRESS_SPACE_INFERENCE_PASS_HPP
+#ifndef HIPSYCL_STABLE_RUNNING_HASH_HPP
+#define HIPSYCL_STABLE_RUNNING_HASH_HPP
 
-#include <llvm/IR/PassManager.h>
-#include "Utils.hpp"
-#include "AddressSpaceMap.hpp"
+#include <cstdint>
+#include <cstdlib>
+#include <utility>
 
 namespace hipsycl {
-namespace compiler {
+namespace common {
 
-class AddressSpaceInferencePass : public llvm::PassInfoMixin<AddressSpaceInferencePass> {
+class stable_running_hash {
+  static uint64_t constexpr prime = 1099511628211ULL;
+  static uint64_t constexpr offset = 14695981039346656037ULL;
+
+  uint64_t value;
+
 public:
-  AddressSpaceInferencePass(const AddressSpaceMap& Map);
-  llvm::PreservedAnalyses run(llvm::Module &M,
-                              llvm::ModuleAnalysisManager &MAM);
-private:
-  AddressSpaceMap ASMap;
+  stable_running_hash() : value{offset} {}
+
+  void operator()(const void *data, std::size_t size) {
+    for (std::size_t i = 0; i < size; ++i) {
+      uint8_t current = static_cast<const uint8_t *>(data)[i];
+      value ^= current;
+      value *= prime;
+    }
+  }
+
+  uint64_t get_current_hash() const { return value; }
 };
+
 
 }
 }
 
 #endif
-

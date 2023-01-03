@@ -185,6 +185,31 @@ if(WITH_LEVEL_ZERO_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_METAL_BACKEND)
+  add_library(rt-backend-metal SHARED
+    metal/metal_backend.cpp
+    metal/metal_hardware_manager.cpp)
+  
+  # TODO: Show this in `syclcc --hipsycl-version`.
+  set(METAL_CPP_LINKER_FLAGS
+    "-framework Metal -framework QuartzCore -framework Foundation -framework IOKit")
+  
+  target_include_directories(rt-backend-metal PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_link_libraries(rt-backend-metal PRIVATE hipSYCL-rt ${METAL_CPP_LINKER_FLAGS})
+  
+  target_compile_options(rt-backend-metal PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-metal PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+  
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-metal PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-metal PRIVATE llvm-to-spirv)
+  endif()
+  
+  install(TARGETS rt-backend-metal
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
 if(WITH_CPU_BACKEND)
   add_library(rt-backend-omp SHARED
     omp/omp_allocator.cpp

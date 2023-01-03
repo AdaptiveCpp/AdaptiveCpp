@@ -115,7 +115,7 @@ else()
   set(WITH_ACCELERATED_CPU false)
 endif()
 
-if(WITH_SSCP_COMPILER) # sanitize input
+if(WITH_SSCP_COMPILER OR WITH_METAL_BACKEND) # sanitize input
   set(WITH_SSCP_COMPILER true)
   set(BUILD_CLANG_PLUGIN true)
 else()

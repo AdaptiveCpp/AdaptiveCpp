@@ -47,7 +47,7 @@ namespace rt {
 
 namespace {
 
-bool is_contigous(id<3> offset, range<3> r, range<3> allocation_shape) {
+bool is_contiguous(id<3> offset, range<3> r, range<3> allocation_shape) {
   if (r.size() == 0)
     return true;
   
@@ -218,9 +218,9 @@ result omp_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr node) {
     std::size_t total_num_bytes = op.get_num_transferred_bytes();
 
     bool is_src_contiguous =
-        is_contigous(src_offset, transferred_range, src_allocation_shape);
+        is_contiguous(src_offset, transferred_range, src_allocation_shape);
     bool is_dest_contiguous =
-        is_contigous(dest_offset, transferred_range, dest_allocation_shape);
+        is_contiguous(dest_offset, transferred_range, dest_allocation_shape);
 
     omp_instrumentation_setup instrumentation_setup{op, node};
 

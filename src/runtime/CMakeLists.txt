@@ -187,6 +187,7 @@ endif()
 
 if(WITH_METAL_BACKEND)
   add_library(rt-backend-metal SHARED
+    metal/metal_allocator.cpp
     metal/metal_backend.cpp
     metal/metal_hardware_manager.cpp)
   

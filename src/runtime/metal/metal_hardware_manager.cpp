@@ -39,6 +39,7 @@
 #include <Metal/Metal.hpp>
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <sys/sysctl.h>
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/metal/metal_hardware_manager.hpp"
@@ -52,9 +53,10 @@ inline io_registry_entry_t get_gpu_entry();
 inline int64_t get_gpu_core_count(io_registry_entry_t gpu_entry);
 inline int64_t get_gpu_max_clock_speed(io_registry_entry_t gpu_entry);
 inline int64_t get_gpu_slc_size(io_registry_entry_t gpu_entry);
+inline int64_t get_max_allocated_size(MTL::Device* device);
 
 metal_hardware_context::metal_hardware_context(MTL::Device* device)
-: _device{device}
+  : _device{device}
 {
   // Retain to prevent the caller from making this a zombie object.
   device->retain();
@@ -330,17 +332,7 @@ std::size_t metal_hardware_context::get_property(device_uint_property prop) cons
     return _slc_size;
     break;
   case device_uint_property::global_mem_size:
-#if TARGET_OS_IPHONE
-    // The smallest A14 device has 4 GB RAM, which is often an artificial limit
-    // on memory size for an iOS app. Only a certain Info.plist key lets you
-    // access more. We subtract another gigabyte to give room for system memory,
-    // and mirror the recommendedMaxWorkingSetSize/RAM ratio on M1 Max.
-    return (4 - 1) * 1024 * 1024 * 1024;
-#else
-    // This is smaller than RAM, but Metal cannot materialize anything larger
-    // during a single compute pass.
-    return _device->recommendedMaxWorkingSetSize();
-#endif
+    return get_max_allocated_size(_device);
     break;
   case device_uint_property::max_constant_buffer_size:
     return 4096;
@@ -401,6 +393,34 @@ std::string metal_hardware_context::get_profile() const {
 metal_hardware_context::~metal_hardware_context() {
   // Return the device's reference count to its original value.
   _device->release();
+}
+
+metal_hardware_manager::metal_hardware_manager() {
+  // There should be only one device.
+  NS::Array* all_devices = MTL::CopyAllDevices();
+  NS::UInteger num_devices = all_devices->count();
+  
+  for (NS::UInteger i = 0; i < num_devices; ++i) {
+    MTL::Device* mtl_device = (MTL::Device*)all_devices->object(i);
+    metal_hardware_context hardware_context = metal_hardware_context{mtl_device};
+    this->_devices.push_back(hardware_context);
+  }
+}
+
+std::size_t metal_hardware_manager::get_num_devices() const {
+  return _devices.size();
+}
+
+hardware_context *metal_hardware_manager::get_device(std::size_t index) {
+  assert(index < _devices.size());
+  return &(_devices[index]);
+}
+
+device_id metal_hardware_manager::get_device_id(std::size_t index) const {
+  return device_id{backend_descriptor{
+    hardware_platform::metal, api_platform::metal},
+    static_cast<int>(index)
+  };
 }
 
 }
@@ -583,6 +603,36 @@ inline int64_t get_gpu_slc_size(io_registry_entry_t gpu_entry) {
     megabytes = 0;
   }
   return megabytes * 1024 * 1024;
+}
+
+// The maximum amount of VM memory you can materialize simultaneously.
+inline int64_t get_max_allocated_size(MTL::Device* device) {
+  int64_t system_memory = 0;
+  size_t size = sizeof(system_memory);
+  int error = sysctlbyname("hw.memsize", &system_memory, &size, NULL, 0);
+  
+  if (error) {
+    print_error(__hipsycl_here(),
+                error_info{"get_max_allocated_size: Could not find 'hw.memsize'",
+      error_code{"metal", errno}});
+  }
+  
+  // The tested limit is ~3725 / 5494 MB on iOS, 67% of physical RAM. It is
+  // ~21700 / 32768 MB on macOS, 66% of physical RAM. We go slightly under this
+  // limit (65%) for safety.
+  // TODO: Test whether the limit ever breaks.
+  int64_t megabytes = system_memory / 1024 / 1024;
+  int64_t working_set_megabytes = 65 * megabytes / 100;
+  int64_t working_set = working_set_megabytes * 1024 * 1024;
+#if TARGET_OS_IPHONE
+  // NOTE: On iOS, you must set increased-memory-limit and
+  // extended-virtual-addressing in the app's entitlements file. Otherwise this
+  // will crash at runtime.
+  return working_set;
+#else
+  int64_t metal_reported_limit = device->recommendedMaxWorkingSetSize();
+  return std::min(working_set, metal_reported_limit);
+#endif
 }
 
 }

@@ -118,8 +118,12 @@ public:
       // fp16 is only partially supported in hipSYCL
       return false;
     } else if(asp == aspect::fp64) {
+      // TODO: Query for backend support until M1 FP64 emulation is integrated
+      // into hipSYCL.
       return true;
     } else if(asp == aspect::atomic64) {
+      // TODO: Query for backend support until M1 Atomic64 emulation is
+      // integrated into hipSYCL.
       return true;
     } else if(asp == aspect::image) {
       return false;

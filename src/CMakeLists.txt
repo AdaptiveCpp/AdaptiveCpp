@@ -11,7 +11,13 @@ set(WITH_LLVM_TO_PTX false)
 set(WITH_LLVM_TO_SPIRV false)
 
 if(WITH_SSCP_COMPILER)
-  if(WITH_LEVEL_ZERO_BACKEND OR WITH_METAL_BACKEND)
+  if(WITH_METAL_BACKEND)
+    set(WITH_LLVM_TO_SPIRV true)
+    # We may need some extra middleware to convert SPIR-V to MSL, as well as
+    # some modifications to the SPIR-V libkernel designed for Level Zero.
+  endif()
+
+  if(WITH_LEVEL_ZERO_BACKEND)
     set(WITH_LLVM_TO_SPIRV true)
   endif()
 

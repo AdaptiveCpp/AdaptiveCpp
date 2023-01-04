@@ -40,6 +40,7 @@ enum class hardware_platform
   rocm,
   cuda,
   level_zero,
+  metal,
   cpu
 };
 
@@ -47,6 +48,7 @@ enum class api_platform {
   cuda,
   hip,
   level_zero,
+  metal,
   omp
 };
 
@@ -54,6 +56,7 @@ enum class backend_id {
   cuda,
   hip,
   level_zero,
+  metal,
   omp
 };
 
@@ -75,9 +78,12 @@ struct backend_descriptor
     else if (hw_plat == hardware_platform::cuda &&
              sw_plat == api_platform::cuda)
       id = backend_id::cuda;
-    else if(hw_plat == hardware_platform::level_zero &&
-            sw_plat == api_platform::level_zero)
+    else if (hw_plat == hardware_platform::level_zero &&
+             sw_plat == api_platform::level_zero)
       id = backend_id::level_zero;
+    else if (hw_plat == hardware_platform::metal &&
+             sw_plat == api_platform::metal)
+      id = backend_id::metal;
     else
       assert(false && "Invalid combination of hardware/software platform for "
                       "backend descriptor.");

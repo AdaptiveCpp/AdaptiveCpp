@@ -190,12 +190,20 @@ if(WITH_METAL_BACKEND)
     metal/metal_backend.cpp
     metal/metal_hardware_manager.cpp)
   
-  # TODO: Show this in `syclcc --hipsycl-version`.
-  set(METAL_CPP_LINKER_FLAGS
-    "-framework Metal -framework QuartzCore -framework Foundation -framework IOKit")
+  # TODO: Move this somewhere more appropriate.
+  # TODO: Configure Metal/Metal.hpp in a possibly less intrusive way.
+  # TODO: Consider setting: add_compile_options(-WMTL_IGNORE_WARNINGS)
+  find_library(FOUNDATION_LIB Foundation REQUIRED)
+  find_library(QUARTZ_CORE_LIB QuartzCore REQUIRED)
+  find_library(METAL_LIB Metal REQUIRED)
+  find_library(IOKIT_LIB IOKit REQUIRED)
+  
+  # TODO: Show these dependencies in `syclcc --hipsycl-version`?
+  target_link_libraries(rt-backend-metal PRIVATE
+    ${FOUNDATION_LIB} ${QUARTZ_CORE_LIB} ${METAL_LIB} ${IOKIT_LIB})
   
   target_include_directories(rt-backend-metal PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  target_link_libraries(rt-backend-metal PRIVATE hipSYCL-rt ${METAL_CPP_LINKER_FLAGS})
+  target_link_libraries(rt-backend-metal PRIVATE hipSYCL-rt)
   
   target_compile_options(rt-backend-metal PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-metal PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})

@@ -434,7 +434,7 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
     return 8; // TODO
     break;
   case device_uint_property::global_mem_cache_line_size:
-    return 128; //TODO
+    return 128; // TODO
     break;
   case device_uint_property::global_mem_cache_size:
     return 128; // TODO

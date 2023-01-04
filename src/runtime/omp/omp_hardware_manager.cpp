@@ -247,7 +247,7 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     return 8; // TODO
     break;
   case device_uint_property::global_mem_cache_line_size:
-    return 64; //TODO
+    return 64; // TODO
     break;
   case device_uint_property::global_mem_cache_size:
     return 1; // TODO

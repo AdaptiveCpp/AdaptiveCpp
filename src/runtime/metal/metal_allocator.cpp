@@ -25,4 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  
- 
+#include <cassert>
+#include <cstdint>
+#include <string>
+#include <limits>
+
+#include <Metal/Metal.hpp>
+#include <sys/sysctl.h>
+
+#include "hipSYCL/runtime/metal/metal_allocator.hpp"
+#include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/util.hpp"
+
+namespace hipsycl {
+namespace rt {
+
+metal_allocator::metal_allocator(const metal_hardware_context *device)
+  : _dev{device->get_metal_device()}
+{
+  
+}
+
+}
+}

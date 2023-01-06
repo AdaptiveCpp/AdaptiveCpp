@@ -78,6 +78,7 @@ private:
   int64_t _core_count;
   int64_t _max_clock_speed;
   int64_t _slc_size;
+  int64_t _max_allocated_size;
 };
 
 class metal_hardware_manager : public backend_hardware_manager

@@ -90,6 +90,8 @@ metal_hardware_context::metal_hardware_context(MTL::Device* device)
   this->_max_clock_speed = get_gpu_max_clock_speed(gpu_entry);
   this->_slc_size = get_gpu_slc_size(gpu_entry);
   IOObjectRelease(gpu_entry);
+  
+  this->_max_allocated_size = get_max_allocated_size(_device);
 }
 
 bool metal_hardware_context::is_cpu() const {
@@ -332,7 +334,7 @@ std::size_t metal_hardware_context::get_property(device_uint_property prop) cons
     return _slc_size;
     break;
   case device_uint_property::global_mem_size:
-    return get_max_allocated_size(_device);
+    return _max_allocated_size;
     break;
   case device_uint_property::max_constant_buffer_size:
     return 4096;

@@ -33,19 +33,15 @@
 
 #include <Metal/Metal.hpp>
 
+#include <set>
+
 namespace hipsycl {
 namespace rt {
 
-// Only supports up to 128 massive allocations simultaneously, in order to
+// Only supports up to 64-256 massive allocations simultaneously, in order to
 // balance driver overhead from calling `useResources(_:)` on every encoder.
 // Apple GPU virtual addresses start at either 0x11_00000000 or 0x15_00000000
 // (https://github.com/AsahiLinux/docs/wiki/HW:AGX)
-//
-// Each chunk should keep a retain count. That way, when the GPU isn't using it,
-// we can avoid `useResource`ing it. Also, make a dictionary of live chunks and
-// query whether one's been created there. Metal's virtual address assignment
-// tells use where to place new allocations; we don't need a custom `malloc`
-// implementation.
 //
 // macOS:
 // Allocate 1 TB of virtual memory, enough to fill 40 bits of GPU VA. Or,
@@ -63,14 +59,13 @@ namespace rt {
 // of the iOS virtual address space, so probably only one app can use hipSYCL
 // simultaneously.
 // 0x11_00000000..<0x1E_00000000
-//
-//  let globalMemorySize = fetchSysctlProperty(name: "hw.memsize")
-//  let virtualAddressBits = fetchSysctlProperty(
-//    name: "machdep.virtual_address_size")
-//  let globalMemory = (65 * (globalMemorySize >> 20) / 100) << 20
-//
-//  // Conservative limit of 6% maximum allocatable memory.
-//  let virtualMemory = (1 << virtualAddressBits) / 16
+
+// TODO: Ensure you transfer all the relevant doc comments from the Swift
+// prototype.
+
+class metal_heap_pool;
+class metal_heap_block;
+
 class metal_allocator : public backend_allocator
 {
 public:
@@ -98,6 +93,52 @@ private:
   int64_t _gpu_base_va;
   
 
+};
+
+class metal_heap_pool
+{
+public:
+
+private:
+  friend class metal_allocator;
+};
+
+class metal_heap_block
+{
+public:
+  metal_heap_block(MTL::Device* device,
+                   uint64_t cpu_base_va,
+                   uint64_t gpu_base_va,
+                   int64_t size);
+
+private:
+  friend class metal_heap_pool;
+
+  NS::SharedPtr<MTL::Heap> _heap;
+  NS::SharedPtr<MTL::Buffer> _buffer;
+  uint64_t _cpu_base_va;
+  uint64_t _gpu_base_va;
+  int64_t _heap_va;
+  int64_t _available_size;
+  std::unordered_map<int64_t, NS::SharedPtr<MTL::Buffer>> _phantom_buffers;
+  
+  // Heap used size isn't a reliable way to find used size. There's a bug where
+  // it returns 4 GB when you have a 4 GB heap, even though no resources are
+  // allocated. The maxAvailableSize(alignment:) still says you can allocate
+  // stuff on the heap.
+  int64_t _used_size = 0;
+  
+  struct allocation {
+    int64_t offset;
+    int64_t size;
+  };
+  struct allocation_compare {
+    constexpr bool operator()(const allocation& lhs,
+                              const allocation& rhs) const {
+      return lhs.offset < rhs.offset;
+    }
+  };
+  std::set<allocation, allocation_compare> _allocations;
 };
 
 }

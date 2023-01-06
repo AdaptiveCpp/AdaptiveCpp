@@ -71,6 +71,9 @@ public:
 private:
   MTL::Device* _device;
   
+  // TODO: Wrap all this data in a container class. It should unify the global
+  // memory size and any other stats. But not the USM base pointer (the
+  // allocator class or a delegate handles that).
   MTL::GPUFamily _gpu_family;
   int64_t _core_count;
   int64_t _max_clock_speed;

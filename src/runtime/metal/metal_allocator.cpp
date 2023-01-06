@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <string>
 #include <limits>
+#include <iterator>
 
 #include <Metal/Metal.hpp>
 #include <sys/sysctl.h>
@@ -46,6 +47,7 @@ metal_allocator::metal_allocator(const metal_hardware_context *device)
   
 }
 
+// TODO: Change all `1 << 14` and `16384` to `vm_page_size`.
 metal_heap_block::metal_heap_block(MTL::Device* device,
                                    uint64_t cpu_base_va,
                                    uint64_t gpu_base_va,
@@ -98,11 +100,112 @@ metal_heap_block::metal_heap_block(MTL::Device* device,
   //
   // If we ever see different behavior, we still have enough information to
   // reconstruct the base VA.
-  assert(_available_size == heap->size() && "Heap available size mismatch.");
-  assert(_available_size == size && "Heap available size mismatch.");
-  assert(heap->currentAllocatedSize() == size && "Heap available size mismatch.");
+  assert((_available_size == heap->size()) && "Heap available size mismatch.");
+  assert((_available_size == size) && "Heap available size mismatch.");
+  assert((heap->currentAllocatedSize() == size) && "Heap available size mismatch.");
   
+  // TODO: Make all the assertions into proper errors, which compile during
+  // release builds.
+  {
+    // Check that available size decreased by 16384.
+    auto buffer1 = NS::TransferPtr(heap->newBuffer(1 << 14, 0));
+    assert((buffer1->heapOffset() == 0) && "Unexpected heap allocation behavior.");
+    int64_t new_available_size1 = heap->maxAvailableSize(1 << 14);
+    int64_t expected_size1 = this->_available_size - (1 << 14);
+    assert((new_available_size1 == expected_size1) && "Unexpected heap allocation behavior.");
+    
+    // Check that available size decreased by 16384.
+    auto buffer2 = NS::TransferPtr(heap->newBuffer(1 << 14, 0));
+    assert((buffer2->heapOffset() == 0) && "Unexpected heap allocation behavior.");
+    int64_t new_available_size2 = heap->maxAvailableSize(1 << 14);
+    int64_t expected_size2 = this->_available_size - 2 * (1 << 14);
+    assert((new_available_size2 == expected_size2) && "Unexpected heap allocation behavior.");
+    
+    // Check that size decreased because buffers were allocated from the start,
+    // not end, of the heap.
+    uint64_t address1 = buffer1->gpuAddress();
+    uint64_t address2 = buffer2->gpuAddress();
+    assert((address1 + 16384 == address2) && "Unexpected heap allocation behavior.");
+    this->_heap_va = address1;
+  }
   
+  // Check that the buffers deallocated.
+  auto new_available_size = heap->maxAvailableSize(1 << 14);
+  assert((this->_available_size == new_available_size) && "Unexpected heap allocation behavior.");
+}
+
+void* metal_heap_block::allocate(int64_t size) {
+  assert(size <= _available_size && "Didn't check size before allocating buffer from heap.");
+  
+  // Use the buffer's allocated size, never its actual length, when doing size
+  // calculations.
+  MTL::Buffer* phantom_buffer = _heap->newBuffer(size, 0);
+  int64_t offset = phantom_buffer->gpuAddress() - _heap_va;
+  int64_t phantom_size = phantom_buffer->allocatedSize();
+  _phantom_buffers.insert({ offset, NS::TransferPtr(phantom_buffer) });
+  
+  allocation_t alloc{ offset, phantom_size };
+  _allocations.insert(alloc);
+  validate_sorted();
+  
+  _used_size += phantom_size;
+  _available_size = _heap->maxAvailableSize(1 << 14);
+  return (void*)(_cpu_base_va + offset);
+}
+
+void metal_heap_block::deallocate(void* usm_pointer) {
+  int64_t offset = (uint64_t)usm_pointer - _cpu_base_va;
+  auto phantom_it = _phantom_buffers.find(offset);
+  assert((phantom_it != _phantom_buffers.end()) && "Pointer did not originate from this heap.");
+  MTL::Buffer* phantom_buffer = (*phantom_it).second.get();
+  int64_t phantom_size = phantom_buffer->allocatedSize();
+  _phantom_buffers.erase(phantom_it);
+  
+  allocation_t expected_alloc{ offset, phantom_size };
+  auto alloc_it = _allocations.lower_bound(expected_alloc);
+  assert((alloc_it != _allocations.end()) && "Allocation not found in sorted list.");
+  assert((*alloc_it == expected_alloc) && "Allocation not found in sorted list.");
+  _allocations.erase(alloc_it);
+  
+  _used_size -= phantom_size;
+  _available_size = _heap->maxAvailableSize(1 << 14);
+}
+
+// TODO: Copy doc comment from Swift prototype that explains why we want to
+// batch pointer searches.
+//
+// TODO: Make a more efficient traversal method after debugging, which is
+// batchable but returns failures. Unless the compiler will always inline
+// this. You need to profile and see how much overhead it invokes.
+//
+// Defer the actual optimization until later. In fact, it can be a follow-up
+// pull request. Just quantify the performance impact.
+int64_t metal_heap_block::get_offset(void* usm_pointer) {
+  int64_t offset = (uint64_t)usm_pointer - _cpu_base_va;
+  allocation_t dummy_alloc{ offset, 0 };
+  auto upper_bound_it = _allocations.upper_bound(dummy_alloc);
+  if (upper_bound_it == _allocations.begin()) {
+    return -1;
+  }
+  allocation_t alloc = *(prev(upper_bound_it));
+  if (alloc.offset <= offset &&
+      offset < alloc.offset + alloc.size) {
+    return offset;
+  } else {
+    return -1;
+  }
+}
+
+void metal_heap_block::validate_sorted() {
+  if (_allocations.size() > 1) {
+    auto start = _allocations.begin();
+    auto end = prev(_allocations.end());
+    for (auto it = start; it != end; ++it) {
+      auto element1 = *it;
+      auto element2 = *(next(it));
+      assert((element1.offset + element1.size <= element2.offset) && "Allocations are not sorted.");
+    }
+  }
 }
 
 }

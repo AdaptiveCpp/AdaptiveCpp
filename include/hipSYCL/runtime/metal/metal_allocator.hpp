@@ -91,8 +91,6 @@ private:
   int64_t _vm_region_size;
   int64_t _cpu_base_va;
   int64_t _gpu_base_va;
-  
-
 };
 
 class metal_heap_pool
@@ -110,6 +108,18 @@ public:
                    uint64_t cpu_base_va,
                    uint64_t gpu_base_va,
                    int64_t size);
+  
+  // Caller must ensure there's enough space before allocating.
+  void* allocate(int64_t size);
+  
+  // Crashes if the pointer doesn't belong in this heap.
+  void deallocate(void* usm_pointer);
+  
+  // Returns -1 if not found.
+  int64_t get_offset(void* usm_pointer);
+  
+  // For debugging purposes only.
+  void validate_sorted();
 
 private:
   friend class metal_heap_pool;
@@ -118,27 +128,27 @@ private:
   NS::SharedPtr<MTL::Buffer> _buffer;
   uint64_t _cpu_base_va;
   uint64_t _gpu_base_va;
-  int64_t _heap_va;
+  uint64_t _heap_va;
   int64_t _available_size;
   std::unordered_map<int64_t, NS::SharedPtr<MTL::Buffer>> _phantom_buffers;
   
   // Heap used size isn't a reliable way to find used size. There's a bug where
   // it returns 4 GB when you have a 4 GB heap, even though no resources are
-  // allocated. The maxAvailableSize(alignment:) still says you can allocate
-  // stuff on the heap.
+  // allocated. `maxAvailableSize(alignment:)` still says you can allocate stuff
+  // on the heap.
   int64_t _used_size = 0;
   
-  struct allocation {
+  struct allocation_t {
     int64_t offset;
     int64_t size;
   };
-  struct allocation_compare {
-    constexpr bool operator()(const allocation& lhs,
-                              const allocation& rhs) const {
+  struct allocation_compare_t {
+    constexpr bool operator()(const allocation_t& lhs,
+                              const allocation_t& rhs) const {
       return lhs.offset < rhs.offset;
     }
   };
-  std::set<allocation, allocation_compare> _allocations;
+  std::set<allocation_t, allocation_compare_t> _allocations;
 };
 
 }

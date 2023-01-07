@@ -30,6 +30,7 @@
 #include <string>
 #include <limits>
 #include <iterator>
+#include <bit>
 
 #include <Metal/Metal.hpp>
 #include <sys/sysctl.h>
@@ -40,6 +41,14 @@
 
 namespace hipsycl {
 namespace rt {
+
+int64_t fetch_sysctl_property(const char *name);
+
+// Rounds an integer up to the nearest power of 2.
+int64_t round_up_to_power_of_2(int64_t input);
+
+// Rounds an integer down to the nearest power of 2.
+int64_t round_down_to_power_of_2(int64_t input);
 
 metal_allocator::metal_allocator(const metal_hardware_context *device)
   : _dev{device->get_metal_device()}
@@ -107,6 +116,10 @@ metal_heap_block::metal_heap_block(MTL::Device* device,
   // TODO: Make all the assertions into proper errors, which compile during
   // release builds.
   {
+    // TODO: We can take a much more deterministic and simple approach. Make a
+    // buffer that consumes the entire heap's memory (`_available_size`). Take
+    // its `gpuAddress()`, then deallocate it.
+    
     // Check that available size decreased by 16384.
     auto buffer1 = NS::TransferPtr(heap->newBuffer(1 << 14, 0));
     assert((buffer1->heapOffset() == 0) && "Unexpected heap allocation behavior.");
@@ -206,6 +219,24 @@ void metal_heap_block::validate_sorted() {
       assert((element1.offset + element1.size <= element2.offset) && "Allocations are not sorted.");
     }
   }
+}
+
+int64_t fetch_sysctl_property(const char *name) {
+  int64_t ret = 0;
+  size_t size = sizeof(int64_t);
+  int error = sysctlbyname(name, &ret, &size, NULL, 0);
+  assert((error == 0) && "sysctl failed.");
+  return ret;
+}
+
+int64_t round_up_to_power_of_2(int64_t input) {
+  uint64_t to_count = (0 > (input - 1)) ? 0 : (input - 1);
+  return 1 << (64 - std::__countl_zero(to_count));
+}
+
+int64_t round_down_to_power_of_2(int64_t input) {
+  uint64_t to_count = input;
+  return 1 << (64 - 1 - std::__countl_zero(to_count));
 }
 
 }

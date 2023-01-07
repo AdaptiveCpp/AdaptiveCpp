@@ -97,8 +97,27 @@ class metal_heap_pool
 {
 public:
 
+  // TODO: Find a more efficient way to cache the buffer list.
+  NS::SharedPtr<NS::Array> extract_buffers();
+
 private:
   friend class metal_allocator;
+  
+  MTL::Device* _dev;
+  uint64_t _cpu_base_va;
+  uint64_t _gpu_base_va;
+  int64_t _physical_memory_limit;
+  int64_t _virtual_memory_limit;
+  
+  // Borrowed from PyTorch MPSAllocator. We don't cache the buffers; they are
+  // immediately returned to the heap. This helps reduce fragmentation, as we
+  // can't afford to exceed device memory (unlike PyTorch).
+  int64_t kMaxSmallAlloc;
+  int64_t kMinLargeAlloc;
+  int64_t kSmallHeap;
+  int64_t kLargeHeap;
+  
+  
 };
 
 class metal_heap_block

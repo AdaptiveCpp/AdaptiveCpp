@@ -30,6 +30,7 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
+#include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
@@ -175,7 +176,6 @@ struct KernelInfo {
 
         KernelParam KP;
         
-        assert(ParamT->hasSize());
         auto BitSize = M.getDataLayout().getTypeSizeInBits(ParamT);
         assert(BitSize % CHAR_BIT == 0);
         KP.ByteSize = BitSize / CHAR_BIT;
@@ -240,7 +240,6 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   EPP.run(*DeviceModule, DeviceMAM);
   
   ExportedSymbolsOutput = EPP.getNonKernelOutliningEntrypoints();
-  
 
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
@@ -270,6 +269,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
         ImportedSymbolsOutput.push_back(F.getName().str());
     }
   }
+
+  AggregateArgumentExpansionPass KernelArgExpansionPass{EPP.getKernelNames()};
+  KernelArgExpansionPass.run(*DeviceModule, DeviceMAM);
 
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);

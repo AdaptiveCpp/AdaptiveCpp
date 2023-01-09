@@ -106,7 +106,7 @@ void list_device_details(rt::device_id dev, rt::backend *b,
   PRINT_DEVICE_SUPPORT_ASPECT(little_endian)
   PRINT_DEVICE_SUPPORT_ASPECT(global_mem_cache)
   PRINT_DEVICE_SUPPORT_ASPECT(global_mem_cache_read_only)
-  PRINT_DEVICE_SUPPORT_ASPECT(global_mem_cache_write_only)
+  PRINT_DEVICE_SUPPORT_ASPECT(global_mem_cache_read_write)
   PRINT_DEVICE_SUPPORT_ASPECT(emulated_local_memory)
   PRINT_DEVICE_SUPPORT_ASPECT(sub_group_independent_forward_progress)
   PRINT_DEVICE_SUPPORT_ASPECT(usm_device_allocations)

@@ -172,8 +172,9 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::global_mem_cache_read_only:
     return false;
     break;
-  case device_support_aspect::global_mem_cache_write_only:
-    return false;
+  case device_support_aspect::global_mem_cache_read_write:
+    // AMD GPUs have read/write cache at least since GCN1 architecture
+    return true;
     break;
   case device_support_aspect::images:
     return false;

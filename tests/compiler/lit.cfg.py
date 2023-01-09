@@ -13,4 +13,5 @@ config.substitutions.append(('%syclcc', config.hipsycl_syclcc))
 
 if "HIPSYCL_DEBUG_LEVEL" in os.environ:
   config.environment["HIPSYCL_DEBUG_LEVEL"] = os.environ["HIPSYCL_DEBUG_LEVEL"]
-  
+if "HIPSYCL_VISIBILITY_MASK" in os.environ:
+  config.environment["HIPSYCL_VISIBILITY_MASK"] = os.environ["HIPSYCL_VISIBILITY_MASK"]

@@ -47,6 +47,7 @@
 
 namespace hipsycl::compiler {
 
+#if LLVM_VERSION_MAJOR < 16
 void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   HIPSYCL_DEBUG_WARNING << "CBS pipeline might not result in peak performance with old PM\n";
   PM.add(new LoopSplitterInliningPassLegacy{});
@@ -67,6 +68,7 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
   PM.add(new KernelFlatteningPassLegacy{});
   PM.add(new LoopsParallelMarkerPassLegacy{});
 }
+#endif // LLVM_VERSION_MAJOR < 16
 
 void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
@@ -83,8 +85,10 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
     FPM.addPass(llvm::InstCombinePass{});
 #if LLVM_VERSION_MAJOR <= 13
     FPM.addPass(llvm::SROA{});
-#else
+#elif LLVM_VERSION_MAJOR < 16
     FPM.addPass(llvm::SROAPass{});
+#else
+    FPM.addPass(llvm::SROAPass{llvm::SROAOptions::ModifyCFG});
 #endif
 
     FPM.addPass(llvm::SimplifyCFGPass{});

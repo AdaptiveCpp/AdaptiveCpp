@@ -59,6 +59,7 @@ static llvm::cl::opt<bool> EnableLLVMSSCP{
 static clang::FrontendPluginRegistry::Add<hipsycl::compiler::FrontendASTAction>
     HipsyclFrontendPlugin{"hipsycl_frontend", "enable hipSYCL frontend action"};
 
+#if LLVM_VERSION_MAJOR < 16
 static void registerGlobalsPruningPass(const llvm::PassManagerBuilder &,
                                        llvm::legacy::PassManagerBase &PM) {
   PM.add(new GlobalsPruningPassLegacy{});
@@ -95,7 +96,9 @@ static void registerMarkParallelPass(const llvm::PassManagerBuilder &,
 static llvm::RegisterStandardPasses
     RegisterMarkParallelBeforeVectorizer(llvm::PassManagerBuilder::EP_VectorizerStart,
                                          registerMarkParallelPass);
-#endif
+#endif // HIPSYCL_WITH_ACCELERATED_CPU
+#endif // LLVM_VERSION_MAJOR < 16
+
 #if !defined(_WIN32) && LLVM_VERSION_MAJOR >= 11
 #define HIPSYCL_RESOLVE_AND_QUOTE(V) #V
 #define HIPSYCL_STRINGIFY(V) HIPSYCL_RESOLVE_AND_QUOTE(V)

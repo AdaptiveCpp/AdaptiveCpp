@@ -54,10 +54,13 @@ template <typename KernelType>
 [[clang::annotate("hipsycl_sscp_kernel")]]
 // hipsycl_sscp_outlining creates an entrypoint for outlining of device code
 [[clang::annotate("hipsycl_sscp_outlining")]]
-// The argument *must* be by-value! Do not change to const reference.
 void __hipsycl_sscp_kernel(KernelType kernel) {
-  if(__hipsycl_sscp_is_device)
-    kernel();
+  if(__hipsycl_sscp_is_device) {
+    // The copy here creates an alloca that can help inferring the argument
+    // type in case of opaque pointers.
+    KernelType k = kernel;
+    k();
+  }
 }
 
 

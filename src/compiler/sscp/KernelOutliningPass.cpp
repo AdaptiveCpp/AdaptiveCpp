@@ -16,6 +16,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/Transforms/IPO/GlobalDCE.h>
@@ -60,7 +61,15 @@ bool isCalledFromAnyFunctionOfSet(llvm::Function* F, const Set& S) {
   return false;
 }
 
-// Attempts to determine the pointee type of a pointer function argument
+bool isKernelArgumentStruct(llvm::Type* T) {
+  if(!T)
+    return false;
+  if(!T->isAggregateType())
+    return false;
+  return T->getStructName().contains("::__sscp_dispatch::");
+}
+
+// Attempts to determine the pointee type of a pointer function argument of a kernel
 // by investigating users, and looking for instructions that provide
 // this information, such as getelementptr.
 // This is particularly necessary due to LLVM's move to opaque pointers,
@@ -83,6 +92,7 @@ public:
         // Otherwise, we need to investigate uses of the argument to check
         // for clues regarding the pointee type.
         llvm::SmallDenseMap<llvm::Type *, int> Scores;
+        scanAllocas(F, Scores);
         rankUsers(F->getArg(ArgNo), Scores);
         
         llvm::Type* BestTy = nullptr;
@@ -102,6 +112,17 @@ public:
   }
 
 private:
+  void scanAllocas(llvm::Function *F, llvm::SmallDenseMap<llvm::Type *, int> &Scores) {
+    for(auto& BB : F->getBasicBlockList()) {
+      for(auto& I : BB.getInstList()) {
+        if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+          if(isKernelArgumentStruct(AI->getAllocatedType())) {
+            Scores[AI->getAllocatedType()] = 0;
+          }
+        }
+      }
+    }
+  }
   void rankUsers(llvm::Value *Parent, llvm::SmallDenseMap<llvm::Type *, int> &Scores,
                  int CurrentScore = 0) {
     if(VisitedUsers.contains(Parent)) {
@@ -125,6 +146,10 @@ private:
         // Ugh, the value is forwarded as an argument into some other function, need
         // to continue looking there...
         
+        // First, check if we have any interesting allocas in the called function
+        scanAllocas(CI->getCalledFunction(), Scores);
+
+        // Next, follow the argument that was passed in there
         for (int i = 0; i < CI->getCalledFunction()->getFunctionType()->getNumParams(); ++i) {
           if(CI->getArgOperand(i) == Parent) {
             auto Arg = CI->getCalledFunction()->getArg(i);
@@ -199,7 +224,7 @@ void canonicalizeKernelParameters(llvm::Function* F, llvm::Module& M) {
           if(PointeeType->isAggregateType()) {
             // It could also be a USM pointer to an aggregate, so check
             // against type name for our dedicated kernel types
-            if(PointeeType->getStructName().contains("::__sscp_dispatch")) {
+            if(isKernelArgumentStruct(PointeeType)) {
               HIPSYCL_DEBUG_INFO
                   << "canonicalizeKernelParameters: Attaching ByVal to argument of kernel "
                   << F->getName() << "\n";

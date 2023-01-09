@@ -108,7 +108,9 @@ static static_hcf_registration
 
 }
 
-namespace sscp_dispatch {
+// Do not change this namespace name - compiler may look for
+// this name to identify structs passed in as kernel arguments.
+namespace __sscp_dispatch {
 
 template <int Dimensions, bool WithOffset>
 bool item_is_in_range(const sycl::item<Dimensions, WithOffset> &item,
@@ -260,7 +262,7 @@ public:
 
       if constexpr(type == rt::kernel_type::single_task){
 
-        launch_kernel_with_global_range(sscp_dispatch::single_task{k},
+        launch_kernel_with_global_range(__sscp_dispatch::single_task{k},
                                         operation, sycl::range{1},
                                         sycl::range{1}, dynamic_local_memory);
 
@@ -268,11 +270,11 @@ public:
 
         if(offset == sycl::id<Dim>{}) {
           launch_kernel_with_global_range(
-              sscp_dispatch::basic_parallel_for{k, global_range}, operation,
+              __sscp_dispatch::basic_parallel_for{k, global_range}, operation,
               global_range, local_range, dynamic_local_memory);
         } else {
           launch_kernel_with_global_range(
-              sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
+              __sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
               operation, global_range, local_range, dynamic_local_memory);
         }
 
@@ -280,11 +282,11 @@ public:
 
         if(offset == sycl::id<Dim>{}) {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
+              __sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
               global_range, local_range, dynamic_local_memory);
         } else {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
+              __sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
               operation, global_range, local_range, dynamic_local_memory);
         }
 

@@ -36,6 +36,8 @@
 namespace hipsycl {
 namespace compiler {
 
+// Expands aggregates into primitive function arguments. Aggregate types to expand are
+// expected to be marked using the ByVal attribute.
 class AggregateArgumentExpansionPass : public llvm::PassInfoMixin<AggregateArgumentExpansionPass> {
 public:
   AggregateArgumentExpansionPass(const std::vector<std::string>& FunctionNames);

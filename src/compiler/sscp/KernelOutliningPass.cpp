@@ -3,6 +3,10 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
+#include <cstddef>
+#include <limits>
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/IR/Attributes.h>
 #include <llvm/IR/GlobalAlias.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/ADT/SmallPtrSet.h>
@@ -13,6 +17,7 @@
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Type.h>
 #include <llvm/Transforms/IPO/GlobalDCE.h>
 #include <llvm/Transforms/IPO/GlobalOpt.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -55,11 +60,163 @@ bool isCalledFromAnyFunctionOfSet(llvm::Function* F, const Set& S) {
   return false;
 }
 
+// Attempts to determine the pointee type of a pointer function argument
+// by investigating users, and looking for instructions that provide
+// this information, such as getelementptr.
+// This is particularly necessary due to LLVM's move to opaque pointers,
+// where pointer types are no longer associated with the pointee type.
+class FunctionArgPointeeTypeInfererence {
+public:
+  llvm::Type* run(llvm::Function* F, int ArgNo) {
+    VisitedUsers.clear();
+    if(llvm::Value* Arg = F->getArg(ArgNo)) {
+      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(Arg->getType())) {
+
+        // If either byval or byref attributes are present, we can just look up
+        // the pointee type directly.
+        if(F->hasParamAttribute(ArgNo, llvm::Attribute::ByVal))
+          return F->getParamAttribute(ArgNo, llvm::Attribute::ByVal).getValueAsType();
+
+        if(F->hasParamAttribute(ArgNo, llvm::Attribute::ByRef))
+          return F->getParamAttribute(ArgNo, llvm::Attribute::ByRef).getValueAsType();
+
+        // Otherwise, we need to investigate uses of the argument to check
+        // for clues regarding the pointee type.
+        llvm::SmallDenseMap<llvm::Type *, int> Scores;
+        rankUsers(F->getArg(ArgNo), Scores);
+        
+        llvm::Type* BestTy = nullptr;
+        int BestScore = std::numeric_limits<int>::min();
+        for(auto S : Scores) {
+          if(S.second > BestScore) {
+            BestTy = S.first;
+            BestScore = S.second;
+          }
+        }
+        return BestTy;
+      } else {
+        return Arg->getType();
+      }
+    }
+    return nullptr;
+  }
+
+private:
+  void rankUsers(llvm::Value *Parent, llvm::SmallDenseMap<llvm::Type *, int> &Scores,
+                 int CurrentScore = 0) {
+    if(VisitedUsers.contains(Parent)) {
+      return;
+    }
+    VisitedUsers.insert(Parent);
+
+    if(!Parent)
+      return;
+    for(auto* Current : Parent->users()) {
+      if (auto LI = llvm::dyn_cast<llvm::LoadInst>(Current)) {
+        Scores[LI->getType()] = CurrentScore - 2;
+      } else if (auto GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(Current)) {
+        Scores[GEPI->getSourceElementType()] = CurrentScore - 1;
+      } else if (auto EEI = llvm::dyn_cast<llvm::ExtractElementInst>(Current)) {
+        Scores[EEI->getVectorOperand()->getType()] = CurrentScore - 2;
+      } else if (auto ACI = llvm::dyn_cast<llvm::AddrSpaceCastInst>(Current)) {
+        // Follow address space casts, we don't care about pointer address spaces
+        rankUsers(Current, Scores, CurrentScore);
+      } else if(auto CI = llvm::dyn_cast<llvm::CallBase>(Current)) {
+        // Ugh, the value is forwarded as an argument into some other function, need
+        // to continue looking there...
+        
+        for (int i = 0; i < CI->getCalledFunction()->getFunctionType()->getNumParams(); ++i) {
+          if(CI->getArgOperand(i) == Parent) {
+            auto Arg = CI->getCalledFunction()->getArg(i);
+            // Never, ever take into account the callee argument. This should never happen,
+            // but if it does, it will go terribly because we will take into account users of functions,
+            // not arguments anymore.
+            if(!llvm::isa<llvm::Function>(Arg))
+              rankUsers(Arg, Scores, CurrentScore);
+          }
+        }
+      }
+    }
+  }
+
+  llvm::SmallSet<llvm::Value*, 32> VisitedUsers;
+};
+
+// In principle, we expect our kernels to have one argument: A struct containing
+// the user lambda that has the ByVal LLVM attribute.
+// In practice, there might be deviations from this because, as a single-pass compiler,
+// the code we are given is affected by the host ABI and ABI-specific argument passing tricks.
+// For example, on x86 if the struct is smaller than 16 bytes, clang will already have expanded it.
+// Another issue is that when the struct is non-trivially copyable (which can happen if
+// it captures e.g. std::tuple) clang will not emit the ByVal attribute. This is particularly
+// problematic in combination with opaque pointers, where we might not know the pointee type
+// otherwise.
+// This function attempts to fix those issues. In particular, if there is a struct argument,
+// it tries to canonicalize it such that it has the ByVal attribute. This is expected
+// by the AggregateArgumentExpansionPass later on.
+void canonicalizeKernelParameters(llvm::Function* F, llvm::Module& M) {
+  // If we have a different number of parameters than 1, we can assume
+  // that clang has pre-expanded the struct for us to raw primitive types or data pointers. In that
+  // case, there is nothing to do because those types can be used directly inside kernels.
+  if(F->getFunctionType()->getNumParams() == 1) {
+    auto* Type = F->getArg(0)->getType();
+
+    // If it is not pointer type, we are dealing with a value that was preexpanded
+    // by clang, e.g. if the struct just captures a single constant (such kernels, while
+    // not really useful, are still allowed).
+    if(Type->isPointerTy()) {
+      // We should not have ByRef attribute, as this does not make
+      // sense for kernel parameters. But maybe the kernel stub in
+      // the kernel launcher was changed to const &. Just change to ByVal and be done.
+      if(F->hasParamAttribute(0, llvm::Attribute::ByRef)) {
+        auto *PointeeType = F->getParamAttribute(0, llvm::Attribute::ByRef).getValueAsType();
+        F->removeParamAttr(0, llvm::Attribute::ByRef);
+        F->addParamAttr(0, llvm::Attribute::getWithByValType(M.getContext(), PointeeType));
+      } else if(!F->hasParamAttribute(0, llvm::Attribute::ByVal)) {
+        // Now it gets interesting: We have a single pointer and no ByVal.
+        // Following explanations are possible:
+        // 1.) We are dealing with a struct, but ByVal is missing, e.g. 
+        //     because the struct is not trivially copyable, and clang
+        //     therefore has not emitted ByVal due to ABI.
+        // 2.) The user has captured just a single USM pointer
+        // 3.) clang has pre-expanded the struct but there was only a single pointer inside.
+
+        // We need to proceed by obtaining more information about the pointee type.
+        FunctionArgPointeeTypeInfererence ArgPTI;
+        llvm::Type* PointeeType = ArgPTI.run(F, 0);
+        if(!PointeeType) {
+          // We could not infer pointee type - this happens e.g.
+          // when the parameter is not used inside the kernel.
+          // So chances are, we can just ignore this case
+          // as a kernel that executes without side effects
+          // also does not care about its parameter conventions.
+          HIPSYCL_DEBUG_INFO
+              << "canonicalizeKernelParameters: Could not infer argument pointee type of kernel "
+              << F->getName() << "\n";
+        } else {
+          // If we are not dealing with an aggregate type, we can just treat
+          // the pointer as e.g. a regular USM pointer.
+          if(PointeeType->isAggregateType()) {
+            // It could also be a USM pointer to an aggregate, so check
+            // against type name for our dedicated kernel types
+            if(PointeeType->getStructName().contains("::__sscp_dispatch")) {
+              HIPSYCL_DEBUG_INFO
+                  << "canonicalizeKernelParameters: Attaching ByVal to argument of kernel "
+                  << F->getName() << "\n";
+              F->addParamAttr(0, llvm::Attribute::getWithByValType(M.getContext(), PointeeType));
+            }
+          }
+        }
+      } /* else {} We have ByVal attribute, so all is well. */
+    }
+  }
+}
+
 }
 
 llvm::PreservedAnalyses
 EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
-  
+
   static constexpr const char* SSCPKernelMarker = "hipsycl_sscp_kernel";
   static constexpr const char* SSCPOutliningMarker = "hipsycl_sscp_outlining";
 
@@ -183,5 +340,18 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   return llvm::PreservedAnalyses::none();
 }
 
+KernelArgumentCanonicalizationPass::KernelArgumentCanonicalizationPass(
+    const std::vector<std::string> &KernelNames)
+    : KernelNames{KernelNames} {}
+
+llvm::PreservedAnalyses KernelArgumentCanonicalizationPass::run(llvm::Module &M,
+                                                                llvm::ModuleAnalysisManager &AM) {
+  for (const auto &K : KernelNames) {
+    if (auto *F = M.getFunction(K)) {
+      canonicalizeKernelParameters(F, M);
+    }
+  }
+  return llvm::PreservedAnalyses::none();
+}
 }
 }

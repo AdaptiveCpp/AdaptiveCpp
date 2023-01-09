@@ -35,6 +35,7 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Constants.h>
 
 namespace hipsycl {
 namespace compiler {

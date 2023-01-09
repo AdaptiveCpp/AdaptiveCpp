@@ -69,7 +69,17 @@ private:
   std::vector<std::string> OutliningEntrypoints;
 };
 
+//  Removes all code not belonging to kernels
+class KernelArgumentCanonicalizationPass
+    : public llvm::PassInfoMixin<KernelArgumentCanonicalizationPass> {
+public:
+  KernelArgumentCanonicalizationPass(const std::vector<std::string>& KernelNames);
 
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+
+private:
+  std::vector<std::string> KernelNames;
+};
 }
 }
 

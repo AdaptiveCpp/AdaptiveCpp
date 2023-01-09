@@ -270,6 +270,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     }
   }
 
+  KernelArgumentCanonicalizationPass KACPass{EPP.getKernelNames()};
+  KACPass.run(*DeviceModule, DeviceMAM);
   AggregateArgumentExpansionPass KernelArgExpansionPass{EPP.getKernelNames()};
   KernelArgExpansionPass.run(*DeviceModule, DeviceMAM);
 

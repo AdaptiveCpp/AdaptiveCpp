@@ -84,99 +84,19 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   llvm::Type *NewType = llvm::PointerType::getWithSamePointeeType(GV->getType(), AS);
   llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
       M, NewType, GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName);
-  
+  NewVar->setAlignment(GV->getAlign());
+
   llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
+
   GV->replaceAllUsesWith(V);
   GV->eraseFromParent();
 
   return NewVar;
 }
 
-void setAllPointerOperandsToAddressSpace(llvm::Instruction& I, unsigned AS) {
-  for(int i=0; i < I.getNumOperands(); ++i) {
-    if(I.getOperand(i)->getType()->isPointerTy()) {
-      llvm::Value* V = I.getOperand(i);
-      llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(V->getType());
-      assert(PT);
-      if(PT->getAddressSpace() != AS && PT->getAddressSpace() == 0) {
-
-        auto *ASCastInst =
-            new llvm::AddrSpaceCastInst{V, llvm::PointerType::getWithSamePointeeType(PT, AS), "", &I};
-//        V->replaceAllUsesWith(ASCastInst);
-        I.setOperand(i, ASCastInst);
-      }
-    }
-  }
-}
 
 } // anonymous namespace
 
-void rewriteKernelArgumentAddressSpacesTo(unsigned AddressSpace, llvm::Module &M,
-                                          const std::vector<std::string> &KernelNames,
-                                          PassHandler &PH) {
-
-  for(auto KernelName : KernelNames) {
-    if(auto* F = M.getFunction(KernelName)){
-      F->setName(KernelName+"_entrypoint");
-      F->setLinkage(llvm::GlobalValue::InternalLinkage);
-
-      llvm::SmallVector<llvm::Type*, 8> Params;
-      llvm::FunctionType* OriginalFType = F->getFunctionType();
-      
-      for(int i = 0; i < OriginalFType->getNumParams(); ++i){
-        llvm::Type* CurrentParamType = OriginalFType->getParamType(i);
-        if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(CurrentParamType)) {
-          if(PT->getAddressSpace() != AddressSpace) {
-            llvm::Type *NewT =
-                llvm::PointerType::getWithSamePointeeType(PT, AddressSpace);
-            Params.push_back(NewT);
-          }
-        } else {
-          Params.push_back(CurrentParamType);
-        }
-      }
-
-      llvm::FunctionType *FType = llvm::FunctionType::get(F->getReturnType(), Params, false);
-
-      if (auto *NewF = llvm::dyn_cast<llvm::Function>(
-              M.getOrInsertFunction(KernelName, FType, F->getAttributes()).getCallee())) {
-
-        llvm::BasicBlock *BB =
-            llvm::BasicBlock::Create(M.getContext(), "" + KernelName, NewF);
-        llvm::SmallVector<llvm::Value*, 8> CallArgs;
-        for(int i = 0; i < Params.size(); ++i) {
-          if(llvm::PointerType* NewPT = llvm::dyn_cast<llvm::PointerType>(NewF->getArg(i)->getType())) {
-            
-            assert(llvm::isa<llvm::PointerType>(F->getArg(i)->getType()));
-            llvm::PointerType* OldPT = llvm::dyn_cast<llvm::PointerType>(F->getArg(i)->getType());
-            
-            if(NewPT->getAddressSpace() != OldPT->getAddressSpace()) {
-
-              auto *ASCastInst = new llvm::AddrSpaceCastInst{NewF->getArg(i), OldPT,
-                                                             "", BB};
-              CallArgs.push_back(ASCastInst);
-            } else {
-              CallArgs.push_back(NewF->getArg(i));
-            }
-          } else {
-            CallArgs.push_back(NewF->getArg(i));
-          }
-        }
-
-        assert(CallArgs.size() == F->getFunctionType()->getNumParams());
-        for(int i = 0; i < CallArgs.size(); ++i) {
-          assert(CallArgs[i]->getType() == F->getFunctionType()->getParamType(i));
-        }
-
-        auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs,
-                                            "", BB);
-        llvm::ReturnInst::Create(M.getContext(), BB);
-      }
-    }
-  }
-
-  PH.ModuleAnalysisManager->invalidate(M, llvm::PreservedAnalyses::none());
-}
 
 AddressSpaceInferencePass::AddressSpaceInferencePass(const AddressSpaceMap &Map) : ASMap{Map} {}
 
@@ -192,10 +112,35 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
 
   assert(ASMap[AddressSpace::Generic] == 0);
 
+  // If the target data layout has changed default alloca address space
+  // we can end up with allocas that are in the wrong address space. We
+  // need to fix this now.
+  unsigned AllocaAddrSpace = ASMap[AddressSpace::AllocaDefault];
+  llvm::SmallVector<llvm::Instruction*, 16> InstsToRemove;
+  for(auto& F : M.getFunctionList()) {
+    for(auto& BB : F.getBasicBlockList()) {
+      for(auto& I : BB.getInstList()) {
+        if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
+          if(AI->getAddressSpace() != AllocaAddrSpace) {
+            HIPSYCL_DEBUG_INFO << "AddressSpaceInferencePass: Found alloca in address space "
+                               << AI->getAddressSpace() << " when it should be in AS "
+                               << AllocaAddrSpace << ", fixing.\n";
+            auto *NewAI = new llvm::AllocaInst{AI->getAllocatedType(), AllocaAddrSpace, "", AI};
+            auto* ASCastInst = new llvm::AddrSpaceCastInst{NewAI, AI->getType(), "", AI};
+            AI->replaceAllUsesWith(ASCastInst);
+            InstsToRemove.push_back(AI);
+          }
+        }
+      }
+    }
+  }
+  for(auto* I : InstsToRemove)
+    I->eraseFromParent();
+  
   auto IAS = llvm::createModuleToFunctionPassAdaptor(
       llvm::InferAddressSpacesPass{ASMap[AddressSpace::Generic]});
   IAS.run(M, MAM);
-  
+
   return llvm::PreservedAnalyses::none();
 }
 

@@ -46,8 +46,10 @@ public:
   virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
   virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
   virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) override;
-  
-  virtual bool setBuildOption(const std::string &Option, const std::string &Value) override;
+protected:
+  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
+  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
+  virtual AddressSpaceMap getAddressSpaceMap() const override;
 private:
   std::vector<std::string> KernelNames;
   unsigned DynamicLocalMemSize = 0;

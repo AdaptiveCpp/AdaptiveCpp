@@ -501,7 +501,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   }
 
   const common::hcf_container *hcf =
-        rt::kernel_cache::get().get_hcf(hcf_object);
+        rt::hcf_cache::get().get_hcf(hcf_object);
   if (!hcf)
     return make_error(
         __hipsycl_here(),
@@ -611,6 +611,15 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   std::string target_arch_name = ctx->get_device_arch();
 
+  const hcf_kernel_info *kernel_info =
+      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
+  if(!kernel_info) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"hip_queue: Could not obtain hcf kernel info for kernel " +
+            global_kernel_name});
+  }
+
   auto code_object_selector = [&](const code_object* candidate) -> bool {
     
     if ((candidate->managing_backend() != backend_id::hip) ||
@@ -629,14 +638,11 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
   auto code_object_constructor = [&]() -> code_object * {
     const common::hcf_container *hcf =
-        rt::kernel_cache::get().get_hcf(hcf_object);
-
+        rt::hcf_cache::get().get_hcf(hcf_object);
+    
     std::vector<std::string> kernel_names;
-    // Define image selector that will also fill kernel_names with
-    // list of kernels contained in selected image
-    glue::jit::image_selector_and_kernel_list_extractor image_selector{
-        glue::jit::default_llvm_image_selector{}, kernel_name, &kernel_names,
-        hcf};
+    std::string selected_image_name =
+        glue::jit::select_image(kernel_info, &kernel_names);
 
     // Construct amdgpu translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
@@ -647,7 +653,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     // Lower kernels
     std::string amdgpu_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, image_selector, config, amdgpu_image);
+        hcf, selected_image_name, config, amdgpu_image);
     
     if(!err.is_success()) {
       register_error(err);
@@ -686,9 +692,20 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       static_cast<const hip_executable_object *>(obj)->get_module();
   assert(module);
 
-  return launch_kernel_from_module(module, kernel_name, num_groups, group_size,
-                                   local_mem_size, _stream, args, arg_sizes,
-                                   num_args);
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "hip_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
+  return launch_kernel_from_module(
+      module, kernel_name, num_groups, group_size, local_mem_size, _stream,
+      arg_mapper.get_mapped_args(),
+      const_cast<std::size_t *>(arg_mapper.get_mapped_arg_sizes()),
+      arg_mapper.get_mapped_num_args());
 #else
   return make_error(
       __hipsycl_here(),

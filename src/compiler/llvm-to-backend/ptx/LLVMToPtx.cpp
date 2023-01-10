@@ -26,7 +26,9 @@
  */
 
 #include "hipSYCL/compiler/llvm-to-backend/ptx/LLVMToPtx.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
@@ -115,6 +117,18 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   M.setTargetTriple(Triple);
   M.setDataLayout(DataLayout);
 
+  AddressSpaceMap ASMap = getAddressSpaceMap();
+  
+  KernelFunctionParameterRewriter ParamRewriter{
+      // PTX wants ByVal attribute for all aggregates passed in by-value
+      KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
+      // Those pointers to by-value data can be in generic AS
+      ASMap[AddressSpace::Generic],
+      // Actual pointers should be in global memory
+      ASMap[AddressSpace::Global]};
+  
+  ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
+
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
       
@@ -141,20 +155,13 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     return false;
   }
 
+  AddressSpaceInferencePass ASIPass {ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
   if(!this->linkBitcodeFile(M, LibdeviceFile, Triple, DataLayout))
     return false;
-  
-  for(auto& F : M.getFunctionList()) {
-    if (std::find(KernelNames.begin(), KernelNames.end(), F.getName()) == KernelNames.end()) {
-      // When we are already lowering to device specific format,
-      // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are llvm intrinsics.
-      if(!F.isIntrinsic())
-        F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
 
   return true;
 }
@@ -230,7 +237,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   return true;
 }
 
-bool LLVMToPtxTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToPtxTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "ptx-version") {
     this->PtxVersion = std::stoi(Value);
     return true;
@@ -240,6 +247,27 @@ bool LLVMToPtxTranslator::setBuildOption(const std::string &Option, const std::s
   }
 
   return false;
+}
+
+bool LLVMToPtxTranslator::isKernelAfterFlavoring(llvm::Function& F) {
+  for(const auto& Name : KernelNames)
+    if(F.getName() == Name)
+      return true;
+  return false;
+}
+
+AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
+  return ASMap;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

@@ -29,6 +29,16 @@
 #define HIPSYCL_LLVM_TO_BACKEND_UTILS_HPP
 
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
+#include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/Attributes.h>
+#include <llvm/ADT/SmallSet.h>
+#include <llvm/IR/Function.h>
+#include <llvm/Support/Casting.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/User.h>
+#include <llvm/IR/Argument.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Bitcode/BitcodeReader.h>
@@ -104,6 +114,140 @@ inline void constructPassBuilderAndMAM(F&& handler) {
 
   handler(PB, MAM);
 }
+
+
+class KernelFunctionParameterRewriter {
+public:
+  // Attribute that should be attached to by-value
+  // pointer function arguments
+  enum class ByValueArgAttribute {
+    ByVal, ByRef
+  };
+
+  /// \param Attr Whether by-value arguments that are passed as pointers
+  /// should have byval or byref attribute. Note: At least one of them
+  /// must already be present.
+  /// \param DesiredByValueArgAddressSpace Address space that pointers
+  /// to by-value arguments should have
+  /// \param DesiredPointerAddressSpace Address space that actual pointers
+  /// should have
+  KernelFunctionParameterRewriter(ByValueArgAttribute Attr, unsigned DesiredByValueArgAddressSpace,
+                                  unsigned DesiredPointerAddressSpace)
+      : Attr{Attr}, ByValueArgAddressSpace{DesiredByValueArgAddressSpace},
+        PointerAddressSpace{DesiredPointerAddressSpace} {}
+
+  void run(llvm::Module &M, const std::vector<std::string> &KernelNames,
+           llvm::ModuleAnalysisManager &MAM) {
+    for(auto KernelName : KernelNames) {
+      if(auto* F = M.getFunction(KernelName)) {
+        run(M, F);
+      }
+    }
+    MAM.invalidate(M, llvm::PreservedAnalyses::none());
+  }
+
+  void run(llvm::Module& M, llvm::Function* F) {
+    auto* OldFType = F->getFunctionType();
+    std::string FunctionName = F->getName().str();
+    F->setName(FunctionName+"_PreKernelParameterRewriting");
+    // Make sure old function can be inlined
+    auto OldLinkage = F->getLinkage();
+    F->setLinkage(llvm::GlobalValue::InternalLinkage);
+
+    llvm::SmallVector<llvm::Type*, 8> Params;
+    for(int i = 0; i < OldFType->getNumParams(); ++i){
+      llvm::Type* CurrentParamType = OldFType->getParamType(i);
+
+      if(llvm::PointerType* PT = llvm::dyn_cast<llvm::PointerType>(CurrentParamType)) {
+        bool HasByRefAttr = F->hasParamAttribute(i, llvm::Attribute::ByRef);
+        bool HasByValAttr = F->hasParamAttribute(i, llvm::Attribute::ByVal);
+
+        unsigned TargetAddressSpace = 0;
+        if(!HasByRefAttr && !HasByValAttr) {
+          // Regular pointer
+          TargetAddressSpace = PointerAddressSpace;
+        } else {
+          // ByVal or ByRef - this probably means that
+          // some struct is passed into the kernel by value.
+          // (the attribute will be handled later)
+          TargetAddressSpace = ByValueArgAddressSpace;
+        }
+        llvm::Type *NewT = llvm::PointerType::getWithSamePointeeType(PT, TargetAddressSpace);
+        Params.push_back(NewT);
+      
+      } else {
+        Params.push_back(CurrentParamType);
+      }
+    }
+
+
+    llvm::FunctionType *FType = llvm::FunctionType::get(F->getReturnType(), Params, false);
+    if (auto *NewF = llvm::dyn_cast<llvm::Function>(
+            M.getOrInsertFunction(FunctionName, FType, F->getAttributes()).getCallee())) {
+
+      // Fix ByVal and ByRef attributes (different backends require different
+      // attributes for kernel arguments)
+      for(int i = 0; i < NewF->getFunctionType()->getNumParams(); ++i) {
+        bool HasByRefAttr = NewF->hasParamAttribute(i, llvm::Attribute::ByRef);
+        bool HasByValAttr = NewF->hasParamAttribute(i, llvm::Attribute::ByVal);
+        if(HasByRefAttr || HasByValAttr) {
+          llvm::Attribute::AttrKind DesiredAttr = (Attr == ByValueArgAttribute::ByRef)
+                                                     ? llvm::Attribute::ByRef
+                                                     : llvm::Attribute::ByVal;
+          llvm::Attribute::AttrKind PresentAttr =
+              HasByRefAttr ? llvm::Attribute::ByRef : llvm::Attribute::ByVal;
+          if(PresentAttr != DesiredAttr) {
+            llvm::Type* ValT = F->getParamAttribute(i, PresentAttr).getValueAsType();
+            assert(ValT);
+
+            NewF->removeParamAttr(i, PresentAttr);
+            if(DesiredAttr == llvm::Attribute::ByRef)
+              NewF->addParamAttr(i, llvm::Attribute::getWithByRefType(M.getContext(), ValT));
+            else
+              NewF->addParamAttr(i, llvm::Attribute::getWithByValType(M.getContext(), ValT));            
+          }
+        }
+      }
+
+      // Now create function call to old function
+      llvm::BasicBlock *BB =
+          llvm::BasicBlock::Create(M.getContext(), "", NewF);
+      llvm::SmallVector<llvm::Value*, 8> CallArgs;
+
+      for(int i = 0; i < Params.size(); ++i) {
+        if (llvm::PointerType *NewPT =
+                llvm::dyn_cast<llvm::PointerType>(NewF->getArg(i)->getType())) {
+
+          assert(llvm::isa<llvm::PointerType>(F->getArg(i)->getType()));
+          llvm::PointerType *OldPT = llvm::dyn_cast<llvm::PointerType>(F->getArg(i)->getType());
+
+          if (NewPT->getAddressSpace() != OldPT->getAddressSpace()) {
+            auto *ASCastInst = new llvm::AddrSpaceCastInst{NewF->getArg(i), OldPT, "", BB};
+            CallArgs.push_back(ASCastInst);
+          } else {
+            CallArgs.push_back(NewF->getArg(i));
+          }
+        } else {
+          CallArgs.push_back(NewF->getArg(i));
+        }
+      }
+
+      assert(CallArgs.size() == F->getFunctionType()->getNumParams());
+      for(int i = 0; i < CallArgs.size(); ++i) {
+        assert(CallArgs[i]->getType() == F->getFunctionType()->getParamType(i));
+      }
+
+      auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(F), CallArgs,
+                                            "", BB);
+      llvm::ReturnInst::Create(M.getContext(), BB);
+    }
+  }
+private:
+  ByValueArgAttribute Attr;
+  unsigned ByValueArgAddressSpace;
+  unsigned PointerAddressSpace;
+};
+
 
 }
 }

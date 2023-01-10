@@ -39,9 +39,11 @@
 #include "../vec.hpp"
 #include <type_traits>
 
-/// TODO: This file is a placeholder, all group algorithms are unimplemented!
+/// TODO: This file is a placeholder, most group algorithms are unimplemented!
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+
+#include "builtins/barrier.hpp"
 
 namespace hipsycl {
 namespace sycl::detail::sscp_builtins {
@@ -50,12 +52,16 @@ namespace sycl::detail::sscp_builtins {
 template <int Dim>
 HIPSYCL_BUILTIN void
 __hipsycl_group_barrier(group<Dim> g,
-                        memory_scope fence_scope = group<Dim>::fence_scope);
+                        memory_scope fence_scope = group<Dim>::fence_scope) {
+  __hipsycl_sscp_work_group_barrier(fence_scope, memory_order::seq_cst);
+}
 
 HIPSYCL_BUILTIN
  void
 __hipsycl_group_barrier(sub_group g,
-                        memory_scope fence_scope = sub_group::fence_scope);
+                        memory_scope fence_scope = sub_group::fence_scope) {
+  __hipsycl_sscp_sub_group_barrier(fence_scope, memory_order::seq_cst);
+}
 
 // broadcast
 template <int Dim, typename T>

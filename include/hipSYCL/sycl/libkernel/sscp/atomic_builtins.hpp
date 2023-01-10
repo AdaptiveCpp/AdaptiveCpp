@@ -42,57 +42,57 @@ namespace detail::sscp_builtins {
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN void __hipsycl_atomic_store(T *addr, T x, memory_order order,
-                                            memory_scope scope) noexcept;
+                                            memory_scope scope) noexcept {}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_load(T *addr, memory_order order,
-                                        memory_scope scope) noexcept;
+                                        memory_scope scope) noexcept {return T{};}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_exchange(T *addr, T x, memory_order order,
-                                            memory_scope scope) noexcept;
+                                            memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_weak(
     T *addr, T &expected, T desired, memory_order success, memory_order failure,
-    memory_scope scope) noexcept;
+    memory_scope scope) noexcept {return true;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN bool __hipsycl_atomic_compare_exchange_strong(
     T *addr, T &expected, T desired, memory_order success, memory_order failure,
-    memory_scope scope) noexcept;
+    memory_scope scope) noexcept {return true;}
 
 // Integral values only
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_and(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_or(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_xor(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 // Floating point and integral values
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_add(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_sub(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_min(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 template <access::address_space S, class T>
 HIPSYCL_BUILTIN T __hipsycl_atomic_fetch_max(T *addr, T x, memory_order order,
-                                             memory_scope scope) noexcept;
+                                             memory_scope scope) noexcept {return x;}
 
 }
 }

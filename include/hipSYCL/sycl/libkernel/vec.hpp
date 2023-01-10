@@ -115,13 +115,13 @@ public:
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
   value_type& get() {
-    return _original_data.template get<Index>();
+    return _original_data[_swizzled_indices[Index]];
   }
 
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
   const value_type& get() const {
-    return _original_data.template get<Index>();
+    return _original_data[_swizzled_indices[Index]];
   }
 
   template<class F>
@@ -876,6 +876,10 @@ private:
 
   VectorStorage _data;
 };
+
+template <class T, class... U,
+          class = std::enable_if_t<(std::is_same<T, U>::value && ...)>> vec(
+                      T, U...) -> vec<T, sizeof...(U) + 1>;
 
 using char2 = vec<int8_t, 2>;
 using char3 = vec<int8_t, 3>;

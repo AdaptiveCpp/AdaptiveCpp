@@ -117,6 +117,25 @@ public:
     void set(const std::string& key, const std::string& value) {
       key_value_pairs.push_back(std::make_pair(key, value));
     }
+
+    // Note: This is a convenience feature. It just creates additional subnodes for list entries.
+    void set_as_list(const std::string& key, const std::vector<std::string>& list_entries) {
+      auto* N = add_subnode(key);
+      if(N) {
+        for(const auto& e : list_entries) {
+          N->add_subnode(e);
+        }
+      }
+    }
+
+    // Returns vector of list entries if key is present, or empty vector
+    // otherwise.
+    // Note: This is a convenience feature. It just reads subnodes for list entries.
+    std::vector<std::string> get_as_list(const std::string& key) const {
+      if(!has_subnode(key))
+        return {};
+      return get_subnode(key)->get_subnodes();
+    }
   };
 
   hcf_container() {

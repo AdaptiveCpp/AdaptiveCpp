@@ -426,7 +426,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     if(!hcf) {
       HIPSYCL_DEBUG_ERROR << "ze_queue: Could not retrieve SPIR-V HCF object"
                           << std::endl;
@@ -520,6 +520,15 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   config.set("spirv-dynamic-local-mem-allocation-size", local_mem_size);
   auto configuration_id = config.generate_id();
 
+  const hcf_kernel_info *kernel_info =
+      rt::hcf_cache::get().get_kernel_info(hcf_object, kernel_name);
+  if(!kernel_info) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{"ze_queue: Could not obtain hcf kernel info for kernel " +
+            global_kernel_name});
+  }
+
   auto code_object_selector = [&](const code_object *candidate) -> bool {
     if ((candidate->managing_backend() != backend_id::level_zero) ||
         (candidate->source_compilation_flow() != compilation_flow::sscp) ||
@@ -536,14 +545,11 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
-    const common::hcf_container* hcf = rt::kernel_cache::get().get_hcf(hcf_object);
+    const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
-    // Define image selector that will also fill kernel_names with
-    // list of kernels contained in selected image
-    glue::jit::image_selector_and_kernel_list_extractor image_selector{
-        glue::jit::default_llvm_image_selector{}, kernel_name, &kernel_names,
-        hcf};
+    std::string selected_image_name =
+        glue::jit::select_image(kernel_info, &kernel_names);
 
     // Construct SPIR-V translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
@@ -555,7 +561,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     // Lower kernels to SPIR-V
     std::string compiled_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, image_selector, config, compiled_image);
+        hcf, selected_image_name, config, compiled_image);
     
     if(!err.is_success()) {
       register_error(err);
@@ -598,10 +604,22 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   HIPSYCL_DEBUG_INFO << "ze_queue: Attempting to submit SSCP kernel"
                      << std::endl;
 
+
+  glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
+                                            num_args};
+  if(!arg_mapper.mapping_available()) {
+    return make_error(
+        __hipsycl_here(),
+        error_info{
+            "ze_queue: Could not map C++ arguments to kernel arguments"});
+  }
+
   auto submission_err = submit_ze_kernel(
       kernel, get_ze_command_list(),
       static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
-      wait_events, group_size, num_groups, args, arg_sizes, num_args);
+      wait_events, group_size, num_groups, arg_mapper.get_mapped_args(),
+      const_cast<std::size_t *>(arg_mapper.get_mapped_arg_sizes()),
+      arg_mapper.get_mapped_num_args());
 
   if(!submission_err.is_success())
     return submission_err;

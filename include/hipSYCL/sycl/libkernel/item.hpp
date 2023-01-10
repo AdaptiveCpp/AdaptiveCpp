@@ -47,6 +47,18 @@ namespace detail {
 template <int dimensions>
 struct item_base
 {
+protected:
+  struct not_convertible_to_scalar {};
+
+  static constexpr auto get_scalar_conversion_type() {
+    if constexpr(dimensions == 1)
+      return std::size_t{};
+    else
+      return not_convertible_to_scalar {};
+  }
+
+  using scalar_conversion_type = decltype(get_scalar_conversion_type());
+public:
   HIPSYCL_KERNEL_TARGET 
   item_base(const sycl::id<dimensions>& my_id,
     const sycl::range<dimensions>& global_size)
@@ -83,6 +95,7 @@ struct item_base
     return detail::linear_id<dimensions>::get(this->global_id,
       this->global_size);
   }
+
 protected:
   sycl::id<dimensions> global_id;
   sycl::range<dimensions> global_size;
@@ -124,8 +137,7 @@ struct item<dimensions, true> : detail::item_base<dimensions>
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, true> lhs, const item<dimensions, true> rhs)
   {
-    return lhs.my_id == rhs.my_id &&
-           lhs.global_id == rhs.global_id &&
+    return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size &&
            lhs.offset == rhs.offset;
   }
@@ -133,6 +145,14 @@ struct item<dimensions, true> : detail::item_base<dimensions>
   HIPSYCL_KERNEL_TARGET friend bool operator !=(const item<dimensions, true> lhs, const item<dimensions, true> rhs)
   {
     return !(lhs==rhs);
+  }
+
+  // We cannot use enable_if since the involved templates would
+  // prevent implicit type conversion to other integer types.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+      const {
+    return this->global_id[0];
   }
 
 private:
@@ -151,7 +171,7 @@ private:
     : detail::item_base<dimensions>(my_id, global_size), offset{offset}
   {}
 
-  const sycl::id<dimensions> offset;
+  sycl::id<dimensions> offset;
 };
 
 template <int dimensions>
@@ -165,8 +185,7 @@ struct item<dimensions, false> : detail::item_base<dimensions>
 
   HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, false> lhs, const item<dimensions, false> rhs)
   {
-    return lhs.my_id == rhs.my_id &&
-           lhs.global_id == rhs.global_id &&
+    return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size;
   }
 
@@ -175,6 +194,13 @@ struct item<dimensions, false> : detail::item_base<dimensions>
     return !(lhs==rhs);
   }
 
+  // We cannot use enable_if since the involved templates would
+  // prevent implicit type conversion to other integer types.
+  HIPSYCL_UNIVERSAL_TARGET
+  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+      const {
+    return this->global_id[0];
+  }
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc

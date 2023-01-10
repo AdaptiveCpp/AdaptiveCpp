@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +25,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LLVM_TO_PTX_HPP
-#define HIPSYCL_LLVM_TO_PTX_HPP
+#include "builtin_config.hpp"
+#include "../../memory.hpp"
 
+#ifndef HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
+#define HIPSYCL_SSCP_BARRIER_BUILTINS_HPP
 
-#include "../LLVMToBackend.hpp"
+#define HIPSYCL_SSCP_CONVERGENT_BUILTIN HIPSYCL_SSCP_BUILTIN __attribute__((convergent))
 
-#include <vector>
-#include <string>
+using __hipsycl_sscp_memory_scope = hipsycl::sycl::memory_scope;
+using __hipsycl_sscp_memory_order = hipsycl::sycl::memory_order;
 
-namespace hipsycl {
-namespace compiler {
-
-class LLVMToPtxTranslator : public LLVMToBackendTranslator{
-public:
-  LLVMToPtxTranslator(const std::vector<std::string>& KernelNames);
-
-  virtual ~LLVMToPtxTranslator() {}
-
-  virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
-  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
-  virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
-protected:
-  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
-  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
-  virtual AddressSpaceMap getAddressSpaceMap() const override;
-private:
-  std::vector<std::string> KernelNames;
-  unsigned PtxVersion = 30;
-  unsigned PtxTarget = 30;
-};
-
-}
-}
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                  __hipsycl_sscp_memory_order);
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                 __hipsycl_sscp_memory_order);
 
 #endif

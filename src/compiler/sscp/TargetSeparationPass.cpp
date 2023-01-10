@@ -30,6 +30,7 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
+#include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
@@ -49,10 +50,61 @@
 #include <string>
 #include <fstream>
 #include <random>
+#include <chrono>
 
 
 namespace hipsycl {
 namespace compiler {
+
+class Timer {
+public:
+  Timer(llvm::StringRef Name, bool PrintAtDestruction = false, llvm::StringRef Description = "")
+  : Name{Name}, Print{PrintAtDestruction}, Description{Description} {
+    Start = std::chrono::high_resolution_clock::now();;
+    IsRunning = true;
+  }
+
+  double stop() {
+    if(IsRunning) {
+      Stop = std::chrono::high_resolution_clock::now();
+      IsRunning = false;
+    }
+
+    auto Ticks = std::chrono::duration_cast<std::chrono::nanoseconds>(Stop - Start).count();
+    return static_cast<double>(Ticks) * 1.e-9;
+
+    return Ticks;
+  }
+
+  double stopAndPrint() {
+    double T = stop();
+    HIPSYCL_DEBUG_INFO << "SSCP: Phase '" << Name << "' took " << T << " seconds\n"; 
+    return T;
+  }
+
+  ~Timer() {
+    if(Print)
+      stopAndPrint();
+    else
+      stop();
+  }
+private:
+  bool Print;
+  bool IsRunning = false;
+  std::string Name, Description;
+
+  using TimePointT = 
+    std::chrono::time_point<std::chrono::high_resolution_clock>;
+  TimePointT Start;
+  TimePointT Stop;
+  
+};
+
+class ScopedPrintingTimer : private Timer {
+public:
+  ScopedPrintingTimer(llvm::StringRef Name, llvm::StringRef Description = "")
+  : Timer{Name, true, Description} {}
+};
 
 static llvm::cl::opt<bool> SSCPEmitHcf{
     "hipsycl-sscp-emit-hcf", llvm::cl::init(false),
@@ -81,10 +133,66 @@ IntT generateRandomNumber() {
   return dist(Rng);
 }
 
+enum class ParamType {
+  Integer,
+  FoatingPoint,
+  Ptr,
+  OtherByVal
+};
+
+struct KernelParam {
+  std::size_t ByteSize;
+  std::size_t ArgByteOffset; // Offset relative to first argument in bytes
+  ParamType Type;
+};
+
+struct KernelInfo {
+  std::string Name;
+  std::vector<KernelParam> Parameters;
+
+  KernelInfo() = default;
+  KernelInfo(const std::string& KernelName, llvm::Module& M) {
+    
+    this->Name = KernelName;
+    std::size_t ParamOffset = 0;
+    if(auto* F = M.getFunction(KernelName)) {
+      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+        ParamType PT;
+
+        llvm::Type* ParamT = F->getFunctionType()->getParamType(i);
+        if(ParamT->isIntegerTy()) {
+          PT = ParamType::Integer;
+        } else if(ParamT->isFloatingPointTy()) {
+          PT = ParamType::FoatingPoint;
+        } else if(ParamT->isPointerTy()) {
+          if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
+            PT = ParamType::OtherByVal;
+          } else {
+            PT = ParamType::Ptr;
+          }
+        } else {
+          PT = ParamType::OtherByVal;
+        }
+
+        KernelParam KP;
+        
+        auto BitSize = M.getDataLayout().getTypeSizeInBits(ParamT);
+        assert(BitSize % CHAR_BIT == 0);
+        KP.ByteSize = BitSize / CHAR_BIT;
+        KP.Type = PT;
+        KP.ArgByteOffset = ParamOffset;
+        this->Parameters.push_back(KP);
+        ParamOffset += KP.ByteSize;
+      }
+    }
+  }
+};
 
 
 std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
-                                               std::vector<std::string> &KernelNamesOutput) {
+                                               std::vector<KernelInfo> &KernelInfoOutput,
+                                               std::vector<std::string> &ExportedSymbolsOutput,
+                                               std::vector<std::string> &ImportedSymbolsOutput) {
 
   std::unique_ptr<llvm::Module> DeviceModule = llvm::CloneModule(M);
   DeviceModule->setModuleIdentifier("device." + DeviceModule->getModuleIdentifier());
@@ -101,6 +209,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
 
 
+  // Fix attributes for generic IR representation
   llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;
   llvm::SmallVector<std::string, 16> StringAttrsToRemove;
   AttrsToRemove.push_back(llvm::Attribute::AttrKind::UWTable);
@@ -120,11 +229,20 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
       if(F.hasFnAttribute(A))
         F.removeFnAttr(A);
     }
+    // Need to enable inlining so that we can efficiently JIT even when
+    // the user compiles with -O0
+    if(F.hasFnAttribute(llvm::Attribute::NoInline)) {
+      F.removeFnAttr(llvm::Attribute::NoInline);
+    }
   }
 
   EntrypointPreparationPass EPP;
   EPP.run(*DeviceModule, DeviceMAM);
-  KernelNamesOutput = EPP.getKernelNames();
+  
+  ExportedSymbolsOutput = EPP.getNonKernelOutliningEntrypoints();
+
+  KernelArgumentCanonicalizationPass KACPass{EPP.getKernelNames()};
+  KACPass.run(*DeviceModule, DeviceMAM);
 
   // Still need to make sure that at least dummy values are there on
   // the device side to avoid undefined references.
@@ -137,6 +255,26 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   IRConstant::optimizeCodeAfterConstantModification(*DeviceModule, DeviceMAM);
 
+  // getOutlinigEntrypoints() returns both kernels as well as non-kernel (i.e. SYCL_EXTERNAL)
+  // entrypoints
+  KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
+  KP.run(*DeviceModule, DeviceMAM);
+
+   // Scan for imported function definitions
+   ImportedSymbolsOutput.clear();
+  for(auto& F : DeviceModule->getFunctionList()) {
+    if(F.getBasicBlockList().size() == 0) {
+      // We currently use the heuristic that functions are imported
+      // if they are not defined, not an intrinsic and don't start with
+      // __ like our hipSYCL builtins. This is a hack, it would
+      // be better if we could tell clang to annotate the declaration for us :(
+      if(!F.isIntrinsic() && !F.getName().startswith("__"))
+        ImportedSymbolsOutput.push_back(F.getName().str());
+    }
+  }
+
+  AggregateArgumentExpansionPass KernelArgExpansionPass{EPP.getKernelNames()};
+  KernelArgExpansionPass.run(*DeviceModule, DeviceMAM);
 
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
@@ -146,15 +284,20 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     MPM.run(*DeviceModule, DeviceMAM);
   }
 
-  KernelOutliningPass KP{EPP.getOutliningEntrypoints()};
-  KP.run(*DeviceModule, DeviceMAM);
+  KernelInfoOutput.clear();
+  for(auto Name : EPP.getKernelNames()) {
+    KernelInfo KI{Name, *DeviceModule};
+    KernelInfoOutput.push_back(KI);
+  }
 
   return std::move(DeviceModule);
 }
 
 std::string generateHCF(llvm::Module& DeviceModule,
                         std::size_t HcfObjectId,
-                        const std::vector<std::string>& KernelNames) {
+                        const std::vector<KernelInfo>& Kernels,
+                        const std::vector<std::string>& ExportedSymbols,
+                        const std::vector<std::string>& ImportedSymbols) {
 
   std::string ModuleContent;
   llvm::raw_string_ostream OutputStream{ModuleContent};
@@ -166,16 +309,46 @@ std::string generateHCF(llvm::Module& DeviceModule,
 
   auto *DeviceImagesNodes = HcfObject.root_node()->add_subnode("images");
   auto* LLVMIRNode = DeviceImagesNodes->add_subnode("llvm-ir.global");
+  LLVMIRNode->set("variant", "global-module");
+  LLVMIRNode->set("format", "llvm-ir");
   HcfObject.attach_binary_content(LLVMIRNode, ModuleContent);
 
-  auto* KernelsNode = HcfObject.root_node()->add_subnode("kernels");
-  for(const auto& KernelName : KernelNames) {
-    auto* K = KernelsNode->add_subnode(KernelName);
-
-    auto* F = K->add_subnode("format.llvm-ir");
-    auto* ModuleProvider = F->add_subnode("variant.global-module");
-    ModuleProvider->set("image-provider", "llvm-ir.global");
+  for(const auto& ES : ExportedSymbols) {
+    HIPSYCL_DEBUG_INFO << "HCF generation: Image exports symbol: " << ES << "\n";
   }
+  for(const auto& IS : ImportedSymbols) {
+    HIPSYCL_DEBUG_INFO << "HCF generation: Image imports symbol: " << IS << "\n";
+  }
+  
+  LLVMIRNode->set_as_list("exported-symbols", ExportedSymbols);
+  LLVMIRNode->set_as_list("imported-symbols", ImportedSymbols);
+
+  auto* KernelsNode = HcfObject.root_node()->add_subnode("kernels");
+  for(const auto& Kernel : Kernels) {
+    auto* K = KernelsNode->add_subnode(Kernel.Name);
+    K->set_as_list("image-providers", {std::string{"llvm-ir.global"}});
+    auto* ParamsNode = K->add_subnode("parameters");
+
+    for(std::size_t i = 0; i < Kernel.Parameters.size(); ++i) {
+      const auto& ParamInfo = Kernel.Parameters[i];
+      auto* P = ParamsNode->add_subnode(std::to_string(i));
+      P->set("byte-offset", std::to_string(ParamInfo.ArgByteOffset));
+      P->set("byte-size", std::to_string(ParamInfo.ByteSize));
+      ParamType Type = ParamInfo.Type;
+      std::string TypeDescription;
+      if(Type == ParamType::Integer) {
+        TypeDescription = "integer";
+      } else if(Type == ParamType::FoatingPoint) {
+        TypeDescription = "floating-point";
+      } else if(Type == ParamType::Ptr) {
+        TypeDescription = "pointer";
+      } else if(Type == ParamType::OtherByVal) {
+        TypeDescription = "other-by-value";
+      }
+      P->set("type", TypeDescription);
+    }
+  }
+  
 
   return HcfObject.serialize();
 }
@@ -183,42 +356,62 @@ std::string generateHCF(llvm::Module& DeviceModule,
 llvm::PreservedAnalyses TargetSeparationPass::run(llvm::Module &M,
                                                   llvm::ModuleAnalysisManager &MAM) {
 
-  // TODO If we know that the SSCP compilation flow is the only one using HCF,
-  // we could just enumerate the objects instead of generating (hopefully)
-  // unique random numbers.
-  std::size_t HcfObjectId = generateRandomNumber<std::size_t>();
-  std::string HcfString;
+  {
+    ScopedPrintingTimer totalTimer{"TargetSeparationPass (total)"};
+    // TODO If we know that the SSCP compilation flow is the only one using HCF,
+    // we could just enumerate the objects instead of generating (hopefully)
+    // unique random numbers.
+    std::size_t HcfObjectId = generateRandomNumber<std::size_t>();
+    std::string HcfString;
 
 
-  // Only run SSCP kernel extraction in the host pass in case
-  // there are also CUDA/HIP compilation flows going on
-  if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
-    
-    std::vector<std::string> KernelNames;
-    std::unique_ptr<llvm::Module> DeviceIR = generateDeviceIR(M, KernelNames);
+    // Only run SSCP kernel extraction in the host pass in case
+    // there are also CUDA/HIP compilation flows going on
+    if(!CompilationStateManager::getASTPassState().isDeviceCompilation()) {
+      
+      std::vector<KernelInfo> Kernels;
+      std::vector<std::string> ExportedSymbols;
+      std::vector<std::string> ImportedSymbols;
+      
+      
+      Timer IRGenTimer{"generateDeviceIR", true};
+      std::unique_ptr<llvm::Module> DeviceIR =
+          generateDeviceIR(M, Kernels, ExportedSymbols, ImportedSymbols);
+      IRGenTimer.stopAndPrint();
 
-    HcfString = generateHCF(*DeviceIR, HcfObjectId, KernelNames); 
+      Timer HCFGenTimer{"generateHCF"};
+      HcfString = generateHCF(*DeviceIR, HcfObjectId, Kernels, ExportedSymbols, ImportedSymbols);
+      HCFGenTimer.stopAndPrint();
 
-    if(SSCPEmitHcf) {
-      std::string Filename = M.getSourceFileName()+".hcf";
-      std::ofstream OutputFile{Filename.c_str(), std::ios::trunc|std::ios::binary};
-      OutputFile.write(HcfString.c_str(), HcfString.size());
-      OutputFile.close();
+      if(SSCPEmitHcf) {
+        std::string Filename = M.getSourceFileName()+".hcf";
+        std::ofstream OutputFile{Filename.c_str(), std::ios::trunc|std::ios::binary};
+        OutputFile.write(HcfString.c_str(), HcfString.size());
+        OutputFile.close();
+      }
+    }
+
+    {
+      ScopedPrintingTimer Timer {"HostKernelNameExtractionPass"};
+      HostKernelNameExtractionPass KernelNamingPass;
+      KernelNamingPass.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"S1 IR constant application"};
+      S1IRConstantReplacer HostSideReplacer{
+          {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
+          {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
+          {{SscpHcfContentIdentifier, HcfString}}};
+
+      HostSideReplacer.run(M, MAM);
+    }
+
+    {
+      ScopedPrintingTimer Timer {"S1 IR constant branching optimization"};
+      IRConstant::optimizeCodeAfterConstantModification(M, MAM);
     }
   }
-
-  HostKernelNameExtractionPass KernelNamingPass;
-  KernelNamingPass.run(M, MAM);
-
-  S1IRConstantReplacer HostSideReplacer{
-      {{SscpIsHostIdentifier, 1}, {SscpIsDeviceIdentifier, 0}},
-      {{SscpHcfObjectIdIdentifier, HcfObjectId}, {SscpHcfObjectSizeIdentifier, HcfString.size()}},
-      {{SscpHcfContentIdentifier, HcfString}}};
-
-  HostSideReplacer.run(M, MAM);
-  
-  IRConstant::optimizeCodeAfterConstantModification(M, MAM);
-
   return llvm::PreservedAnalyses::none();
 }
 }

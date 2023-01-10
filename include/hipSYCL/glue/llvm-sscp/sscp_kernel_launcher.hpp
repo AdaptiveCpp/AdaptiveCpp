@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_LLVM_SSCP_KERNEL_LAUNCHER_HPP
 
+#include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/glue/llvm-sscp/s1_ir_constants.hpp"
@@ -47,29 +48,19 @@
 
 #include <array>
 
-// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
-// macro. We cannot use this macro directly because it expects
-// the object id to be constexpr, which it is not for the SSCP case.
-struct __hipsycl_static_sscp_hcf_registration {
-  __hipsycl_static_sscp_hcf_registration() {
-    ::hipsycl::rt::kernel_cache::get().register_hcf_object(
-        ::hipsycl::common::hcf_container{std::string{
-            reinterpret_cast<const char *>(__hipsycl_local_sscp_hcf_content),
-            __hipsycl_local_sscp_hcf_object_size}});
-  }
-};
-static __hipsycl_static_sscp_hcf_registration
-    __hipsycl_register_sscp_hcf_object;
-
 
 template <typename KernelType>
 // hipsycl_sscp_kernel causes kernel entries to be emitted to the HCF
 [[clang::annotate("hipsycl_sscp_kernel")]]
 // hipsycl_sscp_outlining creates an entrypoint for outlining of device code
 [[clang::annotate("hipsycl_sscp_outlining")]]
-void __hipsycl_sscp_kernel(const KernelType kernel) {
-  if(__hipsycl_sscp_is_device)
-    kernel();
+void __hipsycl_sscp_kernel(const KernelType& kernel) {
+  if(__hipsycl_sscp_is_device) {
+    // The copy here creates an alloca that can help inferring the argument
+    // type in case of opaque pointers.
+    KernelType k = kernel;
+    k();
+  }
 }
 
 
@@ -84,13 +75,45 @@ void __hipsycl_sscp_kernel(const KernelType kernel) {
 // No indirection is allowed! If I say, the argument has to be a global variable,
 // I mean it. Directly. No passing through other functions first.
 template <class Kernel>
-void __hipsycl_sscp_extract_kernel_name(void (*Func)(Kernel),
+void __hipsycl_sscp_extract_kernel_name(void (*Func)(const Kernel&),
                                         const char *target);
 #pragma clang diagnostic pop
 
 namespace hipsycl {
 namespace glue {
-namespace sscp_dispatch {
+
+namespace sscp {
+
+static std::string get_local_hcf_object() {
+  return std::string{
+      reinterpret_cast<const char *>(__hipsycl_local_sscp_hcf_content),
+      __hipsycl_local_sscp_hcf_object_size};
+}
+
+// TODO: Maybe this can be unified with the HIPSYCL_STATIC_HCF_REGISTRATION
+// macro. We cannot use this macro directly because it expects
+// the object id to be constexpr, which it is not for the SSCP case.
+struct static_hcf_registration {
+  static_hcf_registration(const std::string& hcf_data) {
+    this->_hcf_object = rt::hcf_cache::get().register_hcf_object(
+        common::hcf_container{hcf_data});
+  }
+
+  ~static_hcf_registration() {
+    rt::hcf_cache::get().unregister_hcf_object(_hcf_object);
+  }
+private:
+  rt::hcf_object_id _hcf_object;
+};
+static static_hcf_registration
+    __hipsycl_register_sscp_hcf_object{get_local_hcf_object()};
+
+
+}
+
+// Do not change this namespace name - compiler may look for
+// this name to identify structs passed in as kernel arguments.
+namespace __sscp_dispatch {
 
 template <int Dimensions, bool WithOffset>
 bool item_is_in_range(const sycl::item<Dimensions, WithOffset> &item,
@@ -242,7 +265,7 @@ public:
 
       if constexpr(type == rt::kernel_type::single_task){
 
-        launch_kernel_with_global_range(sscp_dispatch::single_task{k},
+        launch_kernel_with_global_range(__sscp_dispatch::single_task{k},
                                         operation, sycl::range{1},
                                         sycl::range{1}, dynamic_local_memory);
 
@@ -250,11 +273,11 @@ public:
 
         if(offset == sycl::id<Dim>{}) {
           launch_kernel_with_global_range(
-              sscp_dispatch::basic_parallel_for{k, global_range}, operation,
+              __sscp_dispatch::basic_parallel_for{k, global_range}, operation,
               global_range, local_range, dynamic_local_memory);
         } else {
           launch_kernel_with_global_range(
-              sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
+              __sscp_dispatch::basic_parallel_for_offset{k, offset, global_range},
               operation, global_range, local_range, dynamic_local_memory);
         }
 
@@ -262,11 +285,11 @@ public:
 
         if(offset == sycl::id<Dim>{}) {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
+              __sscp_dispatch::ndrange_parallel_for<Kernel, Dim>{k}, operation,
               global_range, local_range, dynamic_local_memory);
         } else {
           launch_kernel_with_global_range(
-              sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
+              __sscp_dispatch::ndrange_parallel_for_offset<Kernel, Dim>{k, offset},
               operation, global_range, local_range, dynamic_local_memory);
         }
 

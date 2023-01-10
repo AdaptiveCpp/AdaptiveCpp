@@ -42,7 +42,7 @@ enum class device_support_aspect {
   little_endian,
   global_mem_cache,
   global_mem_cache_read_only,
-  global_mem_cache_write_only,
+  global_mem_cache_read_write,
   emulated_local_memory,
   sub_group_independent_forward_progress,
   usm_device_allocations,

@@ -32,6 +32,7 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
@@ -41,6 +42,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
@@ -111,32 +113,17 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-"
       "v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5-G1-ni:7");
 
-  for(auto KernelName : KernelNames) {
-    if(auto* F = M.getFunction(KernelName)) {
-      // AMDGPU backend expects arguments to be passed as byref instead of byval
-      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
-        if(F->hasParamAttribute(i, llvm::Attribute::ByVal)) {
-          auto ByValAttr = F->getParamAttribute(i, llvm::Attribute::ByVal);
-          llvm::Type* ParamPointeeType = ByValAttr.getValueAsType();
-          F->removeParamAttr(i, llvm::Attribute::ByVal);
-          
-          if(!F->hasParamAttribute(i, llvm::Attribute::ByRef)) {
-            F->addParamAttr(i, llvm::Attribute::getWithByRefType(M.getContext(), ParamPointeeType));
-          }
-        }
-      }
-    }
-  }
+  AddressSpaceMap ASMap = getAddressSpaceMap();
 
-  AddressSpaceMap ASMap;
-
-  ASMap[AddressSpace::Generic] = 0;
-  ASMap[AddressSpace::Global] = 1;
-  ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 4;
-  ASMap[AddressSpace::Constant] = 2;
-
-  rewriteKernelArgumentAddressSpacesTo(ASMap[AddressSpace::Private], M, KernelNames, PH);
+  KernelFunctionParameterRewriter ParamRewriter{
+      // amdgpu backend wants ByRef attribute for all aggregates passed in by-value
+      KernelFunctionParameterRewriter::ByValueArgAttribute::ByRef,
+      // Those pointers to by-value data should be in constant AS
+      ASMap[AddressSpace::Constant],
+      // Actual pointers should be in global memory
+      ASMap[AddressSpace::Global]};
+  
+  ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
   
   for(auto KernelName : KernelNames) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Setting up kernel " << KernelName << "\n";
@@ -144,18 +131,6 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       F->setCallingConv(llvm::CallingConv::AMDGPU_KERNEL);
     }
   }
-  
-  for(auto& F : M.getFunctionList()) {
-    if(F.getCallingConv() != llvm::CallingConv::AMDGPU_KERNEL) {
-      // When we are already lowering to device specific format,
-      // we can expect that we have no external users anymore.
-      // All linking should be done by now. The exception are intrinsics.
-      if(!F.isIntrinsic() && F.getName().find("__hipsycl_sscp") == std::string::npos)
-        F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
-
-  // TODO handle address spaces
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
@@ -163,13 +138,29 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;
+  
+  AddressSpaceInferencePass ASIPass {ASMap};
+  ASIPass.run(M, *PH.ModuleAnalysisManager);
+  
+  // amdgpu does not like some function calls, so try to inline
+  // everything. Note: This should be done after ASI pass has fixed
+  // alloca address spaces, in case alloca values are passed as arguments!
+  for(auto& F: M.getFunctionList()) {
+    if(F.getCallingConv() != llvm::CallingConv::AMDGPU_KERNEL) {
+      if(!F.getBasicBlockList().empty()) {
+        F.addFnAttr(llvm::Attribute::AlwaysInline);
+      }
+    }
+  }
+  llvm::AlwaysInlinerPass AIP;
+  AIP.run(M, *PH.ModuleAnalysisManager);
 
 #if! defined(HIPSYCL_SSCP_AMDGPU_USE_HIPRTC)
 
-    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ockl.bc")))
-      return false;
-    if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ocml.bc")))
-      return false;
+  if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ockl.bc")))
+    return false;
+  if(!this->linkBitcodeFile(M, common::filesystem::join_path(RocmDeviceLibsPath, "ocml.bc")))
+    return false;
     // Needed as a workaround for some ROCm versions
   #ifdef HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION
     std::string OclABIVersionLib;
@@ -280,7 +271,7 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
 #endif
 }
 
-bool LLVMToAmdgpuTranslator::setBuildOption(const std::string &Option, const std::string &Value) {
+bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
   if(Option == "amdgpu-target-device") {
     TargetDevice = Value;
     return true;
@@ -292,7 +283,7 @@ bool LLVMToAmdgpuTranslator::setBuildOption(const std::string &Option, const std
   return false;
 }
 
-bool LLVMToAmdgpuTranslator::setBuildFlag(const std::string &Flag) {
+bool LLVMToAmdgpuTranslator::applyBuildFlag(const std::string &Flag) {
   if(Flag == "assemble-only") {
     OnlyGenerateAssembly = true;
     return true;
@@ -346,6 +337,24 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
 #else
   return false;
 #endif
+}
+
+bool LLVMToAmdgpuTranslator::isKernelAfterFlavoring(llvm::Function& F) {
+  return F.getCallingConv() == llvm::CallingConv::AMDGPU_KERNEL;
+}
+
+AddressSpaceMap LLVMToAmdgpuTranslator::getAddressSpaceMap() const {
+  AddressSpaceMap ASMap;
+
+  ASMap[AddressSpace::Generic] = 0;
+  ASMap[AddressSpace::Global] = 1;
+  ASMap[AddressSpace::Local] = 3;
+  ASMap[AddressSpace::Private] = 5;
+  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::AllocaDefault] = 5;
+  ASMap[AddressSpace::GlobalVariableDefault] = 1;
+
+  return ASMap;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

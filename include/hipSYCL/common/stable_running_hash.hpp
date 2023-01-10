@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,36 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LLVM_TO_PTX_HPP
-#define HIPSYCL_LLVM_TO_PTX_HPP
+#ifndef HIPSYCL_STABLE_RUNNING_HASH_HPP
+#define HIPSYCL_STABLE_RUNNING_HASH_HPP
 
-
-#include "../LLVMToBackend.hpp"
-
-#include <vector>
-#include <string>
+#include <cstdint>
+#include <cstdlib>
+#include <utility>
 
 namespace hipsycl {
-namespace compiler {
+namespace common {
 
-class LLVMToPtxTranslator : public LLVMToBackendTranslator{
+class stable_running_hash {
+  static uint64_t constexpr prime = 1099511628211ULL;
+  static uint64_t constexpr offset = 14695981039346656037ULL;
+
+  uint64_t value;
+
 public:
-  LLVMToPtxTranslator(const std::vector<std::string>& KernelNames);
+  stable_running_hash() : value{offset} {}
 
-  virtual ~LLVMToPtxTranslator() {}
+  void operator()(const void *data, std::size_t size) {
+    for (std::size_t i = 0; i < size; ++i) {
+      uint8_t current = static_cast<const uint8_t *>(data)[i];
+      value ^= current;
+      value *= prime;
+    }
+  }
 
-  virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
-  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
-  virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
-protected:
-  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
-  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
-  virtual AddressSpaceMap getAddressSpaceMap() const override;
-private:
-  std::vector<std::string> KernelNames;
-  unsigned PtxVersion = 30;
-  unsigned PtxTarget = 30;
+  uint64_t get_current_hash() const { return value; }
 };
+
 
 }
 }

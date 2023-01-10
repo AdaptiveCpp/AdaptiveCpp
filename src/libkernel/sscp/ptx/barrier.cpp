@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2022 Aksel Alpay
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,38 +25,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_LLVM_TO_PTX_HPP
-#define HIPSYCL_LLVM_TO_PTX_HPP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                  __hipsycl_sscp_memory_order) {
 
-#include "../LLVMToBackend.hpp"
-
-#include <vector>
-#include <string>
-
-namespace hipsycl {
-namespace compiler {
-
-class LLVMToPtxTranslator : public LLVMToBackendTranslator{
-public:
-  LLVMToPtxTranslator(const std::vector<std::string>& KernelNames);
-
-  virtual ~LLVMToPtxTranslator() {}
-
-  virtual bool prepareBackendFlavor(llvm::Module& M) override {return true;}
-  virtual bool toBackendFlavor(llvm::Module &M, PassHandler& PH) override;
-  virtual bool translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) override;
-protected:
-  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) override;
-  virtual bool isKernelAfterFlavoring(llvm::Function& F) override;
-  virtual AddressSpaceMap getAddressSpaceMap() const override;
-private:
-  std::vector<std::string> KernelNames;
-  unsigned PtxVersion = 30;
-  unsigned PtxTarget = 30;
-};
-
-}
+  if(fence_scope == hipsycl::sycl::memory_scope::system) {
+    __nvvm_membar_sys();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
+    __nvvm_membar_gl();
+  }
+  // syncthreads is already a clang builtin
+  __syncthreads();
 }
 
-#endif
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                 __hipsycl_sscp_memory_order) {
+
+  if(fence_scope == hipsycl::sycl::memory_scope::system) {
+    __nvvm_membar_sys();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
+    __nvvm_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
+    __nvvm_membar_cta();
+  }
+  // We cannot call __nvvm_bar_warp_sync(-1) since this builtin
+  // is only available for ptx 60 or newer - but at this point,
+  // we don't know yet which capabilities we are targeting.
+  // TODO: Disable this line if ptx < 60
+  asm("bar.warp.sync -1;");
+}

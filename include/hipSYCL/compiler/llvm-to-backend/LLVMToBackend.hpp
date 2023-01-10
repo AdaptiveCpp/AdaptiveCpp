@@ -29,7 +29,9 @@
 #define HIPSYCL_LLVM_TO_BACKEND_HPP
 
 
-
+// Note: This file should not include any LLVM headers or include
+// dependencies that rely on LLVM headers in order to not spill
+// LLVM code into the hipSYCL runtime.
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -37,11 +39,13 @@
 #include <vector>
 #include <typeinfo>
 #include <functional>
+#include "AddressSpaceMap.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/runtime/util.hpp"
 
 namespace llvm {
 class Module;
+class Function;
 }
 
 namespace hipsycl {
@@ -78,12 +82,9 @@ public:
 
   void setS2IRConstant(const std::string& name, const void* ValueBuffer);
 
-  virtual bool setBuildFlag(const std::string &Flag) { return false; }
-  virtual bool setBuildOption(const std::string &Option, const std::string &Value) { return false; }
-  virtual bool setBuildToolArguments(const std::string &ToolName,
-                                     const std::vector<std::string> &Args) {
-    return false;
-  }
+  bool setBuildFlag(const std::string &Flag);
+  bool setBuildOption(const std::string &Option, const std::string &Value);
+  bool setBuildToolArguments(const std::string &ToolName, const std::vector<std::string> &Args);
 
   template<class T>
   bool setBuildOption(const std::string& Option, const T& Value) {
@@ -103,6 +104,11 @@ public:
     return Errors;
   }
 
+  // Returns IR that caused the error in case an error occurs
+  const std::string& getFailedIR() const {
+    return ErroringCode;
+  }
+
   std::string getErrorLogAsString() const {
     std::string Result;
     for(int i = 0; i < getErrorLog().size(); ++i) {
@@ -113,9 +119,60 @@ public:
     return Result;
   }
 
+
+  using SymbolListType = std::vector<std::string>;
+
+  class ExternalSymbolResolver {
+  public:
+    using LLVMModuleId = unsigned long long;
+    // SymbolToModuleMapper is responsible for return a list of identifiers of LLVM modules
+    // that should be linked in order to resolve the provided symbol list.
+    using SymbolsToModuleIdMapperType =
+        std::function<std::vector<LLVMModuleId>(const SymbolListType &SymbolList)>;
+    // BitcodeStringRetriever will return the IR bitcode string as well as the imported symbols,
+    // given a unique LLVM module id.
+    using BitcodeStringRetrieverType = std::function<std::string (LLVMModuleId, SymbolListType&)>;
+
+    ExternalSymbolResolver() = default;
+    ExternalSymbolResolver(const SymbolsToModuleIdMapperType &SymbolMapper,
+                           const BitcodeStringRetrieverType &Retriever,
+                           const SymbolListType &ImportedSymbols)
+        : SymbolModuleMapper{SymbolMapper}, BitcodeRetriever{Retriever}, ImportedSymbols{
+                                                                             ImportedSymbols} {}
+
+    auto mapSymbolsToModuleIds(const SymbolListType& symbols) const {
+      return SymbolModuleMapper(symbols);
+    }
+
+    auto retrieveBitcode(LLVMModuleId MID, SymbolListType& ImportedSymbolsOut) const {
+      return BitcodeRetriever(MID, ImportedSymbolsOut);
+    }
+
+    // retrieve imported symbols for the primary bitcode file
+    const SymbolListType& getImportedSymbols() const {
+      return ImportedSymbols;
+    }
+  private:
+    SymbolsToModuleIdMapperType SymbolModuleMapper;
+    BitcodeStringRetrieverType BitcodeRetriever;
+    SymbolListType ImportedSymbols;
+  };
+
+  void provideExternalSymbolResolver(ExternalSymbolResolver Resolver);
+
 protected:
+  virtual AddressSpaceMap getAddressSpaceMap() const = 0;
+  virtual bool isKernelAfterFlavoring(llvm::Function& F) = 0;
+  virtual bool applyBuildFlag(const std::string &Flag) { return false; }
+  virtual bool applyBuildOption(const std::string &Option, const std::string &Value) { return false; }
+  virtual bool applyBuildToolArguments(const std::string &ToolName,
+                                       const std::vector<std::string> &Args) {
+    return false;
+  }
+
   // Link against bitcode contained in file or string. If ForcedTriple/ForcedDataLayout are non-empty,
   // sets triple and data layout in contained bitcode to the provided values.
+  
   bool linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                        const std::string &ForcedTriple = "",
                        const std::string &ForcedDataLayout = "");
@@ -137,10 +194,18 @@ protected:
   }
 private:
 
+  void resolveExternalSymbols(llvm::Module& M);
+  void setFailedIR(llvm::Module& M);
+
   int S2IRConstantBackendId;
   std::vector<std::string> OutliningEntrypoints;
   std::vector<std::string> Errors;
   std::unordered_map<std::string, std::function<void(llvm::Module &)>> S2IRConstantApplicators;
+  ExternalSymbolResolver SymbolResolver;
+  bool HasExternalSymbolResolver = false;
+
+  // In case an error occurs, the code will be stored here
+  std::string ErroringCode;
 };
 
 }

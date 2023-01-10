@@ -70,8 +70,9 @@ The generic SSCP flow can potentially provide very fast compile times, very good
 Currently, the SSCP flow is implemented for
 * CUDA devices
 * SPIR-V devices through oneAPI Level Zero
+* AMD ROCm devices
 
-Most builtins are not yet implemented, and only single-task and basic parallel for kernels are supported.
+Some features (e.g. SYCL 2020 reductions or group algorithms) are not yet implemented.
 
 ### How it works
 

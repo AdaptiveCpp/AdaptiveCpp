@@ -339,7 +339,8 @@ class syclcc_config:
                                          (see --hipsycl-explicit-multipass)
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
-      * spirv - use clang SYCL driver to generate spirv""")
+      * spirv - use clang SYCL driver to generate spirv
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--hipsycl-use-accelerated-cpu", "HIPSYCL_USE_ACCELERATED_CPU",
@@ -620,7 +621,8 @@ class syclcc_config:
   @property
   def runtime_backends(self):
     backend_path = os.path.join(self.hipsycl_installation_path, "lib", "hipSYCL")
-    return os.listdir(backend_path)
+    content = os.listdir(backend_path)
+    return [c for c in content if os.path.isfile(os.path.join(backend_path, c))]
 
   @property
   def targets(self):
@@ -1480,6 +1482,59 @@ class omp_sequential_invocation:
   def get_linker_flags(self):
     return self._linker_args
 
+
+class llvm_sscp_invocation:
+
+  @property
+  def unique_name(self):
+    return "sscp"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = config.omp_link_line
+    self._cxx_flags = config.omp_cxx_flags
+
+    if len(targets) != 0:
+      raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
+
+    self._clang_path = config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._clang_path, 10)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
+            "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
+
+    if not sys.platform.startswith("win32"):
+      flags += [
+        "-fplugin=" + config.hipsycl_plugin_path
+        , "-fpass-plugin=" + config.hipsycl_plugin_path
+      ]
+    flags += self._cxx_flags
+
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
 class compiler:
   def __init__(self, config):
     self._user_args = config.forwarded_compiler_arguments
@@ -1554,6 +1609,8 @@ class compiler:
       elif backend == 'spirv':
         self._multipass_backends.append(
           spirv_multipass_invocation(config))
+      elif backend == 'sscp' or backend == 'generic':
+        self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
       else:
         raise RuntimeError("Unknown backend: " + backend)
 

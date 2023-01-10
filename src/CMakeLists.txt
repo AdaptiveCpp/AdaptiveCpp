@@ -1,10 +1,33 @@
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-if(BUILD_CLANG_PLUGIN)
-  add_subdirectory(compiler)
+add_subdirectory(common)
+
+list( APPEND CMAKE_INSTALL_RPATH
+  ${CMAKE_INSTALL_PREFIX}/lib
+  ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/llvm-to-backend)
+
+set(WITH_LLVM_TO_AMDGPU_AMDHSA false)
+set(WITH_LLVM_TO_PTX false)
+set(WITH_LLVM_TO_SPIRV false)
+
+if(WITH_SSCP_COMPILER)
+  if(WITH_LEVEL_ZERO_BACKEND)
+    set(WITH_LLVM_TO_SPIRV true)
+  endif()
+
+  if(WITH_CUDA_BACKEND)
+    set(WITH_LLVM_TO_PTX true)
+  endif()
+
+  if(WITH_ROCM_BACKEND)
+    set(WITH_LLVM_TO_AMDGPU_AMDHSA true)
+  endif()
 endif()
 
-list( APPEND CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib )
+if(BUILD_CLANG_PLUGIN)
+  add_subdirectory(compiler)
+  add_subdirectory(libkernel)
+endif()
 
 add_subdirectory(runtime)
 add_subdirectory(tools)

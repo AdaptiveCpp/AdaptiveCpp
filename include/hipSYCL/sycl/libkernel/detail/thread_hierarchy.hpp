@@ -7,22 +7,23 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef HIPSYCL_THREAD_HIERARCHY_HPP
@@ -39,43 +40,99 @@ namespace hipsycl {
 namespace sycl {
 namespace detail {
 
-#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(                                 \
-    name, cuda_variable, hip_variable, spirv_variable, host_variable)          \
+#define HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(name, cuda_variable,             \
+                                              hip_variable, spirv_variable,    \
+                                              sscp_variable, host_variable)    \
   HIPSYCL_KERNEL_TARGET                                                        \
   inline int name() {                                                          \
-    __hipsycl_if_target_cuda(return cuda_variable;);                           \
-    __hipsycl_if_target_hip(return hip_variable;);                             \
-    __hipsycl_if_target_spirv(return spirv_variable;);                         \
-    __hipsycl_if_target_host(return 0;);                                       \
+    __hipsycl_backend_switch(return 0, return sscp_variable(),                 \
+                                    return cuda_variable, return hip_variable, \
+                                    return spirv_variable)                     \
   }
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_x, 
-  threadIdx.x, hipThreadIdx_x, __spirv_BuiltInLocalInvocationId.x, 0)
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y,
-  threadIdx.y, hipThreadIdx_y, __spirv_BuiltInLocalInvocationId.y, 0)
-HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z,
-  threadIdx.z, hipThreadIdx_z, __spirv_BuiltInLocalInvocationId.z, 0)
+  threadIdx.x,
+  hipThreadIdx_x,
+  __spirv_BuiltInLocalInvocationId.x,
+  __hipsycl_sscp_get_local_id_x,
+  0)
+
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_y, 
+  threadIdx.y,
+  hipThreadIdx_y,
+  __spirv_BuiltInLocalInvocationId.y,
+  __hipsycl_sscp_get_local_id_y,
+  0)
+
+HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lid_z, 
+  threadIdx.z,
+  hipThreadIdx_z,
+  __spirv_BuiltInLocalInvocationId.z,
+  __hipsycl_sscp_get_local_id_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_x,
-  blockIdx.x, hipBlockIdx_x, __spirv_BuiltInWorkgroupId.x, 0)
+  blockIdx.x,
+  hipBlockIdx_x,
+  __spirv_BuiltInWorkgroupId.x,
+  __hipsycl_sscp_get_group_id_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_y,
-  blockIdx.y, hipBlockIdx_y, __spirv_BuiltInWorkgroupId.y, 0)
+  blockIdx.y,
+  hipBlockIdx_y,
+  __spirv_BuiltInWorkgroupId.y,
+  __hipsycl_sscp_get_group_id_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_gid_z,
-  blockIdx.z, hipBlockIdx_z, __spirv_BuiltInWorkgroupId.z, 0)
+  blockIdx.z,
+  hipBlockIdx_z,
+  __spirv_BuiltInWorkgroupId.z,
+  __hipsycl_sscp_get_group_id_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_x,
-  blockDim.x, hipBlockDim_x, __spirv_BuiltInWorkgroupSize.x, 0)
+  blockDim.x,
+  hipBlockDim_x,
+  __spirv_BuiltInWorkgroupSize.x, 
+  __hipsycl_sscp_get_local_size_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_y,
-  blockDim.y, hipBlockDim_y, __spirv_BuiltInWorkgroupSize.y, 0)
+  blockDim.y,
+  hipBlockDim_y,
+  __spirv_BuiltInWorkgroupSize.y,
+  __hipsycl_sscp_get_local_size_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_lsize_z,
-  blockDim.z, hipBlockDim_z, __spirv_BuiltInWorkgroupSize.z, 0)
+  blockDim.z,
+  hipBlockDim_z,
+  __spirv_BuiltInWorkgroupSize.z,
+  __hipsycl_sscp_get_local_size_z,
+  0)
 
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_x,
-  gridDim.x, hipGridDim_x, __spirv_BuiltInNumWorkgroups.x, 0)
+  gridDim.x,
+  hipGridDim_x,
+  __spirv_BuiltInNumWorkgroups.x,
+  __hipsycl_sscp_get_num_groups_x,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_y,
-  gridDim.y, hipGridDim_y, __spirv_BuiltInNumWorkgroups.y, 0)
+  gridDim.y,
+  hipGridDim_y,
+  __spirv_BuiltInNumWorkgroups.y,
+  __hipsycl_sscp_get_num_groups_y,
+  0)
+
 HIPSYCL_DEFINE_BUILTIN_VARIABLE_QUERY(__hipsycl_get_ngroups_z,
-  gridDim.z, hipGridDim_z, __spirv_BuiltInNumWorkgroups.z, 0)
+  gridDim.z,
+  hipGridDim_z,
+  __spirv_BuiltInNumWorkgroups.z,
+  __hipsycl_sscp_get_num_groups_z,
+  0)
 
 #define __hipsycl_lid_x ::hipsycl::sycl::detail::__hipsycl_get_lid_x()
 #define __hipsycl_lid_y ::hipsycl::sycl::detail::__hipsycl_get_lid_y()

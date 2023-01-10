@@ -42,7 +42,7 @@ add_library(hipSYCL-rt SHARED
   serialization/serialization.cpp)
 
 target_compile_options(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
-target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
+target_link_libraries(hipSYCL-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} hipSYCL-common Threads::Threads)
 
 # syclcc already knows about these include directories, but clangd-based tooling does not.
 # Specifying them explicitly ensures that IDEs can resolve all hipSYCL includes correctly.
@@ -107,6 +107,11 @@ if(WITH_CUDA_BACKEND)
   target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-cuda PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-cuda PRIVATE llvm-to-ptx)
+  endif()
+
   install(TARGETS rt-backend-cuda
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -144,6 +149,11 @@ if(WITH_ROCM_BACKEND)
   target_compile_options(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
 
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-hip PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-hip PRIVATE llvm-to-amdgpu)
+  endif()
+
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
@@ -164,6 +174,11 @@ if(WITH_LEVEL_ZERO_BACKEND)
 
   target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-ze PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-ze PRIVATE llvm-to-spirv)
+  endif()
 
   install(TARGETS rt-backend-ze
         LIBRARY DESTINATION lib/hipSYCL

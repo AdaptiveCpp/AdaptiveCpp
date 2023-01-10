@@ -200,6 +200,13 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::execution_timestamps:
     return true;
     break;
+  case device_support_aspect::sscp_kernels:
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+    return true;
+#else
+    return false;
+#endif
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -386,6 +393,9 @@ std::string cuda_hardware_context::get_profile() const {
 
 cuda_hardware_context::~cuda_hardware_context(){}
 
+unsigned cuda_hardware_context::get_compute_capability() const {
+  return _properties->major * 10 + _properties->minor;
+}
 
 }
 }

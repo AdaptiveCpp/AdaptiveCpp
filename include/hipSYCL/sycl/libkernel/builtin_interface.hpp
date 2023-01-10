@@ -43,6 +43,10 @@
 #include "generic/hiplike/builtins.hpp"
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "sscp/builtins.hpp"
+#endif
+
 namespace hipsycl {
 namespace sycl {
 namespace detail {

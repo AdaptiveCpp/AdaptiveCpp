@@ -35,6 +35,8 @@ using namespace cl;
 
 BOOST_FIXTURE_TEST_SUITE(reduction_tests, reset_device_fixture)
 
+#ifndef __HIPSYCL_ENABLE_LLVM_SSCP_TARGET__ // not yet supported for SSCP
+
 auto tolerance = boost::test_tools::tolerance(0.001f);
 
 template <class T, class Generator, class Handler, class BinaryOp>
@@ -359,5 +361,7 @@ BOOST_AUTO_TEST_CASE(accessor_reduction) {
   BOOST_CHECK(max_buff.get_host_access()[0] == 1023);
   BOOST_CHECK(sum_buff.get_host_access()[0] == 523776);
 }
+
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()

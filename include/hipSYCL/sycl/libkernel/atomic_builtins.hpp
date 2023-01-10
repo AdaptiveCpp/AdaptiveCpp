@@ -34,12 +34,18 @@
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 #include "host/atomic_builtins.hpp"
 #endif
+
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA ||                                 \
     HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HIP
 #include "generic/hiplike/atomic_builtins.hpp"
 #endif
+
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SPIRV
 #include "spirv/atomic_builtins.hpp"
+#endif
+
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "sscp/atomic_builtins.hpp"
 #endif
 
 

@@ -74,6 +74,8 @@ public:
 
   cuda_allocator* get_allocator() const;
   cuda_event_pool* get_event_pool() const;
+
+  unsigned get_compute_capability() const;
 private:
   std::unique_ptr<cudaDeviceProp> _properties;
   std::unique_ptr<cuda_allocator> _allocator;

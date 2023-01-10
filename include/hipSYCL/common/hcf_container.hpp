@@ -103,7 +103,7 @@ public:
       for(int i = 0; i < subnodes.size(); ++i) {
         if(subnodes[i].node_id == unique_name) {
           HIPSYCL_DEBUG_ERROR << "hcf: Subnode already exists with name "
-                              << unique_name << std::endl;
+                              << unique_name << "\n";
           return nullptr;
         }
       }
@@ -116,6 +116,25 @@ public:
 
     void set(const std::string& key, const std::string& value) {
       key_value_pairs.push_back(std::make_pair(key, value));
+    }
+
+    // Note: This is a convenience feature. It just creates additional subnodes for list entries.
+    void set_as_list(const std::string& key, const std::vector<std::string>& list_entries) {
+      auto* N = add_subnode(key);
+      if(N) {
+        for(const auto& e : list_entries) {
+          N->add_subnode(e);
+        }
+      }
+    }
+
+    // Returns vector of list entries if key is present, or empty vector
+    // otherwise.
+    // Note: This is a convenience feature. It just reads subnodes for list entries.
+    std::vector<std::string> get_as_list(const std::string& key) const {
+      if(!has_subnode(key))
+        return {};
+      return get_subnode(key)->get_subnodes();
     }
   };
 
@@ -161,8 +180,7 @@ public:
     } else {
       HIPSYCL_DEBUG_ERROR << "hcf: Node " << n->node_id
                           << " is not a binary content node, nor does it carry "
-                             "a binary attachment"
-                          << std::endl;
+                             "a binary attachment\n";
       return false;
     }
     assert(descriptor_node);
@@ -171,11 +189,11 @@ public:
     const std::string* size_entry = descriptor_node->get_value("size");
 
     if(!start_entry) {
-      HIPSYCL_DEBUG_ERROR << "hcf: Node does not contain binary content start" << std::endl;
+      HIPSYCL_DEBUG_ERROR << "hcf: Node does not contain binary content start\n";
       return false;
     }
     if(!size_entry) {
-      HIPSYCL_DEBUG_ERROR << "hcf: Node does not contain binary content size" << std::endl;
+      HIPSYCL_DEBUG_ERROR << "hcf: Node does not contain binary content size\n";
       return false;
     }
 
@@ -183,7 +201,7 @@ public:
     size = std::stoull(*size_entry);
 
     if(start + size > _binary_appendix.size()) {
-      HIPSYCL_DEBUG_ERROR << "hcf: Binary content address is out-of-bounds" << std::endl;
+      HIPSYCL_DEBUG_ERROR << "hcf: Binary content address is out-of-bounds\n";
       return false;
     }
 
@@ -220,12 +238,12 @@ private:
 
   void serialize_node(const node& n, std::ostream& out) const {
     for(const auto& p : n.key_value_pairs){
-      out << p.first << "=" << p.second << std::endl;
+      out << p.first << "=" << p.second << "\n";
     }
     for(const auto& s : n.subnodes) {
-      out << _node_start_id << s.node_id << std::endl;
+      out << _node_start_id << s.node_id << "\n";
       serialize_node(s, out);
-      out << _node_end_id  << s.node_id << std::endl;
+      out << _node_end_id  << s.node_id << "\n";
     }
   }
 
@@ -253,7 +271,7 @@ private:
     
     if(processed_data.find(node_start_id) != 0) {
       HIPSYCL_DEBUG_ERROR << "hcf: Invalid node start: " << processed_data
-                          << std::endl;
+                          << "\n";
       return false;
     }
 
@@ -297,7 +315,7 @@ private:
         if(num_node_lines == std::string::npos) {
           HIPSYCL_DEBUG_ERROR
               << "hcf: Syntax error: Did not find expected node end marker: "
-              << node_end_marker << std::endl;
+              << node_end_marker << "\n";
           return false;
         }
         if(!parse_node_interior(lines, i+1, i+num_node_lines, new_node))
@@ -312,11 +330,11 @@ private:
         current_node.key_value_pairs.push_back(std::make_pair(key, value));
       } else if(current.find(_node_end_id) == 0) {
         HIPSYCL_DEBUG_ERROR << "hcf: Syntax error: Unexpected node end: " << current
-                          << std::endl;
+                          << "\n";
         return false;
       } else {
         HIPSYCL_DEBUG_ERROR << "hcf: Syntax error: Invalid line: " << current
-                          << std::endl;
+                          << "\n";
         return false;
       }
 

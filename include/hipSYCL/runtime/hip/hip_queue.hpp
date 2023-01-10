@@ -44,10 +44,9 @@ namespace rt {
 class hip_queue;
 class hip_backend;
 
-
-class hip_code_object_invoker : public code_object_invoker{
+class hip_multipass_code_object_invoker : public multipass_code_object_invoker {
 public:
-  hip_code_object_invoker(hip_queue* q);
+  hip_multipass_code_object_invoker(hip_queue* q);
 
   virtual result submit_kernel(const kernel_operation& op,
                                hcf_object_id hcf_object,
@@ -57,7 +56,27 @@ public:
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name_tag,
                                const std::string &kernel_body_name) override;
-  virtual ~hip_code_object_invoker(){}
+  virtual ~hip_multipass_code_object_invoker(){}
+private:
+  hip_queue* _queue;
+};
+
+
+class hip_sscp_code_object_invoker : public sscp_code_object_invoker {
+public:
+  hip_sscp_code_object_invoker(hip_queue* q)
+  : _queue{q} {}
+
+  virtual ~hip_sscp_code_object_invoker(){}
+
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name,
+                               const glue::kernel_configuration& config) override;
 private:
   hip_queue* _queue;
 };
@@ -90,15 +109,20 @@ public:
   virtual device_id get_device() const override;
   virtual void* get_native_type() const override;
 
-  virtual code_object_invoker* get_code_object_invoker() override;
-
   virtual result query_status(inorder_queue_status& status) override;
 
-  result submit_kernel_from_code_object(
+  result submit_multipass_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
       const std::string &backend_kernel_name, const rt::range<3> &grid_size,
       const rt::range<3> &block_size, unsigned dynamic_shared_mem,
       void **kernel_args, std::size_t* arg_sizes, std::size_t num_args);
+
+  result submit_sscp_kernel_from_code_object(
+      const kernel_operation &op, hcf_object_id hcf_object,
+      const std::string &kernel_name, const rt::range<3> &num_groups,
+      const rt::range<3> &group_size, unsigned local_mem_size, void **args,
+      std::size_t *arg_sizes, std::size_t num_args,
+      const glue::kernel_configuration &config);
 
   const host_timestamped_event& get_timing_reference() const {
     return _reference_event;
@@ -110,7 +134,8 @@ private:
   ihipStream_t* _stream;
   host_timestamped_event _reference_event;
   hip_backend* _backend;
-  hip_code_object_invoker _code_object_invoker;
+  hip_multipass_code_object_invoker _multipass_code_object_invoker;
+  hip_sscp_code_object_invoker _sscp_code_object_invoker;
 };
 
 }

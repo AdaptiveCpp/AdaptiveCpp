@@ -28,7 +28,7 @@ apt install -y libclang-13-dev clang-tools-13 libomp-13-dev llvm-13-dev lld-13
 It is generally not necessary to compile LLVM by yourself. However, if you wish to do this, during LLVM cmake make sure to:
 
 - Disable assertions as hipSYCL can potentially trigger some (false positive) debug assertions in some LLVM versions: `-DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=OFF -DLLVM_ENABLE_DUMP=OFF` 
-- Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON`
+- Generate `libLLVM.so`: `-DLLVM_BUILD_LLVM_DYLIB=ON` (only required if the SSCP compilation flow is enabled when building hipSYCL, which is true by default for supported versions of LLVM)
 - Enable the correct backends for your hardware: `nvptx` for NVIDIA GPUs and `amdgpu` for AMD GPUs.
 
 ## Pointing hipSYCL to the right LLVM

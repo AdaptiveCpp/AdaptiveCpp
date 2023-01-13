@@ -309,6 +309,7 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   operator T() const { return _data.template get<0>(); }
 
+  [[deprecated("renamed to 'size' in SYCL 2020 Specification")]]
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_count() { return N; }
 

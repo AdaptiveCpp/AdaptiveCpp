@@ -336,18 +336,18 @@ public:
     return result;
   }
 
-  template<typename AsT, int OtherN>
+  template<typename asT>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<AsT, OtherN> as() const {
-    static_assert(sizeof(vec<AsT, OtherN>) == sizeof(vec<T,N>),
+  asT as() const {
+    static_assert(sizeof(asT) == sizeof(vec<T,N>),
                   "Reinterpreted vector must have same size");
     static_assert(std::is_same_v<VectorStorage, detail::vec_storage<T, N>>,
                   "Reinterpreting swizzled vectors directly is not supported");
 
-    vec<AsT, N> result;
+    asT result;
     
-    AsT* in_ptr = reinterpret_cast<AsT*>(&_data[0]);
-    for(int i = 0; i < OtherN; ++i)
+    auto in_ptr = reinterpret_cast<typename asT::element_type*>(&_data[0]);
+    for(int i = 0; i < N; ++i)
       result[i] = in_ptr[i];
 
     return result;

@@ -312,8 +312,15 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_count() { return N; }
 
+  [[deprecated("renamed to 'byte_size' in SYCL 2020 Specification")]]
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr std::size_t get_size() { return sizeof(VectorStorage); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  static constexpr std::size_t byte_size() { return sizeof(VectorStorage); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  static constexpr size_t size() noexcept { return N; }
 
   template <typename ConvertT, rounding_mode RM = rounding_mode::automatic>
   HIPSYCL_UNIVERSAL_TARGET

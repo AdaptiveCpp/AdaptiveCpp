@@ -63,7 +63,10 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                         const std::vector<ze_event_handle_t>& wait_events, 
                         const rt::range<3> &group_size,
                         const rt::range<3> &num_groups, void **kernel_args,
-                        const std::size_t *arg_sizes, std::size_t num_args) {
+                        const std::size_t *arg_sizes, std::size_t num_args,
+                        // If non-null, will be used to check whether kernel args
+                        // are pointers, and if so, check for null pointers
+                        const hcf_kernel_info *info = nullptr) {
 
   HIPSYCL_DEBUG_INFO << "ze_queue: Configuring kernel launch for group size "
                      << group_size[0] << " " << group_size[1] << " "
@@ -92,8 +95,24 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
                        << " of size " << arg_sizes[i] << " at " << kernel_args[i]
                        << std::endl;
 
-    err = zeKernelSetArgumentValue(
-        kernel, i, static_cast<uint32_t>(arg_sizes[i]), kernel_args[i]);
+    auto points_to_nullptr = [](void* arg) -> bool {
+      void* ptr = nullptr;
+      std::memcpy(&ptr, arg, sizeof(void*));
+      return ptr == nullptr;
+    };
+
+    if (info && (info->get_argument_type(i) == hcf_kernel_info::pointer) &&
+        points_to_nullptr(kernel_args[i])) {
+      // Level Zero absolutely does not like when nullptrs are passed
+      // in as values at kernel_args[i] - it validates that those are non-null.
+      // So instead, we need to set the argument to zeKernelSetArgumentValue
+      // to null.
+      err = zeKernelSetArgumentValue(
+          kernel, i, static_cast<uint32_t>(arg_sizes[i]), nullptr);
+    } else {
+      err = zeKernelSetArgumentValue(
+          kernel, i, static_cast<uint32_t>(arg_sizes[i]), kernel_args[i]);
+    }
     if(err != ZE_RESULT_SUCCESS) {
       return make_error(
           __hipsycl_here(),
@@ -619,7 +638,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
       static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
       wait_events, group_size, num_groups, arg_mapper.get_mapped_args(),
       const_cast<std::size_t *>(arg_mapper.get_mapped_arg_sizes()),
-      arg_mapper.get_mapped_num_args());
+      arg_mapper.get_mapped_num_args(), kernel_info);
 
   if(!submission_err.is_success())
     return submission_err;

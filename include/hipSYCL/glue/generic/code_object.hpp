@@ -39,19 +39,22 @@
 #define HIPSYCL_STATIC_KERNEL_REGISTRATION(KernelT) \
   (void)::hipsycl::rt::detail::static_kernel_registration<KernelT>::init;
 
-template<std::size_t Hcf_object_id>
-struct __hipsycl_hcf_registration {};
-
-#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_object_id, hcf_string, hcf_size)   \
-  template <> struct __hipsycl_hcf_registration<hcf_object_id> {               \
-    __hipsycl_hcf_registration() {                                             \
-      ::hipsycl::rt::kernel_cache::get().register_hcf_object(                  \
+#define HIPSYCL_STATIC_HCF_REGISTRATION(hcf_obj, hcf_string, hcf_size)   \
+  class __hipsycl_hcf_registration##hcf_obj {                           \
+  private:                                                                     \
+    ::hipsycl::rt::hcf_object_id _id;                                          \
+                                                                               \
+  public:                                                                      \
+    __hipsycl_hcf_registration##hcf_obj() {                             \
+      this->_id = ::hipsycl::rt::hcf_cache::get().register_hcf_object(         \
           ::hipsycl::common::hcf_container{std::string{                        \
               reinterpret_cast<const char *>(hcf_string), hcf_size}});         \
     }                                                                          \
+    ~__hipsycl_hcf_registration##hcf_obj() {                            \
+      ::hipsycl::rt::hcf_cache::get().unregister_hcf_object(this->_id);        \
+    }                                                                          \
   };                                                                           \
-  __hipsycl_hcf_registration<hcf_object_id>                                    \
-      __hipsycl_register_hcf_##hcf_object_id;
+  static __hipsycl_hcf_registration##hcf_obj __hipsycl_hcf_obj##hcf_obj;
 
 #ifdef __HIPSYCL_MULTIPASS_CUDA_HEADER__
  #include __HIPSYCL_MULTIPASS_CUDA_HEADER__

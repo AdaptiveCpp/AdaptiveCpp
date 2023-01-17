@@ -81,9 +81,11 @@ set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GP
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
-set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+  set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+  set(WITH_SSCP_COMPILER false CACHE BOOL "Build hipSYCL generic SSCP compiler support")
 else()
-set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+  set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
+  set(WITH_SSCP_COMPILER true CACHE BOOL "Build hipSYCL generic SSCP compiler support")
 endif()
 set(WITH_CPU_BACKEND true)
 
@@ -111,6 +113,13 @@ if(WITH_ACCELERATED_CPU) # sanitize input
   set(BUILD_CLANG_PLUGIN true)
 else()
   set(WITH_ACCELERATED_CPU false)
+endif()
+
+if(WITH_SSCP_COMPILER) # sanitize input
+  set(WITH_SSCP_COMPILER true)
+  set(BUILD_CLANG_PLUGIN true)
+else()
+  set(WITH_SSCP_COMPILER false)
 endif()
 
 if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
@@ -185,9 +194,14 @@ if(BUILD_CLANG_PLUGIN)
     endif()
   endif()
   if(${LLVM_VERSION_MAJOR} LESS 11 AND ${WITH_ACCELERATED_CPU})
-    message(WARNING "clang version to old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
+    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 11) to be used with CPU acceleration support, disabling WITH_ACCELERATED_CPU")
     set(WITH_ACCELERATED_CPU false)
   endif()
+  if(${LLVM_VERSION_MAJOR} LESS 14 AND ${WITH_SSCP_COMPILER})
+    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with SSCP compiler, disabling WITH_SSCP_COMPILER")
+    set(WITH_SSCP_COMPILER false)
+  endif()
+
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
 
@@ -369,7 +383,7 @@ file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 set(HIPSYCL_INSTALL_CMAKE_DIR
   "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
 
-# must stay after add_subdirectory(src) as HIPSYCL_RT_LIBRARY_OUTPUT_NAME is declared there
+# must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
   ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
   ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)

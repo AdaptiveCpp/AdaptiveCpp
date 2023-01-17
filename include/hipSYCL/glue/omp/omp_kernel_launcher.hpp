@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include <cassert>
 #include <tuple>
 #ifdef _OPENMP
@@ -607,11 +608,12 @@ public:
     };
   }
 
-  virtual rt::backend_id get_backend() const final override {
-    return rt::backend_id::omp;
+  virtual int get_backend_score(rt::backend_id b) const final override {
+    return (b == rt::backend_id::omp) ? 2 : -1;
   }
 
-  virtual void invoke(rt::dag_node* node) final override {
+  virtual void invoke(rt::dag_node *node,
+                      const kernel_configuration &) final override {
     _invoker(node);
   }
 

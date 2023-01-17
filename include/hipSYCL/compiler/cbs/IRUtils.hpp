@@ -31,6 +31,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Constants.h>
 
 namespace llvm {
 class Region;
@@ -177,6 +178,27 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   if (V->getNumOperands() == 0)
     return nullptr;
   return llvm::dyn_cast<T>(V->getOperand(idx));
+}
+
+template<class Handler>
+void findFunctionsWithStringAnnotations(llvm::Module& M, Handler&& f) {
+  for (auto &I : M.globals()) {
+    if (I.getName() == "llvm.global.annotations") {
+      auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
+      for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
+        if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
+            CS && CS->getNumOperands() >= 2)
+          if (auto *F = utils::getValueOneLevel<llvm::Function>(CS->getOperand(0)))
+            if (auto *AnnotationGL =
+                    utils::getValueOneLevel<llvm::GlobalVariable>(CS->getOperand(1)))
+              if (auto *Initializer =
+                      llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
+                llvm::StringRef Annotation = Initializer->getAsCString();
+                f(F, Annotation);
+              }
+      }
+    }
+  }
 }
 
 } // namespace utils

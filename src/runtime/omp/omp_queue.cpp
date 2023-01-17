@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/omp/omp_queue.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
 #include "hipSYCL/runtime/hints.hpp"
@@ -307,14 +308,15 @@ result omp_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
 
   
   rt::dag_node* node_ptr = node.get();
-  
+  const glue::kernel_configuration *config =
+      &(op.get_launcher().get_kernel_configuration());
 
   omp_instrumentation_setup instrumentation_setup{op, node};
   _worker([=]() {
     auto instrumentation_guard = instrumentation_setup.instrument_task();
 
     HIPSYCL_DEBUG_INFO << "omp_queue [async]: Invoking kernel!" << std::endl;
-    launcher->invoke(node_ptr);
+    launcher->invoke(node_ptr, *config);
   });
 
   return make_success();
@@ -415,10 +417,6 @@ device_id omp_queue::get_device() const {
 }
 
 void *omp_queue::get_native_type() const {
-  return nullptr;
-}
-
-code_object_invoker* omp_queue::get_code_object_invoker() {
   return nullptr;
 }
 

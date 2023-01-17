@@ -28,6 +28,8 @@
 #ifndef HIPSYCL_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_KERNEL_LAUNCHER_HPP
 
+#include <limits>
+#include <optional>
 #include <vector>
 #include <memory>
 
@@ -36,11 +38,15 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/util.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 
 #include "backend.hpp"
 
 namespace hipsycl {
 namespace rt {
+
+class multipass_code_object_invoker;
+class sscp_code_object_invoker;
 
 enum class kernel_type {
   single_task,
@@ -51,15 +57,53 @@ enum class kernel_type {
   custom
 };
 
+class backend_kernel_launch_capabilities {
+public:
+  void provide_multipass_invoker(multipass_code_object_invoker* invoker) {
+    _multipass_invoker = invoker;
+  }
+
+  void provide_sscp_invoker(sscp_code_object_invoker* invoker) {
+    _sscp_invoker = invoker;
+  }
+
+  std::optional<multipass_code_object_invoker*> get_multipass_invoker() const {
+    if(_multipass_invoker)
+      return _multipass_invoker;
+    return {};
+  }
+
+  std::optional<sscp_code_object_invoker*> get_sscp_invoker() const {
+    if(_sscp_invoker)
+      return _sscp_invoker;
+    return {};
+  }
+private:
+  multipass_code_object_invoker* _multipass_invoker = nullptr;
+  sscp_code_object_invoker* _sscp_invoker = nullptr;
+};
+
 class backend_kernel_launcher
 {
 public:
   virtual ~backend_kernel_launcher(){}
 
-  virtual backend_id get_backend() const = 0;
+  virtual int get_backend_score(backend_id b) const = 0;
   virtual kernel_type get_kernel_type() const = 0;
+  // Additional backend-specific parameters (e.g. queue)
   virtual void set_params(void*) = 0;
-  virtual void invoke(dag_node* node) = 0;
+  virtual void invoke(dag_node *node,
+                      const glue::kernel_configuration &config) = 0;
+
+  void set_backend_capabilities(const backend_kernel_launch_capabilities& cap) {
+    _capabilities = cap;
+  }
+
+  const backend_kernel_launch_capabilities& get_launch_capabilities() const {
+    return _capabilities;
+  }
+private:
+  backend_kernel_launch_capabilities _capabilities;
 };
 
 class kernel_launcher
@@ -73,24 +117,35 @@ public:
   kernel_launcher(const kernel_launcher &) = delete;
 
   void invoke(backend_id id, rt::dag_node_ptr node) const {
-    find_launcher(id)->invoke(node.get());
+    find_launcher(id)->invoke(node.get(), _kernel_config);
   }
 
   backend_kernel_launcher* find_launcher(backend_id id) const {
+    int max_score = -1;
+    backend_kernel_launcher* selected_launcher = nullptr;
+
     for (auto &backend_launcher : _kernels) {
-      if (backend_launcher->get_backend() == id) {
-        return backend_launcher.get();
+      int score = backend_launcher->get_backend_score(id);
+      if (score >= 0 && score > max_score) {
+        max_score = score;
+        selected_launcher = backend_launcher.get();
       }
     }
-    register_error(
-        __hipsycl_here(),
-        error_info{"No kernel launcher is present for requested backend",
-                   error_type::invalid_parameter_error});
-    return nullptr;
+    if(!selected_launcher){
+      register_error(
+          __hipsycl_here(),
+          error_info{"No kernel launcher is present for requested backend",
+                    error_type::invalid_parameter_error});
+    }
+    return selected_launcher;
   }
 
+  const glue::kernel_configuration& get_kernel_configuration() const {
+    return _kernel_config;
+  }
 private:
   std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+  glue::kernel_configuration _kernel_config;
 };
 
 

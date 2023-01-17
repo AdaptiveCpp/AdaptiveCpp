@@ -31,6 +31,10 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "../sscp/builtins/localmem.hpp"
+#endif
+
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
@@ -179,10 +183,8 @@ inline void* hiplike_dynamic_local_memory() {
   __hipsycl_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
   );
-  __hipsycl_if_target_host(
-    assert(false && "this function should only be called on device");
-    return nullptr;
-  );
+  
+  return nullptr;
 }
 
 class local_memory
@@ -194,12 +196,12 @@ public:
   HIPSYCL_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
-    __hipsycl_if_target_device(
-      return reinterpret_cast<T *>(
-        reinterpret_cast<char *>(hiplike_dynamic_local_memory()) + addr);
-    );
-    __hipsycl_if_target_host(
-      return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr);
+    __hipsycl_backend_switch(
+      return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr),
+      return reinterpret_cast<T*>((char*)__hipsycl_sscp_get_dynamic_local_memory() + addr),
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
+      return nullptr /* SPIR-V not implemented */
     );
   }
 };

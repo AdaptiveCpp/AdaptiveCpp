@@ -30,6 +30,7 @@
 #define HIPSYCL_CODE_OBJECT_INVOKER_HPP
 
 #include "error.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "util.hpp"
 #include "kernel_cache.hpp"
 #include "operations.hpp"
@@ -37,7 +38,7 @@
 namespace hipsycl {
 namespace rt {
 
-class code_object_invoker {
+class multipass_code_object_invoker {
 public:
   virtual result submit_kernel(const kernel_operation& op,
                                hcf_object_id hcf_object,
@@ -47,7 +48,20 @@ public:
                                std::size_t *arg_sizes, std::size_t num_args,
                                const std::string &kernel_name_tag,
                                const std::string &kernel_body_name) = 0;
-  virtual ~code_object_invoker(){}
+  virtual ~multipass_code_object_invoker(){}
+};
+
+class sscp_code_object_invoker {
+public:
+  virtual result submit_kernel(const kernel_operation& op,
+                               hcf_object_id hcf_object,
+                               const rt::range<3> &num_groups,
+                               const rt::range<3> &group_size,
+                               unsigned local_mem_size, void **args,
+                               std::size_t *arg_sizes, std::size_t num_args,
+                               const std::string &kernel_name,
+                               const glue::kernel_configuration& config) = 0;
+  virtual ~sscp_code_object_invoker(){}
 };
 
 }

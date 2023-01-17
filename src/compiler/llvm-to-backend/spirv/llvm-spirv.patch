@@ -1,0 +1,23 @@
+*** SPIRVInternal.h	2022-11-10 17:33:41.028934130 +0100
+--- SPIRVInternal.changed.h	2022-11-10 17:34:34.144344275 +0100
+***************
+*** 180,188 ****
+  
+  enum SPIRAddressSpace {
+!   SPIRAS_Private,
+    SPIRAS_Global,
+    SPIRAS_Constant,
+    SPIRAS_Local,
+!   SPIRAS_Generic,
+    SPIRAS_GlobalDevice,
+    SPIRAS_GlobalHost,
+--- 180,188 ----
+  
+  enum SPIRAddressSpace {
+!   SPIRAS_Generic,
+    SPIRAS_Global,
+    SPIRAS_Constant,
+    SPIRAS_Local,
+!   SPIRAS_Private,
+    SPIRAS_GlobalDevice,
+    SPIRAS_GlobalHost,

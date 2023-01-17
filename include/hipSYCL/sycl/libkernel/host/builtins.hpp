@@ -614,7 +614,7 @@ HIPSYCL_BUILTIN T __hipsycl_dot(T a, T b) noexcept {
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_BUILTIN typename T::element_type __hipsycl_dot(T a, T b) noexcept {
   typename T::element_type result = 0;
-  for (int i = 0; i < a.get_count(); ++i) {
+  for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
   return result;

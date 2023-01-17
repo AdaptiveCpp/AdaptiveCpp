@@ -859,7 +859,7 @@ private:
     if constexpr(std::is_scalar_v<Arg>)
       return 1;
     else if(std::is_same_v<typename Arg::element_type, T>)
-      return Arg::get_count();
+      return Arg::size();
     // ToDo: Trigger error
     return 0;
   }

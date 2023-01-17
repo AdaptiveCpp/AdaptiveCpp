@@ -85,14 +85,22 @@ hcf_kernel_info::hcf_kernel_info(
 
     auto *byte_size = param_info_node->get_value("byte-size");
     auto *byte_offset = param_info_node->get_value("byte-offset");
+    auto *type = param_info_node->get_value("type");
 
     if (!byte_size)
       return;
     if (!byte_offset)
       return;
+    if (!type)
+      return;
 
     std::size_t arg_size = std::stoll(*byte_size);
     std::size_t arg_offset = std::stoll(*byte_offset);
+    if(*type == "pointer") {
+      _arg_types.push_back(pointer);
+    } else {
+      _arg_types.push_back(other);
+    }
     _global_arg_offsets.push_back(arg_offset);
     _arg_sizes.push_back(arg_size);
   }
@@ -124,6 +132,10 @@ std::size_t hcf_kernel_info::get_global_argument_offset(std::size_t i) const {
 
 std::size_t hcf_kernel_info::get_argument_size(std::size_t i) const {
   return _arg_sizes[i];
+}
+
+hcf_kernel_info::argument_type hcf_kernel_info::get_argument_type(std::size_t i) const {
+  return _arg_types[i];
 }
 
 const std::vector<std::string> &

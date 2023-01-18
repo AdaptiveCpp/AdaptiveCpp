@@ -26,6 +26,8 @@
  */
 
 #include <cassert>
+#include <llvm/IR/InstrTypes.h>
+#include <llvm/IR/Value.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/GlobalValue.h>
@@ -94,6 +96,18 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   return NewVar;
 }
 
+// Go through all users, but look through addrspacecasts, bitcasts and getelementptr
+template<class F>
+void forEachUseOfPointerValue(llvm::Value* V, F&& handler) {
+  for(llvm::Value* U : V->users()) {
+    if (llvm::isa<llvm::BitCastInst>(U) || llvm::isa<llvm::AddrSpaceCastInst>(U) ||
+        llvm::isa<llvm::GetElementPtrInst>(U)) {
+      forEachUseOfPointerValue(U, handler);
+    } else {
+      handler(U);
+    }
+  }
+}
 
 } // anonymous namespace
 
@@ -127,6 +141,20 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
                                << AllocaAddrSpace << ", fixing.\n";
             auto *NewAI = new llvm::AllocaInst{AI->getAllocatedType(), AllocaAddrSpace, "", AI};
             auto* ASCastInst = new llvm::AddrSpaceCastInst{NewAI, AI->getType(), "", AI};
+
+            // llvm.lifetime intrinsics don't like addrspacecasts,
+            // so we cannot just make them use ASCastInst instead of AI now.
+            forEachUseOfPointerValue(AI, [&](llvm::Value* U){
+              if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U)) {
+                llvm::StringRef CalleeName = CB->getCalledFunction()->getName();
+                if(CalleeName.startswith("llvm.lifetime")) {
+                  // TODO: We should not just discard these intrinsic calls,
+                  // but rewrite them to the new address space.
+                  InstsToRemove.push_back(CB);
+                }
+              }
+            });
+
             AI->replaceAllUsesWith(ASCastInst);
             InstsToRemove.push_back(AI);
           }

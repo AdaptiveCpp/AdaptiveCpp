@@ -31,6 +31,9 @@
 #include <string>
 #include "debug.hpp"
 
+#ifndef HIPSYCL_COMMON_TIMER_HPP
+#define HIPSYCL_COMMON_TIMER_HPP
+
 namespace hipsycl::common {
 
 class timer {
@@ -76,3 +79,5 @@ private:
 };
 
 }
+
+#endif

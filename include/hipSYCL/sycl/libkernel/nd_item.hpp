@@ -286,7 +286,9 @@ struct nd_item
       detail::local_device_barrier(space);
     );
     __hipsycl_if_target_host(
-      (*_group_barrier)(); 
+        detail::host_barrier_type *barrier =
+            static_cast<detail::host_barrier_type *>(_group_barrier);
+        (*barrier)();
     );
   }
 
@@ -360,7 +362,7 @@ struct nd_item
       _local_memory_ptr(local_memory_ptr)
   {
     __hipsycl_if_target_host(
-      _group_barrier = host_group_barrier;
+      _group_barrier = static_cast<void*>(host_group_barrier);
     );
   }
 #endif
@@ -378,7 +380,9 @@ private:
 #endif
 
 #ifndef SYCL_DEVICE_ONLY
-  detail::host_barrier_type* _group_barrier;
+  // Store void ptr to avoid function pointer types
+  // appearing in SSCP code
+  void* _group_barrier;
 #endif
 };
 

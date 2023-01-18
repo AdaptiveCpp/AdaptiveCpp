@@ -165,7 +165,13 @@ struct nd_item
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
     return group<dimensions>{};
 #else
-    return group<dimensions>{_group_id, _local_range, _num_groups, _group_barrier, get_local_id(), _local_memory_ptr};
+    return group<dimensions>{
+        _group_id,
+        _local_range,
+        _num_groups,
+        static_cast<detail::host_barrier_type *>(_group_barrier),
+        get_local_id(),
+        _local_memory_ptr};
 #endif
   }
 

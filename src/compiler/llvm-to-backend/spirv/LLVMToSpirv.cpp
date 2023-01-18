@@ -27,11 +27,13 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
@@ -185,7 +187,6 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   return true;
 }
 
-
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-spirv-%%%%%%.bc");
@@ -273,6 +274,34 @@ AddressSpaceMap LLVMToSpirvTranslator::getAddressSpaceMap() const {
   ASMap[AddressSpace::GlobalVariableDefault] = 1;
 
   return ASMap;
+}
+
+bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
+  bool Result = LLVMToBackendTranslator::optimizeFlavoredIR(M, PH);
+  if(!Result)
+    return false;
+
+  // Optimizations may introduce the freeze instruction, which is not supported
+  // by llvm-spirv.
+  // See https://github.com/KhronosGroup/SPIRV-LLVM-Translator/issues/1140
+  // We adopt the workaround proposed there.
+
+  llvm::SmallVector<llvm::Instruction*> InstsToRemove;
+  for(auto& F : M.getFunctionList()) {
+    for(auto& BB : F.getBasicBlockList()) {
+      for(auto& I : BB.getInstList()) {
+        if(auto* FI = llvm::dyn_cast<llvm::FreezeInst>(&I)) {
+          FI->replaceAllUsesWith(FI->getOperand(0));
+          FI->dropAllReferences();
+          InstsToRemove.push_back(FI);
+        }
+      }
+    }
+  }
+  for(auto* I : InstsToRemove)
+    I->eraseFromParent();
+  
+  return Result;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

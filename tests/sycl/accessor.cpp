@@ -427,4 +427,26 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.wait();
 }
 
+BOOST_AUTO_TEST_CASE(zero_dim_accessor) {
+  namespace s = cl::sycl;
+
+  int val[1] = {0};
+
+  s::buffer<int,1> buf{&val[0], 1};
+
+  s::queue q;
+  q.submit([&](auto &h){
+    s::accessor<int, 0> acc{buf, h};
+
+    q.parallel_for(s::range<1>{1}, [&](auto &) {
+      int &ref = acc;
+      ref = 123;
+    });
+  });
+
+  q.wait();
+
+  BOOST_CHECK(val[0] == 123);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

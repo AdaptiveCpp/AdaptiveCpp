@@ -27,6 +27,7 @@
 
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/common/timer.hpp"
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
 #include "hipSYCL/runtime/hip/hip_backend.hpp"
@@ -637,6 +638,9 @@ result hip_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object * {
+    common::timer full_timer{"SSCP code object construction (total)", false};
+    common::timer s2_timer{"SSCP stage 2 compilation", false};
+
     const common::hcf_container *hcf =
         rt::hcf_cache::get().get_hcf(hcf_object);
     
@@ -655,16 +659,19 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, amdgpu_image);
     
+    s2_timer.stop_and_print();
+
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
     }
 
+    common::timer module_timer{"SSCP backend code object construction", false};
     hip_sscp_executable_object *exec_obj = new hip_sscp_executable_object{
         amdgpu_image, target_arch_name, hcf_object,
         kernel_names, device,           config};
     result r = exec_obj->get_build_result();
-
+    module_timer.stop_and_print();
     HIPSYCL_DEBUG_INFO
         << "hip_queue: Successfully compiled SSCP kernels to module " << exec_obj->get_module()
         << std::endl;
@@ -675,6 +682,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    full_timer.stop_and_print();
     return exec_obj;
   };
 

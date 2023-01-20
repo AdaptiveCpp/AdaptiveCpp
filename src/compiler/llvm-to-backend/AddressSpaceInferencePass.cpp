@@ -84,12 +84,12 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   std::string VarName {GV->getName()};
   GV->setName(VarName+".original");
 
-  llvm::Type *NewType = llvm::PointerType::getWithSamePointeeType(GV->getType(), AS);
   llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
-      M, NewType, GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName);
+      M, GV->getInitializer()->getType(), GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName, nullptr,
+      GV->getThreadLocalMode(), AS);
   NewVar->setAlignment(GV->getAlign());
 
-  llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
+  llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
 
   GV->replaceAllUsesWith(V);
   GV->eraseFromParent();

@@ -68,10 +68,7 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
   const std::vector<std::string>& OutliningEPs)
-: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {
-  setS2IRConstant<sycl::sscp::current_backend, int>(
-      S2IRConstantCurrentBackendId);
-}
+: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {}
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";

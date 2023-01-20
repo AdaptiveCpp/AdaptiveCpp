@@ -66,6 +66,8 @@ public:
 
   virtual ~LLVMToBackendTranslator() {}
 
+  // Do not use inside llvm-to-backend infrastructure targets to avoid
+  // requiring RTTI-enabled LLVM
   template<auto& ConstantName, class T>
   void setS2IRConstant(const T& value) {
     static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>,
@@ -119,6 +121,9 @@ public:
     return Result;
   }
 
+  int getBackendId() const {
+    return S2IRConstantBackendId;
+  }
 
   using SymbolListType = std::vector<std::string>;
 

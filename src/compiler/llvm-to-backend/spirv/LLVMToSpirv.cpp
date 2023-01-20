@@ -126,7 +126,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  for(auto& F : M.getFunctionList()) {
+  for(auto& F : M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
       // All functions must be marked as spir_func
       if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
@@ -165,9 +165,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   // pointers. TODO: We should only remove them when we actually need to, and attempt
   // to fix them otherwise.
   llvm::SmallVector<llvm::CallBase*, 16> Calls;
-  for(auto& F : M.getFunctionList()) {
-    for(auto& BB : F.getBasicBlockList()) {
-      for(auto& I : BB.getInstList()) {
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
           if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
               CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
@@ -287,9 +287,9 @@ bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH)
   // We adopt the workaround proposed there.
 
   llvm::SmallVector<llvm::Instruction*> InstsToRemove;
-  for(auto& F : M.getFunctionList()) {
-    for(auto& BB : F.getBasicBlockList()) {
-      for(auto& I : BB.getInstList()) {
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
         if(auto* FI = llvm::dyn_cast<llvm::FreezeInst>(&I)) {
           FI->replaceAllUsesWith(FI->getOperand(0));
           FI->dropAllReferences();

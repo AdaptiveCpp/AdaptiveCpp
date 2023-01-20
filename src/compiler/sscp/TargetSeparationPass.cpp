@@ -213,6 +213,9 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;
   llvm::SmallVector<std::string, 16> StringAttrsToRemove;
   AttrsToRemove.push_back(llvm::Attribute::AttrKind::UWTable);
+  AttrsToRemove.push_back(llvm::Attribute::AttrKind::StackProtectStrong);
+  AttrsToRemove.push_back(llvm::Attribute::AttrKind::StackProtect);
+  AttrsToRemove.push_back(llvm::Attribute::AttrKind::StackProtectReq);
   StringAttrsToRemove.push_back("frame-pointer");
   StringAttrsToRemove.push_back("min-legal-vector-width");
   StringAttrsToRemove.push_back("no-trapping-math");

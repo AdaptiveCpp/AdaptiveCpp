@@ -855,15 +855,15 @@ BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
 BOOST_AUTO_TEST_CASE(zero_dim_accessor) {
   namespace s = cl::sycl;
 
-  int val[1] = {0};
+  int val = 1;
 
-  s::buffer<int,1> buf{&val[0], 1};
+  s::buffer<int,1> buf{&val, 1};
 
   s::queue q;
   q.submit([&](auto &h){
     s::accessor<int, 0> acc{buf, h};
 
-    q.parallel_for(s::range<1>{1}, [&](auto &) {
+    h.parallel_for(s::range<1>{1}, [=](auto &) {
       int &ref = acc;
       ref = 123;
     });
@@ -871,7 +871,7 @@ BOOST_AUTO_TEST_CASE(zero_dim_accessor) {
 
   q.wait();
 
-  BOOST_CHECK(val[0] == 123);
+  BOOST_CHECK(val == 123);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

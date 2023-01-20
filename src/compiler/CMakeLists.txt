@@ -71,13 +71,17 @@ if(HIPSYCL_NO_DEVICE_MANGLER)
   target_compile_definitions(hipSYCL_clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
 endif()
 
+set(LLVM_DEP_COMPILE_OPTIONS "")
+
 if(NOT ${LLVM_ENABLE_EH})
-  target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
+  list(APPEND LLVM_DEP_COMPILE_OPTIONS -fno-exceptions)
 endif()
 
 if(NOT ${LLVM_ENABLE_RTTI})
-  target_compile_options(hipSYCL_clang PRIVATE -fno-rtti)
+list(APPEND LLVM_DEP_COMPILE_OPTIONS -fno-rtti)
 endif()
+
+target_compile_options(hipSYCL_clang PRIVATE ${LLVM_DEP_COMPILE_OPTIONS})
 
 target_link_libraries(hipSYCL_clang
   ${LLVM_LIBS})

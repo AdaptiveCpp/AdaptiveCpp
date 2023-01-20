@@ -5,7 +5,6 @@ set(LLVM_TO_BACKEND_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
-
 function(create_llvm_based_library)
   set(options)
   set(one_value_keywords TARGET)
@@ -28,6 +27,7 @@ function(create_llvm_based_library)
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   llvm_config(${target} USE_SHARED core support irreader passes)
+  target_compile_options(${target} PRIVATE ${LLVM_DEP_COMPILE_OPTIONS})
 
   install(TARGETS ${target} DESTINATION lib/hipSYCL/llvm-to-backend)
 endfunction()
@@ -70,6 +70,7 @@ function(create_llvm_to_backend_tool)
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   
   target_compile_definitions(${target}-tool PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_TOOL_COMPONENT)
+  target_compile_options(${target}-tool PRIVATE ${LLVM_DEP_COMPILE_OPTIONS})
   target_link_libraries(${target}-tool PRIVATE ${target})
 
   install(TARGETS ${target}-tool DESTINATION lib/hipSYCL/llvm-to-backend)
@@ -97,6 +98,11 @@ endfunction()
 include(ExternalProject)
 
 if(WITH_SSCP_COMPILER)
+  if(NOT ${LLVM_ENABLE_RTTI})
+    message(FATAL_ERROR "hipSYCL SSCP cannot be used with LLVM that was built without RTTI. "
+                        "Either use an RTTI enabled LLVM (-DLLVM_ENABLE_RTTI=ON) or disable hipSYCL's SSCP (-DWITH_SSCP_COMPILER=OFF).")
+  endif()
+
   create_llvm_based_library(
     TARGET llvm-to-backend
     SOURCES LLVMToBackend.cpp AddressSpaceInferencePass.cpp ../sscp/KernelOutliningPass.cpp)

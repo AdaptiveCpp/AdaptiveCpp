@@ -180,11 +180,11 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     // Before optimizing, make sure everything has internal linkage to
     // help inlining. All linking should have occured by now, except
     // for backend builtin libraries like libdevice etc
-    for(auto & F : M.getFunctionList()) {
+    for(auto & F : M) {
       // Ignore kernels and intrinsics
       if(!F.isIntrinsic() && !this->isKernelAfterFlavoring(F)) {
         // Ignore undefined functions
-        if(!F.getBasicBlockList().empty())
+        if(!F.empty())
           F.setLinkage(llvm::GlobalValue::InternalLinkage);
       }
     }

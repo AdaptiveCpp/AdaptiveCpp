@@ -131,9 +131,9 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
   // need to fix this now.
   unsigned AllocaAddrSpace = ASMap[AddressSpace::AllocaDefault];
   llvm::SmallVector<llvm::Instruction*, 16> InstsToRemove;
-  for(auto& F : M.getFunctionList()) {
-    for(auto& BB : F.getBasicBlockList()) {
-      for(auto& I : BB.getInstList()) {
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
         if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
           if(AI->getAddressSpace() != AllocaAddrSpace) {
             HIPSYCL_DEBUG_INFO << "AddressSpaceInferencePass: Found alloca in address space "

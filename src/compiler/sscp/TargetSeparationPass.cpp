@@ -220,7 +220,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   StringAttrsToRemove.push_back("target-cpu");
   StringAttrsToRemove.push_back("target-features");
   StringAttrsToRemove.push_back("tune-cpu");
-  for(auto& F : DeviceModule->getFunctionList()) {
+  for(auto& F : *DeviceModule) {
     for(auto& A : AttrsToRemove) {
       if(F.hasFnAttribute(A))
         F.removeFnAttr(A);
@@ -262,8 +262,8 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
    // Scan for imported function definitions
    ImportedSymbolsOutput.clear();
-  for(auto& F : DeviceModule->getFunctionList()) {
-    if(F.getBasicBlockList().size() == 0) {
+  for(auto& F : *DeviceModule) {
+    if(F.size() == 0) {
       // We currently use the heuristic that functions are imported
       // if they are not defined, not an intrinsic and don't start with
       // __ like our hipSYCL builtins. This is a hack, it would

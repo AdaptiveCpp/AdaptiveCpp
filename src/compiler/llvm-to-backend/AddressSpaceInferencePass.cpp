@@ -44,6 +44,7 @@
 
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 
 namespace hipsycl {
 namespace compiler {
@@ -83,12 +84,12 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   std::string VarName {GV->getName()};
   GV->setName(VarName+".original");
 
-  llvm::Type *NewType = llvm::PointerType::getWithSamePointeeType(GV->getType(), AS);
   llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
-      M, NewType, GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName);
+      M, GV->getInitializer()->getType(), GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName, nullptr,
+      GV->getThreadLocalMode(), AS);
   NewVar->setAlignment(GV->getAlign());
 
-  llvm::Value* V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
+  llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
 
   GV->replaceAllUsesWith(V);
   GV->eraseFromParent();
@@ -116,8 +117,6 @@ AddressSpaceInferencePass::AddressSpaceInferencePass(const AddressSpaceMap &Map)
 
 llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM) {
-
-  // TODO Set address space of global variables
   
   if(ASMap[AddressSpace::Generic] != 0){
     HIPSYCL_DEBUG_ERROR << "AddressSpaceInferencePass: Attempted to run when default address space "
@@ -125,6 +124,26 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
   }
 
   assert(ASMap[AddressSpace::Generic] == 0);
+
+  // Fix global vars
+  llvm::SmallVector<std::pair<llvm::GlobalVariable *, unsigned>> GlobalVarAddressSpaceChanges;
+  for(auto& G : M.getGlobalList()) {
+    unsigned CurrentAS = G.getAddressSpace();
+    // By default, all global vars should go into global var default AS
+    unsigned TargetAS = ASMap[AddressSpace::GlobalVariableDefault];
+
+    if (CurrentAS == ASMap[AddressSpace::Local]) {
+      // Don't do anything for explicitly local global variables
+      TargetAS = CurrentAS;
+    } else if (G.isConstant()) {
+      // constants go into constant AS
+      TargetAS = ASMap[AddressSpace::Constant];
+    }
+    if(TargetAS != CurrentAS)
+      GlobalVarAddressSpaceChanges.push_back(std::make_pair(&G, TargetAS));
+  }
+  for(auto& G : GlobalVarAddressSpaceChanges)
+    setGlobalVariableAddressSpace(M, G.first, G.second);
 
   // If the target data layout has changed default alloca address space
   // we can end up with allocas that are in the wrong address space. We

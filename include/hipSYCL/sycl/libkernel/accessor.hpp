@@ -799,7 +799,8 @@ public:
       return false;
 
     if constexpr (AccessorVariant != accessor_variant::raw &&
-                  OtherV != accessor_variant::raw) {
+                  OtherV != accessor_variant::raw &&
+                  dimensions > 0) {
       if (lhs.get_offset() != rhs.get_offset())
         return false;
       if (lhs.get_range() != rhs.get_range())

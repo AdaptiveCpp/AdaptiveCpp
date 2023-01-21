@@ -255,13 +255,20 @@ public:
           "because it is not bound to a buffer."};
     }
 
-    auto offset = acc.get_offset();
-    auto range = acc.get_range();
+    // get_offset and get_range are only defined for dimensions > 0
+    id<dimensions == 0 ? 1 : dimensions> offset;
+    if constexpr (dimensions == 0)
+      offset = id<1>(0);
+    else
+      offset = acc.get_offset();
 
-    using AccessorT =
-        accessor<dataT, dimensions, accessMode, accessTarget, isPlaceholder>;
+    range<dimensions == 0 ? 1 : dimensions> range;
+    if constexpr (dimensions == 0)
+      range = range<1>(1);
+    else
+      range = acc.get_range();
 
-    detail::accessor_data<dimensions> data{
+    detail::accessor_data<dimensions == 0 ? 1 : dimensions> data{
       acc.get_data_region(),
       offset,
       range,

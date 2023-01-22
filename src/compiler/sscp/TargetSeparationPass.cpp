@@ -142,7 +142,8 @@ enum class ParamType {
 
 struct KernelParam {
   std::size_t ByteSize;
-  std::size_t ArgByteOffset; // Offset relative to first argument in bytes
+  std::size_t ArgByteOffset;
+  std::size_t OriginalArgIndex;
   ParamType Type;
 };
 
@@ -151,15 +152,19 @@ struct KernelInfo {
   std::vector<KernelParam> Parameters;
 
   KernelInfo() = default;
-  KernelInfo(const std::string& KernelName, llvm::Module& M) {
-    
+  KernelInfo(const std::string &KernelName, llvm::Module &M,
+             const std::vector<OriginalParamInfo>& OriginalParamInfos) {
+
     this->Name = KernelName;
-    std::size_t ParamOffset = 0;
     if(auto* F = M.getFunction(KernelName)) {
-      for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i) {
+
+      auto* FType = F->getFunctionType();
+      assert(OriginalParamInfos.size() == FType->getNumParams());
+
+      for(int i = 0; i < FType->getNumParams(); ++i) {
         ParamType PT;
 
-        llvm::Type* ParamT = F->getFunctionType()->getParamType(i);
+        llvm::Type* ParamT = FType->getParamType(i);
         if(ParamT->isIntegerTy()) {
           PT = ParamType::Integer;
         } else if(ParamT->isFloatingPointTy()) {
@@ -180,9 +185,9 @@ struct KernelInfo {
         assert(BitSize % CHAR_BIT == 0);
         KP.ByteSize = BitSize / CHAR_BIT;
         KP.Type = PT;
-        KP.ArgByteOffset = ParamOffset;
+        KP.ArgByteOffset = OriginalParamInfos[i].OffsetInOriginalParam;
+        KP.OriginalArgIndex = OriginalParamInfos[i].OriginalParamIndex;
         this->Parameters.push_back(KP);
-        ParamOffset += KP.ByteSize;
       }
     }
   }
@@ -289,7 +294,10 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
 
   KernelInfoOutput.clear();
   for(auto Name : EPP.getKernelNames()) {
-    KernelInfo KI{Name, *DeviceModule};
+    auto* OriginalParamInfos = KernelArgExpansionPass.getInfosOnOriginalParams(Name);
+    assert(OriginalParamInfos);
+
+    KernelInfo KI{Name, *DeviceModule, *OriginalParamInfos};
     KernelInfoOutput.push_back(KI);
   }
 
@@ -337,6 +345,7 @@ std::string generateHCF(llvm::Module& DeviceModule,
       auto* P = ParamsNode->add_subnode(std::to_string(i));
       P->set("byte-offset", std::to_string(ParamInfo.ArgByteOffset));
       P->set("byte-size", std::to_string(ParamInfo.ByteSize));
+      P->set("original-index", std::to_string(ParamInfo.OriginalArgIndex));
       ParamType Type = ParamInfo.Type;
       std::string TypeDescription;
       if(Type == ParamType::Integer) {

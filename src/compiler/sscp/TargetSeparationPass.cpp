@@ -301,7 +301,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
     KernelInfoOutput.push_back(KI);
   }
 
-  return std::move(DeviceModule);
+  return DeviceModule;
 }
 
 std::string generateHCF(llvm::Module& DeviceModule,

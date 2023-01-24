@@ -224,7 +224,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
         << std::endl;
   } else {
     common::hcf_container* stored_obj = new common::hcf_container{obj};
-    _hcf_objects[id] = std::move(std::unique_ptr<common::hcf_container>{stored_obj});
+    _hcf_objects[id] = std::unique_ptr<common::hcf_container>{stored_obj};
     // Check if the HCF exports some symbols
     for_each_exported_symbol_list(
         // Don't use obj here, since we have copied it into the cache, and need

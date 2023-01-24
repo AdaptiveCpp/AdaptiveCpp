@@ -42,6 +42,7 @@
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -115,7 +116,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     // Those pointers to by-value data should be in private AS
     ASMap[AddressSpace::Private],
     // Actual pointers should be in global memory
-    ASMap[AddressSpace::Global]};
+    ASMap[AddressSpace::Global],
+    // We need to wrap pointer types
+    true};
 
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 

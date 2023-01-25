@@ -116,6 +116,8 @@ inline std::ostream &operator<<(std::ostream &ostr, const unique_id &id) {
   return ostr;
 }
 
+// Note: SSCP compiler currently looks for class by this name,
+// do not rename
 template<class T>
 class embedded_pointer {
 public:

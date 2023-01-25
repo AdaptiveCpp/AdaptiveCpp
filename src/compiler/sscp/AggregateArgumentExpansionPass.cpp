@@ -43,9 +43,17 @@ namespace compiler {
 
 namespace {
 
+enum class TypeInfo {
+  USMPointer,
+  Accessor,
+  Other,
+  Unknown
+};
+
 template <class F>
 void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
-                                      llvm::SmallVector<int, 16> CurrentIndices) {
+                                      llvm::SmallVector<int, 16> CurrentIndices,
+                                      TypeInfo ParentTI = TypeInfo::Unknown) {
   if(!T)
     return;
   
@@ -62,10 +70,23 @@ void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
       NextIndices.push_back(i);
       llvm::Type* SubType = T->getContainedType(i);
 
-      ForEachNonAggregateContainedType(SubType, Handler, NextIndices);   
+      TypeInfo TI = ParentTI;
+      if(T->getStructName().contains("hipsycl::glue::embedded_pointer")) 
+        TI = TypeInfo::Accessor;
+
+      ForEachNonAggregateContainedType(SubType, Handler, NextIndices, TI);   
     }
   } else {
-    Handler(T, CurrentIndices);
+    TypeInfo TI = ParentTI;
+    if(!T->isPointerTy())
+      TI = TypeInfo::Other;
+    else {
+      // We are a pointer - if we are not inside an accessor,
+      // we are a USM pointer.
+      if(TI != TypeInfo::Accessor)
+        TI = TypeInfo::USMPointer;
+    }
+    Handler(T, CurrentIndices, TI);
   }
 }
 
@@ -101,6 +122,8 @@ struct ExpandedArgumentInfo {
   // Number of arguments the original arg was expanded into
   int NumExpandedArguments = 1;
   bool IsExpanded = false;
+
+  llvm::SmallVector<TypeInfo> ArgumentTypes;
 };
 
 void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
@@ -118,9 +141,10 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
     if (needsExpansion(F, i)) {
       Info.IsExpanded = true;
 
-      auto OnContainedType = [&](llvm::Type *T, llvm::SmallVector<int, 16> Indices) {
+      auto OnContainedType = [&](llvm::Type *T, llvm::SmallVector<int, 16> Indices, TypeInfo TI) {
         Info.ExpandedTypes.push_back(T);
         Info.GEPIndices.push_back(Indices);
+        Info.ArgumentTypes.push_back(TI);
       };
 
       auto* ValueT = getValueType(F, i);
@@ -130,6 +154,10 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
     } else {
       auto* ArgT = F.getFunctionType()->getParamType(i);
       Info.OriginalByValType = ArgT;
+      if(ArgT->isPointerTy())
+        Info.ArgumentTypes.push_back(TypeInfo::USMPointer);
+      else
+        Info.ArgumentTypes.push_back(TypeInfo::Other);
     }
 
     ExpansionInfo[i] = Info;
@@ -184,7 +212,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
           llvm::ArrayRef<llvm::Value *> GEPIndicesRef{GEPIndices};
 
           auto *GEPInst = llvm::GetElementPtrInst::CreateInBounds(
-              EI.OriginalByValType, Alloca, llvm::ArrayRef<llvm::Value *>{GEPIndicesRef}, "", BB);
+              EI.OriginalByValType, Alloca, GEPIndicesRef, "", BB);
           // Store expanded argument into allocated space
           assert(CurrentNewIndex + j < NewF->getFunctionType()->getNumParams());
           
@@ -197,6 +225,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
               EI.OriginalByValType, GEPIndicesRef);
           OriginalParamInfos.push_back(
               OriginalParamInfo{IndexedOffset, static_cast<std::size_t>(EI.OriginalIndex)});
+          
         }
         CallArgs.push_back(Alloca);
       } else {
@@ -211,6 +240,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
     auto *Call = llvm::CallInst::Create(llvm::FunctionCallee(&F), CallArgs,
                                             "", BB);
     for(int i = 0; i < CallArgs.size(); ++i) {
+      
       if(F.hasParamAttribute(i, llvm::Attribute::ByVal))
         Call->addParamAttr(i, F.getParamAttribute(i, llvm::Attribute::ByVal));
     }

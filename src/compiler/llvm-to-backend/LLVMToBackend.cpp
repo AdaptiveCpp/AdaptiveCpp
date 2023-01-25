@@ -184,8 +184,13 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
       // Ignore kernels and intrinsics
       if(!F.isIntrinsic() && !this->isKernelAfterFlavoring(F)) {
         // Ignore undefined functions
-        if(!F.empty())
+        if(!F.empty()) {
           F.setLinkage(llvm::GlobalValue::InternalLinkage);
+          // Some backends (amdgpu) require inlining, for others it
+          // just cleans up the code.
+          if(!F.hasFnAttribute(llvm::Attribute::AlwaysInline))
+            F.addFnAttr(llvm::Attribute::AlwaysInline);
+        }
       }
     }
 

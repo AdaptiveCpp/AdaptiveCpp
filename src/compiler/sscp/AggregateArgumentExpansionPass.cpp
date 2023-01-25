@@ -225,7 +225,6 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
               EI.OriginalByValType, GEPIndicesRef);
           OriginalParamInfos.push_back(
               OriginalParamInfo{IndexedOffset, static_cast<std::size_t>(EI.OriginalIndex)});
-          
         }
         CallArgs.push_back(Alloca);
       } else {

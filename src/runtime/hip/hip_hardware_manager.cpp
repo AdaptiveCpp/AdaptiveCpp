@@ -56,7 +56,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {
-    _devices.push_back(std::move(hip_hardware_context{dev}));
+    _devices.emplace_back(dev);
   }
 
 }

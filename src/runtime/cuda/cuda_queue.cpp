@@ -661,7 +661,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
 
     // Construct PTX translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
-      std::move(compiler::createLLVMToPtxTranslator(kernel_names));
+      compiler::createLLVMToPtxTranslator(kernel_names);
 
     // TODO Shouldn't we compile with the most recent ptx version supported
     // by clang/CUDA?

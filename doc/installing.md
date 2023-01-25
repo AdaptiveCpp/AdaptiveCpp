@@ -100,6 +100,8 @@ The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
 ## Repositories (Linux)
 
+**Note: The software repositories mentioned below are outdated and in the process of being restructured. They do not contain modern hipSYCL versions.**
+
 Another way to install hipSYCL is to use our repositories. We provide repositories for several distributions (currently Ubuntu 18.04, CentOS 7, Arch Linux). A description of the repositories is available [here](../install/scripts/README.md#installing-from-repositories)
 
 Our repositories cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm stacks. The following packages are available:

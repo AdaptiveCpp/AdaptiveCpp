@@ -36,7 +36,7 @@ It is generally not necessary to compile LLVM by yourself. However, if you wish 
 When invoking cmake, the Open SYCL build infrastructure will attempt to find LLVM automatically (see below for how to invoke cmake).
 
 If Open SYCL does not automatically configure the build for the desired clang/LLVM installation, the following cmake variables can be used to point Open SYCL to the right one:
-* `-DLLVM_DIR=/path/to/llvm/cmake` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**. 
+* `-DLLVM_DIR=/path/to/llvm/cmake` must be pointed to your LLVM installation, specifically, the **subdirectory containing the LLVM cmake files**. Note that different LLVM installations may have the LLVM cmake files in different subdirectories that don't necessarily end with `cmake` (e.g. it might also be `/path/to/llvm/lib/cmake/llvm`). Alternatively, you can try `-DLLVM_ROOT` which might be more forgiving.
 
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```

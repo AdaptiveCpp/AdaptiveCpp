@@ -59,8 +59,16 @@ cmake \
 -DCLANG_EXECUTABLE_PATH=/opt/hipSYCL/llvm/llvm/bin/clang++ \
 -DCLANG_INCLUDE_PATH=$LLVM_INCLUDE_PATH \
 -DCMAKE_INSTALL_PREFIX=$HIPSYCL_INSTALL_PREFIX \
--DCMAKE_PREFIX_PATH="$rocm_path/comgr/lib/cmake;$rocm_path/rocm-device-libs/lib/cmake;$rocm_path/hsa-rocr-dev/lib/cmake;$rocm_path/hsa-rocr-dev/;$rocm_path/hip/lib/cmake" \
+-DCMAKE_PREFIX_PATH="\$rocm_path/comgr/lib/cmake;\$rocm_path/rocm-device-libs/lib/cmake;\$rocm_path/hsa-rocr-dev/lib/cmake;\$rocm_path/hsa-rocr-dev/;\$rocm_path/hip/lib/cmake" \
+-DROCM_LINK_LINE="-Wl,-rpath=\$HIPSYCL_ROCM_PATH/lib -Wl,-rpath=\$HIPSYCL_ROCM_PATH/hip/lib -L/opt/hipSYCL/rocm/hip//lib -L/opt/hipSYCL/rocm/hip//hip/lib -lamdhip64" \
+-DROCM_CXX_FLAGS="-isystem \$HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem /opt/hipSYCL/llvm/llvm/lib/clang/11.0.1/include/.. -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I\$HIPSYCL_ROCM_PATH/../hsa-rocr-dev/include  -I\$HIPSYCL_ROCM_PATH/include -I\$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=/opt/hipSYCL/rocm/rocm-device-libs/amdgcn/bitcode --rocm-path=\$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr_" \
+-DCUDA_LINK_LINE="-Wl,-rpath=\$HIPSYCL_CUDA_LIB_PATH -L\$HIPSYCL_CUDA_LIB_PATH -lcudart" \
+-DCUDA_CXX_FLAGS="-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem \$HIPSYCL_PATH/include/hipSYCL/std/hiplike" \
+-DOMP_LINK_LINE="-L/opt/hipSYCL/boost/boost/lib -lboost_context -lboost_fiber -Wl,-rpath=/opt/hipSYCL/boost/boost/lib -fopenmp=libomp -L/opt/hipSYCL/llvm/llvm/lib  -Wl,-rpath=/opt/hipSYCL/llvm/llvm/lib " \
+-DOMP_CXX_FLAGS="-I/opt/hipSYCL/boost/boost/include  -fopenmp=libomp" \
+-DSEQUENTIAL_LINK_LINE="-L/opt/hipSYCL/boost/boost/lib -lboost_context -lboost_fiber -lomp -lpthread -Wl,-rpath=/opt/hipSYCL/boost/boost/lib -L/opt/hipSYCL/llvm/llvm/lib -Wl,-rpath=/opt/hipSYCL/llvm/llvm/lib " \
+-DSEQUENTIAL_CXX_FLAGS="-I/opt/hipSYCL/boost/boost/include" \
 ..
 
 make -j 16 install
-cp /mnt/spack-install/spack-syclcc.json /opt/hipSYCL/etc/hipSYCL/syclcc.json 
+#cp /mnt/spack-install/spack-syclcc.json /opt/hipSYCL/etc/hipSYCL/syclcc.json 

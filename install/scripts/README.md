@@ -19,7 +19,7 @@ Installing using the repositories is beneficial because the hipSYCL installation
 We provide the following packages in both versions:
 
 Base packages: 
-* `hipSYCL-base<-nightly>`
+* `hipSYCL-base<-nightly>` (contains: llvm 11.0.1, boost: 1.7x with cmake )
 * `hipSYCL-base-rocm<-nightly>`
 HipSYCL packages:
 * `hipSYCL-omp<-nightly>`
@@ -31,6 +31,14 @@ Two meta-packages in order to keep consistent with the previous packages:
 * `hipSYCL<-nightly>` -> `hipSYCL-omp-rocm-cuda<-nightly>`
 
 We require some additional software repos to be enabled (for example, `release-scl` and `epel` for centos 7 ). To make adding these easier, we provide scripts in the `install/scripts/add-hipsyc-repo` for all supported distributions that handles adding these repositories, as well as adding the hipSYCL repo.
+
+Since dpkg does not support upper case letters in the package names, the **ubuntu packages are spelled all lower case**. For example, to install the rocm base packages, one would need to install `hipsycl-base-rocm<-nightly>.
+
+### Legacy packages in the repository
+The hipSYCL package architecture has been updated to follow a plug-in backend architecture. This allows for only shipping the library files for each backend without the rest of the hipSYCL runtime. The packages for the old hipSYCL architecture are still available in the repository; Nonetheless, these are outdated and **not supported**. Please use the packages listed above. The unsupported packages are the following:
+* `hipSYCL-rocm`
+* `hipSYCL-rocm-nightly`
+* `hipSYCL-cuda-nightly`
 
 ## Installing by script
 Note that the installation scripts may require the installation of some packages, depending on your distributions. We recommend first looking at the singularity definition files `*.def` for your distribution and installing everything that is installed there. Afterwards, run

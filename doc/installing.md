@@ -104,16 +104,12 @@ The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
 Another way to install hipSYCL is to use our repositories. We provide repositories for several distributions (currently Ubuntu 18.04, CentOS 7, Arch Linux). A description of the repositories is available [here](../install/scripts/README.md#installing-from-repositories)
 
-Our repositories cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm stacks. The following packages are available:
-* `hipSYCL` - contains the actual hipSYCL libraries, tools and headers
-* `hipSYCL-base` - contains the LLVM/clang stack used by hipSYCL. Installation of this package is mandatory.
-* `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
-* `hipSYCL-nightly` - built from the current develop branch every day.
-* `hipSYCL-base-nightly` - contains the LLVM/clang stack for the nightly hipSYCL packages
-* `hipSYCL-rocm-nightly` - contains a ROCm stach compatible with the nighlty hipSYCL packages
+Our repositories cover the *entire software stack*, i.e. they include a compatible clang/LLVM distribution and ROCm stacks.
 
 **Note: For legal reasons, we do not redistribute the hipSYCL-cuda package** This package is only required if you wish to target CUDA GPUs. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
 
+## Singularity containers
+We provide pre-built singularity containers with hipSYCL. A description of the singularity images is available [here](../install/scripts/README.md#pre-built-singularity-containers)
 
 ## Installation scripts
 We also provide scripts for packaging hipSYCL and its dependencies. For more information on packaging and how to create your own hipSYCL packages, please see the [documentation](../install/scripts/README.md).

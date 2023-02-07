@@ -29,9 +29,16 @@
 #ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 #define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
+#include "../../memory.hpp"
+
 #define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
 #define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
+
+
+using __hipsycl_sscp_memory_scope = hipsycl::sycl::memory_scope;
+using __hipsycl_sscp_memory_order = hipsycl::sycl::memory_order;
+using __hipsycl_sscp_address_space = hipsycl::sycl::access::address_space;
 
 using __hipsycl_int8 = signed char;
 using __hipsycl_uint8 = unsigned char;

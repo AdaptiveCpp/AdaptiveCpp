@@ -32,17 +32,16 @@
 #include "int_types.hpp"
 
 #ifdef __clang__
-// It seems at least some versions of clang do not automatically
+// It seems at least some versions of clang on x86 do not automatically
 // link against the correct compiler-rt builtin library to allow
 // for __fp16 to float conversion. Disable for now until we understand
 // when we can actually enable __fp16.
-// #define HIPSYCL_HALF_HAS_FP16_TYPE
 
-#if (defined(__x86_64__) && __clang_major__ > 14) || defined(__arm__) ||       \
-    defined(__aarch64__) || defined(__AMDGPU__) || defined(__SPIR__) ||        \
-    defined(__SPIR64__)
-  // These targets support _Float16
-  #define HIPSYCL_HALF_HAS_FLOAT16_TYPE
+#if (defined(__x86_64__) && defined(HIPSYCL_ENABLE_HALF_ON_HOST)) ||           \
+    defined(__arm__) || defined(__aarch64__) || defined(__AMDGPU__) ||         \
+    defined(__SPIR__) || defined(__SPIR64__)
+// These targets support _Float16
+#define HIPSYCL_HALF_HAS_FLOAT16_TYPE
 #endif
 
 #endif

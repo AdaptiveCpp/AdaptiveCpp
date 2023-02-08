@@ -85,16 +85,27 @@ hcf_kernel_info::hcf_kernel_info(
 
     auto *byte_size = param_info_node->get_value("byte-size");
     auto *byte_offset = param_info_node->get_value("byte-offset");
+    auto *original_index = param_info_node->get_value("original-index");
+    auto *type = param_info_node->get_value("type");
 
     if (!byte_size)
       return;
     if (!byte_offset)
       return;
+    if (!type)
+      return;
 
     std::size_t arg_size = std::stoll(*byte_size);
     std::size_t arg_offset = std::stoll(*byte_offset);
-    _global_arg_offsets.push_back(arg_offset);
+    std::size_t arg_original_index = std::stoll(*original_index);
+    if(*type == "pointer") {
+      _arg_types.push_back(pointer);
+    } else {
+      _arg_types.push_back(other);
+    }
+    _arg_offsets.push_back(arg_offset);
     _arg_sizes.push_back(arg_size);
+    _original_arg_indices.push_back(arg_original_index);
   }
 
   _parsing_successful = true;
@@ -104,26 +115,25 @@ std::size_t hcf_kernel_info::get_num_parameters() const {
   return _arg_sizes.size();
 }
 
-const std::vector<std::size_t> &
-hcf_kernel_info::get_global_argument_offsets() const {
-  return _global_arg_offsets;
-}
-
-const std::vector<std::size_t> &hcf_kernel_info::get_argument_sizes() const {
-  return _arg_sizes;
-}
-
 bool hcf_kernel_info::is_valid() const {
   return _parsing_successful;
 }
 
 
-std::size_t hcf_kernel_info::get_global_argument_offset(std::size_t i) const {
-  return _global_arg_offsets[i];
+std::size_t hcf_kernel_info::get_argument_offset(std::size_t i) const {
+  return _arg_offsets[i];
 }
 
 std::size_t hcf_kernel_info::get_argument_size(std::size_t i) const {
   return _arg_sizes[i];
+}
+
+std::size_t hcf_kernel_info::get_original_argument_index(std::size_t i) const {
+  return _original_arg_indices[i];
+}
+
+hcf_kernel_info::argument_type hcf_kernel_info::get_argument_type(std::size_t i) const {
+  return _arg_types[i];
 }
 
 const std::vector<std::string> &
@@ -214,7 +224,7 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
         << std::endl;
   } else {
     common::hcf_container* stored_obj = new common::hcf_container{obj};
-    _hcf_objects[id] = std::move(std::unique_ptr<common::hcf_container>{stored_obj});
+    _hcf_objects[id] = std::unique_ptr<common::hcf_container>{stored_obj};
     // Check if the HCF exports some symbols
     for_each_exported_symbol_list(
         // Don't use obj here, since we have copied it into the cache, and need
@@ -248,8 +258,10 @@ hcf_object_id hcf_cache::register_hcf_object(const common::hcf_container &obj) {
           for(int i = 0; i < kernel_info->get_num_parameters(); ++i) {
             HIPSYCL_DEBUG_INFO
                 << "  kernel_info: parameter " << i
-                << ": offset = " << kernel_info->get_global_argument_offset(i)
-                << " size = " << kernel_info->get_argument_size(i) << std::endl;
+                << ": offset = " << kernel_info->get_argument_offset(i)
+                << " size = " << kernel_info->get_argument_size(i)
+                << " original index = "
+                << kernel_info->get_original_argument_index(i) << std::endl;
           }
           _hcf_kernel_info[std::make_pair(id, kernel_name)] =
               std::move(kernel_info);

@@ -74,9 +74,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
 bool demotePHIsToAllocas(llvm::Function &F) {
   std::vector<llvm::PHINode *> PHIs;
 
-  auto &BBsInWI = F.getBasicBlockList();
-
-  for (auto &BB : BBsInWI)
+  for (auto &BB : F)
     for (auto &I : BB)
       if (auto *PHI = llvm::dyn_cast<llvm::PHINode>(&I))
         PHIs.push_back(PHI);

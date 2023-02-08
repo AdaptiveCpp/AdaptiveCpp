@@ -27,6 +27,7 @@
  */
 
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
+
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/MapVector.h>
 #include <llvm/ADT/SmallVector.h>
@@ -102,8 +103,10 @@ struct ExpandedArgumentInfo {
   bool IsExpanded = false;
 };
 
-void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
-  
+void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
+                              std::vector<OriginalParamInfo> &OriginalParamInfos) {
+  OriginalParamInfos.clear();
+
   // stores one entry per *original* function argument. Maps
   // original argument index to expansion info.
   llvm::SmallDenseMap<int, ExpandedArgumentInfo> ExpansionInfo;
@@ -113,9 +116,6 @@ void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
     Info.OriginalIndex = i;
 
     if (needsExpansion(F, i)) {
-      llvm::SmallVector<int, 16> InitialContainedTypeIndices;
-      InitialContainedTypeIndices.push_back(0);
-
       Info.IsExpanded = true;
 
       auto OnContainedType = [&](llvm::Type *T, llvm::SmallVector<int, 16> Indices) {
@@ -124,7 +124,7 @@ void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
       };
 
       auto* ValueT = getValueType(F, i);
-      ForEachNonAggregateContainedType(ValueT, OnContainedType, InitialContainedTypeIndices);
+      ForEachNonAggregateContainedType(ValueT, OnContainedType, {});
       Info.OriginalByValType = ValueT;
       Info.NumExpandedArguments = Info.GEPIndices.size();
     } else {
@@ -167,6 +167,7 @@ void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
     int CurrentNewIndex = 0;
     for(int i = 0; i < F.getFunctionType()->getNumParams(); ++i) {
       auto& EI = ExpansionInfo[i];
+
       if(EI.IsExpanded) {
         // We need to reconstruct the aggregate that was decomposed.
         // First, allocate some memory
@@ -174,25 +175,36 @@ void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
         // Iterate over all elements that the aggregate was expanded into:
         for(int j = 0; j < EI.NumExpandedArguments; ++j) {
           // Create getelementptr instruction to offset into the allocated struct
+
           llvm::SmallVector<llvm::Value*> GEPIndices;
-          for(int Idx : EI.GEPIndices[j]) {
-            GEPIndices.push_back(
-                llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Idx));
-          }
+          GEPIndices.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), 0));
+          for(int Idx : EI.GEPIndices[j])
+            GEPIndices.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(M.getContext()), Idx));
+
+          llvm::ArrayRef<llvm::Value *> GEPIndicesRef{GEPIndices};
 
           auto *GEPInst = llvm::GetElementPtrInst::CreateInBounds(
-              EI.OriginalByValType, Alloca,
-              llvm::ArrayRef<llvm::Value *>{GEPIndices}, "", BB);
+              EI.OriginalByValType, Alloca, llvm::ArrayRef<llvm::Value *>{GEPIndicesRef}, "", BB);
           // Store expanded argument into allocated space
           assert(CurrentNewIndex + j < NewF->getFunctionType()->getNumParams());
           
           auto *StoredVal = NewF->getArg(CurrentNewIndex + j);
           auto *StoreInst = new llvm::StoreInst(StoredVal, GEPInst, BB);
+
+          // Store the indexed offset - runtimes can use this information later
+          // when invoking the function.
+          std::size_t IndexedOffset = M.getDataLayout().getIndexedOffsetInType(
+              EI.OriginalByValType, GEPIndicesRef);
+          OriginalParamInfos.push_back(
+              OriginalParamInfo{IndexedOffset, static_cast<std::size_t>(EI.OriginalIndex)});
         }
         CallArgs.push_back(Alloca);
       } else {
         CallArgs.push_back(NewF->getArg(CurrentNewIndex));
+        OriginalParamInfos.push_back(
+            OriginalParamInfo{0, static_cast<std::size_t>(EI.OriginalIndex)});
       }
+
       CurrentNewIndex += EI.NumExpandedArguments;
     }
     
@@ -208,7 +220,6 @@ void ExpandAggregateArguments(llvm::Module& M, llvm::Function& F) {
       F.addFnAttr(llvm::Attribute::AlwaysInline);
   }
 }
-
 }
 
 AggregateArgumentExpansionPass::AggregateArgumentExpansionPass(
@@ -216,13 +227,23 @@ AggregateArgumentExpansionPass::AggregateArgumentExpansionPass(
     : AffectedFunctionNames{FunctioNames} {}
 
 llvm::PreservedAnalyses AggregateArgumentExpansionPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+  OriginalParamInfos.clear();
   for(const auto& FN : AffectedFunctionNames) {
     if(auto* F = M.getFunction(FN)) {
-      ExpandAggregateArguments(M, *F);
+      std::vector<OriginalParamInfo> OIs;
+      ExpandAggregateArguments(M, *F, OIs);
+      this->OriginalParamInfos[FN] = OIs;
     }
   }
   return llvm::PreservedAnalyses::none();
 }
 
+const std::vector<OriginalParamInfo>*
+AggregateArgumentExpansionPass::getInfosOnOriginalParams(const std::string &FunctionName) const {
+  auto it = OriginalParamInfos.find(FunctionName);
+  if(it == OriginalParamInfos.end())
+    return nullptr;
+  return &(it->second);
+}
 }
 }

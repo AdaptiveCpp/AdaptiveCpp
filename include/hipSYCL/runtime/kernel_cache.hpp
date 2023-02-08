@@ -99,19 +99,26 @@ public:
                   const common::hcf_container::node *kernel_node);
 
   std::size_t get_num_parameters() const;
-  const std::vector<std::size_t>& get_global_argument_offsets() const;
-  const std::vector<std::size_t>& get_argument_sizes() const;
 
-  std::size_t get_global_argument_offset(std::size_t i) const;
+  enum argument_type {
+    pointer,
+    other
+  };
+
+  std::size_t get_argument_offset(std::size_t i) const;
   std::size_t get_argument_size(std::size_t i) const;
+  std::size_t get_original_argument_index(std::size_t i) const;
+  argument_type get_argument_type(std::size_t i) const;
 
   bool is_valid() const;
 
   const std::vector<std::string> &get_images_containing_kernel() const;
   hcf_object_id get_hcf_object_id() const;
 private:
-  std::vector<std::size_t> _global_arg_offsets;
+  std::vector<std::size_t> _arg_offsets;
   std::vector<std::size_t> _arg_sizes;
+  std::vector<std::size_t> _original_arg_indices;
+  std::vector<argument_type> _arg_types;
   std::vector<std::string> _image_providers;
   hcf_object_id _id;
   bool _parsing_successful = false;

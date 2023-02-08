@@ -23,6 +23,7 @@ In addition, the various supported compilation flows have additional requirement
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 10 |
 | `spirv` | Intel GPUs | SPIR-V/Level Zero backend | Level Zero driver and loader, clang with SYCL patches (e.g DPC++) |
+| `generic` | NVIDIA, AMD, Intel GPUs | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. hipSYCL runtime backends for the respective target hardware need to be available. |
 
 Please make sure to read the instructions below for the dependencies that apply to your use case.
 
@@ -98,6 +99,8 @@ For experimental building on Windows (CPU and CUDA backends) see the correspondi
 The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
 ## Repositories (Linux)
+
+**Note: The software repositories mentioned below are outdated and in the process of being restructured. They do not contain modern hipSYCL versions.**
 
 Another way to install hipSYCL is to use our repositories. We provide repositories for several distributions (currently Ubuntu 18.04, CentOS 7, Arch Linux). A description of the repositories is available [here](../install/scripts/README.md#installing-from-repositories)
 

@@ -340,6 +340,18 @@ public:
     return lhs.get() == rhs.get();
   }
 
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator==(const multi_ptr<ElementType, Space>& lhs,
+                         std::nullptr_t)
+  {
+    return lhs.get() == nullptr;
+  }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  friend bool operator==(std::nullptr_t, const multi_ptr<ElementType, Space>& rhs)
+  {
+    return nullptr == rhs.get();
+  }
 
   HIPSYCL_UNIVERSAL_TARGET
   void prefetch(size_t) const

@@ -50,7 +50,7 @@ llvm::PreservedAnalyses HostKernelNameExtractionPass::run(llvm::Module &M,
 
   llvm::SmallVector<llvm::Function*> SSCPKernelNameExtractionFunctions;
 
-  for(auto& F : M.getFunctionList()) {
+  for(auto& F : M) {
     if(F.getName().find(SSCPExtractKernelNameIdentifier) != std::string::npos) {
       SSCPKernelNameExtractionFunctions.push_back(&F);
       for(auto U : F.users()) {

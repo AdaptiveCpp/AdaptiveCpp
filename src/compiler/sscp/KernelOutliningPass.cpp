@@ -112,8 +112,8 @@ public:
 
 private:
   void scanAllocas(llvm::Function *F, llvm::SmallDenseMap<llvm::Type *, int> &Scores) {
-    for(auto& BB : F->getBasicBlockList()) {
-      for(auto& I : BB.getInstList()) {
+    for(auto& BB : *F) {
+      for(auto& I : BB) {
         if(auto* AI = llvm::dyn_cast<llvm::AllocaInst>(&I)) {
           if(isKernelArgumentStruct(AI->getAllocatedType())) {
             Scores[AI->getAllocatedType()] = 0;
@@ -263,7 +263,7 @@ EntrypointPreparationPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM)
         // however this cannot really happen as clang does not codegen our
         // attribute((annotate("hipsycl_sscp_outlining"))) for declarations
         // without definition.
-        if(F->getBasicBlockList().size() > 0)
+        if(F->size() > 0)
           this->OutliningEntrypoints.push_back(F->getName().str());
       }
     }
@@ -321,7 +321,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   }
   
   llvm::SmallVector<llvm::Function*, 16> PureHostFunctions;
-  for(auto& F: M.getFunctionList()) {
+  for(auto& F: M) {
     // Called Intrinsics don't show up in our device functions list,
     // so we need to treat them specially
     if(F.isIntrinsic()) {

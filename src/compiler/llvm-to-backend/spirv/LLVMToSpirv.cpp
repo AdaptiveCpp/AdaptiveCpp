@@ -27,11 +27,13 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/spirv/LLVMToSpirv.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/ADT/SmallVector.h>
@@ -57,6 +59,32 @@ namespace compiler {
 namespace {
 
 static const char* DynamicLocalMemArrayName = "__hipsycl_sscp_spirv_dynamic_local_mem";
+
+void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
+  llvm::SmallVector<std::string> Args {"-spirv-max-version=1.3",
+      "-spirv-debug-info-version=ocl-100",
+      "-spirv-allow-extra-diexpressions",
+      "-spirv-allow-unknown-intrinsics=llvm.genx.",
+      "-spirv-ext=-all,+SPV_EXT_shader_atomic_float_add,+SPV_EXT_shader_atomic_float_min_max,+SPV_"
+      "KHR_no_integer_wrap_decoration,+SPV_KHR_float_controls,+SPV_KHR_expect_assume,+SPV_INTEL_"
+      "subgroups,+SPV_INTEL_media_block_io,+SPV_INTEL_device_side_avc_motion_estimation,+SPV_INTEL_"
+      "fpga_loop_controls,+SPV_INTEL_fpga_memory_attributes,+SPV_INTEL_fpga_memory_accesses,+SPV_"
+      "INTEL_unstructured_loop_controls,+SPV_INTEL_fpga_reg,+SPV_INTEL_blocking_pipes,+SPV_INTEL_"
+      "function_pointers,+SPV_INTEL_kernel_attributes,+SPV_INTEL_io_pipes,+SPV_INTEL_inline_"
+      "assembly,+SPV_INTEL_arbitrary_precision_integers,+SPV_INTEL_float_controls2,+SPV_INTEL_"
+      "vector_compute,+SPV_INTEL_fast_composite,+SPV_INTEL_fpga_buffer_location,+SPV_INTEL_joint_"
+      "matrix,+SPV_INTEL_arbitrary_precision_fixed_point,+SPV_INTEL_arbitrary_precision_floating_"
+      "point,+SPV_INTEL_arbitrary_precision_floating_point,+SPV_INTEL_variable_length_array,+SPV_"
+      "INTEL_fp_fast_math_mode,+SPV_INTEL_fpga_cluster_attributes,+SPV_INTEL_loop_fuse,+SPV_INTEL_"
+      "long_constant_composite,+SPV_INTEL_fpga_invocation_pipelining_attributes,+SPV_INTEL_fpga_"
+      "dsp_control,+SPV_INTEL_arithmetic_fence,+SPV_INTEL_runtime_aligned,"
+      "+SPV_INTEL_optnone,+SPV_INTEL_token_type,+SPV_INTEL_bfloat16_conversion,+SPV_INTEL_joint_"
+      "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing"
+  };
+  for(const auto& S : Args) {
+    out.push_back(S);
+  }
+}
 
 bool setDynamicLocalMemoryCapacity(llvm::Module& M, unsigned numBytes) {
   llvm::GlobalVariable* GV = M.getGlobalVariable(DynamicLocalMemArrayName);
@@ -113,7 +141,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     // Those pointers to by-value data should be in private AS
     ASMap[AddressSpace::Private],
     // Actual pointers should be in global memory
-    ASMap[AddressSpace::Global]};
+    ASMap[AddressSpace::Global],
+    // We need to wrap pointer types
+    true};
 
   ParamRewriter.run(M, KernelNames, *PH.ModuleAnalysisManager);
 
@@ -124,7 +154,7 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     }
   }
 
-  for(auto& F : M.getFunctionList()) {
+  for(auto& F : M) {
     if(F.getCallingConv() != llvm::CallingConv::SPIR_KERNEL){
       // All functions must be marked as spir_func
       if(F.getCallingConv() != llvm::CallingConv::SPIR_FUNC)
@@ -163,9 +193,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   // pointers. TODO: We should only remove them when we actually need to, and attempt
   // to fix them otherwise.
   llvm::SmallVector<llvm::CallBase*, 16> Calls;
-  for(auto& F : M.getFunctionList()) {
-    for(auto& BB : F.getBasicBlockList()) {
-      for(auto& I : BB.getInstList()) {
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
         if(llvm::CallBase* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
           if (CB->getCalledFunction()->getName().startswith("llvm.lifetime.start") ||
               CB->getCalledFunction()->getName().startswith("llvm.lifetime.end")) {
@@ -184,7 +214,6 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   return true;
 }
-
 
 bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
@@ -211,9 +240,18 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   std::string LLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
       hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
 
-  std::string OutputArg = "-o=" + OutputFilename;
-  llvm::SmallVector<llvm::StringRef, 16> Invocation{LLVMSpirVTranslator, OutputArg,
-                                                    InputFile->TmpName};
+
+  llvm::SmallVector<std::string> Args{
+      "-o=" + OutputFilename
+  };
+  if(UseIntelLLVMSpirvArgs)
+    appendIntelLLVMSpirvOptions(Args);
+
+  llvm::SmallVector<llvm::StringRef, 16> Invocation{LLVMSpirVTranslator};
+  for(const auto& A : Args)
+    Invocation.push_back(A);
+  Invocation.push_back(InputFile->TmpName);
+
   std::string ArgString;
   for(const auto& S : Invocation) {
     ArgString += S;
@@ -252,6 +290,14 @@ bool LLVMToSpirvTranslator::applyBuildOption(const std::string &Option, const st
   return false;
 }
 
+bool LLVMToSpirvTranslator::applyBuildFlag(const std::string& Flag) {
+  if(Flag == "enable-intel-llvm-spirv-options") {
+    UseIntelLLVMSpirvArgs = true;
+    return true;
+  }
+  return false;
+}
+
 bool LLVMToSpirvTranslator::isKernelAfterFlavoring(llvm::Function& F) {
   return F.getCallingConv() == llvm::CallingConv::SPIR_KERNEL;
 }
@@ -273,6 +319,34 @@ AddressSpaceMap LLVMToSpirvTranslator::getAddressSpaceMap() const {
   ASMap[AddressSpace::GlobalVariableDefault] = 1;
 
   return ASMap;
+}
+
+bool LLVMToSpirvTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& PH) {
+  bool Result = LLVMToBackendTranslator::optimizeFlavoredIR(M, PH);
+  if(!Result)
+    return false;
+
+  // Optimizations may introduce the freeze instruction, which is not supported
+  // by llvm-spirv.
+  // See https://github.com/KhronosGroup/SPIRV-LLVM-Translator/issues/1140
+  // We adopt the workaround proposed there.
+
+  llvm::SmallVector<llvm::Instruction*> InstsToRemove;
+  for(auto& F : M) {
+    for(auto& BB : F) {
+      for(auto& I : BB) {
+        if(auto* FI = llvm::dyn_cast<llvm::FreezeInst>(&I)) {
+          FI->replaceAllUsesWith(FI->getOperand(0));
+          FI->dropAllReferences();
+          InstsToRemove.push_back(FI);
+        }
+      }
+    }
+  }
+  for(auto* I : InstsToRemove)
+    I->eraseFromParent();
+  
+  return Result;
 }
 
 std::unique_ptr<LLVMToBackendTranslator>

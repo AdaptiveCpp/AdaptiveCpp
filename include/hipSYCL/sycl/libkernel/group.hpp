@@ -107,12 +107,14 @@ struct group
   static constexpr memory_scope fence_scope = memory_scope::work_group;
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-    using host_barrier_type = std::function<void()>;
+  using host_barrier_type = std::function<void()>;
 private:
   const id<Dimensions> _group_id;
   const range<Dimensions> _local_range;
   const range<Dimensions> _num_groups;
-  const host_barrier_type* _group_barrier;
+  // Don't store _group_barrier with type host_barrier_type*
+  // to avoid function pointer types spilling into SSCP IR.
+  const void* _group_barrier;
   const id_type _local_id;
   void *_local_memory_ptr;
 public:
@@ -334,7 +336,9 @@ public:
   HIPSYCL_KERNEL_TARGET
   void barrier() {
     __hipsycl_if_target_host(
-      (*_group_barrier)();
+      const host_barrier_type *barrier =
+            static_cast<const host_barrier_type *>(_group_barrier);
+      (*barrier)();
     );
     __hipsycl_if_target_device(
       detail::local_device_barrier();

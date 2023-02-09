@@ -59,7 +59,7 @@ jobs:
         Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0_vs17.7z
         7z.exe x boost_1_75_0.7z
         cd ..
-    - name: build hipSYCL
+    - name: build Open SYCL
       shell: cmd
       env:
         CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"

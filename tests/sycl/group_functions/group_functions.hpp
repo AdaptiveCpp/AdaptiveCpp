@@ -207,15 +207,6 @@ T get_offset(size_t margin, size_t divisor = 1) {
   return initialize_type<T>(get_offset<eT>(margin + 16, divisor));
 }
 
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-elementType<T> local_value(size_t id, size_t offsetBase) {
-  const size_t N = T{}.get_count();
-
-  auto offset = get_offset<elementType<T>>(offsetBase);
-  return static_cast<elementType<T>>(id + offset);
-}
-
 inline void create_bool_test_data(std::vector<char> &buffer, size_t local_size,
                                   size_t global_size) {
   BOOST_REQUIRE(global_size == 4 * local_size);

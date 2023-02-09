@@ -42,8 +42,8 @@
     (defined(__aarch64__) && defined(HIPSYCL_ENABLE_HALF_ON_HOST)) ||          \
     ((defined(__AMDGPU__) || defined(__SPIR__) || defined(__SPIR64__)) &&      \
      HIPSYCL_LIBKERNEL_IS_DEVICE_PASS)
-// These targets support _Float16
-#define HIPSYCL_HALF_HAS_FLOAT16_TYPE
+  // These targets support _Float16
+  #define HIPSYCL_HALF_HAS_FLOAT16_TYPE
 #endif
 
 #endif

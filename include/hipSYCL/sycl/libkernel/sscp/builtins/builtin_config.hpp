@@ -41,16 +41,6 @@
 // should not be used in generic hipSYCL headers - those should use
 // hipsycl::fp16::generic_half of sycl::half instead.
 using __hipsycl_f16 = hipsycl::fp16::generic_half::native_t;
-using __hipsycl_int8 = signed char;
-using __hipsycl_uint8 = unsigned char;
-using __hipsycl_int16 = short;
-using __hipsycl_uint16 = unsigned short;
-using __hipsycl_int32 = int;
-using __hipsycl_uint32 = unsigned int;
-using __hipsycl_int64 = long long;
-using __hipsycl_uint64 = unsigned long long;
-
-
 using __hipsycl_f32 = float;
 using __hipsycl_f64 = double;
 

@@ -109,7 +109,7 @@ HIPSYCL_SSCP_BUILTIN void __hipsycl_sscp_atomic_store_i64(
 }
 
 
-// ********************** atomic store ***************************
+// ********************** atomic load ***************************
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_int8 __hipsycl_sscp_atomic_load_i8(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,

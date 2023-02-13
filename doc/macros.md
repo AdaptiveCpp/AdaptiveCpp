@@ -1,9 +1,9 @@
-# Macros used by hipSYCL
+# Macros used by Open SYCL
 
 # Read-only macros
 
 ## General macros
-* `__HIPSYCL__` - defined if compiling with hipSYCL
+* `__OPENSYCL__` - defined if compiling with Open SYCL
 
 ## Macros to specialize code paths based on backend
 
@@ -26,7 +26,7 @@
 ## Information about compilation passes
 
 ### `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_<backend>`
-Note: Some compiler drivers that hipSYCL supports can compile for multiple backends in a single pass. Therefore, the following macros should not be seen as mutually exclusive in general. Currently, this affects the `cuda-nvcxx` driver which can target CUDA and host in a single pass.
+Note: Some compiler drivers that Open SYCL supports can compile for multiple backends in a single pass. Therefore, the following macros should not be seen as mutually exclusive in general. Currently, this affects the `cuda-nvcxx` driver which can target CUDA and host in a single pass.
 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 
@@ -50,7 +50,7 @@ Note: Some compiler drivers that hipSYCL supports can compile for multiple backe
 
 ## Extension feature test macros
 
-* `HIPSYCL_EXT_<NAME>` - defined if the hipSYCL extension `<NAME>` is available.
+* `HIPSYCL_EXT_<NAME>` - defined if the Open SYCL extension `<NAME>` is available.
 
 ## Deprecated macros
 
@@ -60,11 +60,11 @@ Note: Some compiler drivers that hipSYCL supports can compile for multiple backe
 * (deprecated) `HIPSYCL_PLATFORM_CPU` - defined if compiling for the host
 
 
-## Mainly for hipSYCL developers
+## Mainly for Open SYCL developers
 * `HIPSYCL_UNIVERSAL_TARGET` - expands to `__host__ __device__`. Use for functions that should be available everywhere.
 * `HIPSYCL_KERNEL_TARGET` - currently expands to `__host__ __device__`. Use for functions that should be available in kernels.
 
 # Configuration macros
-* `HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING` - define during compilation of the hipSYCL clang plugin to force enabling unique name mangling which is a requirement for explicit mulitpass compilation. This requires a clang that supports `__builting_unique_stable_name()`, and is automatically enabled on clang 11.
+* `HIPSYCL_ENABLE_UNIQUE_NAME_MANGLING` - define during compilation of the Open SYCL clang plugin to force enabling unique name mangling which is a requirement for explicit mulitpass compilation. This requires a clang that supports `__builting_unique_stable_name()`, and is automatically enabled on clang 11.
 * `HIPSYCL_DEBUG_LEVEL` - sets the output verbosity. `0`: none, `1`: error, `2`: warning, `3`: info, `4`: verbose, default is warning for Release and info for Debug builds.
-* `HIPSYCL_STRICT_ACCESSOR_DEDUCTION` - define when building your SYCL implementation to enforce strict SYCL 2020 accessor type deduction rules. While this might be required for the correct compilation of certain SYCL code, it also disables parts of the hipSYCL accessor variants performance optimization extension. As such, it can have a negative performance impact for code bound by register pressure.
+* `HIPSYCL_STRICT_ACCESSOR_DEDUCTION` - define when building your SYCL implementation to enforce strict SYCL 2020 accessor type deduction rules. While this might be required for the correct compilation of certain SYCL code, it also disables parts of the Open SYCL accessor variants performance optimization extension. As such, it can have a negative performance impact for code bound by register pressure.

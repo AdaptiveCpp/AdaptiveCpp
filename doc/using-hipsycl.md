@@ -3,7 +3,7 @@ It is recommended to use the CMake integration for larger projects. See the sect
 
 ## Open SYCL targets specification
 
-Both `syclcc` and the cmake integration expect a Open SYCL targets specification. This specification defines which compilation flows Open SYCL should enable, and which devices from a compilation flow Open SYCL should target during compilation. In general, it has the form:
+Both `syclcc` and the cmake integration expect an Open SYCL targets specification. This specification defines which compilation flows Open SYCL should enable, and which devices from a compilation flow Open SYCL should target during compilation. In general, it has the form:
 
 ```
 "flow1:target1,target2,...;flow2:...;..."

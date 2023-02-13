@@ -24,7 +24,7 @@ jobs:
         mkdir build && cd build
         cmake .. \
         -DOpenMP_ROOT=$OMP_ROOT \
-        -DCMAKE_INSTALL_PREFIX=/Users/runner/work/hipSYCL/hipSYCL/build/install
+        -DCMAKE_INSTALL_PREFIX=/Users/runner/work/OpenSYCL/OpenSYCL/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
       run: |
@@ -33,10 +33,10 @@ jobs:
         cmake \
         -DHIPSYCL_TARGETS=omp.library-only \
         -DCMAKE_CXX_FLAGS=-I$OMP_ROOT/include \
-        -DhipSYCL_DIR=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL \
-        /Users/runner/work/hipSYCL/hipSYCL/tests
+        -DhipSYCL_DIR=/Users/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL \
+        /Users/runner/work/OpenSYCL/OpenSYCL/tests
         make -j 2 VERBOSE=ON
     - name: run CPU tests
       run: |
-        cd /Users/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-        LD_LIBRARY_PATH=/Users/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests
+        cd /Users/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+        LD_LIBRARY_PATH=/Users/runner/work/OpenSYCL/OpenSYCL/build/install/lib ./sycl_tests

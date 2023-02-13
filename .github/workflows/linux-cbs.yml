@@ -37,7 +37,7 @@ jobs:
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
-      - name: build hipSYCL
+      - name: build Open SYCL
         run: |
           mkdir build && cd build
           echo ${CXXFLAGS}
@@ -46,19 +46,19 @@ jobs:
           make -j2 install
       - name: setup CPU tests with loop splitting
         run: |
-          mkdir /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
           
-          cmake -DHIPSYCL_TARGETS=omp -DHIPSYCL_USE_ACCELERATED_CPU=true -DhipSYCL_DIR=/home/runner/work/hipSYCL/hipSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/hipSYCL/hipSYCL/tests
+          cmake -DHIPSYCL_TARGETS=omp -DHIPSYCL_USE_ACCELERATED_CPU=true -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/OpenSYCL/OpenSYCL/tests
       - name: build CPU tests with loop splitting
         run: |
-          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
+          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
           make -j2
       - name: run LIT tests on CPU
         run: |
-          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib make check
+          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib make check
       - name: run CPU tests
         run: |
-          cd /home/runner/work/hipSYCL/hipSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/hipSYCL/hipSYCL/build/install/lib ./sycl_tests
+          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+          LD_LIBRARY_PATH=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib ./sycl_tests

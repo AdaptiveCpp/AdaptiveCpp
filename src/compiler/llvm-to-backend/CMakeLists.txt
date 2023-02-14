@@ -47,7 +47,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   create_llvm_based_library(TARGET ${target} SOURCES ${sources})
-  target_link_libraries(${target} PUBLIC llvm-to-backend hipSYCL-common)
+  target_link_libraries(${target} PUBLIC llvm-to-backend opensycl-common)
 endfunction()
 
 function(create_llvm_to_backend_tool)

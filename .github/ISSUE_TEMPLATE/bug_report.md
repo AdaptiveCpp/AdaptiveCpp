@@ -33,7 +33,7 @@ The following information can potentially help us:
 * For compilation/toolchain or setup-related issues: Setting the environment variable `HIPSYCL_DRYRUN=1` during compilation will cause `syclcc` to print the commands it would execute instead of actually executing. This can help verify the sanity of your setup.
 * `syclcc --hipsycl-version` prints information about the hipSYCL configuration that may be interesting for setup-related issues.
 * For issues related to the runtime, setting the environment variable `HIPSYCL_DEBUG_LEVEL=3` will cause it to print *a lot* of diagnostic information that might be helpful. Attach the output of your program with `HIPSYCL_DEBUG_LEVEL=3` if you think it might be helpful for your issue.
-* Recent hipSYCL versions include a tool called `hipsycl-info`, which will print information about available backends and devices. This may be interesting for issues related to e.g. device visibility.
+* Recent hipSYCL versions include a tool called `opensycl-info`, which will print information about available backends and devices. This may be interesting for issues related to e.g. device visibility.
 
 **Additional context**
 Add any other context about the problem here.

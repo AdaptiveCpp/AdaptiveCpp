@@ -78,10 +78,6 @@ public:
   /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const = 0;
 
-  /// Get a code object invoker to launch kernels from code object images,
-  /// if the backend supports this. Returns nullptr if unsupported.
-  virtual code_object_invoker* get_code_object_invoker() = 0;
-
   virtual result query_status(inorder_queue_status& status) = 0;
 
   virtual ~inorder_queue(){}

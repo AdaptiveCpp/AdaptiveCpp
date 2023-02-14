@@ -115,7 +115,8 @@ inline int select_host(const device& dev) {
 inline int select_default(const device& dev) {
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
     defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__) ||                                \
+    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
   // Add 2 to make sure that, if no GPU is found
   if(!dev.is_cpu() && dev.hipSYCL_has_compiled_kernels()) {
     // Prefer GPUs (or other accelerators) that have been targeted
@@ -265,11 +266,15 @@ auto aspect_selector() {
   return aspect_selector(aspectList...);
 }
 
+inline device::device()
+  : device::device(default_selector_v)
+{}
+  
 template <class DeviceSelector>
 inline device::device(const DeviceSelector &deviceSelector) {
   this->_device_id = detail::select_devices(deviceSelector)[0]._device_id;
 }
-
+  
 namespace detail {
 
 template <class Selector>

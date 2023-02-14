@@ -49,7 +49,6 @@ std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
   // have to copy, as otherweise might be interpreted as failing, although everything is fine.
   std::istringstream istream{str};
 
-  size_t offset = 0;
   std::string name;
   while(std::getline(istream, name, ';')) {
     if(name.empty())
@@ -62,7 +61,7 @@ std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
       out.push_back(rt::backend_id::hip);
     } else if (name == "ze") {
       out.push_back(rt::backend_id::level_zero);
-    } else if("omp") {
+    } else if (name == "omp") {
       // looking for this, even though we have to allow it always.
       out.push_back(rt::backend_id::omp);
     } else {

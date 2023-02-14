@@ -9,12 +9,12 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="85.051872mm"
-   height="24.252722mm"
-   viewBox="0 0 85.051872 24.252722"
+   width="83.973839mm"
+   height="21.09042mm"
+   viewBox="0 0 83.973838 21.09042"
    version="1.1"
    id="svg8"
-   inkscape:version="0.92.4 5da689c313, 2019-01-14"
+   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)"
    sodipodi:docname="logo-color.svg">
   <defs
      id="defs2" />
@@ -25,21 +25,22 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="2.8"
-     inkscape:cx="-53.510193"
-     inkscape:cy="-18.020359"
+     inkscape:zoom="3.959798"
+     inkscape:cx="123.22671"
+     inkscape:cy="57.550732"
      inkscape:document-units="mm"
      inkscape:current-layer="g4819"
      showgrid="false"
-     inkscape:window-width="2880"
-     inkscape:window-height="1620"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
      inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:window-y="32"
      inkscape:window-maximized="1"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0" />
+     fit-margin-bottom="0"
+     showguides="false" />
   <metadata
      id="metadata5">
     <rdf:RDF>
@@ -56,7 +57,7 @@
      inkscape:label="Ebene 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-65.262052,-183.8277)">
+     transform="translate(-67.359818,-184.30628)">
     <g
        id="g4819">
       <g
@@ -92,12 +93,12 @@
              y="196.92342"
              style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:17.23652267px;font-family:'Trade Gothic LT Std';-inkscape-font-specification:'Trade Gothic LT Std, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#383838;fill-opacity:1;stroke-width:0.43091303"><tspan
    id="tspan4584"
-   style="fill:#c50d29;fill-opacity:1">hip</tspan>SYCL</tspan></text>
+   style="fill:#c50d29;fill-opacity:1">Open</tspan>SYCL</tspan></text>
         <path
            sodipodi:nodetypes="cczszszszccc"
            inkscape:connector-curvature="0"
            id="path4682"
-           d="m 69.905478,192.28923 c -2.656947,1.73051 -4.642452,3.91523 -4.643426,6.17197 4.3e-5,5.31258 7.687674,9.62174 15.527619,9.61922 7.839945,-0.003 13.820774,-2.46399 18.196337,-3.92825 4.375562,-1.46426 9.777592,-2.13051 14.693002,-2.26569 4.91541,-0.13518 19.97911,-0.6127 19.76141,-0.63052 -0.73296,-0.06 -14.90552,0.021 -19.7976,0.021 -4.89208,0 -10.05289,0.49092 -15.039784,1.82715 -4.638185,1.2428 -9.357906,3.22267 -16.745978,3.22267 -7.388072,0 -13.940081,-4.30688 -13.939829,-9.61951 0.0053,-1.53814 0.687131,-3.05316 1.988249,-4.41797 z"
+           d="m 72.003244,189.60551 c -2.656947,1.73051 -4.642452,3.91523 -4.643426,6.17197 4.3e-5,5.31258 7.687674,9.62174 15.527619,9.61922 7.839945,-0.003 13.820774,-2.46399 18.196333,-3.92825 4.37556,-1.46426 9.77759,-2.13051 14.693,-2.26569 4.91541,-0.13518 19.97911,-0.6127 19.76141,-0.63052 -0.73296,-0.06 -14.90552,0.021 -19.7976,0.021 -4.89208,0 -10.05289,0.49092 -15.03978,1.82715 -4.638183,1.2428 -9.357904,3.22267 -16.745976,3.22267 -7.388072,0 -13.940081,-4.30688 -13.939829,-9.61951 0.0053,-1.53814 0.687131,-3.05316 1.988249,-4.41797 z"
            style="fill:#c50d29;fill-opacity:1;stroke:none;stroke-width:0.14904052;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
       </g>
     </g>

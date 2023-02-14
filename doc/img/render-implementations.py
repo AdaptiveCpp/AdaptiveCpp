@@ -177,8 +177,8 @@ if __name__ == '__main__':
               style='rounded,filled', fontcolor = str(determine_font_color(root_color)))
 
   intel_blue          = make_html_color("127bca")
-  hipsycl_grey        = make_html_color("555555")
-  hipsycl_red         = make_html_color("c50d29")
+  opensycl_grey        = make_html_color("555555")
+  opensycl_red         = make_html_color("c50d29")
   codeplay_purple     = make_html_color("993697")
   codeplay_light_blue = make_html_color("a7d5fd")
   xilinx_dark = make_html_color("171c2d")
@@ -217,23 +217,22 @@ if __name__ == '__main__':
   add_implementation(graph, "DPC++", intel_blue, intel_blue,
                      ["dpcpp_host", "dpcpp_opencl", "dpcpp_cuda", "dpcpp_l0"])
 
-  ####################### hipSYCL ##############################
+  ####################### Open SYCL ##############################
 
-  add_backend(graph, "hipsycl_cuda", hipsycl_grey, {'NVIDIA GPUs' : nvidia_green},
+  add_backend(graph, "opensycl_cuda", opensycl_grey, {'NVIDIA GPUs' : nvidia_green},
               description="CUDA\n(runtime API)")
 
-  add_backend(graph, "hipsycl_rocm", hipsycl_grey, {'AMD GPUs' : amd_red},
+  add_backend(graph, "opensycl_rocm", opensycl_grey, {'AMD GPUs' : amd_red},
               description="ROCm")
 
-  add_backend(graph, "hipsycl_openmp", hipsycl_grey,
+  add_backend(graph, "opensycl_openmp", opensycl_grey,
               {'Any CPU' : cpu_color}, description="OpenMP")
 
-  add_backend(graph, "hipsycl_l0", hipsycl_grey, {'Intel GPUs' : intel_blue},
+  add_backend(graph, "opensycl_l0", opensycl_grey, {'Intel GPUs' : intel_blue},
               description="Level Zero")
 
-  add_implementation(graph, "hipSYCL", hipsycl_grey, hipsycl_red,
-                     ["hipsycl_cuda", "hipsycl_rocm", "hipsycl_openmp", "hipsycl_l0"],
-                     backend_caveats={'hipsycl_l0' : 'experimental'})
+  add_implementation(graph, "Open SYCL", opensycl_grey, opensycl_red,
+                     ["opensycl_cuda", "opensycl_rocm", "opensycl_openmp", "opensycl_l0"])
 
   ####################### triSYCL ##############################
 

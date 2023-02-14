@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
           s::distribute_items(grp, [&](s::s_item<1> idx) {
             int res = 0;
             auto v = priv_mem(idx) + init_val;
-            for(int i = 0; i < init_val.get_count(); ++i) {
+            for(int i = 0; i < init_val.size(); ++i) {
               res += v[i];
             }
             acc[idx.get_global_linear_id()] = res;
@@ -393,7 +393,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
       } else if(grp == 4) {
         const s::vec<int,8> expected_v{0,2,4,6,8,10,12,14};
         int expected = 0; 
-        for (int i = 0; i < expected_v.get_count(); ++i)
+        for (int i = 0; i < expected_v.size(); ++i)
           expected += expected_v[i];
         BOOST_CHECK(hacc[gid] == expected);
       }
@@ -574,8 +574,9 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
   auto group_size3d = sycl::range{5,5,5};
 
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
-    defined(__HIPSYCL_ENABLE_HIP_TARGET__)
-#define HIPLIKE_MODEL
+    defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
+    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#define DEVICE_MODEL
 #endif
 
   q.submit({sycl::property::command_group::hipSYCL_prefer_group_size{
@@ -584,7 +585,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size1>(
                 sycl::range{1000}, [=](sycl::id<1> idx) {
                   if (idx[0] == 0) {
-#if defined(HIPLIKE_MODEL)
+#if defined(DEVICE_MODEL)
                     __hipsycl_if_target_device(
                       gsize[0] = get_total_group_size();
                     );
@@ -604,7 +605,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size2>(
                  sycl::range{30,30}, [=](sycl::id<2> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(HIPLIKE_MODEL)
+#if defined(DEVICE_MODEL)
                     __hipsycl_if_target_device(
                       gsize[1] = get_total_group_size();
                     );
@@ -625,7 +626,7 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
              cgh.parallel_for<class property_preferred_group_size3>(
                  sycl::range{10,10,10}, [=](sycl::id<3> idx) {
                    if (idx[0] == 0 && idx[1] == 0) {
-#if defined(HIPLIKE_MODEL)
+#if defined(DEVICE_MODEL)
                     __hipsycl_if_target_device(
                      gsize[2] = get_total_group_size();
                     );
@@ -647,9 +648,14 @@ BOOST_AUTO_TEST_CASE(cg_property_preferred_group_size) {
     BOOST_TEST(gsize[1] == group_size2d.size());
     BOOST_TEST(gsize[2] == group_size3d.size());
   } else {
+    /* Don't test this - it's meaningless for the extension,
+       and might not be true if the SSCP JIT executes the kernel
+       on another target apart from CUDA or HIP.
+
     BOOST_TEST(gsize[0] == 1);
     BOOST_TEST(gsize[1] == 2);
     BOOST_TEST(gsize[2] == 3);
+    */
   }
 
   sycl::free(gsize, q);

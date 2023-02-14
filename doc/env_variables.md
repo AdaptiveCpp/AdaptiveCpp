@@ -1,4 +1,4 @@
-# Environment variables used by hipSYCL
+# Environment variables used by Open SYCL
 
 * `HIPSYCL_DEBUG_LEVEL`: if set, overrides the output verbosity. `0`: none, `1`: error, `2`: warning, `3`: info, `4`: verbose, default is the value of `HIPSYCL_DEBUG_LEVEL` [macro](macros.md).
 * `HIPSYCL_VISIBILITY_MASK`: can be used to activate only a subset of backends. Syntax: `backend;backend2;..`. Possible values are `omp`, `cuda`, `hip` and `ze` (as level zero is the backend and `spirv` in `HIPSYCL_TARGETS` just the target format). `omp` will always be active as a CPU backend is required. Device level visibility has to be set via vendor specific variables for now, including `{CUDA,HIP}_VISIBLE_DEVICES` and `ZE_AFFINITY_MASK`.
@@ -15,3 +15,4 @@
 * `HIPSYCL_HCF_DUMP_DIRECTORY`: If set, hipSYCL will dump all embedded HCF data files in this directory. HCF is hipSYCL's container format that is used by all compilation flows that are fully controlled by hipSYCL to store kernel code.
 * `HIPSYCL_PERSISTENT_RUNTIME`: If set to 1, hipSYCL will use a persistent runtime that will continue to live even if no SYCL objects are currently in use in the application. This can be helpful if the application consists of multiple distinct phases in which SYCL is used, and multiple launches of the runtime occur.
 * `HIPSYCL_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.
+* `HIPSYCL_SSCP_FAILED_IR_DUMP_DIRECTORY`: If non-empty, hipSYCL will dump the IR of code that fails SSCP JIT into this directory.

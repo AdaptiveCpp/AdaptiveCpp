@@ -59,7 +59,7 @@ cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {
-    _devices.push_back(std::move(cuda_hardware_context{dev}));
+    _devices.emplace_back(dev);
   }
 
 }
@@ -164,8 +164,9 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::global_mem_cache_read_only:
     return false;
     break;
-  case device_support_aspect::global_mem_cache_write_only:
-    return false;
+  case device_support_aspect::global_mem_cache_read_write:
+    // NVIDIA GPUs have read/write cache at least since Fermi architecture
+    return true;
     break;
   case device_support_aspect::images:
     return false;
@@ -198,6 +199,13 @@ bool cuda_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::execution_timestamps:
     return true;
+    break;
+  case device_support_aspect::sscp_kernels:
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+    return true;
+#else
+    return false;
+#endif
     break;
   }
   assert(false && "Unknown device aspect");
@@ -385,6 +393,9 @@ std::string cuda_hardware_context::get_profile() const {
 
 cuda_hardware_context::~cuda_hardware_context(){}
 
+unsigned cuda_hardware_context::get_compute_capability() const {
+  return _properties->major * 10 + _properties->minor;
+}
 
 }
 }

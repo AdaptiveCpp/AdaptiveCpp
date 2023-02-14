@@ -61,8 +61,6 @@ public:
   virtual device_id get_device() const override;
   virtual void *get_native_type() const override;
 
-  virtual code_object_invoker* get_code_object_invoker() override;
-
   virtual result query_status(inorder_queue_status& status) override;
   
   worker_thread& get_worker();

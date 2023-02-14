@@ -115,13 +115,13 @@ public:
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
   value_type& get() {
-    return _original_data.template get<Index>();
+    return _original_data[_swizzled_indices[Index]];
   }
 
   template<int Index>
   HIPSYCL_UNIVERSAL_TARGET
   const value_type& get() const {
-    return _original_data.template get<Index>();
+    return _original_data[_swizzled_indices[Index]];
   }
 
   template<class F>
@@ -309,11 +309,19 @@ public:
   HIPSYCL_UNIVERSAL_TARGET
   operator T() const { return _data.template get<0>(); }
 
+  [[deprecated("renamed to 'size' in SYCL 2020 Specification")]]
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_count() { return N; }
 
+  [[deprecated("renamed to 'byte_size' in SYCL 2020 Specification")]]
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr std::size_t get_size() { return sizeof(VectorStorage); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  static constexpr std::size_t byte_size() { return sizeof(VectorStorage); }
+
+  HIPSYCL_UNIVERSAL_TARGET
+  static constexpr size_t size() noexcept { return N; }
 
   template <typename ConvertT, rounding_mode RM = rounding_mode::automatic>
   HIPSYCL_UNIVERSAL_TARGET
@@ -329,18 +337,18 @@ public:
     return result;
   }
 
-  template<typename AsT, int OtherN>
+  template<typename asT>
   HIPSYCL_UNIVERSAL_TARGET
-  vec<AsT, OtherN> as() const {
-    static_assert(sizeof(vec<AsT, OtherN>) == sizeof(vec<T,N>),
+  asT as() const {
+    static_assert(sizeof(asT) == sizeof(vec<T,N>),
                   "Reinterpreted vector must have same size");
     static_assert(std::is_same_v<VectorStorage, detail::vec_storage<T, N>>,
                   "Reinterpreting swizzled vectors directly is not supported");
 
-    vec<AsT, N> result;
+    asT result;
     
-    AsT* in_ptr = reinterpret_cast<AsT*>(&_data[0]);
-    for(int i = 0; i < OtherN; ++i)
+    auto in_ptr = reinterpret_cast<typename asT::element_type*>(&_data[0]);
+    for(int i = 0; i < N; ++i)
       result[i] = in_ptr[i];
 
     return result;
@@ -851,7 +859,7 @@ private:
     if constexpr(std::is_scalar_v<Arg>)
       return 1;
     else if(std::is_same_v<typename Arg::element_type, T>)
-      return Arg::get_count();
+      return Arg::size();
     // ToDo: Trigger error
     return 0;
   }
@@ -876,6 +884,10 @@ private:
 
   VectorStorage _data;
 };
+
+template <class T, class... U,
+          class = std::enable_if_t<(std::is_same<T, U>::value && ...)>> vec(
+                      T, U...) -> vec<T, sizeof...(U) + 1>;
 
 using char2 = vec<int8_t, 2>;
 using char3 = vec<int8_t, 3>;

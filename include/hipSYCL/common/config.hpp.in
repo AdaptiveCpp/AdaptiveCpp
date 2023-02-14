@@ -33,6 +33,7 @@
 #define HIPSYCL_VERSION_PATCH @HIPSYCL_VERSION_PATCH@
 #define HIPSYCL_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 #define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
+#define HIPSYCL_COMMON_LIBRARY_NAME "@HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME@"
 #define HIPSYCL_VERSION_TYPE "git"
 
 // Macros to switch between proper std::filesystem, experimental version found in GCC 7, or Boost::filesystem

@@ -36,10 +36,23 @@ else()
   set(CBS_PLUGIN "")
 endif()
 
+if(WITH_SSCP_COMPILER)
+  set(SSCP_COMPILER 
+    sscp/KernelOutliningPass.cpp
+    sscp/IRConstantReplacer.cpp
+    sscp/TargetSeparationPass.cpp
+    sscp/HostKernelNameExtractionPass.cpp
+    sscp/AggregateArgumentExpansionPass.cpp)
+  add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
+else()
+  set(SSCP_COMPILER "")
+endif()
+
 add_library(hipSYCL_clang SHARED
   HipsyclClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
+  ${SSCP_COMPILER}
 )
 
 target_include_directories(hipSYCL_clang PRIVATE
@@ -83,3 +96,5 @@ install(TARGETS hipSYCL_clang
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib)
+
+add_subdirectory(llvm-to-backend)

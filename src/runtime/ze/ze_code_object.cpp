@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/ze/ze_code_object.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/ze/ze_event.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
@@ -42,7 +43,7 @@ namespace hipsycl {
 namespace rt {
 
 
-result ze_code_object_invoker::submit_kernel(
+result ze_multipass_code_object_invoker::submit_kernel(
     const kernel_operation &op, hcf_object_id hcf_object,
     const rt::range<3> &num_groups, const rt::range<3> &group_size,
     unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
@@ -55,9 +56,23 @@ result ze_code_object_invoker::submit_kernel(
   if(kernel_name_tag.find("__hipsycl_unnamed_kernel") == std::string::npos)
     kernel_name = kernel_name_tag;
 
-  return _queue->submit_kernel_from_code_object(op, hcf_object, kernel_name,
-                                                num_groups, group_size,
-                                                local_mem_size, args, arg_sizes, num_args);
+  return _queue->submit_multipass_kernel_from_code_object(
+      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
+      arg_sizes, num_args);
+}
+
+result ze_sscp_code_object_invoker::submit_kernel(
+    const kernel_operation &op, hcf_object_id hcf_object,
+    const rt::range<3> &num_groups, const rt::range<3> &group_size,
+    unsigned int local_mem_size, void **args, std::size_t *arg_sizes,
+    std::size_t num_args, const std::string &kernel_name,
+    const glue::kernel_configuration &config) {
+
+  assert(_queue);
+
+  return _queue->submit_sscp_kernel_from_code_object(
+      op, hcf_object, kernel_name, num_groups, group_size, local_mem_size, args,
+      arg_sizes, num_args, config);
 }
 
 ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
@@ -87,16 +102,41 @@ ze_executable_object::ze_executable_object(ze_context_handle_t ctx,
   desc.pBuildFlags = nullptr;
   desc.pConstants = nullptr;
 
-  ze_result_t err = zeModuleCreate(ctx, dev, &desc, &_module, nullptr);
+  ze_module_build_log_handle_t build_log;
+  ze_result_t err = zeModuleCreate(ctx, dev, &desc, &_module, &build_log);
 
   if(err != ZE_RESULT_SUCCESS) {
+    std::size_t build_log_size;
+    std::string build_log_content;
+
+    if (zeModuleBuildLogGetString(build_log, &build_log_size, nullptr) ==
+        ZE_RESULT_SUCCESS) {
+      std::vector<char> build_log_buffer(build_log_size);
+      if (zeModuleBuildLogGetString(build_log, &build_log_size,
+                                    build_log_buffer.data()) ==
+          ZE_RESULT_SUCCESS) {
+        build_log_content = std::string{build_log_buffer.data(), build_log_buffer.size()};
+      }
+    }
+
+    std::string msg = "ze_executable_object: Couldn't create module handle";
+    if(!build_log_content.empty()) {
+      msg += "\nBuild log: ";
+      msg += build_log_content;
+    }
     _build_status = register_error(__hipsycl_here(),
-                   error_info{"ze_executable_object: Couldn't create module handle",
+                   error_info{msg,
                               error_code{"ze", static_cast<int>(err)}});
+    zeModuleBuildLogDestroy(build_log);
     return;
   } else {
+    zeModuleBuildLogDestroy(build_log);
     _build_status = make_success();
   }
+
+  HIPSYCL_DEBUG_INFO << "ze_executable_object: Successfully created module "
+                        "from code image of size "
+                     << code_image.size() << std::endl;
 
   uint32_t num_kernels = 0;
   err = zeModuleGetKernelNames(_module, &num_kernels, nullptr);
@@ -162,6 +202,10 @@ std::string ze_executable_object::target_arch() const {
   return "spirv64";
 }
 
+compilation_flow ze_executable_object::source_compilation_flow() const {
+  return compilation_flow::explicit_multipass;
+}
+
 std::vector<std::string> ze_executable_object::supported_backend_kernel_names( ) const {
   return _kernels;
 }
@@ -201,6 +245,13 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
   ze_result_t err = zeKernelCreate(_module, &desc, &kernel);
 
   if(err != ZE_RESULT_SUCCESS) {
+
+    HIPSYCL_DEBUG_INFO << "Kernel name " << kernel_name << std::endl;
+    HIPSYCL_DEBUG_INFO << "Available:\n";
+    for(const auto& K : supported_backend_kernel_names()) {
+      HIPSYCL_DEBUG_INFO << K << std::endl;
+    }
+
     return make_error(__hipsycl_here(),
                       error_info{"ze_executable_object: Couldn't construct kernel",
                                  error_code{"ze", static_cast<int>(err)}});
@@ -213,6 +264,26 @@ result ze_executable_object::get_kernel(const std::string &kernel_name,
 
   return make_success();  
 }
+
+
+ze_sscp_executable_object::ze_sscp_executable_object(ze_context_handle_t ctx, ze_device_handle_t dev,
+                          hcf_object_id source,
+                          const std::string &spirv_image,
+                          const glue::kernel_configuration &config)
+    : ze_executable_object(ctx, dev, source, ze_source_format::spirv,
+                            spirv_image),
+      _id{config.generate_id()} {}
+
+
+compilation_flow ze_sscp_executable_object::source_compilation_flow() const {
+  return compilation_flow::sscp;
+}
+
+glue::kernel_configuration::id_type ze_sscp_executable_object::configuration_id() const{
+  return _id;
+}
+
+
 
 }
 }

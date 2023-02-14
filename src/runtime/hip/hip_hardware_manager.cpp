@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
@@ -55,7 +56,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {
-    _devices.push_back(std::move(hip_hardware_context{dev}));
+    _devices.emplace_back(dev);
   }
 
 }
@@ -171,8 +172,9 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::global_mem_cache_read_only:
     return false;
     break;
-  case device_support_aspect::global_mem_cache_write_only:
-    return false;
+  case device_support_aspect::global_mem_cache_read_write:
+    // AMD GPUs have read/write cache at least since GCN1 architecture
+    return true;
     break;
   case device_support_aspect::images:
     return false;
@@ -205,6 +207,13 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
     break;
   case device_support_aspect::execution_timestamps:
     return true;
+    break;
+  case device_support_aspect::sscp_kernels:
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+    return true;
+#else
+    return false;
+#endif
     break;
   }
   assert(false && "Unknown device aspect");

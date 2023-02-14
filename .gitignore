@@ -1,5 +1,5 @@
 # CMake out-of-source
-build/
+build*/
 *-build-*/
 
 # vscode in-source configs

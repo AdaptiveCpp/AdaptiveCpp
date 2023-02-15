@@ -145,9 +145,9 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   // amdgpu does not like some function calls, so try to inline
   // everything. Note: This should be done after ASI pass has fixed
   // alloca address spaces, in case alloca values are passed as arguments!
-  for(auto& F: M.getFunctionList()) {
+  for(auto& F: M) {
     if(F.getCallingConv() != llvm::CallingConv::AMDGPU_KERNEL) {
-      if(!F.getBasicBlockList().empty()) {
+      if(!F.empty()) {
         F.addFnAttr(llvm::Attribute::AlwaysInline);
       }
     }

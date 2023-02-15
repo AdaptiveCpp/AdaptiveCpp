@@ -646,7 +646,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
 
     // Construct amdgpu translator to compile the specified kernels
     std::unique_ptr<compiler::LLVMToBackendTranslator> translator = 
-      std::move(compiler::createLLVMToAmdgpuTranslator(kernel_names));
+      compiler::createLLVMToAmdgpuTranslator(kernel_names);
 
     translator->setBuildOption("amdgpu-target-device", target_arch_name);
 

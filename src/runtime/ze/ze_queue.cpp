@@ -576,7 +576,10 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
     translator->setBuildOption("spirv-dynamic-local-mem-allocation-size",
                                local_mem_size);
-
+    // Note: As soonst as this is not enabled unconditionally,
+    // make sure to also set it in the kernel config!
+    translator->setBuildFlag("enable-intel-llvm-spirv-options");
+    
     // Lower kernels to SPIR-V
     std::string compiled_image;
     auto err = glue::jit::compile(translator.get(),

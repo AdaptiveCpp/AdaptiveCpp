@@ -61,10 +61,12 @@ public:
     
     for(int i = 0; i < num_params; ++i) {
       std::size_t arg_size = kernel_info.get_argument_size(i);
-      std::size_t arg_offset = kernel_info.get_global_argument_offset(i);
+      std::size_t arg_offset = kernel_info.get_argument_offset(i);
+      std::size_t arg_original_index = kernel_info.get_original_argument_index(i);
 
-      void *data_ptr =
-          get_offset_pointer(args, arg_sizes, num_args, arg_offset);
+      assert(arg_original_index < num_args);
+
+      void *data_ptr = add_offset(args[arg_original_index], arg_offset);
       
       if(!data_ptr)
         return;
@@ -94,27 +96,6 @@ public:
 private:
   void *add_offset(void *ptr, std::size_t offset_bytes) const {
     return static_cast<void *>(static_cast<char *>(ptr) + offset_bytes);
-  }
-
-  // Provides an offset pointer into the data segments, calculated
-  // as if the data segments would form a consecutive memory region
-  // and the provided offset was an offset into that memory region.
-  void *get_offset_pointer(void **data_segments, const std::size_t *sizes,
-                           std::size_t num_sizes,
-                           std::size_t byte_offset) const {
-    if(num_sizes == 0)
-      return nullptr;
-    
-    std::size_t current_offset = 0;
-
-    for(int i = 0; i < num_sizes; ++i) {
-      if(byte_offset < current_offset+sizes[i]) {
-        return add_offset(data_segments[i], byte_offset);
-      }
-      current_offset += sizes[i];
-    }
-
-    return nullptr;
   }
 
   bool _mapping_result = false;
@@ -238,6 +219,8 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration
+  translator->setS2IRConstant<sycl::sscp::current_backend, int>(
+      translator->getBackendId());
   for(const auto& entry : config.entries()) {
     translator->setS2IRConstant(entry.get_name(), entry.get_data_buffer());
   }

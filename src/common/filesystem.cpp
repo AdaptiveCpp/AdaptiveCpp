@@ -68,8 +68,8 @@ std::string get_install_directory() {
   
 #endif
   if(paths.empty() || !fs::is_directory(paths.back()))
-    return fs::path{HIPSYCL_INSTALL_PREFIX};
-  return paths.back();
+    return fs::path{HIPSYCL_INSTALL_PREFIX}.string();
+  return paths.back().string();
 }
 
 std::string join_path(const std::string& base, const std::string& extra) {

@@ -75,6 +75,7 @@ add_executable(sycl_tests
   sycl/item.cpp
   sycl/kernel_invocation.cpp
   sycl/math.cpp
+  sycl/marray.cpp
   sycl/profiler.cpp
   sycl/reduction.cpp
   sycl/reference_semantics.cpp

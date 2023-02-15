@@ -68,10 +68,7 @@ bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
 
 LLVMToBackendTranslator::LLVMToBackendTranslator(int S2IRConstantCurrentBackendId,
   const std::vector<std::string>& OutliningEPs)
-: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {
-  setS2IRConstant<sycl::sscp::current_backend, int>(
-      S2IRConstantCurrentBackendId);
-}
+: S2IRConstantBackendId(S2IRConstantCurrentBackendId), OutliningEntrypoints{OutliningEPs} {}
 
 bool LLVMToBackendTranslator::setBuildFlag(const std::string &Flag) { 
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Using build flag: " << Flag << "\n";
@@ -183,12 +180,17 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     // Before optimizing, make sure everything has internal linkage to
     // help inlining. All linking should have occured by now, except
     // for backend builtin libraries like libdevice etc
-    for(auto & F : M.getFunctionList()) {
+    for(auto & F : M) {
       // Ignore kernels and intrinsics
       if(!F.isIntrinsic() && !this->isKernelAfterFlavoring(F)) {
         // Ignore undefined functions
-        if(!F.getBasicBlockList().empty())
+        if(!F.empty()) {
           F.setLinkage(llvm::GlobalValue::InternalLinkage);
+          // Some backends (amdgpu) require inlining, for others it
+          // just cleans up the code.
+          if(!F.hasFnAttribute(llvm::Attribute::AlwaysInline))
+            F.addFnAttr(llvm::Attribute::AlwaysInline);
+        }
       }
     }
 

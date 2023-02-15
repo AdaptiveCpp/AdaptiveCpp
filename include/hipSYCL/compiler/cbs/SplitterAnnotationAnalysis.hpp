@@ -32,6 +32,8 @@
 #include <llvm/IR/LegacyPassManagers.h>
 #include <llvm/IR/PassManager.h>
 
+#include <optional>
+
 namespace hipsycl {
 namespace compiler {
 
@@ -68,7 +70,7 @@ public:
  *       As the annotations should not change from call to call, we cache the result in an Optional.
  */
 class SplitterAnnotationAnalysisLegacy : public llvm::FunctionPass {
-  llvm::Optional<SplitterAnnotationInfo> SplitterAnnotation_;
+  std::optional<SplitterAnnotationInfo> SplitterAnnotation_;
 
 public:
   static char ID;

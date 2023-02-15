@@ -32,10 +32,19 @@
 #include <llvm/IR/PassManager.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace hipsycl {
 namespace compiler {
 
+
+struct OriginalParamInfo {
+  OriginalParamInfo(std::size_t Offset, std::size_t OriginalIndex)
+  : OffsetInOriginalParam{Offset}, OriginalParamIndex{OriginalIndex} {}
+
+  std::size_t OffsetInOriginalParam;
+  std::size_t OriginalParamIndex;
+};
 // Expands aggregates into primitive function arguments. Aggregate types to expand are
 // expected to be marked using the ByVal attribute.
 class AggregateArgumentExpansionPass : public llvm::PassInfoMixin<AggregateArgumentExpansionPass> {
@@ -43,8 +52,11 @@ public:
   AggregateArgumentExpansionPass(const std::vector<std::string>& FunctionNames);
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
+  // Returns offsets of expanded arg in the original aggregate
+  const std::vector<OriginalParamInfo>* getInfosOnOriginalParams(const std::string& FunctionName) const;
 private:
   std::vector<std::string> AffectedFunctionNames;
+  std::unordered_map<std::string, std::vector<OriginalParamInfo>> OriginalParamInfos;
 };
 
 }

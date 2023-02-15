@@ -39,12 +39,13 @@ namespace sycl {
 template <typename DataT, std::size_t NumElements> class marray {
 private:
   detail::device_array<DataT, NumElements> _data;
-
+  
   template<class T>
-  constexpr std::size_t count_elements(const T& data) const {
-    if(std::is_scalar_v<T>)
+  static constexpr std::size_t count_elements() {
+    if constexpr (std::is_scalar_v<T>)
       return 1;
-    else return data.size();
+    else
+      return T::size();
   }
 
   template<class T>
@@ -60,7 +61,7 @@ private:
   template<typename ArgT>
   constexpr void initialize_from_arg(int& current_offset, const ArgT& arg) {
     init_offset(current_offset, arg);
-    current_offset += count_elements(arg);
+    current_offset += count_elements<ArgT>();
   }
 
   struct not_convertible_to_scalar {};
@@ -88,8 +89,9 @@ public:
     }
   }
 
-  template <typename... ArgTN> constexpr marray(const ArgTN&... args) {
-    constexpr std::size_t num_args = (count_elements(args) + ...);
+  template <typename... ArgTN>
+  constexpr marray(const ArgTN&... args) {
+    constexpr std::size_t num_args = (count_elements<ArgTN>() + ...);
     static_assert(num_args == NumElements,
                   "Incorrect number of marray constructor arguments");
     int current_offset = 0;
@@ -146,8 +148,8 @@ public:
   /* If OP is %, available only when: DataT != float && DataT != double && DataT
    * != half. */
 #define HIPSYCL_DEFINE_BINARY_MARRAY_OP_MARRAY_MARRAY(op, T)                   \
-  friend marray<T, NumElements> operator op(                                   \
-      const marray<T, NumElements> &lhs, const marray<T, NumElements> &rhs) {  \
+  friend marray<T, NumElements> operator op(const marray &lhs,                 \
+                                            const marray &rhs) {               \
     marray<T, NumElements> result;                                             \
     for (int i = 0; i < NumElements; ++i) {                                    \
       result[i] = lhs[i] op rhs[i];                                            \
@@ -155,8 +157,7 @@ public:
     return result;                                                             \
   }
 #define HIPSYCL_DEFINE_BINARY_MARRAY_OP_MARRAY_SCALAR(op, T)                   \
-  friend marray<T, NumElements> operator op(const marray<T, NumElements> &lhs, \
-                                            const T &rhs) {                    \
+  friend marray<T, NumElements> operator op(const marray &lhs, const T &rhs) { \
     marray<T, NumElements> result;                                             \
     for (int i = 0; i < NumElements; ++i) {                                    \
       result[i] = lhs[i] op rhs;                                               \
@@ -164,8 +165,7 @@ public:
     return result;                                                             \
   }
 #define HIPSYCL_DEFINE_BINARY_MARRAY_OP_SCALAR_MARRAY(op, T)                   \
-  friend marray<T, NumElements> operator op(                                   \
-      const T &lhs, const marray<T, NumElements> &rhs) {                       \
+  friend marray<T, NumElements> operator op(const T &lhs, const marray &rhs) { \
     marray<T, NumElements> result;                                             \
     for (int i = 0; i < NumElements; ++i) {                                    \
       result[i] = lhs op rhs[i];                                               \
@@ -190,16 +190,15 @@ public:
   HIPSYCL_DEFINE_BINARY_MARRAY_OP_MARRAY_SCALAR(%, t)
 
 #define HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_MARRAY(op, T)                  \
-  friend marray<T, NumElements> &operator op(                                  \
-      marray<T, NumElements> &lhs, const marray<T, NumElements> &rhs) {        \
+  friend marray &operator op(marray &lhs, const marray<T, NumElements> &rhs) { \
     for (int i = 0; i < NumElements; ++i) {                                    \
       lhs[i] op rhs[i];                                                        \
     }                                                                          \
     return lhs;                                                                \
   }
+
 #define HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_SCALAR(op, T)                  \
-  friend marray<T, NumElements> &operator op(marray<T, NumElements> &lhs,      \
-                                             const T &rhs) {                   \
+  friend marray &operator op(marray &lhs, const T &rhs) {                      \
     for (int i = 0; i < NumElements; ++i) {                                    \
       lhs[i] op rhs;                                                           \
     }                                                                          \
@@ -415,7 +414,7 @@ public:
     */
   template <typename t = DataT,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
-  friend marray<t, NumElements> operator~(const marray<t, NumElements>& v) {
+  friend marray<t, NumElements> operator~(const marray& v) {
     marray<t, NumElements> result;
     for(int i = 0; i < NumElements; ++i) {
       result._data[i] = ~(v._data[i]);
@@ -484,6 +483,11 @@ public:
     return result;
   }
 };
+
+template <class T, class... U,
+          class = std::enable_if_t<(std::is_same<T, U>::value && ...)>>
+marray(T, U...) -> marray<T, sizeof...(U) + 1>;
+
 
 }
 }

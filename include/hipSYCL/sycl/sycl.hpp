@@ -66,6 +66,7 @@
 #include "libkernel/private_memory.hpp"
 #include "libkernel/local_memory.hpp"
 #include "libkernel/vec.hpp"
+#include "libkernel/marray.hpp"
 #include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"
 #include "libkernel/atomic_ref.hpp"

@@ -6,7 +6,7 @@ HCF is a format that has been designed to be easy to parse, and allow binary con
 
 The Open SYCL runtime can be instructed to dump the HCF data embedded in the application by setting the environment variable `HIPSYCL_HCF_DUMP_DIRECTORY` [(details)](env_variables.md).
 
-`hipsycl-hcf-tool` can be used to inspect or alter HCF files.
+`opensycl-hcf-tool` can be used to inspect or alter HCF files.
 
 ## HCF definition
 

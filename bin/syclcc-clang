@@ -727,11 +727,11 @@ class syclcc_config:
   @property
   def opensycl_plugin_path(self):
     if sys.platform.startswith('win32'):
-      return os.path.join(self.opensycl_installation_path, "bin", "hipSYCL_clang.dll")
+      return os.path.join(self.opensycl_installation_path, "bin", "opensycl-clang.dll")
     elif sys.platform == "darwin":
-      return os.path.join(self.opensycl_installation_path, "lib", "libhipSYCL_clang.dylib")
+      return os.path.join(self.opensycl_installation_path, "lib", "libopensycl-clang.dylib")
     else:
-      return os.path.join(self.opensycl_installation_path, "lib", "libhipSYCL_clang.so")
+      return os.path.join(self.opensycl_installation_path, "lib", "libopensycl-clang.so")
 
   @property
   def sequential_link_line(self):

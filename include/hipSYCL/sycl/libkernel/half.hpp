@@ -93,8 +93,8 @@ public:
       return __hipsycl_sscp_half_mul(a._data, b._data),
       return fp16::half_storage{__hmul(a._data.as_cuda_half(), b._data.as_cuda_half())},
       // HIP uses compiler builtin mul for native _Float16 type
-      return fp16::half_storage::builtin_sub(a._data, b._data),
-      return fp16::half_storage::builtin_sub(a._data, b._data))
+      return fp16::half_storage::builtin_mul(a._data, b._data),
+      return fp16::half_storage::builtin_mul(a._data, b._data))
   }
 
   HIPSYCL_UNIVERSAL_TARGET

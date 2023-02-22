@@ -876,7 +876,7 @@ private:
       ++current_init_index;
     } else {
       // Assume we are dealing with another vector
-      constexpr int count = count_num_elements<Arg>();
+      constexpr int count = detail::count_num_elements<Arg, T>();
       
       for(int i = 0; i < count; ++i) {
         _data[i + current_init_index] = x[i];

@@ -182,7 +182,8 @@ template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type& v, Function&& f);
 
-template <typename Arg, typename T, typename = void, typename = void>
+template <typename Arg, typename T, typename = void,
+          typename = std::enable_if_t<std::is_scalar_v<T>>>
 struct get_size {
   static constexpr int size = 1;
 };

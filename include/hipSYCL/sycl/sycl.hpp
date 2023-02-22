@@ -52,6 +52,7 @@
 #include "extensions.hpp"
 
 #include "libkernel/backend.hpp"
+#include "libkernel/bit_cast.hpp"
 #include "libkernel/range.hpp"
 #include "libkernel/id.hpp"
 #include "libkernel/accessor.hpp"

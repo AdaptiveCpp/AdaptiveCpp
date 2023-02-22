@@ -287,6 +287,11 @@ public:
   template <typename... Args, class S = VectorStorage,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true,
+            std::enable_if_t<(sizeof...(Args) > 1), bool> = true,
+            std::enable_if_t<!std::is_convertible_v<
+                               std::tuple_element_t<0, std::tuple<Args...>>,
+                               vector_t>,
+                             bool> = true,
             std::enable_if_t<(detail::count_num_elements<Args, T>() + ...) == N,
                              bool> = true>
   HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {

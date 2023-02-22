@@ -38,20 +38,13 @@ Tout bit_cast(Tin x) {
 
 #if __has_builtin(__builtin_bit_cast)
   return __builtin_bit_cast(Tout, x);
-#elif __has_builtin(__builtin_memcpy_inline)
-  Tout out;
-  __builtin_memcpy_inline(&out, &x, sizeof(Tin));
-  return out;
 #else
-  Tout out;
-  __hipsycl_if_target_host(memcpy(&out, &x, sizeof(Tin)););
-  __hipsycl_if_target_device(
-    char* cout = reinterpret_cast<char*>(&out);
-    char* cin =  reinterpret_cast<char*>(&x);
-    for(int i = 0; i < sizeof(Tin); ++i)
-      cout[i] = cin[i];
-  );
-  return out;
+  union {
+    Tout out;
+    Tin in;
+  } u;
+  u.in = x;
+  return u.out;
 #endif
 }
 

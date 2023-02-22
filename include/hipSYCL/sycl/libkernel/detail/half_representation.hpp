@@ -65,21 +65,21 @@ private:
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   static __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
-    return bit_cast<__hipsycl_uint16>(x);
+    return sycl::bit_cast<__hipsycl_uint16>(x);
   }
 
   static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
-    return bit_cast<_Float16>(x);
+    return sycl::bit_cast<_Float16>(x);
   }
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
   static __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
-    return bit_cast<__hipsycl_uint16>(x);
+    return sycl::bit_cast<__hipsycl_uint16>(x);
   }
 
   static __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
-    return bit_cast<__half>(x);
+    return sycl::bit_cast<__half>(x);
   }
 #endif
 public:

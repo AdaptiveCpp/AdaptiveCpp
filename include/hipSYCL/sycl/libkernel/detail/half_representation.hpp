@@ -58,7 +58,7 @@
 
 namespace hipsycl::fp16 {
 
-struct generic_half {
+struct half_storage {
   union {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     _Float16 native_fp16_representation;
@@ -69,21 +69,21 @@ struct generic_half {
     __hipsycl_uint16 int_representation;
   };
 
-  generic_half() = default;
-  generic_half(float f) {
+  half_storage() = default;
+  half_storage(float f) {
     truncate_from(f);
   }
-  generic_half(double f) {
+  half_storage(double f) {
     truncate_from(f);
   }
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-  generic_half(_Float16 f)
+  half_storage(_Float16 f)
   : native_fp16_representation{f} {}
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
-  generic_half(__half f)
+  half_storage(__half f)
   : cuda_representation{f} {}
 #endif
 
@@ -112,47 +112,47 @@ struct generic_half {
     return static_cast<double>(promote_to_float());
   }
 
-  static generic_half builtin_add(generic_half a, generic_half b) noexcept {
+  static half_storage builtin_add(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return generic_half{a.native_fp16_representation +
+    return half_storage{a.native_fp16_representation +
                                          b.native_fp16_representation};
 #else
-    return generic_half{a.promote_to_float() +
+    return half_storage{a.promote_to_float() +
                                          b.promote_to_float()};
 #endif
   }
 
-  static generic_half builtin_sub(generic_half a, generic_half b) noexcept {
+  static half_storage builtin_sub(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return generic_half{a.native_fp16_representation -
+    return half_storage{a.native_fp16_representation -
                                          b.native_fp16_representation};
 #else
-    return generic_half{a.promote_to_float() -
+    return half_storage{a.promote_to_float() -
                                          b.promote_to_float()};
 #endif
   }
 
-  static generic_half builtin_mul(generic_half a, generic_half b) noexcept {
+  static half_storage builtin_mul(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return generic_half{a.native_fp16_representation *
+    return half_storage{a.native_fp16_representation *
                                          b.native_fp16_representation};
 #else
-    return generic_half{a.promote_to_float() *
+    return half_storage{a.promote_to_float() *
                                          b.promote_to_float()};
 #endif
   }
 
-  static generic_half builtin_div(generic_half a, generic_half b) noexcept {
+  static half_storage builtin_div(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return generic_half{a.native_fp16_representation /
+    return half_storage{a.native_fp16_representation /
                                          b.native_fp16_representation};
 #else
-    return generic_half{a.promote_to_float() /
+    return half_storage{a.promote_to_float() /
                                          b.promote_to_float()};
 #endif
   }
 
-  static bool builtin_less_than(generic_half a, generic_half b) noexcept {
+  static bool builtin_less_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     return a.native_fp16_representation < b.native_fp16_representation;
 #else
@@ -160,7 +160,7 @@ struct generic_half {
 #endif
   }
 
-  static bool builtin_less_than_equal(generic_half a, generic_half b) noexcept {
+  static bool builtin_less_than_equal(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     return a.native_fp16_representation <= b.native_fp16_representation;
 #else
@@ -168,7 +168,7 @@ struct generic_half {
 #endif
   }
 
-  static bool builtin_greater_than(generic_half a, generic_half b) noexcept {
+  static bool builtin_greater_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     return a.native_fp16_representation > b.native_fp16_representation;
 #else
@@ -176,8 +176,8 @@ struct generic_half {
 #endif
   }
 
-  static bool builtin_greater_than_equal(generic_half a,
-                                         generic_half b) noexcept {
+  static bool builtin_greater_than_equal(half_storage a,
+                                         half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
     return a.native_fp16_representation >= b.native_fp16_representation;
 #else

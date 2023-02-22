@@ -31,47 +31,47 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
 
 
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
-__hipsycl_sscp_half_add(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
-  hipsycl::fp16::generic_half result;
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
+__hipsycl_sscp_half_add(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
+  hipsycl::fp16::half_storage result;
   asm("{add.f16 %0,%1,%2;\n}"
     : "=h"(result.int_representation)
     : "h"(a.int_representation),"h"(b.int_representation));
   return result;
 }
 
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
-__hipsycl_sscp_half_sub(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
-  hipsycl::fp16::generic_half result;
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
+__hipsycl_sscp_half_sub(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
+  hipsycl::fp16::half_storage result;
   asm("{sub.f16 %0,%1,%2;\n}"
     : "=h"(result.int_representation)
     : "h"(a.int_representation),"h"(b.int_representation));
   return result;
 }
 
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
-__hipsycl_sscp_half_mul(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
-  hipsycl::fp16::generic_half result;
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
+__hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
+  hipsycl::fp16::half_storage result;
   asm("{mul.f16 %0,%1,%2;\n}"
     : "=h"(result.int_representation)
     : "h"(a.int_representation),"h"(b.int_representation));
   return result;
 }
 
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half
-__hipsycl_sscp_half_div(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
-  return hipsycl::fp16::generic_half{__nv_fast_fdividef(a.promote_to_float(),
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
+__hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
+  return hipsycl::fp16::half_storage{__nv_fast_fdividef(a.promote_to_float(),
                                      b.promote_to_float())};
 }
 
 
 HIPSYCL_SSCP_BUILTIN bool
-__hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
-                       hipsycl::fp16::generic_half b) {
+__hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
+                       hipsycl::fp16::half_storage b) {
   __hipsycl_uint16 v;
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.lt.f16  __$temp3, %1, %2;\n"
@@ -80,8 +80,8 @@ __hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
-__hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
+__hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
   __hipsycl_uint16 v;
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.le.f16  __$temp3, %1, %2;\n"
@@ -90,8 +90,8 @@ __hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
-__hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
-                       hipsycl::fp16::generic_half b) {
+__hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
+                       hipsycl::fp16::half_storage b) {
   __hipsycl_uint16 v;
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.gt.f16  __$temp3, %1, %2;\n"
@@ -100,8 +100,8 @@ __hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
-__hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
-                        hipsycl::fp16::generic_half b) {
+__hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
+                        hipsycl::fp16::half_storage b) {
   __hipsycl_uint16 v;
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.ge.f16  __$temp3, %1, %2;\n"

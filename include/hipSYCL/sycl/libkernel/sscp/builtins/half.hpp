@@ -31,21 +31,21 @@
 #include "builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_add(
-    hipsycl::fp16::generic_half a, hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_sub(
-    hipsycl::fp16::generic_half a, hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_mul(
-    hipsycl::fp16::generic_half a, hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN hipsycl::fp16::generic_half __hipsycl_sscp_half_div(
-    hipsycl::fp16::generic_half a, hipsycl::fp16::generic_half b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_add(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_sub(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_mul(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_div(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lt(hipsycl::fp16::generic_half a,
-                                                 hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lte(hipsycl::fp16::generic_half a,
-                                                  hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gt(hipsycl::fp16::generic_half a,
-                                                 hipsycl::fp16::generic_half b);
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gte(hipsycl::fp16::generic_half a,
-                                                 hipsycl::fp16::generic_half b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
+                                                  hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
 #endif

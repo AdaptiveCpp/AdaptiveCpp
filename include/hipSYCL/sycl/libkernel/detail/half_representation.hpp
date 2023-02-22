@@ -104,7 +104,7 @@ public:
   }
 
   _Float16 as_native_float16() const noexcept {
-    return native_float16_to_int(_val);
+    return int_to_native_float16(_val);
   }
 #endif
 
@@ -118,7 +118,7 @@ public:
   }
 
   __half as_cuda_half() const noexcept {
-    return cuda_half_to_int(_val);
+    return int_to_cuda_half(_val);
   }
 #endif
 

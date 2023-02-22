@@ -29,10 +29,13 @@
 #ifndef HIPSYCL_BIT_CAST_HPP
 #define HIPSYCL_BIT_CAST_HPP
 
+#include "backend.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
 template <class Tout, class Tin>
+HIPSYCL_UNIVERSAL_TARGET
 Tout bit_cast(Tin x) {
   static_assert(sizeof(Tout)==sizeof(Tin), "Types must match sizes");
 

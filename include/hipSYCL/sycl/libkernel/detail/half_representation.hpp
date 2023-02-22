@@ -29,6 +29,7 @@
 #define HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/bit_cast.hpp"
 #include "int_types.hpp"
 
 #ifdef __clang__
@@ -64,21 +65,21 @@ private:
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   static __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
-    return __builtin_bit_cast(__hipsycl_uint16, x);
+    return bit_cast<__hipsycl_uint16>(x);
   }
 
   static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
-    return __builtin_bit_cast(_Float16, x);
+    return bit_cast<_Float16>(x);
   }
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
   static __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
-    return __builtin_bit_cast(__hipsycl_uint16, x);
+    return bit_cast<__hipsycl_uint16>(x);
   }
 
   static __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
-    return __builtin_bit_cast(__half, x);
+    return bit_cast<__half>(x);
   }
 #endif
 public:

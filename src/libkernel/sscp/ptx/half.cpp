@@ -34,31 +34,31 @@
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_add(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  hipsycl::fp16::half_storage result;
+  __hipsycl_uint16 result;
   asm("{add.f16 %0,%1,%2;\n}"
-    : "=h"(result.int_representation)
-    : "h"(a.int_representation),"h"(b.int_representation));
-  return result;
+    : "=h"(result)
+    : "h"(a.as_integer()),"h"(b.as_integer()));
+  return hipsycl::fp16::half_storage{result};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_sub(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  hipsycl::fp16::half_storage result;
+  __hipsycl_uint16 result;
   asm("{sub.f16 %0,%1,%2;\n}"
-    : "=h"(result.int_representation)
-    : "h"(a.int_representation),"h"(b.int_representation));
-  return result;
+    : "=h"(result)
+    : "h"(a.as_integer()),"h"(b.as_integer()));
+  return hipsycl::fp16::half_storage{result};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  hipsycl::fp16::half_storage result;
+  __hipsycl_uint16 result;
   asm("{mul.f16 %0,%1,%2;\n}"
-    : "=h"(result.int_representation)
-    : "h"(a.int_representation),"h"(b.int_representation));
-  return result;
+    : "=h"(result)
+    : "h"(a.as_integer()),"h"(b.as_integer()));
+  return hipsycl::fp16::half_storage{result};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
@@ -76,7 +76,7 @@ __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.lt.f16  __$temp3, %1, %2;\n"
       "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+      : "=h"(v) : "h"(a.as_integer()), "h"(b.as_integer()));
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
@@ -86,7 +86,7 @@ __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.le.f16  __$temp3, %1, %2;\n"
       "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+      : "=h"(v) : "h"(a.as_integer()), "h"(b.as_integer()));
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
@@ -96,7 +96,7 @@ __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.gt.f16  __$temp3, %1, %2;\n"
       "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+      : "=h"(v) : "h"(a.as_integer()), "h"(b.as_integer()));
   return v != 0;
 }
 HIPSYCL_SSCP_BUILTIN bool
@@ -106,6 +106,6 @@ __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
   asm( "{ .reg .pred __$temp3;\n"
       "  setp.ge.f16  __$temp3, %1, %2;\n"
       "  selp.u16 %0, 1, 0, __$temp3;}"
-      : "=h"(v) : "h"(a.int_representation), "h"(b.int_representation));
+      : "=h"(v) : "h"(a.as_integer()), "h"(b.as_integer()));
   return v != 0;
 }

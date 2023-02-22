@@ -59,15 +59,29 @@
 namespace hipsycl::fp16 {
 
 struct half_storage {
-  union {
+private:
+  __hipsycl_uint16 _val;
+
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    _Float16 native_fp16_representation;
+  static __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
+    return __builtin_bit_cast(__hipsycl_uint16, x);
+  }
+
+  static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
+    return __builtin_bit_cast(_Float16, x);
+  }
 #endif
+
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
-    __half cuda_representation;
+  static __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
+    return __builtin_bit_cast(__hipsycl_uint16, x);
+  }
+
+  static __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
+    return __builtin_bit_cast(__half, x);
+  }
 #endif
-    __hipsycl_uint16 int_representation;
-  };
+public:
 
   half_storage() = default;
   half_storage(float f) {
@@ -77,15 +91,40 @@ struct half_storage {
     truncate_from(f);
   }
 
+  explicit half_storage(__hipsycl_uint16 i)
+  : _val{i} {}
+
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   half_storage(_Float16 f)
-  : native_fp16_representation{f} {}
+  : _val{native_float16_to_int(f)} {}
+
+  half_storage& operator=(_Float16 f) noexcept{
+    _val = native_float16_to_int(f);
+    return *this;
+  }
+
+  _Float16 as_native_float16() const noexcept {
+    return native_float16_to_int(_val);
+  }
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
   half_storage(__half f)
-  : cuda_representation{f} {}
+  : _val{cuda_half_to_int(f)} {}
+
+  half_storage& operator=(__half f) noexcept{
+    _val = cuda_half_to_int(f);
+    return *this;
+  }
+
+  __half as_cuda_half() const noexcept {
+    return cuda_half_to_int(_val);
+  }
 #endif
+
+  __hipsycl_uint16 as_integer() const noexcept {
+    return _val;
+  }
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   using native_t = _Float16;
@@ -93,9 +132,9 @@ struct half_storage {
   using native_t = unsigned short;
 #endif
 
+
   void truncate_from(float f) noexcept {
-    int_representation =
-        hipsycl::fp16::fp16_ieee_from_fp32_value(f);
+    _val = hipsycl::fp16::fp16_ieee_from_fp32_value(f);
   }
 
   void truncate_from(double f) noexcept {
@@ -104,57 +143,49 @@ struct half_storage {
 
 
   float promote_to_float() const noexcept {
-    return hipsycl::fp16::fp16_ieee_to_fp32_value(
-        int_representation);
+    return hipsycl::fp16::fp16_ieee_to_fp32_value(_val);
   }
 
   double promote_to_double() const noexcept {
     return static_cast<double>(promote_to_float());
   }
 
+  // Provide basic "builtin" arithmetic functions that rely on only the compiler.
   static half_storage builtin_add(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.native_fp16_representation +
-                                         b.native_fp16_representation};
+    return half_storage{a.as_native_float16() + b.as_native_float16()};
 #else
-    return half_storage{a.promote_to_float() +
-                                         b.promote_to_float()};
+    return half_storage{a.promote_to_float() + b.promote_to_float()};
 #endif
   }
 
   static half_storage builtin_sub(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.native_fp16_representation -
-                                         b.native_fp16_representation};
+    return half_storage{a.as_native_float16() - b.as_native_float16()};
 #else
-    return half_storage{a.promote_to_float() -
-                                         b.promote_to_float()};
+    return half_storage{a.promote_to_float() - b.promote_to_float()};
 #endif
   }
 
   static half_storage builtin_mul(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.native_fp16_representation *
-                                         b.native_fp16_representation};
+    return half_storage{a.as_native_float16() * b.as_native_float16()};
 #else
-    return half_storage{a.promote_to_float() *
-                                         b.promote_to_float()};
+    return half_storage{a.promote_to_float() * b.promote_to_float()};
 #endif
   }
 
   static half_storage builtin_div(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.native_fp16_representation /
-                                         b.native_fp16_representation};
+    return half_storage{a.as_native_float16() / b.as_native_float16()};
 #else
-    return half_storage{a.promote_to_float() /
-                                         b.promote_to_float()};
+    return half_storage{a.promote_to_float() / b.promote_to_float()};
 #endif
   }
 
   static bool builtin_less_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.native_fp16_representation < b.native_fp16_representation;
+    return a.as_native_float16() < b.as_native_float16();
 #else
     return a.promote_to_float() < b.promote_to_float();
 #endif
@@ -162,7 +193,7 @@ struct half_storage {
 
   static bool builtin_less_than_equal(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.native_fp16_representation <= b.native_fp16_representation;
+    return a.as_native_float16() <= b.as_native_float16();
 #else
     return a.promote_to_float() <= b.promote_to_float();
 #endif
@@ -170,7 +201,7 @@ struct half_storage {
 
   static bool builtin_greater_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.native_fp16_representation > b.native_fp16_representation;
+    return a.as_native_float16() > b.as_native_float16();
 #else
     return a.promote_to_float() > b.promote_to_float();
 #endif
@@ -179,7 +210,7 @@ struct half_storage {
   static bool builtin_greater_than_equal(half_storage a,
                                          half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.native_fp16_representation >= b.native_fp16_representation;
+    return a.as_native_float16() >= b.as_native_float16();
 #else
     return a.promote_to_float() >= b.promote_to_float();
 #endif

@@ -32,48 +32,48 @@
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_add(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.native_fp16_representation +
-                                     b.native_fp16_representation};
+  return hipsycl::fp16::half_storage{a.as_native_float16() +
+                                     b.as_native_float16()};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_sub(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.native_fp16_representation -
-                                     b.native_fp16_representation};
+  return hipsycl::fp16::half_storage{a.as_native_float16() -
+                                     b.as_native_float16()};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.native_fp16_representation *
-                                     b.native_fp16_representation};
+  return hipsycl::fp16::half_storage{a.as_native_float16() *
+                                     b.as_native_float16()};
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.native_fp16_representation /
-                                     b.native_fp16_representation};
+  return hipsycl::fp16::half_storage{a.as_native_float16() /
+                                     b.as_native_float16()};
 }
 
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  return a.native_fp16_representation < b.native_fp16_representation;
+  return a.as_native_float16() < b.as_native_float16();
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return a.native_fp16_representation <= b.native_fp16_representation;
+  return a.as_native_float16() <= b.as_native_float16();
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  return a.native_fp16_representation > b.native_fp16_representation;
+  return a.as_native_float16() > b.as_native_float16();
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return a.native_fp16_representation >= b.native_fp16_representation;
+  return a.as_native_float16() >= b.as_native_float16();
 }

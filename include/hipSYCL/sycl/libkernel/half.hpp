@@ -69,7 +69,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_add(a._data, b._data),
       return __hipsycl_sscp_half_add(a._data, b._data),
-      return fp16::half_storage{__hadd(a._data.cuda_representation, b._data.cuda_representation)},
+      return fp16::half_storage{__hadd(a._data.as_cuda_half(), b._data.as_cuda_half())},
       // HIP uses compiler builtin addition for native _Float16 type
       return fp16::half_storage::builtin_add(a._data, b._data),
       return fp16::half_storage::builtin_add(a._data, b._data))
@@ -80,7 +80,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_sub(a._data, b._data),
       return __hipsycl_sscp_half_sub(a._data, b._data),
-      return fp16::half_storage{__hsub(a._data.cuda_representation, b._data.cuda_representation)},
+      return fp16::half_storage{__hsub(a._data.as_cuda_half(), b._data.as_cuda_half())},
       // HIP uses compiler builtin subtraction for native _Float16 type
       return fp16::half_storage::builtin_sub(a._data, b._data),
       return fp16::half_storage::builtin_sub(a._data, b._data))
@@ -91,7 +91,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_mul(a._data, b._data),
       return __hipsycl_sscp_half_mul(a._data, b._data),
-      return fp16::half_storage{__hmul(a._data.cuda_representation, b._data.cuda_representation)},
+      return fp16::half_storage{__hmul(a._data.as_cuda_half(), b._data.as_cuda_half())},
       // HIP uses compiler builtin mul for native _Float16 type
       return fp16::half_storage::builtin_sub(a._data, b._data),
       return fp16::half_storage::builtin_sub(a._data, b._data))
@@ -102,7 +102,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_div(a._data, b._data),
       return __hipsycl_sscp_half_div(a._data, b._data),
-      return fp16::half_storage{__hdiv(a._data.cuda_representation, b._data.cuda_representation)},
+      return fp16::half_storage{__hdiv(a._data.as_cuda_half(), b._data.as_cuda_half())},
       // HIP uses compiler builtin div for native _Float16 type
       return fp16::half_storage::builtin_div(a._data, b._data),
       return fp16::half_storage::builtin_div(a._data, b._data))
@@ -129,11 +129,11 @@ public:
   }
 
   friend bool operator==(const half& a, const half& b) noexcept {
-    return a._data.int_representation == b._data.int_representation;
+    return a._data.as_integer() == b._data.as_integer();
   }
 
   friend bool operator!=(const half& a, const half& b) noexcept {
-    return a._data.int_representation != b._data.int_representation;
+    return a._data.as_integer() != b._data.as_integer();
   }
 
   HIPSYCL_UNIVERSAL_TARGET
@@ -141,7 +141,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_less_than(a._data, b._data),
       return __hipsycl_sscp_half_lt(a._data, b._data),
-      return __hlt(a._data.cuda_representation, b._data.cuda_representation),
+      return __hlt(a._data.as_cuda_half(), b._data.as_cuda_half()),
       return fp16::half_storage::builtin_less_than(a._data, b._data),
       return fp16::half_storage::builtin_less_than(a._data, b._data))
   }
@@ -151,7 +151,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_less_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_lte(a._data, b._data),
-      return __hle(a._data.cuda_representation, b._data.cuda_representation),
+      return __hle(a._data.as_cuda_half(), b._data.as_cuda_half()),
       return fp16::half_storage::builtin_less_than_equal(a._data, b._data),
       return fp16::half_storage::builtin_less_than_equal(a._data, b._data))
   }
@@ -161,7 +161,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_greater_than(a._data, b._data),
       return __hipsycl_sscp_half_gt(a._data, b._data),
-      return __hgt(a._data.cuda_representation, b._data.cuda_representation),
+      return __hgt(a._data.as_cuda_half(), b._data.as_cuda_half()),
       return fp16::half_storage::builtin_greater_than(a._data, b._data),
       return fp16::half_storage::builtin_greater_than(a._data, b._data))
   }
@@ -171,7 +171,7 @@ public:
     __hipsycl_backend_switch(
       return fp16::half_storage::builtin_greater_than_equal(a._data, b._data),
       return __hipsycl_sscp_half_gte(a._data, b._data),
-      return __hge(a._data.cuda_representation, b._data.cuda_representation),
+      return __hge(a._data.as_cuda_half(), b._data.as_cuda_half()),
       return fp16::half_storage::builtin_greater_than_equal(a._data, b._data),
       return fp16::half_storage::builtin_greater_than_equal(a._data, b._data))
   }

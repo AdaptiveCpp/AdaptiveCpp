@@ -29,7 +29,7 @@
 #define HIPSYCL_SYCL_HALF_REPRESENTATION_HPP
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
-#include "hipSYCL/sycl/libkernel/bit_cast.hpp"
+#include "hipSYCL/sycl/libkernel/detail/bit_cast.hpp"
 #include "int_types.hpp"
 
 #ifdef __clang__
@@ -63,23 +63,33 @@ struct half_storage {
 private:
   __hipsycl_uint16 _val;
 
+  // Currently we cannot call sycl::bit_cast directly, since we do not
+  // have HIPSYCL_UNIVERSAL_TARGET attributes available here, which
+  // are needed for sycl::bit_cast.
+  template<class Tout, class Tin>
+  static Tout bit_cast(Tin x) {
+    Tout result;
+    HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
+    return result;
+  }
+
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
   static __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
-    return sycl::bit_cast<__hipsycl_uint16>(x);
+    return bit_cast<__hipsycl_uint16>(x);
   }
 
   static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
-    return sycl::bit_cast<_Float16>(x);
+    return bit_cast<_Float16>(x);
   }
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
   static __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
-    return sycl::bit_cast<__hipsycl_uint16>(x);
+    return bit_cast<__hipsycl_uint16>(x);
   }
 
   static __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
-    return sycl::bit_cast<__half>(x);
+    return bit_cast<__half>(x);
   }
 #endif
 public:

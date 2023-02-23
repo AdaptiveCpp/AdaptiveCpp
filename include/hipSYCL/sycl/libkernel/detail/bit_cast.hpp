@@ -26,25 +26,27 @@
  */
 
 
-#ifndef HIPSYCL_BIT_CAST_HPP
-#define HIPSYCL_BIT_CAST_HPP
+#ifndef HIPSYCL_BIT_CAST_DETAIL_HPP
+#define HIPSYCL_BIT_CAST_DETAIL_HPP
 
-#include "backend.hpp"
-#include "detail/bit_cast.hpp"
+#if __has_builtin(__builtin_bit_cast)
 
-namespace hipsycl {
-namespace sycl {
+#define HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, in, out)                           \
+  out = __builtin_bit_cast(Tout, in)
 
-template <class Tout, class Tin>
-HIPSYCL_UNIVERSAL_TARGET
-Tout bit_cast(Tin x) {
-  Tout result;
-  HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
-  return result;
-}
+#else
+
+#define HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, in, out)                           \
+  {                                                                            \
+    union {                                                                    \
+      Tout union_out;                                                          \
+      Tin union_in;                                                            \
+    } u;                                                                       \
+    u.union_in = x;                                                            \
+    out = u.union_out;                                                         \
+  }
+#endif
 
 
-}
-}
 
 #endif

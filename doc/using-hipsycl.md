@@ -1,9 +1,9 @@
-# Using hipSYCL in projects
+# Using Open SYCL in projects
 It is recommended to use the CMake integration for larger projects. See the section on the cmake integration below. Alternatively, `syclcc` can be used directly as a compiler.
 
-## hipSYCL targets specification
+## Open SYCL targets specification
 
-Both `syclcc` and the cmake integration expect a hipSYCL targets specification. This specification defines which compilation flows hipSYCL should enable, and which devices from a compilation flow hipSYCL should target during compilation. In general, it has the form:
+Both `syclcc` and the cmake integration expect an Open SYCL targets specification. This specification defines which compilation flows Open SYCL should enable, and which devices from a compilation flow Open SYCL should target during compilation. In general, it has the form:
 
 ```
 "flow1:target1,target2,...;flow2:...;..."
@@ -35,16 +35,16 @@ For the following compilation flows, targets must be specified:
 
 ### Abbreviations
 
-For some compilation flows, abbreviations exist that will be resolved by hipSYCL to one of the available compilation flows:
+For some compilation flows, abbreviations exist that will be resolved by Open SYCL to one of the available compilation flows:
 * `omp` will be translated 
   * into `omp.accelerated` 
-     * if hipSYCL has been built with support for accelerated CPU and the host compiler is the clang that hipSYCL has been built with or
-     * if `--hipsycl-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. hipSYCL has been compiled without support for it), compilation will abort with an error.
+     * if Open SYCL has been built with support for accelerated CPU and the host compiler is the clang that Open SYCL has been built with or
+     * if `--opensycl-use-accelerated-cpu` is set. If the accelerated CPU compilation flow is not available (e.g. Open SYCL has been compiled without support for it), compilation will abort with an error.
   * into `omp.library-only` otherwise
 * `cuda` will be translated
   * into `cuda.explicit-multipass`
-    * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. hipSYCL will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
-    * if `--hipsycl-explicit-multipass` is set explicitly
+    * if another integrated multipass has been requested, or another backend that would conflict with `cuda.integrated-multipass`. Open SYCL will emit a warning in this case, since switching to explicit multipass can change interoperability guarantees (see the [compilation](compilation.md) documentation).
+    * if `--opensycl-explicit-multipass` is set explicitly
   * into `cuda.integrated-multipass` otherwise
 * `hip` will be translated into `hip.integrated-multipass`
 
@@ -58,11 +58,11 @@ Of course, the desired flows can also always be specified explicitly.
 * `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using nvc++
 
 ## Manually compiling with syclcc
-`syclcc` is the compilation driver used by hipSYCL to build the final compiler invocations.
-After installing hipSYCL, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.
-For example, compiling a SYCL source `example.cpp` to an executable, while targeting CPU and CUDA backends, is possible using `syclcc -o example example.cpp -O3 --hipsycl-targets="omp;cuda:sm_61"`.
+`syclcc` is the compilation driver used by Open SYCL to build the final compiler invocations.
+After installing Open SYCL, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.
+For example, compiling a SYCL source `example.cpp` to an executable, while targeting CPU and CUDA backends, is possible using `syclcc -o example example.cpp -O3 --opensycl-targets="omp;cuda:sm_61"`.
 
-The full excerpt from `syclcc --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/hipsycl/install/path/etc/hipSYCL/syclcc.json`.
+The full excerpt from `syclcc --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/opensycl/install/path/etc/hipSYCL/syclcc.json`.
 ```
 syclcc [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project
   hipSYCL version: 0.9.2

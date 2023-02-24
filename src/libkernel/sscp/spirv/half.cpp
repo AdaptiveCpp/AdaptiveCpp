@@ -30,52 +30,49 @@
 
 // TODO How does native half work in SPIR-V?
 // This file currently emulates half computation in fp32.
+using hipsycl::fp16::promote_to_float;
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_add(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.promote_to_float() +
-                                     b.promote_to_float()};
+  return hipsycl::fp16::create(promote_to_float(a) + promote_to_float(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_sub(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.promote_to_float() -
-                                     b.promote_to_float()};
+  return hipsycl::fp16::create(promote_to_float(a) - promote_to_float(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.promote_to_float() *
-                                     b.promote_to_float()};
+  return hipsycl::fp16::create(promote_to_float(a) * promote_to_float(b));
 }
 
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::half_storage{a.promote_to_float() /
-                                     b.promote_to_float()};
+  return hipsycl::fp16::create(promote_to_float(a) / promote_to_float(b));
 }
 
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  return a.promote_to_float() < b.promote_to_float();
+  return promote_to_float(a) < promote_to_float(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return a.promote_to_float() <= b.promote_to_float();
+  return promote_to_float(a) <= promote_to_float(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
                        hipsycl::fp16::half_storage b) {
-  return a.promote_to_float() > b.promote_to_float();
+  return promote_to_float(a) > promote_to_float(b);
 }
 HIPSYCL_SSCP_BUILTIN bool
 __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return a.promote_to_float() >= b.promote_to_float();
+  return promote_to_float(a) >= promote_to_float(b);
 }

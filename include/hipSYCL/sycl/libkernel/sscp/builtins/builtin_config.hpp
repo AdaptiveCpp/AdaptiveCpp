@@ -40,7 +40,7 @@
 // interfaces, e.g. to declare CUDA libdevice functions or AMD ocml builtins. It
 // should not be used in generic hipSYCL headers - those should use
 // hipsycl::fp16::half_storage of sycl::half instead.
-using __hipsycl_f16 = hipsycl::fp16::half_storage::native_t;
+using __hipsycl_f16 = hipsycl::fp16::native_t;
 using __hipsycl_f32 = float;
 using __hipsycl_f64 = double;
 

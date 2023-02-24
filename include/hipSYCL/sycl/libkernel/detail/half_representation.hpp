@@ -59,175 +59,172 @@
 
 namespace hipsycl::fp16 {
 
-struct half_storage {
-private:
-  __hipsycl_uint16 _val;
+// Do not use a class to ensure consistent ABI between SSCP bitcode libraries
+// and client code, which will have different LLVM target triple initially.
+using half_storage = __hipsycl_uint16;
 
-  // Currently we cannot call sycl::bit_cast directly, since we do not
-  // have HIPSYCL_UNIVERSAL_TARGET attributes available here, which
-  // are needed for sycl::bit_cast.
-  template<class Tout, class Tin>
-  static Tout bit_cast(Tin x) {
-    Tout result;
-    HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
-    return result;
-  }
+namespace detail {
+// Currently we cannot call sycl::bit_cast directly, since we do not
+// have HIPSYCL_UNIVERSAL_TARGET attributes available here, which
+// are needed for sycl::bit_cast.
+template<class Tout, class Tin>
+Tout bit_cast(Tin x) {
+  Tout result;
+  HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
+  return result;
+}
+
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-  static __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
-    return bit_cast<__hipsycl_uint16>(x);
-  }
+inline __hipsycl_uint16 native_float16_to_int(_Float16 x) noexcept {
+  return bit_cast<__hipsycl_uint16>(x);
+}
 
-  static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
-    return bit_cast<_Float16>(x);
-  }
+static _Float16 int_to_native_float16(__hipsycl_uint16 x) noexcept {
+  return bit_cast<_Float16>(x);
+}
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
-  static __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
-    return bit_cast<__hipsycl_uint16>(x);
-  }
+inline __hipsycl_uint16 cuda_half_to_int(__half x) noexcept {
+  return bit_cast<__hipsycl_uint16>(x);
+}
 
-  static __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
-    return bit_cast<__half>(x);
-  }
+inline __half int_to_cuda_half(__hipsycl_uint16 x) noexcept {
+  return bit_cast<__half>(x);
+}
 #endif
-public:
 
-  half_storage() = default;
-  half_storage(float f) {
-    truncate_from(f);
-  }
-  half_storage(double f) {
-    truncate_from(f);
-  }
+}
 
-  explicit half_storage(__hipsycl_uint16 i)
-  : _val{i} {}
+
+
+inline half_storage truncate_from(float f) noexcept {
+  return hipsycl::fp16::fp16_ieee_from_fp32_value(f);
+}
+
+inline half_storage truncate_from(double f) noexcept {
+  return truncate_from(static_cast<float>(f));
+}
+
+
+inline float promote_to_float(half_storage h) noexcept {
+  return hipsycl::fp16::fp16_ieee_to_fp32_value(h);
+}
+
+inline double promote_to_double(half_storage h) noexcept {
+  return static_cast<double>(promote_to_float(h));
+}
+
+
+inline half_storage create(float f) noexcept {
+  return truncate_from(f);
+}
+
+inline half_storage create(double f) noexcept {
+  return truncate_from(f);
+}
+
+inline half_storage create(__hipsycl_uint16 i) noexcept {
+  return i;
+}
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-  half_storage(_Float16 f)
-  : _val{native_float16_to_int(f)} {}
+inline half_storage create(_Float16 f) noexcept {
+  return detail::native_float16_to_int(f);
+}
 
-  half_storage& operator=(_Float16 f) noexcept{
-    _val = native_float16_to_int(f);
-    return *this;
-  }
-
-  _Float16 as_native_float16() const noexcept {
-    return int_to_native_float16(_val);
-  }
+inline _Float16 as_native_float16(half_storage h) noexcept {
+  return detail::int_to_native_float16(h);
+}
 #endif
 
 #ifdef HIPSYCL_HALF_HAS_CUDA_HALF_TYPE
-  half_storage(__half f)
-  : _val{cuda_half_to_int(f)} {}
 
-  half_storage& operator=(__half f) noexcept{
-    _val = cuda_half_to_int(f);
-    return *this;
-  }
+inline half_storage create(__half h) noexcept {
+  return detail::cuda_half_to_int(h);
+}
 
-  __half as_cuda_half() const noexcept {
-    return int_to_cuda_half(_val);
-  }
+inline __half as_cuda_half(half_storage h) noexcept {
+  return detail::int_to_cuda_half(h);
+}
 #endif
 
-  __hipsycl_uint16 as_integer() const noexcept {
-    return _val;
-  }
+inline __hipsycl_uint16 as_integer(half_storage h) noexcept {
+  return h;
+}
 
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-  using native_t = _Float16;
+using native_t = _Float16;
 #else
-  using native_t = unsigned short;
+using native_t = unsigned short;
 #endif
 
-
-  void truncate_from(float f) noexcept {
-    _val = hipsycl::fp16::fp16_ieee_from_fp32_value(f);
-  }
-
-  void truncate_from(double f) noexcept {
-    truncate_from(static_cast<float>(f));
-  }
-
-
-  float promote_to_float() const noexcept {
-    return hipsycl::fp16::fp16_ieee_to_fp32_value(_val);
-  }
-
-  double promote_to_double() const noexcept {
-    return static_cast<double>(promote_to_float());
-  }
-
-  // Provide basic "builtin" arithmetic functions that rely on only the compiler.
-  static half_storage builtin_add(half_storage a, half_storage b) noexcept {
+// Provide basic "builtin" arithmetic functions that rely on only the compiler.
+inline half_storage builtin_add(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.as_native_float16() + b.as_native_float16()};
+  return create(as_native_float16(a) + as_native_float16(b));
 #else
-    return half_storage{a.promote_to_float() + b.promote_to_float()};
+  return create(promote_to_float(a) + promote_to_float(b));
 #endif
-  }
+}
 
-  static half_storage builtin_sub(half_storage a, half_storage b) noexcept {
+inline half_storage builtin_sub(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.as_native_float16() - b.as_native_float16()};
+  return create(as_native_float16(a) - as_native_float16(b));
 #else
-    return half_storage{a.promote_to_float() - b.promote_to_float()};
+  return create(promote_to_float(a) - promote_to_float(b));
 #endif
-  }
+}
 
-  static half_storage builtin_mul(half_storage a, half_storage b) noexcept {
+inline half_storage builtin_mul(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.as_native_float16() * b.as_native_float16()};
+  return create(as_native_float16(a) * as_native_float16(b));
 #else
-    return half_storage{a.promote_to_float() * b.promote_to_float()};
+  return create(promote_to_float(a) * promote_to_float(b));
 #endif
-  }
+}
 
-  static half_storage builtin_div(half_storage a, half_storage b) noexcept {
+inline half_storage builtin_div(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return half_storage{a.as_native_float16() / b.as_native_float16()};
+  return create(as_native_float16(a) / as_native_float16(b));
 #else
-    return half_storage{a.promote_to_float() / b.promote_to_float()};
+  return create(promote_to_float(a) / promote_to_float(b));
 #endif
-  }
+}
 
-  static bool builtin_less_than(half_storage a, half_storage b) noexcept {
+inline bool builtin_less_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.as_native_float16() < b.as_native_float16();
+  return as_native_float16(a) < as_native_float16(b);
 #else
-    return a.promote_to_float() < b.promote_to_float();
+  return promote_to_float(a) < promote_to_float(b);
 #endif
-  }
+}
 
-  static bool builtin_less_than_equal(half_storage a, half_storage b) noexcept {
+inline bool builtin_less_than_equal(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.as_native_float16() <= b.as_native_float16();
+  return as_native_float16(a) <= as_native_float16(b);
 #else
-    return a.promote_to_float() <= b.promote_to_float();
+  return promote_to_float(a) <= promote_to_float(b);
 #endif
-  }
+}
 
-  static bool builtin_greater_than(half_storage a, half_storage b) noexcept {
+inline bool builtin_greater_than(half_storage a, half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.as_native_float16() > b.as_native_float16();
+  return as_native_float16(a) > as_native_float16(b);
 #else
-    return a.promote_to_float() > b.promote_to_float();
+  return promote_to_float(a) > promote_to_float(b);
 #endif
-  }
+}
 
-  static bool builtin_greater_than_equal(half_storage a,
-                                         half_storage b) noexcept {
+inline bool builtin_greater_than_equal(half_storage a,
+                                       half_storage b) noexcept {
 #ifdef HIPSYCL_HALF_HAS_FLOAT16_TYPE
-    return a.as_native_float16() >= b.as_native_float16();
+  return as_native_float16(a) >= as_native_float16(b);
 #else
-    return a.promote_to_float() >= b.promote_to_float();
+  return promote_to_float(a) >= promote_to_float(b);
 #endif
-  }
-};
-
+}
 }
 
 #endif

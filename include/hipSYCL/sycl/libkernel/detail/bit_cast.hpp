@@ -42,7 +42,7 @@
       Tout union_out;                                                          \
       Tin union_in;                                                            \
     } u;                                                                       \
-    u.union_in = x;                                                            \
+    u.union_in = in;                                                           \
     out = u.union_out;                                                         \
   }
 #endif

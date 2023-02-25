@@ -30,7 +30,7 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "hipSYCL/sycl/detail/util.hpp"
+#include "hipSYCL/sycl/libkernel/bit_cast.hpp"
 
 #include <type_traits>
 

@@ -29,25 +29,18 @@
 #ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 #define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
+#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
+#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
+
 #define HIPSYCL_SSCP_BUILTIN_ATTRIBUTES __attribute__((always_inline))
 #define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 
-using __hipsycl_int8 = signed char;
-using __hipsycl_uint8 = unsigned char;
-using __hipsycl_int16 = short;
-using __hipsycl_uint16 = unsigned short;
-using __hipsycl_int32 = int;
-using __hipsycl_uint32 = unsigned int;
-using __hipsycl_int64 = long long;
-using __hipsycl_uint64 = unsigned long long;
-// To be set by a backend when including this header
-#ifdef HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
-using __hipsycl_f16 = _Float16;
-#else
-using __hipsycl_f16 = __hipsycl_int16;
-#endif
-
+// Note: __hipsycl_f16 should only be used for backend-specific SSCP builtin
+// interfaces, e.g. to declare CUDA libdevice functions or AMD ocml builtins. It
+// should not be used in generic hipSYCL headers - those should use
+// hipsycl::fp16::half_storage of sycl::half instead.
+using __hipsycl_f16 = hipsycl::fp16::native_t;
 using __hipsycl_f32 = float;
 using __hipsycl_f64 = double;
 

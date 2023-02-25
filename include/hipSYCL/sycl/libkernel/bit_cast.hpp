@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay
+ * Copyright (c) 2018, 2019 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,14 +26,25 @@
  */
 
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#ifndef HIPSYCL_BIT_CAST_HPP
+#define HIPSYCL_BIT_CAST_HPP
 
+#include "backend.hpp"
+#include "detail/bit_cast.hpp"
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
-  return __ockl_mul24_i32(a, b);
+namespace hipsycl {
+namespace sycl {
+
+template <class Tout, class Tin>
+HIPSYCL_UNIVERSAL_TARGET
+Tout bit_cast(Tin x) {
+  Tout result;
+  HIPSYCL_INPLACE_BIT_CAST(Tin, Tout, x, result);
+  return result;
 }
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
-  return __ockl_mul24_u32(a, b);
+
 }
+}
+
+#endif

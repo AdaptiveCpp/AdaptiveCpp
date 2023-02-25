@@ -25,15 +25,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef HIPSYCL_SSCP_BUILTINS_HALF_HPP
+#define HIPSYCL_SSCP_BUILTINS_HALF_HPP
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#include "builtin_config.hpp"
+#include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_add(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_sub(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_mul(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage __hipsycl_sscp_half_div(
+    hipsycl::fp16::half_storage a, hipsycl::fp16::half_storage b);
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
-  return __ockl_mul24_i32(a, b);
-}
-
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
-  return __ockl_mul24_u32(a, b);
-}
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lt(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_lte(hipsycl::fp16::half_storage a,
+                                                  hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gt(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
+                                                 hipsycl::fp16::half_storage b);
+#endif

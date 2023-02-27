@@ -39,6 +39,7 @@
 
  #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   #include <cuda_runtime_api.h>
+  #include <cuda_fp16.h>
  #endif
 
  #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX

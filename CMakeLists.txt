@@ -412,18 +412,21 @@ install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTAL
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
-write_basic_package_version_file(
-  "${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake"
-  VERSION ${hipSYCL_VERSION}
-  COMPATIBILITY SameMajorVersion
-)
-
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
 # the future install root
 set(HIPSYCL_INSTALL_COMPILER_DIR bin)
 set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
+
+
+# Legacy module
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake"
+  VERSION ${hipSYCL_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
 
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/hipsycl-config.cmake.in
@@ -434,16 +437,50 @@ configure_package_config_file(
     HIPSYCL_INSTALL_LAUNCHER_DIR
     HIPSYCL_INSTALL_LAUNCHER_RULE_DIR
 )
+
 install(FILES
   ${PROJECT_BINARY_DIR}/hipsycl-config.cmake
   ${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
 )
+
 install(EXPORT install_exports
   FILE "hipsycl-targets.cmake"
   NAMESPACE hipSYCL::
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
 )
+
+
+# New package
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/opensycl-config-version.cmake"
+  VERSION ${hipSYCL_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/opensycl-config.cmake.in
+    ${PROJECT_BINARY_DIR}/opensycl-config.cmake
+    INSTALL_DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+    PATH_VARS
+    HIPSYCL_INSTALL_COMPILER_DIR
+    HIPSYCL_INSTALL_LAUNCHER_DIR
+    HIPSYCL_INSTALL_LAUNCHER_RULE_DIR
+)
+
+install(FILES
+  ${PROJECT_BINARY_DIR}/opensycl-config.cmake
+  ${PROJECT_BINARY_DIR}/opensycl-config-version.cmake
+  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+)
+
+install(EXPORT install_exports
+  FILE "opensycl-targets.cmake"
+  NAMESPACE OpenSYCL::
+  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+)
+
 mark_as_advanced(
   HIPSYCL_INSTALL_CMAKE_DIR
 )

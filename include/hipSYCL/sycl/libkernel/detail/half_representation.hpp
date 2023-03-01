@@ -115,10 +115,6 @@ inline double promote_to_double(half_storage h) noexcept {
   return static_cast<double>(promote_to_float(h));
 }
 
-inline int promote_to_int(half_storage h) noexcept {
-  return h;
-}
-
 inline half_storage create(float f) noexcept {
   return truncate_from(f);
 }

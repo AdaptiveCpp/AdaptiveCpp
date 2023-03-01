@@ -53,7 +53,7 @@ public:
   : _data{fp16::create(f)} {}
 
   explicit half(int f) noexcept
-  : _data{fp16::create(f)} {}
+  : _data{fp16::create(static_cast<float>(f))} {}
 
 
   half(const half&) = default;
@@ -69,7 +69,7 @@ public:
   }
 
   operator int() const {
-    return fp16::promote_to_int(_data);
+    return static_cast<int>(fp16::promote_to_float(_data));
   }
 
   HIPSYCL_UNIVERSAL_TARGET

@@ -127,10 +127,6 @@ inline half_storage create(double f) noexcept {
   return truncate_from(f);
 }
 
-inline half_storage create(int i) noexcept {
-  return i;
-}
-
 inline half_storage create(__hipsycl_uint16 i) noexcept {
   return i;
 }

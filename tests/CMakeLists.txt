@@ -1,4 +1,4 @@
-project(hipsycl-tests)
+project(opensycl-tests)
 cmake_minimum_required(VERSION 3.12)
 
 set(Boost_USE_STATIC_LIBS off)
@@ -7,7 +7,7 @@ set(REDUCED_LOCAL_MEM_USAGE OFF CACHE BOOL "Only run tests with reduced local me
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
-find_package(hipSYCL REQUIRED)
+find_package(OpenSYCL REQUIRED)
 
 find_package(Threads REQUIRED)
 
@@ -15,13 +15,13 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-if(NOT HIPSYCL_DEBUG_LEVEL)
+if(NOT OPENSYCL_DEBUG_LEVEL)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(HIPSYCL_DEBUG_LEVEL 3 CACHE INTEGER
+    set(OPENSYCL_DEBUG_LEVEL 3 CACHE INTEGER
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
     FORCE)
   else()
-    set(HIPSYCL_DEBUG_LEVEL 2 CACHE INTEGER
+    set(OPENSYCL_DEBUG_LEVEL 2 CACHE INTEGER
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
       FORCE)
   endif()
@@ -39,10 +39,10 @@ if(REDUCED_LOCAL_MEM_USAGE)
   add_definitions(-DREDUCED_LOCAL_MEM_USAGE)
 endif()
 
-#add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
+
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
-add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+add_definitions(-DHIPSYCL_DEBUG_LEVEL=${OPENSYCL_DEBUG_LEVEL})
 if(HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
   add_definitions(-DHIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
 endif()

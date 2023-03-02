@@ -380,8 +380,7 @@ set(SYCLCC_CONFIG_FILE "{
 
 file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
-set(HIPSYCL_INSTALL_CMAKE_DIR
-  "lib/cmake/${PROJECT_NAME}" CACHE PATH "Install path for CMake config files")
+
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -404,13 +403,19 @@ install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
 endif()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
 
-install(PROGRAMS cmake/syclcc-launcher DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
-install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
+
+
+
+# Legacy module
+
+
+set(HIPSYCL_INSTALL_CMAKE_DIR
+  "lib/cmake/hipSYCL" CACHE PATH "Install path for legacy CMake config files")
 
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
@@ -419,8 +424,8 @@ set(HIPSYCL_INSTALL_COMPILER_DIR bin)
 set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 
-
-# Legacy module
+install(PROGRAMS cmake/syclcc-launcher DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 
 write_basic_package_version_file(
   "${PROJECT_BINARY_DIR}/hipsycl-config-version.cmake"
@@ -450,8 +455,25 @@ install(EXPORT install_exports
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
 )
 
+mark_as_advanced(
+  HIPSYCL_INSTALL_CMAKE_DIR
+)
+
 
 # New package
+
+set(OPENSYCL_INSTALL_CMAKE_DIR
+  "lib/cmake/OpenSYCL" CACHE PATH "Install path for CMake config files")
+
+# Set relative paths for install root in the following variables so that
+# configure_package_config_file will generate paths relative whatever is
+# the future install root
+set(OPENSYCL_INSTALL_COMPILER_DIR bin)
+set(OPENSYCL_INSTALL_LAUNCHER_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
+set(OPENSYCL_INSTALL_LAUNCHER_RULE_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
+
+install(PROGRAMS cmake/syclcc-launcher DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
 
 write_basic_package_version_file(
   "${PROJECT_BINARY_DIR}/opensycl-config-version.cmake"
@@ -462,25 +484,25 @@ write_basic_package_version_file(
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/opensycl-config.cmake.in
     ${PROJECT_BINARY_DIR}/opensycl-config.cmake
-    INSTALL_DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+    INSTALL_DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
     PATH_VARS
-    HIPSYCL_INSTALL_COMPILER_DIR
-    HIPSYCL_INSTALL_LAUNCHER_DIR
-    HIPSYCL_INSTALL_LAUNCHER_RULE_DIR
+    OPENSYCL_INSTALL_COMPILER_DIR
+    OPENSYCL_INSTALL_LAUNCHER_DIR
+    OPENSYCL_INSTALL_LAUNCHER_RULE_DIR
 )
 
 install(FILES
   ${PROJECT_BINARY_DIR}/opensycl-config.cmake
   ${PROJECT_BINARY_DIR}/opensycl-config-version.cmake
-  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+  DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
 )
 
 install(EXPORT install_exports
   FILE "opensycl-targets.cmake"
   NAMESPACE OpenSYCL::
-  DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+  DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
 )
 
 mark_as_advanced(
-  HIPSYCL_INSTALL_CMAKE_DIR
+  OPENSYCL_INSTALL_CMAKE_DIR
 )

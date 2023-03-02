@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay
+ * Copyright (c) 2018-2022 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,14 +26,52 @@
  */
 
 
-#include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
+#include "sycl_test_suite.hpp"
+#include <boost/test/unit_test_suite.hpp>
+
+BOOST_FIXTURE_TEST_SUITE(half_tests, reset_device_fixture)
 
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
-  return __ockl_mul24_i32(a, b);
+BOOST_AUTO_TEST_CASE(half_arithmetic) {
+  
+  auto tolerance = boost::test_tools::tolerance(0.0001);
+  
+  namespace s = cl::sycl;
+
+  s::queue q;
+  s::half h1 {1.0f};
+  s::half h2 {2.0f};
+
+
+  constexpr std::size_t num_tests = 4;
+  s::buffer<s::half, 1> buff{s::range{num_tests}};
+  q.submit([&](s::handler& cgh){
+    s::accessor acc{buff, cgh};
+    cgh.single_task([=](){
+      acc[0] = h1 + h2;
+      acc[1] = h1 / h2;
+      acc[2] = acc[0] * acc[1];
+      acc[3] = acc[1] - acc[0];
+    });
+  }).wait();
+   
+  float f1 = 1.0f;
+  float f2 = 2.0f;
+  float reference [num_tests];
+  reference[0] = f1 + f2;
+  reference[1] = f1 / f2;
+  reference[2] = reference[0] * reference[1];
+  reference[3] = reference[1] - reference[0];
+
+  s::host_accessor hacc{buff};
+  for(int i = 0; i < num_tests; ++i){
+    float current_reference = reference[i];
+    float current_computed = hacc[i];
+    BOOST_TEST(current_reference == current_computed, tolerance);
+  }
+
+
+
 }
 
-HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
-  return __ockl_mul24_u32(a, b);
-}
+BOOST_AUTO_TEST_SUITE_END()

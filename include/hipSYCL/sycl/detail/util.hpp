@@ -97,26 +97,6 @@ void separate_last_argument_and_apply(F&& f, Args&& ... args) {
              std::tuple_cat(std::make_tuple(last_element), preceding_elements));
 }
 
-template <class Tout, class Tin>
-HIPSYCL_UNIVERSAL_TARGET
-Tout bit_cast(Tin x) {
-  static_assert(sizeof(Tout)==sizeof(Tin), "Types must match sizes");
-
-  Tout out;
-#if !defined(__APPLE__) && defined(__clang_major__) && __clang_major__ >= 11
-  __builtin_memcpy_inline(&out, &x, sizeof(Tin));
-#else
-  __hipsycl_if_target_host(memcpy(&out, &x, sizeof(Tin)););
-  __hipsycl_if_target_device(
-    char* cout = reinterpret_cast<char*>(&out);
-    char* cin =  reinterpret_cast<char*>(&x);
-    for(int i = 0; i < sizeof(Tin); ++i)
-      cout[i] = cin[i];
-  );
-#endif
-  
-  return out;
-}
 
 }
 }

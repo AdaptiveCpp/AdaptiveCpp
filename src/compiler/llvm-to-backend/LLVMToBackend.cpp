@@ -235,7 +235,6 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
   return true;
 }
 
-
 bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
                                                 const std::string &ForcedTriple,
                                                 const std::string &ForcedDataLayout) {

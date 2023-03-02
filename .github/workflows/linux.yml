@@ -85,17 +85,17 @@ jobs:
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda
         cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
-    - name: build explicit multipass tests
-      run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
-        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
-        make -j2
     - name: build ROCm tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
         cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        make -j2
+    - name: build explicit multipass tests
+      run: |
+        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
+        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
+        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
         make -j2
     - name: run CPU tests
       run: |

@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_SSCP_AMDGPU_OCML_INTERFACE_HPP
 #define HIPSYCL_SSCP_AMDGPU_OCML_INTERFACE_HPP
 
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "../builtin_config.hpp"
 #include "ockl.hpp"
 

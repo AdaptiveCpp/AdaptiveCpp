@@ -25,7 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ocml.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 

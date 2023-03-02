@@ -295,6 +295,7 @@ public:
   }
 
   template <typename... Args, class S = VectorStorage,
+            std::enable_if_t<(sizeof...(Args) > 0), bool> = true,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
                              bool> = true,
             std::enable_if_t<(detail::count_num_elements<Args, T> + ...) == N,

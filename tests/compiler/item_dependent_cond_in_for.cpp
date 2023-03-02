@@ -1,7 +1,7 @@
 // XFAIL: pocl || org
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu
+// RUN: %syclcc %s -o %t --opensycl-targets=omp --opensycl-use-accelerated-cpu
 // RUN: %t | FileCheck %s
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu -O
+// RUN: %syclcc %s -o %t --opensycl-targets=omp --opensycl-use-accelerated-cpu -O
 // RUN: %t | FileCheck %s
 
 #include <array>

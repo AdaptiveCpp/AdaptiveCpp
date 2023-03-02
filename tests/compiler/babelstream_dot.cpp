@@ -1,6 +1,6 @@
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu
+// RUN: %syclcc %s -o %t --opensycl-targets=omp --opensycl-use-accelerated-cpu
 // RUN: %t | FileCheck %s
-// RUN: %syclcc %s -o %t --hipsycl-targets=omp --hipsycl-use-accelerated-cpu -O3
+// RUN: %syclcc %s -o %t --opensycl-targets=omp --opensycl-use-accelerated-cpu -O3
 // RUN: %t | FileCheck %s
 // Only O3 generated some invalid accesses at some point, so only test this..
 

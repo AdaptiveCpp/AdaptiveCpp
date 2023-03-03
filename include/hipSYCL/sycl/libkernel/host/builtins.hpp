@@ -670,6 +670,17 @@ template<class T>
 HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
   return std::isnan(x);
 }
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isinf(T x) noexcept {
+  return std::isinf(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
+  return std::isfinite(x);
+}
+
 }
 }
 }

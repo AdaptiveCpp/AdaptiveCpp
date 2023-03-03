@@ -58,11 +58,6 @@ HIPSYCL_BUILTIN T __hipsycl_acos(T x) noexcept {
 }
 
 template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnan, x);
-}
-
-template<class T>
 HIPSYCL_BUILTIN T __hipsycl_acosh(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acosh, x);
 }
@@ -631,6 +626,23 @@ HIPSYCL_BUILTIN auto __hipsycl_fast_distance(T a, T b) noexcept {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fast_normalize, a);
+}
+
+// ****************** relational functions ******************
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnan, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isinf(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isinf, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isfinite, x);
 }
 
 }

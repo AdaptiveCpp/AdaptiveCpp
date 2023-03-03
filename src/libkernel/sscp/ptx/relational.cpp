@@ -36,3 +36,19 @@ HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
 HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
   return __nv_isnand(x);
 }
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f32(float x) {
+  return __nv_isinff(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f64(double x) {
+  return __nv_isinfd(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f32(float x) {
+  return __nv_finitef(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f64(double x) {
+  return __nv_isfinited(x);
+}

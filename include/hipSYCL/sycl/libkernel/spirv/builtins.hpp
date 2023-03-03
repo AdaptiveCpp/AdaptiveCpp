@@ -50,13 +50,13 @@ namespace detail::spirv_builtins {
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN2(name)                                    \
   template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y) noexcept {   \
-    return __spirv_ocl_##name(x,y);                                              \
+    return __spirv_ocl_##name(x,y);                                            \
   }
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN3(name)                                    \
   template <class T>                                                           \
   HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y, T z) noexcept {                 \
-    return __spirv_ocl_##name(x,y,z);                                              \
+    return __spirv_ocl_##name(x,y,z);                                          \
   }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(acos)
@@ -478,12 +478,16 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 }
 
 // ****************** relational functions ******************
-#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(builtin_name, dispatched_name)   \
-  template <class T> HIPSYCL_BUILTIN T __hipsycl_##builtin_name(T x) noexcept {    \
-    return __spirv_##dispatched_name(x);                                              \
+#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(builtin_name, dispatched_name)       \
+  template <class T> HIPSYCL_BUILTIN T __hipsycl_##builtin_name(T x) noexcept {\
+    return __spirv_##dispatched_name(x);                                       \
   }
 
 HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isnan, IsNan)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isinf, IsInf)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isfinite, IsFinite)
 
 }
 }

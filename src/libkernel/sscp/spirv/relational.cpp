@@ -29,6 +29,10 @@
 
 int __spirv_IsNan(float);
 int __spirv_IsNan(double);
+int __spirv_IsInf(float);
+int __spirv_IsInf(double);
+int __spirv_IsFinite(float);
+int __spirv_IsFinite(double);
 
 HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
   return __spirv_IsNan(x);
@@ -36,4 +40,20 @@ HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
 
 HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
   return __spirv_IsNan(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f32(float x) {
+  return __spirv_IsInf(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f64(double x) {
+  return __spirv_IsInf(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f32(float x) {
+  return __spirv_IsFinite(x);
+}
+
+HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f64(double x) {
+  return __spirv_IsFinite(x);
 }

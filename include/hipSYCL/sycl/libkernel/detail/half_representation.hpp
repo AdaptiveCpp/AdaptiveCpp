@@ -107,7 +107,6 @@ inline half_storage truncate_from(double f) noexcept {
   return truncate_from(static_cast<float>(f));
 }
 
-
 inline float promote_to_float(half_storage h) noexcept {
   return hipsycl::fp16::fp16_ieee_to_fp32_value(h);
 }
@@ -115,7 +114,6 @@ inline float promote_to_float(half_storage h) noexcept {
 inline double promote_to_double(half_storage h) noexcept {
   return static_cast<double>(promote_to_float(h));
 }
-
 
 inline half_storage create(float f) noexcept {
   return truncate_from(f);

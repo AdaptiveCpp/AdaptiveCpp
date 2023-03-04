@@ -29,26 +29,18 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
-  return __ocml_isnan_f32(x);
-}
+#define HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(name)                                \
+  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##name##_f32(float x) {             \
+    return __ocml_##name##_f32(x);                                             \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##name##_f64(double x) {            \
+    return __ocml_##name##_f64(x);                                             \
+  }
+  
+HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isnan)
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
-  return __ocml_isnan_f64(x);
-}
+HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isinf)
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f32(float x) {
-  return __ocml_isinf_f32(x);
-}
+HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(isfinite)
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isinf_f64(double x) {
-  return __ocml_isinf_f64(x);
-}
-
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f32(float x) {
-  return __ocml_isfinite_f32(x);
-}
-
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isfinite_f64(double x) {
-  return __ocml_isfinite_f64(x);
-}
+HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(signbit)

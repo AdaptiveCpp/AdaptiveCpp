@@ -645,6 +645,11 @@ HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isfinite, x);
 }
 
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_signbit(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_signbit, x);
+}
+
 }
 }
 }

@@ -176,7 +176,7 @@ HIPSYCL_BUILTIN float __hipsycl_lgamma_r(float x, IntT* ptr) {
 }
 
 template<class IntT>
-HIPSYCL_BUILTIN double __hipsycl_lgamma_r_f64(double x, IntT* ptr) {
+HIPSYCL_BUILTIN double __hipsycl_lgamma_r(double x, IntT* ptr) {
   __hipsycl_int64 val;
   double res = __hipsycl_sscp_lgamma_r_f64(x, &val);
   *ptr = static_cast<IntT>(val);

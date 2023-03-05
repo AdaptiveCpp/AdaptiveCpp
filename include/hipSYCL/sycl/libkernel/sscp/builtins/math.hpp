@@ -136,6 +136,9 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_hypot_f64(double, double);
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_ilogb_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_ilogb_f64(double);
 
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_ldexp_f32(float, __hipsycl_int32);
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_ldexp_f64(double, __hipsycl_int64);
+
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_f32(float);
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_f64(double);
 

@@ -129,6 +129,12 @@ HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(ilogb)
+
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  return __spirv_ocl_ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_SPIRV_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(tgamma)
 

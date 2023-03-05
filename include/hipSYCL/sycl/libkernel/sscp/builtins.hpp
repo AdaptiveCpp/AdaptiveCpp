@@ -164,6 +164,17 @@ HIPSYCL_BUILTIN double __hipsycl_frexp(double x, IntT* ptr) {
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
+
+template<class IntType>
+HIPSYCL_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
+  return __hipsycl_sscp_ldexp_f32(x, k);
+}
+
+template<class IntType>
+HIPSYCL_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
+  return __hipsycl_sscp_ldexp_f64(x, k);
+}
+
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tgamma)
 

@@ -211,6 +211,11 @@ HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
   return std::ilogb(x);
 }
 
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  return std::ldexp(x, k);
+}
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_lgamma(T x) noexcept {
   return std::lgamma(x);

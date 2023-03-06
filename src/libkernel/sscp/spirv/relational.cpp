@@ -34,10 +34,10 @@
 #define HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(builtin_name,                \
                                                   dispatched_name)             \
   HIPSYCL_DECLARE_SSCP_SPIRV_BUILTIN(dispatched_name)                          \
-  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##builtin_name##_f32(float x) {     \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##builtin_name##_f32(float x) {      \
     return __spirv_##dispatched_name(x);                                       \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##builtin_name##_f64(double x) {    \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##builtin_name##_f64(double x) {     \
     return __spirv_##dispatched_name(x);                                       \
   }
 

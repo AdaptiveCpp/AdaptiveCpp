@@ -31,8 +31,8 @@
 #define HIPSYCL_SSCP_RELATIONAL_BUILTINS_HPP
 
 #define HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(name)                        \
-  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##name##_f32(float);                \
-  HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_##name##_f64(double);               \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f32(float);                 \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f64(double);                \
 
 HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(isnan)
 

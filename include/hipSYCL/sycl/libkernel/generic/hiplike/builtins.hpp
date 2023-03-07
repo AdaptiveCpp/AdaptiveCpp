@@ -396,6 +396,16 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
+template<class T,std::enable_if_t<(std::is_same_v<T, unsigned int> || std::is_same_v<T, int>), int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __clz(x);
+}
+
+template<class T,std::enable_if_t<(std::is_same_v<T, unsigned long long> || std::is_same_v<T, long long>), int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __clzll(x);
+}
+
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return __mul24(x, y);

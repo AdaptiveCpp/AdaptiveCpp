@@ -530,6 +530,11 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 }
 
 template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clz, x);
+}
+
+template<class T>
 HIPSYCL_BUILTIN T __hipsycl_max(T x, T y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_max, x, y);
 }

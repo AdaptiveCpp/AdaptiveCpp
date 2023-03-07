@@ -38,3 +38,19 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a,
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
   return __nv_umul24(a, b);
 }
+
+extern "C" __hipsycl_int32 __nv_clz(__hipsycl_int32);
+extern "C" __hipsycl_int64 __nv_clzll(__hipsycl_int64);
+
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint8 __hipsycl_sscp_clz_u8(__hipsycl_uint8 a){
+  return __nv_clz(a);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint16 __hipsycl_sscp_clz_u16(__hipsycl_uint16 a){
+  return __nv_clz(a);
+}
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_clz_u32(__hipsycl_uint32 a){
+  return __nv_clz(a);
+}	
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_clz_u64(__hipsycl_uint64 a){
+  return __nv_clzll(a);
+}

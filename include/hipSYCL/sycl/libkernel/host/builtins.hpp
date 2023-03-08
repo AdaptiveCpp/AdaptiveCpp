@@ -528,17 +528,27 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return std::min(std::max(x, minval), maxval);
 }
 
-template<class T,std::enable_if_t<(std::is_same_v<T, unsigned int> || std::is_same_v<T, int>), int> = 0>
+template <class T,
+          std::enable_if_t<
+              (std::is_same_v<T, unsigned int> || std::is_same_v<T, int> ||
+               std::is_same_v<T, unsigned short> || std::is_same_v<T, short> ||
+               std::is_same_v<T, unsigned char> ||
+               std::is_same_v<T, signed char> || std::is_same_v<T, char>),
+              int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   return __builtin_clz(x);
 }
 
-template<class T,std::enable_if_t<(std::is_same_v<T, unsigned long> || std::is_same_v<T, long>), int> = 0>
+template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long> ||
+                                     std::is_same_v<T, long>),
+                                    int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   return __builtin_clzl(x);
 }
 
-template<class T,std::enable_if_t<(std::is_same_v<T, unsigned long long> || std::is_same_v<T, long long>), int> = 0>
+template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long long> ||
+                                     std::is_same_v<T, long long>),
+                                    int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   return __builtin_clzll(x);
 }

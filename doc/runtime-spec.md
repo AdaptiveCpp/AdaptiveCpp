@@ -57,7 +57,7 @@ If a `buffer` is reinterpreted to a data type of different size than the origina
 
 #### Data transfers
 
-Accessors of `discard` access mode (`noinit` in SYCL 2020) shall never lead to data transfers.
+Accessors of `discard` access mode (`no_init` in SYCL 2020) shall never lead to data transfers.
 
 Accessors referring to a `buffer` that does not contain any initialized data (e.g. because it was never written to and was not constructed with a user-provided input pointer) shall never lead to data transfers.
 

@@ -536,21 +536,57 @@ template <class T,
                std::is_same_v<T, signed char> || std::is_same_v<T, char>),
               int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
-  return __builtin_clz(x);
+  #if __has_builtin(__builtin_clz)
+    return __builtin_clz(x);
+  #else
+    // mbit = 1000 0000 ...
+    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
+    T count = 0;
+    while (!(x & mBit))
+    {
+      x = (x << 1);
+      count ++;
+    }
+    return count;
+  #endif
 }
 
 template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long> ||
                                      std::is_same_v<T, long>),
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
-  return __builtin_clzl(x);
+  #if __has_builtin(__builtin_clzl)
+    return __builtin_clzl(x);
+  #else
+    // mbit = 1000 0000 ...
+    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
+    T count = 0;
+    while (!(x & mBit))
+    {
+      x = (x << 1);
+      count ++;
+    }
+    return count;
+  #endif
 }
 
 template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long long> ||
                                      std::is_same_v<T, long long>),
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
-  return __builtin_clzll(x);
+  #if __has_builtin(__builtin_clzll)
+    return __builtin_clzll(x);
+  #else
+    // mbit = 1000 0000 ...
+    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
+    T count = 0;
+    while (!(x & mBit))
+    {
+      x = (x << 1);
+      count ++;
+    }
+    return count;
+  #endif
 }
 
 template<class T>

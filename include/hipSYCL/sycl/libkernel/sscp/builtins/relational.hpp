@@ -30,16 +30,16 @@
 #ifndef HIPSYCL_SSCP_RELATIONAL_BUILTINS_HPP
 #define HIPSYCL_SSCP_RELATIONAL_BUILTINS_HPP
 
-#define HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(name)                        \
-  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f32(float);                 \
-  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f64(double);                \
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnan_f32(float);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnan_f64(double);
 
-HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(isnan)
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isinf_f32(float);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isinf_f64(double);
 
-HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(isinf)
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f32(float);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double);
 
-HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(isfinite)
-
-HIPSYCL_DECLARE_SSCP_GENFLOAT_REL_BUILTIN(signbit)
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f32(float);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f64(double);
 
 #endif

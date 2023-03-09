@@ -39,6 +39,9 @@ HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isinf_f64(double);
 HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f32(float);
 HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double);
 
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f32(float);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f64(double);
+
 HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f32(float);
 HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f64(double);
 

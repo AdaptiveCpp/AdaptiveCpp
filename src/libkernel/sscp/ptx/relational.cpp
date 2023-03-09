@@ -49,4 +49,12 @@ HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double x) {
   return __nv_isfinited(x);
 }
 
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f32(float x) {
+  return __builtin_isnormal(x);
+}
+
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f64(double x) {
+  return __builtin_isnormal(x);
+}
+
 HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(signbit)

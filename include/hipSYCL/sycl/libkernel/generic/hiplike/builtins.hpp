@@ -525,6 +525,8 @@ HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isinf, isinf, isinf);
 
 HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isfinite, isfinite, isfinite);
 
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isnormal, isnormal, isnormal);
+
 HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_signbit, signbit, signbit);
 
 }

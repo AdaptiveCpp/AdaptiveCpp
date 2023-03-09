@@ -396,14 +396,17 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
-template<class T,std::enable_if_t<(std::is_same_v<T, unsigned int> || std::is_same_v<T, int>), int> = 0>
+template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
-  return __clz(x);
-}
 
-template<class T,std::enable_if_t<(std::is_same_v<T, unsigned long long> || std::is_same_v<T, long long>), int> = 0>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
-  return __clzll(x);
+  // use __clzll or __clz by checking the bit lenght because
+  // the nvidia/hip documentation mention clz as 32 bits and clzll as 64
+  
+  if constexpr (sizeof(T)*CHAR_BIT == 64){
+    return __clzll(static_cast<__hipsycl_int64>(x));
+  }
+
+  return __clz(static_cast<__hipsycl_int32>(x));
 }
 
 template<class T>

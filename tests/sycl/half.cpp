@@ -31,7 +31,6 @@
 
 BOOST_FIXTURE_TEST_SUITE(half_tests, reset_device_fixture)
 
-
 BOOST_AUTO_TEST_CASE(half_arithmetic) {
   
   auto tolerance = boost::test_tools::tolerance(0.0001);
@@ -69,9 +68,55 @@ BOOST_AUTO_TEST_CASE(half_arithmetic) {
     float current_computed = hacc[i];
     BOOST_TEST(current_reference == current_computed, tolerance);
   }
-
-
-
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+using half_test_types =
+    boost::mpl::list<float, double, int, unsigned int, long, unsigned long>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
+  namespace s = cl::sycl;
+  auto tolerance = boost::test_tools::tolerance(0.0001);
+  
+  s::queue q;
+  T a{1};
+  s::half b{2.0f};
+
+  constexpr std::size_t num_tests = 8;
+  s::buffer<s::half, 1> buff{s::range{num_tests}};
+  q.submit([&](s::handler& cgh){
+    s::accessor acc{buff, cgh};
+    cgh.single_task([=](){
+      acc[0] = a + b;
+      acc[1] = b + a;
+
+      acc[2] = a - b;
+      acc[3] = b - a;
+
+      acc[4] = a * b;
+      acc[5] = b * a;
+
+      acc[6] = a / b;
+      acc[7] = b / a;
+    });
+  }).wait();
+
+  float f1 = 1.0f;
+  float f2 = 2.0f;
+  float reference [num_tests];
+  reference[0] = f1 + f2;
+  reference[1] = f2 + f1;
+  reference[2] = f1 - f2;
+  reference[3] = f2 - f1;
+  reference[4] = f1 * f2;
+  reference[5] = f2 * f1;
+  reference[6] = f1 / f2;
+  reference[7] = f2 / f1;
+  
+  s::host_accessor hacc{buff};
+  for(int i = 0; i < num_tests; ++i){
+    float current_reference = reference[i];
+    float current_computed = hacc[i];
+    BOOST_TEST(current_reference == current_computed, tolerance);
+  }
+}
+
+BOOST_AUTO_TEST_SUITE_END()    

@@ -60,13 +60,22 @@ private:
 public:
   constexpr half() : _data{} {};
   
-  explicit half(float f) noexcept
+  half(float f) noexcept
   : _data{fp16::create(f)} {}
   
-  explicit half(double f) noexcept
+  half(double f) noexcept
   : _data{fp16::create(f)} {}
 
-  explicit half(int f) noexcept
+  half(int f) noexcept
+  : _data{fp16::create(static_cast<float>(f))} {}
+
+  half(long f) noexcept
+  : _data{fp16::create(static_cast<float>(f))} {}
+
+  half(unsigned int f) noexcept
+  : _data{fp16::create(static_cast<float>(f))} {}
+
+  half(unsigned long f) noexcept
   : _data{fp16::create(static_cast<float>(f))} {}
 
 
@@ -149,6 +158,32 @@ public:
     a = a / b;
     return a;
   }
+
+    // operator +,-,*,/ for combinations of half and other types
+#define OP_FOR_TYPE(op, type)                                         \
+  friend half operator op(const half lhs, const type rhs) {           \
+    return lhs op half(rhs);                                          \
+  }                                                                   \
+                                                                      \
+  friend half operator op(const type lhs, const half rhs) {           \
+    return half(lhs) op rhs;                                          \
+  }
+
+#define OP(op)                                                        \
+  OP_FOR_TYPE(op, int)                                                \
+  OP_FOR_TYPE(op, unsigned int)                                       \
+  OP_FOR_TYPE(op, long)                                               \
+  OP_FOR_TYPE(op, unsigned long)                                      \
+  OP_FOR_TYPE(op, float)                                              \
+  OP_FOR_TYPE(op, double)
+
+  OP(+)
+  OP(-)
+  OP(*)
+  OP(/)
+
+#undef OP
+#undef OP_FOR_TYPE
 
   friend bool operator==(const half& a, const half& b) noexcept {
     return a._data == b._data;

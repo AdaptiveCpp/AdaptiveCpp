@@ -29,6 +29,7 @@
 #define HIPSYCL_VEC_HPP
 
 #include "backend.hpp"
+#include "half.hpp"
 #include "multi_ptr.hpp"
 
 #include <cstdint>
@@ -243,7 +244,8 @@ public:
                     std::is_same_v<unsigned long int, T> ||
                     std::is_same_v<long long int, T> ||
                     std::is_same_v<unsigned long long int, T> ||
-                    std::is_same_v<float, T> || std::is_same_v<double, T>,
+                    std::is_same_v<float, T> || std::is_same_v<double, T> ||
+                    std::is_same_v<half, T>,
                 "Invalid data type for vec<>");
 
   using element_type = T;
@@ -948,6 +950,12 @@ using double3 = vec<double, 3>;
 using double4 = vec<double, 4>;
 using double8 = vec<double, 8>;
 using double16 = vec<double, 16>;
+
+using half2 = vec<half, 2>;
+using half3 = vec<half, 3>;
+using half4 = vec<half, 4>;
+using half8 = vec<half, 8>;
+using half16 = vec<half, 16>;
 
 namespace detail {
 

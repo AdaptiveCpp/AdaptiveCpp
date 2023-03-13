@@ -404,9 +404,10 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
   
   if constexpr (sizeof(T)*CHAR_BIT == 64){
     return __clzll(static_cast<__hipsycl_int64>(x));
+  }else{
+    return __clz(static_cast<__hipsycl_int32>(x));
   }
 
-  return __clz(static_cast<__hipsycl_int32>(x));
 }
 
 template<class T>

@@ -34,6 +34,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <type_traits>
+#include <climits>
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 
@@ -528,6 +529,19 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return std::min(std::max(x, minval), maxval);
 }
 
+template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+inline T __safe_clz(T x) noexcept {
+  // m_bit = 1000 0000 ...
+  constexpr T m_bit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
+  T count = 0;
+  while (!(x & m_bit))
+  {
+    x = (x << 1);
+    count ++;
+  }
+  return count;
+}
+
 template <class T,
           std::enable_if_t<
               (std::is_same_v<T, unsigned int> || std::is_same_v<T, int> ||
@@ -539,15 +553,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clz)
     return __builtin_clz(x);
   #else
-    // mbit = 1000 0000 ...
-    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
-    T count = 0;
-    while (!(x & mBit))
-    {
-      x = (x << 1);
-      count ++;
-    }
-    return count;
+    return __safe_clz();
   #endif
 }
 
@@ -558,15 +564,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzl)
     return __builtin_clzl(x);
   #else
-    // mbit = 1000 0000 ...
-    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
-    T count = 0;
-    while (!(x & mBit))
-    {
-      x = (x << 1);
-      count ++;
-    }
-    return count;
+    return __safe_clz();
   #endif
 }
 
@@ -577,15 +575,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzll)
     return __builtin_clzll(x);
   #else
-    // mbit = 1000 0000 ...
-    constexpr T mBit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
-    T count = 0;
-    while (!(x & mBit))
-    {
-      x = (x << 1);
-      count ++;
-    }
-    return count;
+    return __safe_clz();
   #endif
 }
 

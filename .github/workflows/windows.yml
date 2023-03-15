@@ -78,8 +78,8 @@ jobs:
         CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"
         CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
-        $env:PATH += ";$env:GITHUB_WORKSPACE/llvm/bin"
+        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
         mkdir $env:GITHUB_WORKSPACE/build/core
         cd $env:GITHUB_WORKSPACE/build/core
-        cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="$env:GITHUB_WORKSPACE/llvm/bin/clang.exe" -DCMAKE_CXX_COMPILER="$env:GITHUB_WORKSPACE/llvm/bin/clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=ON -DLLVM_DIR="$env:GITHUB_WORKSPACE/llvm/lib/cmake/llvm"
+        cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=ON -DLLVM_DIR="$env:GITHUB_WORKSPACE/llvm/lib/cmake/llvm"
         ninja -j2 install

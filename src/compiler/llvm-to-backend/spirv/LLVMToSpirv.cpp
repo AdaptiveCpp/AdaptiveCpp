@@ -354,6 +354,5 @@ createLLVMToSpirvTranslator(const std::vector<std::string> &KernelNames) {
   return std::make_unique<LLVMToSpirvTranslator>(KernelNames);
 }
 
-
 }
 }

@@ -36,6 +36,8 @@
 #include <exception>
 #include <mutex>
 
+#include "libkernel/detail/int_types.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -84,26 +86,27 @@ using exception_ptr = exception_ptr_class;
 using exception_list = vector_class<exception_ptr>;
 using async_handler = function_class<void(sycl::exception_list)>;
 
+class half;
+
 // \todo Better use uint32_t etc
 namespace detail {
 // Define types in analogy to OpenCL cl_* types
-using u_char = unsigned char;
-using u_short = unsigned short;
-using u_int = unsigned;
-using u_long = unsigned long long;
+using u_char = __hipsycl_uint8;
+using u_short = __hipsycl_uint16;
+using u_int = __hipsycl_uint32;
+using u_long = __hipsycl_uint64;
 
-using s_char = char;
-using s_short = short;
-using s_int = int;
-using s_long = long long;
+using s_char = __hipsycl_int8;
+using s_short = __hipsycl_int16;
+using s_int = __hipsycl_int32;
+using s_long = __hipsycl_int64;
 
-// ToDo: Proper half type
-using hp_float = u_short;
+
+using hp_float = sycl::half;
 using sp_float = float;
 using dp_float = double;
 } //detail
 
-using half = detail::hp_float;
 } // sycl
 } // hipsycl
 

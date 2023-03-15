@@ -1,4 +1,4 @@
-# Using platform-specific features in hipSYCL
+# Using platform-specific features in Open SYCL
 
 Platform specific features can be used as follows:
 ```cpp

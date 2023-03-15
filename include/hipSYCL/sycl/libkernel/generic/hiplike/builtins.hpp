@@ -101,12 +101,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ceil, ceilf, ceil)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_copysign, copysignf, copysign)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cos, cosf, cos)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cosh, coshf, cosh)
-
-template<class T>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_cospi(T x) noexcept {
-  return hiplike_builtins::__hipsycl_cos(x * M_PI);
-}
-
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cospi, cospif, cospi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erf, erff, erf)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erfc, erfcf, erfc)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_exp, expf, exp)
@@ -223,12 +218,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sinh, sinhf, sinh)
-
-template<class T>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sinpi(T x) noexcept {
-  return hiplike_builtins::__hipsycl_sin(x * M_PI);
-}
-
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sinpi, sinpif, sinpi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tan, tanf, tan)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tanh, tanhf, tanh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_trunc, truncf, trunc)
@@ -473,7 +463,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_dot(T a, T b) noexcept {
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN typename T::element_type __hipsycl_dot(T a, T b) noexcept {
   typename T::element_type result = 0;
-  for (int i = 0; i < a.get_count(); ++i) {
+  for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
   return result;

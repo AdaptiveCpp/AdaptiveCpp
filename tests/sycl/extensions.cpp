@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
           s::distribute_items(grp, [&](s::s_item<1> idx) {
             int res = 0;
             auto v = priv_mem(idx) + init_val;
-            for(int i = 0; i < init_val.get_count(); ++i) {
+            for(int i = 0; i < init_val.size(); ++i) {
               res += v[i];
             }
             acc[idx.get_global_linear_id()] = res;
@@ -393,7 +393,7 @@ BOOST_AUTO_TEST_CASE(scoped_parallelism_memory_environment) {
       } else if(grp == 4) {
         const s::vec<int,8> expected_v{0,2,4,6,8,10,12,14};
         int expected = 0; 
-        for (int i = 0; i < expected_v.get_count(); ++i)
+        for (int i = 0; i < expected_v.size(); ++i)
           expected += expected_v[i];
         BOOST_CHECK(hacc[gid] == expected);
       }

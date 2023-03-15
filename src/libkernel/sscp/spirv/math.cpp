@@ -101,8 +101,8 @@ HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(copysign)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cos)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(cosh)
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_cospi_f32(float x) { return __hipsycl_sscp_cos_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_cospi_f64(double x) { return __hipsycl_sscp_cos_f64(x) * PI; }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_cospi_f32(float x) { return __hipsycl_sscp_cos_f32(x * PI); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_cospi_f64(double x) { return __hipsycl_sscp_cos_f64(x * PI); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(erf)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(erfc)
@@ -178,8 +178,8 @@ HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sqrt)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sin)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(sinh)
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_sinpi_f32(float x) { return __hipsycl_sscp_sin_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_sinpi_f64(double x) { return __hipsycl_sscp_sin_f64(x) * PI; }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_sinpi_f32(float x) { return __hipsycl_sscp_sin_f32(x * PI); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_sinpi_f64(double x) { return __hipsycl_sscp_sin_f64(x * PI); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tan)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tanh)

@@ -52,6 +52,7 @@
 #include "extensions.hpp"
 
 #include "libkernel/backend.hpp"
+#include "libkernel/bit_cast.hpp"
 #include "libkernel/range.hpp"
 #include "libkernel/id.hpp"
 #include "libkernel/accessor.hpp"
@@ -65,7 +66,9 @@
 #include "libkernel/memory_environment.hpp"
 #include "libkernel/private_memory.hpp"
 #include "libkernel/local_memory.hpp"
+#include "libkernel/half.hpp"
 #include "libkernel/vec.hpp"
+#include "libkernel/marray.hpp"
 #include "libkernel/builtins.hpp"
 #include "libkernel/atomic.hpp"
 #include "libkernel/atomic_ref.hpp"

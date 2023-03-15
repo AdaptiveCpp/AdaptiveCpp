@@ -1,9 +1,9 @@
-# hipSYCL runtime specification
+# Open SYCL runtime specification
 
-The hipSYCL runtime library follows the requirements of a SYCL runtime library as described in the SYCL specification. The following specification assumes the SYCL specification, but expands on it where hipSYCL provides stronger or slightly different guarantees.
+The Open SYCL runtime library follows the requirements of a SYCL runtime library as described in the SYCL specification. The following specification assumes the SYCL specification, but expands on it where Open SYCL provides stronger or slightly different guarantees.
 It is assumed that the reader is at least familiar with the SYCL programming model.
 
-## hipSYCL buffer-accessor model
+## Open SYCL buffer-accessor model
 
 ### Buffer behavior
 
@@ -43,7 +43,7 @@ Memory shall be allocated lazily on a particular device when a `buffer` is first
 
 A SYCL implementation needs to track whether data stored in the `buffer` in an allocation on a particular device is up-to-date or outdated. This information allows it to determine whether the implicit requirements formulated by accessors need to be translated into actual data transfers.
 
-In the hipSYCL model, the range of the buffer is interpreted as a 3D grid that is divided into 3D chunks of fixed size in each dimension. These chunks will in the following be referred to as *pages* (unrelated to virtual memory pages of the operating system). An implementation may expose mechanisms that allow the user to set the page size in each dimension in the `buffer` constructor. The page size determines the granularity of memory management and data state tracking.
+In the Open SYCL model, the range of the buffer is interpreted as a 3D grid that is divided into 3D chunks of fixed size in each dimension. These chunks will in the following be referred to as *pages* (unrelated to virtual memory pages of the operating system). An implementation may expose mechanisms that allow the user to set the page size in each dimension in the `buffer` constructor. The page size determines the granularity of memory management and data state tracking.
 
 For each allocation managed on each device, the `buffer` implementation shall track for each page whether the data contained within the page is up-to-date or outdated.
 
@@ -57,7 +57,7 @@ If a `buffer` is reinterpreted to a data type of different size than the origina
 
 #### Data transfers
 
-Accessors of `discard` access mode (`noinit` in SYCL 2020) shall never lead to data transfers.
+Accessors of `discard` access mode (`no_init` in SYCL 2020) shall never lead to data transfers.
 
 Accessors referring to a `buffer` that does not contain any initialized data (e.g. because it was never written to and was not constructed with a user-provided input pointer) shall never lead to data transfers.
 
@@ -78,4 +78,4 @@ Independent command groups may be executed in parallel. For example, this includ
 #### Comments
 
 * A smaller page size means a finer data management granularity; it may allow for more operations to be executed without dependencies in between them, but may also lead to a larger runtime overhead when tracking data state. The optimal page size is therefore a tradeoff. 
-* Note that in the hipSYCL model, subbuffers are neither needed, nor necessary, nor recommended to obtain parallel execution of kernels.
+* Note that in the Open SYCL model, subbuffers are neither needed, nor necessary, nor recommended to obtain parallel execution of kernels.

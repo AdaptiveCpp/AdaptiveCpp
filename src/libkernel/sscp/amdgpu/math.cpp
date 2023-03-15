@@ -25,13 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ocml.hpp"
-
-#define PI 3.14159265358979323846
 
 template <class T> __amdgpu_private T *to_private(T* gen_pointer) {
   return (__amdgpu_private T *)gen_pointer;
@@ -69,35 +66,21 @@ template <class T> __amdgpu_private T *to_private(T* gen_pointer) {
 
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(acos, __ocml_acos)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(acosh, __ocml_acosh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_acospi_f32(float x) { return __hipsycl_sscp_acos_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_acospi_f64(double x) { return __hipsycl_sscp_acos_f64(x) / PI; }
-
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(acospi, __ocml_acospi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(asin, __ocml_asin)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(asinh, __ocml_asinh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_asinpi_f32(float x) { return __hipsycl_sscp_asin_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_asinpi_f64(double x) { return __hipsycl_sscp_asin_f64(x) / PI; }
-
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(asinpi, __ocml_asinpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atan, __ocml_atan)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(atan2, __ocml_atan2)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atanh, __ocml_atan)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_atanpi_f32(float x) { return __hipsycl_sscp_atan_f32(x) / PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_atanpi_f64(double x) { return __hipsycl_sscp_atan_f64(x) / PI; }
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_atan2pi_f32(float x, float y) { return __hipsycl_sscp_atan2_f32(x, y) / PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_atan2pi_f64(double x, double y) { return __hipsycl_sscp_atan2_f64(x, y) / PI; }
-
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(atanpi, __ocml_atanpi)
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(atan2pi, __ocml_atan2pi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(cbrt, __ocml_cbrt)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(ceil, __ocml_ceil)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN2(copysign, __ocml_copysign)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(cos, __ocml_cos)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(cosh, __ocml_cosh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_cospi_f32(float x) { return __hipsycl_sscp_cos_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_cospi_f64(double x) { return __hipsycl_sscp_cos_f64(x) * PI; }
-
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(cospi, __ocml_cospi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(erf, __ocml_erf)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(erfc, __ocml_erfc)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(exp, __ocml_exp)
@@ -237,10 +220,7 @@ HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(rsqrt, __ocml_rsqrt)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sqrt, __ocml_sqrt)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sin, __ocml_sin)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinh, __ocml_sinh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_sinpi_f32(float x) { return __hipsycl_sscp_sin_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_sinpi_f64(double x) { return __hipsycl_sscp_sin_f64(x) * PI; }
-
+HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(sinpi, __ocml_sinpi)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tan, __ocml_tan)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(tanh, __ocml_tanh)
 HIPSYCL_SSCP_MAP_OCML_FLOAT_BUILTIN(trunc, __ocml_trunc)

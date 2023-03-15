@@ -32,7 +32,7 @@
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "hipSYCL/sycl/detail/util.hpp"
+#include "hipSYCL/sycl/libkernel/bit_cast.hpp"
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 

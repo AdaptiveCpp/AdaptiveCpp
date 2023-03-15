@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(hipSYCL_clang)
+project(opensycl-clang)
 
 get_filename_component(CLANG_BINARY_PREFIX ${CLANG_EXECUTABLE_PATH} DIRECTORY)
 
@@ -48,51 +48,51 @@ else()
   set(SSCP_COMPILER "")
 endif()
 
-add_library(hipSYCL_clang SHARED
-  HipsyclClangPlugin.cpp
+add_library(opensycl-clang SHARED
+  OpenSYCLClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
   ${SSCP_COMPILER}
 )
 
-target_include_directories(hipSYCL_clang PRIVATE
+target_include_directories(opensycl-clang PRIVATE
   ../../include
   ${LLVM_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}/include)
 
-target_compile_definitions(hipSYCL_clang PRIVATE
+target_compile_definitions(opensycl-clang PRIVATE
   ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
 
 if(ROCM_VERSION_MAJOR)
-  target_compile_definitions(hipSYCL_clang PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
+  target_compile_definitions(opensycl-clang PRIVATE -DROCM_CLANG_VERSION_MAJOR=${ROCM_VERSION_MAJOR} -DROCM_CLANG_VERSION_MINOR=${ROCM_VERSION_MINOR} -DROCM_CLANG_VERSION_PATCH=${ROCM_VERSION_PATCH})
 endif()
 if(HIPSYCL_NO_DEVICE_MANGLER)
-  target_compile_definitions(hipSYCL_clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
+  target_compile_definitions(opensycl-clang PRIVATE -DHIPSYCL_NO_DEVICE_MANGLER)
 endif()
 
 if(NOT ${LLVM_ENABLE_EH})
-  target_compile_options(hipSYCL_clang PRIVATE -fno-exceptions)
+  target_compile_options(opensycl-clang PRIVATE -fno-exceptions)
 endif()
 
 if(NOT ${LLVM_ENABLE_RTTI})
-  target_compile_options(hipSYCL_clang PRIVATE -fno-rtti)
+  target_compile_options(opensycl-clang PRIVATE -fno-rtti)
 endif()
 
-target_link_libraries(hipSYCL_clang
+target_link_libraries(opensycl-clang
   ${LLVM_LIBS})
 if(APPLE)
-  target_link_libraries(hipSYCL_clang -Wl,-undefined -Wl,dynamic_lookup)
+  target_link_libraries(opensycl-clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)
   set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
-  target_link_directories(hipSYCL_clang PRIVATE ${CLANG_LIBRARY_DIR})
-  target_link_libraries(hipSYCL_clang clang)
-  set_target_properties(hipSYCL_clang PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  target_link_directories(opensycl-clang PRIVATE ${CLANG_LIBRARY_DIR})
+  target_link_libraries(opensycl-clang clang)
+  set_target_properties(opensycl-clang PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
 else()
-  target_link_libraries(hipSYCL_clang -Wl,-znodelete)
+  target_link_libraries(opensycl-clang -Wl,-znodelete)
 endif()
 
-install(TARGETS hipSYCL_clang
+install(TARGETS opensycl-clang
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
         ARCHIVE DESTINATION lib)

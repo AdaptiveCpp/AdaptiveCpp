@@ -26,7 +26,6 @@
  */
 
 
-#define HIPSYCL_SSCP_BUILTIN_CONFIG_HAVE_NATIVE_HALF
 #include "hipSYCL/sycl/libkernel/sscp/builtins/amdgpu/ockl.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
 

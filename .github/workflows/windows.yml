@@ -73,7 +73,6 @@ jobs:
         Start-Process -FilePath ".\cuda.exe" -ArgumentList "-s nvcc_10.1 cudart_10.1" -Wait -NoNewWindow
         
     - name: Build OpenSYCL
-      continue-on-error: true
       shell: powershell
       env:
         CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"

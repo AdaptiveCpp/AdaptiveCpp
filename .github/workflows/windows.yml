@@ -97,4 +97,4 @@ jobs:
       shell: powershell
       run: |
         cd $env:GITHUB_WORKSPACE/build/tests-cpu
-        sycl-tests.exe
+        ./sycl-tests.exe

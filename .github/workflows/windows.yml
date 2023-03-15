@@ -94,7 +94,9 @@ jobs:
         ninja -j2
 
     - name: run CPU tests
-      shell: powershell
+      shell: cmd
       run: |
-        cd $env:GITHUB_WORKSPACE/build/tests-cpu
-        ./sycl_tests.exe
+        set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
+        cd "%GITHUB_WORKSPACE%/build/tests-cpu"
+        sycl_tests.exe
+        

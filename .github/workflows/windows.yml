@@ -83,3 +83,15 @@ jobs:
         cd $env:GITHUB_WORKSPACE/build/core
         cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=ON -DLLVM_DIR="$env:GITHUB_WORKSPACE/llvm/lib/cmake/llvm" -DCMAKE_BUILD_TYPE=Release
         ninja -j2 install
+
+    - name: build CPU tests
+      shell: powershell
+      env:
+        CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
+      run: |
+        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
+        $env:PATH += ";$env:CUDA_BIN_PATH"
+        mkdir $env:GITHUB_WORKSPACE/build/tests-cpu
+        $env:GITHUB_WORKSPACE/build/tests-cpu
+        cmake -G Ninja -DHIPSYCL_TARGETS="omp" -DhipSYCL_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/OpenSYCL" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
+        ninja -j2

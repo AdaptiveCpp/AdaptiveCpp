@@ -96,7 +96,7 @@ jobs:
     - name: run CPU tests
       shell: cmd
       run: |
-        set PATH=%GITHUB_WORKSPACE%build\core\install\bin;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\build\core\install\bin;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         cd "%GITHUB_WORKSPACE%/build/tests-cpu"
         sycl_tests.exe

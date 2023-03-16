@@ -10,7 +10,7 @@ jobs:
       matrix:
         clang_version: [15.0.0]
         os: [windows-2019]
-        cuda: ['10.1']
+        cuda: ['10.1', '11.8', '12.1']
     steps:
     - uses: actions/checkout@v3
       with:
@@ -30,12 +30,29 @@ jobs:
         path: ${{github.workspace}}/llvm
         key: ${{runner.os}}-llvm15
 
-    - name: Cache CUDA
-      id: cache-cuda
+    - name: Cache CUDA 10.2
+      if: matrix.cuda == 10.2
+      id: cache-cuda-10-2
       uses: actions/cache@v3
       with:
         path: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA"
-        key: ${{runner.os}}-cuda
+        key: ${{runner.os}}-cuda-10-2
+
+    - name: Cache CUDA 11.8
+      if: matrix.cuda == 11.8
+      id: cache-cuda-11-8
+      uses: actions/cache@v3
+      with:
+        path: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA"
+        key: ${{runner.os}}-cuda-11-8
+
+    - name: Cache CUDA 12.1
+      if: matrix.cuda == 12.1
+      id: cache-cuda-12-1
+      uses: actions/cache@v3
+      with:
+        path: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA"
+        key: ${{runner.os}}-cuda-12-1
 
     - name: Add Ninja to PATH
       shell: powershell
@@ -63,14 +80,27 @@ jobs:
         cd .\boost_1_81_0
         .\bootstrap.bat
         .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release --build-type=complete stage
-        
-    - name: Install CUDA 10.1
-      if: matrix.cuda == 10.1 && steps.cache-cuda.outputs.cache-hit != 'true'
+
+    - name: install CUDA 10.2
+      if: matrix.cuda == 10.2 && steps.cache-cuda-10-2.outputs.cache-hit != 'true'
       shell: powershell
       run: |
-        cd $env:GITHUB_WORKSPACE
-        Invoke-WebRequest https://developer.nvidia.com/compute/cuda/10.1/Prod/network_installers/cuda_10.1.105_win10_network.exe -OutFile cuda.exe
-        Start-Process -FilePath ".\cuda.exe" -ArgumentList "-s nvcc_10.1 cudart_10.1" -Wait -NoNewWindow
+        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/10.2/Prod/network_installers/cuda_10.2.89_win10_network.exe
+        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_10.2 nvprune_10.2 cupti_10.2 cublas_10.2 cublas_dev_10.2 cudart_10.2 cufft_10.2 cufft_dev_10.2 curand_10.2 curand_dev_10.2 cusolver_10.2 cusolver_dev_10.2 cusparse_10.2 cusparse_dev_10.2 npp_10.2 npp_dev_10.2 nvrtc_10.2 nvrtc_dev_10.2 nvml_dev_10.2" -Wait -NoNewWindow
+        
+    - name: install CUDA 11.8
+      if: matrix.cuda == 11.8 && steps.cache-cuda-11-8.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/11.8.0/network_installers/cuda_11.8.0_windows_network.exe
+        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_11.8 nvprune_11.8 cupti_11.8 cublas_11.8 cublas_dev_11.8 cudart_11.8 cufft_11.8 cufft_dev_11.8 curand_11.8 curand_dev_11.8 cusolver_11.8 cusolver_dev_11.8 cusparse_11.8 cusparse_dev_11.8 npp_11.8 npp_dev_11.8 nvrtc_11.8 nvrtc_dev_11.8 nvml_dev_11.8" -Wait -NoNewWindow
+
+    - name: install CUDA 12.1
+      if: matrix.cuda == 12.1 && steps.cache-cuda-12-1.outputs.cache-hit != 'true'
+      shell: powershell
+      run: |
+        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/12.1.0/network_installers/cuda_12.1.0_windows_network.exe
+        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_12.1 nvprune_12.1 cupti_12.1 cublas_12.1 cublas_dev_12.1 cudart_12.1 cufft_12.1 cufft_dev_12.1 curand_12.1 curand_dev_12.1 cusolver_12.1 cusolver_dev_12.1 cusparse_12.1 cusparse_dev_12.1 npp_12.1 npp_dev_12.1 nvrtc_12.1 nvrtc_dev_12.1 nvml_dev_12.1" -Wait -NoNewWindow
         
     - name: Build OpenSYCL
       shell: powershell

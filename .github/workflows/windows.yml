@@ -10,7 +10,7 @@ jobs:
       matrix:
         clang_version: [15.0.0]
         os: [windows-2019]
-        cuda: ['10.1', '11.8', '12.1']
+        cuda: ['10.2', '11.8', '12.1']
     steps:
     - uses: actions/checkout@v3
       with:

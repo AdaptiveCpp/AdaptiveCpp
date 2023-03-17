@@ -10,7 +10,7 @@ jobs:
       matrix:
         clang_version: [15.0.0]
         os: [windows-2019]
-        cuda: ['11.8', '12.1']
+        cuda: ['11.0']
     steps:
     - uses: actions/checkout@v3
       with:
@@ -73,19 +73,12 @@ jobs:
         .\bootstrap.bat
         .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release --build-type=complete stage
         
-    - name: install CUDA 11.8
-      if: matrix.cuda == 11.8 && steps.cache-cuda-11-8.outputs.cache-hit != 'true'
+    - name: install CUDA 11.0
+      if: matrix.cuda == 11.0 && steps.cache-cuda-11-0.outputs.cache-hit != 'true'
       shell: powershell
       run: |
-        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/11.8.0/network_installers/cuda_11.8.0_windows_network.exe
-        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_11.8 nvprune_11.8 cupti_11.8 cublas_11.8 cublas_dev_11.8 cudart_11.8 cufft_11.8 cufft_dev_11.8 curand_11.8 curand_dev_11.8 cusolver_11.8 cusolver_dev_11.8 cusparse_11.8 cusparse_dev_11.8 npp_11.8 npp_dev_11.8 nvrtc_11.8 nvrtc_dev_11.8 nvml_dev_11.8" -Wait -NoNewWindow
-
-    - name: install CUDA 12.1
-      if: matrix.cuda == 12.1 && steps.cache-cuda-12-1.outputs.cache-hit != 'true'
-      shell: powershell
-      run: |
-        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/12.1.0/network_installers/cuda_12.1.0_windows_network.exe
-        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_12.1 nvprune_12.1 cupti_12.1 cublas_12.1 cublas_dev_12.1 cudart_12.1 cufft_12.1 cufft_dev_12.1 curand_12.1 curand_dev_12.1 cusolver_12.1 cusolver_dev_12.1 cusparse_12.1 cusparse_dev_12.1 npp_12.1 npp_dev_12.1 nvrtc_12.1 nvrtc_dev_12.1 nvml_dev_12.1" -Wait -NoNewWindow
+        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/11.0.2/network_installers/cuda_11.0.2_win10_network.exe
+        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_11.0 nvprune_11.0 cupti_11.0 cublas_11.0 cublas_dev_11.0 cudart_11.0 cufft_11.0 cufft_dev_11.0 curand_11.0 curand_dev_11.0 cusolver_11.0 cusolver_dev_11.0 cusparse_11.0 cusparse_dev_11.0 npp_11.0 npp_dev_11.0 nvrtc_11.0 nvrtc_dev_11.0 nvml_dev_11.0" -Wait -NoNewWindow
         
     - name: Build OpenSYCL
       shell: powershell

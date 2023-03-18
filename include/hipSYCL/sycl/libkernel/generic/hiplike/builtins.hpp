@@ -399,7 +399,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
 
-  // use __clzll or __clz by checking the bit lenght because
+  // use __clzll or __clz by checking the bit length because
   // the nvidia/hip documentation mention clz as 32 bits and clzll as 64
   
   if constexpr (sizeof(T)*CHAR_BIT == 64){

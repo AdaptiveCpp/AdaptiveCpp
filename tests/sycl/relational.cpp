@@ -30,7 +30,6 @@
 #include <boost/mpl/joint_view.hpp>
 
 #include <cmath>
-#include <cfloat>
 
 BOOST_FIXTURE_TEST_SUITE(rel_tests, reset_device_fixture)
 
@@ -57,8 +56,8 @@ using rel_test_genfloats = boost::mpl::list<
 
 namespace {
 
-  template<typename DT, int N>
-  using vec = cl::sycl::vec<DT, N>;
+  template<typename DT, int D>
+  using vec = cl::sycl::vec<DT, D>;
 
   // utility type traits for generic testing
 
@@ -66,9 +65,9 @@ namespace {
   struct vector_length {
     static constexpr int value = 0;
   };
-  template<typename DT, int N>
-  struct vector_length<vec<DT, N>> {
-    static constexpr int value = N;
+  template<typename DT, int D>
+  struct vector_length<vec<DT, D>> {
+    static constexpr int value = D;
   };
   template<typename T>
   constexpr int vector_length_v = vector_length<T>::value;
@@ -86,92 +85,32 @@ namespace {
 
   // utility functions for generic testing
 
-  template<typename DT, int D, std::enable_if_t<D<=4, int> = 0>
-  auto get_rel_input(cl::sycl::vec<DT, 16> v) {
-    return std::get<D>(std::make_tuple(
-      v.s0(),
-      vec<DT, 1>(v.s0()),
-      vec<DT, 2>(v.s0(), v.s1()),
-      vec<DT, 3>(v.s0(), v.s1(), v.s2()),
-      vec<DT, 4>(v.s0(), v.s1(), v.s2(), v.s3())));
-  }
-  template<typename DT, int D, std::enable_if_t<D==8, int> = 0>
-  auto get_rel_input(cl::sycl::vec<DT, 16> v) {
-    return vec<DT, 8>(v.s0(), v.s1(), v.s2(), v.s3(), v.s4(), v.s5(), v.s6(), v.s7());
-  }
-  template<typename DT, int D, std::enable_if_t<D==16, int> = 0>
-  auto get_rel_input(cl::sycl::vec<DT, 16> v) {
+  template<typename DT, int D>
+  auto get_subvector(vec<DT, 16> v) {
+  if constexpr(D==0) {
+    return v.template swizzle<0>();
+  } else if constexpr(D==2) {
+    return vec<DT, 2>{v.template swizzle<0,1>()};
+  } else if constexpr(D==3) {
+    return vec<DT, 3>{v.template swizzle<0,1,2>()};
+  } else if constexpr(D==4) {
+    return vec<DT, 4>{v.template swizzle<0,1,2,3>()};
+  } else if constexpr(D==8) {
+    return vec<DT, 8>{v.template swizzle<0,1,2,3,4,5,6,7>()};
+  } else if constexpr(D==16) {
     return v;
   }
+}
 
-  // runtime indexed access to vector elements
-  // this could be a single function with constexpr if in C++17
-  // could also be done by using knowledge of the internal structure,
-  // but I wanted to avoid that.
-  template<typename T, std::enable_if_t<vector_length_v<T> == 0, int> = 0>
+  template<typename T>
   auto comp(T v, size_t idx) {
     assert(idx == 0);
     return v;
   }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 1, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    return v.x();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 2, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    return v.y();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 3, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    if(idx==1) return v.y();
-    return v.z();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 4, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    if(idx==1) return v.y();
-    if(idx==2) return v.z();
-    return v.w();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 8, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.s0();
-    if(idx==1) return v.s1();
-    if(idx==2) return v.s2();
-    if(idx==3) return v.s3();
-    if(idx==4) return v.s4();
-    if(idx==5) return v.s5();
-    if(idx==6) return v.s6();
-    if(idx==7) return v.s7();
-    return v.s7();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 16, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.s0();
-    if(idx==1) return v.s1();
-    if(idx==2) return v.s2();
-    if(idx==3) return v.s3();
-    if(idx==4) return v.s4();
-    if(idx==5) return v.s5();
-    if(idx==6) return v.s6();
-    if(idx==7) return v.s7();
-    if(idx==8) return v.s8();
-    if(idx==9) return v.s9();
-    if(idx==10) return v.sA();
-    if(idx==11) return v.sB();
-    if(idx==12) return v.sC();
-    if(idx==13) return v.sD();
-    if(idx==14) return v.sE();
-    if(idx==15) return v.sF();
-    return v.sF();
+  template<typename DT, int D>
+  auto comp(vec<DT, D> v, size_t idx) {
+    assert(idx < D);
+    return v[idx];
   }
 }
 
@@ -194,9 +133,15 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   s::buffer<T> in{{1}};
   s::buffer<OutType> out{{FUN_COUNT}};
   {
-    auto inputs  = in.template get_access<s::access::mode::write>();
-    auto outputs = out.template get_access<s::access::mode::write>();
-    inputs[0] = get_rel_input<DT, D>({NAN, INFINITY, INFINITY - INFINITY, 0.0, 0.0/0.0, 1.0/0.0, sqrt(-1), FLT_MIN, FLT_MIN/2.0, DBL_MIN, DBL_MIN/2.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    auto inputs  = in.get_host_access();
+    auto outputs = out.get_host_access();
+    inputs[0] = get_subvector<DT, D>({NAN, INFINITY, INFINITY - INFINITY,
+                                      0.0, 0.0/0.0, 1.0/0.0, sqrt(-1),
+                                      std::numeric_limits<float>::min(),
+                                      std::numeric_limits<float>::denorm_min(),
+                                      std::numeric_limits<double>::min(),
+                                      std::numeric_limits<double>::denorm_min(),
+                                      -1.0, 17.0, -4.0, -2.0, 3.0});
     for(int i = 0; i < FUN_COUNT; ++i) {
       outputs[i] = OutType{IntType{0}};
     }
@@ -220,8 +165,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   // check results
 
   {
-    auto inputs = in.template get_access<s::access::mode::read>();
-    auto outputs = out.template get_access<s::access::mode::read>();
+    auto inputs = in.get_host_access();
+    auto outputs = out.get_host_access();
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 0;

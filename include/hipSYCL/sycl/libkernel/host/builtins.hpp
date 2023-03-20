@@ -530,7 +530,7 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 }
 
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
-inline T __fallback_clz(T x) noexcept {
+inline T fallback_clz(T x) noexcept {
   // m_bit = 1000 0000 ...
   constexpr T m_bit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
   T count = 0;

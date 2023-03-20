@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13, 14, 15]
+        clang_version: [11, 12, 13, 14, 15, 16]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04, ubuntu-18.04]
         cuda: [11.0]
@@ -53,6 +53,10 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
         sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev
+        if [[ "${{matrix.clang_version}}" == "16" ]]; then
+          sudo rm -r /usr/lib/clang/16*
+          sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
+        fi
     - name: install boost (from source)
       if: matrix.os == 'ubuntu-18.04'
       run: |

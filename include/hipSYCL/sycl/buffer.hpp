@@ -655,8 +655,8 @@ public:
         *this, commandGroupHandler};
   }
 
-  // Deprecated
   template <access::mode mode>
+  [[deprecated("Use get_host_access() instead")]]
   auto get_access()
   {
     return accessor<T, dimensions, mode, access::target::host_buffer,
@@ -679,8 +679,8 @@ public:
     };
   }
 
-  // Deprecated
   template <access::mode mode>
+  [[deprecated("Use get_host_access() instead")]]
   auto get_access(
       range<dimensions> accessRange, id<dimensions> accessOffset = {})
   {

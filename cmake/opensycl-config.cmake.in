@@ -1,0 +1,126 @@
+@PACKAGE_INIT@
+
+set(OPENSYCL_SYCLCC "@PACKAGE_OPENSYCL_INSTALL_COMPILER_DIR@/syclcc-clang")
+set(OPENSYCL_SYCLCC_LAUNCHER "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_DIR@/syclcc-launcher")
+set(OPENSYCL_SYCLCC_LAUNCH_RULE_IN_FILE "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_RULE_DIR@/syclcc-launch.rule.in")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+include(opensycl-targets)
+
+set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to syclcc.")
+set(OPENSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS "${OPENSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
+
+set(OPENSYCL_TARGETS_DESC "in the format OPENSYCL_TARGETS=<platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>]. See syclcc --help for a list of platforms.")
+set(OPENSYCL_TARGETS "${OPENSYCL_TARGETS}" CACHE STRING "The platforms and architectures Open SYCL should target, ${OPENSYCL_TARGETS_DESC}.")
+# IF OPENSYCL_TARGETS has not been explicitly set by the user, first tro to find the corresponding environment variable.
+
+if(NOT OPENSYCL_TARGETS)
+  set(OPENSYCL_TARGETS_ENV $ENV{OPENSYCL_TARGETS})
+  if(OPENSYCL_TARGETS_ENV)
+    message("Found OPENSYCL_TARGETS from environment: ${OPENSYCL_TARGETS_ENV}")
+    set(OPENSYCL_TARGETS "${OPENSYCL_TARGETS_ENV}")
+  endif()
+endif()
+if(OPENSYCL_TARGETS)
+  set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-targets=\"${OPENSYCL_TARGETS}\"")
+endif()
+
+set(OPENSYCL_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")
+if(OPENSYCL_CLANG)
+  set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-clang=${OPENSYCL_CLANG}")
+endif()
+
+set(OPENSYCL_CUDA_PATH "" CACHE STRING "The path to the CUDA toolkit installation directory.")
+if(OPENSYCL_CUDA_PATH)
+  if(OPENSYCL_TARGETS MATCHES "cuda")
+    set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-cuda-path=${OPENSYCL_CUDA_PATH}")
+  else()
+    message(WARNING "OPENSYCL_CUDA_PATH (${OPENSYCL_CUDA_PATH}) is ignored for current target specification")
+  endif()
+endif()
+
+set(OPENSYCL_ROCM_PATH "" CACHE STRING "The path to the ROCm installation directory.")
+if(OPENSYCL_ROCM_PATH)
+  if(OPENSYCL_TARGETS MATCHES "hip")
+    set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-rocm-path=${OPENSYCL_ROCM_PATH}")
+  else()
+    message(WARNING "OPENSYCL_ROCM_PATH (${OPENSYCL_ROCM_PATH}) is ignored for current targets specification")
+  endif()
+endif()
+
+set(OPENSYCL_CPU_CXX "" CACHE STRING "The compiler that should be used when targeting only CPUs.")
+if(OPENSYCL_CPU_CXX)
+  if(OPENSYCL_TARGETS MATCHES "omp")
+    set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-cpu-cxx=${OPENSYCL_CPU_CXX}")
+  else()
+    message(WARNING "OPENSYCL_CPU_CXX (${OPENSYCL_CPU_CXX}) is ignored for current targets specification")
+  endif()
+endif()
+
+set(OPENSYCL_USE_ACCELERATED_CPU "${OPENSYCL_USE_ACCELERATED_CPU}" CACHE STRING "Enable compiler support for the nd_range parallel_for paradigm to accelerate it. Requires using clang as host compiler.")
+if(NOT OPENSYCL_USE_ACCELERATED_CPU)
+  set(OPENSYCL_USE_ACCELERATED_CPU_ENV $ENV{OPENSYCL_USE_ACCELERATED_CPU})
+  if(OPENSYCL_USE_ACCELERATED_CPU_ENV)
+    message("Found OPENSYCL_USE_ACCELERATED_CPU from environment: ${OPENSYCL_USE_ACCELERATED_CPU_ENV}")
+    set(OPENSYCL_USE_ACCELERATED_CPU "${OPENSYCL_USE_ACCELERATED_CPU_ENV}")
+  endif()
+endif()
+if(OPENSYCL_USE_ACCELERATED_CPU)
+  set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-use-accelerated-cpu")
+elseif(NOT OPENSYCL_USE_ACCELERATED_CPU STREQUAL "")
+  set(OPENSYCL_SYCLCC_EXTRA_ARGS "${OPENSYCL_SYCLCC_EXTRA_ARGS} --opensycl-use-accelerated-cpu=false")
+endif()
+
+# To invoke syclcc, the add_sycl_to_target function sets a compiler and linker launch rule on the target that will pass
+# the entire GCC or Clang command line to lib/cmake/OpenSYCL/syclcc-launcher. The launcher will prepend syclcc-specific
+# arguments from OPENSYCL_SYCLCC_EXTRA_ARGS and replace GCC or Clang with syclcc in the command line.
+# This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
+# by clang(d)-based tooling and IDEs.
+if(WIN32)
+  set(OPENSYCL_SYCLCC_LAUNCH_RULE "python ${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${OPENSYCL_SYCLCC}\" ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
+else()
+  set(OPENSYCL_SYCLCC_LAUNCH_RULE "${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${OPENSYCL_SYCLCC} ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
+endif()
+
+# All SYCL targets must be rebuilt when syclcc arguments change, e.g. by changing the target platform. Since the
+# contents of OPENSYCL_SYCLCC_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
+# the variables's content and have every object file within a SYCL target depend on it.
+set(OPENSYCL_SYCLCC_LAUNCH_RULE_FILE "${CMAKE_BINARY_DIR}/CMakeFiles/opensycl-syclcc-launch.rule")
+configure_file("${OPENSYCL_SYCLCC_LAUNCH_RULE_IN_FILE}" "${OPENSYCL_SYCLCC_LAUNCH_RULE_FILE}" @ONLY)
+set(OPENSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS "${OPENSYCL_SYCLCC_LAUNCHER};${OPENSYCL_SYCLCC_LAUNCH_RULE_FILE}")
+
+# Do not call target_sources after add_sycl_to_target or dependency tracking on compiler flags will break in subtle ways
+function(add_sycl_to_target)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(ADD_SYCL
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set_property(SOURCE ${ADD_SYCL_SOURCES} APPEND PROPERTY COMPILE_OPTIONS
+      ${OPENSYCL_SYCLCC_EXTRA_COMPILE_OPTIONS})
+
+  # The compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
+  # also set for all files in the list.
+  get_target_property(ADD_SYCL_TARGET_ALL_SOURCES "${ADD_SYCL_TARGET}" SOURCES)
+
+  foreach(SOURCE_FILE_ITER IN LISTS ADD_SYCL_TARGET_ALL_SOURCES)
+    get_source_file_property(ADD_SYCL_OBJECT_DEPENDS "${SOURCE_FILE_ITER}" OBJECT_DEPENDS)
+    if(ADD_SYCL_OBJECT_DEPENDS)
+      set(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS};${OPENSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
+    else()
+      set(ADD_SYCL_OBJECT_DEPENDS "${OPENSYCL_SYCLCC_EXTRA_OBJECT_DEPENDS}")
+    endif()
+    set_source_files_properties("${SOURCE_FILE_ITER}" PROPERTIES OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS}")
+  endforeach()
+
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${OPENSYCL_SYCLCC_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${OPENSYCL_SYCLCC_LAUNCH_RULE}")
+
+  target_link_libraries(${ADD_SYCL_TARGET} PUBLIC OpenSYCL::hipSYCL-rt)
+endfunction()

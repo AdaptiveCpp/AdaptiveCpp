@@ -28,6 +28,9 @@
 #ifndef HIPSYCL_MEMORY_HPP
 #define HIPSYCL_MEMORY_HPP
 
+// Note: This file defines enumerations that are also used by low-level SSCP
+// builtin definitions. Keep this as a file without include dependencies!
+
 namespace hipsycl {
 namespace sycl {
 

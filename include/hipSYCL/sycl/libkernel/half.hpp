@@ -54,30 +54,11 @@ private:
   friend constexpr half detail::create_half(fp16::half_storage h);
   friend constexpr fp16::half_storage detail::get_half_storage(half h);
 
-  constexpr half(fp16::half_storage f) noexcept
-  : _data{f} {}
-
 public:
   constexpr half() : _data{} {};
   
   half(float f) noexcept
   : _data{fp16::create(f)} {}
-  
-  half(double f) noexcept
-  : _data{fp16::create(f)} {}
-
-  half(int f) noexcept
-  : _data{fp16::create(static_cast<float>(f))} {}
-
-  half(long f) noexcept
-  : _data{fp16::create(static_cast<float>(f))} {}
-
-  half(unsigned int f) noexcept
-  : _data{fp16::create(static_cast<float>(f))} {}
-
-  half(unsigned long f) noexcept
-  : _data{fp16::create(static_cast<float>(f))} {}
-
 
   half(const half&) = default;
 
@@ -85,14 +66,6 @@ public:
 
   operator float() const {
     return fp16::promote_to_float(_data);
-  }
-
-  operator double() const {
-    return fp16::promote_to_double(_data);
-  }
-
-  operator int() const {
-    return static_cast<int>(fp16::promote_to_float(_data));
   }
 
   HIPSYCL_UNIVERSAL_TARGET

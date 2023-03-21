@@ -90,7 +90,7 @@ jobs:
         $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
         mkdir $env:GITHUB_WORKSPACE/build/tests-cpu
         cd $env:GITHUB_WORKSPACE/build/tests-cpu
-        cmake -G Ninja -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/hipSYCL" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
+        cmake -G Ninja -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/OpenSYCL" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
         ninja -j2
 
     - name: build CUDA tests

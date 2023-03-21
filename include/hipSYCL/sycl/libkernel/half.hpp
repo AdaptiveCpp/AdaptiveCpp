@@ -162,18 +162,24 @@ public:
     // operator +,-,*,/ for combinations of half and other types
 #define OP_FOR_TYPE(op, type)                                         \
   friend half operator op(const half lhs, const type rhs) {           \
-    return lhs op half(rhs);                                          \
+    half res = rhs;                                                   \
+    res = lhs op res;                                                 \
+    return res;                                                       \
   }                                                                   \
                                                                       \
-  friend half operator op(const type lhs, const half rhs) {           \
-    return half(lhs) op rhs;                                          \
+  friend type operator op(const type lhs, const half rhs) {           \
+    type res = rhs;                                                   \
+    res = lhs op res;                                                 \
+    return res;                                                       \
   }
 
 #define OP(op)                                                        \
   OP_FOR_TYPE(op, int)                                                \
   OP_FOR_TYPE(op, unsigned int)                                       \
   OP_FOR_TYPE(op, long)                                               \
+  OP_FOR_TYPE(op, long long)                                          \
   OP_FOR_TYPE(op, unsigned long)                                      \
+  OP_FOR_TYPE(op, unsigned long long)                                 \
   OP_FOR_TYPE(op, float)                                              \
   OP_FOR_TYPE(op, double)
 

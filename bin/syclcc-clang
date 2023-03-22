@@ -424,6 +424,7 @@ class syclcc_config:
   
   def _is_opensycl_envvar(self, varname):
     accepted_vars = [self._options[opt].environment for opt in self._options]
+    accepted_vars += [self._flags[flag].environment for flag in self._flags]
     return varname in accepted_vars
 
   def _parse_compound_argument(self, arg):

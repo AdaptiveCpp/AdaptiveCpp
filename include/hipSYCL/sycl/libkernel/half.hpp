@@ -28,6 +28,9 @@
 #ifndef HIPSYCL_HALF_HPP
 #define HIPSYCL_HALF_HPP
 
+#include <limits>
+#include <functional>
+
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 #include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
@@ -39,12 +42,23 @@
 namespace hipsycl {
 namespace sycl {
 
+class half;
+
+namespace detail {
+  constexpr half create_half(fp16::half_storage h);
+  constexpr fp16::half_storage get_half_storage(half h);
+}
+
 class half {
 private:
-  half(fp16::half_storage f) noexcept
+  friend constexpr half detail::create_half(fp16::half_storage h);
+  friend constexpr fp16::half_storage detail::get_half_storage(half h);
+
+  constexpr half(fp16::half_storage f) noexcept
   : _data{f} {}
+
 public:
-  half() = default;
+  constexpr half() : _data{} {};
   
   explicit half(float f) noexcept
   : _data{fp16::create(f)} {}
@@ -187,7 +201,83 @@ private:
   fp16::half_storage _data;
 };
 
+namespace detail {
+  constexpr half create_half(fp16::half_storage h) {
+    half v;
+    v._data = h;
+    return v;
+  }
+  constexpr fp16::half_storage get_half_storage(half h) {
+    return h._data;
+  }
 }
+
+}
+}
+
+namespace std {
+  template<> class numeric_limits<hipsycl::sycl::half>{
+  public:
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_signed = true;
+    static constexpr bool is_integer = false;
+    static constexpr bool is_exact = false;
+    static constexpr bool is_modulo = false;
+    static constexpr bool is_bounded = true;
+    static constexpr bool is_iec559 = true;
+    static constexpr bool has_infinity = true;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = true;
+    static constexpr float_denorm_style has_denorm = denorm_present;
+    static constexpr bool has_denorm_loss = false;
+    static constexpr bool traps = false;
+    static constexpr bool tinyness_before = false;
+    static constexpr float_round_style round_style = float_round_style::round_indeterminate;
+    static constexpr int digits = 11;
+    static constexpr int digits10 = 3;
+    static constexpr int max_digits10 = 5;
+    static constexpr int radix = 2;
+    static constexpr int min_exponent = -13;
+    static constexpr int min_exponent10 = -4;
+    static constexpr int max_exponent = 16;
+    static constexpr int max_exponent10 = 4;
+
+    static constexpr hipsycl::sycl::half min() noexcept {
+      return hipsycl::sycl::detail::create_half(0x0400);
+    }
+    static constexpr hipsycl::sycl::half lowest() noexcept {
+      return hipsycl::sycl::detail::create_half(0xFBFF);
+    }
+    static constexpr hipsycl::sycl::half max() noexcept {
+      return hipsycl::sycl::detail::create_half(0x7BFF);
+    }
+    static constexpr hipsycl::sycl::half epsilon() noexcept {
+      return hipsycl::sycl::detail::create_half(0x1400);
+    }
+    static constexpr hipsycl::sycl::half round_error() noexcept {
+      return hipsycl::sycl::detail::create_half(
+          (round_style == std::round_to_nearest) ? 0x3800 : 0x3C00);
+    }
+    static constexpr hipsycl::sycl::half infinity() noexcept {
+      return hipsycl::sycl::detail::create_half(0x7C00);
+    }
+    static constexpr hipsycl::sycl::half quiet_NaN() noexcept {
+      return hipsycl::sycl::detail::create_half(0x7FFF);
+    }
+    static constexpr hipsycl::sycl::half signaling_NaN() noexcept {
+      return hipsycl::sycl::detail::create_half(0x7DFF);
+    }
+    static constexpr hipsycl::sycl::half denorm_min() noexcept {
+      return hipsycl::sycl::detail::create_half(0x0001);
+    }
+  };
+
+  template <> struct hash<hipsycl::sycl::half> {
+    size_t operator()(hipsycl::sycl::half h) const {
+      auto data = hipsycl::sycl::detail::get_half_storage(h);
+      return hash<hipsycl::fp16::half_storage>{}(data);
+    }
+  };
 }
 
 #endif

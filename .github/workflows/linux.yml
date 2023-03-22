@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13, 14, 15]
+        clang_version: [11, 12, 13, 14, 15, 16]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04, ubuntu-18.04]
         cuda: [11.0]
@@ -53,6 +53,10 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh ${{matrix.clang_version}}
         sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev
+        if [[ "${{matrix.clang_version}}" == "16" ]]; then
+          sudo rm -r /usr/lib/clang/16*
+          sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
+        fi
     - name: install boost (from source)
       if: matrix.os == 'ubuntu-18.04'
       run: |
@@ -77,25 +81,25 @@ jobs:
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-        cmake -DHIPSYCL_TARGETS="omp" -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        cmake -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
         make -j2
     - name: build CUDA tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda
-        cmake -DHIPSYCL_TARGETS="cuda:sm_60" -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: build ROCm tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
-        cmake -DHIPSYCL_PLATFORM=rocm -DHIPSYCL_GPU_ARCH=gfx906 -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: build explicit multipass tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
-        cmake -DHIPSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
         make -j2
     - name: run CPU tests
       run: |
@@ -133,5 +137,5 @@ jobs:
     - name: build tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-nvcxx
-        cmake -DHIPSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DhipSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/hipSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
         make -j2

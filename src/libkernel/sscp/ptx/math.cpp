@@ -88,10 +88,7 @@ HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(ceil, __nv_ceilf, __nv_ceil)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN2(copysign, __nv_copysignf, __nv_copysign)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(cos, __nv_cosf, __nv_cos)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(cosh, __nv_coshf, __nv_cosh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_cospi_f32(float x) { return __hipsycl_sscp_cos_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_cospi_f64(double x) { return __hipsycl_sscp_cos_f64(x) * PI; }
-
+HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(cospi, __nv_cospif, __nv_cospi)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(erf, __nv_erff, __nv_erf)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(erfc, __nv_erfcf, __nv_erfc)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(exp, __nv_expf, __nv_exp)
@@ -209,10 +206,7 @@ HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(rsqrt, __nv_rsqrtf, __nv_rsqrt)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sqrt, __nv_sqrtf, __nv_sqrt)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sin, __nv_sinf, __nv_sin)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinh, __nv_sinhf, __nv_sinh)
-
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_sinpi_f32(float x) { return __hipsycl_sscp_sin_f32(x) * PI; }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_sinpi_f64(double x) { return __hipsycl_sscp_sin_f64(x) * PI; }
-
+HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(sinpi, __nv_sinpif, __nv_sinpi)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(tan, __nv_tanf, __nv_tan)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(tanh, __nv_tanhf, __nv_tanh)
 HIPSYCL_SSCP_MAP_PTX_FLOAT_BUILTIN(trunc, __nv_truncf, __nv_trunc)

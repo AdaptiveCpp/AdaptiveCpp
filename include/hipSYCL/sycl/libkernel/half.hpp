@@ -70,46 +70,56 @@ public:
 
   HIPSYCL_UNIVERSAL_TARGET
   friend half operator+(const half& a, const half& b) noexcept {
+    fp16::half_storage data;
+    // __hipsycl_backend_switch contains an if statement for sscp pass, so we
+    // cannot write `fp16::half_storage data = __hipsycl_backend_switch(...)`.
     __hipsycl_backend_switch(
-      return fp16::builtin_add(a._data, b._data),
-      return __hipsycl_sscp_half_add(a._data, b._data),
-      return fp16::create(__hadd(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
+      data = fp16::builtin_add(a._data, b._data),
+      data = __hipsycl_sscp_half_add(a._data, b._data),
+      data = fp16::create(__hadd(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin addition for native _Float16 type
-      return fp16::builtin_add(a._data, b._data),
-      return fp16::builtin_add(a._data, b._data))
+      data = fp16::builtin_add(a._data, b._data),
+      data = fp16::builtin_add(a._data, b._data));
+    return detail::create_half(data);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   friend half operator-(const half& a, const half& b) noexcept {
+    fp16::half_storage data;
     __hipsycl_backend_switch(
-      return fp16::builtin_sub(a._data, b._data),
-      return __hipsycl_sscp_half_sub(a._data, b._data),
-      return fp16::create(__hsub(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
+      data = fp16::builtin_sub(a._data, b._data),
+      data = __hipsycl_sscp_half_sub(a._data, b._data),
+      data = fp16::create(__hsub(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin subtraction for native _Float16 type
-      return fp16::builtin_sub(a._data, b._data),
-      return fp16::builtin_sub(a._data, b._data))
+      data = fp16::builtin_sub(a._data, b._data),
+      data = fp16::builtin_sub(a._data, b._data));
+    return detail::create_half(data);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   friend half operator*(const half& a, const half& b) noexcept {
+    fp16::half_storage data;
     __hipsycl_backend_switch(
-      return fp16::builtin_mul(a._data, b._data),
-      return __hipsycl_sscp_half_mul(a._data, b._data),
-      return fp16::create(__hmul(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
+      data = fp16::builtin_mul(a._data, b._data),
+      data = __hipsycl_sscp_half_mul(a._data, b._data),
+      data = fp16::create(__hmul(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin mul for native _Float16 type
-      return fp16::builtin_mul(a._data, b._data),
-      return fp16::builtin_mul(a._data, b._data))
+      data = fp16::builtin_mul(a._data, b._data),
+      data = fp16::builtin_mul(a._data, b._data));
+    return detail::create_half(data);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
   friend half operator/(const half& a, const half& b) noexcept {
+    fp16::half_storage data;
     __hipsycl_backend_switch(
-      return fp16::builtin_div(a._data, b._data),
-      return __hipsycl_sscp_half_div(a._data, b._data),
-      return fp16::create(__hdiv(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
+      data = fp16::builtin_div(a._data, b._data),
+      data = __hipsycl_sscp_half_div(a._data, b._data),
+      data = fp16::create(__hdiv(fp16::as_cuda_half(a._data), fp16::as_cuda_half(b._data))),
       // HIP uses compiler builtin div for native _Float16 type
-      return fp16::builtin_div(a._data, b._data),
-      return fp16::builtin_div(a._data, b._data))
+      data = fp16::builtin_div(a._data, b._data),
+      data = fp16::builtin_div(a._data, b._data));
+    return detail::create_half(data);
   }
 
   friend half& operator+=(half& a, const half& b) noexcept {

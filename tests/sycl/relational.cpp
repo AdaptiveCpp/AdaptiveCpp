@@ -157,7 +157,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
       outputs[i++] = s::isfinite(inputs[0]);
       outputs[i++] = s::isinf(inputs[0]);
       outputs[i++] = s::isnan(inputs[0]);
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
       outputs[i++] = s::isnormal(inputs[0]);
+#endif
       outputs[i++] = s::signbit(inputs[0]);
     });
   });
@@ -173,7 +175,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
       BOOST_TEST(comp(outputs[i++], c) == std::isfinite(comp(inputs[0], c)));
       BOOST_TEST(comp(outputs[i++], c) == std::isinf(comp(inputs[0], c)));
       BOOST_TEST(comp(outputs[i++], c) == std::isnan(comp(inputs[0], c)));
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
       BOOST_TEST(comp(outputs[i++], c) == std::isnormal(comp(inputs[0], c)));
+#endif
       BOOST_TEST(comp(outputs[i++], c) == std::signbit(comp(inputs[0], c)));
     }
   }

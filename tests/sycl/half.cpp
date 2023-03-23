@@ -71,7 +71,10 @@ BOOST_AUTO_TEST_CASE(half_arithmetic) {
 }
 
 using half_test_types =
-    boost::mpl::list<float, double, int, unsigned int, long, unsigned long>;
+  boost::mpl::list<float, double,
+                   int, unsigned int,
+                   long, long long,
+                   unsigned long, unsigned long long>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   namespace s = cl::sycl;
   auto tolerance = boost::test_tools::tolerance(0.0001);
@@ -80,42 +83,51 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   T a{1};
   s::half b{2.0f};
 
-  constexpr std::size_t num_tests = 8;
-  s::buffer<s::half, 1> buff{s::range{num_tests}};
+  constexpr std::size_t num_ops = 4;
+  s::buffer<T, 1> buff_T{s::range{num_ops}}; // T as lhs operand
+  s::buffer<s::half, 1> buff_half{s::range{num_ops}}; // half as lhs operand
   q.submit([&](s::handler& cgh){
-    s::accessor acc{buff, cgh};
-    cgh.single_task([=](){
-      acc[0] = a + b;
-      acc[1] = b + a;
+    s::accessor acc_half{buff_half, cgh};
+    s::accessor acc_T{buff_T, cgh};
+    cgh.single_task([=](){      
+      acc_T[0] = a + b;
+      acc_T[1] = a - b;
+      acc_T[2] = a * b;
+      acc_T[3] = a / b;
 
-      acc[2] = a - b;
-      acc[3] = b - a;
-
-      acc[4] = a * b;
-      acc[5] = b * a;
-
-      acc[6] = a / b;
-      acc[7] = b / a;
+      acc_half[0] = b + a;
+      acc_half[1] = b - a;
+      acc_half[2] = b * a;
+      acc_half[3] = b / a;
     });
   }).wait();
 
-  float f1 = 1.0f;
+  T f1{1};
   float f2 = 2.0f;
-  float reference [num_tests];
-  reference[0] = f1 + f2;
-  reference[1] = f2 + f1;
-  reference[2] = f1 - f2;
-  reference[3] = f2 - f1;
-  reference[4] = f1 * f2;
-  reference[5] = f2 * f1;
-  reference[6] = f1 / f2;
-  reference[7] = f2 / f1;
   
-  s::host_accessor hacc{buff};
-  for(int i = 0; i < num_tests; ++i){
-    float current_reference = reference[i];
-    float current_computed = hacc[i];
-    BOOST_TEST(current_reference == current_computed, tolerance);
+  T reference_T [num_ops];
+  reference_T[0] = f1 + f2;
+  reference_T[1] = f1 - f2;
+  reference_T[2] = f1 * f2;
+  reference_T[3] = f1 / f2;
+
+  float reference_half [num_ops];
+  reference_half[0] = f2 + f1;
+  reference_half[1] = f2 - f1;
+  reference_half[2] = f2 * f1;
+  reference_half[3] = f2 / f1;
+  
+  s::host_accessor hacc_half{buff_half};
+  s::host_accessor hacc_T{buff_T};
+  for(int i = 0; i < num_ops; ++i){
+    float current_reference_half = reference_half[i];
+    T current_reference_T = reference_T[i];
+    
+    float current_computed_half = hacc_half[i];
+    T current_computed_T = hacc_T[i];
+    
+    BOOST_TEST(current_reference_half == current_computed_half, tolerance);
+    BOOST_TEST(current_reference_T == current_computed_T, tolerance);
   }
 }
 

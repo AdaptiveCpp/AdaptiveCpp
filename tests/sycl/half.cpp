@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   s::half b{2.0f};
 
   constexpr std::size_t num_ops = 4;
-  s::buffer<T, 1> buff_T{s::range{num_ops}}; // T as lhs operand
+  s::buffer<s::half, 1> buff_T{s::range{num_ops}}; // T as lhs operand
   s::buffer<s::half, 1> buff_half{s::range{num_ops}}; // half as lhs operand
   q.submit([&](s::handler& cgh){
     s::accessor acc_half{buff_half, cgh};
@@ -105,13 +105,13 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   T f1{1};
   float f2 = 2.0f;
   
-  T reference_T [num_ops];
+  float reference_T [num_ops]; // T as lhs operand
   reference_T[0] = f1 + f2;
   reference_T[1] = f1 - f2;
   reference_T[2] = f1 * f2;
   reference_T[3] = f1 / f2;
 
-  float reference_half [num_ops];
+  float reference_half [num_ops]; // half as lhs operand
   reference_half[0] = f2 + f1;
   reference_half[1] = f2 - f1;
   reference_half[2] = f2 * f1;

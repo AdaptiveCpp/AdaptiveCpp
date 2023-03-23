@@ -256,13 +256,15 @@ public:
 
     KernelNameMangler.reset(NameMangler);
     DeviceKernelNameMangler.reset(DeviceNameMangler);
-// #ifdef _WIN32
-//     // necessary, to rely on device mangling. API introduced in 
-//     // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
-//     KernelNameMangler->setDeviceMangleContext(
-//       Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
-//       && Instance.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily());
-// #endif // _WIN32
+#ifdef _WIN32
+#if LLVM_VERSION_MAJOR == 11 || LLVM_VERSION_MAJOR == 12
+    // necessary, to rely on device mangling. API introduced in 
+    // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
+    KernelNameMangler->setDeviceMangleContext(
+      Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
+      && Instance.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily());
+#endif
+#endif // _WIN32
   }
 
   ~FrontendASTVisitor()

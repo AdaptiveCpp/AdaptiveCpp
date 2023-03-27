@@ -25,12 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef HIPSYCL_INFO_KERNEL_HPP
 #define HIPSYCL_INFO_KERNEL_HPP
 
-#include "../types.hpp"
-#include "param_traits.hpp"
 #include "hipSYCL/sycl/libkernel/range.hpp"
+#include "info.hpp"
+#include "../types.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -40,13 +41,13 @@ class program;
 
 namespace info {
 
-enum class kernel : int {
-  function_name,
-  num_args,
-  context,
-  program,
-  reference_count,
-  attributes
+namespace kernel {
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(function_name, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(num_args, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(program, sycl::program);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(attributes, string_class);
 };
 
 namespace kernel_device_specific {
@@ -81,37 +82,17 @@ struct compile_sub_group_size {
 
 }  // namespace kernel_device_specific
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::function_name, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::num_args, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::context, sycl::context);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::program, sycl::program);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::reference_count, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel, kernel::attributes, string_class);
-
-
-enum class kernel_work_group : int
+namespace kernel_work_group
 {
-  global_work_size,
-  work_group_size,
-  compile_work_group_size,
-  preferred_work_group_size_multiple,
-  private_mem_size
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_work_size, sycl::range<3>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(work_group_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(compile_work_group_size, sycl::range<3>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_work_group_size_multiple, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(private_mem_size, detail::u_long);
 };
-
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel_work_group, 
-                                kernel_work_group::global_work_size, sycl::range<3>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel_work_group, 
-                                kernel_work_group::work_group_size, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel_work_group, 
-                                kernel_work_group::compile_work_group_size, sycl::range<3>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel_work_group, 
-                                kernel_work_group::preferred_work_group_size_multiple, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(kernel_work_group, 
-                                kernel_work_group::private_mem_size, detail::u_long);
 
 } // info
 } // sycl
 } // hipsycl
-
 
 #endif

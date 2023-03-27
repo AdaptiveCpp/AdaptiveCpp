@@ -143,8 +143,8 @@ public:
     return devs;
   }
 
-  template <info::context param>
-  typename info::param_traits<info::context, param>::return_type get_info() const {
+  template <typename Param>
+  typename Param::return_type get_info() const {
     throw unimplemented{"context::get_info() is unimplemented"};
   }
 

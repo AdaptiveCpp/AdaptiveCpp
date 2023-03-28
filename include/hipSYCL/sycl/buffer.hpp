@@ -306,6 +306,27 @@ private:
 
 };
 
+template <typename, typename = void>
+struct HasData : std::false_type {};
+
+template <typename Container>
+struct HasData<Container, std::void_t<decltype(std::data(std::declval<Container>()))>>
+  : std::true_type {};
+
+template <typename, typename = void>
+struct HasSize : std::false_type {};
+
+template <typename Container>
+struct HasSize<Container, std::void_t<decltype(std::size(Container{}))>>
+  : std::true_type {};
+
+template <typename Container, typename T>
+using EnableIfContiguous = std::void_t<std::enable_if_t<
+  HasData<Container>::value &&
+  HasSize<Container>::value &&
+  std::is_convertible_v<decltype(std::data(std::declval<Container>())),
+                        const T*>>>;
+
 }
 
 
@@ -599,6 +620,49 @@ public:
          const property_list &propList = {})
   : buffer(first, last, AllocatorT(), propList) 
   {}
+
+  template <typename Container,
+            int D = dimensions,
+            typename = std::enable_if_t<D == 1>,
+            typename = detail::EnableIfContiguous<Container, T>>
+  buffer(Container& container, AllocatorT allocator,
+         const property_list& propList = {})
+    : detail::property_carrying_object{propList}
+  {
+    _impl = std::make_shared<detail::buffer_impl>();
+    _alloc = allocator;
+    
+    constexpr bool isConstContainer = std::is_const_v<
+      std::remove_pointer_t<decltype(std::data(container))>>;
+
+    default_policies dpol;
+
+    // If std::data returns non-const pointer, enable write_back
+    if constexpr (isConstContainer)
+      dpol.writes_back = false;
+    else
+      dpol.writes_back = true;
+    
+    dpol.destructor_waits = true;
+    dpol.use_external_storage = true;
+    init_policies_from_properties_or_default(dpol);
+
+    const range<1> bufferRange(std::size(container));
+
+    if constexpr (isConstContainer) {
+      this->init(bufferRange);
+      copy_host_content(std::data(container));
+    } else {
+      this->init(bufferRange, std::data(container));
+    }
+  }
+
+  template <typename Container,
+            int D = dimensions,
+            typename = std::enable_if_t<D == 1>,
+            typename = detail::EnableIfContiguous<Container, T>>
+  buffer(Container& container, const property_list& propList = {})
+    : buffer(container, AllocatorT(), propList) {}
 
   buffer(buffer<T, dimensions, AllocatorT> b,
          const id<dimensions> &baseIndex,
@@ -1172,8 +1236,16 @@ buffer(InputIterator, InputIterator, AllocatorT, const property_list & = {})
 -> buffer<typename std::iterator_traits<InputIterator>::value_type, 1, AllocatorT>;
 
 template <class InputIterator>
-buffer(InputIterator, InputIterator, const property_list & = {}) 
--> buffer<typename std::iterator_traits<InputIterator>::value_type, 1>; 
+buffer(InputIterator, InputIterator, const property_list & = {})
+-> buffer<typename std::iterator_traits<InputIterator>::value_type, 1>;
+
+template <class Container, class AllocatorT>
+buffer(Container&, AllocatorT, const property_list& = {})
+    -> buffer<typename Container::value_type, 1, AllocatorT>;
+
+template <class Container>
+buffer(Container&, const property_list& = {})
+    -> buffer<typename Container::value_type, 1>;
 
 template <class T, int dimensions, class AllocatorT>
 buffer(const T *, const range<dimensions> &, AllocatorT, const property_list & = {})

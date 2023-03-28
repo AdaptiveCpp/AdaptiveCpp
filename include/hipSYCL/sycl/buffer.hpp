@@ -636,22 +636,32 @@ public:
       std::remove_pointer_t<decltype(std::data(container))>>;
 
     default_policies dpol;
-
-    // If std::data returns non-const pointer, enable write_back
-    if constexpr (isConstContainer)
-      dpol.writes_back = false;
-    else
-      dpol.writes_back = true;
-    
     dpol.destructor_waits = true;
-    dpol.use_external_storage = true;
+    // If std::data returns non-const pointer, enable write_back
+    if constexpr (isConstContainer) {
+      dpol.writes_back = false;
+      dpol.use_external_storage = false;
+    } else {
+      dpol.writes_back = true;
+      dpol.use_external_storage = true;
+    }
+
     init_policies_from_properties_or_default(dpol);
 
     const range<1> bufferRange(std::size(container));
 
     if constexpr (isConstContainer) {
-      this->init(bufferRange);
-      copy_host_content(std::data(container));
+      if (_impl->use_external_storage) {
+         HIPSYCL_DEBUG_WARNING
+          << "buffer: constructed with property use_external_storage, but user "
+             "passed a const container to buffer constructor. Removing const to enforce "
+             "requested view semantics."
+          << std::endl;
+         this->init(bufferRange, const_cast<T*>(std::data(container)));
+      } else {
+        this->init(bufferRange);
+        copy_host_content(std::data(container));
+      }
     } else {
       this->init(bufferRange, std::data(container));
     }

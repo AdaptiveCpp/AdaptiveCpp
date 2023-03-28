@@ -310,7 +310,7 @@ template <typename, typename = void>
 struct has_data : std::false_type {};
 
 template <typename Container>
-struct has_data<Container, std::void_t<decltype(std::data(std::declval<Container>()))>>
+struct has_data<Container, std::void_t<decltype(std::data(Container{}))>>
   : std::true_type {};
 
 template <typename, typename = void>
@@ -324,9 +324,8 @@ template <typename Container, typename T>
 using enable_if_contiguous = std::void_t<std::enable_if_t<
   has_data<Container>::value &&
   has_size<Container>::value &&
-  std::is_convertible_v<decltype(std::data(std::declval<Container>())),
+  std::is_convertible_v<decltype(std::data(Container{})),
                         const T*>>>;
-
 }
 
 

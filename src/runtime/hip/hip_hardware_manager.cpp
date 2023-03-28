@@ -227,13 +227,16 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return _properties->multiProcessorCount;
     break;
   case device_uint_property::max_global_size0:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[0];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[0]) *
+                                    _properties->maxGridSize[0];
     break;
   case device_uint_property::max_global_size1:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[1];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[1]) *
+                                    _properties->maxGridSize[1];
     break;
   case device_uint_property::max_global_size2:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[2];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[2]) *
+                                    _properties->maxGridSize[2];
     break;
   case device_uint_property::max_group_size0:
     return _properties->maxThreadsDim[0];

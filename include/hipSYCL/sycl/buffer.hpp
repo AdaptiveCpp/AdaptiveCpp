@@ -307,23 +307,23 @@ private:
 };
 
 template <typename, typename = void>
-struct HasData : std::false_type {};
+struct has_data : std::false_type {};
 
 template <typename Container>
-struct HasData<Container, std::void_t<decltype(std::data(std::declval<Container>()))>>
+struct has_data<Container, std::void_t<decltype(std::data(std::declval<Container>()))>>
   : std::true_type {};
 
 template <typename, typename = void>
-struct HasSize : std::false_type {};
+struct has_size : std::false_type {};
 
 template <typename Container>
-struct HasSize<Container, std::void_t<decltype(std::size(Container{}))>>
+struct has_size<Container, std::void_t<decltype(std::size(Container{}))>>
   : std::true_type {};
 
 template <typename Container, typename T>
-using EnableIfContiguous = std::void_t<std::enable_if_t<
-  HasData<Container>::value &&
-  HasSize<Container>::value &&
+using enable_if_contiguous = std::void_t<std::enable_if_t<
+  has_data<Container>::value &&
+  has_size<Container>::value &&
   std::is_convertible_v<decltype(std::data(std::declval<Container>())),
                         const T*>>>;
 
@@ -624,7 +624,7 @@ public:
   template <typename Container,
             int D = dimensions,
             typename = std::enable_if_t<D == 1>,
-            typename = detail::EnableIfContiguous<Container, T>>
+            typename = detail::enable_if_contiguous<Container, T>>
   buffer(Container& container, AllocatorT allocator,
          const property_list& propList = {})
     : detail::property_carrying_object{propList}
@@ -632,13 +632,13 @@ public:
     _impl = std::make_shared<detail::buffer_impl>();
     _alloc = allocator;
     
-    constexpr bool isConstContainer = std::is_const_v<
+    constexpr bool is_const_container = std::is_const_v<
       std::remove_pointer_t<decltype(std::data(container))>>;
 
     default_policies dpol;
     dpol.destructor_waits = true;
     // If std::data returns non-const pointer, enable write_back
-    if constexpr (isConstContainer) {
+    if constexpr (is_const_container) {
       dpol.writes_back = false;
       dpol.use_external_storage = false;
     } else {
@@ -650,7 +650,7 @@ public:
 
     const range<1> bufferRange(std::size(container));
 
-    if constexpr (isConstContainer) {
+    if constexpr (is_const_container) {
       if (_impl->use_external_storage) {
          HIPSYCL_DEBUG_WARNING
           << "buffer: constructed with property use_external_storage, but user "
@@ -670,7 +670,7 @@ public:
   template <typename Container,
             int D = dimensions,
             typename = std::enable_if_t<D == 1>,
-            typename = detail::EnableIfContiguous<Container, T>>
+            typename = detail::enable_if_contiguous<Container, T>>
   buffer(Container& container, const property_list& propList = {})
     : buffer(container, AllocatorT(), propList) {}
 

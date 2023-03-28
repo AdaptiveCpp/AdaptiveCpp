@@ -83,6 +83,13 @@ jobs:
         cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
         cmake -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
         make -j2
+    - name: build generic SSCP tests
+      if: matrix.clang_version >= 14
+      run: |
+        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-sscp
+        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        make -j2
     - name: build CUDA tests
       run: |
         mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda

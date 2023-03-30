@@ -929,7 +929,7 @@ public:
                        bool> = true>
   HIPSYCL_UNIVERSAL_TARGET reference
   operator[](id<dimensions> index) const noexcept {
-    return (this->_ptr.get())[get_linear_id(index)];
+    return (this->_ptr.get())[get_linear_id(index + get_offset())];
   }
 
   template <
@@ -938,7 +938,7 @@ public:
       std::enable_if_t<(D == 1) && IsAllowed && (M != access::mode::atomic),
                        bool> = true>
   HIPSYCL_UNIVERSAL_TARGET reference operator[](size_t index) const noexcept {
-    return (this->_ptr.get())[index];
+    return (this->_ptr.get())[index + get_offset()];
   }
 
   /* Available only when: accessMode == access::mode::atomic && dimensions == 0*/
@@ -962,7 +962,7 @@ public:
       atomic<dataT, access::address_space::global_space>
       operator[](id<dimensions> index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{global_ptr<dataT>(
-        this->_ptr.get() + get_linear_id(index))};
+        this->_ptr.get() + get_linear_id(index + get_offset()))};
   }
 
   template <int D = dimensions, access::mode M = accessmode,
@@ -974,7 +974,7 @@ public:
       atomic<dataT, access::address_space::global_space>
       operator[](size_t index) const noexcept {
     return atomic<dataT, access::address_space::global_space>{
-        global_ptr<dataT>(this->_ptr.get() + index)};
+        global_ptr<dataT>(this->_ptr.get() + index + get_offset())};
   }
 
   /* Available only when: dimensions > 1 */

@@ -875,10 +875,7 @@ BOOST_AUTO_TEST_CASE(buffer_page_size) {
         sycl::accessor<int, 2> acc{buff, cgh, range, offset};
 
         cgh.parallel_for(sycl::range{range}, [=](sycl::id<2> idx){
-          // TODO this needs to be changed once we have SYCL 2020
-          // semantics for operator[] of ranged accesors
-          acc[idx + offset] =
-              static_cast<int>(idx[0] + offset[0] + idx[1] + offset[1]);
+          acc[idx] = static_cast<int>(idx[0] + offset[0] + idx[1] + offset[1]);
         });
       });
 

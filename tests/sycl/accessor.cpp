@@ -31,6 +31,7 @@
 #include "sycl_test_suite.hpp"
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)
@@ -467,6 +468,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
 
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
+
     s::queue{}.submit([&](s::handler &cgh) {
       s::range range{N, N};
       s::id offset{2, 2};

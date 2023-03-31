@@ -50,19 +50,19 @@ jobs:
           make -j2 install
       - name: setup CPU tests with loop splitting
         run: |
-          mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+          mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
           
-          cmake -DOPENSYCL_TARGETS=omp -DOPENSYCL_USE_ACCELERATED_CPU=true -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" /home/runner/work/OpenSYCL/OpenSYCL/tests
+          cmake -DOPENSYCL_TARGETS=omp -DOPENSYCL_USE_ACCELERATED_CPU=true -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
       - name: build CPU tests with loop splitting
         run: |
-          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
           make -j2
       - name: run LIT tests on CPU
         run: |
-          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib make check
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check
       - name: run CPU tests
         run: |
-          cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-          LD_LIBRARY_PATH=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib ./sycl_tests
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests

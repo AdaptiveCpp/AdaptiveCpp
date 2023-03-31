@@ -21,6 +21,7 @@ jobs:
     - name: build
       run: |
         OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
+        echo "OMP_ROOT=${OMP_ROOT}" >> $GITHUB_ENV
         mkdir build && cd build
         cmake .. \
         -DOpenMP_ROOT=$OMP_ROOT \

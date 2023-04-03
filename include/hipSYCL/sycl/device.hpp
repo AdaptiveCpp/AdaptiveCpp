@@ -311,7 +311,27 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 { return 3; }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<1>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size0));
+  return id<1>{size0};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<2>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size1));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return id<2>{size1, size0};
+  else
+    return id<2>{size0, size1};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<3>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
       rt::device_uint_property::max_group_size0));
@@ -319,7 +339,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
       rt::device_uint_property::max_group_size1));
   std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
       rt::device_uint_property::max_group_size2));
-  return id<3>{size0, size1, size2};
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return id<3>{size2, size1, size0};
+  else
+    return id<3>{size0, size1, size2};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)

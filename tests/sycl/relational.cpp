@@ -87,20 +87,20 @@ namespace {
 
   template<typename DT, int D>
   auto get_subvector(vec<DT, 16> v) {
-  if constexpr(D==0) {
-    return v.template swizzle<0>();
-  } else if constexpr(D==2) {
-    return vec<DT, 2>{v.template swizzle<0,1>()};
-  } else if constexpr(D==3) {
-    return vec<DT, 3>{v.template swizzle<0,1,2>()};
-  } else if constexpr(D==4) {
-    return vec<DT, 4>{v.template swizzle<0,1,2,3>()};
-  } else if constexpr(D==8) {
-    return vec<DT, 8>{v.template swizzle<0,1,2,3,4,5,6,7>()};
-  } else if constexpr(D==16) {
-    return v;
+    if constexpr(D==0) {
+      return v.template swizzle<0>();
+    } else if constexpr(D==2) {
+      return vec<DT, 2>{v.template swizzle<0,1>()};
+    } else if constexpr(D==3) {
+      return vec<DT, 3>{v.template swizzle<0,1,2>()};
+    } else if constexpr(D==4) {
+      return vec<DT, 4>{v.template swizzle<0,1,2,3>()};
+    } else if constexpr(D==8) {
+      return vec<DT, 8>{v.template swizzle<0,1,2,3,4,5,6,7>()};
+    } else if constexpr(D==16) {
+      return v;
+    }
   }
-}
 
   template<typename T>
   auto comp(T v, size_t idx) {
@@ -167,7 +167,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(rel_genfloat_unary, T,
   // check results
 
   {
-    auto inputs = in.get_host_access();
+    auto inputs  = in.get_host_access();
     auto outputs = out.get_host_access();
 
     for(int c = 0; c < std::max(D,1); ++c) {

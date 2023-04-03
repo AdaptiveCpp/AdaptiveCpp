@@ -515,8 +515,19 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 
 // ********************** relational functions *********************
 
-HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_isnan, isnan, isnan);
+#define HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(name, impl_name_sp, impl_name_dp)   \
+  HIPSYCL_HIPLIKE_BUILTIN int name(float x) { return ::impl_name_sp(x); }      \
+  HIPSYCL_HIPLIKE_BUILTIN int name(double x) { return ::impl_name_dp(x); }
 
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isnan, isnan, isnan);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isinf, isinf, isinf);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isfinite, isfinite, isfinite);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isnormal, __builtin_isnormal, __builtin_isnormal);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_signbit, signbit, signbit);
 
 }
 }

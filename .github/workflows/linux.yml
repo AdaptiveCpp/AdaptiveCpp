@@ -79,39 +79,39 @@ jobs:
         cp /opt/OpenSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
     - name: build CPU tests
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-        cmake -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        cmake -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: build generic SSCP tests
       if: matrix.clang_version >= 14
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-sscp
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: build CUDA tests
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cuda
-        cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda
+        cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: build ROCm tests
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-rocm
-        cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
+        cd ${GITHUB_WORKSPACE}/build/tests-rocm
+        cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
         make -j2
     - name: build explicit multipass tests
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-emp
-        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        mkdir ${GITHUB_WORKSPACE}/build/tests-emp
+        cd ${GITHUB_WORKSPACE}/build/tests-emp
+        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_60;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: run CPU tests
       run: |
-        cd /home/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-        LD_LIBRARY_PATH=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib ./sycl_tests
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-nvcxx-based:
     name: nvcxx ${{matrix.nvhpc_version}}, ${{matrix.os}}, CUDA ${{matrix.cuda_version}}
     runs-on: ${{ matrix.os }}
@@ -146,6 +146,6 @@ jobs:
         cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
     - name: build tests
       run: |
-        mkdir /home/runner/work/OpenSYCL/OpenSYCL/build/tests-nvcxx
-        cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DOpenSYCL_DIR=/home/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL /home/runner/work/OpenSYCL/OpenSYCL/tests
+        mkdir ${GITHUB_WORKSPACE}/build/tests-nvcxx
+        cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j2

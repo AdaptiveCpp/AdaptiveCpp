@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018, 2019 Aksel Alpay and contributors
+ * Copyright (c) 2018-2023 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,9 @@ using math_test_genfloats = boost::mpl::list<
 
 namespace {
 
-  template<typename DT, int N>
-  using vec = cl::sycl::vec<DT, N>;
+  template<typename DT, int D>
+  using vec = cl::sycl::vec<DT, D>;
+
   auto tolerance = boost::test_tools::tolerance(0.0001);
 
   // utility type traits for generic testing
@@ -66,9 +67,9 @@ namespace {
   struct vector_length {
     static constexpr int value = 0;
   };
-  template<typename DT, int N>
-  struct vector_length<vec<DT, N>> {
-    static constexpr int value = N;
+  template<typename DT, int D>
+  struct vector_length<vec<DT, D>> {
+    static constexpr int value = D;
   };
   template<typename T>
   constexpr int vector_length_v = vector_length<T>::value;
@@ -77,8 +78,8 @@ namespace {
   struct vector_dim {
     static constexpr int value = 0;
   };
-  template<typename DT, int N>
-  struct vector_dim<vec<DT, N>> {
+  template<typename DT, int D>
+  struct vector_dim<vec<DT, D>> {
     static constexpr int value = 1;
   };
   template<typename T>
@@ -108,92 +109,32 @@ namespace {
 
   // utility functions for generic testing
 
-  template<typename DT, int D, std::enable_if_t<D<=4, int> = 0>
-  auto get_math_input(cl::sycl::vec<DT, 16> v) {
-    return std::get<D>(std::make_tuple(
-      v.s0(),
-      vec<DT, 1>(v.s0()),
-      vec<DT, 2>(v.s0(), v.s1()),
-      vec<DT, 3>(v.s0(), v.s1(), v.s2()),
-      vec<DT, 4>(v.s0(), v.s1(), v.s2(), v.s3())));
-  }
-  template<typename DT, int D, std::enable_if_t<D==8, int> = 0>
-  auto get_math_input(cl::sycl::vec<DT, 16> v) {
-    return vec<DT, 8>(v.s0(), v.s1(), v.s2(), v.s3(), v.s4(), v.s5(), v.s6(), v.s7());
-  }
-  template<typename DT, int D, std::enable_if_t<D==16, int> = 0>
-  auto get_math_input(cl::sycl::vec<DT, 16> v) {
-    return v;
+  template<typename DT, int D>
+  auto get_math_input(vec<DT, 16> v) {
+    if constexpr(D==0) {
+      return v.template swizzle<0>();
+    } else if constexpr(D==2) {
+      return vec<DT, 2>{v.template swizzle<0,1>()};
+    } else if constexpr(D==3) {
+      return vec<DT, 3>{v.template swizzle<0,1,2>()};
+    } else if constexpr(D==4) {
+      return vec<DT, 4>{v.template swizzle<0,1,2,3>()};
+    } else if constexpr(D==8) {
+      return vec<DT, 8>{v.template swizzle<0,1,2,3,4,5,6,7>()};
+    } else if constexpr(D==16) {
+      return v;
+    }
   }
 
-  // runtime indexed access to vector elements
-  // this could be a single function with constexpr if in C++17
-  // could also be done by using knowledge of the internal structure,
-  // but I wanted to avoid that.
-  template<typename T, std::enable_if_t<vector_length_v<T> == 0, int> = 0>
+  template<typename T>
   auto comp(T v, size_t idx) {
     assert(idx == 0);
     return v;
   }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 1, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    return v.x();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 2, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    return v.y();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 3, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    if(idx==1) return v.y();
-    return v.z();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 4, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.x();
-    if(idx==1) return v.y();
-    if(idx==2) return v.z();
-    return v.w();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 8, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.s0();
-    if(idx==1) return v.s1();
-    if(idx==2) return v.s2();
-    if(idx==3) return v.s3();
-    if(idx==4) return v.s4();
-    if(idx==5) return v.s5();
-    if(idx==6) return v.s6();
-    if(idx==7) return v.s7();
-    return v.s7();
-  }
-  template<typename T, std::enable_if_t<vector_length_v<T> == 16, int> = 0>
-  auto comp(T v, size_t idx) {
-    assert(idx < vector_length_v<T>);
-    if(idx==0) return v.s0();
-    if(idx==1) return v.s1();
-    if(idx==2) return v.s2();
-    if(idx==3) return v.s3();
-    if(idx==4) return v.s4();
-    if(idx==5) return v.s5();
-    if(idx==6) return v.s6();
-    if(idx==7) return v.s7();
-    if(idx==8) return v.s8();
-    if(idx==9) return v.s9();
-    if(idx==10) return v.sA();
-    if(idx==11) return v.sB();
-    if(idx==12) return v.sC();
-    if(idx==13) return v.sD();
-    if(idx==14) return v.sE();
-    if(idx==15) return v.sF();
-    return v.sF();
+  template<typename DT, int D>
+  auto comp(vec<DT, D> v, size_t idx) {
+    assert(idx < D);
+    return v[idx];
   }
 
   // reference functions
@@ -236,10 +177,10 @@ namespace {
     return x;
   }
 
-  template<typename DT, int N>
-  DT ref_dot(vec<DT, N> a, vec<DT, N> b) {
+  template<typename DT, int D>
+  DT ref_dot(vec<DT, D> a, vec<DT, D> b) {
     DT ret = DT{0};
-    for(int c = 0; c < N; ++c) {
+    for(int c = 0; c < D; ++c) {
       ret += comp(a, c) * comp(b, c);
     }
     return ret;
@@ -290,7 +231,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
     acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -300,7 +241,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_binary, T,
 
   // run functions
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class math_binary, D, DT>>([=]() {
       int i = 2;
@@ -357,7 +298,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   constexpr DT mix_input_1 = 0.5f;
   constexpr DT mix_input_2 = 0.8f;
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
     acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -369,7 +310,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
   // some of these are tested multiple times to ensure that all overloads are covered
   // (e.g. combinations of vec and scalar input)
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class common_functions, D, DT>>([=]() {
       int i = 2;
@@ -452,7 +393,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3});
     acc[1] = get_math_input<DT, D>({17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1});
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -462,7 +403,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
   // run functions
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class builtin_int_basic, D, DT>>([=]() {
       int i = 2;
@@ -511,7 +452,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs::type) {
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
     acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
     for (int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -521,7 +462,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric_cross, T, math_test_crossinputs::type) {
 
   // run functions
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class geometric_cross, D, DT>>([=]() {
       int i = 2;
@@ -573,7 +514,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo::type) {
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
     acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -583,7 +524,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(geometric, T, math_test_gengeo::type) {
 
   // run functions
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class geometric, D, DT>>([=]() {
       int i = 2;
@@ -627,7 +568,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats::type) {
   s::queue queue;
   s::buffer<T> buf{{FUN_COUNT + 2}};
   {
-    auto acc = buf.template get_access<cl::sycl::access::mode::write>();
+    auto acc = buf.template get_access<s::access::mode::write>();
     acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
     acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
     for(int i = 2; i < FUN_COUNT + 2; ++i) {
@@ -637,7 +578,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(fast_geometric, T, math_test_gengeofloats::type) {
 
   // run functions
 
-  queue.submit([&](cl::sycl::handler &cgh) {
+  queue.submit([&](s::handler &cgh) {
     auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
     cgh.single_task<kernel_name<class fast_geometric, D, DT>>([=]() {
       int i = 2;

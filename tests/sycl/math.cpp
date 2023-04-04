@@ -651,4 +651,63 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_int, T,
   }
 }
 
+BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
+                              math_test_genfloats::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  using IntType = typename s::detail::builtin_type_traits<T>::template alternative_data_type<int>;
+
+  constexpr int FUN_COUNT = 3;
+
+  // build inputs and allocate outputs
+
+  s::queue queue;
+  s::buffer<T> float_in{{1}};
+  s::buffer<IntType> int_in{{1}};
+  s::buffer<T> out{{FUN_COUNT}};
+  {
+    auto float_inputs = float_in.get_host_access();
+    auto int_inputs = int_in.get_host_access();
+    auto outputs = out.get_host_access();
+    float_inputs[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    int_inputs[0] = get_math_input<int, D>({17, -4, -2, 3, 7, -8, 9, -1, 17, -4, -2, 3, 7, -8, 9, -1});
+    for(int i = 0; i < FUN_COUNT; ++i) {
+      outputs[i] = T{DT{0}};
+    }
+  }
+
+  // run functions
+
+  queue.submit([&](s::handler &cgh) {
+    auto float_inputs = float_in.template get_access<s::access::mode::read>(cgh);
+    auto int_inputs = int_in.template get_access<s::access::mode::read>(cgh);
+    auto outputs = out.template get_access<s::access::mode::write>(cgh);
+    cgh.single_task<kernel_name<class math_genfloat_genint, D, DT>>([=]() {
+      int i = 0;
+      outputs[i++] = s::ldexp(float_inputs[0], int_inputs[0]);
+      outputs[i++] = s::pown(float_inputs[0], int_inputs[0]);
+      outputs[i++] = s::rootn(s::fabs(float_inputs[0]), int_inputs[0]);
+    });
+  });
+
+  // check results
+
+  {
+    auto float_inputs = float_in.get_host_access();
+    auto int_inputs = int_in.get_host_access();
+    auto outputs = out.get_host_access();
+
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 0;
+      BOOST_TEST(comp(outputs[i++], c) == std::ldexp(comp(float_inputs[0], c), comp(int_inputs[0], c)));
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(comp(float_inputs[0], c), static_cast<DT>(comp(int_inputs[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(std::fabs(comp(float_inputs[0], c)), DT{1}/static_cast<DT>(comp(int_inputs[0], c))));
+    }
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END() // NOTE: Make sure not to add anything below this line

@@ -36,8 +36,10 @@
 #include "llvm/IR/GlobalVariable.h"
 
 #include <llvm/Analysis/PostDominators.h>
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Regex.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
@@ -1242,21 +1244,19 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
 #if LLVM_VERSION_MAJOR >= 13
   Body = Body->getSingleSuccessor();
 #endif
+#undef HIPSYCL_LLVM_BEFORE
 
-  llvm::BasicBlock *ExitBB = nullptr;
+  llvm::SmallVector<llvm::BasicBlock *, 4> ExitBBs;
+  llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(F.getContext(), "exit", &F);
+  llvm::ReturnInst::Create(F.getContext(), ExitBB);
   for (auto &BB : F) {
-    if (BB.getTerminator()->getNumSuccessors() == 0) {
-      ExitBB =
-          llvm::SplitBlock(&BB, BB.getTerminator(), &DT, &LI, nullptr, "exit" HIPSYCL_LLVM_BEFORE);
-#if LLVM_VERSION_MAJOR >= 13
-      if (Body == &BB)
-        std::swap(Body, ExitBB);
-      ExitBB = &BB;
-#endif
-      break;
+    if (BB.getTerminator()->getNumSuccessors() == 0 &&
+        !llvm::isa<llvm::UnreachableInst>(BB.getTerminator()) && &BB != ExitBB) {
+      auto *oldTerm = BB.getTerminator();
+      llvm::BranchInst::Create(ExitBB, &BB);
+      oldTerm->eraseFromParent();
     }
   }
-#undef HIPSYCL_LLVM_BEFORE
 
   llvm::SmallVector<llvm::BasicBlock *, 8> Blocks{};
   Blocks.reserve(std::distance(F.begin(), F.end()));

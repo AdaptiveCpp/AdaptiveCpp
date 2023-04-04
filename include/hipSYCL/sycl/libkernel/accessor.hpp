@@ -30,6 +30,7 @@
 #define HIPSYCL_ACCESSOR_HPP
 
 #include <exception>
+#include <iterator>
 #include <memory>
 #include <type_traits>
 #include <cassert>
@@ -121,7 +122,19 @@ template <class T, int dimensions, class AllocatorT>
 sycl::range<dimensions>
 extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff);
 
+template <typename T, int Dimensions>
+class accessor_iterator {
+public:
+  using iterator_category = std::random_access_iterator_tag;
+  using difference_type  = std::ptrdiff_t;
+  using value_type = T;
+  using pointer = T*;
+  using reference = T&;
 
+  accessor_iterator() = default;
+private:
+  pointer m_ptr;
+};
 }
 
 inline constexpr detail::read_only_tag_t read_only;
@@ -598,8 +611,12 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   // TODO accessor_ptr
-  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
-  // TODO difference_type
+  using iterator = detail::accessor_iterator<value_type, dimensions>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   using size_type = size_t;
 
   using pointer_type = value_type*;
@@ -1019,6 +1036,26 @@ public:
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
+
+  iterator begin() const noexcept {
+
+  }
+
+  iterator end() const noexcept {
+
+  }
+
+  const_iterator cbegin() const noexcept {}
+
+  const_iterator cend() const noexcept {}
+
+  reverse_iterator rbegin() const noexcept {}
+
+  reverse_iterator rend() const noexcept {}
+
+  const_reverse_iterator crbegin() const noexcept {}
+
+  const_reverse_iterator crend() const noexcept {}
 private:
 
   HIPSYCL_UNIVERSAL_TARGET

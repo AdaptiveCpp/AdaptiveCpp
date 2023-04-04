@@ -2,7 +2,7 @@
 
 Please install ROCm 4.0 or later as described in the ROCm readme. Make sure to also install HIP (runtime libraries and headers).
 
-*Note: Newer ROCm versions may require building Open SYCL against newer clang versios as well. For example, ROCm 4.5 requires clang 13+.*
+*Note: Newer ROCm versions may require building Open SYCL against newer clang versions as well. For example, ROCm 4.5 requires clang 13+.*
 
 *Note: Instead of building Open SYCL against a regular clang/LLVM, it is also possible to build Open SYCL against the clang/LLVM that ships with ROCm. This can be interesting if other available clang/LLVM installations are not new enough to work with the ROCm installation.* 
 * **Such configurations typically work, but are generally less tested.**

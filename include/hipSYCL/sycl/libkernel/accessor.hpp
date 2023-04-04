@@ -132,8 +132,52 @@ public:
   using reference = T&;
 
   accessor_iterator() = default;
+
+  reference operator*() const {
+    return *(ptr + linear_id);
+  }
+
+  accessor_iterator operator++() {
+    // TODO: We compute the correct linear id here, should this rather be done only when dereferncing?
+    ++linear_id;
+    return *this;
+  }
+
+  accessor_iterator operator++(int) {
+    auto old = *this;
+    ++(*this);
+    return old;
+  }
+  
+  bool operator==(const accessor_iterator &other) const {
+    return linear_id == other.linear_id;
+  }
+
+  bool operator!=(const accessor_iterator &other) const {
+    return !(*this == other);
+  }
 private:
-  pointer m_ptr;
+  template <typename, int, sycl::access_mode, sycl::target, sycl::accessor_variant>
+  friend class sycl::accessor;
+
+  const pointer ptr = nullptr;
+  size_t linear_id;
+
+  accessor_iterator(T* ptr)
+    : ptr(ptr), linear_id(0) {}
+
+  accessor_iterator(T* ptr, const sycl::range<Dimensions> &range)
+    : ptr(ptr) {
+    linear_id = range[0];
+  }
+
+  static accessor_iterator make_begin(T* ptr) {
+    return accessor_iterator(ptr);
+  }
+
+  static accessor_iterator make_end(T* ptr, const sycl::range<Dimensions> &range) {
+    return accessor_iterator(ptr, range);
+  }
 };
 }
 
@@ -1038,11 +1082,11 @@ public:
   }
 
   iterator begin() const noexcept {
-
+    return iterator::make_begin(get_pointer());
   }
 
   iterator end() const noexcept {
-
+    return iterator::make_end(get_pointer(), get_range());
   }
 
   const_iterator cbegin() const noexcept {}

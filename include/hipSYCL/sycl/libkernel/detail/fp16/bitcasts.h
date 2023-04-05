@@ -1,7 +1,7 @@
 #pragma once
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #ifndef FP16_BITCASTS_H
 #define FP16_BITCASTS_H
+#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 

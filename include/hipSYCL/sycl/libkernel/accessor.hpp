@@ -51,6 +51,7 @@
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
@@ -122,7 +123,9 @@ template <class T, int dimensions, class AllocatorT>
 sycl::range<dimensions>
 extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff);
 
-template <typename T, int Dimensions>
+template <typename T, int Dimensions,
+          sycl::access_mode Mode, sycl::target Target,
+          sycl::accessor_variant Variant>
 class accessor_iterator {
 public:
   using iterator_category = std::random_access_iterator_tag;
@@ -134,11 +137,10 @@ public:
   accessor_iterator() = default;
 
   reference operator*() const {
-    return *(ptr + linear_id);
+    return (*acc_ptr)[id_from_linear()];
   }
 
   accessor_iterator operator++() {
-    // TODO: We compute the correct linear id here, should this rather be done only when dereferncing?
     ++linear_id;
     return *this;
   }
@@ -148,7 +150,7 @@ public:
     ++(*this);
     return old;
   }
-  
+
   bool operator==(const accessor_iterator &other) const {
     return linear_id == other.linear_id;
   }
@@ -156,27 +158,82 @@ public:
   bool operator!=(const accessor_iterator &other) const {
     return !(*this == other);
   }
-private:
-  template <typename, int, sycl::access_mode, sycl::target, sycl::accessor_variant>
-  friend class sycl::accessor;
 
-  const pointer ptr = nullptr;
+  bool operator<(const accessor_iterator &other) const {
+    return linear_id < other.linear_id;
+  }
+private:
+  using accessor_t = sycl::accessor<T, Dimensions, Mode, Target, Variant>;
+  template <typename, int,
+            sycl::access_mode,
+            sycl::target,
+            sycl::accessor_variant> friend class sycl::accessor;
+
+  const accessor_t *acc_ptr = nullptr;
+
+  /* Linear id relative to the offset, i.e., linear_id = 0
+     corresponds to the element at the offset. */
   size_t linear_id;
 
-  accessor_iterator(T* ptr)
-    : ptr(ptr), linear_id(0) {}
-
-  accessor_iterator(T* ptr, const sycl::range<Dimensions> &range)
-    : ptr(ptr) {
-    linear_id = range[0];
+  // Constructs an iterator pointing to the beginning of the accessor's data
+  accessor_iterator(const accessor_t* acc_ptr)
+    : acc_ptr{acc_ptr}, linear_id{0} {}
+  
+  static accessor_iterator make_begin(const accessor_t *acc_ptr) {
+    return accessor_iterator{acc_ptr};
   }
 
-  static accessor_iterator make_begin(T* ptr) {
-    return accessor_iterator(ptr);
+  static accessor_iterator make_end(const accessor_t *acc_ptr) {
+    auto end = accessor_iterator{acc_ptr};
+    if constexpr (Dimensions == 1)
+      end.linear_id = acc_ptr->get_range()[0];
+    else if constexpr (Dimensions == 2) {
+      auto sub_range = acc_ptr->get_range();
+      auto full_range = acc_ptr->get_buffer_shape();
+      end.linear_id = sub_range[1] + (sub_range[0] - 1) * full_range[1];
+    } else {
+      auto sub_range = acc_ptr->get_range();
+      auto full_range = acc_ptr->get_buffer_shape();
+      end.linear_id = sub_range[2]
+        + (sub_range[1] - 1) * full_range[2]                  // lower right corner of first slice
+        + (sub_range[0] - 1) * full_range[1] * full_range[0]; // lower right corner of last slice
+    }
+
+    return end;
   }
 
-  static accessor_iterator make_end(T* ptr, const sycl::range<Dimensions> &range) {
-    return accessor_iterator(ptr, range);
+  /* Computes a sycl::id corresponding to the current linear id.
+     Since the linear id is always relative to the offset, we can
+     compute the coordinates w.r.t. the sub range and ignore the
+     size of the whole underlying buffer range.
+
+     When dereferncing the iterator, these coordinates will then
+     be converted back to a linear id using /the buffer range/
+     (and not the sub range) which will then give the correct
+     linear id within the whole accessor.
+   */
+  sycl::id<Dimensions> id_from_linear() const {
+    auto m_linear_id = linear_id;
+    size_t x, y, z;
+    
+    z = m_linear_id % (acc_ptr->get_range()[Dimensions - 1]);
+
+    if constexpr (Dimensions > 1) {
+      m_linear_id /= (acc_ptr->get_range()[Dimensions - 1]);
+      y = m_linear_id % (acc_ptr->get_range()[Dimensions - 2]);
+
+      if constexpr (Dimensions > 2) {
+        m_linear_id /= (acc_ptr->get_range()[Dimensions - 2]);
+        x = m_linear_id;
+      }
+    }
+
+    if constexpr (Dimensions == 1)
+      return {z};
+    else if constexpr (Dimensions == 2)
+      return {y, z};
+    else
+      return {x, y, z};
   }
 };
 }
@@ -388,6 +445,7 @@ public:
   // We are copying from a type that stores while we don't - can't do anything.
   conditional_storage(const conditional_storage<TagT, true, T>&) {}
 
+  T get(T default_val = T{}) const { return default_val; }
 protected:
   using value_type = T;
 
@@ -396,7 +454,7 @@ protected:
   }
 
   bool attempt_set(const T& val) { return false; }
-  T get(T default_val = T{}) const { return default_val; }
+  
 
   T* ptr() { return nullptr; }
   const T* ptr() const { return nullptr; }
@@ -415,6 +473,8 @@ public:
   conditional_storage(const conditional_storage<TagT, false, T>&)
   : _val{} {}
 
+  T get(T default_val = T{}) const { return _val; }
+
 protected:
   using value_type = T;
 
@@ -427,7 +487,7 @@ protected:
     return true;
   }
 
-  T get(T default_val = T{}) const { return _val; }
+  
 
   T* ptr() { return &_val; }
   const T* ptr() const { return &_val; }
@@ -655,8 +715,12 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   // TODO accessor_ptr
-  using iterator = detail::accessor_iterator<value_type, dimensions>;
-  using const_iterator = detail::accessor_iterator<const value_type, dimensions>;
+  using iterator = detail::accessor_iterator<value_type, dimensions,
+                                             accessmode, accessTarget,
+                                             AccessorVariant>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions,
+                                                   accessmode, accessTarget,
+                                                   AccessorVariant>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using difference_type =
@@ -1082,11 +1146,15 @@ public:
   }
 
   iterator begin() const noexcept {
-    return iterator::make_begin(get_pointer());
+    auto total_range = this->detail::accessor::conditional_buffer_range_storage<
+      has_buffer_range, dimensions>::get();
+    return iterator::make_begin(this);
   }
 
   iterator end() const noexcept {
-    return iterator::make_end(get_pointer(), get_range());
+    auto total_range = this->detail::accessor::conditional_buffer_range_storage<
+      has_buffer_range, dimensions>::get();
+    return iterator::make_end(this);
   }
 
   const_iterator cbegin() const noexcept {}
@@ -1101,6 +1169,10 @@ public:
 
   const_reverse_iterator crend() const noexcept {}
 private:
+  template <typename, int,
+            sycl::access_mode,
+            sycl::target,
+            sycl::accessor_variant> friend class detail::accessor_iterator;
 
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_dimensions() noexcept{

@@ -31,6 +31,7 @@
 #include "sycl_test_suite.hpp"
 #include <array>
 #include <boost/test/tools/old/interface.hpp>
+#include <iostream>
 #include <numeric>
 
 #include <algorithm>
@@ -454,8 +455,131 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_1d_iterator) {
   }
 
   for (int i=0; i<host_data.size(); ++i)
-    BOOST_CHECK(host_data[i] == (i+1));
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
 
+BOOST_AUTO_TEST_CASE(unranged_accessor_2d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 32;
+  std::array<int, N*N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  {
+  s::buffer<int, 2> buf(host_data.data(), {N,N});
+
+  s::queue{}.submit([&](s::handler &cgh) {
+    s::accessor<int, 2> acc(buf, cgh);
+
+    cgh.single_task([=](){
+      for (auto it = acc.begin(); it != acc.end(); ++it)
+        *it += 1;
+    });
+  }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
+
+BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 3;
+  std::array<int, N*N*N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  // Count iterations of for loop below to check if iterator stays within bounds
+  int it_counter = 0; 
+  {
+  s::buffer<int, 3> buf(host_data.data(), {N,N,N});
+  s::buffer<int, 1> it_buf(&it_counter, 1);
+
+  s::queue{}.submit([&](s::handler &cgh) {
+    s::accessor<int, 3> acc(buf, cgh);
+    s::accessor<int, 1> it_acc(it_buf, cgh);
+
+    cgh.single_task([=](){
+      for (auto &it : acc) {
+        it += 1;
+        it_acc[0]++;
+      }
+    });
+  }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+
+  BOOST_CHECK_EQUAL(it_counter, N*N*N);
+}
+
+BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  const s::range range(512);
+  const s::id offset(10);
+  
+  std::array<int, N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+  
+  {
+  s::buffer<int> buf(host_data.data(), N);
+
+  s::queue{}.submit([&](s::handler &cgh) {
+    s::accessor<int> acc(buf, cgh, range, offset);
+
+    cgh.single_task([=](){
+      for (auto it = acc.begin(); it != acc.end(); ++it)
+        *it = -1;
+    });
+  }).wait();
+  }
+
+  for (int i=0; i < offset[0]; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i);
+  for (int i = offset[0]; i < offset[0] + range[0]; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], -1);
+  for (int i = offset[0] + range[0]; i<N; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i);
+}
+
+BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N1 = 32;
+  constexpr int N2 = 64;
+  const s::range<2> range(2, 4); // range
+  const s::id<2> offset(1, 1); // offset
+  
+  std::array<int, N1*N2> host_data;
+  std::fill(std::begin(host_data), std::end(host_data), 0);
+  
+  {
+    s::buffer<int, 2> buf(host_data.data(), {N1,N2});
+
+  s::queue{}.submit([&](s::handler &cgh) {
+    s::accessor<int, 2> acc(buf, cgh, range, offset);
+
+    cgh.single_task([=](){
+      for (auto it = acc.begin(); it < acc.end(); ++it)
+        *it = 1;
+    });
+  }).wait();
+  }
+
+  for (int i=0; i<N1; ++i) {
+    for (int j=0; j<N2; ++j) {
+      if ((i >= offset[0]) &&
+          (i < offset[0] + range[0]) &&
+          (j >= offset[1]) &&
+          (j < offset[1] + range[1]))
+        BOOST_CHECK_EQUAL(host_data[i*N2+j], 1);
+      else
+        BOOST_CHECK_EQUAL(host_data[i*N2+j], 0);
+    }
+  }
 }
 
 BOOST_AUTO_TEST_CASE(offset_1d) {

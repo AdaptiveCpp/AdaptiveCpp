@@ -140,7 +140,7 @@ public:
     return (*acc_ptr)[id_from_linear()];
   }
 
-  accessor_iterator operator++() {
+  accessor_iterator &operator++() {
     ++linear_id;
     return *this;
   }
@@ -149,6 +149,59 @@ public:
     auto old = *this;
     ++(*this);
     return old;
+  }
+
+  accessor_iterator &operator--() {
+    --linear_id;
+    return *this;
+  }
+
+  accessor_iterator operator--(int) {
+    auto old = *this;
+    --(*this);
+    return old;
+  }
+
+  accessor_iterator &operator+=(difference_type diff) {
+    linear_id += diff;
+    return *this;
+  }
+
+  accessor_iterator &operator+(difference_type diff) {
+    auto ret = *this;
+    ret += diff;
+    return ret;
+  }
+
+  friend accessor_iterator operator+(difference_type diff,
+                                     const accessor_iterator &rhs) {
+    auto ret = rhs;
+    ret += diff;
+    return ret;
+  }
+
+  accessor_iterator &operator-=(difference_type diff) {
+    linear_id -= diff;
+    return *this;
+  }
+
+  accessor_iterator &operator-(difference_type diff) {
+    auto ret = *this;
+    ret -= diff;
+    return ret;
+  }
+
+  friend accessor_iterator operator-(difference_type diff,
+                                     const accessor_iterator &rhs) {
+    auto ret = rhs;
+    ret -= diff;
+    return ret;
+  }
+
+  reference &operator[](difference_type diff) const {
+    auto ret = *this;
+    ret += diff;
+    return *ret;
   }
 
   bool operator==(const accessor_iterator &other) const {
@@ -162,6 +215,23 @@ public:
   bool operator<(const accessor_iterator &other) const {
     return linear_id < other.linear_id;
   }
+
+  bool operator>(const accessor_iterator &other) const {
+    return other < *this; 
+  }
+
+  bool operator <=(const accessor_iterator &other) const {
+    return !(*this > other);
+  }
+
+  bool operator >=(const accessor_iterator &other) const {
+    return !(*this < other);
+  }
+
+  difference_type operator-(const accessor_iterator &rhs) const {
+    return linear_id - rhs.linear_id;
+  }
+  
 private:
   using accessor_t = sycl::accessor<T, Dimensions, Mode, Target, Variant>;
   template <typename, int,

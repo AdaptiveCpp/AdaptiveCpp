@@ -388,8 +388,9 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_TRINARY_T_T_T(T, name, impl_name)            \
   HIPSYCL_BUILTIN T name(T a, T b, T c) noexcept {                             \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0), detail::data_element(b, 0), \
-                       detail::data_element(c, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0),              \
+                                      detail::data_element(c, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -405,8 +406,8 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_T(T, name, impl_name)               \
   HIPSYCL_BUILTIN T name(T a, T b) noexcept {                                  \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0),                             \
-                       detail::data_element(b, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -422,7 +423,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
   template <access::address_space A>                                           \
   HIPSYCL_BUILTIN T name(T a, const multi_ptr<T, A> &b) noexcept {             \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0), b.get());                   \
+      return static_cast<T>(impl_name(detail::data_element(a, 0), b.get()));   \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -440,8 +441,8 @@ using ulonglong16 = vec<unsigned long long, 16>;
                              int> = 0>                                         \
   HIPSYCL_BUILTIN T name(T a, IntType b) noexcept {                            \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0),                             \
-                       detail::data_element(b, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -474,7 +475,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_UNARY_T(T, name, impl_name)                  \
   HIPSYCL_BUILTIN T name(T a) noexcept {                                       \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -485,38 +486,40 @@ using ulonglong16 = vec<unsigned long long, 16>;
     }                                                                          \
   }
 
-#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT(T, name, impl_name)          \
-  HIPSYCL_BUILTIN                                                              \
-  typename detail::builtin_type_traits<T>::alternative_data_type<int> name(    \
-      T a) noexcept {                                                          \
-    if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
-    } else {                                                                   \
-      typename detail::builtin_type_traits<T>::alternative_data_type<int>      \
-          result;                                                              \
-      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
-        auto a_i = detail::data_element(a, i);                                 \
-        detail::data_element(result, i) = impl_name(a_i);                      \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
+#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT(T, name, impl_name)                 \
+  HIPSYCL_BUILTIN                                                                     \
+  typename detail::builtin_type_traits<T>::alternative_data_type<int> name(           \
+      T a) noexcept {                                                                 \
+    if constexpr (std::is_arithmetic_v<T>) {                                          \
+      return static_cast<detail::builtin_type_traits<T>::alternative_data_type<int>>( \
+                      static_cast<int>(impl_name(detail::data_element(a, 0))));       \
+    } else {                                                                          \
+      typename detail::builtin_type_traits<T>::alternative_data_type<int>             \
+          result;                                                                     \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) {        \
+        auto a_i = detail::data_element(a, i);                                        \
+        detail::data_element(result, i) = impl_name(a_i);                             \
+      }                                                                               \
+      return result;                                                                  \
+    }                                                                                 \
   }
 
-#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64(T, name, impl_name)        \
-  HIPSYCL_BUILTIN                                                              \
-  typename detail::builtin_type_traits<T>::alternative_data_type<int64_t> name(\
-      T a) noexcept {                                                          \
-    if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
-    } else {                                                                   \
-      typename detail::builtin_type_traits<T>::alternative_data_type<int64_t>  \
-          result;                                                              \
-      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
-        auto a_i = detail::data_element(a, i);                                 \
-        detail::data_element(result, i) = impl_name(a_i);                      \
-      }                                                                        \
-      return result;                                                           \
-    }                                                                          \
+#define HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64(T, name, impl_name)                   \
+  HIPSYCL_BUILTIN                                                                         \
+  typename detail::builtin_type_traits<T>::alternative_data_type<int64_t> name(           \
+      T a) noexcept {                                                                     \
+    if constexpr (std::is_arithmetic_v<T>) {                                              \
+      return static_cast<detail::builtin_type_traits<T>::alternative_data_type<int64_t>>( \
+                      static_cast<int64_t>(impl_name(detail::data_element(a, 0))));       \
+    } else {                                                                              \
+      typename detail::builtin_type_traits<T>::alternative_data_type<int64_t>             \
+          result;                                                                         \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) {            \
+        auto a_i = detail::data_element(a, i);                                            \
+        detail::data_element(result, i) = impl_name(a_i);                                 \
+      }                                                                                   \
+      return result;                                                                      \
+    }                                                                                     \
   }
 
 

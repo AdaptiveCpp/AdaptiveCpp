@@ -8,14 +8,35 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang: [11, 12, 13, 14, 15, 16]
-        os: [ubuntu-20.04]
+        clang: [15, 16]
+        os: [ubuntu-22.04]
         cuda: [11.0.2]
-        rocm: [4.0.1]
+        rocm: [5.4.3]
+        include:
+          - clang: 11
+            os: ubuntu-20.04
+            cuda: 11.0.2
+            rocm: 4.0.1
+          - clang: 12
+            os: ubuntu-20.04
+            cuda: 11.0.2
+            rocm: 4.0.1
+          - clang: 13
+            os: ubuntu-20.04
+            cuda: 11.0.2
+            rocm: 4.0.1
+          - clang: 14
+            os: ubuntu-20.04
+            cuda: 11.0.2
+            rocm: 4.0.1
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
+    - name: uninstall gcc 12 development headers due to CUDA incompatibility
+      if: matrix.os == 'ubuntu-22.04'
+      run : |
+        sudo apt remove libgcc-12-dev libstdc++-12-dev
     - name: install Level Zero
       run : |
         wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb
@@ -29,9 +50,12 @@ jobs:
         echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/OpenSYCL/cuda/version.txt
     - name: install ROCm
       run: |
+        [[ ${{matrix.rocm}} == 4.0.1 ]] && CODENAME=xenial
+        [[ ${{matrix.rocm}} == 5.4.3 ]] && CODENAME=focal
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-        echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
+        echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list
+        printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
         sudo apt update
         sudo apt install rocm-dev
     - name: install LLVM

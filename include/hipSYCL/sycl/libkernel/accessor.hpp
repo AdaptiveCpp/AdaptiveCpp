@@ -1223,17 +1223,29 @@ public:
     return iterator::make_end(this);
   }
 
-  const_iterator cbegin() const noexcept {}
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
 
-  const_iterator cend() const noexcept {}
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
 
-  reverse_iterator rbegin() const noexcept {}
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(begin());
+  }
 
-  reverse_iterator rend() const noexcept {}
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(end());
+  }
 
-  const_reverse_iterator crbegin() const noexcept {}
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
 
-  const_reverse_iterator crend() const noexcept {}
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cend());
+  }
 private:
   template <typename, int,
             sycl::access_mode,

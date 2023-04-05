@@ -8,8 +8,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang: [11, 12, 13, 14, 15, 16]
-        os: [ubuntu-20.04]
+        clang: [13, 14, 15, 16]
+        os: [ubuntu-22.04]
+        include:
+          - clang: 11
+            os: ubuntu-20.04
+          - clang: 12
+            os: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:

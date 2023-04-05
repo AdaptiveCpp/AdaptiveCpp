@@ -4,14 +4,14 @@ on: [push, pull_request]
 
 jobs:
   test-clang-based:
-    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}
+    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         clang_version: [11, 12, 13, 14, 15, 16]
         rocm_version: ['4.0.1']
         os: [ubuntu-20.04]
-        cuda: [11.0]
+        cuda: [11.0.2]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -21,25 +21,12 @@ jobs:
         wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb
         wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero_1.2.3+u18.04_amd64.deb
         sudo dpkg -i ./level-zero*
-    - name: install CUDA 10.0
-      if: matrix.cuda == 10.0
-      run: |
-        mkdir -p /opt/OpenSYCL/cuda
-        wget -q -O cuda.sh https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux
-        sudo sh ./cuda.sh --override --silent --toolkit --toolkitpath /opt/OpenSYCL/cuda
-    - name: install CUDA 10.2
-      if: matrix.cuda == 10.2
-      run: |
-        mkdir -p /opt/OpenSYCL/cuda
-        wget -q -O cuda.sh https://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run
-        sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/OpenSYCL/cuda
-    - name: install CUDA 11.0
-      if: matrix.cuda == 11.0
+    - name: install CUDA
       run: |
         mkdir -p /opt/OpenSYCL/cuda
         wget -q -O cuda.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
         sudo sh ./cuda.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/OpenSYCL/cuda || true
-        echo "CUDA Version 11.0.0" | sudo tee /opt/OpenSYCL/cuda/version.txt
+        echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/OpenSYCL/cuda/version.txt
     - name: install ROCm
       run: |
         sudo apt install libnuma-dev cmake unzip

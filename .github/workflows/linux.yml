@@ -4,14 +4,14 @@ on: [push, pull_request]
 
 jobs:
   test-clang-based:
-    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
+    name: clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13, 14, 15, 16]
-        rocm_version: ['4.0.1']
+        clang: [11, 12, 13, 14, 15, 16]
         os: [ubuntu-20.04]
         cuda: [11.0.2]
+        rocm: [4.0.1]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -31,16 +31,16 @@ jobs:
       run: |
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-        echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm_version}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
+        echo 'deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} xenial main' | sudo tee /etc/apt/sources.list.d/rocm.list
         sudo apt update
         sudo apt install rocm-dev
     - name: install LLVM
       run: |
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
-        sudo ./llvm.sh ${{matrix.clang_version}}
-        sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev
-        if [[ "${{matrix.clang_version}}" == "16" ]]; then
+        sudo ./llvm.sh ${{matrix.clang}}
+        sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev
+        if [[ "${{matrix.clang}}" == "16" ]]; then
           sudo rm -r /usr/lib/clang/16*
           sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
         fi
@@ -50,7 +50,7 @@ jobs:
     - name: build Open SYCL
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/OpenSYCL/cuda -DROCM_PATH=/opt/rocm ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/OpenSYCL/cuda -DROCM_PATH=/opt/rocm ..
         make -j2 install
         cp /opt/OpenSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so
         cp /opt/OpenSYCL/cuda/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so.1
@@ -61,7 +61,7 @@ jobs:
         cmake -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: build generic SSCP tests
-      if: matrix.clang_version >= 14
+      if: matrix.clang >= 14
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
@@ -71,13 +71,13 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        cmake -DOPENSYCL_TARGETS="cuda:sm_60" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
         make -j2
     - name: build ROCm tests
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang_version}}/lib"
+        cmake -DOPENSYCL_TARGETS="hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests -DCMAKE_EXE_LINKER_FLAGS="-L/usr/lib/llvm-${{matrix.clang}}/lib"
         make -j2
     - name: build explicit multipass tests
       run: |
@@ -90,13 +90,13 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-cpu
         LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-nvcxx-based:
-    name: nvcxx ${{matrix.nvhpc_version}}, ${{matrix.os}}, CUDA ${{matrix.cuda_version}}
+    name: nvcxx ${{matrix.nvhpc}}, ${{matrix.os}}, CUDA ${{matrix.cuda}}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04]
-        nvhpc_version: [22.11]
-        cuda_version: [11.8]
+        nvhpc: [22.11]
+        cuda: [11.8]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -107,16 +107,16 @@ jobs:
         sudo apt install cmake libboost-all-dev wget
     - name: install nvcxx
       run: |
-        MAJOR_VERSION=$(echo ${{matrix.nvhpc_version}} | sed 's/\..*//')
-        MINOR_VERSION=$(echo ${{matrix.nvhpc_version}} | sed 's/.*\.//')
-        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${MAJOR_VERSION}-${MINOR_VERSION}_${{matrix.nvhpc_version}}_amd64.deb
-        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${MAJOR_VERSION}_${{matrix.nvhpc_version}}_amd64.deb
+        MAJOR_VERSION=$(echo ${{matrix.nvhpc}} | sed 's/\..*//')
+        MINOR_VERSION=$(echo ${{matrix.nvhpc}} | sed 's/.*\.//')
+        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${MAJOR_VERSION}-${MINOR_VERSION}_${{matrix.nvhpc}}_amd64.deb
+        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${MAJOR_VERSION}_${{matrix.nvhpc}}_amd64.deb
         sudo apt install ./nvhpc-*
     - name: build Open SYCL
       run: |
         mkdir build && cd build
-        export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc_version}}
-        export NV_HPC_CUDA_ROOT=${NV_HPC_SDK_ROOT}/cuda/${{matrix.cuda_version}}
+        export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc}}
+        export NV_HPC_CUDA_ROOT=${NV_HPC_SDK_ROOT}/cuda/${{matrix.cuda}}
         cmake -DNVCXX_COMPILER=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ -DWITH_CUDA_BACKEND=ON -DWITH_CUDA_NVCXX_ONLY=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=${NV_HPC_CUDA_ROOT} ..
         make -j2 install
         cp ${NV_HPC_CUDA_ROOT}/lib64/stubs/libcuda.so `pwd`/install/lib/libcuda.so

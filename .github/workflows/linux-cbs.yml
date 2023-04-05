@@ -4,11 +4,11 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang_version }}, ${{ matrix.os }}
+    name: clang ${{ matrix.clang }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11, 12, 13, 14, 15, 16]
+        clang: [11, 12, 13, 14, 15, 16]
         os: [ubuntu-20.04]
     steps:
       - uses: actions/checkout@v2
@@ -18,11 +18,11 @@ jobs:
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{matrix.clang_version}}
-          sudo apt install libclang-${{matrix.clang_version}}-dev clang-tools-${{matrix.clang_version}} libomp-${{matrix.clang_version}}-dev llvm-${{matrix.clang_version}}-dev
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev
           sudo python -m pip install lit
-          sudo ln -s /usr/bin/FileCheck-${{matrix.clang_version}} /usr/bin/FileCheck
-          if [[ "${{matrix.clang_version}}" == "16" ]]; then
+          sudo ln -s /usr/bin/FileCheck-${{matrix.clang}} /usr/bin/FileCheck
+          if [[ "${{matrix.clang}}" == "16" ]]; then
             sudo rm -r /usr/lib/clang/16*
             sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
           fi
@@ -32,10 +32,10 @@ jobs:
       - name: setup build env
         run: |
           export CXXFLAGS="$CXXFLAGS"
-          if [[ "${{matrix.clang_version}}" != "11" && "${{matrix.clang_version}}" -lt "16" ]]; then
+          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
             export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
-            export CC=clang-${{matrix.clang_version}}
-            export CXX=clang++-${{matrix.clang_version}}
+            export CC=clang-${{matrix.clang}}
+            export CXX=clang++-${{matrix.clang}}
           fi
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
@@ -45,14 +45,14 @@ jobs:
           mkdir build && cd build
           echo ${CXXFLAGS}
           
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
           make -j2 install
       - name: setup CPU tests with loop splitting
         run: |
           mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           
-          cmake -DOPENSYCL_TARGETS=omp -DOPENSYCL_USE_ACCELERATED_CPU=true -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
+          cmake -DOPENSYCL_TARGETS=omp -DOPENSYCL_USE_ACCELERATED_CPU=true -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
       - name: build CPU tests with loop splitting
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-cpu

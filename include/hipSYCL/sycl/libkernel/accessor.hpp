@@ -1216,14 +1216,10 @@ public:
   }
 
   iterator begin() const noexcept {
-    auto total_range = this->detail::accessor::conditional_buffer_range_storage<
-      has_buffer_range, dimensions>::get();
     return iterator::make_begin(this);
   }
 
   iterator end() const noexcept {
-    auto total_range = this->detail::accessor::conditional_buffer_range_storage<
-      has_buffer_range, dimensions>::get();
     return iterator::make_end(this);
   }
 

@@ -27,7 +27,6 @@ jobs:
             sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
           fi
       - name: install boost (from apt)
-        if: matrix.os == 'ubuntu-20.04'
         run: |
           sudo apt install libboost-all-dev
       - name: setup build env

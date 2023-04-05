@@ -382,7 +382,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(nd_range_subgroup_joint_scan_init, T, test_types) 
 /*
  * scoped V2
  */
-
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
 BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_group_scan_over_group, T, test_types) {
   using element_type = typename sycl::detail::builtin_type_traits<T>::element_type;
   constexpr size_t num_groups = 4;
@@ -658,6 +658,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_subgroup_joint_scan_init, T, test_types) 
         in_data, mult_ex_out_data, local_size, num_groups, elements_per_item, 3);
   }
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()
 

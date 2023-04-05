@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(nd_range_subgroup_joint_x_of, T, test_types) {
 /*
  * scoped V2
  */
-
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
 BOOST_AUTO_TEST_CASE(scopedv2_group_x_of_group) {
   constexpr size_t num_groups = 4; // needed for correct data generation
   for (const size_t &local_size : {25, 32, 64, 128, 256, 500, 512, 1024}) {
@@ -632,6 +632,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_subgroup_joint_x_of, T, test_types) {
         in_data, none_out_data, local_size, global_size, elements_per_item, 2);
   }
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()
 

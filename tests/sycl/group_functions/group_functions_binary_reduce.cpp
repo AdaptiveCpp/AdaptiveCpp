@@ -27,383 +27,613 @@
  */
 
 #include <cstddef>
+#include <functional>
 
 #include "../sycl_test_suite.hpp"
 #include "group_functions.hpp"
+#include <boost/test/data/test_case.hpp>
 
 #ifdef HIPSYCL_ENABLE_GROUP_ALGORITHM_TESTS
 
 using namespace cl;
 
+namespace detail {
+template<typename T>
+std::vector<T> generate_input_data_binary_reduce(size_t local_size, size_t global_size) {
+  std::vector<T> data(global_size);
+
+  for (size_t i = 0; i < 2 * local_size; ++i)
+    data[i] = static_cast<T>(
+        static_cast<typename sycl::detail::builtin_type_traits<T>::element_type>(false));
+  for (size_t i = 2 * local_size; i < global_size; ++i)
+    data[i] = static_cast<T>(
+        static_cast<typename sycl::detail::builtin_type_traits<T>::element_type>(true));
+
+  if (local_size > 1) {
+    // add elements to generate ll possible 4 cases (all true/false, all but 1 true/false)
+    data[static_cast<size_t>(local_size / 2)] = static_cast<T>(
+        static_cast<typename sycl::detail::builtin_type_traits<T>::element_type>(true));
+    data[2 * local_size + static_cast<size_t>(local_size / 2)] = static_cast<T>(
+        static_cast<typename sycl::detail::builtin_type_traits<T>::element_type>(false));
+  }
+
+  return data;
+}
+
+template<typename T>
+void check_output_group_data_binary_reduce(std::vector<T> in_data, std::vector<char> out_data,
+    size_t local_size, size_t global_size, int test_case) {
+  constexpr size_t num_groups = 4;
+
+  for (int i = 0; i < num_groups; ++i) {
+    size_t num_elements = local_size;
+    bool expected;
+    auto start = in_data.begin() + i * local_size;
+    auto end = start + num_elements;
+    if (test_case == 0) {
+      expected = std::any_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    } else if (test_case == 1) {
+      expected = std::all_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    } else {
+      expected = std::none_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    }
+    for (int lid = 0; lid < num_elements; ++lid) {
+      int gid = lid + i * local_size;
+      bool computed = out_data[gid];
+
+      BOOST_TEST(detail::compare_type(computed, expected),
+          detail::type_to_string(computed) << " at position " << lid << " (group: " << i
+                                           << ", gid: " << gid << ", local size: " << local_size
+                                           << ", case: " << test_case << "[0=any, 1=all, 2=none])"
+                                           << " instead of " << detail::type_to_string(expected));
+    }
+  }
+}
+
+template<typename T>
+void check_output_joint_data_binary_reduce(std::vector<T> in_data, std::vector<char> out_data,
+    size_t local_size, size_t global_size, size_t elements_per_item, int test_case) {
+  constexpr size_t num_groups = 4;
+
+  for (int i = 0; i < num_groups; ++i) {
+    size_t num_elements = local_size * elements_per_item;
+    bool expected;
+    auto start = in_data.begin() + i * local_size * elements_per_item;
+    auto end = start + num_elements;
+    if (test_case == 0) {
+      expected = std::any_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    } else if (test_case == 1) {
+      expected = std::all_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    } else {
+      expected = std::none_of(start, end, [](T x) {
+        return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+      });
+    }
+    for (int lid = 0; lid < local_size; ++lid) {
+      int gid = lid + i * local_size;
+      bool computed = out_data[gid];
+
+      BOOST_TEST(detail::compare_type(computed, expected),
+          detail::type_to_string(computed) << " at position " << lid << " (group: " << i
+                                           << ", gid: " << gid << ", local size: " << local_size
+                                           << ", case: " << test_case << "[0=any, 1=all, 2=none])"
+                                           << " instead of " << detail::type_to_string(expected));
+    }
+  }
+}
+
+} // namespace detail
+
 BOOST_FIXTURE_TEST_SUITE(group_functions_tests, reset_device_fixture)
 
-BOOST_AUTO_TEST_CASE(group_x_of_local) {
-  using T = char;
+/*
+ * ND-range
+ */
 
-  const size_t elements_per_thread = 1;
-  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
-                                 size_t global_size) {
-    detail::create_bool_test_data(v, local_size, global_size);
-  };
+BOOST_AUTO_TEST_CASE(nd_range_group_x_of_group) {
+  constexpr size_t num_groups = 4; // needed for correct data generation
+  for (const size_t &local_size : {25, 32, 64, 128, 256, 500, 512, 1024}) {
+    const size_t global_size = num_groups * local_size;
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] = sycl::any_of_group(g, static_cast<bool>(local_value));
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(vIn, local_size, global_size,
-                                               std::vector<bool>{true, false, true, true},
-                                               "any_of");
-    };
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<char> in_data =
+        detail::generate_input_data_binary_reduce<char>(local_size, global_size);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+    {
+      sycl::buffer<char, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] = sycl::all_of_group(g, static_cast<bool>(local_value));
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, false, false, true},
-          "all_of");
-    };
+        cgh.parallel_for<detail::test_kernel<__LINE__, char>>(
+            sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+              auto g = item.get_group();
+              size_t gid = item.get_global_linear_id();
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
-
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] = sycl::none_of_group(g, static_cast<bool>(local_value));
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, true, false, false},
-          "none_of");
-    };
-
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+              any_out_acc[gid] = any_of_group(g, in_acc[gid]);
+              all_out_acc[gid] = all_of_group(g, in_acc[gid]);
+              none_out_acc[gid] = none_of_group(g, in_acc[gid]);
+            });
+      });
+    }
+    detail::check_output_group_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, 0);
+    detail::check_output_group_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, 1);
+    detail::check_output_group_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, 2);
   }
 }
 
-BOOST_AUTO_TEST_CASE(sub_group_x_of_local) {
-  if(!sycl::queue{}.get_device().is_host()) {
-    using T = char;
+BOOST_AUTO_TEST_CASE(nd_range_subgroup_x_of_group) {
+  constexpr size_t num_groups = 4; // needed for correct data generation
+  std::vector<size_t> local_sizes = {1};
+  auto device = sycl::queue{}.get_device();
+  if (!device.is_host()) {
+    local_sizes.push_back(device.get_info<sycl::info::device::sub_group_sizes>()[0]);
+  }
+  for (const size_t &local_size : local_sizes) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
 
-    const size_t   elements_per_thread = 1;
-    const uint32_t subgroup_size = detail::get_subgroup_size(sycl::queue{});
-
-    const auto data_generator = [](std::vector<T> &v, size_t local_size,
-                                  size_t global_size) {
-      detail::create_bool_test_data(v, local_size, global_size);
-    };
-
-    {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] = sycl::any_of_group(sg, static_cast<bool>(local_value));
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(vIn, local_size, global_size,
-                                                std::vector<bool>{true, false, true, true},
-                                                "any_of", subgroup_size);
-      };
-
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
-    }
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<char> in_data =
+        detail::generate_input_data_binary_reduce<char>(local_size, global_size);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
 
     {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] = sycl::all_of_group(sg, static_cast<bool>(local_value));
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(
-            vIn, local_size, global_size, std::vector<bool>{false, false, false, true},
-            "all_of", subgroup_size);
-      };
+      sycl::buffer<char, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
+
+        cgh.parallel_for<detail::test_kernel<__LINE__, char>>(
+            sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+              auto g = item.get_sub_group();
+              size_t gid = item.get_global_linear_id();
+
+              any_out_acc[gid] = any_of_group(g, in_acc[gid]);
+              all_out_acc[gid] = all_of_group(g, in_acc[gid]);
+              none_out_acc[gid] = none_of_group(g, in_acc[gid]);
+            });
+      });
     }
-
-    {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] = sycl::none_of_group(sg, static_cast<bool>(local_value));
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(
-            vIn, local_size, global_size, std::vector<bool>{false, true, false, false},
-            "none_of", subgroup_size);
-      };
-
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
-    }
+    detail::check_output_group_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, 0);
+    detail::check_output_group_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, 1);
+    detail::check_output_group_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, 2);
   }
 }
 
-BOOST_AUTO_TEST_CASE(group_x_of_ptr_function) {
-  using T = char;
+BOOST_AUTO_TEST_CASE_TEMPLATE(nd_range_group_joint_x_of, T, test_types) {
+  constexpr size_t num_groups = 4;        // needed for correct data generation
+  constexpr size_t elements_per_item = 4; // needed for correct data generation
 
-  const size_t elements_per_thread = 3;
-  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
-                                 size_t global_size) {
-    detail::create_bool_test_data(v, local_size * 2, global_size * 2);
-  };
+  for (const size_t &local_size : {25, 32, 64, 128, 256, 500, 512, 1024}) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      auto local_size  = g.get_local_range().size();
-      auto global_size = 4 * local_size;
-      auto start = acc.get_pointer() + (global_linear_id / local_size) * local_size * 2;
-      auto end   = start + local_size * 2;
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<T> in_data = detail::generate_input_data_binary_reduce<T>(
+        local_size * elements_per_item, global_size * elements_per_item);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
 
-      auto local = sycl::joint_any_of(g, start.get(), end.get(), std::logical_not<T>());
-      sycl::group_barrier(g);
-      acc[global_linear_id + 2 * global_size] = local;
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(vIn, local_size, global_size,
-                                               std::vector<bool>{true, true, true, false},
-                                               "any_of", 0, 2 * global_size);
-    };
+    {
+      sycl::buffer<T, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
+        cgh.parallel_for<detail::test_kernel<__LINE__, T>>(
+            sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+              auto g = item.get_group();
+              auto group_id = g.get_group_linear_id();
+              size_t gid = item.get_global_linear_id();
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      auto local_size  = g.get_local_range().size();
-      auto global_size = 4 * local_size;
-      auto start = acc.get_pointer() + (global_linear_id / local_size) * local_size * 2;
-      auto end   = start + local_size * 2;
+              auto start = in_acc.get_pointer() + group_id * local_size * elements_per_item;
+              auto end = start + local_size * elements_per_item;
 
-      auto local = sycl::joint_all_of(g, start.get(), end.get(), std::logical_not<T>());
-      sycl::group_barrier(g);
-      acc[global_linear_id + 2 * global_size] = local;
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, true, false, false},
-          "all_of", 0, 2 * global_size);
-    };
-
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
-
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      auto local_size  = g.get_local_range().size();
-      auto global_size = 4 * local_size;
-      auto start = acc.get_pointer() + (global_linear_id / local_size) * local_size * 2;
-      auto end   = start + local_size * 2;
-
-      auto local =
-          sycl::joint_none_of(g, start.get(), end.get(), std::logical_not<T>());
-      sycl::group_barrier(g);
-      acc[global_linear_id + 2 * global_size] = local;
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, false, false, true},
-          "none_of", 0, 2 * global_size);
-    };
-
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+              any_out_acc[gid] = joint_any_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              all_out_acc[gid] = joint_all_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              none_out_acc[gid] = joint_none_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+            });
+      });
+    }
+    detail::check_output_joint_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, elements_per_item, 0);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, elements_per_item, 1);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, elements_per_item, 2);
   }
 }
 
-BOOST_AUTO_TEST_CASE(group_x_of_function) {
-  using T = char;
+BOOST_AUTO_TEST_CASE_TEMPLATE(nd_range_subgroup_joint_x_of, T, test_types) {
+  constexpr size_t num_groups = 4;        // needed for correct data generation
+  constexpr size_t elements_per_item = 4; // needed for correct data generation
 
-  const size_t elements_per_thread = 1;
-  const auto   data_generator      = [](std::vector<T> &v, size_t local_size,
-                                 size_t global_size) {
-    detail::create_bool_test_data(v, local_size, global_size);
-  };
-
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] =
-          sycl::any_of_group(g, static_cast<bool>(local_value), std::logical_not<T>());
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(vIn, local_size, global_size,
-                                               std::vector<bool>{true, true, true, false},
-                                               "any_of");
-    };
-
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+  std::vector<size_t> local_sizes = {1};
+  auto device = sycl::queue{}.get_device();
+  if (!device.is_host()) {
+    local_sizes.push_back(device.get_info<sycl::info::device::sub_group_sizes>()[0]);
   }
+  for (const size_t &local_size : local_sizes) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] =
-          sycl::all_of_group(g, static_cast<bool>(local_value), std::logical_not<T>());
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, true, false, false},
-          "all_of");
-    };
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<T> in_data = detail::generate_input_data_binary_reduce<T>(
+        local_size * elements_per_item, global_size * elements_per_item);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+    {
+      sycl::buffer<T, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
-  }
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
 
-  {
-    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                    auto g, T local_value) {
-      acc[global_linear_id] =
-          sycl::none_of_group(g, static_cast<bool>(local_value), std::logical_not<T>());
-    };
-    const auto validation_function = [](const std::vector<T> &vIn,
-                                        const std::vector<T> &vOrig, size_t local_size,
-                                        size_t global_size) {
-      detail::check_binary_reduce<T, __LINE__>(
-          vIn, local_size, global_size, std::vector<bool>{false, false, false, true},
-          "none_of");
-    };
+        cgh.parallel_for<detail::test_kernel<__LINE__, T>>(
+            sycl::nd_range<1>{global_size, local_size}, [=](sycl::nd_item<1> item) {
+              auto g = item.get_group();
+              auto sg = item.get_sub_group();
+              auto group_id = g.get_group_linear_id();
+              size_t gid = item.get_global_linear_id();
 
-    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+              auto start = in_acc.get_pointer() + group_id * local_size * elements_per_item;
+              auto end = start + local_size * elements_per_item;
 
-    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
-                                           tested_function, validation_function);
+              any_out_acc[gid] = joint_any_of(sg, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              all_out_acc[gid] = joint_all_of(sg, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              none_out_acc[gid] = joint_none_of(sg, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+            });
+      });
+    }
+    detail::check_output_joint_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, elements_per_item, 0);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, elements_per_item, 1);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, elements_per_item, 2);
   }
 }
 
-BOOST_AUTO_TEST_CASE(sub_group_x_of_function) {
-  if(!sycl::queue{}.get_device().is_host()) {
-    using T = char;
 
-    const size_t   elements_per_thread = 1;
-    const uint32_t subgroup_size = detail::get_subgroup_size(sycl::queue{});
+/*
+ * scoped V2
+ */
+#if !(defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) || defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__))
+BOOST_AUTO_TEST_CASE(scopedv2_group_x_of_group) {
+  constexpr size_t num_groups = 4; // needed for correct data generation
+  for (const size_t &local_size : {25, 32, 64, 128, 256, 500, 512, 1024}) {
+    const size_t global_size = num_groups * local_size;
 
-    const auto data_generator = [](std::vector<T> &v, size_t local_size,
-                                  size_t global_size) {
-      detail::create_bool_test_data(v, local_size, global_size);
-    };
-
-    {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] =
-            sycl::any_of_group(sg, static_cast<bool>(local_value), std::logical_not<T>());
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(vIn, local_size, global_size,
-                                                std::vector<bool>{true, true, true, false},
-                                                "any_of", subgroup_size);
-      };
-
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
-    }
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<char> in_data =
+        detail::generate_input_data_binary_reduce<char>(local_size, global_size);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
 
     {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] =
-            sycl::all_of_group(sg, static_cast<bool>(local_value), std::logical_not<T>());
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(
-            vIn, local_size, global_size, std::vector<bool>{false, true, false, false},
-            "all_of", subgroup_size);
-      };
+      sycl::buffer<char, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
 
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
+
+
+        cgh.parallel<detail::test_kernel<__LINE__, char>>(
+            sycl::range<1>{num_groups}, sycl::range<1>{local_size}, [=](auto g) {
+              sycl::memory_environment(
+                  g, sycl::require_private_mem<bool>(), [&](auto &private_mem) {
+                    // load values into private memory
+                    sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+                      private_mem(idx) = in_acc[idx.get_global_linear_id()];
+                    });
+
+                    bool any_out = sycl::any_of_group(g, private_mem);
+                    bool all_out = sycl::all_of_group(g, private_mem);
+                    bool none_out = sycl::none_of_group(g, private_mem);
+
+                    // write result back to global memory
+                    sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+                      any_out_acc[idx.get_global_linear_id()] = any_out;
+                      all_out_acc[idx.get_global_linear_id()] = all_out;
+                      none_out_acc[idx.get_global_linear_id()] = none_out;
+                    });
+                  });
+            });
+      });
     }
-
-    {
-      const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
-                                      auto g, T local_value) {
-        acc[global_linear_id] =
-            sycl::none_of_group(sg, static_cast<bool>(local_value), std::logical_not<T>());
-      };
-      const auto validation_function = [=](const std::vector<T> &vIn,
-                                          const std::vector<T> &vOrig, size_t local_size,
-                                          size_t global_size) {
-        detail::check_binary_reduce<T, __LINE__>(
-            vIn, local_size, global_size, std::vector<bool>{false, false, false, true},
-            "none_of", subgroup_size);
-      };
-
-      test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
-                                            tested_function, validation_function);
-    }
+    detail::check_output_group_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, 0);
+    detail::check_output_group_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, 1);
+    detail::check_output_group_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, 2);
   }
 }
+
+BOOST_AUTO_TEST_CASE(scopedv2_subgroup_x_of_group) {
+  constexpr size_t num_groups = 4; // needed for correct data generation
+  std::vector<size_t> local_sizes = {1};
+  auto device = sycl::queue{}.get_device();
+  if (!device.is_host()) {
+    local_sizes.push_back(device.get_info<sycl::info::device::sub_group_sizes>()[0]);
+  }
+  for (const size_t &local_size : local_sizes) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
+
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<char> in_data =
+        detail::generate_input_data_binary_reduce<char>(local_size, global_size);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
+
+    {
+      sycl::buffer<char, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
+
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
+
+        cgh.parallel<detail::test_kernel<__LINE__, char>>(
+            sycl::range<1>{num_groups}, sycl::range<1>{local_size}, [=](auto g) {
+              bool any_out;
+              bool all_out;
+              bool none_out;
+              sycl::distribute_groups(g, [&](auto sg) {
+                sycl::memory_environment(
+                    sg, sycl::require_private_mem<bool>(), [&](auto &private_mem) {
+                      // load values into private memory
+                      sycl::distribute_items(sg, [&](sycl::s_item<1> idx) {
+                        private_mem(idx) = in_acc[idx.get_global_linear_id()];
+                      });
+
+                      any_out = sycl::any_of_group(sg, private_mem);
+                      all_out = sycl::all_of_group(sg, private_mem);
+                      none_out = sycl::none_of_group(sg, private_mem);
+                    });
+              });
+
+              // write result back to global memory
+              sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+                any_out_acc[idx.get_global_linear_id()] = any_out;
+                all_out_acc[idx.get_global_linear_id()] = all_out;
+                none_out_acc[idx.get_global_linear_id()] = none_out;
+              });
+            });
+      });
+    }
+    detail::check_output_group_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, 0);
+    detail::check_output_group_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, 1);
+    detail::check_output_group_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, 2);
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_group_joint_x_of, T, test_types) {
+  constexpr size_t num_groups = 4;        // needed for correct data generation
+  constexpr size_t elements_per_item = 4; // needed for correct data generation
+
+  for (const size_t &local_size : {25, 32, 64, 128, 256, 500, 512, 1024}) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
+
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<T> in_data = detail::generate_input_data_binary_reduce<T>(
+        local_size * elements_per_item, global_size * elements_per_item);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
+
+    {
+      sycl::buffer<T, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
+
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
+
+        cgh.parallel<detail::test_kernel<__LINE__, T>>(
+            sycl::range<1>{num_groups}, sycl::range<1>{local_size}, [=](auto g) {
+              auto group_id = g.get_group_linear_id();
+
+              auto start = in_acc.get_pointer() + group_id * local_size * elements_per_item;
+              auto end = start + local_size * elements_per_item;
+
+              bool any_out = sycl::joint_any_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              bool all_out = sycl::joint_all_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+              bool none_out = sycl::joint_none_of(g, start, end, [](T x) {
+                return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+              });
+
+              // write result back to global memory
+              sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+                any_out_acc[idx.get_global_linear_id()] = any_out;
+                all_out_acc[idx.get_global_linear_id()] = all_out;
+                none_out_acc[idx.get_global_linear_id()] = none_out;
+              });
+            });
+      });
+    }
+    detail::check_output_joint_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, elements_per_item, 0);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, elements_per_item, 1);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, elements_per_item, 2);
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_subgroup_joint_x_of, T, test_types) {
+  constexpr size_t num_groups = 4;        // needed for correct data generation
+  constexpr size_t elements_per_item = 4; // needed for correct data generation
+
+  std::vector<size_t> local_sizes = {1};
+  auto device = sycl::queue{}.get_device();
+  if (!device.is_host()) {
+    local_sizes.push_back(device.get_info<sycl::info::device::sub_group_sizes>()[0]);
+  }
+  for (const size_t &local_size : local_sizes) {
+    // used to generate incomplete groups for nd-range
+    const size_t global_size = num_groups * local_size;
+
+    // using char instead of bool for result, because of vector<bool> specialization
+    std::vector<T> in_data = detail::generate_input_data_binary_reduce<T>(
+        local_size * elements_per_item, global_size * elements_per_item);
+    std::vector<char> any_out_data(global_size);
+    std::vector<char> all_out_data(global_size);
+    std::vector<char> none_out_data(global_size);
+
+    {
+      sycl::buffer<T, 1> in_buf{in_data.data(), in_data.size()};
+      sycl::buffer<char, 1> any_out_buf{any_out_data.data(), any_out_data.size()};
+      sycl::buffer<char, 1> all_out_buf{all_out_data.data(), all_out_data.size()};
+      sycl::buffer<char, 1> none_out_buf{none_out_data.data(), none_out_data.size()};
+
+      sycl::queue queue;
+      queue.submit([&](sycl::handler &cgh) {
+        using namespace sycl::access;
+        sycl::accessor in_acc{in_buf, cgh, sycl::read_only};
+        sycl::accessor any_out_acc{any_out_buf, cgh, sycl::write_only};
+        sycl::accessor all_out_acc{all_out_buf, cgh, sycl::write_only};
+        sycl::accessor none_out_acc{none_out_buf, cgh, sycl::write_only};
+
+        cgh.parallel<detail::test_kernel<__LINE__, T>>(
+            sycl::range<1>{num_groups}, sycl::range<1>{local_size}, [=](auto g) {
+              auto group_id = g.get_group_linear_id();
+
+              auto start = in_acc.get_pointer() + group_id * local_size * elements_per_item;
+              auto end = start + local_size * elements_per_item;
+
+              bool any_out;
+              bool all_out;
+              bool none_out;
+              sycl::distribute_groups(g, [&](auto sg) {
+                any_out = sycl::joint_any_of(g, start, end, [](T x) {
+                  return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+                });
+                all_out = sycl::joint_all_of(g, start, end, [](T x) {
+                  return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+                });
+                none_out = sycl::joint_none_of(g, start, end, [](T x) {
+                  return static_cast<bool>(sycl::detail::builtin_type_traits<T>::element(x, 0));
+                });
+              });
+
+              // write result back to global memory
+              sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+                any_out_acc[idx.get_global_linear_id()] = any_out;
+                all_out_acc[idx.get_global_linear_id()] = all_out;
+                none_out_acc[idx.get_global_linear_id()] = none_out;
+              });
+            });
+      });
+    }
+    detail::check_output_joint_data_binary_reduce(
+        in_data, any_out_data, local_size, global_size, elements_per_item, 0);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, all_out_data, local_size, global_size, elements_per_item, 1);
+    detail::check_output_joint_data_binary_reduce(
+        in_data, none_out_data, local_size, global_size, elements_per_item, 2);
+  }
+}
+#endif
+
 BOOST_AUTO_TEST_SUITE_END()
 
 #endif

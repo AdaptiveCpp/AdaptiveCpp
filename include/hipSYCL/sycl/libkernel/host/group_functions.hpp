@@ -34,11 +34,13 @@
 #include "../detail/mem_fence.hpp"
 #include "../functional.hpp"
 #include "../group.hpp"
+#include "../sp_group.hpp"
 #include "../id.hpp"
 #include "../sub_group.hpp"
 #include "../vec.hpp"
 #include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
 #include <type_traits>
+#include <functional>
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 
@@ -46,10 +48,10 @@ namespace hipsycl {
 namespace sycl::detail::host_builtins {
 
 // barrier
-template <int Dim>
-HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET inline void
-__hipsycl_group_barrier(group<Dim> g,
-                        memory_scope fence_scope = group<Dim>::fence_scope) {
+template<int Dim>
+HIPSYCL_LOOP_SPLIT_BARRIER HIPSYCL_KERNEL_TARGET
+inline void __hipsycl_group_barrier(
+    group<Dim> g, memory_scope fence_scope = group<Dim>::fence_scope) {
   if (fence_scope == memory_scope::device) {
     mem_fence<>();
   }
@@ -57,18 +59,16 @@ __hipsycl_group_barrier(group<Dim> g,
 }
 
 HIPSYCL_KERNEL_TARGET
-inline void
-__hipsycl_group_barrier(sub_group g,
-                        memory_scope fence_scope = sub_group::fence_scope) {
+inline void __hipsycl_group_barrier(
+    sub_group g, memory_scope fence_scope = sub_group::fence_scope) {
   // doesn't need sync
 }
 
 namespace detail {
 // reduce implementation
-template <int Dim, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __hipsycl_group_reduce(group<Dim> g, T x,
-                                               BinaryOperation binary_op,
-                                               T *scratch) {
+template<int Dim, typename T, typename BinaryOperation>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_group_reduce(group<Dim> g, T x, BinaryOperation binary_op, T *scratch) {
   const size_t lid = g.get_local_linear_id();
 
   scratch[lid] = x;
@@ -93,571 +93,426 @@ HIPSYCL_KERNEL_TARGET T __hipsycl_group_reduce(group<Dim> g, T x,
 } // namespace detail
 
 // broadcast
-template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET 
-T __hipsycl_group_broadcast(
-    group<Dim> g, T x,
-    typename group<Dim>::linear_id_type local_linear_id = 0) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-  const size_t lid = g.get_local_linear_id();
+// ND-range
 
-  if (lid == local_linear_id) {
-    scratch[0] = x;
+template<typename Group, typename T, std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_group_broadcast(Group g, T x, typename Group::linear_id_type local_linear_id) {
+  T result = x;
+
+  // check if Group is a group, since nothing needs to be done for subgroup
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    T *scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+    if (g.get_local_linear_id() == local_linear_id)
+      scratch[0] = x;
+
+    __hipsycl_group_barrier(g);
+    result = scratch[0];
+    __hipsycl_group_barrier(g);
   }
 
-  __hipsycl_group_barrier(g);
-  T tmp = scratch[0];
-  __hipsycl_group_barrier(g);
-
-  return tmp;
-}
-
-template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_group_broadcast(
-    group<Dim> g, T x, typename group<Dim>::id_type local_id) {
-  const size_t target_lid =
-      linear_id<g.dimensions>::get(local_id, g.get_local_range());
-  return __hipsycl_group_broadcast(g, x, target_lid);
-}
-
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-T __hipsycl_group_broadcast(sub_group g, T x,
-                  typename sub_group::linear_id_type local_linear_id = 0) {
-  return x;
-}
-
-template<typename T>
-HIPSYCL_KERNEL_TARGET
-T __hipsycl_group_broadcast(sub_group g, T x,
-                  typename sub_group::id_type local_id) {
-  return x;
+  return result;
 }
 
 // any_of
-namespace detail { // until scoped-parallelism can be detected
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+// ND-range
+
+template<typename Group, typename Ptr, typename Predicate,
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-bool __hipsycl_leader_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
+bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = false;
 
   if (g.leader()) {
-    while (first != last) {
-      if (pred(*(first++))) {
-        result = true;
-        break;
-      }
+    for (Ptr p = first; p < last; ++p) {
+      result |= pred(*p);
     }
   }
+
+  // broadcast result to all threads for non-sub_groups
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    result = group_broadcast(g, result);
+  }
+
   return result;
 }
-}
 
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
-bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last,
-                            Predicate pred) {
-  const bool result = detail::__hipsycl_leader_any_of(g, first, last, pred);
-  return group_broadcast(g, result);
-}
-
-template<int Dim>
+template<typename Group, std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_any_of_group(group<Dim> g, bool pred) {
-  bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
+bool __hipsycl_any_of_group(Group g, bool pred) {
+  bool result = pred;
 
-  scratch[0] = false;
-  __hipsycl_group_barrier(g);
+  // check if Group is a group, since nothing needs to be done for subgroup
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
-  if (pred)
-    scratch[0] = pred;
+    scratch[0] = false;
+    __hipsycl_group_barrier(g);
 
-  __hipsycl_group_barrier(g);
+    // only write if a pred evaluates to true, because of the if-clause order doesn't matter
+    if (result)
+      scratch[0] = true;
 
-  bool tmp = scratch[0];
+    // read value from shared memory
+    __hipsycl_group_barrier(g);
+    result = scratch[0];
+    __hipsycl_group_barrier(g);
+  }
 
-  __hipsycl_group_barrier(g);
-
-  return tmp;
+  return result;
 }
 
+// scoped V2
+template<typename Group, typename Ptr, typename Predicate,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_any_of_group(sub_group g, bool pred) {
-  return pred;
+bool __hipsycl_joint_any_of(Group g, Ptr first, Ptr last, Predicate pred) {
+  bool result = false;
+
+  single_item(g, [&]() {
+    for (Ptr p = first; p < last; ++p) {
+      result |= pred(*p);
+    }
+  });
+
+  return result;
+}
+
+template<typename Group, std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_KERNEL_TARGET
+bool __hipsycl_any_of_group(Group g, const private_memory_access<bool, Group> &x) {
+  bool result = false;
+
+  sycl::distribute_items(g, [&](sycl::s_item<1> idx) { result |= x(idx); });
+
+  return result;
 }
 
 // all_of
-namespace detail { // until scoped-parallelism can be detected
+// ND-range
+
 template<typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-bool __hipsycl_leader_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
+bool __hipsycl_joint_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = true;
 
   if (g.leader()) {
-    while (first != last) {
-      if (!pred(*(first++))) {
-        result = false;
-        break;
-      }
+    for (Ptr p = first; p < last; ++p) {
+      result &= pred(*p);
     }
   }
+
+  // broadcast result to all threads for non-sub_groups
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    result = group_broadcast(g, result);
+  }
+
   return result;
 }
-}
 
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET bool __hipsycl_joint_all_of(Group g, Ptr first, Ptr last,
-                                                  Predicate pred) {
-  const bool result = detail::__hipsycl_leader_all_of(g, first, last, pred);
-  return group_broadcast(g, result);
-}
-
-template<int Dim>
+template<typename Group, std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_all_of_group(group<Dim> g, bool pred) {
-  bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
+bool __hipsycl_all_of_group(Group g, bool pred) {
+  bool result = pred;
 
-  scratch[0] = true;
-  __hipsycl_group_barrier(g);
+  // check if Group is a group, since nothing needs to be done for subgroup
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
 
-  if (!pred)
-    scratch[0] = pred;
+    scratch[0] = true;
+    __hipsycl_group_barrier(g);
 
-  __hipsycl_group_barrier(g);
+    // only write if a pred evaluates to false, because of the if-clause order doesn't matter
+    if (!result)
+      scratch[0] = false;
 
-  bool tmp = scratch[0];
+    // read value from shared memory
+    __hipsycl_group_barrier(g);
+    result = scratch[0];
+    __hipsycl_group_barrier(g);
+  }
 
-  __hipsycl_group_barrier(g);
-
-  return tmp;
+  return result;
 }
 
+// scoped V2
+
+template<typename Group, typename Ptr, typename Predicate,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_all_of_group(sub_group g, bool pred) {
-  return pred;
-}
-
-// none_of
-namespace detail { // until scoped-parallelism can be detected
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
-bool __hipsycl_leader_none_of(Group g, Ptr first,
-                              Ptr last, Predicate pred) {
+bool __hipsycl_joint_all_of(Group g, Ptr first, Ptr last, Predicate pred) {
   bool result = true;
 
-  if (g.leader()) {
-    while (first != last) {
-      if (pred(*(first++))) {
-        result = false;
-        break;
-      }
+  single_item(g, [&]() {
+    for (Ptr p = first; p < last; ++p) {
+      result &= pred(*p);
     }
-  }
+  });
+
   return result;
 }
-}
 
-template <typename Group, typename Ptr, typename Predicate,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET 
-bool __hipsycl_joint_none_of(Group g, Ptr first, Ptr last,
-                             Predicate pred) {
-  auto result = detail::__hipsycl_leader_none_of(g, first, last, pred);
-  return group_broadcast(g, result);
-}
-
-template<int Dim>
+template<typename Group, std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_none_of_group(group<Dim> g, bool pred) {
-  bool *scratch = static_cast<bool *>(g.get_local_memory_ptr());
+bool __hipsycl_all_of_group(Group g, const private_memory_access<bool, Group> &pred) {
+  bool result = true;
 
-  scratch[0] = true;
-  __hipsycl_group_barrier(g);
+  sycl::distribute_items(g, [&](sycl::s_item<1> idx) { result &= pred(idx); });
 
-  if (pred)
-    scratch[0] = !pred;
-
-  __hipsycl_group_barrier(g);
-
-  bool tmp = scratch[0];
-
-  __hipsycl_group_barrier(g);
-
-  return tmp;
-}
-
-HIPSYCL_KERNEL_TARGET
-inline bool __hipsycl_none_of_group(sub_group g, bool pred) {
-  return !pred;
+  return result;
 }
 
 // reduce
-namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+// ND-range
+
+template<typename Group, typename Ptr, typename BinaryOperation,
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_leader_reduce(Group g, T *first, T *last, 
-                          BinaryOperation binary_op) {
-  T result{};
+typename std::iterator_traits<Ptr>::value_type __hipsycl_joint_reduce(
+    Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
+  using T = typename std::iterator_traits<Ptr>::value_type;
+  T result = known_identity_v<BinaryOperation, typename std::iterator_traits<Ptr>::value_type>;
 
   if (first >= last) {
-    return T{};
+    return result;
   }
 
   if (g.leader()) {
-#pragma omp simd
     for (T *i = first; i < last; ++i)
       result = binary_op(result, *i);
   }
-  return result;
-}
-
-template<typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-T __hipsycl_leader_reduce(Group g, T *first, T *last, V init, 
-                          BinaryOperation binary_op) {
-  auto result = __hipsycl_leader_reduce(g, first, last, binary_op);
-
-  if (g.leader()) {
-    result = binary_op(result, init);
-  }
-  return result;
-}
-}
-
-template <typename Group, typename Ptr, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET
-typename std::iterator_traits<Ptr>::value_type
-__hipsycl_joint_reduce(Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
-  const auto result = detail::__hipsycl_leader_reduce(g, first, last, binary_op);
 
   return group_broadcast(g, result);
 }
 
-template <typename Group, typename Ptr, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+template<typename Group, typename T, typename BinaryOperation,
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_joint_reduce(Group g, Ptr first, Ptr last, T init,
-                         BinaryOperation binary_op) {
-  const auto result =
-      detail::__hipsycl_leader_reduce(g, first, last, init, binary_op);
+T __hipsycl_reduce_over_group(Group g, T x, BinaryOperation binary_op) {
+  T result = x;
 
-  return __hipsycl_group_broadcast(g, result);
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    const size_t lid = g.get_local_linear_id();
+    T *scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+    scratch[lid] = x;
+    __hipsycl_group_barrier(g);
+
+    if (g.leader()) {
+      for (int i = 1; i < g.get_local_range().size(); ++i)
+        result = binary_op(result, scratch[i]);
+
+      scratch[0] = result;
+    }
+
+    __hipsycl_group_barrier(g);
+    result = scratch[0];
+    __hipsycl_group_barrier(g);
+  }
+
+  return result;
 }
 
-template<int Dim, typename T, typename BinaryOperation>
+// scoped V2
+template<typename Group, typename Ptr, typename BinaryOperation,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_reduce_over_group(group<Dim> g, T x, BinaryOperation binary_op) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
+typename std::iterator_traits<Ptr>::value_type __hipsycl_joint_reduce(
+    Group g, Ptr first, Ptr last, BinaryOperation binary_op) {
+  if (first >= last)
+    return typename std::iterator_traits<Ptr>::value_type{};
 
-  T tmp = detail::__hipsycl_group_reduce(g, x, binary_op, scratch);
+  typename std::iterator_traits<Ptr>::value_type result = *first;
 
-  return tmp;
+  single_item(g, [&]() {
+    for (Ptr p = first + 1; p < last; ++p) {
+      result = binary_op(result, *p);
+    }
+  });
+
+  return result;
 }
 
-template<typename T, typename BinaryOperation>
+template<typename Group, typename T, typename BinaryOperation,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_reduce_over_group(sub_group g, T x, BinaryOperation binary_op) {
-  return x;
+T __hipsycl_reduce_over_group(
+    Group g, const private_memory_access<T, Group> &x, BinaryOperation binary_op) {
+  T result = known_identity_v<BinaryOperation, T>;
+
+  sycl::distribute_items(g, [&](sycl::s_item<1> idx) { result = binary_op(result, x(idx)); });
+
+  return result;
 }
 
 // exclusive_scan
-namespace detail { // until scoped-parallelism can be detected
-template<typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+// ND-range
+
+template<typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T *__hipsycl_leader_exclusive_scan(Group g, V *first, V *last, T *result, T init,
-                                   BinaryOperation binary_op) {
+OutPtr __hipsycl_joint_exclusive_scan(
+    Group g, InPtr first, InPtr last, OutPtr result, T init, BinaryOperation binary_op) {
+  // make sure the return value is correct
+  if ((last - first) < 0) {
+    return result;
+  }
 
   if (g.leader()) {
-    *(result++) = init;
-    while (first != last - 1) {
-      *result = binary_op(*(result - 1), *(first++));
+    T tmp = init;
+    *result = tmp;
+    for (T *i = first; i < last - 1; ++i) {
       result++;
+      tmp = binary_op(tmp, *i);
+      *result = tmp;
     }
   }
+
   return result;
 }
 
 template<typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T *__hipsycl_leader_exclusive_scan(Group g, V *first, V *last, T *result,
-                                   BinaryOperation binary_op) {
-  return __hipsycl_leader_exclusive_scan(g, first, last, result, T{},
-                                         binary_op);
-}
-}
+T __hipsycl_exclusive_scan_over_group(Group g, V x, T init, BinaryOperation binary_op) {
+  T result = init;
 
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
-__hipsycl_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               T init, BinaryOperation binary_op) {
-  const auto ret = detail::__hipsycl_leader_exclusive_scan(
-      g, first, last, result, init, binary_op);
-  return group_broadcast(g, ret);
-}
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    const size_t lid = g.get_local_linear_id();
+    T *scratch = static_cast<T *>(g.get_local_memory_ptr());
 
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
-__hipsycl_joint_exclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op) {
-  return host_builtins::__hipsycl_joint_exclusive_scan(
-      g, first, last, result, typename std::remove_pointer_t<InPtr>{},
-      binary_op);
-}
+    scratch[lid] = x;
+    __hipsycl_group_barrier(g);
 
-template <int Dim, typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __hipsycl_exclusive_scan_over_group(
-    group<Dim> g, V x, T init, BinaryOperation binary_op) {
-  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
-  const size_t lid     = g.get_local_linear_id();
+    if (g.leader()) {
+      for (int i = 0; i < g.get_local_range().size() - 1; ++i) {
+        result = binary_op(result, scratch[i]);
+        scratch[i] = result;
+      }
+    }
 
-  if (lid + 1 < 1024)
-    scratch[lid + 1] = x;
-  __hipsycl_group_barrier(g);
-
-  if (g.leader()) {
-    scratch[0] = init;
-    for (int i = 1; i < g.get_local_range().size(); ++i)
-      scratch[i] = binary_op(scratch[i], scratch[i - 1]);
+    __hipsycl_group_barrier(g);
+    if (lid == 0) {
+      result = init;
+    } else {
+      result = scratch[lid - 1];
+    }
+    __hipsycl_group_barrier(g);
   }
 
-  __hipsycl_group_barrier(g);
-  T tmp = scratch[lid];
-  __hipsycl_group_barrier(g);
-
-  return tmp;
+  return result;
 }
 
-template <typename V, typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __hipsycl_exclusive_scan_over_group(
-    sub_group g, V x, T init, BinaryOperation binary_op) {
-  return binary_op(x, init);
+// scoped V2
+
+template<typename Group, typename InPtr, typename OutPtr, typename T, typename BinaryOperation,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_KERNEL_TARGET
+OutPtr __hipsycl_joint_exclusive_scan(
+    Group g, InPtr first, InPtr last, OutPtr result, T init, BinaryOperation binary_op) {
+  single_item(g, [&]() {
+    *result = init;
+    result++;
+    for (InPtr p = first; p < last - 1; ++p) {
+      *result = binary_op(*(result - 1), *p);
+      result++;
+    }
+  });
+
+  return result;
 }
 
-template <typename Group, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T
-__hipsycl_exclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
-  return __hipsycl_exclusive_scan_over_group(g, x, T{}, binary_op);
+template<typename Group, typename V, typename T, typename BinaryOperation,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_KERNEL_TARGET
+void __hipsycl_exclusive_scan_over_group(Group g, const private_memory_access<V, Group> &x, T init,
+    BinaryOperation binary_op, private_memory_access<T, Group> &result) {
+
+  T partial = init;
+  sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+    T tmp = partial;
+    partial = binary_op(partial, x(idx));
+    result(idx) = tmp;
+  });
 }
 
 // inclusive_scan
-namespace detail { // until scoped-parallelism can be detected
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T *
-__hipsycl_leader_inclusive_scan(Group g, V *first, V *last, T *result,
-                                BinaryOperation binary_op, T init) {
-  if (first == last)
-    return result;
+// ND-range
+template<typename Group, typename T, typename BinaryOperation,
+    std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_inclusive_scan_over_group(Group g, T x, BinaryOperation binary_op) {
+  T result = x;
 
-  if (g.leader()) {
-    *(result++) = binary_op(init, *(first++));
-    while (first != last) {
-      *result = binary_op(*(result - 1), *(first++));
-      result++;
+  if constexpr (!std::is_same_v<sub_group, Group>) {
+    const size_t lid = g.get_local_linear_id();
+    T *scratch = static_cast<T *>(g.get_local_memory_ptr());
+
+    scratch[lid] = x;
+    __hipsycl_group_barrier(g);
+
+    if (g.leader()) {
+      for (int i = 1; i < g.get_local_range().size(); ++i) {
+        result = binary_op(result, scratch[i]);
+        scratch[i] = result;
+      }
     }
+
+    __hipsycl_group_barrier(g);
+    result = scratch[lid];
+    __hipsycl_group_barrier(g);
   }
+
   return result;
 }
 
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T *
-__hipsycl_leader_inclusive_scan(Group g, V *first, V *last, T *result,
-                                BinaryOperation binary_op) {
-  return __hipsycl_leader_inclusive_scan(g, first, last, result, binary_op, T{});
-}
-}
-
-template <typename Group, typename InPtr, typename OutPtr, typename T,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
-__hipsycl_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op, T init) {
-  auto ret = detail::__hipsycl_leader_inclusive_scan(g, first, last, result,
-                                                     binary_op, init);
-  return __hipsycl_group_broadcast(g, ret);
-}
-
-template <typename Group, typename InPtr, typename OutPtr,
-          typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET OutPtr
-__hipsycl_joint_inclusive_scan(Group g, InPtr first, InPtr last, OutPtr result,
-                               BinaryOperation binary_op) {
-  return __hipsycl_joint_inclusive_scan(
-      g, first, last, result, binary_op,
-      typename std::remove_pointer_t<InPtr>{});
-}
-template <int Dim, typename T, typename BinaryOperation>
+// scopedv2
+template<typename Group, typename V, typename T, typename BinaryOperation,
+    std::enable_if_t<is_sp_group_v<std::decay_t<Group>>, bool> = true>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_inclusive_scan_over_group(
-    group<Dim> g, T x, BinaryOperation binary_op) {
-  T *          scratch = static_cast<T *>(g.get_local_memory_ptr());
-  const size_t lid     = g.get_local_linear_id();
+void __hipsycl_inclusive_scan_over_group(Group g, const private_memory_access<V, Group> &x,
+    BinaryOperation binary_op, private_memory_access<T, Group> &result) {
 
-  scratch[lid] = x;
-  __hipsycl_group_barrier(g);
-
-  if (g.leader()) {
-    for (int i = 1; i < g.get_local_range().size(); ++i)
-      scratch[i] = binary_op(scratch[i], scratch[i - 1]);
-  }
-
-  __hipsycl_group_barrier(g);
-  T tmp = scratch[lid];
-  __hipsycl_group_barrier(g);
-
-  return tmp;
-}
-
-template <typename T, typename BinaryOperation>
-HIPSYCL_KERNEL_TARGET T __hipsycl_inclusive_scan_over_group(
-    sub_group g, T x, BinaryOperation binary_op) {
-  return x;
-}
-
-template <typename Group, typename V, typename T, typename BinaryOperation,
-          std::enable_if_t<is_group_v<std::decay_t<Group>>, bool> = true>
-HIPSYCL_KERNEL_TARGET T __hipsycl_inclusive_scan_over_group(
-    Group g, V x, T init, BinaryOperation binary_op) {
-  T scan = __hipsycl_inclusive_scan_over_group(g, T{x}, binary_op);
-  return binary_op(scan, init);
+  T partial = known_identity_v<BinaryOperation, T>;
+  sycl::distribute_items(g, [&](sycl::s_item<1> idx) {
+    partial = binary_op(partial, x(idx));
+    result(idx) = partial;
+  });
 }
 
 // shift_left
-template <int Dim, typename T>
+template<typename T>
 HIPSYCL_KERNEL_TARGET
-T __hipsycl_shift_group_left(
-    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid = lid + delta;
-
-  scratch[lid] = x;
-  __hipsycl_group_barrier(g);
-
-  if (target_lid > g.get_local_range().size())
-    target_lid = 0;
-
-  x = scratch[target_lid];
-  __hipsycl_group_barrier(g);
-
-  return x;
-}
-
-template <typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_shift_group_left(
-    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+T __hipsycl_shift_group_left(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // shift_right
-template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_shift_group_right(
-    group<Dim> g, T x, typename group<Dim>::linear_id_type delta = 1) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid = lid - delta;
-
-  scratch[lid] = x;
-  __hipsycl_group_barrier(g);
-
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
-    target_lid = 0;
-
-  x = scratch[target_lid];
-  __hipsycl_group_barrier(g);
-
-  return x;
-}
-
-template <typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_shift_group_right(
-    sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_shift_group_right(sub_group g, T x, typename sub_group::linear_id_type delta = 1) {
   return x;
 }
 
 // permute_group_by_xor
-template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_permute_group_by_xor(
-    group<Dim> g, T x, typename group<Dim>::linear_id_type mask) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  typename group<Dim>::linear_id_type lid        = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid = lid ^ mask;
-
-  scratch[lid] = x;
-  __hipsycl_group_barrier(g);
-
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
-    target_lid = 0;
-
-  x = scratch[target_lid];
-  __hipsycl_group_barrier(g);
-
-  return x;
-}
-
-// permute_group_by_xor
-template <typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_permute_group_by_xor(
-    sub_group g, T x, typename sub_group::linear_id_type mask) {
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_permute_group_by_xor(sub_group g, T x, typename sub_group::linear_id_type mask) {
   return x;
 }
 
 // select_from_group
-template <int Dim, typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_select_from_group(
-    group<Dim> g, T x, typename group<Dim>::id_type remote_local_id) {
-  T *scratch = static_cast<T *>(g.get_local_memory_ptr());
-
-  typename group<Dim>::linear_id_type lid = g.get_local_linear_id();
-  typename group<Dim>::linear_id_type target_lid =
-      linear_id<g.dimensions>::get(remote_local_id, g.get_local_range());
-
-  scratch[lid] = x;
-  __hipsycl_group_barrier(g);
-
-  // checking for both larger and smaller in case 'group<Dim>::linear_id_type' is not unsigned
-  if (target_lid > g.get_local_range().size() || target_lid < 0)
-    target_lid = 0;
-
-  x = scratch[target_lid];
-  __hipsycl_group_barrier(g);
-
+template<typename T>
+HIPSYCL_KERNEL_TARGET
+T __hipsycl_select_from_group(sub_group g, T x, typename sub_group::id_type remote_local_id) {
   return x;
 }
 
-template <typename T>
-HIPSYCL_KERNEL_TARGET T __hipsycl_select_from_group(
-    sub_group g, T x, typename sub_group::id_type remote_local_id) {
-  return x;
-}
-
-} // namespace sycl
+} // namespace sycl::detail::host_builtins
 } // namespace hipsycl
 
 #endif
 
 #endif // HIPSYCL_LIBKERNEL_HOST_GROUP_FUNCTIONS_HPP
-

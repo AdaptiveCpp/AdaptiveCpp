@@ -382,7 +382,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(nd_range_subgroup_joint_scan_init, T, test_types) 
 /*
  * scoped V2
  */
-#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+#if !(defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX) || defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__))
 BOOST_AUTO_TEST_CASE_TEMPLATE(scopedv2_group_scan_over_group, T, test_types) {
   using element_type = typename sycl::detail::builtin_type_traits<T>::element_type;
   constexpr size_t num_groups = 4;

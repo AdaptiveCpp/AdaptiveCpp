@@ -122,9 +122,10 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN2(fmod)
 template<class T>
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
-// Unsupported
 template<class T, class IntPtr>
-T __hipsycl_frexp(T x, IntPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
+  return __spirv_ocl_frexp(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(ilogb)

@@ -127,10 +127,15 @@ template<class T>
 HIPSYCL_HIPLIKE_BUILTIN
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
-// Unsupported
-template<class T, class IntPtr>
-HIPSYCL_HIPLIKE_BUILTIN
-T __hipsycl_frexp(T x, IntPtr y) noexcept;
+template<class IntPtr>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_frexp(float x, IntPtr y) noexcept {
+  return ::frexpf(x, y);
+}
+
+template<class IntPtr>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_frexp(double x, IntPtr y) noexcept {
+  return ::frexp(x, y);
+}
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_hypot, hypotf, hypot)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ilogb, ilogbf, ilogb)

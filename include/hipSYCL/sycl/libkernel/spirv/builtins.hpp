@@ -166,7 +166,9 @@ HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
 
 // Not yet supported
 template<class T, class FloatPtr>
-T __hipsycl_modf(T x, FloatPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
+  return __spirv_ocl_modf(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(nextafter)
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(powr)

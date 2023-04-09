@@ -177,10 +177,15 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-// Not yet supported
-template<class T, class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN
-T __hipsycl_modf(T x, FloatPtr y) noexcept;
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_modf(float x, FloatPtr y) noexcept {
+  return ::modff(x, y);
+};
+
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_modf(double x, FloatPtr y) noexcept {
+  return ::modf(x, y);
+};
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_nextafter, nextafterf, nextafter)
 

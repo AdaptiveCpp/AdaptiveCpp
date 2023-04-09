@@ -194,8 +194,7 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN(sin)
 
 template<class T, class FloatPtr>
 HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
-  *cosval = spirv_builtins::__hipsycl_cos(x);
-  return spirv_builtins::__hipsycl_sin(x);
+  return __spirv_ocl_sincos(x, cosval);
 }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sinh)

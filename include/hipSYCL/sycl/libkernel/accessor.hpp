@@ -167,7 +167,7 @@ public:
     return *this;
   }
 
-  accessor_iterator &operator+(difference_type diff) {
+  accessor_iterator operator+(difference_type diff) const {
     auto ret = *this;
     ret += diff;
     return ret;
@@ -185,7 +185,7 @@ public:
     return *this;
   }
 
-  accessor_iterator &operator-(difference_type diff) {
+  accessor_iterator operator-(difference_type diff) const {
     auto ret = *this;
     ret -= diff;
     return ret;

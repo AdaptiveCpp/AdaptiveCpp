@@ -45,6 +45,7 @@ struct MDKind {
   static constexpr const char Arrayified[] = "hipSYCL.arrayified";
   static constexpr const char InnerLoop[] = "hipSYCL.loop.inner";
   static constexpr const char WorkItemLoop[] = "hipSYCL.loop.workitem";
+  static constexpr const char LoopState[] = "hipSYCL.loop_state";
 };
 
 static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
@@ -134,11 +135,9 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
                      const llvm::DominatorTree &DT);
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
                                 llvm::Instruction *InsertionPoint, llvm::Value *Idx,
-                                size_t NumValues = hipsycl::compiler::NumArrayElements,
-                                llvm::MDTuple *MDAlloca = nullptr);
+                                llvm::Value *NumValues, llvm::MDTuple *MDAlloca = nullptr);
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
-                                      llvm::Value *Idx,
-                                      size_t NumValues = hipsycl::compiler::NumArrayElements,
+                                      llvm::Value *Idx, llvm::Value *NumValues,
                                       llvm::MDTuple *MDAlloca = nullptr);
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
                                llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix = "");
@@ -180,8 +179,7 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   return llvm::dyn_cast<T>(V->getOperand(idx));
 }
 
-template<class Handler>
-void findFunctionsWithStringAnnotations(llvm::Module& M, Handler&& f) {
+template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M, Handler &&f) {
   for (auto &I : M.globals()) {
     if (I.getName() == "llvm.global.annotations") {
       auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));

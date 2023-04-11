@@ -363,9 +363,8 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
                      const llvm::DominatorTree &DT) {
   assert(Idx && "Valid WI-Index required");
 
-  auto *MDAlloca =
-      llvm::MDNode::get(EntryBlock->getContext(),
-                        {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+  auto *MDAlloca = llvm::MDNode::get(
+      EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), MDKind::LoopState)});
 
   auto &LoopBlocks = L.getBlocksSet();
   llvm::SmallVector<llvm::AllocaInst *, 8> WL;
@@ -417,31 +416,31 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
   }
 }
 
+/// Arrayification of work item private values
+
+// Create a new alloca of size \a NumElements at \a IPAllocas.
+// The type is taken from \a ToArrayify.
+// At \a InsertionPoint, a store is added that stores the \a ToArrayify
+// value to the alloca element at \a Idx.
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
                                 llvm::Instruction *InsertionPoint, llvm::Value *Idx,
-                                size_t NumElements, llvm::MDTuple *MDAlloca) {
+                                llvm::Value *NumElements, llvm::MDTuple *MDAlloca) {
   assert(Idx && "Valid WI-Index required");
 
   if (!MDAlloca)
-    MDAlloca =
-        llvm::MDNode::get(IPAllocas->getContext(),
-                          {llvm::MDString::get(IPAllocas->getContext(), "hipSYCLLoopState")});
+    MDAlloca = llvm::MDNode::get(IPAllocas->getContext(),
+                                 {llvm::MDString::get(IPAllocas->getContext(), MDKind::LoopState)});
 
   auto *T = ToArrayify->getType();
   llvm::IRBuilder AllocaBuilder{IPAllocas};
-  auto *Alloca = AllocaBuilder.CreateAlloca(
-      T, NumElements == 1 ? nullptr : AllocaBuilder.getInt32(NumElements),
-      ToArrayify->getName() + "_alloca");
-  if (NumElements > 1)
+  auto *Alloca = AllocaBuilder.CreateAlloca(T, NumElements, ToArrayify->getName() + "_alloca");
+  if (NumElements)
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
   Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
-  const llvm::DataLayout &Layout =
-      InsertionPoint->getParent()->getParent()->getParent()->getDataLayout();
-
   llvm::IRBuilder WriteBuilder{InsertionPoint};
   llvm::Value *StoreTarget = Alloca;
-  if (NumElements != 1) {
+  if (NumElements) {
     auto *GEP = llvm::cast<llvm::GetElementPtrInst>(WriteBuilder.CreateInBoundsGEP(
         Alloca->getAllocatedType(), Alloca, Idx, ToArrayify->getName() + "_gep"));
     GEP->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
@@ -451,16 +450,19 @@ llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArr
   return Alloca;
 }
 
+// see arrayifyValue. The store is inserted after the \a ToArrayify instruction
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
-                                      llvm::Value *Idx, size_t NumElements,
+                                      llvm::Value *Idx, llvm::Value *NumElements,
                                       llvm::MDTuple *MDAlloca) {
   llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
   if (llvm::isa<llvm::PHINode>(ToArrayify))
     InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
 
-  return utils::arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
+  return arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }
 
+// load from the \a Alloca at \a Idx, if array alloca, otherwise just load the
+// alloca value
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
                                llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix) {
   assert(Idx && "Valid WI-Index required");
@@ -478,6 +480,7 @@ llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
   return Load;
 }
 
+// get the work-item state alloca a load reads from (through GEPs..)
 llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   llvm::AllocaInst *Alloca = nullptr;
   if (auto *GEPI = llvm::dyn_cast<llvm::GetElementPtrInst>(LInst.getPointerOperand())) {
@@ -490,6 +493,7 @@ llvm::AllocaInst *getLoopStateAllocaForLoad(llvm::LoadInst &LInst) {
   return nullptr;
 }
 
+// bring along the llvm.dbg.value intrinsics when cloning values
 void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *InsertBefore) {
   llvm::SmallVector<llvm::DbgValueInst *, 1> DbgValues;
   llvm::findDbgValues(DbgValues, From);
@@ -500,6 +504,7 @@ void copyDgbValues(llvm::Value *From, llvm::Value *To, llvm::Instruction *Insert
                                        DbgValue->getDebugLoc(), InsertBefore);
   }
 }
+
 void dropDebugLocation(llvm::Instruction &I) {
 #if LLVM_VERSION_MAJOR >= 12
   I.dropLocation();

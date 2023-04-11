@@ -124,8 +124,7 @@ sycl::range<dimensions>
 extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff);
 
 template <typename T, int Dimensions,
-          sycl::access_mode Mode, sycl::target Target,
-          sycl::accessor_variant Variant>
+          typename Accessor>
 class accessor_iterator {
 public:
   using iterator_category = std::random_access_iterator_tag;
@@ -233,27 +232,28 @@ public:
   }
   
 private:
-  using accessor_t = sycl::accessor<T, Dimensions, Mode, Target, Variant>;
   template <typename, int,
             sycl::access_mode,
             sycl::target,
             sycl::accessor_variant> friend class sycl::accessor;
+  template <typename, int,
+            sycl::access_mode> friend class sycl::host_accessor;
 
-  const accessor_t *acc_ptr = nullptr;
+  const Accessor *acc_ptr = nullptr;
 
   /* Linear id relative to the offset, i.e., linear_id = 0
      corresponds to the element at the offset. */
   size_t linear_id;
 
   // Constructs an iterator pointing to the beginning of the accessor's data
-  accessor_iterator(const accessor_t* acc_ptr)
+  accessor_iterator(const Accessor* acc_ptr)
     : acc_ptr{acc_ptr}, linear_id{0} {}
   
-  static accessor_iterator make_begin(const accessor_t *acc_ptr) {
+  static accessor_iterator make_begin(const Accessor *acc_ptr) {
     return accessor_iterator{acc_ptr};
   }
 
-  static accessor_iterator make_end(const accessor_t *acc_ptr) {
+  static accessor_iterator make_end(const Accessor *acc_ptr) {
     auto end = accessor_iterator{acc_ptr};
     if constexpr (Dimensions == 1)
       end.linear_id = acc_ptr->get_range()[0];
@@ -785,12 +785,8 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   // TODO accessor_ptr
-  using iterator = detail::accessor_iterator<value_type, dimensions,
-                                             accessmode, accessTarget,
-                                             AccessorVariant>;
-  using const_iterator = detail::accessor_iterator<const value_type, dimensions,
-                                                   accessmode, accessTarget,
-                                                   AccessorVariant>;
+  using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using difference_type =
@@ -1247,10 +1243,7 @@ public:
     return const_reverse_iterator(cend());
   }
 private:
-  template <typename, int,
-            sycl::access_mode,
-            sycl::target,
-            sycl::accessor_variant> friend class detail::accessor_iterator;
+  template <typename, int, typename> friend class detail::accessor_iterator;
 
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_dimensions() noexcept{

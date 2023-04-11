@@ -255,20 +255,7 @@ private:
 
   static accessor_iterator make_end(const Accessor *acc_ptr) {
     auto end = accessor_iterator{acc_ptr};
-    if constexpr (Dimensions == 1)
-      end.linear_id = acc_ptr->get_range()[0];
-    else if constexpr (Dimensions == 2) {
-      auto sub_range = acc_ptr->get_range();
-      auto full_range = acc_ptr->get_buffer_shape();
-      end.linear_id = sub_range[1] + (sub_range[0] - 1) * full_range[1];
-    } else {
-      auto sub_range = acc_ptr->get_range();
-      auto full_range = acc_ptr->get_buffer_shape();
-      end.linear_id = sub_range[2]
-        + (sub_range[1] - 1) * full_range[2]                  // lower right corner of first slice
-        + (sub_range[0] - 1) * full_range[1] * full_range[0]; // lower right corner of last slice
-    }
-
+    end.linear_id = acc_ptr->get_range().size();    
     return end;
   }
 

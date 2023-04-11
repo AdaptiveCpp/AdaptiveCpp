@@ -625,6 +625,29 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(reverse_iterator) {
+  namespace s = cl::sycl;
+
+  std::array<int, 1024> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  {
+  s::buffer<int> buf(host_data.data(), host_data.size());
+
+  s::queue{}.submit([&](s::handler &cgh) {
+    s::accessor<int> acc(buf, cgh);
+
+    cgh.single_task([=](){
+      for (auto it = acc.rbegin(); it != acc.rend(); ++it)
+        *it += 1;
+    });
+  }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
+
 BOOST_AUTO_TEST_CASE(offset_1d) {
   namespace s = cl::sycl;
 

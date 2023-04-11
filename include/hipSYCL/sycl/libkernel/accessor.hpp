@@ -1646,12 +1646,12 @@ public:
   using reference = typename accessor_type::reference;
   using const_reference = typename accessor_type::const_reference;
 
-  // using iterator = __unspecified_iterator__<value_type>;
-  // using const_iterator = __unspecified_iterator__<const value_type>;
-  // using reverse_iterator = std::reverse_iterator<iterator>;
-  // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  // using difference_type = typename
-  // std::iterator_traits<iterator>::difference_type;
+  using iterator = detail::accessor_iterator<value_type, dimensions, host_accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, host_accessor>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   using size_type = typename accessor_type::size_type;
 
   host_accessor() = default;
@@ -1798,14 +1798,37 @@ public:
     return _impl.get_pointer();
   }
 
-  // iterator begin() const noexcept;
-  // iterator end() const noexcept;
-  // const_iterator cbegin() const noexcept;
-  // const_iterator cend() const noexcept;
-  // reverse_iterator rbegin() const noexcept;
-  // reverse_iterator rend() const noexcept;
-  // const_reverse_iterator crbegin() const noexcept;
-  // const_reverse_iterator crend() const noexcept;
+  iterator begin() const noexcept {
+    return iterator::make_begin(this);
+  }
+
+  iterator end() const noexcept {
+    return iterator::make_end(this);
+  }
+
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
+
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
+
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(begin());
+  }
+
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(end());
+  }
+
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
+
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cend());
+  }
 
   std::size_t hipSYCL_hash_code() const {
     return _impl.hipSYCL_hash_code();
@@ -1873,7 +1896,12 @@ public:
       typename detail::accessor::accessor_data_type<dataT, accessmode>::value;
   using reference = value_type &;
   using const_reference = const dataT &;
-  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
+  using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   // TODO difference_type
   using size_type = size_t;
 
@@ -2045,6 +2073,37 @@ public:
     };
   }
 
+  iterator begin() const noexcept {
+    return iterator::make_begin(this);
+  }
+
+  iterator end() const noexcept {
+    return iterator::make_end(this);
+  }
+
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
+
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
+
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(begin());
+  }
+
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(end());
+  }
+
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
+
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cend());
+  }
 private:
   HIPSYCL_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)

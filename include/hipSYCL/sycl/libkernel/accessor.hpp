@@ -264,33 +264,34 @@ private:
      compute the coordinates w.r.t. the sub range and ignore the
      size of the whole underlying buffer range.
 
-     When dereferncing the iterator, these coordinates will then
+     When dereferencing the iterator, these coordinates will then
      be converted back to a linear id using /the buffer range/
      (and not the sub range) which will then give the correct
      linear id within the whole accessor.
    */
   sycl::id<Dimensions> id_from_linear() const {
-    auto m_linear_id = linear_id;
-    size_t x, y, z;
-    
-    z = m_linear_id % (acc_ptr->get_range()[Dimensions - 1]);
-
-    if constexpr (Dimensions > 1) {
-      m_linear_id /= (acc_ptr->get_range()[Dimensions - 1]);
-      y = m_linear_id % (acc_ptr->get_range()[Dimensions - 2]);
-
-      if constexpr (Dimensions > 2) {
-        m_linear_id /= (acc_ptr->get_range()[Dimensions - 2]);
-        x = m_linear_id;
-      }
-    }
-
     if constexpr (Dimensions == 1)
-      return {z};
-    else if constexpr (Dimensions == 2)
+      return linear_id;
+
+    if constexpr (Dimensions == 2) {
+      const auto range = acc_ptr->get_range();
+      auto y = linear_id / range[1];
+      auto z = linear_id % range[1];
+
       return {y, z};
-    else
+   }
+
+    if constexpr (Dimensions == 3) {
+      const auto range = acc_ptr->get_range();
+      auto m_linear_id = linear_id;
+
+      auto x = linear_id / (range[1] * range[2]);
+      m_linear_id -= x * (range[1] * range[2]);
+      auto y = m_linear_id / range[2];
+      auto z = linear_id % range[2];
+
       return {x, y, z};
+    }
   }
 };
 }

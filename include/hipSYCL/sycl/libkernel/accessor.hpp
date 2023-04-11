@@ -1216,11 +1216,11 @@ public:
   }
 
   reverse_iterator rbegin() const noexcept {
-    return reverse_iterator(begin());
+    return reverse_iterator(end());
   }
 
   reverse_iterator rend() const noexcept {
-    return reverse_iterator(end());
+    return reverse_iterator(begin());
   }
 
   const_reverse_iterator crbegin() const noexcept {
@@ -1803,11 +1803,11 @@ public:
   }
 
   reverse_iterator rbegin() const noexcept {
-    return reverse_iterator(begin());
+    return reverse_iterator(end());
   }
 
   reverse_iterator rend() const noexcept {
-    return reverse_iterator(end());
+    return reverse_iterator(begin());
   }
 
   const_reverse_iterator crbegin() const noexcept {
@@ -2078,11 +2078,11 @@ public:
   }
 
   reverse_iterator rbegin() const noexcept {
-    return reverse_iterator(begin());
+    return reverse_iterator(end());
   }
 
   reverse_iterator rend() const noexcept {
-    return reverse_iterator(end());
+    return reverse_iterator(begin());
   }
 
   const_reverse_iterator crbegin() const noexcept {

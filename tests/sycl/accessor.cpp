@@ -462,11 +462,11 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
   namespace s = cl::sycl;
 
   constexpr int N = 8;
-  int data[N][N];
-  std::fill(data[0], data[0] + N*N, 1);
+  std::array<int, N*N> data;
+  std::fill(data.begin(), data.end(), 1);
 
   {
-    s::buffer<int, 2> buf(data[0], {N,N});
+    s::buffer<int, 2> buf(data.data(), {N,N});
     s::queue{}.submit([&](s::handler &cgh) {
       s::range range{N, N};
       s::id offset{2, 2};
@@ -486,27 +486,25 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
     [1, 1, 2, 2, ..., 2]
     ...
     [1, 1, 2, 2, ..., 2]] */
-  int expected[N][N];
-  std::fill(expected[0], expected[0] + N*N, 2);
+  std::array<int,N*N> expected;
+  std::fill(expected.begin(), expected.end(), 2);
   for (int i=0; i<N; ++i)
     for (int j=0; j<N; ++j)
       if ((i < 2) or (j < 2))
-        expected[i][j] = 1;
+        expected[i*N+j] = 1;
 
-  for (int i=0; i<N; ++i)
-    for (int j=0; j<N; ++j)
-      BOOST_CHECK_EQUAL(data[i][j], expected[i][j]);
+  BOOST_CHECK(data == expected);
 }
 
 BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
   namespace s = cl::sycl;
 
   constexpr int N = 8;
-  int data[N][N];
-  std::fill(data[0], data[0] + N*N, 1);
+  std::array<int, N*N> data;
+  std::fill(data.begin(), data.end(), 1);
 
   {
-    s::buffer<int, 2> buf(data[0], {N,N});
+    s::buffer<int, 2> buf(data.data(), {N,N});
     s::queue{}.submit([&](s::handler &cgh) {
       s::range range{N, N};
       s::id offset{2, 2};
@@ -528,16 +526,14 @@ BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
     [1, 1, 2, 2, ..., 2]
     ...
     [1, 1, 2, 2, ..., 2]] */
-  int expected[N][N];
-  std::fill(expected[0], expected[0] + N*N, 2);
+  std::array<int,N*N> expected;
+  std::fill(expected.begin(), expected.end(), 2);
   for (int i=0; i<N; ++i)
     for (int j=0; j<N; ++j)
       if ((i < 2) or (j < 2))
-        expected[i][j] = 1;
+        expected[i*N+j] = 1;
 
-  for (int i=0; i<N; ++i)
-    for (int j=0; j<N; ++j)
-      BOOST_CHECK_EQUAL(data[i][j], expected[i][j]);
+  BOOST_CHECK(data == expected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

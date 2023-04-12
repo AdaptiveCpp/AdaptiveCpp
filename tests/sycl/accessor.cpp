@@ -439,16 +439,16 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_1d_iterator) {
   std::iota(std::begin(host_data), std::end(host_data), 0);
 
   {
-  s::buffer<int> buf(host_data.data(), host_data.size());
+    s::buffer<int> buf(host_data.data(), host_data.size());
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int> acc(buf, cgh);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh);
 
-    cgh.single_task([=](){
-      for (auto it = acc.begin(); it != acc.end(); ++it)
-        *it += 1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it += 1;
+      });
+    }).wait();
   }
 
   for (int i=0; i<host_data.size(); ++i)
@@ -463,16 +463,16 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_2d_iterator) {
   std::iota(std::begin(host_data), std::end(host_data), 0);
 
   {
-  s::buffer<int, 2> buf(host_data.data(), {N,N});
+    s::buffer<int, 2> buf(host_data.data(), {N,N});
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int, 2> acc(buf, cgh);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 2> acc(buf, cgh);
 
-    cgh.single_task([=](){
-      for (auto it = acc.begin(); it != acc.end(); ++it)
-        *it += 1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it += 1;
+      });
+    }).wait();
   }
 
   for (int i=0; i<host_data.size(); ++i)
@@ -489,20 +489,20 @@ BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
   // Count iterations of for loop below to check if iterator stays within bounds
   int it_counter = 0; 
   {
-  s::buffer<int, 3> buf(host_data.data(), {N,N,N});
-  s::buffer<int, 1> it_buf(&it_counter, 1);
+    s::buffer<int, 3> buf(host_data.data(), {N,N,N});
+    s::buffer<int, 1> it_buf(&it_counter, 1);
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int, 3> acc(buf, cgh);
-    s::accessor<int, 1> it_acc(it_buf, cgh);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 3> acc(buf, cgh);
+      s::accessor<int, 1> it_acc(it_buf, cgh);
 
-    cgh.single_task([=](){
-      for (auto &it : acc) {
-        it += 1;
-        it_acc[0]++;
-      }
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto &it : acc) {
+          it += 1;
+          it_acc[0]++;
+        }
+      });
+    }).wait();
   }
 
   for (int i=0; i<host_data.size(); ++i)
@@ -522,16 +522,16 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
   std::iota(std::begin(host_data), std::end(host_data), 0);
   
   {
-  s::buffer<int> buf(host_data.data(), N);
+    s::buffer<int> buf(host_data.data(), N);
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int> acc(buf, cgh, range, offset);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh, range, offset);
 
-    cgh.single_task([=](){
-      for (auto it = acc.begin(); it != acc.end(); ++it)
-        *it = -1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it = -1;
+      });
+    }).wait();
   }
 
   for (int i=0; i < offset[0]; ++i)
@@ -556,14 +556,14 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
   {
     s::buffer<int, 2> buf(host_data.data(), {N1,N2});
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int, 2> acc(buf, cgh, range, offset);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 2> acc(buf, cgh, range, offset);
 
-    cgh.single_task([=](){
-      for (auto it = acc.begin(); it < acc.end(); ++it)
-        *it = 1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it < acc.end(); ++it)
+          *it = 1;
+      });
+    }).wait();
   }
 
   for (int i=0; i<N1; ++i) {
@@ -595,14 +595,14 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
   {
     s::buffer<int, 3> buf(host_data.data(), {N1,N2,N3});
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int, 3> acc(buf, cgh, range, offset);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 3> acc(buf, cgh, range, offset);
 
-    cgh.single_task([=](){
-      for (auto it = acc.begin(); it < acc.end(); ++it)
-        *it = 1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it < acc.end(); ++it)
+          *it = 1;
+      });
+    }).wait();
   }
 
   for (int i=0; i<N1; ++i) {
@@ -629,16 +629,16 @@ BOOST_AUTO_TEST_CASE(reverse_iterator) {
   std::iota(std::begin(host_data), std::end(host_data), 0);
 
   {
-  s::buffer<int> buf(host_data.data(), host_data.size());
+    s::buffer<int> buf(host_data.data(), host_data.size());
 
-  s::queue{}.submit([&](s::handler &cgh) {
-    s::accessor<int> acc(buf, cgh);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh);
 
-    cgh.single_task([=](){
-      for (auto it = acc.rbegin(); it != acc.rend(); ++it)
-        *it += 1;
-    });
-  }).wait();
+      cgh.single_task([=](){
+        for (auto it = acc.rbegin(); it != acc.rend(); ++it)
+          *it += 1;
+      });
+    }).wait();
   }
 
   for (int i=0; i<host_data.size(); ++i)

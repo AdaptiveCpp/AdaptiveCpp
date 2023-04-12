@@ -503,7 +503,6 @@ public:
   // We are copying from a type that stores while we don't - can't do anything.
   conditional_storage(const conditional_storage<TagT, true, T>&) {}
 
-  T get(T default_val = T{}) const { return default_val; }
 protected:
   using value_type = T;
 
@@ -512,7 +511,7 @@ protected:
   }
 
   bool attempt_set(const T& val) { return false; }
-  
+  T get(T default_val = T{}) const { return default_val; }
 
   T* ptr() { return nullptr; }
   const T* ptr() const { return nullptr; }
@@ -531,8 +530,6 @@ public:
   conditional_storage(const conditional_storage<TagT, false, T>&)
   : _val{} {}
 
-  T get(T default_val = T{}) const { return _val; }
-
 protected:
   using value_type = T;
 
@@ -545,7 +542,7 @@ protected:
     return true;
   }
 
-  
+  T get(T default_val = T{}) const { return _val; }
 
   T* ptr() { return &_val; }
   const T* ptr() const { return &_val; }

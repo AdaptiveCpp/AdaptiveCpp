@@ -548,7 +548,7 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
   constexpr int N1 = 32;
   constexpr int N2 = 64;
   const s::range<2> range{2, 4};
-  const s::id<2> offset{0, 0};
+  const s::id<2> offset{2, 5};
   
   std::array<int, N1*N2> host_data;
   std::fill(std::begin(host_data), std::end(host_data), 0);
@@ -587,7 +587,7 @@ BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
   constexpr int N3 = 32;
 
   const s::range<3> range{2, 2, 2};
-  const s::id<3> offset{0, 0, 0};
+  const s::id<3> offset{1, 2, 0};
   
   std::array<int, N1*N2*N3> host_data;
   std::fill(std::begin(host_data), std::end(host_data), 0);

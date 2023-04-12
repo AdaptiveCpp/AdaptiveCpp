@@ -648,6 +648,101 @@ BOOST_AUTO_TEST_CASE(reverse_iterator) {
     BOOST_CHECK_EQUAL(host_data[i], i+1);
 }
 
+BOOST_AUTO_TEST_CASE(host_accessor_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  std::array<int, N> data;
+
+  s::buffer<int> buf{data.data(), data.size()};
+  s::host_accessor ha{buf};
+
+  std::iota(ha.begin(), ha.end(), 0);
+
+  for(int i=0; i<N; ++i)
+    BOOST_CHECK_EQUAL(data[i], i);
+
+  std::iota(ha.rbegin(), ha.rend(), 0);
+  for(int i=0; i<N; ++i)
+    BOOST_CHECK_EQUAL(data[i], N-i-1);
+}
+
+BOOST_AUTO_TEST_CASE(accessor_iterator_api) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  std::array<int, N> data;
+  std::fill(data.begin(), data.end(), 0);
+
+  s::buffer<int> buf{data.data(), data.size()};
+  s::host_accessor ha{buf};
+
+  /*** Test postfix ++ ***/
+  {
+    for (auto it = ha.begin(); it != ha.end(); it++)
+      *it = 2;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 2);
+  }
+
+  /*** Test operator+= ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.begin(); it != ha.end(); it += 2)
+      *it = 1;
+
+    for(int i=0; i<N; ++i) {
+      if (i % 2 != 0)
+        BOOST_CHECK_EQUAL(data[i], 0);
+      else
+        BOOST_CHECK_EQUAL(data[i], 1);
+    }
+  }
+
+  /*** Test prefix -- ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.end() - 1; it != ha.begin() - 1; --it)
+      *it = 1;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 1);
+  }
+
+  /*** Test postfix -- ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.end() - 1; it != ha.begin() - 1; it--)
+      *it = 1;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 1);
+  }
+
+  /*** Check that operator+ is commutative -- ***/
+  {
+    auto it = ha.begin();
+    BOOST_CHECK((it + 2) == (2 + it));
+  }
+
+  /*** Test operator[] ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+
+    auto it = ha.begin();
+    for (int i=0; i<N; i+=2)
+      it[i] = 1;
+
+    for(int i=0; i<N; ++i) {
+      if (i % 2 != 0)
+        BOOST_CHECK_EQUAL(data[i], 0);
+      else
+        BOOST_CHECK_EQUAL(data[i], 1);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(offset_1d) {
   namespace s = cl::sycl;
 

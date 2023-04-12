@@ -1224,11 +1224,10 @@ public:
   }
 
   const_reverse_iterator crbegin() const noexcept {
-    return const_reverse_iterator(cbegin());
-  }
-
-  const_reverse_iterator crend() const noexcept {
     return const_reverse_iterator(cend());
+  }
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cbegin());
   }
 private:
   template <typename, int, typename> friend class detail::accessor_iterator;
@@ -1811,11 +1810,11 @@ public:
   }
 
   const_reverse_iterator crbegin() const noexcept {
-    return const_reverse_iterator(cbegin());
+    return const_reverse_iterator(cend());
   }
 
   const_reverse_iterator crend() const noexcept {
-    return const_reverse_iterator(cend());
+    return const_reverse_iterator(cbegin());
   }
 
   std::size_t hipSYCL_hash_code() const {
@@ -2086,11 +2085,11 @@ public:
   }
 
   const_reverse_iterator crbegin() const noexcept {
-    return const_reverse_iterator(cbegin());
+    return const_reverse_iterator(cend());
   }
 
   const_reverse_iterator crend() const noexcept {
-    return const_reverse_iterator(cend());
+    return const_reverse_iterator(cbegin());
   }
 private:
   HIPSYCL_KERNEL_TARGET

@@ -164,7 +164,6 @@ HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-// Not yet supported
 template<class T, class FloatPtr>
 HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
   return __spirv_ocl_modf(x, y);

@@ -29,13 +29,10 @@
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "sycl_test_suite.hpp"
-#include <array>
-#include <boost/test/tools/old/interface.hpp>
-#include <iostream>
-#include <numeric>
 
 #include <algorithm>
 #include <array>
+#include <numeric>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)

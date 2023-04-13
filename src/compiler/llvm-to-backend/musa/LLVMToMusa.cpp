@@ -82,7 +82,7 @@ private:
   bool findLibdevice(std::string& Out) {
     
     std::string MUSAPath = HIPSYCL_MUSA_PATH;
-    std::vector<std::string> SubDir {"mtgpu", "libdevice"};
+    std::vector<std::string> SubDir {"mtgpu", "bitcode"};
     std::string BitcodeDir = common::filesystem::join_path(MUSAPath, SubDir);
 
     try {
@@ -119,6 +119,7 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceMap ASMap = getAddressSpaceMap();
   
+  // TODO: definition of address map is unknown: compiler backend isn't open source
   KernelFunctionParameterRewriter ParamRewriter{
       // PTX wants ByVal attribute for all aggregates passed in by-value
       KernelFunctionParameterRewriter::ByValueArgAttribute::ByVal,
@@ -151,7 +152,7 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   
   std::string LibdeviceFile;
   if(!LibdevicePath::get(LibdeviceFile)) {
-    this->registerError("LLVMToMusa: Could not find CUDA libdevice bitcode library");
+    this->registerError("LLVMToMusa: Could not find MUSA libdevice bitcode library");
     return false;
   }
 
@@ -195,11 +196,11 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
                                                     "-cc1",
                                                     "-triple",
-                                                    "mtmpu-mt-cuda",
-                                                    "-target-feature",
-                                                    PtxVersionArg,
-                                                    "-target-cpu",
-                                                    PtxTargetArg,
+                                                    "mtgpu-mt-cuda",
+//                                                    "-target-feature",
+//                                                    PtxVersionArg,
+//                                                    "-target-cpu",
+//                                                    PtxTargetArg,
                                                     "-O3",
                                                     "-S",
                                                     "-x",

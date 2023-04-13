@@ -41,6 +41,8 @@ endif()
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
+list(APPEND CMAKE_MODULE_PATH /usr/local/musa/cmake)
+find_package(MUSA)
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)

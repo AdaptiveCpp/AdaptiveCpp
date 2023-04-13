@@ -177,4 +177,15 @@ if(WITH_SSCP_COMPILER)
         -DHIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
     endif()
   endif()
+
+  if(WITH_LLVM_TO_MUSA)
+    add_hipsycl_llvm_backend(
+      BACKEND musa 
+      LIBRARY musa/LLVMToMusa.cpp 
+      TOOL musa/LLVMToMusaTool.cpp)
+
+    target_compile_definitions(llvm-to-musa PRIVATE
+      -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
+      -DHIPSYCL_MUSA_PATH="${MUSA_TOOLKIT_ROOT_DIR}")
+  endif()
 endif()

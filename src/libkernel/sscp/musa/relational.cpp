@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
-
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
-
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
-
-  using value_type = ValueT;
-};
+#include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
 
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
+#define HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(name)                                 \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f32(float x) {              \
+    return __nv_##name##f(x);                                                  \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f64(double x) {             \
+    return __nv_##name##d(x);                                                  \
+  }
+  
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(isnan)
+
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(isinf)
+
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f32(float x) {
+  return __nv_finitef(x);
 }
 
-namespace hipsycl::sycl::sscp {
-
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int musa = 3;
-
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double x) {
+  return __nv_isfinited(x);
 }
 
-constexpr glue::sscp::ir_constant_name current_backend;
-
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f32(float x) {
+  return __builtin_isnormal(x);
 }
 
-#endif
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f64(double x) {
+  return __builtin_isnormal(x);
+}
+
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(signbit)

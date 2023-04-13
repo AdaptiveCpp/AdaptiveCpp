@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2019-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,53 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/core.hpp"
+#include <stddef.h>
 
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
-
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
-
-  using value_type = ValueT;
-};
-
-
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_x() {
+  return __nvvm_read_ptx_sreg_tid_x();
 }
 
-namespace hipsycl::sycl::sscp {
-
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int musa = 3;
-
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_y() {
+  return __nvvm_read_ptx_sreg_tid_y();;
 }
 
-constexpr glue::sscp::ir_constant_name current_backend;
-
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_z() {
+  return __nvvm_read_ptx_sreg_tid_z();
 }
 
-#endif
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_x() {
+  return __nvvm_read_ptx_sreg_ctaid_x();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_y() {
+  return __nvvm_read_ptx_sreg_ctaid_y();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_z() {
+  return __nvvm_read_ptx_sreg_ctaid_z();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_x() {
+  return __nvvm_read_ptx_sreg_ntid_x();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_y() {
+  return __nvvm_read_ptx_sreg_ntid_y();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_z() {
+  return __nvvm_read_ptx_sreg_ntid_z();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_x() {
+  return __nvvm_read_ptx_sreg_nctaid_x();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_y() {
+  return __nvvm_read_ptx_sreg_nctaid_y();
+}
+
+HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_z() {
+  return __nvvm_read_ptx_sreg_nctaid_z();
+}

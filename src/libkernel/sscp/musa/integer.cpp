@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2018-2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
 
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
+#include "hipSYCL/sycl/libkernel/sscp/builtins/interger.hpp"
 
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
+extern "C" __hipsycl_int32  __nv_mul24(__hipsycl_int32, __hipsycl_int32);
+extern "C" __hipsycl_uint32 __nv_umul24(__hipsycl_uint32, __hipsycl_uint32);
 
-  using value_type = ValueT;
-};
-
-
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
+  return __nv_mul24(a, b);
 }
 
-namespace hipsycl::sycl::sscp {
-
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int musa = 3;
-
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
+  return __nv_umul24(a, b);
 }
-
-constexpr glue::sscp::ir_constant_name current_backend;
-
-}
-
-#endif

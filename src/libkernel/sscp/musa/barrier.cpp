@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2018-2022 Aksel Alpay and contributors
+ * Copyright (c) 2022 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_S2_IR_CONSTANTS_HPP
-#define HIPSYCL_S2_IR_CONSTANTS_HPP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 
-/// \brief This file contains S2 IR constant definitions that may
-/// be shared across the hipSYCL compiler code. 
-///
-/// As such, no undefined globals should be pulled into this file.
-///
-/// Unlike Stage 1 IR constants, Stage 2 IR constants can be constructed
-/// programmatically by the user.
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                  __hipsycl_sscp_memory_order) {
 
-// S2 IR constants can be identified from their usage of
-// __hipsycl_sscp_s2_ir_constant
-template<auto& ConstantName, class ValueT>
-struct __hipsycl_sscp_s2_ir_constant {
-  static ValueT get(ValueT default_value) noexcept;
-
-  using value_type = ValueT;
-};
-
-
-namespace hipsycl::glue::sscp {
-  struct ir_constant_name {};
+  if(fence_scope == hipsycl::sycl::memory_scope::system) {
+    // TODO: __mtgpu_membar_sys();
+    __mtgpu_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
+    __mtgpu_membar_gl();
+  }
+  // syncthreads is already a clang builtin
+  // TODO: __syncthreads();
+  __mtgpu_barrier0();
 }
 
-namespace hipsycl::sycl::sscp {
+HIPSYCL_SSCP_CONVERGENT_BUILTIN void
+__hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
+                                 __hipsycl_sscp_memory_order) {
 
-namespace backend {
-
-inline constexpr int spirv = 0;
-inline constexpr int ptx = 1;
-inline constexpr int amdgpu = 2;
-inline constexpr int musa = 3;
-
+  if(fence_scope == hipsycl::sycl::memory_scope::system) {
+    // TODO: __mtgpu_membar_sys();
+    __mtgpu_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::device) {
+    __mtgpu_membar_gl();
+  } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
+    __mtgpu_membar_cta();
+  }
+  __nvvm_bar_warp_sync(-1);
 }
-
-constexpr glue::sscp::ir_constant_name current_backend;
-
-}
-
-#endif

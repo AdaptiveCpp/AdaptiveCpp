@@ -28,7 +28,7 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/musa/builtin.hpp"
 
 using hipsycl::fp16::as_integer;
 
@@ -65,7 +65,7 @@ __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::create(__nv_fast_fdividef(
+  return hipsycl::fp16::create(__mt_fast_fdividef(
       hipsycl::fp16::promote_to_float(a), hipsycl::fp16::promote_to_float(b)));
 }
 

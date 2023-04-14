@@ -43,6 +43,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Program.h>
@@ -170,7 +171,8 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &out) {
 
   auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-musa-%%%%%%.bc");
-  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-musa-%%%%%%.s");
+  auto IntermediateFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-musa-%%%%%%.o");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-musa-%%%%%%.so");
   
   std::string OutputFilename = OutputFile->TmpName;
   
@@ -181,6 +183,7 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   }
 
   AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
+  AtScopeExit DestroyIntermediateFile([&]() { auto Err = IntermediateFile->discard(); });
   AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
 
   std::error_code EC;
@@ -202,11 +205,14 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
 //                                                    "-target-cpu",
 //                                                    PtxTargetArg,
                                                     "-O3",
-                                                    "-S",
+//                                                    "-mtgpu",
+                                                    "-emit-obj",
+//                                                    "-c",
+//                                                    "-S",
                                                     "-x",
                                                     "ir",
                                                     "-o",
-                                                    OutputFilename,
+                                                    IntermediateFile->TmpName,
                                                     InputFile->TmpName};
 
   std::string ArgString;
@@ -221,6 +227,25 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   
   if(R != 0) {
     this->registerError("LLVMToMusa: clang invocation failed with exit code " +
+                        std::to_string(R));
+    return false;
+  }
+
+  std::string LLDPath = llvm::sys::path::parent_path(ClangPath).str() + "/lld";
+  Invocation = {LLDPath, "-flavor", "gnu", "-shared", "-o", OutputFilename, IntermediateFile->TmpName};
+
+  ArgString.clear();
+  for(const auto& S : Invocation) {
+    ArgString += S;
+    ArgString += " ";
+  }
+  HIPSYCL_DEBUG_INFO << "LLVMToMusa: Invoking " << ArgString << "\n";
+
+  R = llvm::sys::ExecuteAndWait(
+      LLDPath, Invocation);
+  
+  if(R != 0) {
+    this->registerError("LLVMToMusa: lld invocation failed with exit code " +
                         std::to_string(R));
     return false;
   }

@@ -87,10 +87,13 @@ result build_musa_module(MUmod_st *&module, int device,
   // context on that device. This is important for the subsequent driver
   // API calls which assume that CUDA context has been created.
   musaFree(0);
+
+  auto err = muModuleLoadData(
+      &module, static_cast<void *>(const_cast<char *>(source.c_str())));
   
-  auto err = muModuleLoadDataEx(
-      &module, static_cast<void *>(const_cast<char *>(source.c_str())),
-      0, nullptr, nullptr);
+//  auto err = muModuleLoadDataEx(
+//      &module, static_cast<void *>(const_cast<char *>(source.c_str())),
+//      0, nullptr, nullptr);
 
   if (err != MUSA_SUCCESS) {
     return make_error(__hipsycl_here(),

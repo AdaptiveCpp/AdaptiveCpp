@@ -133,6 +133,10 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   for(auto KernelName : KernelNames) {
     if(auto* F = M.getFunction(KernelName)) {
+      HIPSYCL_DEBUG_INFO << "LLVMToMusa: Setting up kernel " << KernelName << "\n";
+      if(auto* F = M.getFunction(KernelName)) {
+        F->setCallingConv(llvm::CallingConv::MTGPU_KERNEL);
+      }
       
       llvm::SmallVector<llvm::Metadata*, 4> Operands;
       Operands.push_back(llvm::ValueAsMetadata::get(F));
@@ -285,11 +289,13 @@ bool LLVMToMusaTranslator::isKernelAfterFlavoring(llvm::Function& F) {
 AddressSpaceMap LLVMToMusaTranslator::getAddressSpaceMap() const {
   AddressSpaceMap ASMap;
 
+  // include/llvm/MTGPU/MTGPUELF.h
+  // TODO: but AS_NONE = 0, AS_GENERIC = 5, so... ?
   ASMap[AddressSpace::Generic] = 0;
   ASMap[AddressSpace::Global] = 1;
   ASMap[AddressSpace::Local] = 3;
-  ASMap[AddressSpace::Private] = 5;
-  ASMap[AddressSpace::Constant] = 4;
+  ASMap[AddressSpace::Private] = 4;
+  ASMap[AddressSpace::Constant] = 2;
   // NVVM wants to have allocas in address space 0
   ASMap[AddressSpace::AllocaDefault] = 0;
   ASMap[AddressSpace::GlobalVariableDefault] = 1;

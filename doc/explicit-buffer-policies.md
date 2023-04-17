@@ -4,7 +4,7 @@
 For example, whether a writeback occurs depends on the combination of constness of the buffer's pointer argument, constness of buffer type and potentially buffer properties.
 This can potentially make it error-prone to use. Errors can either lead to undesired behavior affecting correctness (e.g. no writeback when it *was* expected) or performance issues (e.g. writeback when it *was not* expected).
 
-Open SYCL therefore introduces explicit buffer policies that allow the programmer to explicitly specifiy the desired buffer behavior. Additionally, Open SYCL adds certain buffer behaviors not covered by the SYCL specification.
+Open SYCL therefore introduces explicit buffer policies that allow the programmer to explicitly specify the desired buffer behavior. Additionally, Open SYCL adds certain buffer behaviors not covered by the SYCL specification.
 
 Buffer policies can be enabled by passing buffer policy property to the `property_list` of the `buffer` constructor.
 

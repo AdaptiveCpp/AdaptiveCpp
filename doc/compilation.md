@@ -1,8 +1,8 @@
 # Open SYCL compilation model
 
 
-Open SYCL relies on the fact that many existing programming models as well as and SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains, such as CUDA and HIP toolchains, to also support SYCL code. Open SYCL does that by using clang's CUDA and HIP toolchains with a custom clang plugin. Additionally, Open SYCL can utilize the clang SYCL frontend to generate SPIR-V code. 
-Open SYCL contains mechanisms to embed and aggregate  compilation results from multiple toolchains into a single binary, allowing it to effectively combine multiple toolchains into one. This is illustrated here:
+Open SYCL relies on the fact that many existing programming models as well as SYCL are single-source programming models based on C++. This means that it is possible to extend existing toolchains, such as the CUDA and the HIP toolchains, to also support SYCL code. Open SYCL does that by using clang's CUDA and HIP toolchains with a custom clang plugin. Additionally, Open SYCL can utilize the clang SYCL frontend to generate SPIR-V code.
+Open SYCL contains mechanisms to embed and aggregate compilation results from multiple toolchains into a single binary, allowing it to effectively combine multiple toolchains into one. This is illustrated here:
 
 ![syclcc design](/doc/img/syclcc.png)
 
@@ -11,7 +11,7 @@ Open SYCL distinguishes and supports several compilation models:
 
 1. Compilation flows focused on interoperability with other programming models
    1. *library-only*, where Open SYCL acts as a library for a third-party compiler
-   2. *SMCP* (single-source, multiple compiler pass) models, where Open SYCL extends existing heterogeneous toolchains to also understand SYCL constructs. These toolchains rely on performing multiple compiler passes for host and device code, respectively. Here, we distinguish two flavors:
+   2. *SMCP* (single-source, multiple compiler pass) models, where Open SYCL extends existing heterogeneous toolchains to also understand SYCL constructs. These toolchains rely on performing multiple compiler passes for host and device code. Here, we distinguish two flavors:
       1. *integrated multipass*, where host and device compilation passes are handled by clang's CUDA and HIP drivers. This mode allows for the most interoperability with backends because backend-specific language extensions are also available in the host pass. For example, kernels can be launched using the `<<<>>>` syntax. However, limitations in clang's compilation drivers also affect Open SYCL in this mode. In particular, CUDA and HIP cannot be targeted simultaneously because host code cannot support language extensions from *both* at the same time.
       2. *explicit multipass*, where host and device compilation passes are handled by Open SYCL's `syclcc` compiler driver. Here, `syclcc` invokes backend-specific device passes, which then result in a compiled kernel image for the target device. `syclcc` then embeds the compiled kernel image into the host binary. At runtime, the kernel is extracted from the image and invoked using runtime functions instead of language extensions. As a consequence, explicit multipass compilation for one backend can be combined with arbitrary other backends simultaneously, allowing Open SYCL to target multiple device backends at the same time. Note that in explicit multipass, different guarantees might be made regarding the availability of backend-specific language extensions in the host pass compared to integrated multipass. See the section on language extension guarantees below for more details.
 2. *Generic SSCP* (Single-source, single compiler pass), where Open SYCL compiles kernels to a generic representation in LLVM IR, which is then lowered at runtime to backend-specific formats such as PTX or SPIR-V as needed. Unlike the SMCP flows, there is only a single compiler invocation, and the code is only parsed once, no matter how many devices or backends are utilized. This flow can potentially provide *the most portability with the lowest compile times*, although it is still experimental work-in-progress, and support levels may vary for the different backends.
@@ -78,12 +78,12 @@ Some features (e.g. SYCL 2020 reductions or group algorithms) are not yet implem
 
 #### IR constants
 
-The SSCP kernel extraction relies on the concept of what we refer to as IR constants. IR constants are global variables, that are non-const and without defined value when parsing the code, but will be turned into constants later during the processing of LLVM IR. This is a similar idea to e.g. SYCL 2020 specialiization constants, and indeed specialization constants could be implemented on top of IR constants.
+The SSCP kernel extraction relies on the concept of what we refer to as IR constants. IR constants are global variables, that are non-const and without defined value when parsing the code, but will be turned into constants later during the processing of LLVM IR. This is a similar idea to e.g. SYCL 2020 specialization constants, and indeed specialization constants could be implemented on top of IR constants.
 
 Stage 1 IR constants are hard-wired. The following important S1 IR constants exist:
 * A string containing the device LLVM IR bitcode
 * Whether the LLVM module contains the host code
-* Whehter the LLVM module contains the device code.
+* Whether the LLVM module contains the device code.
 
 Stage 2 IR constants are intended to provide information that requires knowledge of the target device, such as backend, device, and so on. Stage 2 IR constants can also be programmatically added by the user.
 
@@ -92,7 +92,7 @@ After Open SYCL sets the value of an IR constant, it runs constant propagation a
 #### Stage 1: Kernel extraction
 
 During stage 1, Open SYCL clones the module containing the regular host IR, and sets the IR constants such that one is identified as host code, and one is identified as device code.
-The kernel function calls are guarded inside the Open SYCL headers by an if-statement depending on the IR constant signifying device compilation. This causes kernel code only to end up in the device module, and host code to end up only in the host module. To be sure that no host code remains in the device module, Open SYCL runs additional passes in the device module to remove all code not reachable from kernel entrypoints.
+The kernel function calls are guarded inside the Open SYCL headers by an if-statement depending on the IR constant signifying device compilation. This causes kernel code only to end up in the device module, and host code to end up only in the host module. To be sure that no host code remains in the device module, Open SYCL runs additional passes in the device module to remove all code not reachable from kernel entry points.
 
 The implementation of SYCL builtins contains an if/else branch depending on the IR constant signifying device compilation. One branch invokes the externally defined SSCP builtins following the naming scheme `__hipsycl_sscp_*`, while the other branch invokes regular host builtins.
 This allows SYCL kernels to simultaneously run correctly both on the host as well as on SSCP-supported devices.
@@ -102,7 +102,7 @@ The final LLVM IR device bitcode is then embedded into a stage 1 IR constant str
 #### Stage 2: llvm-to-backend
 
 During stage 2, the `llvm-to-backend` infrastructure is responsible for turning the generic LLVM IR into something that a backend can actually execute. This means in particular:
-- Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entrypoints, correctly setting target triple, data layout, and function calling conventions etc.
+- Flavoring the LLVM IR such that the appropriate LLVM backend can handle the code; e.g. by correctly mapping address spaces, attaching information to mark kernels as entry points, correctly setting target triple, data layout, and function calling conventions etc.
 - Mapping `__hipsycl_sscp_*` builtins to backend builtins. This typically happens by linking backend-specific bitcode libraries.
 - Running optimization passes on the finalized IR
 - Lowering the flavored, optimized IR to backend-specific formats, such as ptx or SPIR-V.

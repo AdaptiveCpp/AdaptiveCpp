@@ -82,8 +82,8 @@ endif()
 install(TARGETS hipSYCL-rt
         EXPORT install_exports
         RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        LIBRARY DESTINATION lib${LIB_SUFFIX}
+        ARCHIVE DESTINATION lib${LIB_SUFFIX})
 
 
 if(WITH_CUDA_BACKEND)
@@ -114,8 +114,8 @@ if(WITH_CUDA_BACKEND)
 
   install(TARGETS rt-backend-cuda
         RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        LIBRARY DESTINATION lib${LIB_SUFFIX}/hipSYCL
+        ARCHIVE DESTINATION lib${LIB_SUFFIX}/hipSYCL)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -156,8 +156,8 @@ if(WITH_ROCM_BACKEND)
 
   install(TARGETS rt-backend-hip
         RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        LIBRARY DESTINATION lib${LIB_SUFFIX}/hipSYCL
+        ARCHIVE DESTINATION lib${LIB_SUFFIX}/hipSYCL)
 endif()
 
 if(WITH_LEVEL_ZERO_BACKEND)
@@ -181,8 +181,8 @@ if(WITH_LEVEL_ZERO_BACKEND)
   endif()
 
   install(TARGETS rt-backend-ze
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        LIBRARY DESTINATION lib${LIB_SUFFIX}/hipSYCL
+        ARCHIVE DESTINATION lib${LIB_SUFFIX}/hipSYCL)
 endif()
 
 if(WITH_CPU_BACKEND)
@@ -223,7 +223,7 @@ if(WITH_CPU_BACKEND)
 
   install(TARGETS rt-backend-omp
       RUNTIME DESTINATION bin/hipSYCL
-      LIBRARY DESTINATION lib/hipSYCL
-      ARCHIVE DESTINATION lib/hipSYCL)
+      LIBRARY DESTINATION lib${LIB_SUFFIX}/hipSYCL
+      ARCHIVE DESTINATION lib${LIB_SUFFIX}/hipSYCL)
 endif()
 

@@ -1,10 +1,11 @@
+
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 add_subdirectory(common)
 
 list( APPEND CMAKE_INSTALL_RPATH
-  ${CMAKE_INSTALL_PREFIX}/lib
-  ${CMAKE_INSTALL_PREFIX}/lib/hipSYCL/llvm-to-backend)
+  ${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}
+  ${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/hipSYCL/llvm-to-backend)
 
 set(WITH_LLVM_TO_AMDGPU_AMDHSA false)
 set(WITH_LLVM_TO_PTX false)

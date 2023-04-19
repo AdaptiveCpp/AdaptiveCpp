@@ -416,7 +416,7 @@ include(GNUInstallDirs)
 
 
 set(HIPSYCL_INSTALL_CMAKE_DIR
-  "lib/cmake/hipSYCL" CACHE PATH "Install path for legacy CMake config files")
+  "lib${LIB_SUFFIX}/cmake/hipSYCL" CACHE PATH "Install path for legacy CMake config files")
 
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is

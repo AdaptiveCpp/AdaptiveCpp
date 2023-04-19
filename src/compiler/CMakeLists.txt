@@ -93,8 +93,8 @@ else()
 endif()
 
 install(TARGETS opensycl-clang
-        LIBRARY DESTINATION lib
+        LIBRARY DESTINATION lib${LIB_SUFFIX}
         RUNTIME DESTINATION bin
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib${LIB_SUFFIX})
 
 add_subdirectory(llvm-to-backend)

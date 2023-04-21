@@ -55,16 +55,17 @@ using host_barrier_type = std::function<void()>;
 
 class handler;
 
-template <int dimensions = 1>
+template <int Dimensions = 1>
 struct nd_item
 {
   /* -- common interface members -- */
+  static constexpr int dimensions = Dimensions;
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_global_id() const
+  id<Dimensions> get_global_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_id<dimensions>() + (*_offset);
+    return detail::get_global_id<Dimensions>() + (*_offset);
 #else
     return this->_global_id + (*_offset);
 #endif
@@ -74,7 +75,7 @@ struct nd_item
   size_t get_global_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_id<dimensions>(dimension) + _offset->get(dimension);
+    return detail::get_global_id<Dimensions>(dimension) + _offset->get(dimension);
 #else
     return this->_global_id[dimension] + (*_offset)[dimension];
 #endif
@@ -89,7 +90,7 @@ struct nd_item
 
   [[deprecated]]
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_global() const
+  id<Dimensions> get_global() const
   {
     return this->get_global_id();
   }
@@ -97,10 +98,10 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_global_linear_id() const
   {
-    return detail::linear_id<dimensions>::get(get_global_id(), get_global_range());
+    return detail::linear_id<Dimensions>::get(get_global_id(), get_global_range());
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<dimensions>& lhs, const nd_item<dimensions>& rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
   {
     #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
       return  lhs._offset == rhs._offset;
@@ -114,14 +115,14 @@ struct nd_item
     #endif
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator !=(const nd_item<dimensions>& lhs, const nd_item<dimensions>& rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const nd_item<Dimensions>& lhs, const nd_item<Dimensions>& rhs)
   {
     return !(lhs==rhs);
   }
 
   [[deprecated]]
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_local() const
+  id<Dimensions> get_local() const
   {
     return this->get_local_id();
   }
@@ -137,17 +138,17 @@ struct nd_item
   size_t get_local_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_id<dimensions>(dimension);
+    return detail::get_local_id<Dimensions>(dimension);
 #else
     return this->_local_id[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_local_id() const
+  id<Dimensions> get_local_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_id<dimensions>();
+    return detail::get_local_id<Dimensions>();
 #else
     return this->_local_id;
 #endif
@@ -156,16 +157,16 @@ struct nd_item
   HIPSYCL_KERNEL_TARGET
   size_t get_local_linear_id() const
   {
-    return detail::linear_id<dimensions>::get(get_local_id(), get_local_range());
+    return detail::linear_id<Dimensions>::get(get_local_id(), get_local_range());
   }
 
   HIPSYCL_KERNEL_TARGET
-  group<dimensions> get_group() const
+  group<Dimensions> get_group() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return group<dimensions>{};
+    return group<Dimensions>{};
 #else
-    return group<dimensions>{
+    return group<Dimensions>{
         _group_id,
         _local_range,
         _num_groups,
@@ -179,7 +180,7 @@ struct nd_item
   size_t get_group(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>(dimension);
+    return detail::get_group_id<Dimensions>(dimension);
 #else
     return this->_group_id[dimension];
 #endif
@@ -189,10 +190,10 @@ struct nd_item
   size_t get_group_linear_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::linear_id<dimensions>::get(detail::get_group_id<dimensions>(),
-                                              detail::get_grid_size<dimensions>());
+    return detail::linear_id<Dimensions>::get(detail::get_group_id<Dimensions>(),
+                                              detail::get_grid_size<Dimensions>());
 #else
-    return detail::linear_id<dimensions>::get(this->_group_id, this->_num_groups);
+    return detail::linear_id<Dimensions>::get(this->_group_id, this->_num_groups);
 #endif
   }
 
@@ -203,10 +204,10 @@ struct nd_item
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_global_range() const
+  range<Dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_size<dimensions>();
+    return detail::get_global_size<Dimensions>();
 #else
     return this->_num_groups * this->_local_range;
 #endif
@@ -216,17 +217,17 @@ struct nd_item
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_global_size<dimensions>(dimension);
+    return detail::get_global_size<Dimensions>(dimension);
 #else
     return this->_num_groups[dimension] * this->_local_range[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_local_range() const
+  range<Dimensions> get_local_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_size<dimensions>();
+    return detail::get_local_size<Dimensions>();
 #else
     return this->_local_range;
 #endif
@@ -236,17 +237,17 @@ struct nd_item
   size_t get_local_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_local_size<dimensions>(dimension);
+    return detail::get_local_size<Dimensions>(dimension);
 #else
     return this->_local_range[dimension];
 #endif
   }
   
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_group_range() const
+  range<Dimensions> get_group_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>();
+    return detail::get_grid_size<Dimensions>();
 #else
     return this->_num_groups;
 #endif
@@ -256,27 +257,27 @@ struct nd_item
   size_t get_group_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>(dimension);
+    return detail::get_grid_size<Dimensions>(dimension);
 #else
     return this->_num_groups[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_offset() const
+  id<Dimensions> get_offset() const
   {
     return *_offset;
   }
 
   HIPSYCL_KERNEL_TARGET
-  nd_range<dimensions> get_nd_range() const
+  nd_range<Dimensions> get_nd_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return nd_range<dimensions>{detail::get_global_size<dimensions>(),
-                                detail::get_local_size<dimensions>(),
+    return nd_range<Dimensions>{detail::get_global_size<Dimensions>(),
+                                detail::get_local_size<Dimensions>(),
                                 get_offset()};
 #else
-    return nd_range<dimensions>{
+    return nd_range<Dimensions>{
       this->_num_groups * this->_local_range,
       this->_local_range,
       this->get_offset()
@@ -349,14 +350,14 @@ struct nd_item
   
 #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   HIPSYCL_KERNEL_TARGET
-  nd_item(const id<dimensions>* offset)
+  nd_item(const id<Dimensions>* offset)
     : _offset{offset}
   {}
 #else
   HIPSYCL_KERNEL_TARGET
-  nd_item(const id<dimensions>* offset,
-          id<dimensions> group_id, id<dimensions> local_id, 
-          range<dimensions> local_range, range<dimensions> num_groups,
+  nd_item(const id<Dimensions>* offset,
+          id<Dimensions> group_id, id<Dimensions> local_id, 
+          range<Dimensions> local_range, range<Dimensions> num_groups,
           detail::host_barrier_type* host_group_barrier = nullptr,
           void* local_memory_ptr = nullptr)
     : _offset{offset}, 
@@ -374,14 +375,14 @@ struct nd_item
 #endif
 
 private:
-  const id<dimensions>* _offset;
+  const id<Dimensions>* _offset;
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-  const id<dimensions> _group_id;
-  const id<dimensions> _local_id;
-  const range<dimensions> _local_range;
-  const range<dimensions> _num_groups;
-  const id<dimensions> _global_id;
+  const id<Dimensions> _group_id;
+  const id<Dimensions> _local_id;
+  const range<Dimensions> _local_range;
+  const range<Dimensions> _num_groups;
+  const id<Dimensions> _global_id;
   void *_local_memory_ptr;
 #endif
 

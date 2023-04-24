@@ -27,6 +27,9 @@
 
 ### `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_<backend>`
 Note: Some compiler drivers that Open SYCL supports can compile for multiple backends in a single pass. Therefore, the following macros should not be seen as mutually exclusive in general. Currently, this affects the `cuda-nvcxx` driver which can target CUDA and host in a single pass.
+.learneth/Opcodes in the Debugger/8_findTheOffset/notSoSimpleStorage.sol:1:2: ParserError: Expected pragma, import directive or contract/interface/library definition.
+ .*. learneth/Opcodes in the Debugger/8_findTheOffset/notSoSimpleStorage.sol: {}import  uint168 0:100000
+ ^
 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST` - Set to 1 if the current compilation pass targets host. 0 otherwise. 
 * `HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA` - Set to 1 if the current compilation pass targets CUDA. 0 otherwise. 

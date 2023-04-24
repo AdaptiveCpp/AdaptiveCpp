@@ -44,7 +44,8 @@ enum class AddressSpace {
   Private = 3,
   Constant = 4,
   AllocaDefault = 5,
-  GlobalVariableDefault = 6
+  GlobalVariableDefault = 6,
+  ConstantGlobalVariableDefault = 7
 };
 
 class AddressSpaceMap {
@@ -55,7 +56,8 @@ public:
   }
 
   AddressSpaceMap(unsigned GenericAS, unsigned GlobalAS, unsigned LocalAS, unsigned PrivateAS,
-                  unsigned ConstantAS, unsigned AllocaDefaultAS, unsigned GlobalVariableDefaultAS) {
+                  unsigned ConstantAS, unsigned AllocaDefaultAS, unsigned GlobalVariableDefaultAS,
+                  unsigned ConstantGlobalVariableDefaultAS) {
     (*this)[AddressSpace::Generic] = GenericAS;
     (*this)[AddressSpace::Global] = GlobalAS;
     (*this)[AddressSpace::Local] = LocalAS;
@@ -63,11 +65,13 @@ public:
     (*this)[AddressSpace::Constant] = ConstantAS;
     (*this)[AddressSpace::AllocaDefault] = AllocaDefaultAS;
     (*this)[AddressSpace::GlobalVariableDefault] = GlobalVariableDefaultAS;
+    (*this)[AddressSpace::ConstantGlobalVariableDefault] = ConstantGlobalVariableDefaultAS;
   }
 
   AddressSpaceMap(unsigned GenericAS, unsigned GlobalAS, unsigned LocalAS, unsigned PrivateAS,
                   unsigned ConstantAS)
-      : AddressSpaceMap{GenericAS, GlobalAS, LocalAS, PrivateAS, ConstantAS, PrivateAS, GlobalAS} {}
+      : AddressSpaceMap{GenericAS,  GlobalAS,  LocalAS,  PrivateAS,
+                        ConstantAS, PrivateAS, GlobalAS, ConstantAS} {}
 
   unsigned operator[](AddressSpace AS) const {
     return ASMap[static_cast<unsigned>(AS)];
@@ -77,7 +81,7 @@ public:
     return ASMap[static_cast<unsigned>(AS)];
   }
 private:
-  std::array<unsigned, 7> ASMap;
+  std::array<unsigned, 8> ASMap;
 };
 
 }

@@ -20,7 +20,7 @@ Open SYCL supports interoperability between `sycl::buffer` and USM pointers. See
 
 ### `HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES`
 
-An extension that allows to eplicitly set view/non-view semantics for buffers as well as enable some behaviors that cannot be expressed in regular SYCL such as buffers that do not block in the destructor. See [here](explicit-buffer-policies.md) for details.
+An extension that allows to explicitly set view/non-view semantics for buffers as well as enable some behaviors that cannot be expressed in regular SYCL such as buffers that do not block in the destructor. See [here](explicit-buffer-policies.md) for details.
 
 ### `HIPSYCL_EXT_MULTI_DEVICE_QUEUE`
 

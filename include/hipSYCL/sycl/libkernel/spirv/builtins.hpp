@@ -122,9 +122,10 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN2(fmod)
 template<class T>
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
-// Unsupported
 template<class T, class IntPtr>
-T __hipsycl_frexp(T x, IntPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
+  return __spirv_ocl_frexp(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(ilogb)
@@ -163,9 +164,10 @@ HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-// Not yet supported
 template<class T, class FloatPtr>
-T __hipsycl_modf(T x, FloatPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
+  return __spirv_ocl_modf(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(nextafter)
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(powr)
@@ -191,8 +193,7 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN(sin)
 
 template<class T, class FloatPtr>
 HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
-  *cosval = spirv_builtins::__hipsycl_cos(x);
-  return spirv_builtins::__hipsycl_sin(x);
+  return __spirv_ocl_sincos(x, cosval);
 }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sinh)

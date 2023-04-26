@@ -227,7 +227,7 @@ dimensions==3 */
     return result; \
   }
 
-  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ
+  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(+)
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(-)
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(*)
@@ -238,6 +238,45 @@ dimensions==3 */
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(&)
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(|)
   HIPSYCL_RANGE_BINARY_OP_SIZE_T(^)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(&&)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(||)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(<)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(>)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(<=)
+  HIPSYCL_RANGE_BINARY_OP_SIZE_T(>=)
+
+  // Unary operators +,-
+  friend range operator+(const range& rhs) {
+    return rhs;
+  }
+
+  friend range operator-(const range& rhs) {
+    return -1*rhs;
+  }
+
+  // Prefix ++ and --
+  friend range operator++(range &rhs) {
+    rhs += 1;
+    return rhs;
+  }
+
+  friend range operator--(range &rhs) {
+    rhs -= 1;
+    return rhs;
+  }
+
+  // Postfix ++ and --
+  friend range operator++(range &rhs, int) {
+    auto old = rhs;
+    rhs += 1;
+    return old;
+  }
+
+  friend range operator--(range &rhs, int) {
+    auto old = rhs;
+    rhs -= 1;
+    return old;
+  }
 
 private:
   detail::device_array<size_t, dimensions> _data;

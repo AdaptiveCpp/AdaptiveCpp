@@ -108,7 +108,7 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
 
   // Fix global vars
   llvm::SmallVector<std::pair<llvm::GlobalVariable *, unsigned>> GlobalVarAddressSpaceChanges;
-  for(auto& G : M.getGlobalList()) {
+  for(auto& G : M.globals()) {
     unsigned CurrentAS = G.getAddressSpace();
     // By default, all global vars should go into global var default AS
     unsigned TargetAS = ASMap[AddressSpace::GlobalVariableDefault];

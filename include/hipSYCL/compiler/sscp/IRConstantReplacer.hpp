@@ -208,7 +208,7 @@ public:
 
   template<class F>
   static void forEachS2IRConstant(llvm::Module& M, F&& Handler) {
-    for(auto& V : M.getGlobalList()) {
+    for(auto& V : M.globals()) {
       llvm::StringRef Name = V.getName();
       if (isS2IRConstantName(Name)) {
         Handler(S2IRConstant{M, V});
@@ -217,7 +217,7 @@ public:
   }
 
   static S2IRConstant getFromConstantName(llvm::Module& M, const std::string& IrConstantName) {
-    for(auto& V: M.getGlobalList()) {
+    for(auto& V: M.globals()) {
       llvm::StringRef Name = V.getName();
       if(isS2IRConstantName(Name)) {
         if(Name.contains(IrConstantName))
@@ -228,7 +228,7 @@ public:
   }
 
   static S2IRConstant getFromFullName(llvm::Module& M, const std::string& FullName) {
-    for(auto& V : M.getGlobalList()) {
+    for(auto& V : M.globals()) {
       llvm::StringRef Name = V.getName();
       if(Name == FullName)
         return S2IRConstant{M, V};

@@ -353,6 +353,7 @@ AddressSpaceMap LLVMToAmdgpuTranslator::getAddressSpaceMap() const {
   ASMap[AddressSpace::Constant] = 4;
   ASMap[AddressSpace::AllocaDefault] = 5;
   ASMap[AddressSpace::GlobalVariableDefault] = 1;
+  ASMap[AddressSpace::ConstantGlobalVariableDefault] = 4;
 
   return ASMap;
 }

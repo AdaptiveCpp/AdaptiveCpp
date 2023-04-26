@@ -1,9 +1,6 @@
 #pragma once
-#ifndef FP16_BITCASTS_H
-#define FP16_BITCASTS_H
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
-#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 
 namespace hipsycl::fp16 {
 
@@ -85,5 +82,3 @@ static inline __hipsycl_uint64 fp64_to_bits(double f) {
 }
 
 }
-
-#endif /* FP16_BITCASTS_H */

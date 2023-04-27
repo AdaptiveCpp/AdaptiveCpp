@@ -32,7 +32,7 @@
 #include <cstddef>
 
 #include "hipSYCL/sycl/aspect.hpp"
-#include "param_traits.hpp"
+#include "info.hpp"
 #include "../types.hpp"
 #include "../aspect.hpp"
 
@@ -46,87 +46,6 @@ class platform;
 class device;
 
 namespace info {
-
-enum class device : int {
-  device_type,
-  vendor_id,
-  max_compute_units,
-  max_work_item_dimensions,
-  max_work_item_sizes,
-  max_work_group_size,
-  max_num_sub_groups,
-  sub_group_independent_forward_progress,
-  sub_group_sizes,
-  preferred_vector_width_char,
-  preferred_vector_width_short,
-  preferred_vector_width_int,
-  preferred_vector_width_long,
-  preferred_vector_width_float,
-  preferred_vector_width_double,
-  preferred_vector_width_half,
-  native_vector_width_char,
-  native_vector_width_short,
-  native_vector_width_int,
-  native_vector_width_long,
-  native_vector_width_float,
-  native_vector_width_double,
-  native_vector_width_half,
-  max_clock_frequency,
-  address_bits,
-  max_mem_alloc_size,
-  image_support,
-  max_read_image_args,
-  max_write_image_args,
-  image2d_max_height,
-  image2d_max_width,
-  image3d_max_height,
-  image3d_max_width,
-  image3d_max_depth,
-  image_max_buffer_size,
-  image_max_array_size,
-  max_samplers,
-  max_parameter_size,
-  mem_base_addr_align,
-  half_fp_config,
-  single_fp_config,
-  double_fp_config,
-  global_mem_cache_type,
-  global_mem_cache_line_size,
-  global_mem_cache_size,
-  global_mem_size,
-  max_constant_buffer_size,
-  max_constant_args,
-  local_mem_type,
-  local_mem_size,
-  error_correction_support,
-  host_unified_memory,
-  profiling_timer_resolution,
-  is_endian_little,
-  is_available,
-  is_compiler_available,
-  is_linker_available,
-  execution_capabilities,
-  queue_profiling,
-  built_in_kernels,
-  platform,
-  name,
-  vendor,
-  driver_version,
-  profile,
-  version,
-  opencl_c_version,
-  aspects,
-  extensions,
-  printf_buffer_size,
-  preferred_interop_user_sync,
-  parent_device,
-  partition_max_sub_devices,
-  partition_properties,
-  partition_affinity_domains,
-  partition_type_property,
-  partition_type_affinity_domain,
-  reference_count
-};
 
 enum class device_type : unsigned int {
   cpu,
@@ -175,98 +94,103 @@ enum class execution_capability : unsigned int {
   exec_native_kernel
 };
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::device_type, device_type);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::vendor_id, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_compute_units, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_dimensions, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_item_sizes, id<3>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_work_group_size, size_t);
+namespace device {
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(device_type, info::device_type);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor_id, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_compute_units, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_dimensions, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_num_sub_groups, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_independent_forward_progress, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::sub_group_sizes, std::vector<size_t>);
+  template<int Dimensions = 3>
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_sizes, id<Dimensions>);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_char, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_double, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_float, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_half, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_int, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_long, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_vector_width_short, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_group_size, size_t);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_char, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_double, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_float, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_half, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_int, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_long, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::native_vector_width_short, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_num_sub_groups, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(sub_group_independent_forward_progress, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(sub_group_sizes, std::vector<size_t>);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_clock_frequency, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::address_bits, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_mem_alloc_size, detail::u_long);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_support, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_char, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_double, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_float, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_half, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_int, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_long, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_vector_width_short, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_read_image_args, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_write_image_args, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_char, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_double, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_float, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_half, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_int, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_long, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(native_vector_width_short, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_width, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image2d_max_height, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_width, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_height, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image3d_max_depth, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_buffer_size, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::image_max_array_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_clock_frequency, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(address_bits, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_mem_alloc_size, detail::u_long);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image_support, bool);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_samplers, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_parameter_size, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::mem_base_addr_align, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_read_image_args, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_write_image_args, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::half_fp_config, std::vector<fp_config>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::single_fp_config, std::vector<fp_config>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::double_fp_config, std::vector<fp_config>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image2d_max_width, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image2d_max_height, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image3d_max_width, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image3d_max_height, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image3d_max_depth, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image_max_buffer_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(image_max_array_size, size_t);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_type, global_mem_cache_type);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_line_size, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_cache_size, detail::u_long);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::global_mem_size, detail::u_long);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_samplers, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_parameter_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(mem_base_addr_align, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_buffer_size, detail::u_long);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::max_constant_args, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(half_fp_config, std::vector<fp_config>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(single_fp_config, std::vector<fp_config>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(double_fp_config, std::vector<fp_config>);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_type, local_mem_type);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::local_mem_size, detail::u_long);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_mem_cache_type, info::global_mem_cache_type);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_mem_cache_line_size, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_mem_cache_size, detail::u_long);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_mem_size, detail::u_long);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::error_correction_support, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::host_unified_memory, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profiling_timer_resolution, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_endian_little, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_available, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_compiler_available, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::is_linker_available, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::execution_capabilities, std::vector<execution_capability>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::queue_profiling, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::built_in_kernels, std::vector<string_class>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::platform, sycl::platform);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_constant_buffer_size, detail::u_long);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_constant_args, detail::u_int);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::name, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::vendor, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::driver_version, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::profile, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::version, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::opencl_c_version, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::aspects, std::vector<aspect>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::extensions, std::vector<string_class>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(local_mem_type, info::local_mem_type);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(local_mem_size, detail::u_long);
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::printf_buffer_size, size_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::preferred_interop_user_sync, bool);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::parent_device, sycl::device);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_max_sub_devices, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_properties, std::vector<partition_property>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_affinity_domains, std::vector<partition_affinity_domain>);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_property, partition_property);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::partition_type_affinity_domain, partition_affinity_domain);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(device, device::reference_count, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(error_correction_support, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(host_unified_memory, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profiling_timer_resolution, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_endian_little, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_available, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_compiler_available, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(is_linker_available, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(execution_capabilities, std::vector<execution_capability>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(queue_profiling, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(built_in_kernels, std::vector<string_class>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(platform, sycl::platform);
+
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(driver_version, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(opencl_c_version, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(aspects, std::vector<aspect>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, std::vector<string_class>);
+
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(printf_buffer_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_interop_user_sync, bool);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(parent_device, sycl::device);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_max_sub_devices, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_properties, std::vector<partition_property>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_affinity_domains, std::vector<partition_affinity_domain>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_type_property, partition_property);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(partition_type_affinity_domain, partition_affinity_domain);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
+};
 
 } // namespace info
 } // namespace sycl

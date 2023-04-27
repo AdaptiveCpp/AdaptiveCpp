@@ -27,7 +27,7 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/atomic.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
-#include "hipSYCL/sycl/libkernel/sscp/builtins/ptx/libdevice.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/musa/builtin.hpp"
 
 
 // Atomic definitions adapted from __clang_cuda_device_functions.h
@@ -52,16 +52,16 @@ float __fAtomicAdd_system(float *__p, float __v) {
   return __nvvm_atom_sys_add_gen_f(__p, __v);
 }
 float __fAtomicExch(float *__p, float __v) {
-  return __nv_int_as_float(
-      __nvvm_atom_xchg_gen_i((int *)__p, __nv_float_as_int(__v)));
+  return __mt_int_as_float(
+      __nvvm_atom_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 float __fAtomicExch_block(float *__p, float __v) {
-  return __nv_int_as_float(
-      __nvvm_atom_cta_xchg_gen_i((int *)__p, __nv_float_as_int(__v)));
+  return __mt_int_as_float(
+      __nvvm_atom_cta_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 float __fAtomicExch_system(float *__p, float __v) {
-  return __nv_int_as_float(
-      __nvvm_atom_sys_xchg_gen_i((int *)__p, __nv_float_as_int(__v)));
+  return __mt_int_as_float(
+      __nvvm_atom_sys_xchg_gen_i((int *)__p, __mt_float_as_int(__v)));
 }
 
 int __iAtomicAdd(int *__p, int __v) {
@@ -510,14 +510,14 @@ HIPSYCL_SSCP_BUILTIN __hipsycl_int64 __hipsycl_sscp_atomic_load_i64(
 HIPSYCL_SSCP_BUILTIN __hipsycl_f32 atomic_load_f32(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f32 *ptr) {
-  return __nv_int_as_float(__hipsycl_sscp_atomic_load_i32(
+  return __mt_int_as_float(__hipsycl_sscp_atomic_load_i32(
       as, order, scope, reinterpret_cast<__hipsycl_int32 *>(ptr)));
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_f64 atomic_load_f64(
     __hipsycl_sscp_address_space as, __hipsycl_sscp_memory_order order,
     __hipsycl_sscp_memory_scope scope, __hipsycl_f64 *ptr) {
-  return __nv_longlong_as_double(__hipsycl_sscp_atomic_load_i64(
+  return __mt_longlong_as_double(__hipsycl_sscp_atomic_load_i64(
       as, order, scope, reinterpret_cast<__hipsycl_int64 *>(ptr)));
 }
 
@@ -670,7 +670,7 @@ HIPSYCL_SSCP_BUILTIN bool cmp_exch_strong_f32(
   return __hipsycl_sscp_cmp_exch_strong_i32(
       as, success, failure, scope, reinterpret_cast<__hipsycl_int32 *>(ptr),
       reinterpret_cast<__hipsycl_int32 *>(expected),
-      __nv_float_as_int(desired));
+      __mt_float_as_int(desired));
 }
 
 HIPSYCL_SSCP_BUILTIN bool cmp_exch_strong_f64(
@@ -681,7 +681,7 @@ HIPSYCL_SSCP_BUILTIN bool cmp_exch_strong_f64(
   return __hipsycl_sscp_cmp_exch_strong_i64(
       as, success, failure, scope, reinterpret_cast<__hipsycl_int64 *>(ptr),
       reinterpret_cast<__hipsycl_int64 *>(expected),
-      __nv_double_as_longlong(desired));
+      __mt_double_as_longlong(desired));
 }
 
 // ******************** atomic fetch_and ************************

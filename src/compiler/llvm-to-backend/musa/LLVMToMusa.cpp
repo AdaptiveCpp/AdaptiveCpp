@@ -153,7 +153,7 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   std::string BuiltinBitcodeFile = 
     common::filesystem::join_path(common::filesystem::get_install_directory(),
-      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-musa-full.bc"});
+      {"lib", "hipSYCL", "bitcode", "libkernel-sscp-mtgpu-full.bc"});
   
   std::string LibdeviceFile;
   if(!LibdevicePath::get(LibdeviceFile)) {

@@ -486,12 +486,14 @@ private:
 
     // Need to iterate over all attributes to support the case
     // where multiple annotate attributes are present.
-    for(auto* Attr : f->getAttrs()) {
-      if(auto* AAttr = clang::dyn_cast<clang::AnnotateAttr>(Attr)) {
-        if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
-          markAsNDKernel(f);
-        } else if (AAttr->getAnnotation() == "hipsycl_sscp_outlining") {
-          markAsSSCPOutliningEntrypoint(f);
+    if(f->hasAttrs()) {
+      for(auto* Attr : f->getAttrs()) {
+        if(auto* AAttr = clang::dyn_cast<clang::AnnotateAttr>(Attr)) {
+          if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
+            markAsNDKernel(f);
+          } else if (AAttr->getAnnotation() == "hipsycl_sscp_outlining") {
+            markAsSSCPOutliningEntrypoint(f);
+          }
         }
       }
     }

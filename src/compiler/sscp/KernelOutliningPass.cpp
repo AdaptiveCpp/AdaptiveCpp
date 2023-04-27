@@ -289,7 +289,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   // them early on, because it can get difficult to handle them once
   // we have removed what their aliasees. 
   llvm::SmallVector<llvm::GlobalAlias*, 16> AliasesToRemove;
-  for(auto& A : M.getAliasList()) 
+  for(auto& A : M.aliases()) 
     AliasesToRemove.push_back(&A);    
   // Need separate iteration, so that we don't erase stuff from the list
   // we are iterating over.
@@ -349,7 +349,7 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   }
 
   llvm::SmallVector<llvm::GlobalVariable*, 16> UnneededGlobals;
-  for(auto& G: M.getGlobalList()) {
+  for(auto& G: M.globals()) {
     G.removeDeadConstantUsers();
     if(G.getNumUses() == 0)
       UnneededGlobals.push_back(&G);

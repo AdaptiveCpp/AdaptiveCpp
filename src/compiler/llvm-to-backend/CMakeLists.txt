@@ -108,7 +108,9 @@ if(WITH_SSCP_COMPILER)
       TOOL spirv/LLVMToSpirvTool.cpp)
 
     # Install LLVM-SPIRV translator for llvm-to-spirv
-    set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
+    if(NOT LLVMSPIRV_BRANCH)
+      set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
+    endif()
     set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
     set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)

@@ -35,8 +35,6 @@
 // path since SSCP outlining happens only in the host pass.
 #if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__) &&                            \
     !defined(HIPSYCL_LIBKERNEL_DEVICE_PASS)
- #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
- #include "builtins/core.hpp"
 
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP 1
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP 1
@@ -73,6 +71,9 @@
   #define HIPSYCL_HOST_TARGET
  #endif
 
+ #include "hipSYCL/glue/llvm-sscp/ir_constants.hpp"
+ #include "builtins/core.hpp"
+ 
 #else
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_SSCP 0
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP 0

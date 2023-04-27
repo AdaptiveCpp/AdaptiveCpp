@@ -51,36 +51,16 @@ namespace kernel {
 };
 
 namespace kernel_device_specific {
-
-struct global_work_size {
-  using return_type = range<3>;
-};
-struct work_group_size {
-  using return_type = std::size_t;
-};
-struct compile_work_group_size {
-  using return_type = range<3>;
-};
-struct preferred_work_group_size_multiple {
-  using return_type = std::size_t;
-};
-struct private_mem_size {
-  using return_type = std::size_t;
-};
-struct max_num_sub_groups {
-  using return_type = uint32_t;
-};
-struct compile_num_sub_groups {
-  using return_type = uint32_t;
-};
-struct max_sub_group_size {
-  using return_type = uint32_t;
-};
-struct compile_sub_group_size {
-  using return_type = uint32_t;
-};
-
-}  // namespace kernel_device_specific
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(global_work_size, sycl::range<3>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(work_group_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(compile_work_group_size, sycl::range<3>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(preferred_work_group_size_multiple, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(private_mem_size, size_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_num_sub_groups, uint32_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(compile_num_sub_groups, uint32_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_sub_group_size, uint32_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(compile_sub_group_size, uint32_t);
+}
 
 namespace kernel_work_group
 {

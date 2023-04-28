@@ -1,8 +1,9 @@
 name: Linux GPU build and test
 
+on: [push, pull_request]
 jobs:
   test-gpu-nvidia:
-    name: clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
+    name: NVIDIA with clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
       matrix:
@@ -13,7 +14,7 @@ jobs:
     - name: build
       run : |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm -DCMAKE_INSTALL_REFIX=`pwd`/install ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm -DCMAKE_INSTALL_REFIX=`pwd`/install ..
         make -j16 install
         cp /.singularity.d/libs/libcuda.* `pwd`/install/lib/
     - name: build CPU tests

@@ -4,13 +4,12 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang }}, CUDA ${{matrix.cuda}}
+    name: clang ${{ matrix.clang }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         clang: [15]
         os: [windows-2022]
-        cuda: ['11.0']
     steps:
     - uses: actions/checkout@v3
       with:
@@ -36,7 +35,7 @@ jobs:
         echo "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         
     - name: Download prebuilt LLVM 15
-      if: steps.cache-llvm15.outputs.cache-hit != 'true' && matrix.clang_version == 15
+      if: steps.cache-llvm15.outputs.cache-hit != 'true' && matrix.clang == 15
       shell: powershell
       run: |
         cd $env:GITHUB_WORKSPACE
@@ -55,14 +54,11 @@ jobs:
         ls $env:GITHUB_WORKSPACE
         cd .\boost_1_81_0
         .\bootstrap.bat
-        .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release --build-type=complete stage
+        .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release embed-manifest-via=linker --build-type=complete stage
         
     - name: Build OpenSYCL (without CUDA backend)
-      if: matrix.clang_version == 15
+      if: matrix.clang == 15
       shell: powershell
-      env:
-        CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"
-        CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
       run: |
         $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
         mkdir $env:GITHUB_WORKSPACE/build/core

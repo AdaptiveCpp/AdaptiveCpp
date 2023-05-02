@@ -242,4 +242,33 @@ BOOST_AUTO_TEST_CASE(buffer_container_constructor) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_container_constructor_no_def_constr) {
+  cl::sycl::queue q;
+
+  struct A {
+    A() = delete;
+    A(int val) : val(val) {}
+    int val;
+  };
+
+  A testVal = A{42};
+  std::array<A, 2> data = {A{1}, A{2}};
+  {
+    cl::sycl::buffer<A> buff{data};
+
+    q.submit([&](cl::sycl::handler &cgh) {
+      auto acc =
+        buff.get_access<cl::sycl::access::mode::write>(cgh);
+
+      cgh.parallel_for(cl::sycl::range{2}, [=](auto idx) {
+        acc[idx] = testVal;
+      });
+    });
+  }
+
+  for(int i = 0; i < data.size(); ++i) {
+    BOOST_CHECK(data[i].val == testVal.val);
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

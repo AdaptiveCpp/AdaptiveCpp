@@ -55,7 +55,7 @@ jobs:
         ls $env:GITHUB_WORKSPACE
         cd .\boost_1_81_0
         .\bootstrap.bat
-        .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release --build-type=complete stage
+        .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release embed-manifest-via=linker --build-type=complete stage
         
     - name: Build OpenSYCL (without CUDA backend)
       if: matrix.clang_version == 15

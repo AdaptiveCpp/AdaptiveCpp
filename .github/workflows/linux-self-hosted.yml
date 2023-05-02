@@ -89,13 +89,6 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j3
-    - name: build generic SSCP tests
-      if: matrix.clang_version >= 14
-      run: |
-        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
-        cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
-        make -j3
     - name: build ROCm tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm

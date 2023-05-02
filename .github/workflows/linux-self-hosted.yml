@@ -31,13 +31,13 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
         cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j16
-    - name build CUDA tests (explicit multipass)
+    - name: build CUDA tests (explicit multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-emp
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
         cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
         make -j16
-    - name build CUDA tests (nvc++)
+    - name: build CUDA tests (nvc++)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx

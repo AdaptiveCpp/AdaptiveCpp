@@ -167,12 +167,12 @@ HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
 
 template<class IntType>
 HIPSYCL_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
-  return __hipsycl_sscp_ldexp_f32(x, k);
+  return __hipsycl_sscp_ldexp_f32(x, static_cast<__hipsycl_int32>(k));
 }
 
 template<class IntType>
 HIPSYCL_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
-  return __hipsycl_sscp_ldexp_f64(x, k);
+  return __hipsycl_sscp_ldexp_f64(x, static_cast<__hipsycl_int64>(k));
 }
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(lgamma)

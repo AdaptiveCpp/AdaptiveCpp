@@ -550,10 +550,11 @@ template <class T,
                std::is_same_v<T, signed char> || std::is_same_v<T, char>),
               int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  constexpr T diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(T));
   #if __has_builtin(__builtin_clz)
-    return __builtin_clz(x);
+    return __builtin_clz(x) - diff;
   #else
-    return __fallback_clz();
+    return __fallback_clz(x);
   #endif
 }
 
@@ -564,7 +565,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzl)
     return __builtin_clzl(x);
   #else
-    return __fallback_clz();
+    return __fallback_clz(x);
   #endif
 }
 
@@ -575,7 +576,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzll)
     return __builtin_clzll(x);
   #else
-    return __fallback_clz();
+    return __fallback_clz(x);
   #endif
 }
 

@@ -404,17 +404,43 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
-template<class T>
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 1),
+              int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
 
-  // use __clzll or __clz by checking the bit length because
-  // the nvidia/hip documentation mention clz as 32 bits and clzll as 64
+  return __clz(static_cast<__hipsycl_int32>(x))-(24);
   
-  if constexpr (sizeof(T)*CHAR_BIT == 64){
-    return __clzll(static_cast<__hipsycl_int64>(x));
-  }else{
-    return __clz(static_cast<__hipsycl_int32>(x));
-  }
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 2),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clz(static_cast<__hipsycl_int32>(x))-(16);
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clz(static_cast<__hipsycl_int32>(x));
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clzll(static_cast<__hipsycl_int64>(x));
 
 }
 

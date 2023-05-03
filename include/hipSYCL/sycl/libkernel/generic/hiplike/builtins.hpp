@@ -404,23 +404,20 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
-template <class T,
-          std::enable_if_t<
-              (std::is_integral_v<T> && sizeof(T) == 1),
-              int> = 0>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
-
-  return __clz(static_cast<__hipsycl_int32>(x))-(24);
-  
-}
 
 template <class T,
           std::enable_if_t<
-              (std::is_integral_v<T> && sizeof(T) == 2),
+              (std::is_integral_v<T> && sizeof(T) < 4),
               int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
 
-  return __clz(static_cast<__hipsycl_int32>(x))-(16);
+  //we convert to the unsigned type to avoid the typecast creating 
+  //additional ones in front of the value if x is negative
+  using Usigned = typename std::make_unsigned<T>::type; 
+
+  constexpr T diff = CHAR_BIT*(sizeof(__hipsycl_int32) - sizeof(Usigned));
+
+  return __clz(static_cast<__hipsycl_int32>(static_cast<Usigned>(x)))-diff;
   
 }
 

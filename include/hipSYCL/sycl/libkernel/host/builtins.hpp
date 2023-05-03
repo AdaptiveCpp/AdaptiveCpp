@@ -31,6 +31,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/vec.hpp"
 
+#include <bitset>
 #include <cstdlib>
 #include <cmath>
 #include <type_traits>
@@ -531,15 +532,10 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 inline T fallback_clz(T x) noexcept {
-  // m_bit = 1000 0000 ...
-  constexpr T m_bit = 1 << ((CHAR_BIT*sizeof(T)) - 1);
-  T count = 0;
-  while (!(x & m_bit))
-  {
-    x = (x << 1);
-    count ++;
-  }
-  return count;
+    std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+    int idx = 0;
+    while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+    return idx;
 }
 
 template <class T,
@@ -550,9 +546,14 @@ template <class T,
                std::is_same_v<T, signed char> || std::is_same_v<T, char>),
               int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
-  constexpr T diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(T));
+
+  //we convert to the unsigned type to avoid the typecast creating 
+  //additional ones in front of the value if x is negative
+  using Usigned = typename std::make_unsigned<T>::type; 
+
+  constexpr T diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(Usigned));
   #if __has_builtin(__builtin_clz)
-    return __builtin_clz(x) - diff;
+    return __builtin_clz(static_cast<Usigned>(x)) - diff;
   #else
     return __fallback_clz(x);
   #endif
@@ -563,7 +564,7 @@ template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long> ||
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzl)
-    return __builtin_clzl(x);
+    return __builtin_clzl(static_cast<unsigned long>(x));
   #else
     return __fallback_clz(x);
   #endif
@@ -574,7 +575,7 @@ template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long long> ||
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzll)
-    return __builtin_clzll(x);
+    return __builtin_clzll(static_cast<unsigned long long>(x));
   #else
     return __fallback_clz(x);
   #endif

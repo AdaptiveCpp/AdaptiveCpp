@@ -30,6 +30,9 @@
 #include "hipSYCL/sycl/access.hpp"
 #include "sycl_test_suite.hpp"
 
+#include <algorithm>
+#include <vector>
+
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)
 
 
@@ -425,6 +428,112 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
 
 
   q.wait();
+}
+
+BOOST_AUTO_TEST_CASE(offset_1d) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  std::vector<int> data(N, 1);
+
+  {
+    s::buffer<int> buf(data.data(), N);
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::range range{N};
+      s::id offset{2};
+      auto acc = s::accessor(buf, cgh, range, offset);
+
+      cgh.parallel_for(s::range{N - offset},
+                       [=](auto &idx) {
+                         acc[idx] = 2;
+                       });
+    });
+  }
+
+  // Expected result is [1, 1, 2, 2, ..., 2]
+  std::vector<int> expected(N, 2);
+  expected[0] = 1;
+  expected[1] = 1;
+
+  BOOST_CHECK(expected == data);
+}
+
+BOOST_AUTO_TEST_CASE(offset_2d) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 8;
+  std::array<int, N*N> data;
+  std::fill(data.begin(), data.end(), 1);
+
+  {
+    s::buffer<int, 2> buf(data.data(), {N,N});
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::range range{N, N};
+      s::id offset{2, 2};
+      auto acc = s::accessor(buf, cgh, range, offset);
+
+      cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},
+                       [=](auto &idx) {
+                         acc[idx] = 2;
+                       });
+    }).wait();
+  }
+
+  /* Expected result is
+  [ [1, 1, 1, 1, ..., 1],
+    [1, 1, 1, 1, ..., 1]
+    [1, 1, 2, 2, ..., 2]
+    [1, 1, 2, 2, ..., 2]
+    ...
+    [1, 1, 2, 2, ..., 2]] */
+  std::array<int,N*N> expected;
+  std::fill(expected.begin(), expected.end(), 2);
+  for (int i=0; i<N; ++i)
+    for (int j=0; j<N; ++j)
+      if ((i < 2) or (j < 2))
+        expected[i*N+j] = 1;
+
+  BOOST_CHECK(data == expected);
+}
+
+BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 8;
+  std::array<int, N*N> data;
+  std::fill(data.begin(), data.end(), 1);
+
+  {
+    s::buffer<int, 2> buf(data.data(), {N,N});
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::range range{N, N};
+      s::id offset{2, 2};
+      auto acc = s::accessor(buf, cgh, range, offset);
+
+      cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},
+                       [=](auto &idx) {
+                         auto row = idx[0];
+                         auto col = idx[1];
+                         acc[row][col] = 2;
+                       });
+    }).wait();
+  }
+
+  /* Expected result is
+  [ [1, 1, 1, 1, ..., 1],
+    [1, 1, 1, 1, ..., 1]
+    [1, 1, 2, 2, ..., 2]
+    [1, 1, 2, 2, ..., 2]
+    ...
+    [1, 1, 2, 2, ..., 2]] */
+  std::array<int,N*N> expected;
+  std::fill(expected.begin(), expected.end(), 2);
+  for (int i=0; i<N; ++i)
+    for (int j=0; j<N; ++j)
+      if ((i < 2) or (j < 2))
+        expected[i*N+j] = 1;
+
+  BOOST_CHECK(data == expected);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

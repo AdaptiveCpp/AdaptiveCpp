@@ -4,99 +4,82 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
+    name: clang ${{ matrix.clang }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang_version: [11]
-        os: [windows-2016]
-        cuda: ['10.0', '10.2', '11.0']
+        clang: [15]
+        os: [windows-2022]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
-    - name: LLVM cache
-      id: llvm11-archive
-      uses: actions/cache@v2
+
+    - name: Cache Boost
+      id: cache-boost
+      uses: actions/cache@v3
       with:
-        path: install/llvm.7z
-        key: ${{ runner.os }}-llvm11-7z
-    - name: Fetch LLVM
-      if: steps.llvm11-archive.outputs.cache-hit != 'true'
+        path: ${{github.workspace}}/boost/boost_1_81_0
+        key: ${{runner.os}}-boost
+
+    - name: Cache LLVM-15
+      id: cache-llvm15
+      uses: actions/cache@v3
+      with:
+        path: ${{github.workspace}}/llvm
+        key: ${{runner.os}}-llvm15
+
+    - name: Add Ninja to PATH
       shell: powershell
       run: |
-        md -Force $env:GITHUB_WORKSPACE/install
-        cd $env:GITHUB_WORKSPACE/install
-        Invoke-WebRequest -O llvm.7z http://repo.urz.uni-heidelberg.de/sycl/windows/llvm.7z
-    - name: Extract LLVM
+        echo "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        
+    - name: Download prebuilt LLVM 15
+      if: steps.cache-llvm15.outputs.cache-hit != 'true' && matrix.clang == 15
       shell: powershell
       run: |
-        cd $env:GITHUB_WORKSPACE/install
+        cd $env:GITHUB_WORKSPACE
+        Invoke-WebRequest -o llvm.7z https://www.dropbox.com/s/o8eth32n9ajzw0l/llvm-15-windows-prebuilt.7z?dl=1
         7z.exe x llvm.7z
-    - name: install CUDA 10.0
-      if: matrix.cuda == 10.0
+        
+    - name: Build boost from source
+      if: steps.cache-boost.outputs.cache-hit != 'true'
       shell: powershell
       run: |
-        Invoke-WebRequest -O cuda.exe https://developer.nvidia.com/compute/cuda/10.0/Prod/network_installers/cuda_10.0.130_win10_network
-        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_10.0 nvprune_10.0 cupti_10.0 cublas_10.0 cublas_dev_10.0 cudart_10.0 cufft_10.0 cufft_dev_10.0 curand_10.0 curand_dev_10.0 cusolver_10.0 cusolver_dev_10.0 cusparse_10.0 cusparse_dev_10.0 npp_10.0 npp_dev_10.0 nvrtc_10.0 nvrtc_dev_10.0 nvml_dev_10.0" -Wait -NoNewWindow
-    - name: install CUDA 10.2
-      if: matrix.cuda == 10.2
+        $env:PATH += ";$env:GITHUB_WORKSPACE/llvm/bin"
+        md -Force $env:GITHUB_WORKSPACE/boost
+        cd $env:GITHUB_WORKSPACE/boost
+        Invoke-WebRequest https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z -OutFile boost.7z
+        7z.exe x boost.7z
+        ls $env:GITHUB_WORKSPACE
+        cd .\boost_1_81_0
+        .\bootstrap.bat
+        .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release embed-manifest-via=linker --build-type=complete stage
+        
+    - name: Build OpenSYCL (without CUDA backend)
+      if: matrix.clang == 15
       shell: powershell
       run: |
-        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/10.2/Prod/network_installers/cuda_10.2.89_win10_network.exe
-        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_10.2 nvprune_10.2 cupti_10.2 cublas_10.2 cublas_dev_10.2 cudart_10.2 cufft_10.2 cufft_dev_10.2 curand_10.2 curand_dev_10.2 cusolver_10.2 cusolver_dev_10.2 cusparse_10.2 cusparse_dev_10.2 npp_10.2 npp_dev_10.2 nvrtc_10.2 nvrtc_dev_10.2 nvml_dev_10.2" -Wait -NoNewWindow
-    - name: install CUDA 11.0
-      if: matrix.cuda == 11.0
-      shell: powershell
-      run: |
-        Invoke-WebRequest -O cuda.exe https://developer.download.nvidia.com/compute/cuda/11.0.2/network_installers/cuda_11.0.2_win10_network.exe
-        Start-Process -FilePath "cuda.exe" -ArgumentList "-s nvcc_11.0 nvprune_11.0 cupti_11.0 cublas_11.0 cublas_dev_11.0 cudart_11.0 cufft_11.0 cufft_dev_11.0 curand_11.0 curand_dev_11.0 cusolver_11.0 cusolver_dev_11.0 cusparse_11.0 cusparse_dev_11.0 npp_11.0 npp_dev_11.0 nvrtc_11.0 nvrtc_dev_11.0 nvml_dev_11.0" -Wait -NoNewWindow
-    - name: install boost (from prebuilt)
-      run: |
-        $env:PATH="$env:GITHUB_WORKSPACE\install\bin;$env:PATH"
-        md -Force boost_1_75_0
-        cd boost_1_75_0
-        Invoke-WebRequest -O boost_1_75_0.7z http://repo.urz.uni-heidelberg.de/sycl/windows/boost_1_75_0_vs17.7z
-        7z.exe x boost_1_75_0.7z
-        cd ..
-    - name: build Open SYCL
-      shell: cmd
-      env:
-        CUDA_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}"
-        CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
-      run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
-        set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
-        mkdir "%GITHUB_WORKSPACE%/build/core"
-        cd "%GITHUB_WORKSPACE%/build/core"
-        cmake %GITHUB_WORKSPACE% -G Ninja -DCMAKE_C_COMPILER=%GITHUB_WORKSPACE%/install/bin/clang.exe -DCMAKE_CXX_COMPILER=%GITHUB_WORKSPACE%/install/bin/clang++.exe -DCLANG_EXECUTABLE_PATH=%GITHUB_WORKSPACE%/install/bin/clang++.exe -DLLVM_DIR=%GITHUB_WORKSPACE%/install/lib/cmake/llvm -DBOOST_ROOT=%GITHUB_WORKSPACE%/boost_1_75_0 -DWITH_CUDA_BACKEND=ON -DCMAKE_INSTALL_PREFIX=%GITHUB_WORKSPACE%/install -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
+        mkdir $env:GITHUB_WORKSPACE/build/core
+        cd $env:GITHUB_WORKSPACE/build/core
+        cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=OFF -DLLVM_DIR="$env:GITHUB_WORKSPACE/llvm/lib/cmake/llvm" -DCMAKE_BUILD_TYPE=Release
         ninja -j2 install
+
     - name: build CPU tests
-      shell: cmd
-      env:
-        CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
+      shell: powershell
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
-        set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
-        mkdir "%GITHUB_WORKSPACE%/build/tests-cpu"
-        cd "%GITHUB_WORKSPACE%/build/tests-cpu"
-        cmake -G Ninja -DHIPSYCL_TARGETS="omp" -DhipSYCL_DIR=%GITHUB_WORKSPACE%/install/lib/cmake/hipSYCL -DBOOST_ROOT=%GITHUB_WORKSPACE%/boost_1_75_0 -DCMAKE_BUILD_TYPE=RelWithDebInfo %GITHUB_WORKSPACE%/tests
+        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
+        mkdir $env:GITHUB_WORKSPACE/build/tests-cpu
+        cd $env:GITHUB_WORKSPACE/build/tests-cpu
+        cmake -G Ninja -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/OpenSYCL" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
         ninja -j2
-    - name: build CUDA tests
-      shell: cmd
-      env:
-        CUDA_BIN_PATH: "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{matrix.cuda}}/bin"
-      run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%CUDA_BIN_PATH%;%PATH%
-        set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
-        mkdir "%GITHUB_WORKSPACE%/build/tests-cuda"
-        cd "%GITHUB_WORKSPACE%/build/tests-cuda"
-        cmake -G Ninja -DHIPSYCL_TARGETS="cuda:sm_60" -DhipSYCL_DIR=%GITHUB_WORKSPACE%/install/lib/cmake/hipSYCL -DBOOST_ROOT=%GITHUB_WORKSPACE%/boost_1_75_0 -DCMAKE_BUILD_TYPE=RelWithDebInfo %GITHUB_WORKSPACE%/tests
-        ninja -j2
+
     - name: run CPU tests
       shell: cmd
       run: |
-        set PATH=%GITHUB_WORKSPACE%\install\bin;%PATH%
+        set PATH=%GITHUB_WORKSPACE%\build\core\install\bin;%PATH%
         set GITHUB_WORKSPACE=%GITHUB_WORKSPACE:\=/%
         cd "%GITHUB_WORKSPACE%/build/tests-cpu"
         sycl_tests.exe
+        

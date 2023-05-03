@@ -27,74 +27,19 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/barrier.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
+#include "hipSYCL/sycl/libkernel/sscp/builtins/spirv/spirv_common.hpp"
 
-
-
-namespace __spv {
-
-enum ScopeFlag : __hipsycl_uint32 {
-  CrossDevice = 0,
-  Device = 1,
-  Workgroup = 2,
-  Subgroup = 3,
-  Invocation = 4,
-};
-
-enum MemorySemanticsMaskFlag : __hipsycl_uint32 {
-  None = 0x0,
-  Acquire = 0x2,
-  Release = 0x4,
-  AcquireRelease = 0x8,
-  SequentiallyConsistent = 0x10,
-  UniformMemory = 0x40,
-  SubgroupMemory = 0x80,
-  WorkgroupMemory = 0x100,
-  CrossWorkgroupMemory = 0x200,
-  AtomicCounterMemory = 0x400,
-  ImageMemory = 0x800
-};
-
-}
 
 __attribute__((convergent)) extern "C" void
 __spirv_ControlBarrier(__spv::ScopeFlag Execution, __spv::ScopeFlag Memory,
                        __hipsycl_uint32 Semantics);
-
-__attribute__((always_inline)) __spv::ScopeFlag
-get_spirv_scope(__hipsycl_sscp_memory_scope scope) {
-
-  if(scope == __hipsycl_sscp_memory_scope::work_item)
-    return __spv::ScopeFlag::Invocation;
-  else if(scope == __hipsycl_sscp_memory_scope::sub_group)
-    return __spv::ScopeFlag::Subgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::work_group)
-    return __spv::ScopeFlag::Workgroup;
-  else if(scope == __hipsycl_sscp_memory_scope::device)
-    return __spv::ScopeFlag::Device;
-  else
-    return __spv::ScopeFlag::CrossDevice;
-}
-
-__attribute__((always_inline)) __hipsycl_uint32
-get_spirv_memory_semantics_from_order(__hipsycl_sscp_memory_order order) {
-  if(order == __hipsycl_sscp_memory_order::seq_cst)
-    return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
-  else if(order == __hipsycl_sscp_memory_order::acq_rel)
-    return __spv::MemorySemanticsMaskFlag::AcquireRelease;
-  else if(order == __hipsycl_sscp_memory_order::release)
-    return __spv::MemorySemanticsMaskFlag::Release;
-  else if(order == __hipsycl_sscp_memory_order::acquire)
-    return __spv::MemorySemanticsMaskFlag::Acquire;
-  else // Relaxed TODO: How to best map relaxed to SPIR-V?
-    return __spv::MemorySemanticsMaskFlag::SequentiallyConsistent;
-}
 
 
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
     __hipsycl_sscp_work_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                   __hipsycl_sscp_memory_order mem_order) {
 
-  __hipsycl_uint32 flags = get_spirv_memory_semantics_from_order(mem_order);
+  __hipsycl_uint32 flags = get_spirv_memory_semantics(mem_order);
 
   if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
     flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;
@@ -111,7 +56,7 @@ HIPSYCL_SSCP_CONVERGENT_BUILTIN void
 HIPSYCL_SSCP_CONVERGENT_BUILTIN void
     __hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
                                   __hipsycl_sscp_memory_order mem_order) {
-  __hipsycl_uint32 flags = get_spirv_memory_semantics_from_order(mem_order);
+  __hipsycl_uint32 flags = get_spirv_memory_semantics(mem_order);
 
   if(fence_scope == __hipsycl_sscp_memory_scope::sub_group)
     flags |= __spv::MemorySemanticsMaskFlag::SubgroupMemory;

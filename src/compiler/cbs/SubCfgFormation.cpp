@@ -33,11 +33,13 @@
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 
 #include "hipSYCL/common/debug.hpp"
-#include "llvm/IR/GlobalVariable.h"
 
 #include <llvm/Analysis/PostDominators.h>
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Dominators.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/Regex.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
@@ -45,14 +47,21 @@
 #include <llvm/Transforms/Utils/Local.h>
 #include <llvm/Transforms/Utils/LoopSimplify.h>
 
+#include <cstddef>
+#include <functional>
+#include <numeric>
+
+#define DEBUG_SUBCFG_FORMATION
+
 namespace {
 using namespace hipsycl::compiler;
 
 static const std::array<char, 3> DimName{'x', 'y', 'z'};
 
 // gets the load inside F from the global variable called VarName
-llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
-  auto *GV = F.getParent()->getGlobalVariable(VarName);
+llvm::Instruction *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName) {
+  auto SizeT = F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext());
+  auto *GV = F.getParent()->getOrInsertGlobal(VarName, SizeT);
   for (auto &BB : F) {
     for (auto &I : BB) {
       if (auto *LoadI = llvm::dyn_cast<llvm::LoadInst>(&I)) {
@@ -62,8 +71,7 @@ llvm::Value *getLoadForGlobalVariable(llvm::Function &F, llvm::StringRef VarName
     }
   }
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
-  return Builder.CreateLoad(F.getParent()->getDataLayout().getLargestLegalIntType(F.getContext()),
-                            GV);
+  return Builder.CreateLoad(SizeT, GV);
 }
 
 // parses the range dimensionality from the mangled kernel name
@@ -296,7 +304,6 @@ class SubCFG {
   llvm::BasicBlock *PreHeader_;
   size_t Dim;
 
-  //  void addBlock(llvm::BasicBlock *BB) { Blocks_.push_back(BB); }
   llvm::BasicBlock *
   createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, unsigned long> BarrierPair,
                    llvm::BasicBlock *After, llvm::BasicBlock *TargetBB);
@@ -352,12 +359,12 @@ public:
       llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
       llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
           &ContInstReplicaMap,
-      llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
-      hipsycl::compiler::VectorizationInfo &VecInfo);
+      llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, llvm::Value *ReqdArrayElements,
+      VectorizationInfo &VecInfo);
   void fixSingleSubCfgValues(
       llvm::DominatorTree &DT,
       const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-      std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo);
+      llvm::Value *ReqdArrayElements, VectorizationInfo &VecInfo);
 
   void print() const;
   void removeDeadPhiBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> &BlocksToRemap) const;
@@ -455,7 +462,6 @@ void SubCFG::replicate(
         &ContInstReplicaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
     llvm::BasicBlock *AfterBB, llvm::ArrayRef<llvm::Value *> LocalSize) {
-  auto &DL = F.getParent()->getDataLayout();
   llvm::ValueToValueMapTy VMap;
 
   // clone blocks
@@ -506,7 +512,7 @@ void SubCFG::removeDeadPhiBlocks(llvm::SmallVector<llvm::BasicBlock *, 8> &Block
     for (auto &I : *BB) {
       if (auto *Phi = llvm::dyn_cast<llvm::PHINode>(&I)) {
         llvm::SmallVector<llvm::BasicBlock *, 4> IncomingBlocksToRemove;
-        for (int IncomingIdx = 0; IncomingIdx < Phi->getNumIncomingValues(); ++IncomingIdx) {
+        for (size_t IncomingIdx = 0; IncomingIdx < Phi->getNumIncomingValues(); ++IncomingIdx) {
           auto *IncomingBB = Phi->getIncomingBlock(IncomingIdx);
           if (!Predecessors.contains(IncomingBB))
             IncomingBlocksToRemove.push_back(IncomingBB);
@@ -530,8 +536,8 @@ bool dontArrayifyContiguousValues(
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
         &ContInstReplicaMap,
-    llvm::Instruction *AllocaIP, size_t ReqdArrayElements, llvm::Value *IndVar,
-    hipsycl::compiler::VectorizationInfo &VecInfo) {
+    llvm::Instruction *AllocaIP, llvm::Value *ReqdArrayElements, llvm::Value *IndVar,
+    VectorizationInfo &VecInfo) {
   // is cont indvar
   if (VecInfo.isPinned(I))
     return true;
@@ -571,7 +577,7 @@ bool dontArrayifyContiguousValues(
       continue;
     HIPSYCL_DEBUG_INFO << "[SubCFG] Store required uniform value to single element alloca " << I
                        << "\n";
-    auto *Alloca = utils::arrayifyInstruction(AllocaIP, UI, IndVar, 1);
+    auto *Alloca = utils::arrayifyInstruction(AllocaIP, UI, IndVar, nullptr);
     BaseInstAllocaMap.insert({UI, Alloca});
     VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
   }
@@ -585,8 +591,8 @@ void SubCFG::arrayifyMultiSubCfgValues(
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
         &ContInstReplicaMap,
-    llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, size_t ReqdArrayElements,
-    hipsycl::compiler::VectorizationInfo &VecInfo) {
+    llvm::ArrayRef<SubCFG> SubCFGs, llvm::Instruction *AllocaIP, llvm::Value *ReqdArrayElements,
+    VectorizationInfo &VecInfo) {
   llvm::SmallPtrSet<llvm::BasicBlock *, 16> OtherCFGBlocks;
   for (auto &Cfg : SubCFGs) {
     if (&Cfg != this)
@@ -622,15 +628,14 @@ void SubCFG::arrayifyMultiSubCfgValues(
         if (Shape.isUniform()) {
           HIPSYCL_DEBUG_INFO << "[SubCFG] Value uniform, store to single element alloca " << I
                              << "\n";
-          auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, ContIdx_, 1);
+          auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, ContIdx_, nullptr);
           InstAllocaMap.insert({&I, Alloca});
-          VecInfo.setVectorShape(*Alloca, hipsycl::compiler::VectorShape::uni());
+          VecInfo.setVectorShape(*Alloca, VectorShape::uni());
           continue;
         }
 #endif
-#ifndef HIPSYCL_NO_CONTIGUOUS_VALUES
-        // if contiguous, and can be recalculated, don't arrayify but store uniform values and insts
-        // required for recalculation
+        // if contiguous, and can be recalculated, don't arrayify but store
+        // uniform values and insts required for recalculation
         if (Shape.isContiguous()) {
           if (dontArrayifyContiguousValues(I, BaseInstAllocaMap, ContInstReplicaMap, AllocaIP,
                                            ReqdArrayElements, ContIdx_, VecInfo)) {
@@ -638,7 +643,6 @@ void SubCFG::arrayifyMultiSubCfgValues(
             continue;
           }
         }
-#endif
         // create wide alloca and store the value
         auto *Alloca = utils::arrayifyInstruction(AllocaIP, &I, ContIdx_, ReqdArrayElements);
         InstAllocaMap.insert({&I, Alloca});
@@ -700,10 +704,10 @@ void SubCFG::loadMultiSubCfgValues(
   }
 }
 
-// Inserts loads for the multi-subcfg values that were identified as uniform inside the wi-loop
-// preheader. Additionally clones the instructions that were identified as contiguous \a
-// ContInstReplicaMap inside the LoadBB_ to restore the contiguous value just from the uniform
-// values and the wi-idx.
+// Inserts loads for the multi-subcfg values that were identified as uniform
+// inside the wi-loop preheader. Additionally clones the instructions that were
+// identified as contiguous \a ContInstReplicaMap inside the LoadBB_ to restore
+// the contiguous value just from the uniform values and the wi-idx.
 void SubCFG::loadUniformAndRecalcContValues(
     llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &BaseInstAllocaMap,
     llvm::DenseMap<llvm::Instruction *, llvm::SmallVector<llvm::Instruction *, 8>>
@@ -815,14 +819,15 @@ llvm::BasicBlock *SubCFG::createLoadBB(llvm::ValueToValueMapTy &VMap) {
   return LoadBB;
 }
 
-// if the kernel contained a loop, it is possible, that values inside a single subcfg don't dominate
-// their uses inside the same subcfg. This function identifies and fixes those values.
+// if the kernel contained a loop, it is possible, that values inside a single
+// subcfg don't dominate their uses inside the same subcfg. This function
+// identifies and fixes those values.
 void SubCFG::fixSingleSubCfgValues(
     llvm::DominatorTree &DT,
     const llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> &RemappedInstAllocaMap,
-    std::size_t ReqdArrayElements, hipsycl::compiler::VectorizationInfo &VecInfo) {
+    llvm::Value *ReqdArrayElements, VectorizationInfo &VecInfo) {
 
-  auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getFirstNonPHIOrDbgOrLifetime();
+  auto *AllocaIP = LoadBB_->getParent()->getEntryBlock().getTerminator();
   auto *LoadIP = LoadBB_->getTerminator();
   auto *UniLoadIP = PreHeader_->getTerminator();
   llvm::IRBuilder Builder{LoadIP};
@@ -879,9 +884,6 @@ void SubCFG::fixSingleSubCfgValues(
             Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
-            //            if (VecInfo.getVectorShape(I).isUniform())
-            //              Alloca = utils::arrayifyInstruction(AllocaIP, OPI, ContIdx_, 1);
-            //            else
             Alloca = utils::arrayifyInstruction(AllocaIP, OPI, ContIdx_, ReqdArrayElements);
             VecInfo.setVectorShape(*Alloca, VecInfo.getVectorShape(I));
           }
@@ -942,8 +944,8 @@ llvm::BasicBlock *createUnreachableBlock(llvm::Function &F) {
   return Default;
 }
 
-// create the actual while loop around the subcfgs and the switch instruction to select the next
-// subCFG based on the value in \a LastBarrierIdStorage
+// create the actual while loop around the subcfgs and the switch instruction to
+// select the next subCFG based on the value in \a LastBarrierIdStorage
 llvm::BasicBlock *generateWhileSwitchAround(llvm::BasicBlock *PreHeader, llvm::BasicBlock *OldEntry,
                                             llvm::BasicBlock *Exit,
                                             llvm::AllocaInst *LastBarrierIdStorage,
@@ -974,8 +976,8 @@ llvm::BasicBlock *generateWhileSwitchAround(llvm::BasicBlock *PreHeader, llvm::B
   return WhileHeader;
 }
 
-// drops all lifetime intrinsics - they are misinforming ASAN otherwise (and are not really fixable
-// at the right scope..)
+// drops all lifetime intrinsics - they are misinforming ASAN otherwise (and are
+// not really fixable at the right scope..)
 void purgeLifetime(SubCFG &Cfg) {
   llvm::SmallVector<llvm::Instruction *, 8> ToDelete;
   for (auto *BB : Cfg.getNewBlocks())
@@ -1042,12 +1044,14 @@ bool isAllocaSubCfgInternal(llvm::AllocaInst *Alloca, const std::vector<SubCFG> 
   return true;
 }
 
+// Widens the allocas in the entry block to array allocas.
+// Replace uses of the original alloca with GEP that indexes the new alloca with
+// \a Idx.
 void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
-                     std::vector<SubCFG> &SubCfgs, std::size_t ReqdArrayElements,
-                     hipsycl::compiler::VectorizationInfo &VecInfo) {
-  auto *MDAlloca =
-      llvm::MDNode::get(EntryBlock->getContext(),
-                        {llvm::MDString::get(EntryBlock->getContext(), "hipSYCLLoopState")});
+                     std::vector<SubCFG> &SubCfgs, llvm::Value *ReqdArrayElements,
+                     VectorizationInfo &VecInfo) {
+  auto *MDAlloca = llvm::MDNode::get(
+      EntryBlock->getContext(), {llvm::MDString::get(EntryBlock->getContext(), MDKind::LoopState)});
 
   llvm::SmallPtrSet<llvm::BasicBlock *, 32> SubCfgsBlocks;
   for (auto &SubCfg : SubCfgs)
@@ -1068,11 +1072,6 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
   }
 
   for (auto *I : WL) {
-    // todo: can we somehow enable this..?
-    //    if (VecInfo.getVectorShape(*I).isUniform()) {
-    //      HIPSYCL_DEBUG_INFO << "[SubCFG] Not arrayifying alloca " << *I << "\n";
-    //      continue;
-    //    }
     llvm::IRBuilder AllocaBuilder{I};
     llvm::Type *T = I->getAllocatedType();
     if (auto *ArrSizeC = llvm::dyn_cast<llvm::ConstantInt>(I->getArraySize())) {
@@ -1083,8 +1082,7 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
       }
     }
 
-    auto *Alloca = AllocaBuilder.CreateAlloca(T, AllocaBuilder.getInt32(ReqdArrayElements),
-                                              I->getName() + "_alloca");
+    auto *Alloca = AllocaBuilder.CreateAlloca(T, ReqdArrayElements, I->getName() + "_alloca");
     Alloca->setAlignment(llvm::Align{hipsycl::compiler::DefaultAlignment});
     Alloca->setMetadata(hipsycl::compiler::MDKind::Arrayified, MDAlloca);
 
@@ -1109,10 +1107,7 @@ void moveAllocasToEntry(llvm::Function &F, llvm::ArrayRef<llvm::BasicBlock *> Bl
       if (auto *AllocaInst = llvm::dyn_cast<llvm::AllocaInst>(&I))
         AllocaWL.push_back(AllocaInst);
   for (auto *I : AllocaWL)
-    if (F.getEntryBlock().size() == 1)
-      I->moveBefore(F.getEntryBlock().getFirstNonPHI());
-    else
-      I->moveAfter(F.getEntryBlock().getFirstNonPHI());
+    I->moveBefore(F.getEntryBlock().getTerminator());
 }
 
 llvm::DenseMap<llvm::BasicBlock *, size_t>
@@ -1141,9 +1136,12 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   const auto LocalSize = getLocalSizeValues(F, Dim);
 
-  const size_t ReqdArrayElements = hipsycl::compiler::NumArrayElements;
-
   auto *Entry = &F.getEntryBlock();
+
+  llvm::IRBuilder Builder{Entry->getTerminator()};
+  llvm::Value *ReqdArrayElements = LocalSize[0];
+  for (size_t D = 1; D < LocalSize.size(); ++D)
+    ReqdArrayElements = Builder.CreateMul(ReqdArrayElements, LocalSize[D]);
 
   std::vector<llvm::BasicBlock *> Blocks;
   Blocks.reserve(std::distance(F.begin(), F.end()));
@@ -1167,7 +1165,6 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   auto Barriers = getBarrierIds(Entry, ExitingBlocks, Blocks, SAA);
 
   const llvm::DataLayout &DL = F.getParent()->getDataLayout();
-  llvm::IRBuilder Builder{F.getEntryBlock().getFirstNonPHI()};
   auto *LastBarrierIdStorage =
       Builder.CreateAlloca(DL.getLargestLegalIntType(F.getContext()), nullptr, "LastBarrierId");
 
@@ -1176,6 +1173,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   auto *IndVarT = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType();
   llvm::Instruction *IndVar =
       Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
+  // kept for simple reenabling of more advanced uniformity analysis
   VecInfo.setPinnedShape(*IndVar, hipsycl::compiler::VectorShape::cont());
 
   // create subcfgs
@@ -1193,7 +1191,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 
   for (auto &Cfg : SubCFGs)
     Cfg.arrayifyMultiSubCfgValues(InstAllocaMap, BaseInstAllocaMap, InstContReplicaMap, SubCFGs,
-                                  F.getEntryBlock().getFirstNonPHI(), ReqdArrayElements, VecInfo);
+                                  F.getEntryBlock().getTerminator(), ReqdArrayElements, VecInfo);
 
   llvm::DenseMap<llvm::Instruction *, llvm::AllocaInst *> RemappedInstAllocaMap;
   for (auto &Cfg : SubCFGs) {
@@ -1242,21 +1240,19 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
 #if LLVM_VERSION_MAJOR >= 13
   Body = Body->getSingleSuccessor();
 #endif
+#undef HIPSYCL_LLVM_BEFORE
 
-  llvm::BasicBlock *ExitBB = nullptr;
+  llvm::SmallVector<llvm::BasicBlock *, 4> ExitBBs;
+  llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(F.getContext(), "exit", &F);
+  llvm::ReturnInst::Create(F.getContext(), ExitBB);
   for (auto &BB : F) {
-    if (BB.getTerminator()->getNumSuccessors() == 0) {
-      ExitBB =
-          llvm::SplitBlock(&BB, BB.getTerminator(), &DT, &LI, nullptr, "exit" HIPSYCL_LLVM_BEFORE);
-#if LLVM_VERSION_MAJOR >= 13
-      if (Body == &BB)
-        std::swap(Body, ExitBB);
-      ExitBB = &BB;
-#endif
-      break;
+    if (BB.getTerminator()->getNumSuccessors() == 0 &&
+        !llvm::isa<llvm::UnreachableInst>(BB.getTerminator()) && &BB != ExitBB) {
+      auto *oldTerm = BB.getTerminator();
+      llvm::BranchInst::Create(ExitBB, &BB);
+      oldTerm->eraseFromParent();
     }
   }
-#undef HIPSYCL_LLVM_BEFORE
 
   llvm::SmallVector<llvm::BasicBlock *, 8> Blocks{};
   Blocks.reserve(std::distance(F.begin(), F.end()));
@@ -1319,7 +1315,7 @@ bool SubCfgFormationPassLegacy::runOnFunction(llvm::Function &F) {
   else
     createLoopsAroundKernel(F, DT, LI, PDT);
 
-  return false;
+  return true;
 }
 
 char SubCfgFormationPassLegacy::ID = 0;

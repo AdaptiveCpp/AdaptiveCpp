@@ -27,13 +27,26 @@
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
-int __spirv_IsNan(float);
-int __spirv_IsNan(double);
+#define HIPSYCL_DECLARE_SSCP_SPIRV_BUILTIN(dispatched_name)                    \
+  int __spirv_##dispatched_name(float);                                        \
+  int __spirv_##dispatched_name(double);
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
-  return __spirv_IsNan(x);
-}
+#define HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(builtin_name,                \
+                                                  dispatched_name)             \
+  HIPSYCL_DECLARE_SSCP_SPIRV_BUILTIN(dispatched_name)                          \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##builtin_name##_f32(float x) {      \
+    return __spirv_##dispatched_name(x);                                       \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##builtin_name##_f64(double x) {     \
+    return __spirv_##dispatched_name(x);                                       \
+  }
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
-  return __spirv_IsNan(x);
-}
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(isnan, IsNan)
+
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(isinf, IsInf)
+
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(isfinite, IsFinite)
+
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(isnormal, IsNormal)
+
+HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(signbit, SignBitSet)

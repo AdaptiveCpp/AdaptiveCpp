@@ -29,6 +29,7 @@
 #define HIPSYCL_VEC_HPP
 
 #include "backend.hpp"
+#include "half.hpp"
 #include "multi_ptr.hpp"
 
 #include <cstdint>
@@ -182,6 +183,27 @@ template <class Vector_type, class Function>
 HIPSYCL_UNIVERSAL_TARGET
 void for_each_vector_element(const Vector_type& v, Function&& f);
 
+template <typename Arg, typename T,
+          typename = void, typename = void>
+struct get_size {
+  static constexpr int size = -1;
+};
+
+template <typename Arg, typename T>
+struct get_size<Arg, T,
+                std::enable_if_t<std::is_scalar_v<Arg>>> {
+  static constexpr int size = 1;
+};
+
+template <typename Arg, typename T>
+struct get_size<Arg, T,
+                std::void_t<decltype(Arg::size())>,
+                std::enable_if_t<std::is_same_v<typename Arg::element_type, T>>> {
+  static constexpr int size = Arg::size();
+};
+
+template <typename Arg, typename T>
+constexpr int count_num_elements = get_size<Arg, T>::size;
 }
 
 enum class rounding_mode {
@@ -243,7 +265,8 @@ public:
                     std::is_same_v<unsigned long int, T> ||
                     std::is_same_v<long long int, T> ||
                     std::is_same_v<unsigned long long int, T> ||
-                    std::is_same_v<float, T> || std::is_same_v<double, T>,
+                    std::is_same_v<float, T> || std::is_same_v<double, T> ||
+                    std::is_same_v<half, T>,
                 "Invalid data type for vec<>");
 
   using element_type = T;
@@ -274,12 +297,12 @@ public:
   }
 
   template <typename... Args, class S = VectorStorage,
+            std::enable_if_t<(sizeof...(Args) > 0), bool> = true,
             std::enable_if_t<std::is_same_v<S, detail::vec_storage<T, N>>,
+                             bool> = true,
+            std::enable_if_t<(detail::count_num_elements<Args, T> + ...) == N,
                              bool> = true>
   HIPSYCL_UNIVERSAL_TARGET vec(const Args &...args) {
-    static_assert((count_num_elements<Args>() + ...) == N,
-                  "Argument mismatch with vector size");
-
     int current_init_index = 0;
     (partial_initialization(current_init_index, args), ...);
   }
@@ -853,17 +876,6 @@ public:
     return result;
   }
 private:
-  template <typename Arg>
-  HIPSYCL_UNIVERSAL_TARGET
-  static constexpr int count_num_elements() {
-    if constexpr(std::is_scalar_v<Arg>)
-      return 1;
-    else if(std::is_same_v<typename Arg::element_type, T>)
-      return Arg::size();
-    // ToDo: Trigger error
-    return 0;
-  }
-
   template<typename Arg>
   HIPSYCL_UNIVERSAL_TARGET
   void partial_initialization(int& current_init_index, const Arg& x) {
@@ -872,7 +884,7 @@ private:
       ++current_init_index;
     } else {
       // Assume we are dealing with another vector
-      constexpr int count = count_num_elements<Arg>();
+      constexpr int count = detail::count_num_elements<Arg, T>;
       
       for(int i = 0; i < count; ++i) {
         _data[i + current_init_index] = x[i];
@@ -948,6 +960,12 @@ using double3 = vec<double, 3>;
 using double4 = vec<double, 4>;
 using double8 = vec<double, 8>;
 using double16 = vec<double, 16>;
+
+using half2 = vec<half, 2>;
+using half3 = vec<half, 3>;
+using half4 = vec<half, 4>;
+using half8 = vec<half, 8>;
+using half16 = vec<half, 16>;
 
 namespace detail {
 

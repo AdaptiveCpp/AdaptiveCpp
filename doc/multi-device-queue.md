@@ -1,6 +1,6 @@
 # `HIPSYCL_EXT_MULTI_DEVICE_QUEUE`
 
-This extension allows `sycl::queue` to automatically distribute work across multiple devices. The funcionality from this extension requires that the scheduler type is set to `unbound` (default).
+This extension allows `sycl::queue` to automatically distribute work across multiple devices. The functionality from this extension requires that the scheduler type is set to `unbound` (default).
 
 **Note:** This is highly experimental, not performance-optimized, the current work distribution algorithm is extremely primitive and a placeholder for a proper scheduling algorithm. This extension should not yet be used for any production workloads.
 

@@ -176,7 +176,7 @@ HIPSYCL_BUILTIN float __hipsycl_lgamma_r(float x, IntT* ptr) {
 }
 
 template<class IntT>
-HIPSYCL_BUILTIN double __hipsycl_lgamma_r_f64(double x, IntT* ptr) {
+HIPSYCL_BUILTIN double __hipsycl_lgamma_r(double x, IntT* ptr) {
   __hipsycl_int64 val;
   double res = __hipsycl_sscp_lgamma_r_f64(x, &val);
   *ptr = static_cast<IntT>(val);
@@ -570,14 +570,23 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 
 // ****************** relational functions ******************
 
-HIPSYCL_BUILTIN int __hipsycl_isnan(float x) {
-  return __hipsycl_sscp_isnan_f32(x);
-}
+#define HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(name)                         \
+  HIPSYCL_BUILTIN int __hipsycl_##name(float x) {                              \
+    return __hipsycl_sscp_##name##_f32(x);                                     \
+  }                                                                            \
+  HIPSYCL_BUILTIN int __hipsycl_##name(double x) {                             \
+    return __hipsycl_sscp_##name##_f64(x);                                     \
+  }
 
-HIPSYCL_BUILTIN int __hipsycl_isnan(double x) {
-  return __hipsycl_sscp_isnan_f64(x);
-}
+HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(isnan)
 
+HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(isinf)
+
+HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(isfinite)
+
+HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(isnormal)
+
+HIPSYCL_DEFINE_SSCP_GENFLOAT_REL_BUILTIN(signbit)
 
 }
 }

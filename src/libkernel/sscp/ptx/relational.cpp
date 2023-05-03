@@ -29,10 +29,32 @@
 #include "hipSYCL/sycl/libkernel/sscp/builtins/relational.hpp"
 
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f32(float x) {
-  return __nv_isnanf(x);
+#define HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(name)                                 \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f32(float x) {              \
+    return __nv_##name##f(x);                                                  \
+  }                                                                            \
+  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f64(double x) {             \
+    return __nv_##name##d(x);                                                  \
+  }
+  
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(isnan)
+
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(isinf)
+
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f32(float x) {
+  return __nv_finitef(x);
 }
 
-HIPSYCL_SSCP_BUILTIN bool __hipsycl_sscp_isnan_f64(double x) {
-  return __nv_isnand(x);
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double x) {
+  return __nv_isfinited(x);
 }
+
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f32(float x) {
+  return __builtin_isnormal(x);
+}
+
+HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f64(double x) {
+  return __builtin_isnormal(x);
+}
+
+HIPSYCL_SSCP_MAP_PTX_REL_BUILTIN(signbit)

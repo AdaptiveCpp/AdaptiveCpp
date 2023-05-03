@@ -29,6 +29,7 @@
 #ifndef HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 #define HIPSYCL_SSCP_BUILTIN_CONFIG_HPP
 
+#include "../../memory.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 
@@ -36,11 +37,17 @@
 #define HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE extern "C"
 #define HIPSYCL_SSCP_BUILTIN HIPSYCL_SSCP_BUILTIN_DEFAULT_LINKAGE HIPSYCL_SSCP_BUILTIN_ATTRIBUTES
 
+
+using __hipsycl_sscp_memory_scope = hipsycl::sycl::memory_scope;
+using __hipsycl_sscp_memory_order = hipsycl::sycl::memory_order;
+using __hipsycl_sscp_address_space = hipsycl::sycl::access::address_space;
+
 // Note: __hipsycl_f16 should only be used for backend-specific SSCP builtin
 // interfaces, e.g. to declare CUDA libdevice functions or AMD ocml builtins. It
 // should not be used in generic hipSYCL headers - those should use
 // hipsycl::fp16::half_storage of sycl::half instead.
 using __hipsycl_f16 = hipsycl::fp16::native_t;
+
 using __hipsycl_f32 = float;
 using __hipsycl_f64 = double;
 

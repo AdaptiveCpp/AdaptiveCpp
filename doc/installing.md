@@ -110,7 +110,7 @@ Our repositories cover the *entire software stack*, i.e. they include a compatib
 * `hipSYCL-rocm` - contains a ROCm stack. This package is only required if you wish to target AMD ROCm GPUs.
 * `hipSYCL-nightly` - built from the current develop branch every day.
 * `hipSYCL-base-nightly` - contains the LLVM/clang stack for the nightly Open SYCL packages
-* `hipSYCL-rocm-nightly` - contains a ROCm stach compatible with the nighlty Open SYCL packages
+* `hipSYCL-rocm-nightly` - contains a ROCm stack compatible with the nightly Open SYCL packages
 
 **Note: For legal reasons, we do not redistribute the Open SYCL-cuda package** This package is only required if you wish to target CUDA GPUs. You will either have to create a CUDA package using `install/scripts/packaging/make-<distribution>-cuda-pkg.sh` or you can install CUDA directly using the `install/scripts/install-cuda.sh` script.
 

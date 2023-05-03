@@ -424,6 +424,7 @@ class syclcc_config:
   
   def _is_opensycl_envvar(self, varname):
     accepted_vars = [self._options[opt].environment for opt in self._options]
+    accepted_vars += [self._flags[flag].environment for flag in self._flags]
     return varname in accepted_vars
 
   def _parse_compound_argument(self, arg):
@@ -1529,8 +1530,8 @@ class llvm_sscp_invocation:
     return not self.is_integrated_multipass
 
   def __init__(self, config, targets):
-    self._linker_args = config.omp_link_line
-    self._cxx_flags = config.omp_cxx_flags
+    self._linker_args = []
+    self._cxx_flags = []
 
     if len(targets) != 0:
       raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")

@@ -1,9 +1,6 @@
 #pragma once
-#include "hipSYCL/sycl/libkernel/host/host_backend.hpp"
-#ifndef FP16_BITCASTS_H
-#define FP16_BITCASTS_H
-#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 
 namespace hipsycl::fp16 {
 
@@ -12,7 +9,7 @@ HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline float fp32_from_bits(__hipsycl_uint32 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_float(w);
-#elif defined(__CUDA_ARCH__)
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
 	return __uint_as_float((unsigned int) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu32_f32(w);
@@ -31,7 +28,7 @@ HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __hipsycl_uint32 fp32_to_bits(float f) {
 #if defined(__OPENCL_VERSION__)
 	return as_uint(f);
-#elif defined(__CUDA_ARCH__)
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
 	return (__hipsycl_uint32) __float_as_uint(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf32_u32(f);
@@ -50,7 +47,7 @@ HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline double fp64_from_bits(__hipsycl_uint64 w) {
 #if defined(__OPENCL_VERSION__)
 	return as_double(w);
-#elif defined(__CUDA_ARCH__)
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
 	return __longlong_as_double((long long) w);
 #elif defined(__INTEL_COMPILER)
 	return _castu64_f64(w);
@@ -69,7 +66,7 @@ HIPSYCL_UNIVERSAL_TARGET // So that CUDA calls are possible
 static inline __hipsycl_uint64 fp64_to_bits(double f) {
 #if defined(__OPENCL_VERSION__)
 	return as_ulong(f);
-#elif defined(__CUDA_ARCH__)
+#elif HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA == 1 && !defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
 	return (__hipsycl_uint64) __double_as_longlong(f);
 #elif defined(__INTEL_COMPILER)
 	return _castf64_u64(f);
@@ -85,5 +82,3 @@ static inline __hipsycl_uint64 fp64_to_bits(double f) {
 }
 
 }
-
-#endif /* FP16_BITCASTS_H */

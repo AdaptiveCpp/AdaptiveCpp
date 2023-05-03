@@ -267,6 +267,7 @@ AddressSpaceMap LLVMToPtxTranslator::getAddressSpaceMap() const {
   // NVVM wants to have allocas in address space 0
   ASMap[AddressSpace::AllocaDefault] = 0;
   ASMap[AddressSpace::GlobalVariableDefault] = 1;
+  ASMap[AddressSpace::ConstantGlobalVariableDefault] = 4;
 
   return ASMap;
 }

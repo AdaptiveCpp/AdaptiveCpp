@@ -40,7 +40,7 @@ namespace hipsycl {
 namespace sycl {
 
 template<int>
-struct id;
+class range;
 
 class platform;
 class device;
@@ -101,7 +101,7 @@ namespace device {
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_dimensions, detail::u_int);
 
   template<int Dimensions = 3>
-  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_sizes, id<Dimensions>);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_item_sizes, range<Dimensions>);
 
   HIPSYCL_DEFINE_INFO_DESCRIPTOR(max_work_group_size, size_t);
 

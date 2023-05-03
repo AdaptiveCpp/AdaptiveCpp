@@ -46,6 +46,7 @@ class sp_item
                sycl::range<D> global_range) noexcept;
 
 public:
+  static constexpr int dimensions = Dim;
 
   HIPSYCL_KERNEL_TARGET
   sycl::range<Dim> get_global_range() const noexcept {

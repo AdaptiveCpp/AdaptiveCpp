@@ -89,6 +89,7 @@ inline void atomic_fence(memory_order order, memory_scope scope)
   );
 
   __hipsycl_if_target_sscp(
+    __hipsycl_sscp_fence(order, scope);
   );
 
   // TODO What about CPU?

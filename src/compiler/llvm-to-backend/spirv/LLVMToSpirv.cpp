@@ -317,6 +317,9 @@ AddressSpaceMap LLVMToSpirvTranslator::getAddressSpaceMap() const {
   ASMap[AddressSpace::Constant] = 2;
   ASMap[AddressSpace::AllocaDefault] = 4;
   ASMap[AddressSpace::GlobalVariableDefault] = 1;
+  // we cannot put constant globals into constant AS because
+  // llvm-spirv translator does not allow AS cast from constant to generic
+  ASMap[AddressSpace::ConstantGlobalVariableDefault] = 1;
 
   return ASMap;
 }

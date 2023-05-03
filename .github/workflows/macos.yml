@@ -21,22 +21,22 @@ jobs:
     - name: build
       run: |
         OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
+        echo "OMP_ROOT=${OMP_ROOT}" >> $GITHUB_ENV
         mkdir build && cd build
         cmake .. \
         -DOpenMP_ROOT=$OMP_ROOT \
-        -DCMAKE_INSTALL_PREFIX=/Users/runner/work/OpenSYCL/OpenSYCL/build/install
+        -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests
       run: |
-        OMP_ROOT=`brew list libomp | grep libomp.a | sed -E "s/\/lib\/.*//"`
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
         -DOPENSYCL_TARGETS=omp.library-only \
         -DCMAKE_CXX_FLAGS=-I$OMP_ROOT/include \
-        -DOpenSYCL_DIR=/Users/runner/work/OpenSYCL/OpenSYCL/build/install/lib/cmake/OpenSYCL \
-        /Users/runner/work/OpenSYCL/OpenSYCL/tests
+        -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL \
+        ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
     - name: run CPU tests
       run: |
-        cd /Users/runner/work/OpenSYCL/OpenSYCL/build/tests-cpu
-        LD_LIBRARY_PATH=/Users/runner/work/OpenSYCL/OpenSYCL/build/install/lib ./sycl_tests
+        cd ${GITHUB_WORKSPACE}/build/tests-cpu
+        LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests

@@ -51,31 +51,6 @@ namespace compiler {
 
 namespace {
 
-AddressSpace getTargetAddressSpace(const llvm::GlobalVariable *GV,
-                                   const AddressSpaceMap &PlaceholderASMap) {
-  assert(GV);
-
-  if(GV->getAddressSpace() == PlaceholderASMap[AddressSpace::Constant])
-    return AddressSpace::Constant;
-  else if(GV->getAddressSpace() == PlaceholderASMap[AddressSpace::Global])
-    return AddressSpace::Global;
-  else if(GV->getAddressSpace() == PlaceholderASMap[AddressSpace::Local])
-    return AddressSpace::Local;
-  else if(GV->getAddressSpace() == PlaceholderASMap[AddressSpace::Generic]) {
-    HIPSYCL_DEBUG_WARNING << "Encountered global variable with explicit generic address space; "
-                             "this is unsupported. Ignoring.\n";
-    return AddressSpace::Global;
-  } else if(GV->getAddressSpace() == PlaceholderASMap[AddressSpace::Private]) {
-    HIPSYCL_DEBUG_WARNING << "Encountered global variable with explicit private address space; "
-                             "this is unsupported. Ignoring.\n";
-    return AddressSpace::Global;
-  }
-
-  if(GV->isConstant())
-    return AddressSpace::Constant;
-  else
-    return AddressSpace::Global;
-}
 
 llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::GlobalVariable *GV,
                                                     unsigned AS) {
@@ -84,11 +59,17 @@ llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::Globa
   std::string VarName {GV->getName()};
   GV->setName(VarName+".original");
 
-  llvm::GlobalVariable *NewVar = new llvm::GlobalVariable(
-      M, GV->getInitializer()->getType(), GV->isConstant(), GV->getLinkage(), GV->getInitializer(), VarName, nullptr,
-      GV->getThreadLocalMode(), AS);
-  NewVar->setAlignment(GV->getAlign());
+  llvm::Constant* Initalizer = nullptr;
+  
+  if(GV->hasInitializer()) {
+    Initalizer = GV->getInitializer();
+  }
 
+  llvm::GlobalVariable* NewVar = new llvm::GlobalVariable(
+      M, GV->getValueType(), GV->isConstant(), GV->getLinkage(), Initalizer, VarName, nullptr,
+      GV->getThreadLocalMode(), AS);
+  
+  NewVar->setAlignment(GV->getAlign());
   llvm::Value *V = llvm::ConstantExpr::getPointerCast(NewVar, GV->getType());
 
   GV->replaceAllUsesWith(V);
@@ -127,7 +108,7 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
 
   // Fix global vars
   llvm::SmallVector<std::pair<llvm::GlobalVariable *, unsigned>> GlobalVarAddressSpaceChanges;
-  for(auto& G : M.getGlobalList()) {
+  for(auto& G : M.globals()) {
     unsigned CurrentAS = G.getAddressSpace();
     // By default, all global vars should go into global var default AS
     unsigned TargetAS = ASMap[AddressSpace::GlobalVariableDefault];
@@ -136,8 +117,8 @@ llvm::PreservedAnalyses AddressSpaceInferencePass::run(llvm::Module &M,
       // Don't do anything for explicitly local global variables
       TargetAS = CurrentAS;
     } else if (G.isConstant()) {
-      // constants go into constant AS
-      TargetAS = ASMap[AddressSpace::Constant];
+      // constants go into AS for constant globals
+      TargetAS = ASMap[AddressSpace::ConstantGlobalVariableDefault];
     }
     if(TargetAS != CurrentAS)
       GlobalVarAddressSpaceChanges.push_back(std::make_pair(&G, TargetAS));

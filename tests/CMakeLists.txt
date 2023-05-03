@@ -80,6 +80,7 @@ add_executable(sycl_tests
   sycl/profiler.cpp
   sycl/reduction.cpp
   sycl/reference_semantics.cpp
+  sycl/relational.cpp
   sycl/sub_group.cpp
   sycl/sycl_test_suite.cpp 
   sycl/usm.cpp

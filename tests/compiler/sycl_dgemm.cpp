@@ -48,6 +48,7 @@ void matmul_blocked(sycl::queue &Q, const size_t Ndim, const size_t Mdim, const 
        const size_t Mblk = Mdim / Bsize;
        const size_t Pblk = Pdim / Bsize;
 
+       double accumulator{0};
        for(int Kblk = 0; Kblk < Pblk; ++Kblk)
        {
 
@@ -60,11 +61,12 @@ void matmul_blocked(sycl::queue &Q, const size_t Ndim, const size_t Mdim, const 
          // Compute matmul for block
          for(int kloc = 0; kloc < Bsize; ++kloc)
          {
-           c[i][j] += Awrk[iloc][kloc] * Bwrk[kloc][jloc];
+           accumulator += Awrk[iloc][kloc] * Bwrk[kloc][jloc];
          }
          // sycl::group_barrier(idx.get_group());
          idx.barrier();
        }
+       c[i][j] = accumulator;
      });
    })
     .wait();

@@ -1,0 +1,32 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+%post
+export DEBIAN_FRONTEND=noninteractive
+export ROCM_VERSION="5.4.3"
+
+export NVHPC_MAJOR_VERSION="22"
+export NVHPC_MINOR_VERSION="11"
+
+apt-get update
+apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq
+
+mkdir -p /opt/cuda-11.0
+wget -q -O cuda-11.0.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
+sh ./cuda-11.0.sh --override --silent --toolkit --no-man-page --no-drm --no-opengl-libs --installpath=/opt/cuda-11.0 && rm ./cuda-11.0.sh
+echo "CUDA Version 11.0.0" | tee /opt/cuda-11.0/version.txt
+
+wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${NVHPC_MAJOR_VERSION}-${NVHPC_MINOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
+wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${NVHPC_MAJOR_VERSION}_${NVHPC_MAJOR_VERSION}.${NVHPC_MINOR_VERSION}_amd64.deb
+apt-get install -y ./nvhpc-*
+
+wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
+echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${ROCM_VERSION} focal main" | sudo tee /etc/apt/sources.list.d/rocm.list
+printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
+apt-get update
+apt-get install -y rocm-dev
+
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+./llvm.sh 15
+apt-get install -y libclang-15-dev clang-tools-15 libomp-15-dev

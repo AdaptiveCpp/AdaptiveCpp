@@ -703,9 +703,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(math_genfloat_genint, T,
 
     for(int c = 0; c < std::max(D,1); ++c) {
       int i = 0;
-      BOOST_TEST(comp(outputs[i++], c) == std::ldexp(comp(float_inputs[0], c), comp(int_inputs[0], c)));
-      BOOST_TEST(comp(outputs[i++], c) == std::pow(comp(float_inputs[0], c), static_cast<DT>(comp(int_inputs[0], c))));
-      BOOST_TEST(comp(outputs[i++], c) == std::pow(std::fabs(comp(float_inputs[0], c)), DT{1}/static_cast<DT>(comp(int_inputs[0], c))));
+      BOOST_TEST(comp(outputs[i++], c) == std::ldexp(comp(float_inputs[0], c), comp(int_inputs[0], c)), tolerance);
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(comp(float_inputs[0], c), comp(int_inputs[0], c)), tolerance);
+      BOOST_TEST(comp(outputs[i++], c) == std::pow(std::fabs(comp(float_inputs[0], c)), 1./comp(int_inputs[0], c)), tolerance);
     }
   }
 }

@@ -438,8 +438,8 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_INT(T, name, impl_name)             \
   HIPSYCL_BUILTIN T name(T a, int b) noexcept {                                \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0),                             \
-                       detail::data_element(b, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       auto b_0 = detail::data_element(b, 0);                                   \

@@ -60,6 +60,7 @@ enum class device_uint_property {
   max_global_size0,
   max_global_size1,
   max_global_size2,
+  needs_dimension_flip,
   max_group_size0,
   max_group_size1,
   max_group_size2,

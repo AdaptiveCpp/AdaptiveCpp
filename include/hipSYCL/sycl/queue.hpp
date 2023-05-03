@@ -329,8 +329,8 @@ public:
     glue::throw_asynchronous_errors(_handler);
   }
 
-  template <info::queue param>
-  typename info::param_traits<info::queue, param>::return_type get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
 
 
   template <typename T>

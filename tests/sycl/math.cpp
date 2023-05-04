@@ -515,9 +515,12 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       constexpr DT diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(Usigned));
 
       tmp(diff);
-      tmp(static_cast<Usigned>(comp(acc[0], c)));
-      tmp(static_cast<unsigned int>((static_cast<Usigned>(comp(acc[0], c)))));
-      tmp(__builtin_clz(static_cast<unsigned int>((static_cast<Usigned>(comp(acc[0], c))))));
+      tmp(static_cast<Usigned>(comp(acc[0], c)));std::endl;
+      unsigned int tmp = static_cast<unsigned int>((static_cast<Usigned>(comp(acc[0], c))));
+
+      std::cout << "tmp = " << (tmp)<< std::endl ;
+      std::cout << "__builtin_clz(tmp) = " << __builtin_clz(tmp)<< std::endl ;
+      std::cout << "__builtin_clz(0) = " <<__builtin_clz(0) << std::endl;
 
       std::cout << std::endl;
 

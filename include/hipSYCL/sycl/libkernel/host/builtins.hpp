@@ -535,7 +535,7 @@ inline T fallback_clz(T x) noexcept {
 
   std::bitset<sizeof(T)*CHAR_BIT> bset(x);
   int idx = 0;
-  while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+  while(!bset[sizeof(T)*CHAR_BIT - idx -1] && idx<sizeof(T)*CHAR_BIT){idx++;}
   return idx;
 
 }

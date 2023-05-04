@@ -555,7 +555,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clz)
     return __builtin_clz(static_cast<Usigned>(x)) - diff;
   #else
-    return __fallback_clz(x);
+    return fallback_clz(x);
   #endif
 }
 
@@ -566,7 +566,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzl)
     return __builtin_clzl(static_cast<unsigned long>(x));
   #else
-    return __fallback_clz(x);
+    return fallback_clz(x);
   #endif
 }
 
@@ -577,7 +577,7 @@ HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzll)
     return __builtin_clzll(static_cast<unsigned long long>(x));
   #else
-    return __fallback_clz(x);
+    return fallback_clz(x);
   #endif
 }
 

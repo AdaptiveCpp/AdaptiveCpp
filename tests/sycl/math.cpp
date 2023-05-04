@@ -516,7 +516,8 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
 
       tmp(diff);
       tmp(static_cast<Usigned>(comp(acc[0], c)));
-      tmp(__builtin_clz(static_cast<Usigned>(comp(acc[0], c))));
+      tmp(static_cast<unsigned int>((static_cast<Usigned>(comp(acc[0], c)))));
+      tmp(__builtin_clz(static_cast<unsigned int>((static_cast<Usigned>(comp(acc[0], c))))));
 
       std::cout << std::endl;
 

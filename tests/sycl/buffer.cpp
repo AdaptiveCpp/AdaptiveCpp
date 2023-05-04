@@ -252,23 +252,30 @@ BOOST_AUTO_TEST_CASE(buffer_container_constructor_no_def_constr) {
   };
 
   A testVal = A{42};
-  std::array<A, 2> data = {A{1}, A{2}};
+  std::array<A, 2> data1 = {A{1}, A{2}};
+  std::array<A, 2> data2 = {A{1}, A{2}};
   {
-    cl::sycl::buffer<A> buff{data};
+    cl::sycl::buffer<A> buff1{data1};
+    cl::sycl::buffer<A> buff2{data2.begin(), data2.end()};
+    buff2.set_final_data(data2.data());
 
     q.submit([&](cl::sycl::handler &cgh) {
-      auto acc =
-        buff.get_access<cl::sycl::access::mode::write>(cgh);
+      auto acc1 =
+        buff1.get_access<cl::sycl::access::mode::write>(cgh);
+      auto acc2 =
+        buff2.get_access<cl::sycl::access::mode::write>(cgh);
 
       cgh.parallel_for(cl::sycl::range{2}, [=](auto idx) {
-        acc[idx] = testVal;
+        acc1[idx] = testVal;
+        acc2[idx] = testVal;
       });
     });
   }
 
-  for(int i = 0; i < data.size(); ++i) {
-    BOOST_CHECK(data[i].val == testVal.val);
-  }
+  for(int i = 0; i < data1.size(); ++i)
+    BOOST_CHECK(data1[i].val == testVal.val);
+  for(int i = 0; i < data2.size(); ++i)
+    BOOST_CHECK(data2[i].val == testVal.val);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

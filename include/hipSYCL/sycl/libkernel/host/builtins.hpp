@@ -551,6 +551,9 @@ template <class T,
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
 
   #if __has_builtin(__builtin_clz)
+    // builtin_clz(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
     //we convert to the unsigned type to avoid the typecast creating 
     //additional ones in front of the value if x is negative
     using Usigned = typename std::make_unsigned<T>::type; 
@@ -566,6 +569,9 @@ template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long> ||
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzl)
+    // builtin_clzl(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
     return __builtin_clzl(static_cast<unsigned long>(x));
   #else
     return fallback_clz(x);
@@ -577,6 +583,9 @@ template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long long> ||
                                     int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
   #if __has_builtin(__builtin_clzll)
+    // builtin_clzll(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
     return __builtin_clzll(static_cast<unsigned long long>(x));
   #else
     return fallback_clz(x);

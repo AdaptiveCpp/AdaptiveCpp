@@ -533,30 +533,11 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 inline T fallback_clz(T x) noexcept {
 
-    #if __has_builtin(__clz) && __has_builtin(__clzll)
+  std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+  int idx = 0;
+  while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+  return idx;
 
-      if constexpr (sizeof(T) < 4){
-        //we convert to the unsigned type to avoid the typecast creating 
-        //additional ones in front of the value if x is negative
-        using Usigned = typename std::make_unsigned<T>::type; 
-
-        constexpr T diff = CHAR_BIT*(sizeof(__hipsycl_int32) - sizeof(Usigned));
-
-        return __clz(static_cast<__hipsycl_int32>(static_cast<Usigned>(x)))-diff;
-      }else if constexpr (sizeof(T) == 4){
-        return __clz(static_cast<__hipsycl_int32>(x));
-      }else{
-        return __clzll(static_cast<__hipsycl_int64>(x));
-      }
-
-    #else
-
-      std::bitset<sizeof(T)*CHAR_BIT> bset(x);
-      int idx = 0;
-      while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
-      return idx;
-
-    #endif
 }
 
 template <class T,

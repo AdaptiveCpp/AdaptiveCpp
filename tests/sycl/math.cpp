@@ -502,12 +502,22 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
       
       auto tmp = [](DT a){
-        (std::cout << std::hex << (int)a) << " ";
+        (std::cout << (int)a) << " ";
       };
-  std::cout << __PRETTY_FUNCTION__ << " : ";
+
+
+      std::cout << __PRETTY_FUNCTION__ << " : ";
       tmp(DT(comp(acc[0], c))) ;
       tmp(comp(acc[i], c) );
       tmp(ref_clz(comp(acc[0], c)) );
+
+      using Usigned = typename std::make_unsigned<DT>::type; 
+      constexpr DT diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(Usigned));
+
+      tmp(diff);
+      tmp(static_cast<Usigned>(comp(acc[0], c)));
+      tmp(__builtin_clz(static_cast<Usigned>(comp(acc[0], c))));
+
       std::cout << std::endl;
 
       BOOST_TEST(comp(acc[i++], c) == ref_clz(comp(acc[0], c)));

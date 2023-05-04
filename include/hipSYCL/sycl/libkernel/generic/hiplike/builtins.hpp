@@ -139,6 +139,17 @@ HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_frexp(double x, IntPtr y) noexcept {
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_hypot, hypotf, hypot)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ilogb, ilogbf, ilogb)
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
+  return ::ldexpf(x, k);
+}
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
+  return ::ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_lgamma, lgammaf, lgamma)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tgamma, tgammaf, tgamma)
 

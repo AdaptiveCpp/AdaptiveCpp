@@ -28,6 +28,7 @@
 #include "sycl_test_suite.hpp"
 
 #include <bitset>
+#include <iostream>
 #include <boost/mpl/joint_view.hpp>
 
 #include <cmath>
@@ -277,10 +278,13 @@ namespace {
 
   template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
   inline T ref_clz(T x) noexcept {
+    std::cout <<"\n"<<__PRETTY_FUNCTION__<< " x==0:" <<(x==0) <<" sizeof(T)*CHAR_BIT:" << sizeof(T)*CHAR_BIT << std::endl;
     if(x==0){return sizeof(T)*CHAR_BIT;}
     std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+    std::cout << "bitset : "<<bset << std::endl;
     int idx = 0;
     while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+    std::cout << idx << std::endl;
     return idx;
   }
 }
@@ -496,7 +500,19 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(builtin_int_basic, T, math_test_genints::type) {
         BOOST_TEST(comp(acc[i++], c) == comp(acc[0], c));
       BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)));
       BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)));
+      
+      auto tmp = [](DT a){
+        (std::cout << std::hex << (int)a) << " ";
+      };
+  std::cout << __PRETTY_FUNCTION__ << " : ";
+      tmp(DT(comp(acc[0], c))) ;
+      tmp(comp(acc[i], c) );
+      tmp(ref_clz(comp(acc[0], c)) );
+      std::cout << std::endl;
+
       BOOST_TEST(comp(acc[i++], c) == ref_clz(comp(acc[0], c)));
+      
+      
     }
   }
 }

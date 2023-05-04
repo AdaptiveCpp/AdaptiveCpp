@@ -277,10 +277,11 @@ namespace {
 
   template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
   inline T ref_clz(T x) noexcept {
-      std::bitset<sizeof(T)*CHAR_BIT> bset(x);
-      int idx = 0;
-      while(!bset[sizeof(T)*CHAR_BIT - idx -1] && idx<sizeof(T)*CHAR_BIT){idx++;}
-      return idx;
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+    std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+    int idx = 0;
+    while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+    return idx;
   }
 }
 

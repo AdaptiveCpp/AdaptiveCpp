@@ -608,13 +608,8 @@ public:
       copy_host_content(reinterpret_cast<T*>(contiguous_buffer.data()));
     } else {
       std::vector<T> contiguous_buffer;
-      if constexpr (std::is_default_constructible_v<T>) {
-        contiguous_buffer.reserve(num_elements);
-        std::copy(first, last, contiguous_buffer.begin());
-      } else {
-        for(auto it = first; it != last; ++it)
-          contiguous_buffer.emplace_back(*it);
-      }
+      contiguous_buffer.reserve(num_elements);
+      std::copy(first, last, contiguous_buffer.begin());
       copy_host_content(contiguous_buffer.data());
     }
   }

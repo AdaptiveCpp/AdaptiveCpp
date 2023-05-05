@@ -346,6 +346,11 @@ HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
   return (x < y) ? x : y;
 }
 
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return return __spirv_ocl_clz(x);
+}
+
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return spirv_builtins::__hipsycl_min(

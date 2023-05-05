@@ -416,6 +416,39 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     sscp_builtins::__hipsycl_max(x, minval), maxval);
 }
 
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 1),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u8(static_cast<__hipsycl_uint8>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 2),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u16(static_cast<__hipsycl_uint16>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u32(static_cast<__hipsycl_uint32>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u64(static_cast<__hipsycl_uint64>(x));
+}
+
+
 template<class T, std::enable_if_t<std::is_signed_v<T>, int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return __hipsycl_sscp_mul24_s32(x, y);

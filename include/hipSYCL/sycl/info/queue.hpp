@@ -29,7 +29,7 @@
 #ifndef HIPSYCL_INFO_QUEUE_HPP
 #define HIPSYCL_INFO_QUEUE_HPP
 
-#include "param_traits.hpp"
+#include "info.hpp"
 #include "../types.hpp"
 
 namespace hipsycl {
@@ -40,22 +40,16 @@ class device;
 
 namespace info {
 
-enum class queue : int
+namespace queue
 {
-  context,
-  device,
-  reference_count,
-  hipSYCL_node_group
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(device, sycl::device);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(hipSYCL_node_group, std::size_t);
 };
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::context, sycl::context);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::device, sycl::device);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::reference_count, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(queue, queue::hipSYCL_node_group, std::size_t);
-
 }
 }
 }
-
 
 #endif

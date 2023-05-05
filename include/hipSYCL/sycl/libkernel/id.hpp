@@ -272,7 +272,7 @@ public:
     return result;                                                             \
   }
 
-  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ
+  // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
   HIPSYCL_ID_BINARY_OP_SIZE_T(+)
   HIPSYCL_ID_BINARY_OP_SIZE_T(-)
   HIPSYCL_ID_BINARY_OP_SIZE_T(*)
@@ -283,6 +283,45 @@ public:
   HIPSYCL_ID_BINARY_OP_SIZE_T(&)
   HIPSYCL_ID_BINARY_OP_SIZE_T(|)
   HIPSYCL_ID_BINARY_OP_SIZE_T(^)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(&&)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(||)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(<)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(>)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(<=)
+  HIPSYCL_ID_BINARY_OP_SIZE_T(>=)
+
+  // Unary operators +,-
+  friend id operator+(const id& rhs) {
+    return rhs;
+  }
+
+  friend id operator-(const id& rhs) {
+    return -1*rhs;
+  }
+
+  // Prefix ++ and --
+  friend id operator++(id &rhs) {
+    rhs += 1;
+    return rhs;
+  }
+
+  friend id operator--(id &rhs) {
+    rhs -= 1;
+    return rhs;
+  }
+
+  // Postfix ++ and --
+  friend id operator++(id &rhs, int) {
+    auto old = rhs;
+    rhs += 1;
+    return old;
+  }
+
+  friend id operator--(id &rhs, int) {
+    auto old = rhs;
+    rhs -= 1;
+    return old;
+  }
 
 private:
   detail::device_array<std::size_t, dimensions> _data;

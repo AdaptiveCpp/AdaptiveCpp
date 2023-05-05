@@ -29,7 +29,7 @@
 #ifndef HIPSYCL_LIBKERNEL_HOST_BACKEND_HPP
 #define HIPSYCL_LIBKERNEL_HOST_BACKEND_HPP
 
-// Aby C++ compiler can do that, so this should always work
+// Any C++ compiler can do that, so this should always work
 #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HOST 1
 
 // We are in the "device pass" for the host target

@@ -257,7 +257,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   // SscpIsHostIdentifier can also be used in device code.
   S1IRConstantReplacer DeviceSideReplacer{
       {{SscpIsHostIdentifier, 0}, {SscpIsDeviceIdentifier, 1}},
-      {{SscpHcfContentIdentifier, 0 /* Dummy value */}, {SscpHcfObjectSizeIdentifier, 0}},
+      {{SscpHcfObjectIdIdentifier, 0 /* Dummy value */}, {SscpHcfObjectSizeIdentifier, 0}},
       {{SscpHcfContentIdentifier, std::string{}}}};
   DeviceSideReplacer.run(*DeviceModule, DeviceMAM);
 
@@ -284,6 +284,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   AggregateArgumentExpansionPass KernelArgExpansionPass{EPP.getKernelNames()};
   KernelArgExpansionPass.run(*DeviceModule, DeviceMAM);
 
+  DeviceMAM.clear();
   if(!PreoptimizeSSCPKernels) {
     llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O0);
     MPM.run(*DeviceModule, DeviceMAM);

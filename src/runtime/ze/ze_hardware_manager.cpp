@@ -346,6 +346,9 @@ std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
       return _compute_props.maxTotalGroupSize / min_subgroup_size;
     }
     break;
+  case device_uint_property::needs_dimension_flip:
+    return true;
+    break;
   case device_uint_property::preferred_vector_width_char:
     return 4;
     break;

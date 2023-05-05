@@ -217,5 +217,29 @@ BOOST_AUTO_TEST_CASE(buffer_external_writeback_nullptr) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_container_constructor) {
+  cl::sycl::queue q;
+
+  const int testVal = 42;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size, 0);
+  {
+    cl::sycl::buffer<int> buff{host_buff};
+
+    q.submit([&](cl::sycl::handler &cgh) {
+      auto acc =
+        buff.get_access<cl::sycl::access::mode::write>(cgh);
+
+      cgh.parallel_for(cl::sycl::range{size}, [=](auto idx) {
+        acc[idx] = testVal;
+      });
+    });
+  }
+
+  for(int i = 0; i < host_buff.size(); ++i) {
+    BOOST_CHECK(host_buff[i] == testVal);
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()

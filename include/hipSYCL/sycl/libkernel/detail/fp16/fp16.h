@@ -4,10 +4,6 @@
 // library in order to include more easily in device bitcode libraries.
 
 #pragma once
-#ifndef FP16_FP16_H
-#define FP16_FP16_H
-
-
 
 #include "bitcasts.h"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
@@ -455,5 +451,3 @@ static inline __hipsycl_uint16 fp16_alt_from_fp32_value(float f) {
 }
 
 } // hipsycl::sycl::detail
-
-#endif /* FP16_FP16_H */

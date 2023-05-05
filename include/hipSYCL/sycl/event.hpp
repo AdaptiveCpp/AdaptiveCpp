@@ -123,16 +123,16 @@ public:
       glue::throw_asynchronous_errors(eventList.front()._handler);
   }
 
-  template <info::event param>
-  typename info::param_traits<info::event, param>::return_type get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
 
   // Wait for and retrieve profiling timestamps. Supports all handler operations except
   // handler::require() and handler::update_host().
   // Will throw sycl::invalid_object_error unless the queue was constructed with
   // `property::queue::enable_profiling`.
   // Timestamps are returned in std::chrono::system_clock nanoseconds-since-epoch.
-  template <info::event_profiling param>
-  typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
+  template <typename Param>
+  typename Param::return_type get_profiling_info() const
   {
     if(!_node) {
       throw invalid_object_error{rt::make_error(
@@ -171,7 +171,7 @@ public:
            rt::error_type::invalid_object_error})};
     }
 
-    if (param == info::event_profiling::command_submit) {
+    if (std::is_same_v<Param, info::event_profiling::command_submit>) {
       auto submission =
           _node->get_operation()
               ->get_instrumentations()
@@ -182,7 +182,7 @@ public:
               "Operation not profiled: No submission timestamp available");
 
       return rt::profiler_clock::ns_ticks(submission->get_time_point());
-    } else if (param == info::event_profiling::command_start) {
+    } else if (std::is_same_v<Param, info::event_profiling::command_start>) {
       auto start =
           _node->get_operation()
               ->get_instrumentations()
@@ -193,7 +193,7 @@ public:
               "Operation not profiled: No execution start timestamp available");
 
       return rt::profiler_clock::ns_ticks(start->get_time_point());
-    } else if (param == info::event_profiling::command_end) {
+    } else if (std::is_same_v<Param, info::event_profiling::command_end>) {
       auto finish =
           _node->get_operation()
               ->get_instrumentations()

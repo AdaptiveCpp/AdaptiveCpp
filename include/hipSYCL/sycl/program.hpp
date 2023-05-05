@@ -105,8 +105,8 @@ public:
   kernel get_kernel() const;
   kernel get_kernel(string_class kernelName) const;
 
-  template <info::program param> typename info::param_traits<info::program, param>::return_type
-  get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
   
   vector_class<vector_class<char>> get_binaries() const
   {

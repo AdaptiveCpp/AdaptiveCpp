@@ -73,9 +73,8 @@ public:
 
   program get_program() const;
   
-  template <info::kernel param>
-  typename info::param_traits<info::kernel, param>::return_type 
-  get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
 
   template <class KernelDeviceSpecificT>
   typename KernelDeviceSpecificT::return_type
@@ -128,8 +127,8 @@ public:
     }
   }
 
-  template <info::kernel_work_group param>
-  typename info::param_traits<info::kernel_work_group, param>::return_type
+  template <typename Param>
+  typename Param::return_type
   get_work_group_info(const device &dev) const;
 };
 
@@ -153,9 +152,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(kernel, attributes)
 
 #define HIPSYCL_SPECIALIZE_KERNEL_GET_WORK_GROUP_INFO(specialization)\
   template<> \
-  inline typename info::param_traits< \
-        info::kernel_work_group, \
-        info::kernel_work_group::specialization>::return_type \
+  inline typename info::kernel_work_group::specialization::return_type \
   kernel::get_work_group_info<info::kernel_work_group::specialization>(const device& dev) const
 
 HIPSYCL_SPECIALIZE_KERNEL_GET_WORK_GROUP_INFO(global_work_size)

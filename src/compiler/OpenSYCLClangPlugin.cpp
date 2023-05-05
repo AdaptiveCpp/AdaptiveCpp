@@ -46,6 +46,9 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 
+#if LLVM_VERSION_MAJOR < 16
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#endif
 
 namespace hipsycl {
 namespace compiler {

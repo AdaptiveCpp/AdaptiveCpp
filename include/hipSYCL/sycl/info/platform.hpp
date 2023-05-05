@@ -29,32 +29,24 @@
 #ifndef HIPSYCL_INFO_PLATFORM_HPP
 #define HIPSYCL_INFO_PLATFORM_HPP
 
-#include "param_traits.hpp"
+#include "info.hpp"
 #include "../types.hpp"
 
 namespace hipsycl {
 namespace sycl {
 namespace info {
 
-enum class platform : unsigned int
+namespace platform
 {
-  profile,
-  version,
-  name,
-  vendor,
-  extensions
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(profile, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(version, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(name, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(vendor, string_class);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(extensions, vector_class<string_class>);
 };
 
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::profile, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::version, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::name, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::vendor, string_class);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(platform, platform::extensions, vector_class<string_class>);
-
-
 }
 }
 }
-
 
 #endif

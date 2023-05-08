@@ -42,19 +42,19 @@
 namespace hipsycl {
 namespace sycl {
 
-template<int dimensions>
+template<int Dimensions>
 class range;
 
-template<int dimensions, bool with_offset>
+template<int Dimensions, bool with_offset>
 struct item;
 
-template <int dimensions = 1>
+template <int Dimensions = 1>
 struct id {
 private:
   struct not_convertible_to_scalar {};
 
   static constexpr auto get_scalar_conversion_type() {
-    if constexpr(dimensions == 1)
+    if constexpr(Dimensions == 1)
       return std::size_t{};
     else
       return not_convertible_to_scalar {};
@@ -63,6 +63,7 @@ private:
   using scalar_conversion_type = decltype(get_scalar_conversion_type());
 
 public:
+  static constexpr int dimensions = Dimensions;
 
   HIPSYCL_UNIVERSAL_TARGET
   id()
@@ -70,8 +71,8 @@ public:
   {}
 
   /* The following constructor is only available in the id class
-   * specialization where: dimensions==1 */
-  template<int D = dimensions,
+   * specialization where: Dimensions==1 */
+  template<int D = Dimensions,
            typename = std::enable_if_t<D == 1>>
   HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0)
@@ -79,8 +80,8 @@ public:
   {}
 
   /* The following constructor is only available in the id class
-   * specialization where: dimensions==2 */
-  template<int D = dimensions,
+   * specialization where: Dimensions==2 */
+  template<int D = Dimensions,
            typename = std::enable_if_t<D == 2>>
   HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0, size_t dim1)
@@ -88,8 +89,8 @@ public:
   {}
 
   /* The following constructor is only available in the id class
-   * specialization where: dimensions==3 */
-  template<int D = dimensions,
+   * specialization where: Dimensions==3 */
+  template<int D = Dimensions,
            typename = std::enable_if_t<D == 3>>
   HIPSYCL_UNIVERSAL_TARGET
   id(size_t dim0, size_t dim1, size_t dim2)
@@ -99,29 +100,29 @@ public:
   /* -- common interface members -- */
 
   HIPSYCL_UNIVERSAL_TARGET
-  friend bool operator==(const id<dimensions>& lhs, const id<dimensions>& rhs){
+  friend bool operator==(const id<Dimensions>& lhs, const id<Dimensions>& rhs){
     return lhs._data == rhs._data;
   }
   
   HIPSYCL_UNIVERSAL_TARGET
-  friend bool operator!=(const id<dimensions>& lhs, const id<dimensions>& rhs){
+  friend bool operator!=(const id<Dimensions>& lhs, const id<Dimensions>& rhs){
     return lhs._data != rhs._data;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  id(const range<dimensions> &range) {
+  id(const range<Dimensions> &range) {
     /* loop peel to help uniformity analysis */ \
     this->_data[0] = range[0];
-    for(std::size_t i = 1; i < dimensions; ++i)
+    for(std::size_t i = 1; i < Dimensions; ++i)
       this->_data[i] = range[i];
   }
 
   template<bool with_offset>
   HIPSYCL_UNIVERSAL_TARGET
-  id(const item<dimensions, with_offset> &item) {
+  id(const item<Dimensions, with_offset> &item) {
     /* loop peel to help uniformity analysis */ \
     this->_data[0] = item.get_id(0);
-    for(std::size_t i = 1; i < dimensions; ++i)
+    for(std::size_t i = 1; i < Dimensions; ++i)
       this->_data[i] = item.get_id(i);
   }
 
@@ -147,15 +148,15 @@ public:
     return this->_data[0];
   }
 
-  // Implementation of id<dimensions> operatorOP(const id &rhs) const;
+  // Implementation of id<Dimensions> operatorOP(const id &rhs) const;
   // OP is: +, -, *, /, %, <<, >>, &, |, ˆ, &&, ||, <, >, <=, >=
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET  \
-  friend id<dimensions> operator op(const id<dimensions> &lhs, const id<dimensions> &rhs) { \
-    id<dimensions> result; \
+  friend id<Dimensions> operator op(const id<Dimensions> &lhs, const id<Dimensions> &rhs) { \
+    id<Dimensions> result; \
     /* loop peel to help uniformity analysis */ \
     result._data[0] = static_cast<std::size_t>(lhs._data[0] op rhs._data[0]); \
-    for(std::size_t i = 1; i < dimensions; ++i) \
+    for(std::size_t i = 1; i < Dimensions; ++i) \
       result._data[i] = static_cast<std::size_t>(lhs._data[i] op rhs._data[i]); \
     return result; \
   }
@@ -180,20 +181,20 @@ public:
 #define HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(op)                           \
   template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>          \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
-  friend id<dimensions> operator op(const id<dimensions> &lhs,                 \
+  friend id<Dimensions> operator op(const id<Dimensions> &lhs,                 \
                                     const T &rhs) {                            \
-    id<dimensions> result;                                                     \
+    id<Dimensions> result;                                                     \
     /* loop peel to help uniformity analysis */ \
     result._data[0] = static_cast<T>(lhs._data[0] op rhs);                                                                           \
-    for (std::size_t i = 1; i < dimensions; ++i)                               \
+    for (std::size_t i = 1; i < Dimensions; ++i)                               \
       result._data[i] = static_cast<T>(lhs._data[i] op rhs);                   \
     return result;                                                             \
   }                                                                            \
   /* Dedicated overload for range to avoid operator ambiguity due to */        \
   /* implicit conversion to size_t                                   */        \
-  template <int D = dimensions, std::enable_if_t<D == 1, int> = 0>             \
-  HIPSYCL_UNIVERSAL_TARGET friend id<dimensions> operator op(                  \
-      const id<dimensions> &lhs, const range<dimensions> &rhs) {               \
+  template <int D = Dimensions, std::enable_if_t<D == 1, int> = 0>             \
+  HIPSYCL_UNIVERSAL_TARGET friend id<Dimensions> operator op(                  \
+      const id<Dimensions> &lhs, const range<Dimensions> &rhs) {               \
     return lhs op rhs[0];                                                      \
   }
 
@@ -215,14 +216,14 @@ public:
   HIPSYCL_ID_BINARY_OP_OUT_OF_PLACE_SIZE_T(>=)
 
 
-  // Implementation of id<dimensions> &operatorOP(const id<dimensions> &rhs);
+  // Implementation of id<Dimensions> &operatorOP(const id<Dimensions> &rhs);
   // OP is: +=, -=, *=, /=, %=, <<=, >>=, &=, |=, ˆ=
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE(op) \
   HIPSYCL_UNIVERSAL_TARGET \
-  friend id<dimensions>& operator op(id<dimensions> &lhs, const id<dimensions> &rhs) { \
+  friend id<Dimensions>& operator op(id<Dimensions> &lhs, const id<Dimensions> &rhs) { \
     /* loop peel to help uniformity analysis */ \
     lhs._data[0] op rhs._data[0]; \
-    for(std::size_t i = 1; i < dimensions; ++i) \
+    for(std::size_t i = 1; i < Dimensions; ++i) \
       lhs._data[i] op rhs._data[i]; \
     return lhs; \
   }
@@ -241,10 +242,10 @@ public:
 #define HIPSYCL_ID_BINARY_OP_IN_PLACE_SIZE_T(op)                          \
   template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>     \
   HIPSYCL_UNIVERSAL_TARGET                                                \
-  friend id<dimensions>& operator op(id<dimensions> &lhs, const T &rhs) { \
+  friend id<Dimensions>& operator op(id<Dimensions> &lhs, const T &rhs) { \
     /* loop peel to help uniformity analysis */ \
     lhs._data[0] op rhs;                                                  \
-    for(std::size_t i = 1; i < dimensions; ++i)                           \
+    for(std::size_t i = 1; i < Dimensions; ++i)                           \
       lhs._data[i] op rhs;                                                \
     return lhs;                                                           \
   }
@@ -263,11 +264,11 @@ public:
 #define HIPSYCL_ID_BINARY_OP_SIZE_T(op)                                        \
   template<class T, std::enable_if_t<std::is_integral_v<T>, int> = 0>          \
   HIPSYCL_UNIVERSAL_TARGET                                                     \
-  friend id<dimensions> operator op(const T &lhs, const id<dimensions> &rhs) { \
-    id<dimensions> result;                                                     \
+  friend id<Dimensions> operator op(const T &lhs, const id<Dimensions> &rhs) { \
+    id<Dimensions> result;                                                     \
     /* loop peel to help uniformity analysis */ \
     result[0] = lhs op rhs[0];                                                 \
-    for(std::size_t i = 1; i < dimensions; ++i)                                \
+    for(std::size_t i = 1; i < Dimensions; ++i)                                \
       result[i] = lhs op rhs[i];                                               \
     return result;                                                             \
   }
@@ -324,7 +325,7 @@ public:
   }
 
 private:
-  detail::device_array<std::size_t, dimensions> _data;
+  detail::device_array<std::size_t, Dimensions> _data;
 };
 
 // Deduction guides
@@ -335,9 +336,9 @@ id(size_t, size_t, size_t) -> id<3>;
 namespace detail {
 namespace id{
 
-template<int dimensions>
+template<int Dimensions>
 HIPSYCL_UNIVERSAL_TARGET
-inline sycl::id<dimensions> construct_from_first_n(size_t x, size_t y, size_t z);
+inline sycl::id<Dimensions> construct_from_first_n(size_t x, size_t y, size_t z);
 
 template<>
 HIPSYCL_UNIVERSAL_TARGET

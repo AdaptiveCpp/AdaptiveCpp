@@ -37,55 +37,56 @@
 namespace hipsycl {
 namespace sycl {
 
-template<int dimensions>
+template<int Dimensions>
 struct group;
 
-template <int dimensions>
+template <int Dimensions>
 struct h_item
 {
-  friend struct group<dimensions>;
+  friend struct group<Dimensions>;
 
   HIPSYCL_KERNEL_TARGET
   h_item(){}
 public:
   /* -- common interface members -- */
+  static constexpr int dimensions = Dimensions;
 
   /// \return The global id with respect to the parallel_for_work_group
   /// invocation. Flexlible local ranges are not taken into account.
   HIPSYCL_KERNEL_TARGET
-  item<dimensions, false> get_global() const
+  item<Dimensions, false> get_global() const
   {
-    return detail::make_item<dimensions>(
+    return detail::make_item<Dimensions>(
       this->get_global_id(),
       this->get_global_range());
   }
 
   HIPSYCL_KERNEL_TARGET
-  item<dimensions, false> get_local() const
+  item<Dimensions, false> get_local() const
   {
     return get_logical_local();
   }
 
   /// \return The local id in the logical iteration space.
   HIPSYCL_KERNEL_TARGET
-  item<dimensions, false> get_logical_local() const
+  item<Dimensions, false> get_logical_local() const
   {
-    return detail::make_item<dimensions>(this->_logical_local_id,
+    return detail::make_item<Dimensions>(this->_logical_local_id,
                                          this->_logical_range);
   }
 
   HIPSYCL_KERNEL_TARGET
-  item<dimensions, false> get_physical_local() const
+  item<Dimensions, false> get_physical_local() const
   {
-    return detail::make_item<dimensions>(this->get_physical_local_id(),
+    return detail::make_item<Dimensions>(this->get_physical_local_id(),
                                          this->get_physical_local_range());
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_global_range() const
+  range<Dimensions> get_global_range() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>() * this->_logical_range;
+    return detail::get_grid_size<Dimensions>() * this->_logical_range;
 #else
     return this->_num_groups * this->_logical_range;
 #endif
@@ -95,17 +96,17 @@ public:
   size_t get_global_range(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_grid_size<dimensions>(dimension) * this->_logical_range[dimension];
+    return detail::get_grid_size<Dimensions>(dimension) * this->_logical_range[dimension];
 #else
     return this->_num_groups[dimension] * this->_logical_range[dimension];
 #endif
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_global_id() const
+  id<Dimensions> get_global_id() const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>() * this->_logical_range + this->_logical_local_id;
+    return detail::get_group_id<Dimensions>() * this->_logical_range + this->_logical_local_id;
 #else
     return this->_group_id * this->_logical_range + this->_logical_local_id;
 #endif
@@ -115,15 +116,15 @@ public:
   size_t get_global_id(int dimension) const
   {
 #ifdef HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO
-    return detail::get_group_id<dimensions>(dimension) * _logical_range[dimension] + _logical_local_id[dimension];
+    return detail::get_group_id<Dimensions>(dimension) * _logical_range[dimension] + _logical_local_id[dimension];
 #else
     return _group_id[dimension] * _logical_range[dimension] + _logical_local_id[dimension];
 #endif
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator ==(const h_item<dimensions> lhs, const h_item<dimensions> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const h_item<Dimensions> lhs, const h_item<Dimensions> rhs)
   {
-  const range<dimensions> _num_groups;
+  const range<Dimensions> _num_groups;
   #if defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
     return lhs._logical_local_id == rhs._logical_local_id && 
            lhs._logical_range == rhs._logical_range;
@@ -135,13 +136,13 @@ public:
   #endif
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator !=(const h_item<dimensions> lhs, const h_item<dimensions> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const h_item<Dimensions> lhs, const h_item<Dimensions> rhs)
   {
     return !(lhs==rhs);
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_local_range() const
+  range<Dimensions> get_local_range() const
   {
     return get_logical_local_range();
   }
@@ -153,7 +154,7 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_local_id() const
+  id<Dimensions> get_local_id() const
   {
     return get_logical_local_id();
   }
@@ -165,7 +166,7 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_logical_local_range() const
+  range<Dimensions> get_logical_local_range() const
   {
     return _logical_range;
   }
@@ -177,7 +178,7 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_logical_local_id() const
+  id<Dimensions> get_logical_local_id() const
   {
     return _logical_local_id;
   }
@@ -189,14 +190,14 @@ public:
   }
 
   HIPSYCL_KERNEL_TARGET
-  range<dimensions> get_physical_local_range() const
+  range<Dimensions> get_physical_local_range() const
   {
     __hipsycl_if_target_device(
-      return detail::get_local_size<dimensions>();
+      return detail::get_local_size<Dimensions>();
     );
     __hipsycl_if_target_host(
-      range<dimensions> size;
-      for(int i = 0; i < dimensions; ++i)
+      range<Dimensions> size;
+      for(int i = 0; i < Dimensions; ++i)
         size[i] = 1; 
       return size;
     );
@@ -207,20 +208,20 @@ public:
   size_t get_physical_local_range(int dimension) const
   {
     __hipsycl_if_target_device(
-      return detail::get_local_size<dimensions>(dimension);
+      return detail::get_local_size<Dimensions>(dimension);
     );
     __hipsycl_if_target_host(return 1;);
   }
 
   HIPSYCL_KERNEL_TARGET
-  id<dimensions> get_physical_local_id() const
+  id<Dimensions> get_physical_local_id() const
   {
     __hipsycl_if_target_device(
-      return detail::get_local_id<dimensions>();
+      return detail::get_local_id<Dimensions>();
     );
     __hipsycl_if_target_host(
-      id<dimensions> local_id;
-      for(int i = 0; i < dimensions; ++i)
+      id<Dimensions> local_id;
+      for(int i = 0; i < Dimensions; ++i)
         local_id[i] = 0; 
       return local_id;
     );
@@ -230,17 +231,17 @@ public:
   size_t get_physical_local_id(int dimension) const
   {
     __hipsycl_if_target_device(
-      return detail::get_local_id<dimensions>(dimension);
+      return detail::get_local_id<Dimensions>(dimension);
     );
     __hipsycl_if_target_host(return 0;);
   }
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
   // TODO Make this private and group<> a friend
-  h_item(id<dimensions> logical_local_id,
-        range<dimensions> logical_range,
-        id<dimensions> group_id,
-        range<dimensions> num_groups)
+  h_item(id<Dimensions> logical_local_id,
+        range<Dimensions> logical_range,
+        id<Dimensions> group_id,
+        range<Dimensions> num_groups)
     : _logical_local_id{logical_local_id},
       _logical_range{logical_range},
       _group_id{group_id},
@@ -248,8 +249,8 @@ public:
   {}
 #else
   // TODO Make this private and group<> a friend
-  h_item(id<dimensions> logical_local_id,
-        range<dimensions> logical_range)
+  h_item(id<Dimensions> logical_local_id,
+        range<Dimensions> logical_range)
     : _logical_local_id{logical_local_id},
       _logical_range{logical_range}
   {}
@@ -266,12 +267,12 @@ private:
   // Note that for the support of flexible work group sizes,
   // we have to explicitly store logical ids/ranges even
   // if HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO is defined.
-  const id<dimensions> _logical_local_id;
-  const range<dimensions> _logical_range;
+  const id<Dimensions> _logical_local_id;
+  const range<Dimensions> _logical_range;
 
 #if !defined(HIPSYCL_ONDEMAND_ITERATION_SPACE_INFO)
-  const id<dimensions> _group_id;
-  const range<dimensions> _num_groups;
+  const id<Dimensions> _group_id;
+  const range<Dimensions> _num_groups;
 #endif
 };
 

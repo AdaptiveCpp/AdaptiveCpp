@@ -39,19 +39,19 @@
 namespace hipsycl {
 namespace sycl {
 
-template <int dimensions, bool with_offset>
+template <int Dimensions, bool with_offset>
 struct item;
 
 namespace detail {
 
-template <int dimensions>
+template <int Dimensions>
 struct item_base
 {
 protected:
   struct not_convertible_to_scalar {};
 
   static constexpr auto get_scalar_conversion_type() {
-    if constexpr(dimensions == 1)
+    if constexpr(Dimensions == 1)
       return std::size_t{};
     else
       return not_convertible_to_scalar {};
@@ -59,23 +59,25 @@ protected:
 
   using scalar_conversion_type = decltype(get_scalar_conversion_type());
 public:
+  static constexpr int dimensions = Dimensions;
+
   HIPSYCL_KERNEL_TARGET 
-  item_base(const sycl::id<dimensions>& my_id,
-    const sycl::range<dimensions>& global_size)
+  item_base(const sycl::id<Dimensions>& my_id,
+    const sycl::range<Dimensions>& global_size)
     : global_id{my_id}, global_size(global_size)
   {}
 
   /* -- common interface members -- */
 
   HIPSYCL_KERNEL_TARGET 
-  sycl::range<dimensions> get_range() const
+  sycl::range<Dimensions> get_range() const
   { return global_size; }
 
   HIPSYCL_KERNEL_TARGET 
   size_t get_range(int dimension) const
   { return global_size[dimension]; }
 
-  HIPSYCL_KERNEL_TARGET sycl::id<dimensions> get_id() const
+  HIPSYCL_KERNEL_TARGET sycl::id<Dimensions> get_id() const
   {
     return this->global_id;
   }
@@ -92,57 +94,57 @@ public:
 
   HIPSYCL_KERNEL_TARGET size_t get_linear_id() const
   {
-    return detail::linear_id<dimensions>::get(this->global_id,
+    return detail::linear_id<Dimensions>::get(this->global_id,
       this->global_size);
   }
 
 protected:
-  sycl::id<dimensions> global_id;
-  sycl::range<dimensions> global_size;
+  sycl::id<Dimensions> global_id;
+  sycl::range<Dimensions> global_size;
 };
 
 /// Creates an Item with offset.
 /// \param my_effective_id This has to be global_id + offset.
-template <int dimensions>
+template <int Dimensions>
 HIPSYCL_KERNEL_TARGET
-item<dimensions, true> make_item(const sycl::id<dimensions>& my_effective_id,
-  const sycl::range<dimensions>& global_size, const sycl::id<dimensions>& offset)
+item<Dimensions, true> make_item(const sycl::id<Dimensions>& my_effective_id,
+  const sycl::range<Dimensions>& global_size, const sycl::id<Dimensions>& offset)
 {
-  return item<dimensions, true>{my_effective_id, global_size, offset};
+  return item<Dimensions, true>{my_effective_id, global_size, offset};
 }
 
 /// Creates an Item without offset
 /// \param my_id This should equal global_id
-template <int dimensions>
+template <int Dimensions>
 HIPSYCL_KERNEL_TARGET
-item<dimensions, false> make_item(const sycl::id<dimensions>& my_id,
-  const sycl::range<dimensions>& global_size)
+item<Dimensions, false> make_item(const sycl::id<Dimensions>& my_id,
+  const sycl::range<Dimensions>& global_size)
 {
-  return item<dimensions, false>{my_id, global_size};
+  return item<Dimensions, false>{my_id, global_size};
 }
 
 } // namespace detail
 
-template <int dimensions = 1, bool with_offset = true>
-struct item : detail::item_base<dimensions>
+template <int Dimensions = 1, bool with_offset = true>
+struct item : detail::item_base<Dimensions>
 {};
 
-template <int dimensions>
-struct item<dimensions, true> : detail::item_base<dimensions>
+template <int Dimensions>
+struct item<Dimensions, true> : detail::item_base<Dimensions>
 {
-  HIPSYCL_KERNEL_TARGET sycl::id<dimensions> get_offset() const
+  HIPSYCL_KERNEL_TARGET sycl::id<Dimensions> get_offset() const
   {
     return offset;
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, true> lhs, const item<dimensions, true> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<Dimensions, true> lhs, const item<Dimensions, true> rhs)
   {
     return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size &&
            lhs.offset == rhs.offset;
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator !=(const item<dimensions, true> lhs, const item<dimensions, true> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const item<Dimensions, true> lhs, const item<Dimensions, true> rhs)
   {
     return !(lhs==rhs);
   }
@@ -150,7 +152,7 @@ struct item<dimensions, true> : detail::item_base<dimensions>
   // We cannot use enable_if since the involved templates would
   // prevent implicit type conversion to other integer types.
   HIPSYCL_UNIVERSAL_TARGET
-  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+  operator typename detail::item_base<Dimensions>::scalar_conversion_type()
       const {
     return this->global_id[0];
   }
@@ -160,36 +162,36 @@ private:
   using _range = sycl::range<d>; // workaround for nvcc
 
   friend HIPSYCL_KERNEL_TARGET 
-  item<dimensions, true> detail::make_item<dimensions>(
-    const sycl::id<dimensions>&, const _range<dimensions>&, 
-    const sycl::id<dimensions>&);
+  item<Dimensions, true> detail::make_item<Dimensions>(
+    const sycl::id<Dimensions>&, const _range<Dimensions>&, 
+    const sycl::id<Dimensions>&);
 
   HIPSYCL_KERNEL_TARGET 
-  item(const sycl::id<dimensions>& my_id,
-    const sycl::range<dimensions>& global_size, 
-    const sycl::id<dimensions>& offset)
-    : detail::item_base<dimensions>(my_id, global_size), offset{offset}
+  item(const sycl::id<Dimensions>& my_id,
+    const sycl::range<Dimensions>& global_size, 
+    const sycl::id<Dimensions>& offset)
+    : detail::item_base<Dimensions>(my_id, global_size), offset{offset}
   {}
 
-  sycl::id<dimensions> offset;
+  sycl::id<Dimensions> offset;
 };
 
-template <int dimensions>
-struct item<dimensions, false> : detail::item_base<dimensions>
+template <int Dimensions>
+struct item<Dimensions, false> : detail::item_base<Dimensions>
 {
-  HIPSYCL_KERNEL_TARGET operator item<dimensions, true>() const
+  HIPSYCL_KERNEL_TARGET operator item<Dimensions, true>() const
   {
-    return detail::make_item<dimensions>(this->global_id, this->global_size,
-      sycl::id<dimensions>{});
+    return detail::make_item<Dimensions>(this->global_id, this->global_size,
+      sycl::id<Dimensions>{});
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<dimensions, false> lhs, const item<dimensions, false> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator ==(const item<Dimensions, false> lhs, const item<Dimensions, false> rhs)
   {
     return lhs.global_id == rhs.global_id &&
            lhs.global_size == rhs.global_size;
   }
 
-  HIPSYCL_KERNEL_TARGET friend bool operator !=(const item<dimensions, false> lhs, const item<dimensions, false> rhs)
+  HIPSYCL_KERNEL_TARGET friend bool operator !=(const item<Dimensions, false> lhs, const item<Dimensions, false> rhs)
   {
     return !(lhs==rhs);
   }
@@ -197,19 +199,19 @@ struct item<dimensions, false> : detail::item_base<dimensions>
   // We cannot use enable_if since the involved templates would
   // prevent implicit type conversion to other integer types.
   HIPSYCL_UNIVERSAL_TARGET
-  operator typename detail::item_base<dimensions>::scalar_conversion_type()
+  operator typename detail::item_base<Dimensions>::scalar_conversion_type()
       const {
     return this->global_id[0];
   }
 private:
   template<int d>
   using _range = sycl::range<d>; // workaround for nvcc
-  friend HIPSYCL_KERNEL_TARGET item<dimensions, false> detail::make_item<dimensions>(
-    const sycl::id<dimensions>&, const _range<dimensions>&);
+  friend HIPSYCL_KERNEL_TARGET item<Dimensions, false> detail::make_item<Dimensions>(
+    const sycl::id<Dimensions>&, const _range<Dimensions>&);
 
-  HIPSYCL_KERNEL_TARGET item(const sycl::id<dimensions>& my_id,
-    const sycl::range<dimensions>& global_size)
-    : detail::item_base<dimensions>(my_id, global_size)
+  HIPSYCL_KERNEL_TARGET item(const sycl::id<Dimensions>& my_id,
+    const sycl::range<Dimensions>& global_size)
+    : detail::item_base<Dimensions>(my_id, global_size)
   {}
 };
 

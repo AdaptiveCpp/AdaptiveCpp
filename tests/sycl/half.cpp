@@ -131,4 +131,43 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(half_operators, T, half_test_types) {
   }
 }
 
+
+BOOST_AUTO_TEST_CASE(half_unary_operators){
+
+  namespace s = cl::sycl; 
+  namespace tt = boost::test_tools;
+
+  // build inputs and allocate outputs
+
+  s::queue queue;
+  s::half input{1.0};
+
+  constexpr std::size_t NUM_OPS = 2;
+  s::buffer<s::half, 1> buff_half{s::range{NUM_OPS}}; 
+
+  // run functions 
+
+  queue.submit([&](s::handler& cgh) {
+    s::accessor acc_half{buff_half, cgh};
+    cgh.single_task([=](){
+      acc_half[0] = +input;
+      acc_half[1] = -input; 
+    });
+  }).wait();
+
+  float f1 = 1.0f;
+  float reference[NUM_OPS];
+  reference[0] = +f1;
+  reference[1] = -f1;
+ 
+  // check results
+
+  s::host_accessor hacc_half{buff_half};
+  for(int i = 0; i < NUM_OPS; ++i){
+    float current_reference = reference[i];
+    float current_computed_half = hacc_half[i];
+    BOOST_TEST(current_reference == current_computed_half, tt::tolerance(1e-4));
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()    

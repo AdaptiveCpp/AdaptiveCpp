@@ -35,14 +35,14 @@
 namespace hipsycl {
 namespace sycl {
 
-template<int dimensions = 1>
-struct nd_range
-{
+template<int Dimensions = 1>
+struct nd_range {
+  static constexpr int dimensions = Dimensions;
 
   HIPSYCL_UNIVERSAL_TARGET
-  nd_range(range<dimensions> globalSize,
-           range<dimensions> localSize,
-           id<dimensions> offset = id<dimensions>())
+  nd_range(range<Dimensions> globalSize,
+           range<Dimensions> localSize,
+           id<Dimensions> offset = id<Dimensions>())
     : _global_range{globalSize},
       _local_range{localSize},
       _num_groups{globalSize / localSize},
@@ -50,34 +50,34 @@ struct nd_range
   {}
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global() const
+  range<Dimensions> get_global() const
   { return _global_range; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_global_range() const
+  range<Dimensions> get_global_range() const
   { return get_global(); }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local() const
+  range<Dimensions> get_local() const
   { return _local_range; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_local_range() const
+  range<Dimensions> get_local_range() const
   { return get_local(); }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_group() const
+  range<Dimensions> get_group() const
   { return _num_groups; }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<dimensions> get_group_range() const
+  range<Dimensions> get_group_range() const
   { return get_group(); }
 
   HIPSYCL_UNIVERSAL_TARGET
-  id<dimensions> get_offset() const
+  id<Dimensions> get_offset() const
   { return _offset; }
   
-  friend bool operator==(const nd_range<dimensions>& lhs, const nd_range<dimensions>& rhs)
+  friend bool operator==(const nd_range<Dimensions>& lhs, const nd_range<Dimensions>& rhs)
   {
     return lhs._global_range == rhs._global_range &&
            lhs._local_range == rhs._local_range &&
@@ -85,15 +85,15 @@ struct nd_range
            lhs._offset == rhs._offset;
   }
 
-  friend bool operator!=(const nd_range<dimensions>& lhs, const nd_range<dimensions>& rhs){
+  friend bool operator!=(const nd_range<Dimensions>& lhs, const nd_range<Dimensions>& rhs){
     return !(lhs == rhs);
   }
 
 private:
-  range<dimensions> _global_range;
-  range<dimensions> _local_range;
-  range<dimensions> _num_groups;
-  id<dimensions> _offset;
+  range<Dimensions> _global_range;
+  range<Dimensions> _local_range;
+  range<Dimensions> _num_groups;
+  id<Dimensions> _offset;
 };
 
 

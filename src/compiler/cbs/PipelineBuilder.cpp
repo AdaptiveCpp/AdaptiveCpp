@@ -70,7 +70,7 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 }
 #endif // LLVM_VERSION_MAJOR < 16
 
-#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 5 && ROCM_CLANG_VERSION_MINOR == 5 && ROCM_CLANG_VERSION_PATCH == 0
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 5 && ROCM_CLANG_VERSION_MINOR == 5
 #define IS_ROCM_CLANG_VERSION_5_5_0
 #endif
 

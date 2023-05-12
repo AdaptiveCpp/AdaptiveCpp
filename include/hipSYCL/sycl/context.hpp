@@ -34,7 +34,6 @@
 
 #include "types.hpp"
 #include "platform.hpp"
-#include "exception.hpp"
 #include "device.hpp"
 #include "device_selector.hpp"
 #include "info/info.hpp"
@@ -197,12 +196,6 @@ HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 
 HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
-
-inline context exception::get_context() const {
-  // ToDo In hipSYCL, most operations are not associated
-  // with a context at all, so just return empty one?
-  return context{};
-}
 
 namespace detail {
 

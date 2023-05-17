@@ -89,57 +89,73 @@ inline std::exception_ptr throw_result(const rt::result& r){
 
     try {
       switch (etype) {
+        // TODO: error_type::unimplemented has no equivalent sycl::errc
       case rt::error_type::unimplemented:
-        throw sycl::unimplemented{r};
-        break;
       case rt::error_type::runtime_error:
-        throw sycl::runtime_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
+                              r.what()};
         break;
       case rt::error_type::kernel_error:
-        throw sycl::kernel_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::kernel),
+                              r.what()};
         break;
       case rt::error_type::accessor_error:
-        throw sycl::accessor_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::accessor),
+                              r.what()};
         break;
       case rt::error_type::nd_range_error:
-        throw sycl::nd_range_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::nd_range),
+                              r.what()};
         break;
       case rt::error_type::event_error:
-        throw sycl::event_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::event),
+                              r.what()};
         break;
       case rt::error_type::invalid_parameter_error:
-        throw sycl::invalid_parameter_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::invalid),
+                              r.what()};
         break;
       case rt::error_type::device_error:
-        throw sycl::device_error{r};
+        /* TODO: error_type::device_error has no equivalent sycl::errc, however
+           this isn't used anywhere, maybe remove in rt::error_type? */
+        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
+                              r.what()};
         break;
+        /* TODO: Neither error_type::compile_program_error nor
+           error_type::link_program_error have an equivalent sycl::errc,
+           however they are both not used anywhere, maybe remove in
+           rt::error_type? */
       case rt::error_type::compile_program_error:
-        throw sycl::compile_program_error{r};
-        break;
       case rt::error_type::link_program_error:
-        throw sycl::link_program_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::build),
+                              r.what()};
         break;
       case rt::error_type::invalid_object_error:
-        throw sycl::invalid_object_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::invalid),
+                              r.what()};
         break;
       case rt::error_type::memory_allocation_error:
-        throw sycl::memory_allocation_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::memory_allocation),
+                              r.what()};
         break;
       case rt::error_type::platform_error:
-        throw sycl::platform_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::platform),
+                              r.what()};
         break;
       case rt::error_type::profiling_error:
-        throw sycl::profiling_error{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::profiling),
+                              r.what()};
         break;
       case rt::error_type::feature_not_supported:
-        throw sycl::feature_not_supported{r};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::feature_not_supported),
+                              r.what()};
         break;
       default:
         HIPSYCL_DEBUG_WARNING
             << "throw_result(): Encountered unknown exception type"
             << std::endl;
-        throw sycl::runtime_error{"Unknown error type encountered: " +
-                                  r.what()};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
+                              "Unknown error type encountered: " + r.what()};
       }
     } catch (...) {
       return std::current_exception();

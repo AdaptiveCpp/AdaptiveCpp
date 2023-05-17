@@ -36,7 +36,6 @@
 #include <system_error>
 
 #include "hipSYCL/runtime/error.hpp"
-#include "context.hpp"
 #include "hipSYCL/sycl/info/queue.hpp"
 #include "types.hpp"
 #include "libkernel/backend.hpp"
@@ -48,7 +47,9 @@ struct sycl_category : std::error_category {
   const char* name() const noexcept override { return "sycl"; }
   std::string message(int) const override { return "hipSYCL Error"; }
 };
-}
+} // namespace detail
+
+class context;
 
 enum class errc : unsigned int {
   success = 0,
@@ -100,29 +101,29 @@ public:
   exception(int ev, const std::error_category& ecat)
     : error_code{ev, ecat} {}
 
-  exception(context ctx, std::error_code ec, const std::string& what_arg)
-    : _context{std::make_shared<context>(ctx)}, error_code{ec},
-      _msg{what_arg} {}
+  exception(context ctx, std::error_code ec, const std::string& what_arg);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ec},
+    //   _msg{what_arg} {}
 
-  exception(context ctx, std::error_code ec, const char* what_arg)
-    : _context{std::make_shared<context>(ctx)}, error_code{ec},
-      _msg{what_arg} {}
+  exception(context ctx, std::error_code ec, const char* what_arg);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ec},
+    //   _msg{what_arg} {}
 
-  exception(context ctx, std::error_code ec)
-    : _context{std::make_shared<context>(ctx)}, error_code{ec} {}
+  exception(context ctx, std::error_code ec);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ec} {}
   
   exception(context ctx, int ev, const std::error_category& ecat,
-            const std::string& what_arg)
-    : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
-      _msg{what_arg} {}
+            const std::string& what_arg);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
+    //   _msg{what_arg} {}
     
   exception(context ctx, int ev, const std::error_category& ecat,
-            const char* what_arg)
-    : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
-      _msg{what_arg} {}
+            const char* what_arg);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
+    //   _msg{what_arg} {}
   
-  exception(context ctx, int ev, const std::error_category& ecat)
-    : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat} {}
+  exception(context ctx, int ev, const std::error_category& ecat);
+    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat} {}
 
   const std::error_code& code() const noexcept {
     return error_code;
@@ -140,12 +141,13 @@ public:
     return (_context != nullptr);
   }
 
-  context get_context() const {
-    if (!has_context())
-      throw exception{make_error_code(errc::invalid)};
+  context get_context() const;
+  // {
+  //   if (!has_context())
+  //     throw exception{make_error_code(errc::invalid)};
 
-    return *_context;
-  }
+  //   return *_context;
+  // }
 
 private:
   std::shared_ptr<context> _context;

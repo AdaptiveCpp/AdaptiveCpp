@@ -89,7 +89,8 @@ public:
       }) {
     
     if(deviceList.empty())
-      throw platform_error{"context: Cannot construct context for empty device list"};
+      throw sycl::exception{sycl::make_error_code(sycl::errc::platform),
+                            "context: Cannot construct context for empty device list"};
 
     this->init(handler);
     for(const device& dev : deviceList) {
@@ -142,9 +143,11 @@ public:
     return devs;
   }
 
-  template <typename Param>
-  typename Param::return_type get_info() const {
-    throw unimplemented{"context::get_info() is unimplemented"};
+
+  template <info::context param>
+  typename info::param_traits<info::context, param>::return_type get_info() const {
+    throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
+                          "context::get_info() is unimplemented"};
   }
 
   std::size_t hipSYCL_hash_code() const {

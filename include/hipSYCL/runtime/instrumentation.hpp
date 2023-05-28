@@ -82,13 +82,16 @@ inline constexpr bool is_instrumentation_v
 
 class instrumentation_set {
 public:
+  instrumentation_set()
+  : _registration_complete{false} {}
+
   /// Wait for the given instrumentation to make results available. 
   /// Returns nullptr if the given instrumentation was not set up.
   template<typename Instr> const std::shared_ptr<Instr> get() const {
     // First wait until all instrumentations have been set up
-    if(!_registration_complete_signal.has_signalled()){
-      _registration_complete_signal.wait();
-    }
+    
+    while(!_registration_complete)
+      ;
     
     std::shared_ptr<Instr> i = nullptr;
 
@@ -108,7 +111,7 @@ public:
 
   template<typename Instr>
   void add_instrumentation(std::shared_ptr<Instr> instr) {
-    assert(!_registration_complete_signal.has_signalled());
+    assert(!_registration_complete);
     for(const auto& i : _instrs) {
       if(i.first == typeid(Instr)) {
         assert(false && "Instrumentation already exists!");
@@ -121,14 +124,19 @@ public:
   // This will be called by the scheduler after node submission.
   // After calling, no additional instrumentations can be added anymore.
   void mark_set_complete() {
-    _registration_complete_signal.signal();
+    // This used to rely on signal_channel.signal(), however
+    // in fast submission loops this can add overhead even if no instrumentations
+    // are used. We are now using a spin-lock which has its own issues, but
+    // at least the cost is very low when not using instrumentations.
+    _registration_complete = true;
   }
 
 private:
   std::vector<std::pair<std::type_index, std::shared_ptr<instrumentation>>>
       _instrs;
 
-  mutable signal_channel _registration_complete_signal;
+  // TODO Change to atomic_flag so we can use wait() once we have C++20
+  std::atomic<bool> _registration_complete;
 };
 
 namespace instrumentations {

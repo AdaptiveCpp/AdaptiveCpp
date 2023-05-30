@@ -57,6 +57,8 @@ public:
   std::vector<dag_node_ptr> get_group(std::size_t node_group);
 
   bool contains_node(dag_node_ptr node) const;
+
+  ~dag_submitted_ops();
 private:
   void purge_known_completed();
 

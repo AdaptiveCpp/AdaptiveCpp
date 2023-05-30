@@ -45,6 +45,10 @@ void erase_known_completed_nodes(std::vector<dag_node_ptr> &ops) {
 }
 }
 
+dag_submitted_ops::~dag_submitted_ops() {
+  this->purge_known_completed();
+}
+
 void dag_submitted_ops::purge_known_completed() {
   std::lock_guard lock{_lock};
 
@@ -52,21 +56,32 @@ void dag_submitted_ops::purge_known_completed() {
 }
 
 void dag_submitted_ops::async_wait_and_unregister(
-    const std::vector<dag_node_ptr> &nodes) {
-  
-  _updater_thread([nodes, this]{
+    const std::vector<dag_node_ptr> &input_nodes) {
+    
     // Since node->wait() causes all requirements to be marked
     // as completed as well, we can reduce the number of backend wait
     // operations by reversing the iteration order,
     // since the newest operations will tend to be the last
     // in the list.
-    for(int i = nodes.size() - 1; i >= 0; --i) {
-      nodes[i]->wait();
-    }
-    // Waiting on nodes causes them to be known complete,
-    // so we can just purge all known completed nodes
-    this->purge_known_completed();
-  });
+    // This means we both submit new operations to the *front*
+    // of the queue, and we wait on nodes in reversed order per
+    // batch.
+    _updater_thread.push_front([nodes=input_nodes,this]{
+      
+      bool needs_purge = false;
+      for(int i = nodes.size() - 1; i >= 0; --i) {
+        // Purging is only needed when node status has changed.
+        // If a node is already known complete, some earlier
+        // task will already have issued a purge.
+        if(!nodes[i]->is_known_complete())
+          needs_purge = true;
+        nodes[i]->wait();
+      }
+      // Waiting on nodes causes them to be known complete,
+      // so we can just purge all known completed nodes
+      if(needs_purge)
+        this->purge_known_completed();
+    });
 }
 
 void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {

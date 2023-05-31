@@ -33,7 +33,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <functional>
-#include <deque>
+#include <queue>
 
 
 namespace hipsycl {
@@ -60,9 +60,6 @@ public:
   /// execution in the worker thread.
   /// \param f The function to enqueue for execution
   void operator()(async_function f);
-  // Enqueues a user-specified function at the *front*
-  // of the queue.
-  void push_front(async_function f);
 
   /// \return The number of enqueued operations
   std::size_t queue_size() const;
@@ -83,7 +80,7 @@ private:
   std::condition_variable _condition_wait;
   mutable std::mutex _mutex;
 
-  std::deque<async_function> _enqueued_operations;
+  std::queue<async_function> _enqueued_operations;
 };
 
 }

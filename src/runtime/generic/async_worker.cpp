@@ -116,7 +116,7 @@ void worker_thread::work()
     {
       std::lock_guard<std::mutex> lock{_mutex};
       if(has_operation)
-        _enqueued_operations.pop_front();
+        _enqueued_operations.pop();
     }
 
     _condition_wait.notify_all();
@@ -128,17 +128,7 @@ void worker_thread::operator()(worker_thread::async_function f)
 {
   std::unique_lock<std::mutex> lock(_mutex);
 
-  _enqueued_operations.push_back(f);
-
-  lock.unlock();
-  _condition_wait.notify_all();
-}
-
-void worker_thread::push_front(async_function f)
-{
-  std::unique_lock<std::mutex> lock(_mutex);
-
-  _enqueued_operations.push_front(f);
+  _enqueued_operations.push(f);
 
   lock.unlock();
   _condition_wait.notify_all();

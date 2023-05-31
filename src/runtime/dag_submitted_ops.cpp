@@ -78,8 +78,6 @@ void dag_submitted_ops::async_wait_and_unregister() {
         for(int i = gc_node_list.size() - 1; i >= 0; --i)
           gc_node_list[i]->wait();
         
-        // We need to purge in any case, such that 
-        // this is not an infinite loop and nodes are actually removed.
         this->purge_known_completed();
       });
     }

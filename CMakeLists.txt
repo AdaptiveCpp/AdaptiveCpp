@@ -82,6 +82,7 @@ endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_MUSA_BACKEND ${MUSA_FOUND} CACHE BOOL "Build hipSYCL support for Moore Threads GPUs with MUSA")
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)

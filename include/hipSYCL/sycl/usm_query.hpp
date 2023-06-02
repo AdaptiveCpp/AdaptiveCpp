@@ -50,10 +50,9 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
   const rt::unique_device_list &devs = detail::extract_context_devices(ctx);
 
   if (devs.get_num_backends() == 0)
-    throw memory_allocation_error{
-        "USM: No backends to carry out USM memory management are present in "
-        "the context!"};
-
+    throw sycl::exception{sycl::make_error_code(sycl::errc::memory_allocation),
+                          "USM: No backends to carry out USM memory management "
+                          "are present in the context!"};
 
   std::size_t num_host_backends =
       devs.get_num_backends(rt::hardware_platform::cpu);
@@ -102,8 +101,9 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
   } else {
     // Prevent warnings about uninitialized use of selected_backend
     selected_backend = detail::get_host_device().get_backend();
-    throw memory_allocation_error{
-        "USM: Could not select backend to use for USM memory operation"};
+    throw sycl::exception{sycl::make_error_code(sycl::errc::memory_allocation),
+                          "USM: Could not select backend to use for USM memory "
+                          "operation"};
   }
   
   return selected_backend;
@@ -116,8 +116,9 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
       *ctx.hipSYCL_runtime()->backends().get(selected_backend);
 
   if (backend_object.get_hardware_manager()->get_num_devices() == 0)
-    throw memory_allocation_error{"USM: Context has no devices on which "
-                                  "requested operation could be carried out"};
+        throw sycl::exception{sycl::make_error_code(sycl::errc::memory_allocation),
+                          "USM: Context has no devices on which "
+                          "requested operation could be carried out"};
 
   return backend_object.get_allocator(
       rt::device_id{backend_object.get_backend_descriptor(), 0});

@@ -360,7 +360,9 @@ class syclcc_config:
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
   For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. """),
       'should-save-temps': option("--opensycl-save-temps", "OPENSYCL_SAVE_TEMPS", "default-save-temps",
-"""  If set, do not delete temporary files created during compilation.""")
+"""  If set, do not delete temporary files created during compilation."""),
+      'stdpar' : option("--opensycl-stdpar", "OPENSYCL_STDPAR", "default-is-stdpar", 
+"""  If set, enables SYCL offloading of C++ standard parallel algorithms.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._opensycl_args = []
@@ -796,6 +798,13 @@ class syclcc_config:
   def is_explicit_multipass(self):
     try:
       return self._is_flag_set("is-explicit-multipass")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar(self):
+    try:
+      return self._is_flag_set("stdpar")
     except OptionNotSet:
       return False
 
@@ -1581,6 +1590,7 @@ class compiler:
     self._is_explicit_multipass = config.is_explicit_multipass
     self._save_temps = config.save_temps
     self._host_compiler = ""
+    self._is_stdpar = config.is_stdpar
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1758,9 +1768,13 @@ class compiler:
     args = [
       "-isystem", self._opensycl_include_path,
       "-D__OPENSYCL__","-D__HIPSYCL__",
-    ] + self._common_compiler_args
-
-    return args
+    ]
+    if self._is_stdpar:
+      args += [
+        "-isystem", os.path.join(self._opensycl_include_path,"hipSYCL","std","stdpar"),
+        "-D__OPENSYCL_STDPAR__"
+      ]
+    return args + self._common_compiler_args
 
   @property
   def common_linker_flags(self):

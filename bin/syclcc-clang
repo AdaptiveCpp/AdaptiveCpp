@@ -1772,7 +1772,7 @@ class compiler:
     if self._is_stdpar:
       args += [
         "-isystem", os.path.join(self._opensycl_include_path,"hipSYCL","std","stdpar"),
-        "-D__OPENSYCL_STDPAR__"
+        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__"
       ]
     return args + self._common_compiler_args
 

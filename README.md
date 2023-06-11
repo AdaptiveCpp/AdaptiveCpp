@@ -4,7 +4,9 @@
 
 **(Note: This project is currently in progress of changing its name. Documentation and code may still use the older name hipSYCL)**
 
-Open SYCL is a modern SYCL implementation targeting CPUs and GPUs from all major vendors that supports many use cases and approaches for implementing SYCL:
+Open SYCL is a modern platform for C++-based heterogeneous programming models targeting CPUs and GPUs from all major vendors. At its core is a SYCL implementation that supports many use cases and approaches of implementing SYCL. Additionally, Open SYCL has experimental support for offloading C++ standard parallelism. **Open SYCL is currently the only solution that can offload C++ standard parallelism constructs to GPUs from Intel, NVIDIA and AMD -- even from a single binary.**
+
+Supported compilation flows include:
 
 1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. Support includes:
    1. NVIDIA CUDA GPUs through PTX;

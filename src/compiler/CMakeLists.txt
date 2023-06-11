@@ -48,11 +48,21 @@ else()
   set(SSCP_COMPILER "")
 endif()
 
+if(WITH_STDPAR_COMPILER)
+  set(STDPAR_COMPILER
+    stdpar/MallocToUSM.cpp
+    stdpar/SyncElision.cpp)
+    add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
+else()
+  set(STDPAR_COMPILER "")
+endif()
+
 add_library(opensycl-clang SHARED
   OpenSYCLClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
   ${SSCP_COMPILER}
+  ${STDPAR_COMPILER}
 )
 
 target_include_directories(opensycl-clang PRIVATE

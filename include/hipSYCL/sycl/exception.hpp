@@ -69,12 +69,12 @@ enum class errc : unsigned int {
   backend_mismatch
 };
 
-const std::error_category &sycl_category() noexcept {
+inline const std::error_category &sycl_category() noexcept {
   static const detail::sycl_category _sycl_category;
   return _sycl_category;
 }
   
-std::error_code make_error_code(errc e) noexcept {
+inline std::error_code make_error_code(errc e) noexcept {
   return {static_cast<int>(e), sycl_category()};
 }
   
@@ -82,6 +82,8 @@ using async_handler = std::function<void(sycl::exception_list)>;
   
 class exception : public virtual std::exception {
 public:
+  exception() = default;
+
   exception(std::error_code ec, const std::string& what_arg)
     : error_code{ec}, _msg{what_arg} {}
 
@@ -101,29 +103,15 @@ public:
   exception(int ev, const std::error_category& ecat)
     : error_code{ev, ecat} {}
 
+  // Defined in context.hpp
   exception(context ctx, std::error_code ec, const std::string& what_arg);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ec},
-    //   _msg{what_arg} {}
-
   exception(context ctx, std::error_code ec, const char* what_arg);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ec},
-    //   _msg{what_arg} {}
-
   exception(context ctx, std::error_code ec);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ec} {}
-  
   exception(context ctx, int ev, const std::error_category& ecat,
             const std::string& what_arg);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
-    //   _msg{what_arg} {}
-    
   exception(context ctx, int ev, const std::error_category& ecat,
             const char* what_arg);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
-    //   _msg{what_arg} {}
-  
   exception(context ctx, int ev, const std::error_category& ecat);
-    // : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat} {}
 
   const std::error_code& code() const noexcept {
     return error_code;
@@ -141,13 +129,8 @@ public:
     return (_context != nullptr);
   }
 
+  // Defined in context.hpp
   context get_context() const;
-  // {
-  //   if (!has_context())
-  //     throw exception{make_error_code(errc::invalid)};
-
-  //   return *_context;
-  // }
 
 private:
   std::shared_ptr<context> _context;

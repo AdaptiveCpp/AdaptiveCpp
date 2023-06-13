@@ -37,6 +37,7 @@
 #include "device.hpp"
 #include "device_selector.hpp"
 #include "info/info.hpp"
+#include "exception.hpp"
 
 #include "hipSYCL/runtime/device_list.hpp"
 #include "hipSYCL/glue/error.hpp"
@@ -206,6 +207,40 @@ inline const rt::unique_device_list &extract_context_devices(const context &ctx)
   return ctx._impl->devices;
 }
 
+}
+
+inline exception::exception(context ctx, std::error_code ec, const std::string& what_arg)
+  : _context{std::make_shared<context>(ctx)}, error_code{ec},
+    _msg{what_arg} {}
+
+inline exception::exception(context ctx, std::error_code ec, const char* what_arg)
+    : _context{std::make_shared<context>(ctx)}, error_code{ec},
+      _msg{what_arg} {}
+
+inline exception::exception(context ctx, std::error_code ec)
+  : _context{std::make_shared<context>(ctx)}, error_code{ec} {}
+
+inline exception::exception(context ctx, int ev, const std::error_category& ecat,
+                     const std::string& what_arg)
+  : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
+    _msg{what_arg} {}
+
+inline exception::exception(context ctx, int ev,
+                            const std::error_category &ecat,
+                            const char *what_arg)
+  : _context{std::make_shared<context>(ctx)},
+    error_code{ev, ecat}, _msg{what_arg} {}
+
+inline exception::exception(context ctx, int ev,
+                            const std::error_category &ecat)
+  : _context{std::make_shared<context>(ctx)},
+    error_code{ev, ecat} {}
+
+inline context exception::get_context() const {
+  if (!has_context())
+    throw exception{make_error_code(errc::invalid)};
+
+  return *_context;
 }
 
 } // namespace sycl

@@ -30,10 +30,10 @@
 #define HIPSYCL_LIBKERNEL_CUDA_BACKEND_HPP
 
 #if defined(__CUDACC__)
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 1
+ #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA
  #if defined(__NVCOMPILER)
   #define HIPSYCL_LIBKERNEL_CUDA_NVCXX
- #else 
+ #else
   #define HIPSYCL_LIBKERNEL_CUDA_CLANG
  #endif
 
@@ -45,8 +45,6 @@
  #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
   #include <nv/target>
  #endif
-#else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 0
 #endif
 
 #if (defined(__CUDA_ARCH__) && __CUDA_ARCH__ != 0 \

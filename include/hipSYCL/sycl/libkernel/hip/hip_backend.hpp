@@ -31,7 +31,7 @@
 
 
 #if defined(__HIP__) || defined(__HCC__)
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP 1
+ #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP
 // We need to include HIP headers always to have __HIP_DEVICE_COMPILE__
 // available below
  #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
@@ -40,8 +40,6 @@
   #include <hip/hip_runtime.h>
   #pragma clang diagnostic pop
  #endif
-#else
- #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_HIP 0
 #endif
 
 #if defined(__HIP_DEVICE_COMPILE__)

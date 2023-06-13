@@ -26,12 +26,16 @@
  */
 
 #include "sycl_test_suite.hpp"
+#include <boost/test/tools/old/interface.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(profiler_tests, reset_device_fixture)
 
-
 BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
 {
+  const auto is_invalid = [](const cl::sycl::exception &e) {
+    return e.code() ==  cl::sycl::errc::invalid;
+  };
+
   cl::sycl::queue queue;  // no enable_profiling
   constexpr size_t n = 4;
 
@@ -42,8 +46,9 @@ BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
       acc[0] = 42;
     });
   });
-  BOOST_CHECK_THROW(evt1.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
-                    cl::sycl::invalid_object_error);
+  BOOST_CHECK_EXCEPTION(evt1.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
+                        cl::sycl::exception,
+                        is_invalid);
 
   auto evt2 = queue.submit([&](cl::sycl::handler &cgh) {
     auto acc = buf1.get_access<cl::sycl::access::mode::discard_write>(cgh);
@@ -58,10 +63,12 @@ BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
              buf2.get_access<cl::sycl::access::mode::discard_write>(cgh));
   });
 
-  BOOST_CHECK_THROW(evt3.get_profiling_info<cl::sycl::info::event_profiling::command_end>(),
-                    cl::sycl::invalid_object_error);
-  BOOST_CHECK_THROW(evt2.get_profiling_info<cl::sycl::info::event_profiling::command_start>(),
-                    cl::sycl::invalid_object_error);
+  BOOST_CHECK_EXCEPTION(evt3.get_profiling_info<cl::sycl::info::event_profiling::command_end>(),
+                        cl::sycl::exception,
+                        is_invalid);
+  BOOST_CHECK_EXCEPTION(evt2.get_profiling_info<cl::sycl::info::event_profiling::command_start>(),
+                        cl::sycl::exception,
+                        is_invalid);
 
   auto evt4 = queue.submit([&](cl::sycl::handler &cgh) {
     cgh.fill(buf1.get_access<cl::sycl::access::mode::discard_write>(cgh), 1);
@@ -73,10 +80,12 @@ BOOST_AUTO_TEST_CASE(queue_no_profiling_exception)
     cgh.copy(buf2.get_access<cl::sycl::access::mode::read>(cgh), host_array);
   });
 
-  BOOST_CHECK_THROW(evt4.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
-                    cl::sycl::invalid_object_error);
-  BOOST_CHECK_THROW(evt5.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
-                    cl::sycl::invalid_object_error);
+  BOOST_CHECK_EXCEPTION(evt4.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
+                        cl::sycl::exception,
+                        is_invalid);
+  BOOST_CHECK_EXCEPTION(evt5.get_profiling_info<cl::sycl::info::event_profiling::command_submit>(),
+                        cl::sycl::exception,
+                        is_invalid);
 }
 
 BOOST_AUTO_TEST_CASE(queue_profiling)

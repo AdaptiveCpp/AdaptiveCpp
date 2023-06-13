@@ -102,9 +102,9 @@ class handler {
     glue::unique_id accessor_id = acc.get_uid();
 
     if (!data.mem) {
-      throw invalid_parameter_error{
-          "handler: require(): accessor is illegal paramater for require() "
-          "because it is not bound to a buffer."};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: require(): accessor is illegal paramater for "
+                      "require() because it is not bound to a buffer."};
     }
 
     // Translate no_init property and host_task modes
@@ -148,8 +148,8 @@ class handler {
     HIPSYCL_DEBUG_ERROR << "Attempted to access accessor that was not "
                            "registered with the handler"
                         << std::endl;
-    throw sycl::invalid_parameter_error{
-        "Accessor was not registered with handler"};
+    throw exception{make_error_code(errc::invalid),
+                    "Accessor was not registered with handler"};
   }
 
   template <class AccessorType>
@@ -250,9 +250,9 @@ public:
         acc.get_data_region();
 
     if(!data_region) {
-      throw invalid_parameter_error{
-          "handler: require(): accessor is illegal paramater for require() "
-          "because it is not bound to a buffer."};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: require(): accessor is illegal paramater for "
+                      "require() because it is not bound to a buffer."};
     }
 
     auto offset = acc.get_offset();
@@ -437,8 +437,8 @@ public:
     {
       if(get_range(src).get(i) > get_range(dest).get(i))
       {
-        throw invalid_parameter_error{"handler: copy(): "
-          "Accessor sizes are incompatible."};
+        throw exception{make_error_code(errc::invalid),
+                        "handler: copy(): Accessor sizes are incompatible."};
       }
     }
 
@@ -453,8 +453,9 @@ public:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id src_dev = get_explicit_accessor_target(src);
     rt::device_id dest_dev = get_explicit_accessor_target(dest);
@@ -484,8 +485,9 @@ public:
   void update(accessor<T, dim, mode, tgt, variant> acc) {
     
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: device update() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: device update() is unsupported for queues not "
+                      "bound to devices"};
 
     update_dev(
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id(),
@@ -517,8 +519,9 @@ public:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit memcpy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit memcpy() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id queue_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -538,8 +541,9 @@ public:
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation
         return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
-      
-      throw invalid_parameter_error{"Invalid allocation type"};
+
+      throw exception{make_error_code(errc::invalid),
+                      "Invalid allocation type"};
     };
 
     rt::device_id src_dev = determine_ptr_device(src);
@@ -579,8 +583,9 @@ public:
       T *typed_ptr = static_cast<T *>(ptr);
 
       if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
-        throw invalid_parameter_error{"handler: USM fill() is unsupported "
-                                      "for queues not bound to devices"};
+        throw exception{make_error_code(errc::invalid),
+                        "handler: USM fill() is unsupported for queues not "
+                        "bound to devices"};
 
       this->submit_kernel<__hipsycl_unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
@@ -595,8 +600,9 @@ public:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit memset() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit memset() is unsupported for queues "
+                      "not bound to devices"};
 
     auto op = rt::make_operation<rt::memset_operation>(
         ptr, static_cast<unsigned char>(value), num_bytes);
@@ -612,8 +618,9 @@ public:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit prefetch() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id executing_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -645,8 +652,9 @@ public:
   void prefetch(const void *ptr, std::size_t num_bytes) {
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit prefetch() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id executing_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -671,16 +679,17 @@ public:
   }
 
   void mem_advise(const void *addr, std::size_t num_bytes, int advice) {
-    throw feature_not_supported{"mem_advise() is not yet supported"};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "mem_advise() is not yet supported"};
   }
 
 
   template <class InteropFunction>
   void hipSYCL_enqueue_custom_operation(InteropFunction f) {
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{
-          "handler: submitting custom operations is unsupported "
-          "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: submitting custom operations is unsupported "
+                      "for queues not bound to devices"};
 
     rt::dag_build_guard build{_rt->dag()};
 
@@ -725,8 +734,8 @@ private:
     std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
 
     if(!data)
-      throw sycl::invalid_parameter_error{
-          "update_dev(): Accessor is not bound to buffer"};
+      throw exception{make_error_code(errc::invalid),
+                      "update_dev(): Accessor is not bound to buffer"};
 
     rt::dag_build_guard build{_rt->dag()};
 
@@ -813,8 +822,9 @@ private:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id dev = get_explicit_accessor_target(src);
 
@@ -848,8 +858,9 @@ private:
     rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id dev = get_explicit_accessor_target(dest);
 

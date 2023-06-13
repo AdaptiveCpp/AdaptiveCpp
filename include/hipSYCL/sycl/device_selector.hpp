@@ -174,8 +174,8 @@ public:
 class error_selector {
 public:
   int operator()(const device &dev) const {
-    throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
-                          "error_selector device selection invoked"};
+    throw exception{make_error_code(errc::runtime),
+                    "error_selector device selection invoked"};
   }
 };
 
@@ -330,8 +330,7 @@ std::vector<device> select_devices(const Selector &s) {
   }
 
   if (result.empty()) {
-    throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
-                          "No matching device"};
+    throw exception{make_error_code(errc::runtime), "No matching device"};
   }
 
   return result;

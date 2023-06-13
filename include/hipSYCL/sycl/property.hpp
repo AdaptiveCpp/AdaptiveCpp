@@ -152,8 +152,7 @@ public:
       }
     }
 
-    throw sycl::exception{sycl::make_error_code(sycl::errc::invalid),
-                          "Property not found"};
+    throw exception{make_error_code(errc::invalid), "Property not found"};
   }
 private:
 

@@ -87,75 +87,64 @@ inline std::exception_ptr throw_result(const rt::result& r){
   if(!r.is_success()) {
     rt::error_type etype = r.info().get_error_type();
 
+    using sycl::exception, sycl::make_error_code, sycl::errc;
+
     try {
       switch (etype) {
-        // TODO: error_type::unimplemented has no equivalent sycl::errc
+        // TODO: error_type::unimplemented has no equivalent errc
       case rt::error_type::unimplemented:
       case rt::error_type::runtime_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
-                              r.what()};
+        throw exception{make_error_code(errc::runtime), r.what()};
         break;
       case rt::error_type::kernel_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::kernel),
-                              r.what()};
+        throw exception{make_error_code(errc::kernel), r.what()};
         break;
       case rt::error_type::accessor_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::accessor),
-                              r.what()};
+        throw exception{make_error_code(errc::accessor), r.what()};
         break;
       case rt::error_type::nd_range_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::nd_range),
-                              r.what()};
+        throw exception{make_error_code(errc::nd_range), r.what()};
         break;
       case rt::error_type::event_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::event),
-                              r.what()};
+        throw exception{make_error_code(errc::event), r.what()};
         break;
       case rt::error_type::invalid_parameter_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::invalid),
-                              r.what()};
+        throw exception{make_error_code(errc::invalid), r.what()};
         break;
       case rt::error_type::device_error:
-        /* TODO: error_type::device_error has no equivalent sycl::errc, however
+        /* TODO: error_type::device_error has no equivalent errc, however
            this isn't used anywhere, maybe remove in rt::error_type? */
-        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
-                              r.what()};
+        throw exception{make_error_code(errc::runtime), r.what()};
         break;
         /* TODO: Neither error_type::compile_program_error nor
-           error_type::link_program_error have an equivalent sycl::errc,
+           error_type::link_program_error have an equivalent errc,
            however they are both not used anywhere, maybe remove in
            rt::error_type? */
       case rt::error_type::compile_program_error:
       case rt::error_type::link_program_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::build),
-                              r.what()};
+        throw exception{make_error_code(errc::build), r.what()};
         break;
       case rt::error_type::invalid_object_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::invalid),
-                              r.what()};
+        throw exception{make_error_code(errc::invalid), r.what()};
         break;
       case rt::error_type::memory_allocation_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::memory_allocation),
-                              r.what()};
+        throw exception{make_error_code(errc::memory_allocation), r.what()};
         break;
       case rt::error_type::platform_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::platform),
-                              r.what()};
+        throw exception{make_error_code(errc::platform), r.what()};
         break;
       case rt::error_type::profiling_error:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::profiling),
-                              r.what()};
+        throw exception{make_error_code(errc::profiling), r.what()};
         break;
       case rt::error_type::feature_not_supported:
-        throw sycl::exception{sycl::make_error_code(sycl::errc::feature_not_supported),
-                              r.what()};
+        throw exception{make_error_code(errc::feature_not_supported), r.what()};
         break;
       default:
         HIPSYCL_DEBUG_WARNING
             << "throw_result(): Encountered unknown exception type"
             << std::endl;
-        throw sycl::exception{sycl::make_error_code(sycl::errc::runtime),
-                              "Unknown error type encountered: " + r.what()};
+        throw exception{make_error_code(errc::runtime),
+                        "Unknown error type encountered: " + r.what()};
       }
     } catch (...) {
       return std::current_exception();

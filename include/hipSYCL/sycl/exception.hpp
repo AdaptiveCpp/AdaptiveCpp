@@ -155,53 +155,11 @@ private:
   string_class _msg;
 };
 
-class unimplemented : public exception {
-  using exception::exception;
-};
-class runtime_error : public exception {
-  using exception::exception;
-};
-class kernel_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class accessor_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class nd_range_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class event_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class invalid_parameter_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class device_error : public exception {
-  using exception::exception;
-};
-class compile_program_error : public device_error {
-  using device_error::device_error;
-};
-class link_program_error : public device_error {
-  using device_error::device_error;
-};
-class invalid_object_error : public device_error {
-  using device_error::device_error;
-};
-class memory_allocation_error : public device_error {
-  using device_error::device_error;
-};
-class platform_error : public device_error {
-  using device_error::device_error;
-};
-class profiling_error : public device_error {
-  using device_error::device_error;
-};
-class feature_not_supported : public device_error {
-  using device_error::device_error;
-};
-
 } // namespace sycl
 } // namespace hipsycl
+
+namespace std {
+template <> struct is_error_code_enum<hipsycl::sycl::errc> : true_type {};
+} // namespace std
 
 #endif

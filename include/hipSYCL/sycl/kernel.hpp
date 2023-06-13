@@ -82,8 +82,8 @@ public:
     using namespace info::kernel_device_specific;
 
     if constexpr (std::is_same_v<KernelDeviceSpecificT, global_work_size>) {
-      throw invalid_parameter_error{
-          "Cannot query global_work_size for this kernel"};
+      throw exception{make_error_code(errc::invalid),
+                      "Cannot query global_work_size for this kernel"};
     } else if constexpr (std::is_same_v<KernelDeviceSpecificT,
                                         work_group_size>) {
       return dev.get_info<info::device::max_work_group_size>();

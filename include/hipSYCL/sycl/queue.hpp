@@ -217,12 +217,14 @@ public:
         _handler{asyncHandler} {
 
     if(devices.empty()) {
-      throw invalid_parameter_error{"queue: No devices in device list"};
+      throw exception{make_error_code(errc::invalid),
+                      "queue: No devices in device list"};
     }
 
     for(const auto& dev : devices)
       if (!is_device_in_context(dev, syclContext))
-        throw invalid_object_error{"queue: Device is not in context"};
+        throw exception{make_error_code(errc::invalid),
+                        "queue: Device is not in context"};
 
     if(devices.size() == 1){
       _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
@@ -257,8 +259,9 @@ public:
           _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
       return device{id};
     } else {
-      throw feature_not_supported{
-          "queue::get_device() is unsupported for multi-device queues"};
+      throw exception{make_error_code(errc::feature_not_supported),
+                      "queue::get_device() is unsupported for "
+                      "multi-device queues"};
     }
   }
 

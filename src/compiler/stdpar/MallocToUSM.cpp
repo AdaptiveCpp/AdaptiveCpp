@@ -32,17 +32,49 @@
 
 
 
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/IR/GlobalValue.h>
+#include <llvm/Transforms/Utils/ValueMapper.h>
+#include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/Analysis/CallGraph.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+
 
 
 namespace hipsycl {
 namespace compiler {
 
 namespace {
+
+std::string addABITag(llvm::StringRef OriginalName, llvm::StringRef ABITag) {
+  auto makeFallBackName = [&](){
+    return OriginalName.str()+"_"+ABITag.str();
+  };
+
+  auto FirstNumber = OriginalName.find_first_of("0123456789");
+  if(FirstNumber == std::string::npos)
+    return makeFallBackName();
+  
+  int NumCharacters = std::atoi(OriginalName.data() + FirstNumber);
+  
+  auto NameStart = OriginalName.find_first_not_of("0123456789", FirstNumber);
+  if(NameStart == std::string::npos)
+    return makeFallBackName();
+  
+  auto InsertionPoint = NameStart + NumCharacters;
+
+  std::string Result = OriginalName.str();
+  if(InsertionPoint > Result.size())
+    return makeFallBackName();
+  
+  std::string ABITagIdentifer = "B"+std::to_string(ABITag.size()) + ABITag.str();
+  Result.insert(InsertionPoint, ABITagIdentifer);
+  return Result;
+}
 
 bool NameStartsWithItaniumIdentifier(llvm::StringRef Name, llvm::StringRef Identifier) {
   auto FirstNumber = Name.find_first_of("0123456789");
@@ -54,92 +86,97 @@ bool NameStartsWithItaniumIdentifier(llvm::StringRef Name, llvm::StringRef Ident
   return FirstNumber == IdentifierPos;
 }
 
-bool NameContainsItaniumIdentifier(llvm::StringRef Name, llvm::StringRef Identifier) {
-  return Name.contains(std::to_string(Identifier.size())+Identifier.str());
-}
 
-bool isForbiddenCaller(llvm::Function* F) {
+bool isRestrictedToRegularMalloc(llvm::Function* F) {
   llvm::StringRef Name = F->getName();
   if(!Name.startswith("_Z"))
     return false;
   
-  //if(!NameContainsItaniumIdentifier(Name, "hipsycl"))
-  //  return false;
-  
   if(NameStartsWithItaniumIdentifier(Name, "hipsycl"))
     return true;
-  
-  // This is a shared_ptr with a mention of hipsycl::
-  // so most likely carrying a hipsycl datatype.
-  /*if(NameStartsWithItaniumIdentifier(Name, "shared_ptr"))
-    return true;
-  if(NameStartsWithItaniumIdentifier(Name, "weak_ptr"))
-    return true;*/
   
   return false;
 }
 
-
-template <class Handler>
-void forAllForbiddenCallers(
-    const llvm::DenseMap<llvm::Function *, llvm::SmallPtrSet<llvm::Function *, 16>> &CallerMap,
-    llvm::SmallPtrSet<llvm::Function *, 16> &VisitedFunctions, llvm::Function *Current,
-    Handler &&H) {
-
-  //std::cout << "Investigating " << Current->getName().str() << "\n";
-  if(VisitedFunctions.contains(Current))
+template<class SetT>
+void collectAllCallees(llvm::CallGraph& CG, llvm::Function* F, SetT& Out) {
+  if(Out.contains(F))
     return;
-  VisitedFunctions.insert(Current);
+  
+  // Functions that are available_externally and have their address taken
+  // we need to discard, as they won't be emitted within this module.
+  if(F->getLinkage() == llvm::GlobalValue::AvailableExternallyLinkage) {
+    if(F->hasAddressTaken()) {
+      return;
+    }
+  }
+  
+  Out.insert(F);
+  
+  llvm::CallGraphNode* CGN = CG.getOrInsertFunction(F);
+  if(CGN) {
+    for(unsigned i = 0; i < CGN->size(); ++i){
+      auto* CalledFunction = (*CGN)[i]->getFunction();
+      if(CalledFunction) {
+        collectAllCallees(CG, CalledFunction, Out);
+      }
+    }
+  }
+}
 
-  auto It = CallerMap.find(Current);
-  if(It == CallerMap.end()) {
-    //std::cout << "(No callers)" << std::endl;
+template <class CallerMapT, class SetT>
+void collectAllCallersFromSet(const CallerMapT &CM, llvm::Function *F, const SetT &Input,
+                              SetT &DiscardedOut, SetT &Out) {
+  if(!F)
+    return;
+  
+  if(Out.contains(F) || DiscardedOut.contains(F) || !Input.contains(F)) {
+    DiscardedOut.insert(F);
     return;
   }
 
-  for(auto* Caller : It->getSecond()) { 
-    if(isForbiddenCaller(Caller)) {
-      H(Caller, Current);
-    } else {
-      forAllForbiddenCallers(CallerMap, VisitedFunctions, Caller, H);
-    }
+  auto It = CM.find(F);
+  if(It == CM.end()) {
+    DiscardedOut.insert(F);
+    return;
+  }
+
+  Out.insert(F);
+
+  for(auto* Caller : It->getSecond()) {
+    collectAllCallersFromSet(CM, Caller, Input, DiscardedOut, Out);
   }
 }
 }
 
 llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
-  static constexpr const char* MemoryManagementIdentifier = "hipsycl_stdpar_memory_management";
-  static constexpr const char* VisibilityIdentifier = "hipsycl_stdpar_mmgmt_visibility";
-  llvm::SmallVector<llvm::Function*, 16> ManagedMemoryManagementFunctions;
-  llvm::SmallVector<llvm::Function*, 16> MemoryManagementVisibilityFunctions;
+  static constexpr const char* AllocIdentifier = "hipsycl_stdpar_alloc";
+  static constexpr const char* FreeIdentifier = "hipsycl_stdpar_free";
+  llvm::SmallPtrSet<llvm::Function*, 16> ManagedAllocFunctions;
+  llvm::SmallPtrSet<llvm::Function*, 16> ManagedFreeFunctions;
 
   utils::findFunctionsWithStringAnnotations(M, [&](llvm::Function* F, llvm::StringRef Annotation){
     if(F) {
-      if(Annotation.compare(MemoryManagementIdentifier) == 0) {
+      if(Annotation.compare(AllocIdentifier) == 0) {
         HIPSYCL_DEBUG_INFO
-            << "[stdpar] MallocToUSM: Found new memory management function definition: "
+            << "[stdpar] MallocToUSM: Found new memory allocation function definition: "
             << F->getName() << "\n";
-        ManagedMemoryManagementFunctions.push_back(F);
+        ManagedAllocFunctions.insert(F);
         
       }
-      if(Annotation.compare(VisibilityIdentifier) == 0) {
-        MemoryManagementVisibilityFunctions.push_back(F);
+      if(Annotation.compare(FreeIdentifier) == 0) {
+        ManagedFreeFunctions.insert(F);
       }
     }
   });
 
 
   llvm::CallGraph CG{M};
-
-  for(auto& F: M) {
-    if(isForbiddenCaller(&F) && F.getLinkage() != llvm::GlobalValue::ExternalLinkage) {
-      F.setLinkage(llvm::GlobalValue::InternalLinkage);
-    }
-  }
-
+  
   for(auto& F: M)
     CG.addToCallGraph(&F);
+  
 
   llvm::DenseMap<llvm::Function*, llvm::SmallPtrSet<llvm::Function*, 16>> FunctionCallers;
 
@@ -155,107 +192,113 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
     }
   }
 
-  llvm::DenseMap<llvm::Function *, llvm::SmallPtrSet<llvm::Function *, 16>>
-      FunctionsContainingCallsNeedingGuards;
+  static constexpr const char* ForcedRegularMallocABITag = "hipsycl_stdpar_regular_alloc";
+  static constexpr const char* USMABITag = "hipsycl_stdpar_usm_alloc";
 
-  auto FindForbiddenCallers = [&](llvm::Function* F) {
-    llvm::SmallPtrSet<llvm::Function *, 16> VisitedFunctions;
-    forAllForbiddenCallers(FunctionCallers, VisitedFunctions, F,
-                           [&](llvm::Function *Caller, llvm::Function *Callee) {
-                             FunctionsContainingCallsNeedingGuards[Caller].insert(Callee);
-                           });
-  };
-  // We need to handle the case
-  // a) When we have a call from a forbidden function to one
-  // of the memory management functions
-  for(auto* F : ManagedMemoryManagementFunctions) {
-    FindForbiddenCallers(F);
-  }
-  // b) When we have a call from a forbidden function to
-  // an undefined function, as that function might do
-  // memory management in its implementation
-  for(auto& F : M) {
-    if(F.isDeclaration() && !F.isIntrinsic()) {
-      FindForbiddenCallers(&F);
+  // First, find all functions that define entrypoints to subgraphs of
+  // the callgraph where no malloc hijacking should occur.
+  llvm::SmallPtrSet<llvm::Function*, 16> RestrictedEntrypoints;
+  for(auto& F: M) {
+    if(isRestrictedToRegularMalloc(&F) && !F.isDeclaration()) {
+      RestrictedEntrypoints.insert(&F);
     }
   }
 
-  llvm::Function* StartGuard = M.getFunction("__hipsycl_stdpar_push_disable_usm");
-  llvm::Function* EndGuard = M.getFunction("__hipsycl_stdpar_pop_disable_usm");
+  // Find all functions used from those entrypoints
+  llvm::SmallPtrSet<llvm::Function*, 16> RestrictedSubCallgraph;
+  for(auto* F: RestrictedEntrypoints)
+    collectAllCallees(CG, F, RestrictedSubCallgraph);
+  
+  // Functions that are used in a branch of the call graph
+  // that ends up doing memory management need to be duplicated
+  // so that we can force memory management to not be hijacked there.
+  // So, first find all functions of the RestrictedSubCallgraph
+  // that are part of a possible call stack leading to a memory management function call.
+  llvm::SmallPtrSet<llvm::Function*, 16> PrunedRestrictedSubCallgraph;
+  for(auto* F : ManagedAllocFunctions) {
+    llvm::SmallPtrSet<llvm::Function*, 16> DiscardedFunctions;
+    collectAllCallersFromSet(FunctionCallers, F, RestrictedSubCallgraph, DiscardedFunctions,
+                             PrunedRestrictedSubCallgraph);
+  }
+  // Due to the way collectAllCallersFromSet is currently implemented, it might also return the
+  // alloc functions in the set, which we don't need or want.
+  for(auto* F: ManagedAllocFunctions)
+    if(PrunedRestrictedSubCallgraph.contains(F))
+      PrunedRestrictedSubCallgraph.erase(F);
 
-  if(!StartGuard || !EndGuard) {
-    HIPSYCL_DEBUG_WARNING << "[stdpar] MallocToUSM: Could not find malloc guard functions in "
-                             "module. Memory allocations might not work as expected.\n";
-    return llvm::PreservedAnalyses::none();
+  llvm::SmallDenseMap<llvm::Function*, llvm::Function*> DuplicatedFunctions;
+  llvm::SmallPtrSet<llvm::Function*, 16> ReplacementSubCallgraph;
+  for(auto* F: PrunedRestrictedSubCallgraph) {
+    llvm::ValueToValueMapTy VMap;
+    llvm::Function* NewF = llvm::CloneFunction(F, VMap);
+    // This is safe because when generating the callgraph, we already
+    // exclude available_externally functions that have their address taken.
+    if(NewF->getLinkage() == llvm::GlobalValue::AvailableExternallyLinkage)
+      NewF->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+    
+    NewF->setName(addABITag(NewF->getName(), ForcedRegularMallocABITag));
+
+    DuplicatedFunctions[F] = NewF;
+    ReplacementSubCallgraph.insert(NewF);
   }
 
-  StartGuard->setLinkage(llvm::GlobalValue::InternalLinkage);
-  EndGuard->setLinkage(llvm::GlobalValue::InternalLinkage);
-
-  // Now find all calls that need guarding
-  llvm::SmallVector<llvm::CallBase*> CallsNeedingGuards;
-  for(auto Entry: FunctionsContainingCallsNeedingGuards) {
-    llvm::Function* F = Entry.getFirst();
-
-    for(auto& BB : *F) {
-      for(auto& I : BB) {
-        // Look for all types of calls
-        if(auto* CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
-          // If the call is to one of the functions that need guarding
-          if(CB->getCalledFunction() && Entry.getSecond().contains(CB->getCalledFunction())) {
-            HIPSYCL_DEBUG_INFO
-                << "[stdpar] MallocToUSM: Will plant USM allocation exclusion guard into "
-                << F->getName().str() << " for call to " << CB->getCalledFunction()->getName().str()
-                << "\n";
-            CallsNeedingGuards.push_back(CB);
+  // For every call to the original function, we need to put in a call
+  // to the new function if it is in a restricted entry point or a new function.
+  for(auto& Entry : DuplicatedFunctions) {
+    llvm::Function* OriginalFunction = Entry.getFirst();
+    llvm::Function* NewFunction = Entry.getSecond();
+    OriginalFunction->replaceUsesWithIf(NewFunction, [&](llvm::Use& U) -> bool{
+      // if user is function call
+      if(auto* I = llvm::dyn_cast<llvm::Instruction>(U.getUser())) {
+        if(auto* BB = I->getParent()) {
+          // Obtain function that calls OriginalFunction
+          if(auto* Caller = BB->getParent()) {
+            // return true if the function call happens in one of the duplicated functions,
+            // or in the entrypoints.
+            return ReplacementSubCallgraph.contains(Caller) || RestrictedEntrypoints.contains(Caller) ||
+                   ManagedAllocFunctions.contains(Caller) || ManagedFreeFunctions.contains(Caller);
           }
         }
-      }  
-    }
-
+      }
+      return false;
+    });
   }
 
-  for(auto* CB : CallsNeedingGuards) {
-    llvm::SmallVector<llvm::Value*> EmptyArgList;
-    // We need to insert the start call before the call instruction, and the
-    // end call afterwards.
-    // The start call is easy:
-    llvm::CallInst::Create(llvm::FunctionCallee(StartGuard), EmptyArgList, "", CB);
-    // For the end call, it depends on the exact type of call instruction we have:
-    if(auto* CI = llvm::dyn_cast<llvm::CallInst>(CB)) {
-      auto NextInst = CI->getNextNonDebugInstruction();
-      if(!NextInst) {
-        HIPSYCL_DEBUG_WARNING << "[stdpar] MallocToUSM: Attempted to exclude call to "
-                              << (CI->getCalledFunction() ? CI->getCalledFunction()->getName().str()
-                                                          : "(nullptr)")
-                              << " from USM memory management, but the call does not have "
-                                 "succeeding instructions to terminate exclusion.\n";
-        NextInst = CI;
+  for(auto* MemoryF : ManagedAllocFunctions) {
+    // Rename the function to avoid ODR issues during linking
+    std::string OriginalName = MemoryF->getName().str();
+    MemoryF->setName(addABITag(MemoryF->getName(), USMABITag));
+
+    // Create decl for the original, unmodified memory management function
+    llvm::Function *UnmodifiedFuncDecl =
+        llvm::Function::Create(MemoryF->getFunctionType(), MemoryF->getLinkage(), OriginalName, M);
+    UnmodifiedFuncDecl->setVisibility(MemoryF->getVisibility());
+    UnmodifiedFuncDecl->setAttributes(MemoryF->getAttributes());
+    
+    MemoryF->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+    MemoryF->setVisibility(llvm::GlobalValue::DefaultVisibility);
+
+    // Replace all uses from within the restricted function call graph
+    MemoryF->replaceUsesWithIf(UnmodifiedFuncDecl, [&](llvm::Use& U) -> bool {
+      if(auto* CB = llvm::dyn_cast<llvm::CallBase>(U.getUser())) {
+        if(auto* BB = CB->getParent()) {
+          if(auto* F = BB->getParent()) {
+            if(ReplacementSubCallgraph.contains(F) || RestrictedEntrypoints.contains(F)) {
+              HIPSYCL_DEBUG_INFO << "[stdpar] MallocToUSM: Forcing regular allocation in "
+                                 << F->getName().str() << "\n";
+              return true;
+            }
+          }
+        }
       }
-      llvm::CallInst::Create(llvm::FunctionCallee(EndGuard), EmptyArgList, "", NextInst);
-    } else if(auto* II = llvm::dyn_cast<llvm::InvokeInst>(CB)) {
-      if(II->getNormalDest()) {
-        llvm::CallInst::Create(llvm::FunctionCallee(EndGuard), EmptyArgList, "",
-                               II->getNormalDest()->getFirstNonPHI());
-      }
-      if(II->getLandingPadInst()) {
-        // We need to ensure that the landing pad instruction remains the
-        // first in the block, so insert after that.
-        llvm::CallInst::Create(llvm::FunctionCallee(EndGuard), EmptyArgList, "",
-                               II->getLandingPadInst()->getNextNonDebugInstruction());
-      }
-    } else {
-      HIPSYCL_DEBUG_WARNING << "[stdpar] MallocToUSM: Encountered unhandled call type; cannot "
-                               "insert memory allocation exclusion guards.\n";
-      // Better make sure to at least undo the start guard, so that we at least have a consistent state..
-      llvm::CallInst::Create(llvm::FunctionCallee(EndGuard), EmptyArgList, "", CB);
-    }
+      return false;
+    });
   }
 
   // Internalize memory management definitions
-  for(auto* F: MemoryManagementVisibilityFunctions) {
-    //F->setVisibility(llvm::GlobalValue::HiddenVisibility);
-    F->setLinkage(llvm::GlobalValue::InternalLinkage);
+  for(auto* F: ManagedFreeFunctions) {
+    F->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
   }
 
   return llvm::PreservedAnalyses::none();

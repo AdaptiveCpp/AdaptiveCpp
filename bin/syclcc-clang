@@ -362,7 +362,11 @@ class syclcc_config:
       'should-save-temps': option("--opensycl-save-temps", "OPENSYCL_SAVE_TEMPS", "default-save-temps",
 """  If set, do not delete temporary files created during compilation."""),
       'stdpar' : option("--opensycl-stdpar", "OPENSYCL_STDPAR", "default-is-stdpar", 
-"""  If set, enables SYCL offloading of C++ standard parallel algorithms.""")
+"""  If set, enables SYCL offloading of C++ standard parallel algorithms."""),
+      'stdpar-system-usm' : option("--opensycl-stdpar-system-usm", "OPENSYCL_STDPAR_SYSTEM_USM", "default-is-stdpar-system-usm", 
+"""  If set, assume availability of system-level unified shared memory where every pointer from regular
+  malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
+  level by Open SYCL.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._opensycl_args = []
@@ -805,6 +809,13 @@ class syclcc_config:
   def is_stdpar(self):
     try:
       return self._is_flag_set("stdpar")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar_system_usm(self):
+    try:
+      return self._is_flag_set("stdpar-system-usm")
     except OptionNotSet:
       return False
 
@@ -1591,6 +1602,7 @@ class compiler:
     self._save_temps = config.save_temps
     self._host_compiler = ""
     self._is_stdpar = config.is_stdpar
+    self._is_stdpar_system_usm = config.is_stdpar_system_usm
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1772,8 +1784,12 @@ class compiler:
     if self._is_stdpar:
       args += [
         "-isystem", os.path.join(self._opensycl_include_path,"hipSYCL","std","stdpar"),
-        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__"
+        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__",
+        # TODO We should find a way to only emit this argument if the clang plugin is used.
+        "-mllvm", "-hipsycl-stdpar"
       ]
+      if self._is_stdpar_system_usm:
+        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
     return args + self._common_compiler_args
 
   @property

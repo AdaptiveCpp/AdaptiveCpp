@@ -48,6 +48,11 @@ sycl::event for_each(sycl::queue &q, ForwardIt first, ForwardIt last,
 template<class ForwardIt, class Size, class UnaryFunction2>
 sycl::event for_each_n(sycl::queue& q,
                     ForwardIt first, Size n, UnaryFunction2 f) {
+  if(n <= 0)
+    // sycl::event{} represents a no-op that is always finished.
+    // This means it does not respect prior tasks in the task graph!
+    // TODO Is this okay? Can we defer this responsibility to the user?
+    return sycl::event{};
   return q.parallel_for(sycl::range{static_cast<size_t>(n)},
                         [=](sycl::id<1> id) {
                           auto it = first;
@@ -118,6 +123,19 @@ sycl::event copy_if(sycl::queue& q,
                         });
 }
 
+template<class ForwardIt1, class Size, class ForwardIt2 >
+sycl::event copy_n(sycl::queue& q, ForwardIt1 first, Size count, ForwardIt2 result) {
+  if(count <= 0)
+    return sycl::event{};
+  return q.parallel_for(sycl::range{static_cast<size_t>(count)},
+                        [=](sycl::id<1> id) {
+                          auto input = first;
+                          auto output = result;
+                          std::advance(input, id[0]);
+                          std::advance(output, id[0]);
+                          *output = *input;
+                        });
+}
 
 }
 

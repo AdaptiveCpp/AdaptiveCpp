@@ -67,7 +67,7 @@ static llvm::cl::opt<bool> EnableStdPar{
     llvm::cl::desc{"Enable hipSYCL C++ standard parallelism support"}};
 
 static llvm::cl::opt<bool> StdparNoMallocToUSM{
-    "hipsycl-no-stdpar-malloc-to-usm", llvm::cl::init(false),
+    "hipsycl-stdpar-no-malloc-to-usm", llvm::cl::init(false),
     llvm::cl::desc{"Disable hipSYCL C++ standard parallelism malloc-to-usm compiler-side support"}};
 
 // Register and activate passes
@@ -132,19 +132,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
 
-
-#ifdef HIPSYCL_WITH_SSCP_COMPILER
-          if(EnableLLVMSSCP){
-            PB.registerPipelineStartEPCallback(
-                [&](llvm::ModulePassManager &MPM, OptLevel Level) {
-                  MPM.addPass(TargetSeparationPass{});
-                });
-          }
-#endif
-
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
-          // Run this after SSCP target separation so that we don't get USM malloc guards
-          // inside device code.          
           if(EnableStdPar) {
             if(!StdparNoMallocToUSM) {
               PB.registerPipelineStartEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
@@ -156,6 +144,16 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
             });
           }
 #endif
+
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+          if(EnableLLVMSSCP){
+            PB.registerPipelineStartEPCallback(
+                [&](llvm::ModulePassManager &MPM, OptLevel Level) {
+                  MPM.addPass(TargetSeparationPass{});
+                });
+          }
+#endif
+
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU
           PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {

@@ -130,7 +130,7 @@ HIPSYCL_STDPAR_ENTRYPOINT
 void for_each(std::execution::offload_parallel_unsequenced_policy,
                ForwardIt first, ForwardIt last, UnaryFunction2 f) {
   __hipsycl_stdpar_consume_sync();
-  auto& q = hipsycl::stdpar::single_device_dispatch::get_queue();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   hipsycl::stdpar::for_each(q, first, last, f);
   __hipsycl_stdpar_optimizable_sync(q);
 }
@@ -140,7 +140,7 @@ HIPSYCL_STDPAR_ENTRYPOINT
 ForwardIt for_each_n(std::execution::offload_parallel_unsequenced_policy,
                     ForwardIt first, Size n, UnaryFunction2 f) {
   __hipsycl_stdpar_consume_sync();
-  auto& q = hipsycl::stdpar::single_device_dispatch::get_queue();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   ForwardIt last = first;
   std::advance(last, n);
   hipsycl::stdpar::for_each_n(q, first, n, f);
@@ -154,7 +154,7 @@ ForwardIt2 transform(std::execution::offload_parallel_unsequenced_policy,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 d_first,
                      UnaryOperation unary_op) {
   __hipsycl_stdpar_consume_sync();
-  auto& q = hipsycl::stdpar::single_device_dispatch::get_queue();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = d_first;
   std::advance(last, std::distance(first1, last1));
   hipsycl::stdpar::transform(q, first1, last1, d_first, unary_op);
@@ -169,7 +169,7 @@ ForwardIt3 transform(std::execution::offload_parallel_unsequenced_policy,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
                      ForwardIt3 d_first, BinaryOperation binary_op) {
   __hipsycl_stdpar_consume_sync();
-  auto& q = hipsycl::stdpar::single_device_dispatch::get_queue();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = d_first;
   std::advance(last, std::distance(first1, last1));
   hipsycl::stdpar::transform(q, first1, last1, first2, d_first, binary_op);

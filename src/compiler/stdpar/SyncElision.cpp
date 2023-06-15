@@ -44,6 +44,13 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
   static constexpr const char* ConsumeMarker = "__hipsycl_stdpar_consume_sync";
   static constexpr const char* OptimizableMarker = "__hipsycl_stdpar_optimizable_sync";
 
+  if(auto* F = M.getFunction(ConsumeMarker)) {
+    F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+  }
+  if(auto* F = M.getFunction(OptimizableMarker)) {
+    F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+  }
+
   llvm::SmallVector<llvm::CallInst*, 16> RemovableSyncCalls;
 
   for(auto& F : M) {

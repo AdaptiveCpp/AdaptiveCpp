@@ -42,7 +42,8 @@ if(WITH_SSCP_COMPILER)
     sscp/IRConstantReplacer.cpp
     sscp/TargetSeparationPass.cpp
     sscp/HostKernelNameExtractionPass.cpp
-    sscp/AggregateArgumentExpansionPass.cpp)
+    sscp/AggregateArgumentExpansionPass.cpp
+    sscp/StdBuiltinRemapperPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
 else()
   set(SSCP_COMPILER "")

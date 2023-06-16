@@ -39,7 +39,7 @@
 #include <iterator>
 
 #include "detail/sycl_glue.hpp"
-#include "algorithms/algorithm.hpp"
+#include "hipSYCL/algorithms/algorithm.hpp"
 
 #ifdef __clang__
 #define HIPSYCL_STDPAR_INLINE __attribute__((always_inline))

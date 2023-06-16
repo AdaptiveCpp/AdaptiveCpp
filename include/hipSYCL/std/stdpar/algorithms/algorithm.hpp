@@ -137,6 +137,30 @@ sycl::event copy_n(sycl::queue& q, ForwardIt1 first, Size count, ForwardIt2 resu
                         });
 }
 
+template <class ForwardIt, class T>
+sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
+                 const T &value) {
+  return q.parallel_for(sycl::range{std::distance(first, last)},
+                        [=](sycl::id<1> id) {
+                          auto it = first;
+                          std::advance(it, id[0]);
+                          *it = value;
+                        });
+}
+
+template<class ForwardIt, class Size, class T >
+sycl::event fill_n(sycl::queue& q,
+                  ForwardIt first, Size count, const T& value ) {
+  if(count <= 0)
+    return sycl::event{};
+  return q.parallel_for(sycl::range{static_cast<size_t>(count)},
+                        [=](sycl::id<1> id) {
+                          auto it = first;
+                          std::advance(it, id[0]);
+                          *it = value;
+                        });
+}
+
 }
 
 #endif

@@ -73,7 +73,7 @@ void for_each(std::execution::offload_parallel_unsequenced_policy,
                ForwardIt first, ForwardIt last, UnaryFunction2 f) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
-  hipsycl::stdpar::for_each(q, first, last, f);
+  hipsycl::algorithms::for_each(q, first, last, f);
   __hipsycl_stdpar_optimizable_sync(q);
 }
 
@@ -85,7 +85,7 @@ ForwardIt for_each_n(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   ForwardIt last = first;
   std::advance(last, std::max(n, 0));
-  hipsycl::stdpar::for_each_n(q, first, n, f);
+  hipsycl::algorithms::for_each_n(q, first, n, f);
   __hipsycl_stdpar_optimizable_sync(q);
   return last;
 }
@@ -99,7 +99,7 @@ ForwardIt2 transform(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = d_first;
   std::advance(last, std::distance(first1, last1));
-  hipsycl::stdpar::transform(q, first1, last1, d_first, unary_op);
+  hipsycl::algorithms::transform(q, first1, last1, d_first, unary_op);
   __hipsycl_stdpar_optimizable_sync(q);
   return last;
 }
@@ -114,7 +114,7 @@ ForwardIt3 transform(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = d_first;
   std::advance(last, std::distance(first1, last1));
-  hipsycl::stdpar::transform(q, first1, last1, first2, d_first, binary_op);
+  hipsycl::algorithms::transform(q, first1, last1, first2, d_first, binary_op);
   __hipsycl_stdpar_optimizable_sync(q);
   return last;
 }
@@ -127,7 +127,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(std::execution::offload_parallel_unseq
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto d_last = d_first;
   std::advance(d_last, std::distance(first, last));
-  hipsycl::stdpar::copy(q, first, last, d_first);
+  hipsycl::algorithms::copy(q, first, last, d_first);
   __hipsycl_stdpar_optimizable_sync(q);
   return d_last;
 }
@@ -142,7 +142,7 @@ ForwardIt2 copy_if(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto d_last = d_first;
   std::advance(d_last, std::distance(first, last));
-  hipsycl::stdpar::copy_if(q, first, last, d_first, pred);
+  hipsycl::algorithms::copy_if(q, first, last, d_first, pred);
   __hipsycl_stdpar_optimizable_sync(q);
   return d_last;
 }
@@ -155,7 +155,7 @@ ForwardIt2 copy_n(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = result;
   std::advance(last, std::max(count, 0));
-  hipsycl::stdpar::copy_n(q, first, count, result);
+  hipsycl::algorithms::copy_n(q, first, count, result);
   __hipsycl_stdpar_optimizable_sync(q);
   return last;
 }
@@ -166,7 +166,7 @@ void fill(std::execution::offload_parallel_unsequenced_policy,
           ForwardIt first, ForwardIt last, const T& value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
-  hipsycl::stdpar::fill(q, first, last, value);
+  hipsycl::algorithms::fill(q, first, last, value);
   __hipsycl_stdpar_optimizable_sync(q);
 }
 
@@ -178,7 +178,30 @@ ForwardIt fill_n(std::execution::offload_parallel_unsequenced_policy,
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = first;
   std::advance(last, std::max(count, 0));
-  hipsycl::stdpar::fill_n(q, first, count, value);
+  hipsycl::algorithms::fill_n(q, first, count, value);
+  __hipsycl_stdpar_optimizable_sync(q);
+  return last;
+}
+
+template<class ForwardIt, class Generator >
+HIPSYCL_STDPAR_ENTRYPOINT
+void generate( std::execution::offload_parallel_unsequenced_policy,
+               ForwardIt first, ForwardIt last, Generator g) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  hipsycl::algorithms::generate(q, first, last, g);
+  __hipsycl_stdpar_optimizable_sync(q);
+}
+
+template<class ForwardIt, class Size, class Generator >
+HIPSYCL_STDPAR_ENTRYPOINT
+ForwardIt generate_n(std::execution::offload_parallel_unsequenced_policy, 
+                    ForwardIt first, Size count, Generator g) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto last = first;
+  std::advance(last, std::max(count, 0));
+  hipsycl::algorithms::generate_n(q, first, count, g);
   __hipsycl_stdpar_optimizable_sync(q);
   return last;
 }

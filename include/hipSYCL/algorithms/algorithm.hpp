@@ -31,7 +31,7 @@
 #include <iterator>
 #include "hipSYCL/sycl/sycl.hpp"
 
-namespace hipsycl::stdpar {
+namespace hipsycl::algorithms {
 
 template <class ForwardIt, class UnaryFunction2>
 sycl::event for_each(sycl::queue &q, ForwardIt first, ForwardIt last,
@@ -158,6 +158,30 @@ sycl::event fill_n(sycl::queue& q,
                           auto it = first;
                           std::advance(it, id[0]);
                           *it = value;
+                        });
+}
+
+
+template<class ForwardIt, class Generator >
+sycl::event generate(sycl::queue& q, ForwardIt first, ForwardIt last, Generator g) {
+  return q.parallel_for(sycl::range{std::distance(first, last)},
+                        [=](sycl::id<1> id) {
+                          auto it = first;
+                          std::advance(it, id[0]);
+                          *it = g();
+                        });
+}
+
+template<class ForwardIt, class Size, class Generator >
+sycl::event generate_n(sycl::queue& q, ForwardIt first,
+                      Size count, Generator g) {
+  if(count <= 0)
+    return sycl::event{};
+  return q.parallel_for(sycl::range{static_cast<size_t>(count)},
+                        [=](sycl::id<1> id) {
+                          auto it = first;
+                          std::advance(it, id[0]);
+                          *it = g();
                         });
 }
 

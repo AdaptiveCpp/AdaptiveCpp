@@ -6,7 +6,7 @@
 
 Open SYCL is a modern platform for C++-based heterogeneous programming models targeting CPUs and GPUs from all major vendors. Currently, Open SYCL supports the following programming models:
 1. SYCL: At its core is a SYCL implementation that supports many use cases and approaches of implementing SYCL. 
-2. C++ standard parallelism: Additionally, Open SYCL features experimental support for offloading C++ algorithms from the parallel STL. See [here](stdpar.md) for details on which algorithms can be offloaded.
+2. C++ standard parallelism: Additionally, Open SYCL features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded.
 
 **Open SYCL is currently the only solution that can offload C++ standard parallelism constructs to GPUs from Intel, NVIDIA and AMD -- even from a single binary.**
 
@@ -90,7 +90,7 @@ Open SYCL has been repeatedly shown to deliver very competitive performance comp
       * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
       * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
       * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](doc/compilation.md) for details.
-* For performance in the C++ parallelism model specifically, see also [here](stdpar.md).
+* For performance in the C++ parallelism model specifically, see also [here](doc/stdpar.md).
 
 #### Comparing against other LLVM-based compilers
 

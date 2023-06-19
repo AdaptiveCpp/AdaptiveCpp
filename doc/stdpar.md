@@ -95,6 +95,8 @@ Note that you may need to invoke SYCL functions to explicitly copy memory to dev
 
 If you are on a system that supports system-level USM, i.e. a system where every CPU pointer returned from regular memory allocations or even stack pointers can directly be used on GPUs (such as on AMD MI300 or Grace-Hopper), the compiler transformation to turn heap allocations to SYCL USM shared allocations is unnecessary. In this case, you may want to request the compiler to assume system-level USM and disable the compiler transformations regarding SYCL shared USM allocations using `--opensycl-stdpar-system-usm`.
 
-## Functions from the C++ standard library supported in device code
+## Functionality supported in device code
+
+The functionality supported in device code aligns with the kernel restrictions from SYCL. This means that no exceptions, dynamic polymorphism, dynamic memory management, or calls to external shared libraries are allowed. Note that this functionality might already be pohibited in the C++ `par_unseq` model anyway.
 
 The `std::` math functions are supported in device code in an experimental state when using the generic SSCP compilation flow (`--opensycl-targets=generic`). This is accomplished using a dedicated compiler pass that maps standard functions to our SSCP builtins.

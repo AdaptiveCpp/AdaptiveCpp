@@ -206,6 +206,26 @@ ForwardIt generate_n(std::execution::offload_parallel_unsequenced_policy,
   return last;
 }
 
+template <class ForwardIt, class T>
+void replace(std::execution::offload_parallel_unsequenced_policy,
+             ForwardIt first, ForwardIt last, const T &old_value,
+             const T &new_value) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  hipsycl::algorithms::replace(q, first, last, old_value, new_value);
+  __hipsycl_stdpar_optimizable_sync(q);
+}
+
+template <class ForwardIt, class UnaryPredicate, class T>
+void replace_if(std::execution::offload_parallel_unsequenced_policy,
+                ForwardIt first, ForwardIt last, UnaryPredicate p,
+                const T &new_value) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  hipsycl::algorithms::replace_if(q, first, last, p, new_value);
+  __hipsycl_stdpar_optimizable_sync(q);
+}
+
 }
 
 #endif

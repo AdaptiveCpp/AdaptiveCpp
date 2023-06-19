@@ -185,6 +185,26 @@ sycl::event generate_n(sycl::queue& q, ForwardIt first,
                         });
 }
 
+template<class ForwardIt, class T>
+sycl::event replace(sycl::queue& q, ForwardIt first, ForwardIt last,
+                    const T& old_value, const T& new_value) {
+  return for_each(q, first, last, [=](auto& x){
+    if(x == old_value)
+      x = new_value;
+  });
+}
+
+template<class ForwardIt,
+         class UnaryPredicate, class T >
+sycl::event replace_if(sycl::queue& q, ForwardIt first, ForwardIt last,
+                      UnaryPredicate p, const T& new_value) {
+  return for_each(q, first, last, [=](auto& x){
+    if(p(x))
+      x = new_value;
+  });
+}
+
+
 }
 
 #endif

@@ -31,6 +31,9 @@ Offloading is implemented for the following STL algorithms:
 |`fill_n` | |
 |`generate` | |
 |`generate_n` | |
+|`replace` | |
+|`replace_if` | |
+
 
 For all other execution policies or algorithms, the algorithm will compile and execute correctly, however the regular host implementation of the algorithm provided by the C++ standard library implementation will be invoked and no offloading takes place.
 

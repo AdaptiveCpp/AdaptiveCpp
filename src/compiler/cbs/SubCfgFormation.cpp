@@ -305,7 +305,7 @@ class SubCFG {
   size_t Dim;
 
   llvm::BasicBlock *
-  createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, unsigned long> BarrierPair,
+  createExitWithID(llvm::detail::DenseMapPair<llvm::BasicBlock *, size_t> BarrierPair,
                    llvm::BasicBlock *After, llvm::BasicBlock *TargetBB);
 
   void loadMultiSubCfgValues(

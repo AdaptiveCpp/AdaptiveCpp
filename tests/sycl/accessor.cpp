@@ -856,20 +856,19 @@ BOOST_AUTO_TEST_CASE(zero_dim_accessor) {
   namespace s = cl::sycl;
 
   int val = 1;
+  {
+    s::buffer<int,1> buf{&val, 1};
 
-  s::buffer<int,1> buf{&val, 1};
+    s::queue q;
+    q.submit([&](auto &h){
+      s::accessor<int, 0> acc{buf, h};
 
-  s::queue q;
-  q.submit([&](auto &h){
-    s::accessor<int, 0> acc{buf, h};
-
-    h.parallel_for(s::range<1>{1}, [=](auto &) {
-      int &ref = acc;
-      ref = 123;
+      h.single_task([=]() {
+        int &ref = acc;
+        ref = 123;
+      });
     });
-  });
-
-  q.wait();
+  }
 
   BOOST_CHECK(val == 123);
 }

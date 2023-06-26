@@ -277,7 +277,7 @@ dag_node::get_event() const{
 void dag_node::for_each_nonvirtual_requirement(
     std::function<void(dag_node_ptr)> handler) const {
   
-  if (is_complete())
+  if (is_known_complete())
     return;
   
   for (auto req : get_requirements()) {

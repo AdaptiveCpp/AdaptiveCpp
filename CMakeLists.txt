@@ -79,6 +79,11 @@ if(WITH_ROCM_BACKEND)
     # Let's assume the user knows what he/she is doing.
   endif()
 endif()
+if(WITH_MUSA_BACKEND)
+  if(NOT MUSA_FOUND)
+    message(SEND_ERROR "MUSA was not found")
+  endif()
+endif()
 
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")

@@ -506,7 +506,7 @@ class HIPSYCL_EMPTY_BASES accessor
       public detail::accessor::conditional_accessor_properties_storage<
           detail::accessor::stores_accessor_properties(AccessorVariant)> {
 
-  static constexpr int adjDimensions = dimensions == 0 ? 1 : dimensions;
+  static constexpr int adj_dimensions = dimensions == 0 ? 1 : dimensions;
 
   static constexpr bool has_buffer_pointer =
       detail::accessor::stores_buffer_pointer(AccessorVariant);
@@ -1036,8 +1036,8 @@ private:
   }
 
   template <class BufferT>
-  void init(BufferT &buff, id<adjDimensions> offset,
-            range<adjDimensions> access_range, const property_list &prop_list) {
+  void init(BufferT &buff, id<adj_dimensions> offset,
+            range<adj_dimensions> access_range, const property_list &prop_list) {
     
     bool is_no_init_access = false;
     bool is_placeholder_access = true;
@@ -1060,12 +1060,12 @@ private:
   
   template <class BufferT>
   void init(BufferT& buff, const property_list& prop_list) {
-    init(buff, id<adjDimensions>{}, detail::extract_buffer_range(buff), prop_list);
+    init(buff, id<adj_dimensions>{}, detail::extract_buffer_range(buff), prop_list);
   }
 
   template <class BufferT>
-  void init(BufferT &buff, handler &cgh, id<adjDimensions> offset,
-            range<adjDimensions> access_range, const property_list &prop_list) {
+  void init(BufferT &buff, handler &cgh, id<adj_dimensions> offset,
+            range<adj_dimensions> access_range, const property_list &prop_list) {
 
     bool is_no_init_access = this->is_no_init(prop_list);
     bool is_placeholder_access = false;
@@ -1085,7 +1085,7 @@ private:
 
   template <class BufferT>
   void init(BufferT& buff, handler& cgh, const property_list& prop_list) {
-    init(buff, cgh, id<adjDimensions>{}, detail::extract_buffer_range(buff),
+    init(buff, cgh, id<adj_dimensions>{}, detail::extract_buffer_range(buff),
          prop_list);
   }
   
@@ -1103,12 +1103,12 @@ private:
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  range<adjDimensions> get_buffer_shape() const noexcept {
+  range<adj_dimensions> get_buffer_shape() const noexcept {
     if constexpr(has_buffer_range) {
       return this->detail::accessor::conditional_buffer_range_storage<
-          has_buffer_range, adjDimensions>::get();
+          has_buffer_range, adj_dimensions>::get();
     } else {
-      return range<adjDimensions>{};
+      return range<adj_dimensions>{};
     }
   }
 
@@ -1125,8 +1125,8 @@ private:
 
   template <class BufferType>
   void bind_to_buffer(BufferType &buff,
-                      sycl::id<adjDimensions> accessOffset,
-                      sycl::range<adjDimensions> accessRange) {
+                      sycl::id<adj_dimensions> accessOffset,
+                      sycl::range<adj_dimensions> accessRange) {
     __hipsycl_if_target_host(
       auto buffer_region = detail::extract_buffer_data_region(buff);
       this->detail::accessor::
@@ -1136,12 +1136,12 @@ private:
 
     this->detail::accessor::conditional_access_range_storage<
         has_access_range,
-        adjDimensions>::attempt_set(detail::accessor::access_range<adjDimensions>{
+        adj_dimensions>::attempt_set(detail::accessor::access_range<adj_dimensions>{
         accessOffset, accessRange});
 
     this->detail::accessor::conditional_buffer_range_storage<
         has_buffer_range,
-        adjDimensions>::attempt_set(detail::extract_buffer_range(buff));
+        adj_dimensions>::attempt_set(detail::extract_buffer_range(buff));
   }
 
   void init_host_buffer(rt::runtime* rt, bool is_no_init) {
@@ -1159,26 +1159,26 @@ private:
       rt::dag_build_guard build{rt->dag()};
 
       // get_offset and get_range are only defined for dimensions > 0
-      id<adjDimensions> acc_offset;
+      id<adj_dimensions> acc_offset;
       if constexpr (dimensions == 0)
         acc_offset = id<1>{0};
       else
         acc_offset = get_offset();
 
-      range<adjDimensions> acc_range;
+      range<adj_dimensions> acc_range;
       if constexpr (dimensions == 0)
         acc_range = range<1>{1};
       else
         acc_range = get_range();
       
-      const rt::range<adjDimensions> buffer_shape = rt::make_range(get_buffer_shape());
+      const rt::range<adj_dimensions> buffer_shape = rt::make_range(get_buffer_shape());
       auto explicit_requirement = rt::make_operation<rt::buffer_memory_requirement>(
         data,
-        detail::get_effective_offset<dataT, adjDimensions>(data,
+        detail::get_effective_offset<dataT, adj_dimensions>(data,
                                                            rt::make_id(acc_offset),
                                                            buffer_shape,
                                                            has_access_range),
-        detail::get_effective_range<dataT, adjDimensions>(data,
+        detail::get_effective_range<dataT, adj_dimensions>(data,
                                                           rt::make_range(acc_range),
                                                           buffer_shape,
                                                           has_access_range),

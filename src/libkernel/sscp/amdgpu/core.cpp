@@ -40,50 +40,50 @@ extern "C" size_t __ockl_get_enqueued_local_size(unsigned);
 extern "C" size_t __ockl_get_global_linear_id(unsigned);
 extern "C" size_t __ockl_get_local_linear_id(unsigned);
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_x() {
   return __ockl_get_local_id(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_y() {
   return __ockl_get_local_id(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_z() {
   return __ockl_get_local_id(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_x() {
   return __ockl_get_group_id(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_y() {
   return __ockl_get_group_id(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_z() {
   return __ockl_get_group_id(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_x() {
   return __ockl_get_local_size(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_y() {
   return __ockl_get_local_size(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_z() {
   return __ockl_get_local_size(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_x() {
   return __ockl_get_num_groups(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_y() {
   return __ockl_get_num_groups(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_z() {
   return __ockl_get_num_groups(2);
 }

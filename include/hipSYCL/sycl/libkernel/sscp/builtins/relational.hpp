@@ -30,19 +30,19 @@
 #ifndef HIPSYCL_SSCP_RELATIONAL_BUILTINS_HPP
 #define HIPSYCL_SSCP_RELATIONAL_BUILTINS_HPP
 
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnan_f32(float);
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnan_f64(double);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnan_f32(float);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnan_f64(double);
 
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isinf_f32(float);
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isinf_f64(double);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isinf_f32(float);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isinf_f64(double);
 
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f32(float);
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isfinite_f64(double);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isfinite_f32(float);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isfinite_f64(double);
 
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f32(float);
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_isnormal_f64(double);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f32(float);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f64(double);
 
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f32(float);
-HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_signbit_f64(double);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_signbit_f32(float);
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_signbit_f64(double);
 
 #endif

@@ -45,6 +45,7 @@
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Passes/PassBuilder.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -166,6 +167,20 @@ bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  // amdgpu does not like some function calls, so try to inline
+  // everything. Note: This should be done after ASI pass has fixed
+  // alloca address spaces, in case alloca values are passed as arguments!
+  for(auto& F: M) {
+    if(F.getCallingConv() != llvm::CallingConv::MTGPU_KERNEL) {
+      if(!F.empty()) {
+        F.addFnAttr(llvm::Attribute::AlwaysInline);
+      }
+    }
+  }
+  llvm::AlwaysInlinerPass AIP;
+  AIP.run(M, *PH.ModuleAnalysisManager);
+
 
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;

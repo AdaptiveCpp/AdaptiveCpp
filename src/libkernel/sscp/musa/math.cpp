@@ -61,21 +61,21 @@
     return mtml_name##_f64(x, y, z);                                           \
   }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(acos, __mtml_acos)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(acosh, __mtml_acosh)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(acos, __mt_acos)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(acosh, __mt_acosh)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_acospi_f32(float x) { return __hipsycl_sscp_acos_f32(x) / PI; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_acospi_f64(double x) { return __hipsycl_sscp_acos_f64(x) / PI; }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(asin, __mtml_asin)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(asinh, __mtml_asinh)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(asin, __mt_asin)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(asinh, __mt_asinh)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_asinpi_f32(float x) { return __hipsycl_sscp_asin_f32(x) / PI; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_asinpi_f64(double x) { return __hipsycl_sscp_asin_f64(x) / PI; }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(atan, __mtml_atan)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(atan2, __mtml_atan2)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(atanh, __mtml_atan)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(atan, __mt_atan)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(atan2, __mt_atan2)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(atanh, __mt_atan)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_atanpi_f32(float x) { return __hipsycl_sscp_atan_f32(x) / PI; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_atanpi_f64(double x) { return __hipsycl_sscp_atan_f64(x) / PI; }
@@ -83,29 +83,29 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_atanpi_f64(double x) { return __hipsy
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_atan2pi_f32(float x, float y) { return __hipsycl_sscp_atan2_f32(x, y) / PI; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_atan2pi_f64(double x, double y) { return __hipsycl_sscp_atan2_f64(x, y) / PI; }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cbrt, __mtml_cbrt)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(ceil, __mtml_ceil)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(copysign, __mtml_copysign)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cos, __mtml_cos)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cosh, __mtml_cosh)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cospi, __mtml_cospi)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(erf, __mtml_erf)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(erfc, __mtml_erfc)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(exp, __mtml_exp)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(exp2, __mtml_exp2)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cbrt, __mt_cbrt)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(ceil, __mt_ceil)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(copysign, __mt_copysign)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cos, __mt_cos)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cosh, __mt_cosh)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(cospi, __mt_cospi)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(erf, __mt_erf)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(erfc, __mt_erfc)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(exp, __mt_exp)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(exp2, __mt_exp2)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_exp10_f32(float x) { return __hipsycl_sscp_powr_f32(10.0f, x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_exp10_f64(double x) { return __mtml_exp10_f64(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_exp10_f64(double x) { return __mt_exp10_f64(x); }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(pow, __mtml_pow)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(expm1, __mtml_expm1)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(fabs, __mtml_fabs)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fdim, __mtml_fdim)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(floor, __mtml_floor)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN3(fma, __mtml_fma)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmax, __mtml_fmax)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmin, __mtml_fmin)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmod, __mtml_fmod)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(pow, __mt_pow)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(expm1, __mt_expm1)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(fabs, __mt_fabs)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fdim, __mt_fdim)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(floor, __mt_floor)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN3(fma, __mt_fma)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmax, __mt_fmax)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmin, __mt_fmin)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(fmod, __mt_fmod)
 
 // fmin(x - floor(x), nextafter(genfloat(1.0), genfloat(0.0)) ). floor(x) is returned in iptr.
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_fract_f32(float x, float* y ) {
@@ -119,31 +119,31 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_fract_f64(double x, double* y) {
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_frexp_f32(float x,
                                                     __hipsycl_int32 *y) {
-  return __mtml_frexp_f32(x, y);
+  return __mt_frexp_f32(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double x,
                                                      __hipsycl_int64 *y) {
   __hipsycl_int32 w;
-  double res = __mtml_frexp_f64(x, &w);
+  double res = __mt_frexp_f64(x, &w);
   *y = static_cast<__hipsycl_int64>(w);
   return res;
 }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(hypot, __mtml_hypot)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(ilogb, __mtml_ilogb)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(hypot, __mt_hypot)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(ilogb, __mt_ilogb)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_ldexp_f32(float x,
                                                     __hipsycl_int32 k) {
-  return __mtml_ldexp_f32(x, k);
+  return __mt_ldexp_f32(x, k);
 }
 
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_ldexp_f64(double x,
                                                      __hipsycl_int64 k) {
-  return __mtml_ldexp_f64(x, k);
+  return __mt_ldexp_f64(x, k);
 }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tgamma, __mtml_tgamma)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(lgamma, __mtml_lgamma)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tgamma, __mt_tgamma)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(lgamma, __mt_lgamma)
 
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_lgamma_r_f32(float x, __hipsycl_int32* y ) {
@@ -160,12 +160,12 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_lgamma_r_f64(double x, __hipsycl_int6
   return r;
 }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log, __mtml_log)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log2, __mtml_log2)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log10, __mtml_log10)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log1p, __mtml_log1p)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(logb, __mtml_logb)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN3(mad, __mtml_fma)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log, __mt_log)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log2, __mt_log2)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log10, __mt_log10)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(log1p, __mt_log1p)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(logb, __mt_logb)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN3(mad, __mt_fma)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_maxmag_f32(float x, float y) {
   auto abs_x = __hipsycl_sscp_fabs_f32(x);
@@ -196,35 +196,35 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_minmag_f64(double x, double y) {
 }
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_modf_f32(float x, float* y ) {
-  return __mtml_modf_f32(x, y);
+  return __mt_modf_f32(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_modf_f64(double x, double* y) {
-  return __mtml_modf_f64(x, y);
+  return __mt_modf_f64(x, y);
 }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(nextafter, __mtml_nextafter)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(powr, __mtml_powr)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(nextafter, __mt_nextafter)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(powr, __mt_powr)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float x, __hipsycl_int32 y) {
-  return __mtml_pown_f32(x, y);
+  return __mt_pown_f32(x, y);
 }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x,
                                                     __hipsycl_int64 y) {
-  return __mtml_pown_f64(x, static_cast<__hipsycl_int32>(y));
+  return __mt_pown_f64(x, static_cast<__hipsycl_int32>(y));
 }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(remainder, __mtml_remainder)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(rint, __mtml_rint)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN2(remainder, __mt_remainder)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(rint, __mt_rint)
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_rootn_f32(float x, __hipsycl_int32 y) { return __hipsycl_sscp_pow_f32(x, 1.f/y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_rootn_f64(double x, __hipsycl_int64 y) {return __hipsycl_sscp_pow_f64(x, 1./y); }
 
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(round, __mtml_round)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(rsqrt, __mtml_rsqrt)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sqrt, __mtml_sqrt)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sin, __mtml_sin)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sinh, __mtml_sinh)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sinpi, __mtml_sinpi)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tan, __mtml_tan)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tanh, __mtml_tanh)
-HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(trunc, __mtml_trunc)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(round, __mt_round)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(rsqrt, __mt_rsqrt)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sqrt, __mt_sqrt)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sin, __mt_sin)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sinh, __mt_sinh)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(sinpi, __mt_sinpi)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tan, __mt_tan)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(tanh, __mt_tanh)
+HIPSYCL_SSCP_MAP_MTML_FLOAT_BUILTIN(trunc, __mt_trunc)

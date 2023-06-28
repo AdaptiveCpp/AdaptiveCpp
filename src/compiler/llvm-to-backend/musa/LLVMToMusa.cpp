@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// for CallingConv
+#define __MTGPU__
+
 #include "hipSYCL/compiler/llvm-to-backend/musa/LLVMToMusa.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
@@ -111,7 +114,7 @@ LLVMToMusaTranslator::LLVMToMusaTranslator(const std::vector<std::string> &KN)
 
 bool LLVMToMusaTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
   std::string Triple = "mtgpu-mt-cuda";
-  std::string DataLayout = "e-p:64:64:64:32-p1:64:64:64:32-p2:64:64:64:32-p3:32:32-p4:32:32-p5:64:"
+  std::string DataLayout = "e-p:64:64:64:64-p1:64:64:64:64-p2:64:64:64:64-p3:32:32-p4:32:32-p5:64:"
                            "64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128";
 
 

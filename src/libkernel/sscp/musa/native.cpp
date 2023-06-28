@@ -32,29 +32,29 @@
 
 // TODO: seems no fast functions available
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_cos_f32(float x) { return __mtml_cos_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_cos_f64(double x) { return __mtml_cos_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_cos_f32(float x) { return __mt_cos_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_cos_f64(double x) { return __mt_cos_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_divide_f32(float x, float y) { return __mtml_fast_fdivide_f32(x, y); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_divide_f32(float x, float y) { return __mt_fast_fdivide_f32(x, y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_divide_f64(double x, double y) { return x / y; }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_exp_f32(float x) { return __mtml_exp_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp_f64(double x) { return __mtml_exp_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_exp_f32(float x) { return __mt_exp_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp_f64(double x) { return __mt_exp_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_exp2_f32(float x) { return __mtml_exp2_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp2_f64(double x) { return __mtml_exp2_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_exp2_f32(float x) { return __mt_exp2_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp2_f64(double x) { return __mt_exp2_f64(x); }
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_exp10_f32(float x) { return __hipsycl_sscp_exp10_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp10_f64(double x) { return __mtml_exp10_f64(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_exp10_f64(double x) { return __mt_exp10_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log_f32(float x) { return __mtml_log_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log_f64(double x) { return __mtml_log_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log_f32(float x) { return __mt_log_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log_f64(double x) { return __mt_log_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log2_f32(float x) { return __mtml_log2_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log2_f64(double x) { return __mtml_log2_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log2_f32(float x) { return __mt_log2_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log2_f64(double x) { return __mt_log2_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log10_f32(float x) { return __mtml_log10_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log10_f64(double x) { return __mtml_log10_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_log10_f32(float x) { return __mt_log10_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_log10_f64(double x) { return __mt_log10_f64(x); }
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_powr_f32(float x, float y) { return __hipsycl_sscp_powr_f32(x, y); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double x, double y) { return __hipsycl_sscp_powr_f64(x, y); }
@@ -62,14 +62,14 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_powr_f64(double x, double y) {
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_recip_f32(float x) { return 1.f / x; }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_recip_f64(double x) { return 1. / x; }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_rsqrt_f32(float x) { return __mtml_rsqrt_f32(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_rsqrt_f32(float x) { return __mt_rsqrt_f32(x); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_rsqrt_f64(double x) { return __hipsycl_sscp_rsqrt_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_sin_f32(float x) { return __mtml_sin_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_sin_f64(double x) { return __mtml_sin_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_sin_f32(float x) { return __mt_sin_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_sin_f64(double x) { return __mt_sin_f64(x); }
 
-HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_sqrt_f32(float x) { return __mtml_sqrt_f32(x); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_sqrt_f64(double x) { return __mtml_sqrt_f64(x); }
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_sqrt_f32(float x) { return __mt_sqrt_f32(x); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_sqrt_f64(double x) { return __mt_sqrt_f64(x); }
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_native_tan_f32(float x) { return __hipsycl_sscp_tan_f32(x); }
 HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_native_tan_f64(double x) { return __hipsycl_sscp_tan_f64(x); }

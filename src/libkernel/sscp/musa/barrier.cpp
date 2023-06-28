@@ -54,5 +54,6 @@ __hipsycl_sscp_sub_group_barrier(__hipsycl_sscp_memory_scope fence_scope,
   } else if(fence_scope == hipsycl::sycl::memory_scope::work_group) {
     __mtgpu_membar_cta();
   }
-  __nvvm_bar_warp_sync(-1);
+  // TODO: __mtvm_bar_warp_sync(-1);
+  __mtgpu_barrier0();
 }

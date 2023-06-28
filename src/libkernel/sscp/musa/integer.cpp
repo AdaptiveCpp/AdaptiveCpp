@@ -31,9 +31,9 @@
 
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_mul24_s32(__hipsycl_int32 a, __hipsycl_int32 b) {
-  return __mtml_mul24(a, b);
+  return __mt_mul24(a, b);
 }
 
 HIPSYCL_SSCP_BUILTIN __hipsycl_uint32 __hipsycl_sscp_mul24_u32(__hipsycl_uint32 a, __hipsycl_uint32 b) {
-  return __mtml_umul24(a, b);
+  return __mt_umul24(a, b);
 }

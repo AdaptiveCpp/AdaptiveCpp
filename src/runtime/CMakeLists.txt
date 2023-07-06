@@ -16,15 +16,8 @@ if(NOT ${HIPSYCL_RT_SANITIZE} STREQUAL "")
   set(HIPSYCL_RT_EXTRA_LINKER_FLAGS "-fsanitize=${HIPSYCL_RT_SANITIZE}")
 endif()
 
-if(NOT APPLE AND NOT WIND32)
-  # symbolic functions causes references in our libraries to be resolved
-  # to definitions within the libraries themselves, if possible.
-  # If both runtime library and SYCL headers define some of the same
-  # symbols, this can prevent code using hijacked USM malloc for standard
-  # parallelism to bleed into code that is executed within the runtime, where
-  # USM is a big no-no.
-  set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} "-Wl,-Bsymbolic-functions")
-endif()
+
+set(HIPSYCL_RT_EXTRA_LINKER_FLAGS ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
 add_library(hipSYCL-rt SHARED
   application.cpp

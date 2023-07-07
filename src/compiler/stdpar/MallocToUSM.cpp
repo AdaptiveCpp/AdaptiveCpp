@@ -32,6 +32,7 @@
 
 
 
+#include <llvm/ADT/StringRef.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/Transforms/Utils/ValueMapper.h>
@@ -95,6 +96,13 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
   if(NameStartsWithItaniumIdentifier(Name, "hipsycl"))
     return true;
   
+  return false;
+}
+
+bool isStdFunction(llvm::Function* F) {
+  llvm::StringRef Name = F->getName();
+  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt"))
+    return true;
   return false;
 }
 
@@ -299,6 +307,35 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
   for(auto* F: ManagedFreeFunctions) {
     F->setVisibility(llvm::GlobalValue::HiddenVisibility);
     F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+  }
+
+  // Ideally, we could insert an ABI tag for every function that uses USM, such that external
+  // libraries do not ODR-resolve symbols to functions using USM when the libraries have not
+  // been compiled by us and then cannot free the USM pointers.
+  // However, this does not work because we cannot know whether other translation or
+  // linkage units expect symbols defined here with their regular mangled names for linking.
+  //
+  // What we can however do is to do this for STL functions. These are most prone to this issue anyway
+  // because chances are that they are used in many different places.
+  // For STL functions we know  that every user will also have their own definition available,
+  // if we also have a definition here, so adding an ABI tag is safe.
+  for(auto& F : M) {
+    // Only do this for functions that do not potentially have an ABI tag already.
+    if (!ManagedAllocFunctions.contains(&F) && !ManagedFreeFunctions.contains(&F) &&
+        !RestrictedEntrypoints.contains(&F) && !ReplacementSubCallgraph.contains(&F)) {
+      // Only consider functions in std:: that have a definition
+      if(!F.isDeclaration() && isStdFunction(&F)) {
+        F.setName(addABITag(F.getName(), USMABITag));
+        // There are certain functions around basic_string that have available_externally linkage,
+        // meaning that although we have a definition, the linker will try to link them to external
+        // symbols.
+        // We need to internalize these symbols and ensure that our definition is used
+        // to obtain the correct USM behavior, and avoid linking issues when adding the ABI tag.
+        if(F.getLinkage() == llvm::GlobalValue::AvailableExternallyLinkage) {
+          F.setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+        }
+      }
+    }
   }
 
   return llvm::PreservedAnalyses::none();

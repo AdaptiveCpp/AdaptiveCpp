@@ -665,7 +665,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, profile)
 { return get_rt_device()->get_profile(); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, version) {
-  return "1.2 "+detail::version_string();
+  return get_rt_device()->get_device_arch();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, opencl_c_version)

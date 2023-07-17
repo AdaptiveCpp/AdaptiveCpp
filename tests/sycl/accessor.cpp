@@ -31,6 +31,8 @@
 #include "sycl_test_suite.hpp"
 
 #include <algorithm>
+#include <array>
+#include <numeric>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(accessor_tests, reset_device_fixture)
@@ -430,6 +432,314 @@ BOOST_AUTO_TEST_CASE(accessor_simplifications) {
   q.wait();
 }
 
+BOOST_AUTO_TEST_CASE(unranged_accessor_1d_iterator) {
+  namespace s = cl::sycl;
+
+  std::array<int, 1024> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  {
+    s::buffer<int> buf(host_data.data(), host_data.size());
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh);
+
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it += 1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
+
+BOOST_AUTO_TEST_CASE(unranged_accessor_2d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 32;
+  std::array<int, N*N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  {
+    s::buffer<int, 2> buf(host_data.data(), {N,N});
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 2> acc(buf, cgh);
+
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it += 1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
+
+BOOST_AUTO_TEST_CASE(unranged_accessor_3d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 3;
+  std::array<int, N*N*N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  // Count iterations of for loop below to check if iterator stays within bounds
+  int it_counter = 0; 
+  {
+    s::buffer<int, 3> buf(host_data.data(), {N,N,N});
+    s::buffer<int, 1> it_buf(&it_counter, 1);
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 3> acc(buf, cgh);
+      s::accessor<int, 1> it_acc(it_buf, cgh);
+
+      cgh.single_task([=](){
+        for (auto &it : acc) {
+          it += 1;
+          it_acc[0]++;
+        }
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+
+  BOOST_CHECK_EQUAL(it_counter, N*N*N);
+}
+
+BOOST_AUTO_TEST_CASE(ranged_accessor_1d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  const s::range range(512);
+  const s::id offset(10);
+  
+  std::array<int, N> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+  
+  {
+    s::buffer<int> buf(host_data.data(), N);
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh, range, offset);
+
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it != acc.end(); ++it)
+          *it = -1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i < offset[0]; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i);
+  for (int i = offset[0]; i < offset[0] + range[0]; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], -1);
+  for (int i = offset[0] + range[0]; i<N; ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i);
+}
+
+BOOST_AUTO_TEST_CASE(ranged_accessor_2d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N1 = 32;
+  constexpr int N2 = 64;
+  const s::range<2> range{2, 4};
+  const s::id<2> offset{2, 5};
+  
+  std::array<int, N1*N2> host_data;
+  std::fill(std::begin(host_data), std::end(host_data), 0);
+  
+  {
+    s::buffer<int, 2> buf(host_data.data(), {N1,N2});
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 2> acc(buf, cgh, range, offset);
+
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it < acc.end(); ++it)
+          *it = 1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<N1; ++i) {
+    for (int j=0; j<N2; ++j) {
+      if ((i >= offset[0]) &&
+          (i < offset[0] + range[0]) &&
+          (j >= offset[1]) &&
+          (j < offset[1] + range[1]))
+        BOOST_CHECK_EQUAL(host_data[i*N2+j], 1);
+      else
+        BOOST_CHECK_EQUAL(host_data[i*N2+j], 0);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(ranged_accessor_3d_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N1 = 8;
+  constexpr int N2 = 16;
+  constexpr int N3 = 32;
+
+  const s::range<3> range{2, 2, 2};
+  const s::id<3> offset{1, 2, 0};
+  
+  std::array<int, N1*N2*N3> host_data;
+  std::fill(std::begin(host_data), std::end(host_data), 0);
+  
+  {
+    s::buffer<int, 3> buf(host_data.data(), {N1,N2,N3});
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int, 3> acc(buf, cgh, range, offset);
+
+      cgh.single_task([=](){
+        for (auto it = acc.begin(); it < acc.end(); ++it)
+          *it = 1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<N1; ++i) {
+    for (int j=0; j<N2; ++j) {
+      for (int k=0; k<N3; ++k) {
+        if ((i >= offset[0]) &&
+            (i < offset[0] + range[0]) &&
+            (j >= offset[1]) &&
+            (j < offset[1] + range[1]) &&
+            (k >= offset[2]) &&
+            (k < offset[2] + range[2]))
+          BOOST_CHECK_EQUAL(host_data[i*N2*N3 + j*N3 + k], 1);
+        else
+          BOOST_CHECK_EQUAL(host_data[i*N2*N3 + j*N3 + k], 0);
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(reverse_iterator) {
+  namespace s = cl::sycl;
+
+  std::array<int, 1024> host_data;
+  std::iota(std::begin(host_data), std::end(host_data), 0);
+
+  {
+    s::buffer<int> buf(host_data.data(), host_data.size());
+
+    s::queue{}.submit([&](s::handler &cgh) {
+      s::accessor<int> acc(buf, cgh);
+
+      cgh.single_task([=](){
+        for (auto it = acc.rbegin(); it != acc.rend(); ++it)
+          *it += 1;
+      });
+    }).wait();
+  }
+
+  for (int i=0; i<host_data.size(); ++i)
+    BOOST_CHECK_EQUAL(host_data[i], i+1);
+}
+
+BOOST_AUTO_TEST_CASE(host_accessor_iterator) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  std::array<int, N> data;
+
+  s::buffer<int> buf{data.data(), data.size()};
+  s::host_accessor ha{buf};
+
+  std::iota(ha.begin(), ha.end(), 0);
+
+  for(int i=0; i<N; ++i)
+    BOOST_CHECK_EQUAL(data[i], i);
+
+  std::iota(ha.rbegin(), ha.rend(), 0);
+  for(int i=0; i<N; ++i)
+    BOOST_CHECK_EQUAL(data[i], N-i-1);
+}
+
+BOOST_AUTO_TEST_CASE(accessor_iterator_api) {
+  namespace s = cl::sycl;
+
+  constexpr int N = 1024;
+  std::array<int, N> data;
+  std::fill(data.begin(), data.end(), 0);
+
+  s::buffer<int> buf{data.data(), data.size()};
+  s::host_accessor ha{buf};
+
+  /*** Test postfix ++ ***/
+  {
+    for (auto it = ha.begin(); it != ha.end(); it++)
+      *it = 2;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 2);
+  }
+
+  /*** Test operator+= ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.begin(); it != ha.end(); it += 2)
+      *it = 1;
+
+    for(int i=0; i<N; ++i) {
+      if (i % 2 != 0)
+        BOOST_CHECK_EQUAL(data[i], 0);
+      else
+        BOOST_CHECK_EQUAL(data[i], 1);
+    }
+  }
+
+  /*** Test prefix -- ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.end() - 1; it != ha.begin() - 1; --it)
+      *it = 1;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 1);
+  }
+
+  /*** Test postfix -- ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+    for (auto it = ha.end() - 1; it != ha.begin() - 1; it--)
+      *it = 1;
+
+    for(const auto& entry : data)
+      BOOST_CHECK_EQUAL(entry, 1);
+  }
+
+  /*** Check that operator+ is commutative -- ***/
+  {
+    auto it = ha.begin();
+    BOOST_CHECK((it + 2) == (2 + it));
+  }
+
+  /*** Test operator[] ***/
+  {
+    std::fill(data.begin(), data.end(), 0);
+
+    auto it = ha.begin();
+    for (int i=0; i<N; i+=2)
+      it[i] = 1;
+
+    for(int i=0; i<N; ++i) {
+      if (i % 2 != 0)
+        BOOST_CHECK_EQUAL(data[i], 0);
+      else
+        BOOST_CHECK_EQUAL(data[i], 1);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(offset_1d) {
   namespace s = cl::sycl;
 
@@ -467,6 +777,7 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
 
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
+
     s::queue{}.submit([&](s::handler &cgh) {
       s::range range{N, N};
       s::id offset{2, 2};

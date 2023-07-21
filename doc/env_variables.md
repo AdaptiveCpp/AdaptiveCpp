@@ -16,3 +16,4 @@
 * `HIPSYCL_PERSISTENT_RUNTIME`: If set to 1, hipSYCL will use a persistent runtime that will continue to live even if no SYCL objects are currently in use in the application. This can be helpful if the application consists of multiple distinct phases in which SYCL is used, and multiple launches of the runtime occur.
 * `HIPSYCL_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.
 * `HIPSYCL_SSCP_FAILED_IR_DUMP_DIRECTORY`: If non-empty, hipSYCL will dump the IR of code that fails SSCP JIT into this directory.
+* `HIPSYCL_RT_GC_TRIGGER_BATCH_SIZE`: Number of nodes in flight that trigger a garbage collection job to be spawned

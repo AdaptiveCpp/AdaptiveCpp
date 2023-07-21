@@ -29,9 +29,11 @@
 #define HIPSYCL_MARRAY_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 
 #include "detail/device_array.hpp"
+#include "half.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -488,7 +490,28 @@ template <class T, class... U,
           class = std::enable_if_t<(std::is_same<T, U>::value && ...)>>
 marray(T, U...) -> marray<T, sizeof...(U) + 1>;
 
+#define MARRAY_TYPE_ALIASES(type, storage_type, elements)   \
+  using m##type##elements = marray<storage_type, elements>;
 
+#define MARRAY_TYPE_ALIASES_ALL(type, storage_type)   \
+  MARRAY_TYPE_ALIASES(type, storage_type, 2);         \
+  MARRAY_TYPE_ALIASES(type, storage_type, 3);         \
+  MARRAY_TYPE_ALIASES(type, storage_type, 4);         \
+  MARRAY_TYPE_ALIASES(type, storage_type, 8);         \
+  MARRAY_TYPE_ALIASES(type, storage_type, 16);
+
+  MARRAY_TYPE_ALIASES_ALL(char, int8_t);
+  MARRAY_TYPE_ALIASES_ALL(uchar, uint8_t);
+  MARRAY_TYPE_ALIASES_ALL(short, int16_t);
+  MARRAY_TYPE_ALIASES_ALL(ushort, uint16_t);
+  MARRAY_TYPE_ALIASES_ALL(int, int32_t);
+  MARRAY_TYPE_ALIASES_ALL(uint, uint32_t);
+  MARRAY_TYPE_ALIASES_ALL(long, int64_t);
+  MARRAY_TYPE_ALIASES_ALL(ulong, uint64_t);
+  MARRAY_TYPE_ALIASES_ALL(half, half);
+  MARRAY_TYPE_ALIASES_ALL(float, float);
+  MARRAY_TYPE_ALIASES_ALL(double, double);
+  MARRAY_TYPE_ALIASES_ALL(bool, bool);
 }
 }
 

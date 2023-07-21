@@ -180,7 +180,7 @@ hip_queue::hip_queue(hip_backend *be, device_id dev, int priority)
   if(priority == 0) {
     err = hipStreamCreateWithFlags(&_stream, hipStreamNonBlocking);
   } else {
-    // TODO Clamp priority to priority range allowed by HIP.
+    // hipStreamCreateWithPriority will clamp priority to the allowed range
     err = hipStreamCreateWithPriority(&_stream, hipStreamNonBlocking, priority);
   }
   if (err != hipSuccess) {

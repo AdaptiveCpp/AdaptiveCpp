@@ -34,50 +34,50 @@ size_t __spirv_BuiltInWorkgroupId(int);
 size_t __spirv_BuiltInWorkgroupSize(int);
 size_t __spirv_BuiltInNumWorkgroups(int);
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_x() {
   return __spirv_BuiltInLocalInvocationId(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_y() {
   return __spirv_BuiltInLocalInvocationId(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_id_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_id_z() {
   return __spirv_BuiltInLocalInvocationId(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_x() {
   return __spirv_BuiltInWorkgroupId(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_y() {
   return __spirv_BuiltInWorkgroupId(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_group_id_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_group_id_z() {
   return __spirv_BuiltInWorkgroupId(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_x() {
   return __spirv_BuiltInWorkgroupSize(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_y() {
   return __spirv_BuiltInWorkgroupSize(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_local_size_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_local_size_z() {
   return __spirv_BuiltInWorkgroupSize(2);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_x() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_x() {
   return __spirv_BuiltInNumWorkgroups(0);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_y() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_y() {
   return __spirv_BuiltInNumWorkgroups(1);
 }
 
-HIPSYCL_SSCP_BUILTIN size_t __hipsycl_sscp_get_num_groups_z() {
+HIPSYCL_SSCP_BUILTIN __hipsycl_uint64 __hipsycl_sscp_get_num_groups_z() {
   return __spirv_BuiltInNumWorkgroups(2);
 }

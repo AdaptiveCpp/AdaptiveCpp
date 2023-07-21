@@ -185,7 +185,7 @@ cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
   if(priority == 0) {
     err = cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking);
   } else {
-    // TODO Clamp priority to priority range allowed by CUDA.
+    // CUDA API will clamp the priority to the range 
     err = cudaStreamCreateWithPriority(&_stream, cudaStreamNonBlocking, priority);
   }
   if (err != cudaSuccess) {

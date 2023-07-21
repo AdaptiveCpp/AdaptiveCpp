@@ -30,6 +30,7 @@
 #define HIPSYCL_ACCESSOR_HPP
 
 #include <exception>
+#include <iterator>
 #include <memory>
 #include <type_traits>
 #include <cassert>
@@ -50,6 +51,7 @@
 #include "hipSYCL/sycl/device.hpp"
 #include "hipSYCL/sycl/buffer_allocator.hpp"
 #include "hipSYCL/sycl/access.hpp"
+#include "hipSYCL/sycl/libkernel/id.hpp"
 #include "hipSYCL/sycl/property.hpp"
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 
@@ -121,7 +123,177 @@ template <class T, int dimensions, class AllocatorT>
 sycl::range<dimensions>
 extract_buffer_range(const buffer<T, dimensions, AllocatorT> &buff);
 
+template <typename T, int Dimensions,
+          typename Accessor>
+class accessor_iterator {
+public:
+  using iterator_category = std::random_access_iterator_tag;
+  using difference_type  = std::ptrdiff_t;
+  using value_type = T;
+  using pointer = T*;
+  using reference = T&;
 
+  accessor_iterator() = default;
+
+  reference operator*() const {
+    return (*acc_ptr)[id_from_linear()];
+  }
+
+  accessor_iterator &operator++() {
+    ++linear_id;
+    return *this;
+  }
+
+  accessor_iterator operator++(int) {
+    auto old = *this;
+    ++(*this);
+    return old;
+  }
+
+  accessor_iterator &operator--() {
+    --linear_id;
+    return *this;
+  }
+
+  accessor_iterator operator--(int) {
+    auto old = *this;
+    --(*this);
+    return old;
+  }
+
+  accessor_iterator &operator+=(difference_type diff) {
+    linear_id += diff;
+    return *this;
+  }
+
+  accessor_iterator operator+(difference_type diff) const {
+    auto ret = *this;
+    ret += diff;
+    return ret;
+  }
+
+  friend accessor_iterator operator+(difference_type diff,
+                                     const accessor_iterator &rhs) {
+    auto ret = rhs;
+    ret += diff;
+    return ret;
+  }
+
+  accessor_iterator &operator-=(difference_type diff) {
+    linear_id -= diff;
+    return *this;
+  }
+
+  accessor_iterator operator-(difference_type diff) const {
+    auto ret = *this;
+    ret -= diff;
+    return ret;
+  }
+
+  friend accessor_iterator operator-(difference_type diff,
+                                     const accessor_iterator &rhs) {
+    auto ret = rhs;
+    ret -= diff;
+    return ret;
+  }
+
+  reference &operator[](difference_type diff) const {
+    auto ret = *this;
+    ret += diff;
+    return *ret;
+  }
+
+  bool operator==(const accessor_iterator &other) const {
+    return linear_id == other.linear_id;
+  }
+
+  bool operator!=(const accessor_iterator &other) const {
+    return !(*this == other);
+  }
+
+  bool operator<(const accessor_iterator &other) const {
+    return linear_id < other.linear_id;
+  }
+
+  bool operator>(const accessor_iterator &other) const {
+    return other < *this; 
+  }
+
+  bool operator <=(const accessor_iterator &other) const {
+    return !(*this > other);
+  }
+
+  bool operator >=(const accessor_iterator &other) const {
+    return !(*this < other);
+  }
+
+  difference_type operator-(const accessor_iterator &rhs) const {
+    return linear_id - rhs.linear_id;
+  }
+  
+private:
+  template <typename, int,
+            sycl::access_mode,
+            sycl::target,
+            sycl::accessor_variant> friend class sycl::accessor;
+  template <typename, int,
+            sycl::access_mode> friend class sycl::host_accessor;
+
+  const Accessor *acc_ptr = nullptr;
+
+  /* Linear id relative to the offset, i.e., linear_id = 0
+     corresponds to the element at the offset. */
+  size_t linear_id;
+
+  // Constructs an iterator pointing to the beginning of the accessor's data
+  accessor_iterator(const Accessor* acc_ptr)
+    : acc_ptr{acc_ptr}, linear_id{0} {}
+  
+  static accessor_iterator make_begin(const Accessor *acc_ptr) {
+    return accessor_iterator{acc_ptr};
+  }
+
+  static accessor_iterator make_end(const Accessor *acc_ptr) {
+    auto end = accessor_iterator{acc_ptr};
+    end.linear_id = acc_ptr->get_range().size();    
+    return end;
+  }
+
+  /* Computes a sycl::id corresponding to the current linear id.
+     Since the linear id is always relative to the offset, we can
+     compute the coordinates w.r.t. the sub range and ignore the
+     size of the whole underlying buffer range.
+
+     When dereferencing the iterator, these coordinates will then
+     be converted back to a linear id using /the buffer range/
+     (and not the sub range) which will then give the correct
+     linear id within the whole accessor.
+   */
+  sycl::id<Dimensions> id_from_linear() const {
+    if constexpr (Dimensions == 1)
+      return linear_id;
+
+    if constexpr (Dimensions == 2) {
+      const auto range = acc_ptr->get_range();
+      auto y = linear_id / range[1];
+      auto z = linear_id % range[1];
+
+      return {y, z};
+   }
+
+    if constexpr (Dimensions == 3) {
+      const auto range = acc_ptr->get_range();
+      auto m_linear_id = linear_id;
+
+      auto x = linear_id / (range[1] * range[2]);
+      m_linear_id -= x * (range[1] * range[2]);
+      auto y = m_linear_id / range[2];
+      auto z = linear_id % range[2];
+
+      return {x, y, z};
+    }
+  }
+};
 }
 
 inline constexpr detail::read_only_tag_t read_only;
@@ -598,8 +770,12 @@ public:
   using reference = value_type &;
   using const_reference = const dataT &;
   // TODO accessor_ptr
-  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
-  // TODO difference_type
+  using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   using size_type = size_t;
 
   using pointer_type = value_type*;
@@ -1019,7 +1195,39 @@ public:
   {
     return constant_ptr<dataT>{const_cast<dataT*>(this->_ptr.get())};
   }
+
+  iterator begin() const noexcept {
+    return iterator::make_begin(this);
+  }
+
+  iterator end() const noexcept {
+    return iterator::make_end(this);
+  }
+
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
+
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
+
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
+
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
+
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cend());
+  }
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
 private:
+  template <typename, int, typename> friend class detail::accessor_iterator;
 
   HIPSYCL_UNIVERSAL_TARGET
   static constexpr int get_dimensions() noexcept{
@@ -1422,12 +1630,12 @@ public:
   using reference = typename accessor_type::reference;
   using const_reference = typename accessor_type::const_reference;
 
-  // using iterator = __unspecified_iterator__<value_type>;
-  // using const_iterator = __unspecified_iterator__<const value_type>;
-  // using reverse_iterator = std::reverse_iterator<iterator>;
-  // using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  // using difference_type = typename
-  // std::iterator_traits<iterator>::difference_type;
+  using iterator = detail::accessor_iterator<value_type, dimensions, host_accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, host_accessor>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   using size_type = typename accessor_type::size_type;
 
   host_accessor() = default;
@@ -1574,14 +1782,37 @@ public:
     return _impl.get_pointer();
   }
 
-  // iterator begin() const noexcept;
-  // iterator end() const noexcept;
-  // const_iterator cbegin() const noexcept;
-  // const_iterator cend() const noexcept;
-  // reverse_iterator rbegin() const noexcept;
-  // reverse_iterator rend() const noexcept;
-  // const_reverse_iterator crbegin() const noexcept;
-  // const_reverse_iterator crend() const noexcept;
+  iterator begin() const noexcept {
+    return iterator::make_begin(this);
+  }
+
+  iterator end() const noexcept {
+    return iterator::make_end(this);
+  }
+
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
+
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
+
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
+
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
+
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cend());
+  }
+
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
 
   std::size_t hipSYCL_hash_code() const {
     return _impl.hipSYCL_hash_code();
@@ -1649,7 +1880,12 @@ public:
       typename detail::accessor::accessor_data_type<dataT, accessmode>::value;
   using reference = value_type &;
   using const_reference = const dataT &;
-  // TODO iterator, const_interator, reverse_iterator, const_reverse_iterator
+  using iterator = detail::accessor_iterator<value_type, dimensions, accessor>;
+  using const_iterator = detail::accessor_iterator<const value_type, dimensions, accessor>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+  using difference_type =
+    typename std::iterator_traits<iterator>::difference_type;
   // TODO difference_type
   using size_type = size_t;
 
@@ -1821,6 +2057,37 @@ public:
     };
   }
 
+  iterator begin() const noexcept {
+    return iterator::make_begin(this);
+  }
+
+  iterator end() const noexcept {
+    return iterator::make_end(this);
+  }
+
+  const_iterator cbegin() const noexcept {
+    return const_iterator::make_begin(this);
+  }
+
+  const_iterator cend() const noexcept {
+    return const_iterator::make_end(this);
+  }
+
+  reverse_iterator rbegin() const noexcept {
+    return reverse_iterator(end());
+  }
+
+  reverse_iterator rend() const noexcept {
+    return reverse_iterator(begin());
+  }
+
+  const_reverse_iterator crbegin() const noexcept {
+    return const_reverse_iterator(cend());
+  }
+
+  const_reverse_iterator crend() const noexcept {
+    return const_reverse_iterator(cbegin());
+  }
 private:
   HIPSYCL_KERNEL_TARGET
   accessor(address addr, range<dimensions> r)

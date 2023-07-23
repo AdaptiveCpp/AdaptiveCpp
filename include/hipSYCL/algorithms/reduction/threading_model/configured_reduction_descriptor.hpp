@@ -1,3 +1,4 @@
+
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
@@ -25,47 +26,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#include <cstddef>
+#include <cstdint>
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
+#ifndef HIPSYCL_THREADING_CONFIGURED_REDUCTION_DESCRIPTOR_HPP
+#define HIPSYCL_THREADING_CONFIGURED_REDUCTION_DESCRIPTOR_HPP
 
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
+#include "../reduction_descriptor.hpp"
 
-namespace std {
+namespace hipsycl::algorithms::reduction::threading_model {
 
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
+template <class ReductionDescriptor>
+class configured_reduction_descriptor : public ReductionDescriptor {
+public:
+  // intermediate stage reduction
+  configured_reduction_descriptor(
+      // The basic reduction descriptor
+      const ReductionDescriptor &basic_descriptor,
+      // Array describing whether the input was initialized
+      initialization_flag_t *is_initialized,
+      typename ReductionDescriptor::value_type *scratch)
+      : ReductionDescriptor{basic_descriptor},
+        _is_initialized{is_initialized},
+        _scratch{scratch} {}
 
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
 
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
+  initialization_flag_t *get_initialization_state() const noexcept {
+    return _is_initialized;
+  }
+
+  typename ReductionDescriptor::value_type *get_scratch() const noexcept {
+    return _scratch;
+  }
+
+private:
+  initialization_flag_t *_is_initialized;
+  typename ReductionDescriptor::value_type *_scratch;
+};
 
 }
+
 
 #endif

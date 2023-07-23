@@ -30,6 +30,7 @@
 
 
 
+#include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include <cstdlib>
 #include <hipSYCL/sycl/sycl.hpp>
 #include <new>
@@ -44,11 +45,57 @@ inline sycl::queue construct_default_queue() {
         hipsycl::sycl::property::queue::hipSYCL_coarse_grained_events{}}};
 }
 
+class stdpar_tls_runtime {
+private:
+  stdpar_tls_runtime()
+      : _queue{construct_default_queue()},
+        _device_scratch_cache{algorithms::util::allocation_type::device},
+        _shared_scratch_cache{algorithms::util::allocation_type::shared},
+        _host_scratch_cache{algorithms::util::allocation_type::host} {}
+
+  ~stdpar_tls_runtime() {
+    _device_scratch_cache.purge();
+    _shared_scratch_cache.purge();
+    _host_scratch_cache.purge();
+  }
+
+  sycl::queue _queue;
+  algorithms::util::allocation_cache _device_scratch_cache;
+  algorithms::util::allocation_cache _shared_scratch_cache;
+  algorithms::util::allocation_cache _host_scratch_cache;
+public:
+  
+  sycl::queue& get_queue() {
+    return _queue;
+  }
+
+  template<algorithms::util::allocation_type AT>
+  algorithms::util::allocation_cache& get_scratch_cache() {
+    if constexpr(AT == algorithms::util::allocation_type::device)
+      return _device_scratch_cache;
+    else if constexpr(AT == algorithms::util::allocation_type::shared)
+      return _shared_scratch_cache;
+    else
+      return _host_scratch_cache;
+  }
+
+  template<algorithms::util::allocation_type AT>
+  algorithms::util::allocation_group make_scratch_group() {
+    algorithms::util::allocation_cache& cache = get_scratch_cache<AT>();
+    return algorithms::util::allocation_group{
+        &cache, get_queue().get_device().hipSYCL_device_id()};
+  }
+
+  static stdpar_tls_runtime& get() {
+    static thread_local stdpar_tls_runtime rt;
+    return rt;
+  }
+};
+
 class single_device_dispatch {
 public:
   static hipsycl::sycl::queue& get_queue() {
-    static thread_local hipsycl::sycl::queue q = construct_default_queue();
-    return q;
+    return stdpar_tls_runtime::get().get_queue();
   }
 };
 

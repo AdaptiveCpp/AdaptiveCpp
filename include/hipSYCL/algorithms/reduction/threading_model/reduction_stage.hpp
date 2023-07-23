@@ -1,3 +1,4 @@
+
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
@@ -25,47 +26,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#include <vector>
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
+#ifndef HIPSYCL_THREADING_REDUCTION_STAGE_HPP
+#define HIPSYCL_THREADING_REDUCTION_STAGE_HPP
 
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
+#include "../reduction_descriptor.hpp"
 
-namespace std {
+namespace hipsycl::algorithms::reduction::threading_model {
 
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
+struct reduction_stage_data {
+  initialization_flag_t *is_data_initialized;
+  void *scratch_data;
+};
 
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
+struct reduction_stage {
+  std::size_t global_size;
 
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
+  // this should be initialized to have one entry
+  // per reduction operation.
+  std::vector<reduction_stage_data> data_plan;
+};
 
 }
+
 
 #endif

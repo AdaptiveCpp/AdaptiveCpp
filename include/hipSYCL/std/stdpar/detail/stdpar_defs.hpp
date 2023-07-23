@@ -25,47 +25,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#ifndef HIPSYCL_PSTL_STDPAR_DEFS_HPP
+#define HIPSYCL_PSTL_STDPAR_DEFS_HPP
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
-
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
-
-namespace std {
-
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
-
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
-
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
-
-}
+#ifdef __clang__
+#define HIPSYCL_STDPAR_INLINE __attribute__((always_inline))
+#define HIPSYCL_STDPAR_ENTRYPOINT HIPSYCL_STDPAR_INLINE
+#define HIPSYCL_STDPAR_NOINLINE __attribute__((noinline))
+#else
+#define HIPSYCL_STDPAR_INLINE
+#define HIPSYCL_STDPAR_ENTRYPOINT
+#define HIPSYCL_STDPAR_NOINLINE
+#endif
 
 #endif

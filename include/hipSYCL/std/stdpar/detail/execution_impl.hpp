@@ -25,47 +25,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#ifndef HIPSYCL_PSTL_EXECUTION_IMPL_HPP
+#define HIPSYCL_PSTL_EXECUTION_IMPL_HPP
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
+#include "std_include_prologue.hpp"
+#include_next <pstl/execution_impl.h>
+#include "std_include_epilogue.hpp"
 
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
 
-namespace std {
+namespace std::execution {
 
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
+struct offload_parallel_unsequenced_policy
+    : public __pstl::__internal::__default_parallel_unsequenced_policy {};
+// Create an alias to parallel_unsequenced_policy instead of directly
+// calling it parallel_unsequenced_policy so that we can hopefully avoid
+// ODR issues when linking object files that differ in whether --hipsycl-stdpar
+// was enabled.
+using parallel_unsequenced_policy = offload_parallel_unsequenced_policy;
 
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
-
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
-
+inline constexpr parallel_unsequenced_policy par_unseq {};
 }
+
+
 
 #endif

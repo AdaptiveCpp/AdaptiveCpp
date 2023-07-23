@@ -1,3 +1,4 @@
+
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
@@ -25,47 +26,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#include <vector>
+#include <tuple>
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
+#ifndef HIPSYCL_ALGORITHMS_REDUCTION_PLAN_HPP
+#define HIPSYCL_ALGORITHMS_REDUCTION_PLAN_HPP
 
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
+namespace hipsycl::algorithms::reduction {
 
-namespace std {
+template<class ReductionStage, typename... ReductionDescriptors>
+class reduction_plan {
+public:
+  reduction_plan(const ReductionDescriptors&... descriptors)
+  : _descriptors{descriptors...} {}
 
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
+  void push_back(const ReductionStage& stage) {
+    _stages.push_back(stage);
+  }
 
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
+  auto begin() {
+    return _stages.begin();
+  }
 
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
+  auto begin() const {
+    return _stages.begin();
+  }
+
+  auto end() {
+    return _stages.end();
+  }
+
+  auto end() const {
+    return _stages.end();
+  }
+
+
+  ReductionStage& operator[](std::size_t i) {
+    return _stages[i];
+  }
+
+  const ReductionStage& operator[](std::size_t i) const {
+    return _stages[i];
+  }
+
+  std::size_t size() const {
+    return _stages.size();
+  }
+
+  const std::tuple<ReductionDescriptors...> &get_descriptors() const {
+    return _descriptors;
+  }
+
+private:
+  std::vector<ReductionStage> _stages;
+  std::tuple<ReductionDescriptors...> _descriptors;
+};
 
 }
+
 
 #endif

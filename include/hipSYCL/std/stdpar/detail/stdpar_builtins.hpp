@@ -25,47 +25,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_NUMERIC_HPP
-#define HIPSYCL_PSTL_NUMERIC_HPP
+#ifndef HIPSYCL_PSTL_STDPAR_BUILTINS_HPP
+#define HIPSYCL_PSTL_STDPAR_BUILTINS_HPP
 
-#include "detail/std_include_prologue.hpp"
-#include_next <numeric>
-#include "detail/std_include_epilogue.hpp"
+#include "sycl_glue.hpp"
+#include "stdpar_defs.hpp"
 
-#include "detail/stdpar_defs.hpp"
-#include "execution"
-#include <iterator>
-
-namespace std {
-
-template<class ForwardIt1, class ForwardIt2, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init);
-
-template<class ForwardIt1, class ForwardIt2, class T,
-          class BinaryReductionOp,
-          class BinaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt1 first1, ForwardIt1 last1,
-                    ForwardIt2 first2,
-                    T init,
-                    BinaryReductionOp reduce,
-                    BinaryTransformOp transform );
-
-template<class ForwardIt, class T,
-          class BinaryReductionOp,
-          class UnaryTransformOp >
-HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
-                    ForwardIt first, ForwardIt last,
-                    T init,
-                    BinaryReductionOp reduce,
-                    UnaryTransformOp transform );
-
+// Compiler does not currently support handling invoke instructions for
+// these calls, so mark them as noexcept (which should be fine) such
+// that call instructions are generated instead.
+HIPSYCL_STDPAR_NOINLINE
+extern "C" void __hipsycl_stdpar_optimizable_sync(hipsycl::sycl::queue& q) noexcept {
+  q.wait();
 }
+
+#ifdef __clang__
+extern "C" void __hipsycl_stdpar_consume_sync() noexcept;
+#else
+inline void __hipsycl_stdpar_consume_sync() noexcept {}
+#endif
+
+
 
 #endif

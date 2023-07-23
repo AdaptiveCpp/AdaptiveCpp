@@ -272,6 +272,10 @@ public:
   rt::runtime* hipSYCL_runtime() const {
     return _requires_runtime.get();
   }
+
+  rt::device_id hipSYCL_device_id() const {
+    return _device_id;
+  }
 private:
   rt::device_id _device_id;
   rt::runtime_keep_alive_token _requires_runtime;

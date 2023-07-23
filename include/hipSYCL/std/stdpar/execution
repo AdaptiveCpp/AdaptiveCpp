@@ -28,23 +28,12 @@
 #ifndef HIPSYCL_PSTL_EXECUTION_HPP
 #define HIPSYCL_PSTL_EXECUTION_HPP
 
-#define par_unseq __default_par_unseq
-#define parallel_unsequenced_policy __default_parallel_unsequenced_policy
+#include "detail/std_include_prologue.hpp"
 #include_next <execution>
-#undef par_unseq
-#undef parallel_unsequenced_policy
+#include "detail/std_include_epilogue.hpp"
 
-namespace std::execution {
+#include "detail/execution_impl.hpp"
 
-struct offload_parallel_unsequenced_policy : public __default_parallel_unsequenced_policy {};
-// Create an alias to parallel_unsequenced_policy instead of directly
-// calling it parallel_unsequenced_policy so that we can hopefully avoid
-// ODR issues when linking object files that differ in whether --hipsycl-stdpar
-// was enabled.
-using parallel_unsequenced_policy = offload_parallel_unsequenced_policy;
-
-inline constexpr parallel_unsequenced_policy par_unseq {};
-}
 
 namespace __pstl::execution {
 inline namespace v1 {
@@ -54,7 +43,6 @@ struct is_execution_policy<std::execution::offload_parallel_unsequenced_policy> 
 
 }
 }
-
 
 
 #endif

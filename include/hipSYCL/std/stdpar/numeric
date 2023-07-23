@@ -66,6 +66,21 @@ T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
                     BinaryReductionOp reduce,
                     UnaryTransformOp transform );
 
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::value_type
+reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+       ForwardIt last);
+
+template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
+T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+         ForwardIt last, T init);
+
+template <class ForwardIt, class T, class BinaryOp>
+HIPSYCL_STDPAR_ENTRYPOINT
+T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+         ForwardIt last, T init, BinaryOp binary_op);
 }
 
 #endif

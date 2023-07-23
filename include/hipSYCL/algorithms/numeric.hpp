@@ -295,6 +295,28 @@ sycl::event transform_reduce(sycl::queue &q,
 }
 
 
+template <class ForwardIt, class T, class BinaryOp>
+sycl::event reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, T *out, T init,
+                   BinaryOp binary_op) {
+  return transform_reduce(q, scratch_allocations, first, last, out, init,
+                          binary_op, [](auto x) { return x; });
+}
+
+template <class ForwardIt, class T>
+sycl::event reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last, T *out, T init) {
+  return reduce(q, scratch_allocations, first, last, out, init, std::plus<T>{});
+}
+
+template <class ForwardIt>
+sycl::event reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   ForwardIt first, ForwardIt last,
+                   typename std::iterator_traits<ForwardIt>::value_type *out) {
+  return reduce(q, scratch_allocations, first, last, out,
+                typename std::iterator_traits<ForwardIt>::value_type{});
+}
+
 }
 
 #endif

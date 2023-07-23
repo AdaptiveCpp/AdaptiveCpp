@@ -143,6 +143,94 @@ T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
     return *output;
 }
 
+template <class ForwardIt>
+HIPSYCL_STDPAR_ENTRYPOINT
+typename std::iterator_traits<ForwardIt>::value_type
+reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+       ForwardIt last) {
+  __hipsycl_stdpar_consume_sync();
+
+  using result_type = typename std::iterator_traits<ForwardIt>::value_type;
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+  auto reduction_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::device>();
+  
+  result_type* output = output_scratch_group.obtain<result_type>(1);
+  hipsycl::algorithms::reduce(q, reduction_scratch_group, first, last, output);
+  // We need to wait in any case here, so cannot elide synchronization
+  q.wait();
+  
+  if(first == last)
+    return result_type{};
+  else
+    return *output;
+}
+
+template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
+T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+         ForwardIt last, T init) {
+  __hipsycl_stdpar_consume_sync();
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+  auto reduction_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::device>();
+  
+  T* output = output_scratch_group.obtain<T>(1);
+  hipsycl::algorithms::reduce(q, reduction_scratch_group, first, last, output,
+                              init);
+  // We need to wait in any case here, so cannot elide synchronization
+  q.wait();
+  
+  if(first == last)
+    return init;
+  else
+    return *output;
+}
+
+template <class ForwardIt, class T, class BinaryOp>
+HIPSYCL_STDPAR_ENTRYPOINT
+T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+         ForwardIt last, T init, BinaryOp binary_op) {
+  __hipsycl_stdpar_consume_sync();
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+  auto reduction_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::device>();
+  
+  T* output = output_scratch_group.obtain<T>(1);
+  hipsycl::algorithms::reduce(q, reduction_scratch_group, first, last, output,
+                              init, binary_op);
+  // We need to wait in any case here, so cannot elide synchronization
+  q.wait();
+  
+  if(first == last)
+    return init;
+  else
+    return *output;
+}
+
 }
 
 #endif

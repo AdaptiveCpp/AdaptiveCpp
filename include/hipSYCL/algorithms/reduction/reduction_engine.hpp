@@ -35,6 +35,7 @@
 #include <vector>
 
 
+#include "hipSYCL/algorithms/reduction/threading_model/cache_line.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/sycl/libkernel/detail/data_layout.hpp"
 
@@ -96,8 +97,8 @@ auto configure_descriptor(
 
   return threading_model::configured_reduction_descriptor<ReductionDescriptor>{
       descriptor, data_plan.is_data_initialized,
-      static_cast<value_type *>(data_plan.scratch_data)
-  };
+      static_cast<threading_model::cache_line_aligned<value_type> *>(
+          data_plan.scratch_data)};
 }
 
 template<class F, typename... Args>
@@ -450,19 +451,19 @@ class threading_reduction_engine {
           using descriptor_type = std::decay_t<decltype(descriptor)>;
           using value_type = typename descriptor_type::value_type;
 
-          initialization_flag_t *init =
+          auto *init =
               reduction_plan[0].data_plan[reduction_index].is_data_initialized;
-          value_type *scratch = static_cast<value_type *>(
+          auto *scratch = static_cast<threading_model::cache_line_aligned<value_type> *>(
               reduction_plan[0].data_plan[reduction_index].scratch_data);
 
           if (init) {
             for (int j = 0; j < _thread_query.get_max_num_threads(); ++j)
-              init[j] = false;
+              init[j].value = false;
           }
           if constexpr (std::decay_t<
                             decltype(descriptor)>::has_known_identity()) {
             for (int j = 0; j < _thread_query.get_max_num_threads(); ++j)
-              scratch[j] = descriptor.get_operator().get_identity();
+              scratch[j].value = descriptor.get_operator().get_identity();
           }
         },
         descriptors...);
@@ -499,10 +500,8 @@ class threading_reduction_engine {
 
           using descriptor_type = std::decay_t<decltype(configured_descriptor)>;
           typename descriptor_type::value_type current{};
-          typename descriptor_type::value_type *scratch =
-              configured_descriptor.get_scratch();
-          initialization_flag_t *init_stage =
-              configured_descriptor.get_initialization_state();
+          auto *scratch = configured_descriptor.get_scratch();
+          auto *init_stage = configured_descriptor.get_initialization_state();
 
           bool is_initialized = false;
           
@@ -511,12 +510,12 @@ class threading_reduction_engine {
 
           for(int i = 0; i < num_entries; ++i) {
             if constexpr(descriptor_type::has_known_identity()) {
-              current =
-                  configured_descriptor.get_operator()(current, scratch[i]);
+              current = configured_descriptor.get_operator()(current,
+                                                             scratch[i].value);
             } else {
-              if(init_stage[i]) {
-                current =
-                  configured_descriptor.get_operator()(current, scratch[i]);
+              if (init_stage[i].value) {
+                current = configured_descriptor.get_operator()(
+                    current, scratch[i].value);
                 is_initialized = true;
               }
             }
@@ -569,18 +568,22 @@ public:
 
           using value_type =
               typename std::decay_t<decltype(descriptor)>::value_type;
-
-          value_type *scratch_data =
-              _scratch_allocations->obtain<value_type>(max_threads);
+          using aligned_value_type =
+              threading_model::cache_line_aligned<value_type>;
+          aligned_value_type *scratch_data =
+              _scratch_allocations->obtain<aligned_value_type>(max_threads);
 
           primary_stage.data_plan[reduction_index].scratch_data = scratch_data;
           secondary_stage.data_plan[reduction_index].scratch_data =
               scratch_data;
 
-          initialization_flag_t *is_initialized = nullptr;
+          using aligned_initialization_flag =
+              threading_model::cache_line_aligned<initialization_flag_t>;
+          aligned_initialization_flag *is_initialized = nullptr;
+
           if (!has_known_identity) {
             is_initialized =
-                _scratch_allocations->obtain<initialization_flag_t>(
+                _scratch_allocations->obtain<aligned_initialization_flag>(
                     max_threads);
           }
 

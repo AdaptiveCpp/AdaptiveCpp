@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_ALGORITHMS_NUMERIC_HPP
 #define HIPSYCL_ALGORITHMS_NUMERIC_HPP
 
+#include <cstddef>
 #include <iterator>
 #include <functional>
 #include <limits>
@@ -49,7 +50,7 @@ struct identity {
 
 #define HIPSYCL_ALGORITHMS_DEFINE_KNOWN_IDENTITY(op, value)                    \
   template <class T> struct identity<T, op> {                                  \
-    static constexpr bool is_known() { return true; }                         \
+    static constexpr bool is_known() { return true; }                          \
     static T get_identity() { return value; }                                  \
   };
 
@@ -73,11 +74,14 @@ auto get_reduction_operator_configuration(const BinaryOp& op) {
   }
 }
 
-template <class T, class Kernel, class BinaryReductionOp>
-sycl::event
-wg_model_reduction(sycl::queue &q, util::allocation_group &scratch_allocations,
-                   T *output, T init, std::size_t target_num_groups,
-                   std::size_t problem_size, Kernel k, BinaryReductionOp op) {
+
+template <class T, class Kernel,
+          class BinaryReductionOp>
+sycl::event wg_model_reduction(sycl::queue &q,
+                               util::allocation_group &scratch_allocations,
+                               T *output, T init, std::size_t target_num_groups,
+                               std::size_t local_size, std::size_t problem_size,
+                               Kernel k, BinaryReductionOp op) {
 
   sycl::event last_event;
   auto ndrange_launcher =
@@ -96,8 +100,6 @@ wg_model_reduction(sycl::queue &q, util::allocation_group &scratch_allocations,
   auto operator_config = get_reduction_operator_configuration<T>(op);
   auto reduction_descriptor = reduction::reduction_descriptor{
       operator_config, init, output};
-  
-  std::size_t local_size = 128;
 
   using group_reduction_type =
       reduction::wg_model::group_reductions::generic_local_memory<
@@ -112,34 +114,67 @@ wg_model_reduction(sycl::queue &q, util::allocation_group &scratch_allocations,
   reduction::wg_hierarchical_reduction_engine engine{horizontal_reducer,
                                                      &scratch_allocations};
 
-  // The number of groups we need to dispatch is what the user requests
-  // -- however, if the problem is by itself already smaller, no point
-  // in submitting empty groups. So use min().
-  std::size_t num_groups =
-      std::min((problem_size + local_size - 1) / local_size, target_num_groups);
+  std::size_t default_num_groups = (problem_size + local_size - 1) / local_size;
+  if(target_num_groups == 0) {
+    auto plan = engine.create_plan(local_size * default_num_groups, local_size,
+                                   reduction_descriptor);
 
-  const std::size_t dispatched_global_size = local_size * num_groups;
-  auto plan = engine.create_plan(dispatched_global_size, local_size,
-                                 reduction_descriptor);
+    auto main_kernel = engine.make_main_reducing_kernel(
+        [=](sycl::nd_item<1> idx, auto &reducer) {
+          std::size_t i = idx.get_global_id(0);
+          if(i < problem_size) {
+            k(sycl::id<1>{i}, reducer);
+          }
+        },
+        plan);
 
-  auto main_kernel = engine.make_main_reducing_kernel(
-      [=](sycl::nd_item<1> idx, auto &reducer) {
-        for (std::size_t i = idx.get_global_id(0); i < problem_size;
-             i += dispatched_global_size) {
-          k(sycl::id<1>{i}, reducer);
-        }
-      },
-      plan);
+    last_event = q.submit([&](sycl::handler &cgh) {
+      sycl::local_accessor<T> acc{sycl::range<1>{main_kernel_local_mem}, cgh};
+      cgh.parallel_for(
+          sycl::nd_range<1>{local_size * default_num_groups, local_size},
+          main_kernel);
+    });
 
-  last_event = q.submit([&](sycl::handler &cgh) {
-    sycl::local_accessor<T> acc{sycl::range<1>{main_kernel_local_mem}, cgh};
-    cgh.parallel_for(sycl::nd_range<1>{dispatched_global_size, local_size},
-                     main_kernel);
-  });
+    engine.run_additional_kernels(ndrange_launcher, plan);
+  } else {
+    // The number of groups we need to dispatch is what the user requests
+    // -- however, if the problem is by itself already smaller, no point
+    // in submitting empty groups. So use min().
+    std::size_t num_groups =
+        std::min((problem_size + local_size - 1) / local_size, target_num_groups);
 
-  engine.run_additional_kernels(ndrange_launcher, plan);
+    const std::size_t dispatched_global_size = local_size * num_groups;
+    auto plan = engine.create_plan(dispatched_global_size, local_size,
+                                  reduction_descriptor);
+
+    auto main_kernel = engine.make_main_reducing_kernel(
+        [=](sycl::nd_item<1> idx, auto &reducer) {
+          for (std::size_t i = idx.get_global_id(0); i < problem_size;
+              i += dispatched_global_size) {
+            k(sycl::id<1>{i}, reducer);
+          }
+        },
+        plan);
+
+    last_event = q.submit([&](sycl::handler &cgh) {
+      sycl::local_accessor<T> acc{sycl::range<1>{main_kernel_local_mem}, cgh};
+      cgh.parallel_for(sycl::nd_range<1>{dispatched_global_size, local_size},
+                      main_kernel);
+    });
+
+    engine.run_additional_kernels(ndrange_launcher, plan);
+  }
   
   return last_event;
+}
+
+template <class T, class Kernel, class BinaryReductionOp>
+sycl::event
+wg_model_reduction(sycl::queue &q, util::allocation_group &scratch_allocations,
+                   T *output, T init, std::size_t target_num_groups,
+                   std::size_t problem_size, Kernel k, BinaryReductionOp op) {
+  return wg_model_reduction(q, scratch_allocations, output, init,
+                                  target_num_groups, 128, problem_size, k, op);
 }
 
 template <class T, class Kernel, class BinaryReductionOp>
@@ -180,8 +215,16 @@ sycl::event transform_reduce_impl(sycl::queue &q,
                                   T *output, T init, std::size_t n, Kernel k,
                                   BinaryReductionOp op) {
   if(q.get_device().is_host()) {
+#ifdef HIPSYCL_ALGORITHMS_TRANSFORM_REDUCE_HOST_THREADING_MODEL
     return threading_model_reduction(q, scratch_allocations, output, init, n, k,
                                      op);
+#else
+    sycl::device dev = q.get_device();
+    
+    std::size_t local_size = 128;
+    return wg_model_reduction(q, scratch_allocations, output, init, 0,
+                              local_size, n, k, op);
+#endif
   } else {
     sycl::device dev = q.get_device();
     std::size_t num_groups =

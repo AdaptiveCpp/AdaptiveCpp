@@ -99,15 +99,27 @@ ForwardIt generate_n(std::execution::offload_parallel_unsequenced_policy,
                     ForwardIt first, Size count, Generator g);
 
 template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
 void replace(std::execution::offload_parallel_unsequenced_policy,
              ForwardIt first, ForwardIt last, const T &old_value,
              const T &new_value);
 
 template <class ForwardIt, class UnaryPredicate, class T>
+HIPSYCL_STDPAR_ENTRYPOINT
 void replace_if(std::execution::offload_parallel_unsequenced_policy,
                 ForwardIt first, ForwardIt last, UnaryPredicate p,
                 const T &new_value);
 
+template <class ForwardIt1, class ForwardIt2, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
+replace_copy(std::execution::offload_parallel_unsequenced_policy,
+             ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+             const T &old_value, const T &new_value);
+
+template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
+    std::execution::offload_parallel_unsequenced_policy, ForwardIt1 first,
+    ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value);
 }
 
 

@@ -195,6 +195,35 @@ void replace_if(std::execution::offload_parallel_unsequenced_policy,
   __hipsycl_stdpar_optimizable_sync(q);
 }
 
+template <class ForwardIt1, class ForwardIt2, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
+replace_copy(std::execution::offload_parallel_unsequenced_policy,
+             ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+             const T &old_value, const T &new_value) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto d_last = d_first;
+  std::advance(d_last, std::distance(first, last));
+  hipsycl::algorithms::replace_copy(q, first, last, d_first, old_value,
+                                    new_value);
+  __hipsycl_stdpar_optimizable_sync(q);
+  return d_last;
+}
+
+template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
+    std::execution::offload_parallel_unsequenced_policy, ForwardIt1 first,
+    ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
+  __hipsycl_stdpar_consume_sync();
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto d_last = d_first;
+  std::advance(d_last, std::distance(first, last));
+  hipsycl::algorithms::replace_copy_if(q, first, last, d_first, p,
+                                    new_value);
+  __hipsycl_stdpar_optimizable_sync(q);
+  return d_last;
+}
+
 }
 
 #endif

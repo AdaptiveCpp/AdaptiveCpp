@@ -204,6 +204,34 @@ sycl::event replace_if(sycl::queue& q, ForwardIt first, ForwardIt last,
   });
 }
 
+template <class ForwardIt1, class ForwardIt2,
+          class UnaryPredicate, class T>
+sycl::event replace_copy_if(
+    sycl::queue& q, ForwardIt1 first,
+    ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
+  return q.parallel_for(sycl::range{std::distance(first, last)},
+                        [=](sycl::id<1> id) {
+                          auto input = first;
+                          auto output = d_first;
+                          std::advance(input, id[0]);
+                          std::advance(output, id[0]);
+                          if (p(*input)) {
+                            *output = new_value;
+                          } else {
+                            *output = *input;
+                          }
+                        });
+}
+
+template <class ForwardIt1, class ForwardIt2, class T>
+sycl::event
+replace_copy(sycl::queue& q,
+             ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
+             const T &old_value, const T &new_value) {
+  return replace_copy_if(
+      q, first, last, d_first, [=](const auto &x) { return x == old_value; },
+      new_value);
+}
 
 }
 

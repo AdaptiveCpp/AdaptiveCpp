@@ -30,11 +30,30 @@
 
 #include <iterator>
 #include <limits>
+#include <type_traits>
+#include "util/traits.hpp"
 #include "hipSYCL/sycl/libkernel/functional.hpp"
 #include "hipSYCL/sycl/sycl.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
 namespace hipsycl::algorithms {
+
+namespace detail {
+
+template<class T>
+bool all_bytes_equal(const T& val, unsigned char& byte_value) {
+  std::array<unsigned char, sizeof(T)> buff;
+  std::memcpy(buff.data(), &val, sizeof(T));
+
+  for(int i = 0; i < sizeof(T); ++i) {
+    if(buff[i] != buff[0])
+      return false;
+  }
+  byte_value = buff[0];
+  return true;
+}
+
+}
 
 template <class ForwardIt, class UnaryFunction2>
 sycl::event for_each(sycl::queue &q, ForwardIt first, ForwardIt last,
@@ -98,14 +117,29 @@ sycl::event transform(sycl::queue &q, ForwardIt1 first1, ForwardIt1 last1,
 template <class ForwardIt1, class ForwardIt2>
 sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
                  ForwardIt2 d_first) {
-  return q.parallel_for(sycl::range{std::distance(first, last)},
-                        [=](sycl::id<1> id) {
-                          auto input = first;
-                          auto output = d_first;
-                          std::advance(input, id[0]);
-                          std::advance(output, id[0]);
-                          *output = *input;
-                        });
+  
+  auto size = std::distance(first, last);
+  if(size == 0)
+    return sycl::event{};
+  
+  using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
+  using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
+  
+  if constexpr (std::is_trivially_copyable_v<value_type1> &&
+                std::is_same_v<value_type1, value_type2> &&
+                util::is_contiguous<ForwardIt1>() &&
+                util::is_contiguous<ForwardIt2>()) {
+    return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1));
+  } else {
+    return q.parallel_for(sycl::range{size},
+                          [=](sycl::id<1> id) {
+                            auto input = first;
+                            auto output = d_first;
+                            std::advance(input, id[0]);
+                            std::advance(output, id[0]);
+                            *output = *input;
+                          });
+  }
 }
 
 
@@ -130,25 +164,42 @@ template<class ForwardIt1, class Size, class ForwardIt2 >
 sycl::event copy_n(sycl::queue& q, ForwardIt1 first, Size count, ForwardIt2 result) {
   if(count <= 0)
     return sycl::event{};
-  return q.parallel_for(sycl::range{static_cast<size_t>(count)},
-                        [=](sycl::id<1> id) {
-                          auto input = first;
-                          auto output = result;
-                          std::advance(input, id[0]);
-                          std::advance(output, id[0]);
-                          *output = *input;
-                        });
+
+  auto last = first;
+  std::advance(last, count);
+  return copy(q, first, last, result);
 }
 
 template <class ForwardIt, class T>
 sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                  const T &value) {
-  return q.parallel_for(sycl::range{std::distance(first, last)},
+  auto size = std::distance(first, last);
+  if(size == 0)
+    return sycl::event{};
+
+  using value_type = typename std::iterator_traits<ForwardIt>::value_type;
+
+  auto invoke_kernel = [&]() -> sycl::event{
+    return q.parallel_for(sycl::range{size},
                         [=](sycl::id<1> id) {
                           auto it = first;
                           std::advance(it, id[0]);
                           *it = value;
                         });
+  };
+
+  if constexpr (std::is_trivial_v<value_type> &&
+                std::is_same_v<value_type, T> &&
+                util::is_contiguous<ForwardIt>()) {
+    unsigned char equal_byte;
+    if(detail::all_bytes_equal(value, equal_byte)) {
+      return q.memset(&(*first), static_cast<int>(equal_byte), size);
+    } else {
+      return invoke_kernel();
+    }
+  } else {
+    return invoke_kernel();
+  }
 }
 
 template<class ForwardIt, class Size, class T >
@@ -156,12 +207,10 @@ sycl::event fill_n(sycl::queue& q,
                   ForwardIt first, Size count, const T& value ) {
   if(count <= 0)
     return sycl::event{};
-  return q.parallel_for(sycl::range{static_cast<size_t>(count)},
-                        [=](sycl::id<1> id) {
-                          auto it = first;
-                          std::advance(it, id[0]);
-                          *it = value;
-                        });
+  
+  auto last = first;
+  std::advance(last, count);
+  return fill(q, first, last, value);
 }
 
 

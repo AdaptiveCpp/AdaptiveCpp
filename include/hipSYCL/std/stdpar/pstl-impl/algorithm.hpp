@@ -28,18 +28,19 @@
 #ifndef HIPSYCL_PSTL_ALGORITHM_DEFINITION_HPP
 #define HIPSYCL_PSTL_ALGORITHM_DEFINITION_HPP
 
-#include "hipSYCL/std/stdpar/algorithm"
+#include <iterator>
 
+#include "../detail/execution_fwd.hpp"
 #include "../detail/sycl_glue.hpp"
 #include "../detail/stdpar_builtins.hpp"
+#include "../detail/stdpar_defs.hpp"
 #include "hipSYCL/algorithms/algorithm.hpp"
 
 namespace std {
 
-template<class ForwardIt, class UnaryFunction2>
-HIPSYCL_STDPAR_ENTRYPOINT
-void for_each(std::execution::offload_parallel_unsequenced_policy,
-               ForwardIt first, ForwardIt last, UnaryFunction2 f) {
+template <class ForwardIt, class UnaryFunction2>
+HIPSYCL_STDPAR_ENTRYPOINT void for_each(__hipsycl_par_unseq, ForwardIt first,
+                                        ForwardIt last, UnaryFunction2 f) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   hipsycl::algorithms::for_each(q, first, last, f);
@@ -48,7 +49,7 @@ void for_each(std::execution::offload_parallel_unsequenced_policy,
 
 template<class ForwardIt, class Size, class UnaryFunction2>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt for_each_n(std::execution::offload_parallel_unsequenced_policy,
+ForwardIt for_each_n(__hipsycl_par_unseq,
                     ForwardIt first, Size n, UnaryFunction2 f) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
@@ -61,7 +62,7 @@ ForwardIt for_each_n(std::execution::offload_parallel_unsequenced_policy,
 
 template <class ForwardIt1, class ForwardIt2, class UnaryOperation>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 transform(std::execution::offload_parallel_unsequenced_policy,
+ForwardIt2 transform(__hipsycl_par_unseq,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 d_first,
                      UnaryOperation unary_op) {
   __hipsycl_stdpar_consume_sync();
@@ -76,7 +77,7 @@ ForwardIt2 transform(std::execution::offload_parallel_unsequenced_policy,
 template <class ForwardIt1, class ForwardIt2, class ForwardIt3,
           class BinaryOperation>
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt3 transform(std::execution::offload_parallel_unsequenced_policy,
+ForwardIt3 transform(__hipsycl_par_unseq,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2,
                      ForwardIt3 d_first, BinaryOperation binary_op) {
   __hipsycl_stdpar_consume_sync();
@@ -89,7 +90,7 @@ ForwardIt3 transform(std::execution::offload_parallel_unsequenced_policy,
 }
 
 template <class ForwardIt1, class ForwardIt2>
-HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(std::execution::offload_parallel_unsequenced_policy,
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(const __hipsycl_par_unseq,
                                           ForwardIt1 first, ForwardIt1 last,
                                           ForwardIt2 d_first) {
   __hipsycl_stdpar_consume_sync();
@@ -103,7 +104,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 copy(std::execution::offload_parallel_unseq
 
 template<class ForwardIt1, class ForwardIt2, class UnaryPredicate >
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 copy_if(std::execution::offload_parallel_unsequenced_policy,
+ForwardIt2 copy_if(__hipsycl_par_unseq,
                    ForwardIt1 first, ForwardIt1 last,
                    ForwardIt2 d_first,
                    UnaryPredicate pred) {
@@ -118,7 +119,7 @@ ForwardIt2 copy_if(std::execution::offload_parallel_unsequenced_policy,
 
 template<class ForwardIt1, class Size, class ForwardIt2 >
 HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt2 copy_n(std::execution::offload_parallel_unsequenced_policy,
+ForwardIt2 copy_n(__hipsycl_par_unseq,
                    ForwardIt1 first, Size count, ForwardIt2 result ) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
@@ -131,7 +132,7 @@ ForwardIt2 copy_n(std::execution::offload_parallel_unsequenced_policy,
 
 template<class ForwardIt, class T >
 HIPSYCL_STDPAR_ENTRYPOINT
-void fill(std::execution::offload_parallel_unsequenced_policy,
+void fill(__hipsycl_par_unseq,
           ForwardIt first, ForwardIt last, const T& value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
@@ -139,10 +140,9 @@ void fill(std::execution::offload_parallel_unsequenced_policy,
   __hipsycl_stdpar_optimizable_sync(q);
 }
 
-template<class ForwardIt, class Size, class T >
-HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt fill_n(std::execution::offload_parallel_unsequenced_policy,
-                  ForwardIt first, Size count, const T& value ) {
+template <class ForwardIt, class Size, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt fill_n(__hipsycl_par_unseq, ForwardIt first,
+                                           Size count, const T &value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = first;
@@ -152,20 +152,19 @@ ForwardIt fill_n(std::execution::offload_parallel_unsequenced_policy,
   return last;
 }
 
-template<class ForwardIt, class Generator >
-HIPSYCL_STDPAR_ENTRYPOINT
-void generate( std::execution::offload_parallel_unsequenced_policy,
-               ForwardIt first, ForwardIt last, Generator g) {
+template <class ForwardIt, class Generator>
+HIPSYCL_STDPAR_ENTRYPOINT void generate(__hipsycl_par_unseq, ForwardIt first,
+                                        ForwardIt last, Generator g) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   hipsycl::algorithms::generate(q, first, last, g);
   __hipsycl_stdpar_optimizable_sync(q);
 }
 
-template<class ForwardIt, class Size, class Generator >
-HIPSYCL_STDPAR_ENTRYPOINT
-ForwardIt generate_n(std::execution::offload_parallel_unsequenced_policy, 
-                    ForwardIt first, Size count, Generator g) {
+template <class ForwardIt, class Size, class Generator>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt generate_n(__hipsycl_par_unseq,
+                                               ForwardIt first, Size count,
+                                               Generator g) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto last = first;
@@ -176,9 +175,8 @@ ForwardIt generate_n(std::execution::offload_parallel_unsequenced_policy,
 }
 
 template <class ForwardIt, class T>
-void replace(std::execution::offload_parallel_unsequenced_policy,
-             ForwardIt first, ForwardIt last, const T &old_value,
-             const T &new_value) {
+void replace(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+             const T &old_value, const T &new_value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   hipsycl::algorithms::replace(q, first, last, old_value, new_value);
@@ -186,9 +184,8 @@ void replace(std::execution::offload_parallel_unsequenced_policy,
 }
 
 template <class ForwardIt, class UnaryPredicate, class T>
-void replace_if(std::execution::offload_parallel_unsequenced_policy,
-                ForwardIt first, ForwardIt last, UnaryPredicate p,
-                const T &new_value) {
+void replace_if(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+                UnaryPredicate p, const T &new_value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   hipsycl::algorithms::replace_if(q, first, last, p, new_value);
@@ -197,9 +194,8 @@ void replace_if(std::execution::offload_parallel_unsequenced_policy,
 
 template <class ForwardIt1, class ForwardIt2, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2
-replace_copy(std::execution::offload_parallel_unsequenced_policy,
-             ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
-             const T &old_value, const T &new_value) {
+replace_copy(__hipsycl_par_unseq, ForwardIt1 first, ForwardIt1 last,
+             ForwardIt2 d_first, const T &old_value, const T &new_value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   auto d_last = d_first;
@@ -212,7 +208,7 @@ replace_copy(std::execution::offload_parallel_unsequenced_policy,
 
 template <class ForwardIt1, class ForwardIt2, class UnaryPredicate, class T>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
-    std::execution::offload_parallel_unsequenced_policy, ForwardIt1 first,
+    __hipsycl_par_unseq, ForwardIt1 first,
     ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
   __hipsycl_stdpar_consume_sync();
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
@@ -224,6 +220,20 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
   return d_last;
 }
 
+/*
+template <class ForwardIt, class T>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find(const __hipsycl_par_unseq, ForwardIt first,
+                                         ForwardIt last, const T &value);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if(const __hipsycl_par_unseq,
+                                            ForwardIt first, ForwardIt last,
+                                            UnaryPredicate p);
+
+template <class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const __hipsycl_par_unseq,
+                                                ForwardIt first, ForwardIt last,
+                                                UnaryPredicate q); */
 }
 
 #endif

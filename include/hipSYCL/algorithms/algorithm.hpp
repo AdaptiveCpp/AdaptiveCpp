@@ -29,7 +29,10 @@
 #define HIPSYCL_ALGORITHMS_ALGORITHM_HPP
 
 #include <iterator>
+#include <limits>
+#include "hipSYCL/sycl/libkernel/functional.hpp"
 #include "hipSYCL/sycl/sycl.hpp"
+#include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
 namespace hipsycl::algorithms {
 
@@ -233,6 +236,32 @@ replace_copy(sycl::queue& q,
       new_value);
 }
 
+/*
+// Need transform_reduce functionality for find etc, so forward
+// declare here.
+template <class ForwardIt, class T, class BinaryReductionOp,
+          class UnaryTransformOp>
+sycl::event
+transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, T* out, T init,
+                 BinaryReductionOp reduce, UnaryTransformOp transform);
+
+template <class ForwardIt, class T>
+sycl::event find(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
+                 typename std::iterator_traits<ForwardIt>::difference_type* out, const T &value) {
+  using difference_type = typename std::iterator_traits<ForwardIt>::difference_type;
+  
+  return transform_reduce(q, scratch_allocations, first, last, out, std::distance(first, last), sycl::minimum<difference_type>{},)
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
+                    typename std::iterator_traits<ForwardIt>::difference_type* out, UnaryPredicate p);
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
+                        typename std::iterator_traits<ForwardIt>::difference_type* out, UnaryPredicate p);
+*/                        
 }
 
 #endif

@@ -1787,8 +1787,7 @@ class compiler:
         "-isystem", stdpar_include_path,
         "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__",
         # TODO We should find a way to only emit this argument if the clang plugin is used.
-        "-mllvm", "-hipsycl-stdpar",
-        "-include", os.path.join(stdpar_include_path, "pstl-impl/pstl.hpp")
+        "-mllvm", "-hipsycl-stdpar"
       ]
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]

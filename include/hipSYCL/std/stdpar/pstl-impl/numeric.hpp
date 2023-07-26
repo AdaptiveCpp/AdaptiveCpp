@@ -39,7 +39,7 @@ namespace std {
 
 template<class ForwardIt1, class ForwardIt2, class T >
 HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
+T transform_reduce(__hipsycl_par_unseq,
                     ForwardIt1 first1, ForwardIt1 last1,
                     ForwardIt2 first2,
                     T init) {
@@ -79,7 +79,7 @@ template<class ForwardIt1, class ForwardIt2, class T,
           class BinaryReductionOp,
           class BinaryTransformOp >
 HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
+T transform_reduce(__hipsycl_par_unseq,
                     ForwardIt1 first1, ForwardIt1 last1,
                     ForwardIt2 first2,
                     T init,
@@ -114,7 +114,7 @@ template<class ForwardIt, class T,
           class BinaryReductionOp,
           class UnaryTransformOp >
 HIPSYCL_STDPAR_ENTRYPOINT
-T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
+T transform_reduce(__hipsycl_par_unseq,
                     ForwardIt first, ForwardIt last,
                     T init,
                     BinaryReductionOp reduce,
@@ -146,7 +146,7 @@ T transform_reduce(std::execution::offload_parallel_unsequenced_policy,
 template <class ForwardIt>
 HIPSYCL_STDPAR_ENTRYPOINT
 typename std::iterator_traits<ForwardIt>::value_type
-reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+reduce(__hipsycl_par_unseq, ForwardIt first,
        ForwardIt last) {
   __hipsycl_stdpar_consume_sync();
 
@@ -175,7 +175,7 @@ reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
 
 template <class ForwardIt, class T>
 HIPSYCL_STDPAR_ENTRYPOINT
-T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+T reduce(__hipsycl_par_unseq, ForwardIt first,
          ForwardIt last, T init) {
   __hipsycl_stdpar_consume_sync();
 
@@ -204,7 +204,7 @@ T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
 
 template <class ForwardIt, class T, class BinaryOp>
 HIPSYCL_STDPAR_ENTRYPOINT
-T reduce(std::execution::offload_parallel_unsequenced_policy, ForwardIt first,
+T reduce(__hipsycl_par_unseq, ForwardIt first,
          ForwardIt last, T init, BinaryOp binary_op) {
   __hipsycl_stdpar_consume_sync();
 

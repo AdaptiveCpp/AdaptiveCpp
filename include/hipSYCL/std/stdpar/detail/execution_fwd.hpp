@@ -25,27 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_PSTL_EXECUTION_IMPL_HPP
-#define HIPSYCL_PSTL_EXECUTION_IMPL_HPP
+#ifndef HIPSYCL_PSTL_EXECUTION_FWD_HPP
+#define HIPSYCL_PSTL_EXECUTION_FWD_HPP
 
-#include "std_include_prologue.hpp"
-#include_next <pstl/execution_impl.h>
-#include "std_include_epilogue.hpp"
+#include <pstl/execution_defs.h>
 
+namespace hipsycl::stdpar::execution {
 
-namespace std::execution {
+struct offload_parallel_unsequenced_policy;
 
-struct offload_parallel_unsequenced_policy
-    : public __pstl::__internal::__default_parallel_unsequenced_policy {};
-// Create an alias to parallel_unsequenced_policy instead of directly
-// calling it parallel_unsequenced_policy so that we can hopefully avoid
-// ODR issues when linking object files that differ in whether --hipsycl-stdpar
-// was enabled.
-using parallel_unsequenced_policy = offload_parallel_unsequenced_policy;
-
-inline constexpr parallel_unsequenced_policy par_unseq {};
 }
 
-
+using __hipsycl_par_unseq =
+    __pstl::execution::parallel_unsequenced_policy;
 
 #endif

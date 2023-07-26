@@ -28,21 +28,9 @@
 #ifndef HIPSYCL_PSTL_EXECUTION_HPP
 #define HIPSYCL_PSTL_EXECUTION_HPP
 
-#include "detail/std_include_prologue.hpp"
 #include_next <execution>
-#include "detail/std_include_epilogue.hpp"
-
-#include "detail/execution_impl.hpp"
 
 
-namespace __pstl::execution {
-inline namespace v1 {
-
-template <>
-struct is_execution_policy<std::execution::offload_parallel_unsequenced_policy> : std::true_type {};
-
-}
-}
-
+#include "pstl-impl/pstl.hpp" 
 
 #endif

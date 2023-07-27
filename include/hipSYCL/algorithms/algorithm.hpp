@@ -193,7 +193,8 @@ sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                 util::is_contiguous<ForwardIt>()) {
     unsigned char equal_byte;
     if(detail::all_bytes_equal(value, equal_byte)) {
-      return q.memset(&(*first), static_cast<int>(equal_byte), size);
+      return q.memset(&(*first), static_cast<int>(equal_byte),
+                      size * sizeof(T));
     } else {
       return invoke_kernel();
     }

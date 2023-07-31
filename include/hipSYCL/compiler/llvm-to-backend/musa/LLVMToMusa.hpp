@@ -53,7 +53,7 @@ protected:
 private:
   std::vector<std::string> KernelNames;
   unsigned PtxVersion = 30;
-  unsigned PtxTarget = 30;
+  unsigned PtxTarget = 10;
 };
 
 }

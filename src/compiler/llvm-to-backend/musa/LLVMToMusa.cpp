@@ -217,7 +217,7 @@ bool LLVMToMusaTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   std::string ClangPath = HIPSYCL_CLANG_PATH;
 
   std::string PtxVersionArg = "+ptx" + std::to_string(PtxVersion);
-  std::string PtxTargetArg = "sm_" + std::to_string(PtxTarget);
+  std::string PtxTargetArg = "mp_" + std::to_string(PtxTarget);
   llvm::SmallVector<llvm::StringRef, 16> Invocation{ClangPath,
                                                     "-cc1",
                                                     "-triple",

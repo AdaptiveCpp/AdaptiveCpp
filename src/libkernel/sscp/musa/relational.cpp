@@ -43,6 +43,12 @@ HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isinf)
 
 HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isfinite)
 
-// HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(isnormal)
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f32(float x) {
+  return __builtin_isnormal(x);
+}
+
+HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_isnormal_f64(double x) {
+  return __builtin_isnormal(x);
+}
 
 HIPSYCL_SSCP_MAP_MTML_REL_BUILTIN(signbit)

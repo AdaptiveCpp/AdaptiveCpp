@@ -25,9 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// seems no half support in musa now
-#if 0
-
 #include "hipSYCL/sycl/libkernel/sscp/builtins/half.hpp"
 #include "hipSYCL/sycl/libkernel/detail/half_representation.hpp"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
@@ -68,7 +65,7 @@ __hipsycl_sscp_half_mul(hipsycl::fp16::half_storage a,
 HIPSYCL_SSCP_BUILTIN hipsycl::fp16::half_storage
 __hipsycl_sscp_half_div(hipsycl::fp16::half_storage a,
                         hipsycl::fp16::half_storage b) {
-  return hipsycl::fp16::create(__mt_fast_fdividef(
+  return hipsycl::fp16::create(__mt_fast_fdivide_f32(
       hipsycl::fp16::promote_to_float(a), hipsycl::fp16::promote_to_float(b)));
 }
 
@@ -113,5 +110,3 @@ __hipsycl_sscp_half_gte(hipsycl::fp16::half_storage a,
       : "=h"(v) : "h"(as_integer(a)), "h"(as_integer(b)));
   return v != 0;
 }
-
-#endif

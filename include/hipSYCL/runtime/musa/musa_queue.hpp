@@ -42,7 +42,7 @@
 // It's not possible to include both HIP and CUDA headers since they
 // define conflicting symbols. Therefore we should not include
 // cuda_runtime_api.h in runtime header files.
-// Note: MUstream_st* == cudaStream_t.
+// Note: MUstream_st* == musaStream_t.
 struct MUstream_st;
 
 namespace hipsycl {

@@ -130,19 +130,24 @@ sycl::event wg_model_reduction(sycl::queue &q,
   const std::size_t work_per_item =
       (problem_size + dispatched_global_size - 1) / dispatched_global_size;
   auto main_kernel = engine.make_main_reducing_kernel(
-      [=, item_problem_size=work_per_item](sycl::nd_item<1> idx, auto &reducer) {
-        __hipsycl_if_target_device(
-          for (std::size_t i = idx.get_global_id(0); i < problem_size;
-              i += dispatched_global_size) {
-            k(sycl::id<1>{i}, reducer);
-          });
-        __hipsycl_if_target_host(
-          const std::size_t gid = idx.get_global_id(0) * work_per_item;
-          
-          for (std::size_t i = 0; i < work_per_item; ++i) {
-            if(gid + i < problem_size)
-              k(sycl::id<1>{gid + i}, reducer);
-          });
+      [=](sycl::nd_item<1> idx, auto &reducer) {
+        // This pattern here may look peculiar, but it is much more
+        // performance-portable than the usual "for(int gid = get_global_id();
+        // gid < problem_size; gid += global_size)" pattern. Especially on CPU,
+        // this pattern does not work well - likely because the jump to an
+        // offset of global_size causes cache misses or confuses the prefetcher.
+        // Instead, we let each work group process segments of adjacent memory.
+        // This seems to work well on both CPU and GPU.
+
+        const std::size_t local_size = idx.get_local_range(0);
+        const std::size_t item_id = idx.get_global_id(0);
+        
+        for(std::size_t i = 0; i < work_per_item; ++i) {
+          const std::size_t gid = item_id + i * local_size;
+          if(gid < problem_size) {
+            k(sycl::id<1>{gid}, reducer);
+          }
+        }
         
       },
       plan);

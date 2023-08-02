@@ -28,9 +28,13 @@
 #ifndef HIPSYCL_ALGORITHMS_ALGORITHM_HPP
 #define HIPSYCL_ALGORITHMS_ALGORITHM_HPP
 
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <type_traits>
+#include "hipSYCL/sycl/libkernel/accessor.hpp"
+#include "hipSYCL/sycl/libkernel/atomic_builtins.hpp"
+#include "hipSYCL/sycl/libkernel/memory.hpp"
 #include "util/traits.hpp"
 #include "hipSYCL/sycl/libkernel/functional.hpp"
 #include "hipSYCL/sycl/sycl.hpp"
@@ -286,6 +290,15 @@ replace_copy(sycl::queue& q,
       new_value);
 }
 
+// Need transform_reduce functionality for find etc, so forward
+// declare here.
+template <class ForwardIt, class T, class BinaryReductionOp,
+          class UnaryTransformOp>
+sycl::event
+transform_reduce(sycl::queue &q, util::allocation_group &scratch_allocations,
+                 ForwardIt first, ForwardIt last, T* out, T init,
+                 BinaryReductionOp reduce, UnaryTransformOp transform);
+
 /*
 // Need transform_reduce functionality for find etc, so forward
 // declare here.
@@ -311,7 +324,107 @@ sycl::event find_if(sycl::queue &q, util::allocation_group &scratch_allocations,
 template <class ForwardIt, class UnaryPredicate>
 sycl::event find_if_not(sycl::queue &q, util::allocation_group &scratch_allocations, ForwardIt first, ForwardIt last,
                         typename std::iterator_traits<ForwardIt>::difference_type* out, UnaryPredicate p);
-*/                        
+*/
+
+namespace detail {
+using early_exit_flag_t = int;
+
+// predicate must be a callable of type bool(sycl::id<1>).
+// If it returns true, the for_each will abort and output_has_exited_early
+// will be set to true.
+template <class Predicate>
+sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
+                                early_exit_flag_t *output_has_exited_early,
+                                Predicate should_exit) {
+  
+  std::size_t group_size = 128;
+  std::size_t num_batches = (problem_size + group_size - 1) / group_size;
+
+  std::size_t target_num_groups =
+      q.get_device().get_info<sycl::info::device::max_compute_units>() * 4;
+  std::size_t num_groups = std::min(target_num_groups, num_batches);
+
+  std::size_t dispatched_global_size = num_groups * group_size;
+  std::size_t work_per_item =
+      (problem_size + dispatched_global_size - 1) / dispatched_global_size;
+
+  auto kernel = [=](sycl::nd_item<1> idx) {
+      const std::size_t item_id = idx.get_global_id(0);
+
+      for (std::size_t i = 0; i < work_per_item; ++i) {
+        if (sycl::detail::__hipsycl_atomic_load<
+                sycl::access::address_space::global_space>(
+                output_has_exited_early, sycl::memory_order_relaxed,
+                sycl::memory_scope_device))
+          return;
+
+        const std::size_t gid = item_id + i * group_size;
+        if (gid < problem_size) {
+          if (should_exit(sycl::id<1>{gid})) {
+            sycl::detail::__hipsycl_atomic_store<
+                sycl::access::address_space::global_space>(
+                output_has_exited_early, 1, sycl::memory_order_relaxed,
+                sycl::memory_scope_device);
+            return;
+          }
+        }
+      }
+    };
+
+  auto evt = q.single_task([=](){*output_has_exited_early = false;});
+  return q.parallel_for(sycl::nd_range<1>{dispatched_global_size, group_size}, evt,
+                        kernel);
+}
+
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event all_of(sycl::queue &q,
+                   ForwardIt first, ForwardIt last, detail::early_exit_flag_t* out,
+                   UnaryPredicate p) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+  auto evt = detail::early_exit_for_each(q, problem_size, out,
+                                     [=](sycl::id<1> idx) -> bool {
+                                       auto it = first;
+                                       std::advance(it, idx[0]);
+                                       return !p(*it);
+                                     });
+  return q.single_task(evt, [=](){
+    *out = static_cast<detail::early_exit_flag_t>(!(*out));
+  });
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event any_of(sycl::queue &q,
+                   ForwardIt first, ForwardIt last, detail::early_exit_flag_t* out,
+                   UnaryPredicate p) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+  return detail::early_exit_for_each(q, problem_size, out,
+                                     [=](sycl::id<1> idx) -> bool {
+                                       auto it = first;
+                                       std::advance(it, idx[0]);
+                                       return p(*it);
+                                     });
+}
+
+template <class ForwardIt, class UnaryPredicate>
+sycl::event none_of(sycl::queue &q,
+                   ForwardIt first, ForwardIt last, detail::early_exit_flag_t* out,
+                   UnaryPredicate p) {
+  std::size_t problem_size = std::distance(first, last);
+  if(problem_size == 0)
+    return sycl::event{};
+  
+  auto evt = any_of(q, first, last, out, p);
+  return q.single_task(evt, [=](){
+    *out = static_cast<detail::early_exit_flag_t>(!(*out));
+  });
+}
+
 }
 
 #endif

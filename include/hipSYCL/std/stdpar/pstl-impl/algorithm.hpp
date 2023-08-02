@@ -234,6 +234,68 @@ template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(const __hipsycl_par_unseq,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate q); */
+
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool all_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p ) {
+  __hipsycl_stdpar_consume_sync();
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+
+  auto *output = output_scratch_group
+                     .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+  hipsycl::algorithms::all_of(q, first, last, output, p);
+  q.wait();
+  return static_cast<bool>(*output);
+}
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool any_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p ) {
+  __hipsycl_stdpar_consume_sync();
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+
+  auto *output = output_scratch_group
+                     .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+  hipsycl::algorithms::any_of(q, first, last, output, p);
+  q.wait();
+  return static_cast<bool>(*output);
+}
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool none_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p ) {
+  __hipsycl_stdpar_consume_sync();
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+
+  auto output_scratch_group =
+      hipsycl::stdpar::detail::stdpar_tls_runtime::get()
+          .make_scratch_group<
+              hipsycl::algorithms::util::allocation_type::host>();
+
+  auto *output = output_scratch_group
+                     .obtain<hipsycl::algorithms::detail::early_exit_flag_t>(1);
+  hipsycl::algorithms::none_of(q, first, last, output, p);
+  q.wait();
+  return static_cast<bool>(*output);
+}
+
 }
 
 #endif

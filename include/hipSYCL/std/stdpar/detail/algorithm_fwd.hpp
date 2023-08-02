@@ -123,7 +123,23 @@ template <class ForwardIt, class UnaryPredicate>
 HIPSYCL_STDPAR_ENTRYPOINT ForwardIt find_if_not(__hipsycl_par_unseq,
                                                 ForwardIt first, ForwardIt last,
                                                 UnaryPredicate q); */
-}
 
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool all_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p );
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool any_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p );
+
+template<class ForwardIt, class UnaryPredicate>
+HIPSYCL_STDPAR_ENTRYPOINT
+bool none_of(__hipsycl_par_unseq, ForwardIt first, ForwardIt last,
+            UnaryPredicate p );
+
+}
 
 #endif

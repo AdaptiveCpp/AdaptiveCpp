@@ -30,6 +30,9 @@
 #include "hipSYCL/compiler/stdpar/SyncElision.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
+#include <llvm/Support/Casting.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/Instruction.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/InstrTypes.h>
@@ -38,6 +41,53 @@
 
 namespace hipsycl {
 namespace compiler {
+
+namespace {
+
+bool accessesMemory(llvm::Instruction* I) {
+  if (llvm::isa<llvm::StoreInst>(I) || llvm::isa<llvm::LoadInst>(I) ||
+      llvm::isa<llvm::AtomicRMWInst>(I) || llvm::isa<llvm::AtomicCmpXchgInst>(I) ||
+      llvm::isa<llvm::FenceInst>(I))
+    return true;
+  
+  if(auto* CB = llvm::dyn_cast<llvm::CallBase>(I)) {
+    if(auto* F = CB->getCalledFunction()) {
+      if(F->isIntrinsic()) {
+        // Currently we assume that all intrinsics apart from llvm.lifetime
+        // may access memory. This is of course not true, but since intrinsics
+        // are backend-specific it might be difficult to get a comprehensive list
+        // of safe intrinsic
+        if(!F->getName().startswith("llvm.lifetime"))
+          return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+bool isBranchingInst(llvm::Instruction* I) {
+  if(auto* CB = llvm::dyn_cast<llvm::CallBase>(I))
+    if(auto * F = CB->getCalledFunction())
+      if(!F->isIntrinsic())
+        return true;
+
+  return llvm::isa<llvm::BranchInst>(I) || llvm::isa<llvm::CatchReturnInst>(I) ||
+         llvm::isa<llvm::CatchSwitchInst>(I) || llvm::isa<llvm::CleanupReturnInst>(I) ||
+         llvm::isa<llvm::IndirectBrInst>(I) || llvm::isa<llvm::ResumeInst>(I) ||
+         llvm::isa<llvm::ReturnInst>(I) || llvm::isa<llvm::SwitchInst>(I);
+}
+
+bool instructionRequiresSync(llvm::Instruction* I) {
+  assert(I);
+
+  if(accessesMemory(I) || isBranchingInst(I))
+    return true;
+  
+  return false;
+}
+
+}
 
 llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
 
@@ -52,6 +102,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
   }
 
   llvm::SmallVector<llvm::CallInst*, 16> RemovableSyncCalls;
+  std::size_t TotalNumSyncCalls = 0;
 
   for(auto& F : M) {
     for(auto& BB: F) {
@@ -68,6 +119,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
         if(CI){
           if(auto* CalledF = CI->getCalledFunction()){
             if(CalledF->getName().compare(OptimizableMarker) == 0) {
+              ++TotalNumSyncCalls;
               PreviousOptimizableSyncInst = CI;
               NeedsReset = false;
             } else if(CalledF->getName().compare(ConsumeMarker) == 0) {
@@ -77,8 +129,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
                                    << F.getName().str() << "\n";
               }
             } else {
-              // Ignore llvm.lifetime intrinsics
-              if(CalledF->isIntrinsic() && CalledF->getName().startswith("llvm.lifetime"))
+              if(!instructionRequiresSync(&I))
                 NeedsReset = false;
             }
           }
@@ -109,7 +160,7 @@ llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalys
   for(auto* Call : RemovableSyncCalls)
     Call->eraseFromParent();
   HIPSYCL_DEBUG_INFO << "[stdpar] SyncElision: Removed " << RemovableSyncCalls.size()
-                     << " kernel wait() calls."
+                     << " kernel wait() calls out of " << TotalNumSyncCalls << " total calls"
                      << "\n";
 
   return llvm::PreservedAnalyses::none();

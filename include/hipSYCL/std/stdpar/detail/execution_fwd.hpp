@@ -30,13 +30,14 @@
 
 #include <pstl/execution_defs.h>
 
-namespace hipsycl::stdpar::execution {
+namespace hipsycl::stdpar {
 
-struct offload_parallel_unsequenced_policy;
+using par_unseq =
+    __pstl::execution::parallel_unsequenced_policy;
+
+using par_unseq_host_fallback_policy = __pstl::execution::unsequenced_policy;
+inline constexpr par_unseq_host_fallback_policy par_unseq_host_fallback {};
 
 }
-
-using __hipsycl_par_unseq =
-    __pstl::execution::parallel_unsequenced_policy;
 
 #endif

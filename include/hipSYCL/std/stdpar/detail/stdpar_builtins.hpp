@@ -35,8 +35,10 @@
 // these calls, so mark them as noexcept (which should be fine) such
 // that call instructions are generated instead.
 HIPSYCL_STDPAR_NOINLINE
-extern "C" void __hipsycl_stdpar_optimizable_sync(hipsycl::sycl::queue& q) noexcept {
-  q.wait();
+extern "C" void __hipsycl_stdpar_optimizable_sync(hipsycl::sycl::queue &q,
+                                                  bool is_offloaded) noexcept {
+  if(is_offloaded)
+    q.wait();
 }
 
 #ifdef __clang__

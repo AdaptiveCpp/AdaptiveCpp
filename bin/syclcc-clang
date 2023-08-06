@@ -366,7 +366,11 @@ class syclcc_config:
       'stdpar-system-usm' : option("--opensycl-stdpar-system-usm", "OPENSYCL_STDPAR_SYSTEM_USM", "default-is-stdpar-system-usm", 
 """  If set, assume availability of system-level unified shared memory where every pointer from regular
   malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
-  level by Open SYCL.""")
+  level by Open SYCL."""),
+      'stdpar-unconditional-offload' : option("--opensycl-stdpar-unconditional-offload", "OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload", 
+"""  Normally, heuristics are employed to determine whether algorithms should be offloaded.
+  This particularly affects small problem sizes. If this flag is set, supported parallel STL
+  algorithms will be offloaded unconditionally.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._opensycl_args = []
@@ -816,6 +820,13 @@ class syclcc_config:
   def is_stdpar_system_usm(self):
     try:
       return self._is_flag_set("stdpar-system-usm")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar_unconditional_offload(self):
+    try:
+      return self._is_flag_set("stdpar-unconditional-offload")
     except OptionNotSet:
       return False
 
@@ -1603,6 +1614,7 @@ class compiler:
     self._host_compiler = ""
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
+    self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1791,6 +1803,8 @@ class compiler:
       ]
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
+      if self._is_stdpar_unconditional_offload:
+        args += ["-D__OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
     return args + self._common_compiler_args
 
   @property

@@ -30,9 +30,11 @@
 #include "hipSYCL/compiler/GlobalsPruningPass.hpp"
 #include "hipSYCL/compiler/cbs/PipelineBuilder.hpp"
 
+
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
 #include "hipSYCL/compiler/stdpar/MallocToUSM.hpp"
 #include "hipSYCL/compiler/stdpar/SyncElision.hpp"
+#include "llvm/Transforms/IPO/AlwaysInliner.h"
 #endif
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU
@@ -140,6 +142,8 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
               });
             }
             PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
+              MPM.addPass(SyncElisionInliningPass{});
+              MPM.addPass(llvm::AlwaysInlinerPass{});
               MPM.addPass(SyncElisionPass{});
             });
           }

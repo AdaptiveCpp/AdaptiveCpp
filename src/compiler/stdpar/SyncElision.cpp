@@ -87,12 +87,36 @@ bool instructionRequiresSync(llvm::Instruction* I) {
   return false;
 }
 
+constexpr const char* ConsumeMarker = "__hipsycl_stdpar_consume_sync";
+constexpr const char* OptimizableMarker = "__hipsycl_stdpar_optimizable_sync";
+
+}
+
+llvm::PreservedAnalyses SyncElisionInliningPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {
+
+  auto InlineEachCaller = [&](llvm::Function *F) {
+    if(!F)
+      return;
+    for (auto *U : F->users()) {
+      if (auto *I = llvm::dyn_cast<llvm::CallBase>(U)) {
+        if (auto *BB = I->getParent()) {
+          if (auto *Caller = BB->getParent()) {
+            if (Caller != F && !Caller->hasFnAttribute(llvm::Attribute::AlwaysInline)) {
+              Caller->addFnAttr(llvm::Attribute::AlwaysInline);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  InlineEachCaller(M.getFunction(ConsumeMarker));
+  InlineEachCaller(M.getFunction(OptimizableMarker));
+
+  return llvm::PreservedAnalyses::all();
 }
 
 llvm::PreservedAnalyses SyncElisionPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
-
-  static constexpr const char* ConsumeMarker = "__hipsycl_stdpar_consume_sync";
-  static constexpr const char* OptimizableMarker = "__hipsycl_stdpar_optimizable_sync";
 
   if(auto* F = M.getFunction(ConsumeMarker)) {
     F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);

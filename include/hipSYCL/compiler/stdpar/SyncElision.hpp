@@ -36,6 +36,11 @@
 namespace hipsycl {
 namespace compiler {
 
+class SyncElisionInliningPass : public llvm::PassInfoMixin<SyncElisionInliningPass> {
+public:
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+};
+
 class SyncElisionPass : public llvm::PassInfoMixin<SyncElisionPass> {
 public:
   llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);

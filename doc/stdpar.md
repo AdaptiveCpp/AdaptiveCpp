@@ -37,6 +37,9 @@ Offloading is implemented for the following STL algorithms:
 |`replace_copy_if` | |
 |`transform_reduce` | all overloads |
 |`reduce` | all overloads |
+|`any_of` | |
+|`all_of` | |
+|`none_of` | |
 
 
 For all other execution policies or algorithms, the algorithm will compile and execute correctly, however the regular host implementation of the algorithm provided by the C++ standard library implementation will be invoked and no offloading takes place.

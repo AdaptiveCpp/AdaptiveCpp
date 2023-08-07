@@ -80,11 +80,10 @@ public:
     }
   }
 
-  template <typename... ArgTN>
+  template <typename... ArgTN,
+            std::size_t num_args = (count_elements<ArgTN>() + ...),
+            std::enable_if_t<num_args == NumElements, bool> = true>
   constexpr marray(const ArgTN&... args) {
-    constexpr std::size_t num_args = (count_elements<ArgTN>() + ...);
-    static_assert(num_args == NumElements,
-                  "Incorrect number of marray constructor arguments");
     int current_offset = 0;
     (initialize_from_arg(current_offset, args), ...);
   }

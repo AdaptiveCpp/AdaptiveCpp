@@ -65,16 +65,6 @@ private:
     init_offset(current_offset, arg);
     current_offset += count_elements<ArgT>();
   }
-
-  struct not_convertible_to_scalar {};
-  static constexpr auto get_scalar_conversion_type() {
-    if constexpr(NumElements == 1)
-      return std::size_t{};
-    else
-      return not_convertible_to_scalar {};
-  }
-
-  using scalar_conversion_type = decltype(get_scalar_conversion_type());
 public:
   using value_type = DataT;
   using reference = DataT&;
@@ -82,8 +72,7 @@ public:
   using iterator = DataT*;
   using const_iterator = const DataT*;
 
-  marray()
-  : marray{DataT{}} {}
+  constexpr marray() = default;
 
   explicit constexpr marray(const DataT& arg) {
     for(std::size_t i = 0; i < NumElements; ++i) {
@@ -104,7 +93,10 @@ public:
   constexpr marray(marray<DataT, NumElements>&& rhs) = default;
 
   // Available only when: NumElements == 1
-  operator scalar_conversion_type() const {
+
+  template <std::size_t N = NumElements,
+            std::enable_if_t<N == 1, bool> = true>
+  constexpr operator DataT() const {
     return _data[0];
   }
 
@@ -113,10 +105,10 @@ public:
   }
 
   // subscript operator
-  reference operator[](std::size_t index) {
+  constexpr reference operator[](std::size_t index) {
     return _data[index];
   }
-  const_reference operator[](std::size_t index) const {
+  constexpr const_reference operator[](std::size_t index) const {
     return _data[index];
   }
 

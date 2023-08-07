@@ -44,7 +44,7 @@ private:
   
   template<class T>
   static constexpr std::size_t count_elements() {
-    if constexpr (std::is_scalar_v<T>)
+    if constexpr (std::is_convertible_v<DataT, T>)
       return 1;
     else
       return T::size();
@@ -52,7 +52,7 @@ private:
 
   template<class T>
   constexpr void init_offset(std::size_t offset, const T& x) {
-    if constexpr(std::is_scalar_v<T>) {
+    if constexpr(std::is_convertible_v<DataT, T>) {
       _data[offset] = x;
     } else {
       for(std::size_t i = 0; i < x.size(); ++i)

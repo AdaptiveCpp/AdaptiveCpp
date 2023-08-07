@@ -28,10 +28,14 @@
 #ifndef HIPSYCL_PSTL_OFFLOAD_HPP
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
+#include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
 #include <iterator>
 #include <cstddef>
+#include <algorithm>
+#include <chrono>
+#include <utility>
 
 namespace hipsycl::stdpar {
 
@@ -61,12 +65,135 @@ struct transform_reduce {};
 struct reduce {};
 } // namespace algorithm_type
 
+class offload_heuristic {
+public:
+  offload_heuristic() {
+    auto devs = sycl::device::get_devices();
+    for(const auto& dev : devs) {
+      if(dev.hipSYCL_has_compiled_kernels()) {
+        sycl::queue q{dev, hipsycl::sycl::property_list{
+                               hipsycl::sycl::property::queue::in_order{},
+                               hipsycl::sycl::property::queue::
+                                   hipSYCL_coarse_grained_events{}}};
+        std::size_t s = measure_crossover_problem_size(q);
+        _offloading_min_problem_sizes.push_back(std::make_pair(dev, s));
+      }
+    }
+
+    for(const auto& v : _offloading_min_problem_sizes) {
+      HIPSYCL_DEBUG_INFO
+        << "PSTL offloading to device "
+        << v.first.template get_info<sycl::info::device::name>()
+        << " will be enabled for problem sizes > " << v.second << std::endl;
+    }
+  }
+
+  // TODO: Currently, this conducts performance measurements when first invoked.
+  // We should add save the results to disk, and only rerun benchmarks if no
+  // previous results are found in the filesystem.
+  // Also, note that this heuristic focuses entirely on the problem size,
+  // we do not take into account the impact of potential data transfers.
+  static std::size_t get_offloading_min_problem_size(const sycl::device &dev) {
+    static offload_heuristic h;
+
+    for(const auto& v : h._offloading_min_problem_sizes) {
+      if(v.first == dev)
+        return v.second;    
+    }
+
+    return 0;
+  }
+
+private:
+  template<class F>
+  double measure_time(int num_times, F&& f) {
+    f(); // To exclude data transfers and JIT
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < num_times; ++i)
+      f();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    return (static_cast<double>(duration.count()) * 1.e-9) / num_times;
+  }
+
+  template<class Queue>
+  void run_offload(Queue& q, float* data, std::size_t problem_size){
+    q.parallel_for(sycl::range<1>{problem_size}, [=](auto idx) {
+      auto &x = data[idx];
+
+      x *= x;
+      x += 1;
+    });
+    q.wait();
+  }
+
+  void run_host(float* data, std::size_t problem_size){
+    std::for_each(par_unseq_host_fallback, data, data + problem_size,
+                  [=](auto &x) {
+                    x *= x;
+                    x += 1;
+                  });
+  }
+
+  template<class Queue>
+  std::size_t measure_crossover_problem_size(Queue& q) {
+
+    constexpr std::size_t small_size = 1024;
+    constexpr std::size_t large_size = 1024*1024*256;
+    float* data = sycl::malloc_shared<float>(large_size, q);
+    std::memset(data, 2, large_size * sizeof(float));
+    
+    int num_times = 3;
+
+    double t_host_small = measure_time(num_times, [&](){
+      run_host(data, small_size);
+    });
+
+    double t_host_large = measure_time(num_times, [&](){
+      run_host(data, large_size);
+    });
+
+    double t_offload_small = measure_time(num_times, [&](){
+      run_offload(q, data, small_size);
+    });
+
+    double t_offload_large = measure_time(num_times, [&](){
+      run_offload(q, data, large_size);
+    });
+
+    sycl::free(data, q);
+
+    // simple linear model, t(x)=a+bx
+    double b_host = (t_host_large - t_host_small) /
+                    static_cast<double>(large_size - small_size);
+    double b_offload = (t_offload_large - t_offload_small) /
+                       static_cast<double>(large_size - small_size);
+
+    double a_host = t_host_small - b_host * small_size;
+    double a_offload = t_offload_small - b_offload * small_size;
+
+    //b1*x+a1 = b2*x+a2 => (b1-b2)x = a2-a1 => x = (a2-a1)/(b1-b2)
+    double x = (a_host - a_offload) / (b_offload - b_host);
+    
+    if(x < 0.0)
+      return 0;
+    return static_cast<std::size_t>(x);
+  }
+
+  std::vector<std::pair<sycl::device, std::size_t>> _offloading_min_problem_sizes;
+};
+
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 #ifdef __OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else
-  return n > 25000;
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  std::size_t min_size =
+      offload_heuristic::get_offloading_min_problem_size(q.get_device());
+  
+  return n > min_size;
 #endif
 }
 

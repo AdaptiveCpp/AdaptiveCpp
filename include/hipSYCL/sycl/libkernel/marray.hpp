@@ -92,7 +92,6 @@ public:
   constexpr marray(marray<DataT, NumElements>&& rhs) = default;
 
   // Available only when: NumElements == 1
-
   template <std::size_t N = NumElements,
             std::enable_if_t<N == 1, bool> = true>
   constexpr operator DataT() const {

@@ -35,9 +35,16 @@ namespace hipsycl::stdpar {
 using par_unseq =
     __pstl::execution::parallel_unsequenced_policy;
 
-using par_unseq_host_fallback_policy = __pstl::execution::unsequenced_policy;
+struct par_unseq_host_fallback_policy
+    : public __pstl::execution::parallel_unsequenced_policy {};
 inline constexpr par_unseq_host_fallback_policy par_unseq_host_fallback {};
-
 }
+
+namespace __pstl::execution {
+template <>
+struct is_execution_policy<hipsycl::stdpar::par_unseq_host_fallback_policy>
+    : std::true_type {};
+}
+
 
 #endif

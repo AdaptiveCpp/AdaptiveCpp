@@ -35,7 +35,9 @@
 
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
-#include "hipSYCL/sycl/sycl.hpp"
+#include "hipSYCL/sycl/libkernel/functional.hpp"
+#include "hipSYCL/sycl/event.hpp"
+#include "hipSYCL/sycl/queue.hpp"
 #include "hipSYCL/algorithms/reduction/reduction_descriptor.hpp"
 #include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
 

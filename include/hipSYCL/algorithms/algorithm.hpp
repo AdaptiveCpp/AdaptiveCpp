@@ -35,9 +35,10 @@
 #include "hipSYCL/sycl/libkernel/accessor.hpp"
 #include "hipSYCL/sycl/libkernel/atomic_builtins.hpp"
 #include "hipSYCL/sycl/libkernel/memory.hpp"
-#include "util/traits.hpp"
 #include "hipSYCL/sycl/libkernel/functional.hpp"
-#include "hipSYCL/sycl/sycl.hpp"
+#include "hipSYCL/sycl/event.hpp"
+#include "hipSYCL/sycl/queue.hpp"
+#include "util/traits.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 
 namespace hipsycl::algorithms {

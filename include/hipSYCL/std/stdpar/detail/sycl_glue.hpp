@@ -32,7 +32,14 @@
 
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
 #include <cstdlib>
-#include <hipSYCL/sycl/sycl.hpp>
+#include <hipSYCL/sycl/queue.hpp>
+#include <hipSYCL/sycl/device.hpp>
+#include <hipSYCL/sycl/context.hpp>
+#include <hipSYCL/sycl/usm.hpp>
+#include <hipSYCL/sycl/usm_query.hpp>
+// Fetch builtin declarations to aid SSCP StdBuiltinRemapperPass for
+// std:: math function support inside kernels.
+#include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
 #include <new>
 
 

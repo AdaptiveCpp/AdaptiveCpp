@@ -1805,7 +1805,7 @@ class compiler:
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
-        args += ["-D__OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+        args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
     return args + self._common_compiler_args
 
   @property

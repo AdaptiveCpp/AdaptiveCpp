@@ -186,7 +186,7 @@ private:
 
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
-#ifdef __OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+#ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else
   auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();

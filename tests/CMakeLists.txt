@@ -107,7 +107,7 @@ if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/for_each.cpp)
 
-  target_compile_options(pstl_tests PRIVATE "--hipsycl-stdpar --hipsycl-stdpar-unconditional-offload")
+  target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)
   target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(pstl_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads -ltbb)
   add_sycl_to_target(TARGET pstl_tests)

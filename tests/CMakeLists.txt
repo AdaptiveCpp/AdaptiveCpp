@@ -105,6 +105,7 @@ add_sycl_to_target(TARGET rt_tests)
 # values. Enabling them in all cases would break some existing test flows.
 if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
+    pstl/pstl_test_suite.cpp
     pstl/for_each.cpp)
 
   target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)

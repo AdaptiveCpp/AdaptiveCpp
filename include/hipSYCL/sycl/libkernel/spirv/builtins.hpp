@@ -129,6 +129,12 @@ HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(ilogb)
+
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  return __spirv_ocl_ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_SPIRV_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(tgamma)
 
@@ -338,6 +344,11 @@ HIPSYCL_BUILTIN T __hipsycl_max(T x, T y) noexcept {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
   return (x < y) ? x : y;
+}
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return return __spirv_ocl_clz(x);
 }
 
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>

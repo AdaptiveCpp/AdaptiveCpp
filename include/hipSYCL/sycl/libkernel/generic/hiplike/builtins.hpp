@@ -139,6 +139,17 @@ HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_frexp(double x, IntPtr y) noexcept {
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_hypot, hypotf, hypot)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ilogb, ilogbf, ilogb)
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
+  return ::ldexpf(x, k);
+}
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
+  return ::ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_lgamma, lgammaf, lgamma)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tgamma, tgammaf, tgamma)
 
@@ -402,6 +413,43 @@ template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return hiplike_builtins::__hipsycl_min(
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
+}
+
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) < 4),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  //we convert to the unsigned type to avoid the typecast creating 
+  //additional ones in front of the value if x is negative
+  using Usigned = typename std::make_unsigned<T>::type; 
+
+  constexpr T diff = CHAR_BIT*(sizeof(__hipsycl_int32) - sizeof(Usigned));
+
+  return __clz(static_cast<__hipsycl_int32>(static_cast<Usigned>(x)))-diff;
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clz(static_cast<__hipsycl_int32>(x));
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clzll(static_cast<__hipsycl_int64>(x));
+
 }
 
 template<class T>

@@ -68,6 +68,7 @@ public:
     return fp16::promote_to_float(_data);
   }
 
+
   HIPSYCL_UNIVERSAL_TARGET
   friend half operator+(const half& a, const half& b) noexcept {
     fp16::half_storage data;
@@ -176,6 +177,17 @@ public:
 
   friend bool operator!=(const half& a, const half& b) noexcept {
     return a._data != b._data;
+  }
+
+  // Operator is +/- unary
+  friend half& operator+(half& a) noexcept {
+    return a;
+  }
+
+  friend half& operator-(half& a) noexcept {
+    constexpr __hipsycl_uint16 sign_mask = 0x8000;
+    a._data ^= sign_mask;
+    return a; 
   }
 
   HIPSYCL_UNIVERSAL_TARGET

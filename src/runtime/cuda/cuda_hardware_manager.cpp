@@ -229,6 +229,7 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
   case device_uint_property::max_global_size2:
     return static_cast<std::size_t>(_properties->maxThreadsDim[2]) *
                                     _properties->maxGridSize[2];
+    break;
   case device_uint_property::max_group_size0:
     return _properties->maxThreadsDim[0];
     break;
@@ -243,6 +244,9 @@ cuda_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::max_num_sub_groups:
     return _properties->maxThreadsPerBlock / _properties->warpSize;
+    break;
+  case device_uint_property::needs_dimension_flip:
+    return true;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;

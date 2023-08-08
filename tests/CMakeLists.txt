@@ -17,11 +17,11 @@ endif()
 
 if(NOT OPENSYCL_DEBUG_LEVEL)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(OPENSYCL_DEBUG_LEVEL 3 CACHE INTEGER
+    set(OPENSYCL_DEBUG_LEVEL 3 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
     FORCE)
   else()
-    set(OPENSYCL_DEBUG_LEVEL 2 CACHE INTEGER
+    set(OPENSYCL_DEBUG_LEVEL 2 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
       FORCE)
   endif()

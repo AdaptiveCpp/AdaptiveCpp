@@ -1,0 +1,113 @@
+name: Self-hosted CI
+
+on: [push, pull_request]
+jobs:
+  test-gpu-nvidia:
+    name: NVIDIA with clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
+    runs-on: [self-hosted, gpu-nvidia]
+    strategy:
+      matrix:
+        clang_version: ['15']
+        cuda: ['11.0']
+        nvhpc_version: ['22.11']
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run : |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm ..
+        make -j16 install
+        cp /.singularity.d/libs/libcuda.* `pwd`/install/lib/
+    - name: build generic SSCP tests
+      if: matrix.clang_version >= 14
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j16
+    - name: build CUDA tests (integrated multipass)
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda
+        cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j16
+    - name: build CUDA tests (explicit multipass)
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-emp
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
+        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j16
+    # NVC++ is commented out for now, because the build takes ages
+    # and it seems that nvc++ currently miscompiles some tests
+    # (e.g. group algorithms) that would need fixing first.
+    #
+    #- name: build CUDA tests (nvc++)
+    #  run: |
+    #    mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
+    #    cd ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
+    #    export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc_version}}
+    #    export OPENSYCL_NVCXX=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ 
+    #    cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+    #    make -j16
+    - name: run CUDA tests (integrated multipass)
+      run: |
+        echo "Running tests on CUDA..."
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda
+        ./sycl_tests
+    - name: run CUDA tests (explicit multipass)
+      run: |
+        echo "Running tests on CUDA..."
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
+        ./sycl_tests
+    #- name: run CUDA tests (nvc++)
+    #  run: |
+    #    echo "Running tests on CUDA..."
+    #    cd ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
+    #    ./sycl_tests
+    - name: run CPU tests
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda
+        HIPSYCL_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+  test-gpu-amd:
+    name: AMD with clang ${{ matrix.clang_version }}
+    runs-on: [self-hosted, gpu-amd]
+    strategy:
+      matrix:
+        clang_version: ['15']
+        cuda: ['11.0'] # Just to be able to build the backend for explicit multipass
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run : |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm -DCMAKE_INSTALL_REFIX=`pwd`/install ..
+        make -j3 install
+    - name: build generic SSCP tests
+      if: matrix.clang_version >= 14
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j3
+    - name: build ROCm tests (integrated multipass)
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
+        cd ${GITHUB_WORKSPACE}/build/tests-rocm
+        cmake -DOPENSYCL_TARGETS="omp;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j3
+    - name: build ROCm tests (explicit multipass)
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-rocm-emp
+        cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
+        cmake -DOPENSYCL_TARGETS="omp;hip.explicit-multipass:gfx906;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        make -j3
+    - name: run ROCm tests (integrated multipass)
+      run: |
+        echo "Running tests on AMD..."
+        cd ${GITHUB_WORKSPACE}/build/tests-rocm
+        ./sycl_tests
+    - name: run ROCm tests (explicit multipass)
+      run: |
+        echo "Running tests on AMD..."
+        cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
+        ./sycl_tests

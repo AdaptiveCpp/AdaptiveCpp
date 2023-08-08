@@ -435,6 +435,22 @@ using ulonglong16 = vec<unsigned long long, 16>;
     }                                                                          \
   }
 
+#define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_INT(T, name, impl_name)             \
+  HIPSYCL_BUILTIN T name(T a, int b) noexcept {                                \
+    if constexpr (std::is_arithmetic_v<T>) {                                   \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
+    } else {                                                                   \
+      T result;                                                                \
+      auto b_0 = detail::data_element(b, 0);                                   \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
+        auto a_i = detail::data_element(a, i);                                 \
+        detail::data_element(result, i) = impl_name(a_i, b_0);                 \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+  }
+
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_GENINT(T, name, impl_name)          \
   template <class IntType,                                                     \
             std::enable_if_t<detail::is_genint_alternative_type_v<T, IntType>, \
@@ -632,9 +648,10 @@ HIPSYCL_DEFINE_BUILTIN(hypot, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_BINARY_T_T)
 HIPSYCL_DEFINE_BUILTIN(ilogb, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
-
-// TODO ldexp
-
+HIPSYCL_DEFINE_BUILTIN(ldexp, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                       HIPSYCL_BUILTIN_GENERATOR_BINARY_T_GENINT)
+HIPSYCL_DEFINE_BUILTIN(ldexp, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                       HIPSYCL_BUILTIN_GENERATOR_BINARY_T_INT)
 HIPSYCL_DEFINE_BUILTIN(lgamma, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(lgamma_r, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
@@ -792,6 +809,8 @@ HIPSYCL_BUILTIN VecType clamp(const VecType &a, ScalarType minval,
                VecType{static_cast<element_type>(maxval)});
 }
 
+HIPSYCL_DEFINE_BUILTIN(clz, HIPSYCL_BUILTIN_OVERLOAD_SET_GENINTEGER,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 
 // TODO clz
 // TODO ctz

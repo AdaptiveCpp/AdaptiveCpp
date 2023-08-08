@@ -25,10 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef HIPSYCL_INFO_HPP
 #define HIPSYCL_INFO_HPP
 
-#include "param_traits.hpp"
+#define HIPSYCL_DEFINE_INFO_DESCRIPTOR(param, ret_type)                        \
+  struct param { using return_type = ret_type; };
+
 #include "context.hpp"
 #include "device.hpp"
 #include "event.hpp"
@@ -37,9 +40,9 @@
 #include "kernel.hpp"
 #include "program.hpp"
 
-#define HIPSYCL_SPECIALIZE_GET_INFO(class_name, specialization)\
-  template<> \
-  inline typename info::param_traits<info::class_name,info::class_name::specialization>::return_type \
+#define HIPSYCL_SPECIALIZE_GET_INFO(class_name, specialization)                \
+  template<>                                                                   \
+  inline typename info::class_name::specialization::return_type                \
   sycl::class_name::get_info<info::class_name::specialization>() const
 
 #endif

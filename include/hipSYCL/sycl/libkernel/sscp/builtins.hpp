@@ -164,6 +164,17 @@ HIPSYCL_BUILTIN double __hipsycl_frexp(double x, IntT* ptr) {
 
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(ilogb)
+
+template<class IntType>
+HIPSYCL_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
+  return __hipsycl_sscp_ldexp_f32(x, static_cast<__hipsycl_int32>(k));
+}
+
+template<class IntType>
+HIPSYCL_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
+  return __hipsycl_sscp_ldexp_f64(x, static_cast<__hipsycl_int64>(k));
+}
+
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SSCP_GENFLOAT_MATH_BUILTIN(tgamma)
 
@@ -404,6 +415,39 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return sscp_builtins::__hipsycl_min(
     sscp_builtins::__hipsycl_max(x, minval), maxval);
 }
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 1),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u8(static_cast<__hipsycl_uint8>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 2),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u16(static_cast<__hipsycl_uint16>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u32(static_cast<__hipsycl_uint32>(x));
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return __hipsycl_sscp_clz_u64(static_cast<__hipsycl_uint64>(x));
+}
+
 
 template<class T, std::enable_if_t<std::is_signed_v<T>, int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {

@@ -111,4 +111,28 @@ BOOST_AUTO_TEST_CASE(marray_constructor) {
   BOOST_TEST(verify_marray_content(v5, {1, 1, 1, 3, 0, 1, 1, 1}));
 }
 
+#define MARRAY_ALIAS_SAME(type, storage_type, elements)                 \
+  (std::is_same_v<sycl::m##type##elements, sycl::marray<storage_type, elements>>)
+
+#define MARRAY_ALIAS_CHECK(type, storage_type)        \
+  MARRAY_ALIAS_SAME(type, storage_type, 2) &&         \
+  MARRAY_ALIAS_SAME(type, storage_type, 3) &&         \
+  MARRAY_ALIAS_SAME(type, storage_type, 4) &&         \
+  MARRAY_ALIAS_SAME(type, storage_type, 8) &&         \
+  MARRAY_ALIAS_SAME(type, storage_type, 16)
+
+BOOST_AUTO_TEST_CASE(marray_aliases) {
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(char, int8_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(uchar, uint8_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(short, int16_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(ushort, uint16_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(int, int32_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(uint, uint32_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(long, int64_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(ulong, uint64_t));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(half, sycl::half));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(float, float));
+  BOOST_CHECK(MARRAY_ALIAS_CHECK(double, double));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

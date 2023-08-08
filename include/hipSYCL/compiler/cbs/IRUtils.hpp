@@ -67,6 +67,7 @@ template <class PtrSet> struct PtrSetWrapper {
   template <class IT, class ValueT> IT insert(IT, const ValueT &Value) {
     return Set.insert(Value).first;
   }
+  auto begin() -> decltype(Set.begin()) { return Set.begin(); }
 };
 
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,

@@ -31,18 +31,12 @@
 
 #include <cstdint>
 
+#include "info.hpp"
 #include "../types.hpp"
-#include "param_traits.hpp"
 
 namespace hipsycl {
 namespace sycl {
 namespace info {
-
-enum class event: int
-{
-  command_execution_status,
-  reference_count
-};
 
 enum class event_command_status : int
 {
@@ -51,24 +45,21 @@ enum class event_command_status : int
   complete
 };
 
-enum class event_profiling : int
+namespace event
 {
-  command_submit,
-  command_start,
-  command_end
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(command_execution_status, event_command_status);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
 };
 
-
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::command_execution_status, event_command_status);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event, event::reference_count, detail::u_int);
-
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_submit, uint64_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_start, uint64_t);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(event_profiling, event_profiling::command_end, uint64_t);
+namespace event_profiling
+{
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(command_submit, uint64_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(command_start, uint64_t);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(command_end, uint64_t);
+};
 
 }
 }
 }
-
 
 #endif

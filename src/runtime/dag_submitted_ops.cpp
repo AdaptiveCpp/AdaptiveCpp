@@ -45,28 +45,42 @@ void erase_known_completed_nodes(std::vector<dag_node_ptr> &ops) {
 }
 }
 
+dag_submitted_ops::~dag_submitted_ops() {
+  this->purge_known_completed();
+}
+
+void dag_submitted_ops::copy_node_list(std::vector<dag_node_ptr>& out) const {
+  std::lock_guard lock{_lock};
+  out = _ops;
+}
+
 void dag_submitted_ops::purge_known_completed() {
   std::lock_guard lock{_lock};
 
   erase_known_completed_nodes(_ops);
 }
 
-void dag_submitted_ops::async_wait_and_unregister(
-    const std::vector<dag_node_ptr> &nodes) {
-  
-  _updater_thread([nodes, this]{
-    // Since node->wait() causes all requirements to be marked
-    // as completed as well, we can reduce the number of backend wait
-    // operations by reversing the iteration order,
-    // since the newest operations will tend to be the last
-    // in the list.
-    for(int i = nodes.size() - 1; i >= 0; --i) {
-      nodes[i]->wait();
+std::size_t dag_submitted_ops::get_num_nodes() const {
+  std::lock_guard lock{_lock};
+  return _ops.size();
+}
+
+void dag_submitted_ops::async_wait_and_unregister() {
+    
+    // If the updater thread is currently not busy with anything,
+    // create a new task that waits and purges all nodes starting
+    // from the most recent node
+    if(_updater_thread.queue_size() == 0) {
+      _updater_thread([this](){
+        std::vector<dag_node_ptr> gc_node_list;
+        this->copy_node_list(gc_node_list);
+
+        for(int i = gc_node_list.size() - 1; i >= 0; --i)
+          gc_node_list[i]->wait();
+        
+        this->purge_known_completed();
+      });
     }
-    // Waiting on nodes causes them to be known complete,
-    // so we can just purge all known completed nodes
-    this->purge_known_completed();
-  });
 }
 
 void dag_submitted_ops::update_with_submission(dag_node_ptr single_node) {

@@ -131,6 +131,12 @@ HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_frexp_f64(double x, __hipsycl_int64* 
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(hypot)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(ilogb)
+
+float __spirv_ocl_ldexp(float x, __hipsycl_int32 k);
+double __spirv_ocl_ldexp(double x, __hipsycl_int64 k);
+HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_ldexp_f32(float x, __hipsycl_int32 k) { return __spirv_ocl_ldexp(x, k); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_ldexp_f64(double x, __hipsycl_int64 k) { return __spirv_ocl_ldexp(x, k); }
+
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(tgamma)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(lgamma)
 
@@ -157,10 +163,11 @@ HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(nextafter)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(powr)
 
 float __spirv_ocl_pown(float, __hipsycl_int32);
-double __spirv_ocl_pown(double, __hipsycl_int64);
+double __spirv_ocl_pown(double, __hipsycl_int32);
 
 HIPSYCL_SSCP_BUILTIN float __hipsycl_sscp_pown_f32(float x, __hipsycl_int32 y) { return __spirv_ocl_pown(x, y); }
-HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x, __hipsycl_int64 y) {return __spirv_ocl_pown(x, y); }
+HIPSYCL_SSCP_BUILTIN double __hipsycl_sscp_pown_f64(double x, __hipsycl_int64 y)
+{return __spirv_ocl_pown(x, static_cast<__hipsycl_int32>(y)); }
 
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN2(remainder)
 HIPSYCL_SSCP_MAP_BUILTIN_TO_SPIRV_BUILTIN(rint)

@@ -30,10 +30,10 @@
 
 
 #define HIPSYCL_SSCP_MAP_OCML_REL_BUILTIN(name)                                \
-  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f32(float x) {              \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f32(float x) {  \
     return __ocml_##name##_f32(x);                                             \
   }                                                                            \
-  HIPSYCL_SSCP_BUILTIN int __hipsycl_sscp_##name##_f64(double x) {             \
+  HIPSYCL_SSCP_BUILTIN __hipsycl_int32 __hipsycl_sscp_##name##_f64(double x) { \
     return __ocml_##name##_f64(x);                                             \
   }
   

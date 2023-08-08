@@ -222,6 +222,11 @@ HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ilogb, x);
 }
 
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ldexp, x, k);
+}
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_lgamma(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acos, x);
@@ -522,6 +527,11 @@ HIPSYCL_BUILTIN T __hipsycl_abs(T x) noexcept {
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clamp, x, minval, maxval);
+}
+
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clz, x);
 }
 
 template<class T>

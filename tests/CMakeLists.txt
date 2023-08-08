@@ -100,4 +100,17 @@ target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURREN
 target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)
 
+# We cannot enable building them unconditionally at the moment,
+# because --hipsycl-stdpar is not compatible with all --hipsycl-targets
+# values. Enabling them in all cases would break some existing test flows.
+if(WITH_PSTL_TESTS)
+  add_executable(pstl_tests 
+    pstl/for_each.cpp)
+
+  target_compile_options(pstl_tests PRIVATE "--hipsycl-stdpar --hipsycl-stdpar-unconditional-offload")
+  target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(pstl_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads -ltbb)
+  add_sycl_to_target(TARGET pstl_tests)
+endif()
+
 add_subdirectory(compiler)

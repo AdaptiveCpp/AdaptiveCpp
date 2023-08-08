@@ -79,7 +79,7 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j2
     - name: build CUDA tests
       run: |

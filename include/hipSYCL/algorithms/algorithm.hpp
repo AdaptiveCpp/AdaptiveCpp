@@ -63,7 +63,8 @@ bool all_bytes_equal(const T& val, unsigned char& byte_value) {
 template <class ForwardIt, class UnaryFunction2>
 sycl::event for_each(sycl::queue &q, ForwardIt first, ForwardIt last,
                      UnaryFunction2 f) {
-
+  if(first == last)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first, last)},
                         [=](sycl::id<1> id) {
                           auto it = first;

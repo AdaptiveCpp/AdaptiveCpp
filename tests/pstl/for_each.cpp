@@ -45,10 +45,10 @@ BOOST_AUTO_TEST_CASE(par_unseq_incomplete_work_group) {
   std::vector<int> data(1000);
   for(int i = 0; i < data.size(); ++i)
     data[i] = i;
-  std::for_each(std::execution::par_unseq, data.begin(), data.begin(),
+  std::for_each(std::execution::par_unseq, data.begin(), data.end(),
                 [=](auto &x) { x *= 2; });
   for(int i = 0; i < data.size(); ++i) {
-    BOOST_CHECK(data[0] == 2*i);
+    BOOST_CHECK(data[i] == 2*i);
   }
 }
 

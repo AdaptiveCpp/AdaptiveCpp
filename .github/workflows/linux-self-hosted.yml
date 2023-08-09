@@ -121,5 +121,5 @@ jobs:
         ./sycl_tests
     - name: run PSTL ROCm tests (SSCP)
       run: |
-        cd ${GITHUB_WORKSPACE}/build/tests-rocm
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
         ./pstl_tests

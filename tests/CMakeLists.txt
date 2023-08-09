@@ -106,7 +106,8 @@ add_sycl_to_target(TARGET rt_tests)
 if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
-    pstl/for_each.cpp)
+    pstl/for_each.cpp
+    pstl/for_each_n.cpp)
 
   target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)
   target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})

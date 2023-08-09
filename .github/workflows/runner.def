@@ -9,7 +9,7 @@ export NVHPC_MAJOR_VERSION="22"
 export NVHPC_MINOR_VERSION="11"
 
 apt-get update
-apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq
+apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq libtbb-dev
 
 mkdir -p /opt/cuda-11.0
 wget -q -O cuda-11.0.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run

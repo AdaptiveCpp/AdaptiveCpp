@@ -226,7 +226,11 @@ private:
       return s;
     }
 
+#ifdef HIPSYCL_STDPAR_MEMORY_MANAGEMENT_DEFAULT_DISABLED
+    int disabled_stack = 1;
+#else
     int disabled_stack = 0;
+#endif
   private:
     thread_local_storage(){}
   };

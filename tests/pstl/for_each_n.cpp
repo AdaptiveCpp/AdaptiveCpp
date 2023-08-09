@@ -31,7 +31,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(pstl_for_each_n)
+#include "pstl_test_suite.hpp"
+
+BOOST_FIXTURE_TEST_SUITE(pstl_for_each_n, enable_unified_shared_memory)
 
 
 BOOST_AUTO_TEST_CASE(par_unseq_zero_size) {

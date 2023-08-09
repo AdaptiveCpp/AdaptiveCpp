@@ -107,9 +107,14 @@ if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
     pstl/for_each.cpp
-    pstl/for_each_n.cpp)
+    pstl/for_each_n.cpp
+    pstl/transform_reduce.cpp)
 
   target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)
+  # pstl tests cannot run with global memory allocation hijacking, because apparently
+  # the boost test headers allocate memory that is then transferred to libboost_unit_tests
+  # which then cannot free it anymore. We we need to selectively enable it only for the actual test code.
+  target_compile_definitions(pstl_tests PRIVATE -DHIPSYCL_STDPAR_MEMORY_MANAGEMENT_DEFAULT_DISABLED)
   target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(pstl_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads -ltbb)
   add_sycl_to_target(TARGET pstl_tests)

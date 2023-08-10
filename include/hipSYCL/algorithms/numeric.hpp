@@ -40,6 +40,7 @@
 #include "hipSYCL/sycl/queue.hpp"
 #include "hipSYCL/algorithms/reduction/reduction_descriptor.hpp"
 #include "hipSYCL/algorithms/reduction/reduction_engine.hpp"
+#include "hipSYCL/algorithms/util/memory_streaming.hpp"
 
 namespace hipsycl::algorithms {
 
@@ -117,40 +118,19 @@ sycl::event wg_model_reduction(sycl::queue &q,
   reduction::wg_hierarchical_reduction_engine engine{horizontal_reducer,
                                                      &scratch_allocations};
 
-  std::size_t default_num_groups = (problem_size + local_size - 1) / local_size;
+  util::data_streamer streamer{q.get_device(), problem_size, local_size};
 
-  // The number of groups we need to dispatch is what the user requests
-  // -- however, if the problem is by itself already smaller, no point
-  // in submitting empty groups. So use min().
-  std::size_t num_groups =
-      std::min((problem_size + local_size - 1) / local_size, target_num_groups);
-
-  const std::size_t dispatched_global_size = local_size * num_groups;
+  const std::size_t dispatched_global_size =
+      streamer.get_required_global_size();
   auto plan = engine.create_plan(dispatched_global_size, local_size,
                                 reduction_descriptor);
 
-  const std::size_t work_per_item =
-      (problem_size + dispatched_global_size - 1) / dispatched_global_size;
   auto main_kernel = engine.make_main_reducing_kernel(
       [=](sycl::nd_item<1> idx, auto &reducer) {
-        // This pattern here may look peculiar, but it is much more
-        // performance-portable than the usual "for(int gid = get_global_id();
-        // gid < problem_size; gid += global_size)" pattern. Especially on CPU,
-        // this pattern does not work well - likely because the jump to an
-        // offset of global_size causes cache misses or confuses the prefetcher.
-        // Instead, we let each work group process segments of adjacent memory.
-        // This seems to work well on both CPU and GPU.
 
-        const std::size_t local_size = idx.get_local_range(0);
-        const std::size_t item_id = idx.get_global_id(0);
-        
-        for(std::size_t i = 0; i < work_per_item; ++i) {
-          const std::size_t gid = item_id + i * local_size;
-          if(gid < problem_size) {
-            k(sycl::id<1>{gid}, reducer);
-          }
-        }
-        
+        util::data_streamer::run(problem_size, idx, [&](sycl::id<1> i){
+          k(i, reducer);
+        });
       },
       plan);
 
@@ -218,7 +198,6 @@ sycl::event transform_reduce_impl(sycl::queue &q,
                                      op);
 #endif
   }
-
   sycl::device dev = q.get_device();
   std::size_t num_groups =
       dev.get_info<sycl::info::device::max_compute_units>() * 4;

@@ -95,7 +95,7 @@ sycl::event wg_model_reduction(sycl::queue &q,
           // This is just there to register the appropriate amount of local
           // memory; the reduction engine will access it directly without going
           // through the accessor.
-          sycl::local_accessor<T> acc{sycl::range<1>{local_mem}, cgh};
+          sycl::local_accessor<char> acc{sycl::range<1>{local_mem}, cgh};
           cgh.parallel_for(sycl::nd_range<1>{wg_size * num_groups, wg_size},
                            kernel);
         });
@@ -135,7 +135,7 @@ sycl::event wg_model_reduction(sycl::queue &q,
       plan);
 
   last_event = q.submit([&](sycl::handler &cgh) {
-    sycl::local_accessor<T> acc{sycl::range<1>{main_kernel_local_mem}, cgh};
+    sycl::local_accessor<char> acc{sycl::range<1>{main_kernel_local_mem}, cgh};
     cgh.parallel_for(sycl::nd_range<1>{dispatched_global_size, local_size},
                     main_kernel);
   });

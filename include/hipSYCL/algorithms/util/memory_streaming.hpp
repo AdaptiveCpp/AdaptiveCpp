@@ -118,6 +118,53 @@ private:
   std::size_t _group_size;
 };
 
+class abortable_data_streamer {
+public:
+  abortable_data_streamer(const sycl::device &dev, std::size_t problem_size,
+                std::size_t group_size)
+      : _problem_size{problem_size}, _group_size{group_size} {
+    std::size_t default_num_groups =
+        (problem_size + group_size - 1) / group_size;
+
+    std::size_t desired_num_groups = 0;
+    desired_num_groups =
+        dev.get_info<sycl::info::device::max_compute_units>() * 4;
+
+    _num_groups = std::min(default_num_groups, desired_num_groups);
+  }
+
+  std::size_t get_required_local_size() const noexcept {
+    return _group_size;
+  }
+
+  std::size_t get_required_global_size() const noexcept {
+    return _num_groups * _group_size;
+  }
+
+  // Only to be called inside kernels.
+  //
+  // Ensures that f is broadcast across the entire problem space.
+  // If f() returns true, will attempt to abort execution as quickly
+  // as possible.
+  // 
+  // F is a callable of signature bool(sycl::id<1>).
+  template <class F>
+  static void run(std::size_t problem_size, sycl::nd_item<1> idx,
+                  F &&f) noexcept {
+
+
+    const std::size_t gid = idx.get_global_id(0);
+    for (std::size_t i = gid; i < problem_size; i += idx.get_global_range(0)) {
+      if(f(sycl::id<1>{i}))
+        return;
+    }
+  };
+
+private:
+  std::size_t _num_groups;
+  std::size_t _problem_size;
+  std::size_t _group_size;
+};
 
 }
 

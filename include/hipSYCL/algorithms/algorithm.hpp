@@ -40,6 +40,7 @@
 #include "hipSYCL/sycl/queue.hpp"
 #include "util/traits.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
+#include "hipSYCL/algorithms/util/memory_streaming.hpp"
 
 namespace hipsycl::algorithms {
 
@@ -340,37 +341,33 @@ sycl::event early_exit_for_each(sycl::queue &q, std::size_t problem_size,
                                 Predicate should_exit) {
   
   std::size_t group_size = 128;
-  std::size_t num_batches = (problem_size + group_size - 1) / group_size;
 
-  std::size_t target_num_groups =
-      q.get_device().get_info<sycl::info::device::max_compute_units>() * 4;
-  std::size_t num_groups = std::min(target_num_groups, num_batches);
+  util::abortable_data_streamer streamer{q.get_device(), problem_size, group_size};
 
-  std::size_t dispatched_global_size = num_groups * group_size;
-  std::size_t work_per_item =
-      (problem_size + dispatched_global_size - 1) / dispatched_global_size;
+  std::size_t dispatched_global_size = streamer.get_required_global_size();
 
   auto kernel = [=](sycl::nd_item<1> idx) {
       const std::size_t item_id = idx.get_global_id(0);
-
-      for (std::size_t i = 0; i < work_per_item; ++i) {
+  
+      util::abortable_data_streamer::run(problem_size, idx, [&](sycl::id<1> idx){
+        
         if (sycl::detail::__hipsycl_atomic_load<
                 sycl::access::address_space::global_space>(
                 output_has_exited_early, sycl::memory_order_relaxed,
-                sycl::memory_scope_device))
-          return;
-
-        const std::size_t gid = item_id + i * group_size;
-        if (gid < problem_size) {
-          if (should_exit(sycl::id<1>{gid})) {
-            sycl::detail::__hipsycl_atomic_store<
-                sycl::access::address_space::global_space>(
-                output_has_exited_early, 1, sycl::memory_order_relaxed,
-                sycl::memory_scope_device);
-            return;
-          }
+                sycl::memory_scope_device)) {
+          return true;
         }
-      }
+
+        if (should_exit(idx)) {
+          sycl::detail::__hipsycl_atomic_store<
+              sycl::access::address_space::global_space>(
+              output_has_exited_early, 1, sycl::memory_order_relaxed,
+              sycl::memory_scope_device);
+          return true;
+        }
+
+        return false;
+      });
     };
 
   auto evt = q.single_task([=](){*output_has_exited_early = false;});

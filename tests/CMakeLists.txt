@@ -106,6 +106,7 @@ add_sycl_to_target(TARGET rt_tests)
 if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
+    pstl/copy.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/transform.cpp

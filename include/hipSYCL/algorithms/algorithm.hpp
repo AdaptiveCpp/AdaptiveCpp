@@ -94,6 +94,8 @@ template <class ForwardIt1, class ForwardIt2, class UnaryOperation>
 sycl::event transform(sycl::queue& q,
                      ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 d_first,
                      UnaryOperation unary_op) {
+  if(first1 == last1)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first1, last1)},
                         [=](sycl::id<1> id) {
                           auto input = first1;
@@ -109,6 +111,8 @@ template <class ForwardIt1, class ForwardIt2, class ForwardIt3,
 sycl::event transform(sycl::queue &q, ForwardIt1 first1, ForwardIt1 last1,
                       ForwardIt2 first2, ForwardIt3 d_first,
                       BinaryOperation binary_op) {
+  if(first1 == last1)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first1, last1)},
                         [=](sycl::id<1> id) {
                           auto input1 = first1;

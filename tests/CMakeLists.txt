@@ -108,6 +108,7 @@ if(WITH_PSTL_TESTS)
     pstl/pstl_test_suite.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
+    pstl/transform.cpp
     pstl/transform_reduce.cpp)
 
   target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)

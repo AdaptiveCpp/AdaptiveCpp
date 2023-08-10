@@ -55,26 +55,30 @@ void local_barrier(const T&) {
 
 template<typename... T>
 class local_memory_request_bundle {
-  template<class U>
-  static void extract_max_align(U, std::size_t& alignment_out, std::size_t& size_out) {
+  template <class U>
+  static void extract_max_align_and_size(U, std::size_t &alignment_out,
+                                         std::size_t &size_out) {
     if(alignof(U) > alignment_out) {
       alignment_out = alignof(U);
+    }
+    if(sizeof(U) > size_out) {
       size_out = sizeof(U);
     }
   }
+
 public:
   local_memory_request_bundle(std::size_t& currently_allocated_local_mem_size,
                               std::size_t num_elements) {
     std::size_t max_align = 0;
-    std::size_t max_align_elem_size = 0;
+    std::size_t max_elem_size = 0;
     const std::size_t min_alignment = 4;
 
-    (extract_max_align(T{}, max_align, max_align_elem_size), ...);
+    (extract_max_align_and_size(T{}, max_align, max_elem_size), ...);
 
     max_align = std::max(max_align, min_alignment);
 
     sycl::detail::local_memory_allocator alloc{currently_allocated_local_mem_size};
-    _addr = alloc.alloc(max_align, max_align_elem_size * num_elements);
+    _addr = alloc.alloc(max_align, max_elem_size * num_elements);
     currently_allocated_local_mem_size = alloc.get_allocation_size();
   }
 

@@ -113,5 +113,36 @@ BOOST_AUTO_TEST_CASE(par_unseq_aggregate) {
   BOOST_CHECK(res.b == reference_result.b);
 }
 
+template<class T>
+struct aggregate_4 {
+  T a, b, c, d;
+  [[nodiscard]] constexpr aggregate_4 operator+(const aggregate_4 &that) const { //
+    return {a + that.a, b + that.b, c + that.c, d + that.d};
+  }
+};
+
+BOOST_AUTO_TEST_CASE(par_unseq_aggregate_4_double) {
+  std::vector<int> data(1000);
+  for(int i = 0; i < data.size(); ++i)
+    data[i] = i + 1;
+
+  auto transform = [](int x){
+    return aggregate_4<double>{ 1.0*x, 2.0*x, 3.0*x, 4.0*x };
+  };
+
+  auto reference_result = std::transform_reduce(
+      data.begin(), data.end(), aggregate_4<double>{}, std::plus<>{},
+      transform);
+
+  auto res =
+      std::transform_reduce(std::execution::par_unseq, data.begin(), data.end(),
+                            aggregate_4<double>{ }, std::plus<>{}, transform);
+
+  BOOST_CHECK_EQUAL(res.a,  reference_result.a);
+  BOOST_CHECK_EQUAL(res.b,  reference_result.b);
+  BOOST_CHECK_EQUAL(res.c,  reference_result.c);
+  BOOST_CHECK_EQUAL(res.d,  reference_result.d);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

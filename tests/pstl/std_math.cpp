@@ -35,66 +35,29 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_copy, enable_unified_shared_memory)
+namespace {
 
-struct non_trivial_copy {
-  non_trivial_copy(){}
+auto tolerance = boost::test_tools::tolerance(0.001f);
 
-  non_trivial_copy(int val)
-  : x{val} {}
-
-  non_trivial_copy(const non_trivial_copy& other)
-  : x{other.x + 1} {}
-
-  non_trivial_copy& operator=(const non_trivial_copy& other) {
-    x = other.x + 1;
-    return *this;
-  }
-
-  friend bool operator==(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x == b.x;
-  }
-
-  friend bool operator!=(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x != b.x;
-  }
-
-  int x;
-};
-
-template<class T>
-void test_copy(std::size_t problem_size) {
-  std::vector<T> data(problem_size);
-  for(int i = 0; i < problem_size; ++i) {
-    data[i] = T{i};
-  }
-
-  std::vector<T> dest_device(problem_size);
-  std::vector<T> dest_host(problem_size);
-
-  auto ret = std::copy(std::execution::par_unseq, data.begin(), data.end(),
-                       dest_device.begin());
-  std::copy(data.begin(), data.end(), dest_host.begin());
-
-  BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  BOOST_CHECK(dest_device == dest_device);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
-  test_copy<T>(0);
+BOOST_FIXTURE_TEST_SUITE(pstl_std_math, enable_unified_shared_memory)
+
+BOOST_AUTO_TEST_CASE(par_unseq) {
+  std::vector<float> data(1000);
+  for(int i = 0; i < data.size(); ++i)
+    data[i] = static_cast<float>(i);
+  
+  std::for_each(std::execution::par_unseq, data.begin(), data.end(), [](auto& x){
+    x = std::sin(x) + std::pow(x, 0.01f);
+  });
+
+  for(int i = 0; i < data.size(); ++i) {
+    float x = static_cast<float>(i);
+    float reference_result = std::sin(x) + std::pow(x, 0.01f);
+
+    BOOST_TEST(reference_result == data[i], tolerance);
+  }
 }
-
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
-  test_copy<T>(1);
-}
-
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
-  test_copy<T>(1000);
-}
-
-
 
 BOOST_AUTO_TEST_SUITE_END()

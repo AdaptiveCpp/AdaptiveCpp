@@ -31,70 +31,50 @@
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
-#include <boost/mpl/list.hpp>
 
 #include "pstl_test_suite.hpp"
 
 BOOST_FIXTURE_TEST_SUITE(pstl_copy, enable_unified_shared_memory)
 
-struct non_trivial_copy {
-  non_trivial_copy(){}
 
-  non_trivial_copy(int val)
-  : x{val} {}
-
-  non_trivial_copy(const non_trivial_copy& other)
-  : x{other.x + 1} {}
-
-  non_trivial_copy& operator=(const non_trivial_copy& other) {
-    x = other.x + 1;
-    return *this;
-  }
-
-  friend bool operator==(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x == b.x;
-  }
-
-  friend bool operator!=(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x != b.x;
-  }
-
-  int x;
-};
-
-template<class T>
-void test_copy(std::size_t problem_size) {
-  std::vector<T> data(problem_size);
+template<class Generator>
+void test_copy_if(std::size_t problem_size, Generator&& gen) {
+  std::vector<int> data(problem_size);
   for(int i = 0; i < problem_size; ++i) {
-    data[i] = T{i};
+    data[i] = gen(i);
   }
 
-  std::vector<T> dest_device(problem_size);
-  std::vector<T> dest_host(problem_size);
+  std::vector<int> dest_device(problem_size);
+  std::vector<int> dest_host(problem_size);
 
-  auto ret = std::copy(std::execution::par_unseq, data.begin(), data.end(),
-                       dest_device.begin());
-  std::copy(data.begin(), data.end(), dest_host.begin());
+  auto p = [](auto x) { return x % 2 == 0; };
+
+  auto ret = std::copy_if(std::execution::par_unseq, data.begin(), data.end(),
+                          dest_device.begin(), p);
+  std::copy_if(data.begin(), data.end(), dest_host.begin(), p);
 
   BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  BOOST_CHECK(dest_device == dest_host);
+  BOOST_CHECK(dest_device == dest_device);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
-  test_copy<T>(0);
+BOOST_AUTO_TEST_CASE(par_unseq_empty) {
+  test_copy_if(0, [](int i){return i;});
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
-  test_copy<T>(1);
+BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
+  test_copy_if(1, [](int i){return i+3;});
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
-  test_copy<T>(1000);
+BOOST_AUTO_TEST_CASE(par_unseq_none) {
+  test_copy_if(1000, [](int i){return 1;});
 }
 
+BOOST_AUTO_TEST_CASE(par_unseq_all) {
+  test_copy_if(1000, [](int i){return 2*i;});
+}
 
+BOOST_AUTO_TEST_CASE(par_unseq_half) {
+  test_copy_if(1000, [](int i){return i;});
+}
 
 BOOST_AUTO_TEST_SUITE_END()

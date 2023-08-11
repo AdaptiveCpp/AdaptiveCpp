@@ -159,6 +159,8 @@ sycl::event copy_if(sycl::queue& q,
                     ForwardIt1 first, ForwardIt1 last,
                     ForwardIt2 d_first,
                     UnaryPredicate pred) {
+  if(first == last)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first, last)},
                         [=](sycl::id<1> id) {
                           auto input = first;

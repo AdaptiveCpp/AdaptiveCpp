@@ -230,9 +230,14 @@ llvm::PreservedAnalyses MallocToUSMPass::run(llvm::Module &M, llvm::ModuleAnalys
   }
   // Due to the way collectAllCallersFromSet is currently implemented, it might also return the
   // alloc functions in the set, which we don't need or want.
-  for(auto* F: ManagedAllocFunctions)
+  for(auto* F: ManagedAllocFunctions) {
     if(PrunedRestrictedSubCallgraph.contains(F))
       PrunedRestrictedSubCallgraph.erase(F);
+  }
+  for(auto* F: ManagedFreeFunctions) {
+    if(PrunedRestrictedSubCallgraph.contains(F))
+      PrunedRestrictedSubCallgraph.erase(F);
+  }
 
   llvm::SmallDenseMap<llvm::Function*, llvm::Function*> DuplicatedFunctions;
   llvm::SmallPtrSet<llvm::Function*, 16> ReplacementSubCallgraph;

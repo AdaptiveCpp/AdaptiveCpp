@@ -135,11 +135,11 @@ sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
   
   using value_type1 = typename std::iterator_traits<ForwardIt1>::value_type;
   using value_type2 = typename std::iterator_traits<ForwardIt2>::value_type;
-  
-  if constexpr (std::is_trivially_copyable_v<value_type1> &&
-                std::is_same_v<value_type1, value_type2> &&
-                util::is_contiguous<ForwardIt1>() &&
-                util::is_contiguous<ForwardIt2>()) {
+
+  if (std::is_trivially_copyable_v<value_type1> &&
+      std::is_same_v<value_type1, value_type2> &&
+      util::is_contiguous<ForwardIt1>() && util::is_contiguous<ForwardIt2>() &&
+      !q.get_device().is_cpu()) {
     return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1));
   } else {
     return q.parallel_for(sycl::range{size},
@@ -205,7 +205,8 @@ sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                 std::is_same_v<value_type, T> &&
                 util::is_contiguous<ForwardIt>()) {
     unsigned char equal_byte;
-    if(detail::all_bytes_equal(value, equal_byte)) {
+    if (detail::all_bytes_equal(value, equal_byte) &&
+        !q.get_device().is_cpu()) {
       return q.memset(&(*first), static_cast<int>(equal_byte),
                       size * sizeof(T));
     } else {

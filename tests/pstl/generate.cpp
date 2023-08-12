@@ -35,46 +35,33 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_copy_n, enable_unified_shared_memory)
+BOOST_FIXTURE_TEST_SUITE(pstl_generate, enable_unified_shared_memory)
 
-template<class T>
-void test_copy_n(std::size_t problem_size) {
-  std::vector<T> data(problem_size);
-  for(int i = 0; i < problem_size; ++i) {
-    data[i] = T{i};
-  }
 
-  std::vector<T> dest_device(problem_size);
-  std::vector<T> dest_host(problem_size);
+void test_generate(std::size_t problem_size) {
+  std::vector<int> data(problem_size);
 
-  auto ret = std::copy_n(std::execution::par_unseq, data.begin(), data.size(),
-                         dest_device.begin());
-  std::copy_n(data.begin(), data.size(), dest_host.begin());
+  std::generate(std::execution::par_unseq, data.begin(), data.end(),
+                []() { return 42; });
 
-  BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  BOOST_CHECK(dest_device == dest_host);
+  std::vector<int> data_host(problem_size);
+
+  std::generate(data_host.begin(), data_host.end(),
+                []() { return 42; });
+
+  BOOST_CHECK(data == data_host);
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_negative) {
-  std::vector<int> empty;
-  std::vector<int> dest(1);
-
-  auto ret =
-      std::copy_n(std::execution::par_unseq, empty.begin(), -1, dest.begin());
-  BOOST_CHECK(ret == dest.begin());
+BOOST_AUTO_TEST_CASE(par_unseq_empty) {
+  test_generate(0);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
-  test_copy_n<T>(0);
+BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
+  test_generate(1);
 }
 
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
-  test_copy_n<T>(1);
-}
-
-BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
-  test_copy_n<T>(1000);
+BOOST_AUTO_TEST_CASE(par_unseq_medium_size) {
+  test_generate(1000);
 }
 
 

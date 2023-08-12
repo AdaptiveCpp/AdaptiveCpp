@@ -231,6 +231,8 @@ sycl::event fill_n(sycl::queue& q,
 
 template<class ForwardIt, class Generator >
 sycl::event generate(sycl::queue& q, ForwardIt first, ForwardIt last, Generator g) {
+  if(first == last)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first, last)},
                         [=](sycl::id<1> id) {
                           auto it = first;

@@ -114,6 +114,7 @@ if(WITH_PSTL_TESTS)
     pstl/fill_n.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
+    pstl/generate.cpp
     pstl/transform.cpp
     pstl/transform_reduce.cpp)
 

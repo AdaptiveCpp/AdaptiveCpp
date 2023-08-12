@@ -61,12 +61,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
   test_copy<T>(0);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
   test_copy<T>(1);
 }
 
-using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
   test_copy<T>(1000);
 }

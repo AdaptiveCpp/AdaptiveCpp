@@ -326,7 +326,7 @@ HIPSYCL_STDPAR_ENTRYPOINT ForwardIt2 replace_copy_if(
     ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
 
   auto offloader = [&](auto &queue) {
-    ForwardIt2 d_last;
+    ForwardIt2 d_last = d_first;
     std::advance(d_last, std::distance(first, last));
     hipsycl::algorithms::replace_copy_if(queue, first, last, d_first, p,
                                          new_value);

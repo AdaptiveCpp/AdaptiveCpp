@@ -117,6 +117,7 @@ if(WITH_PSTL_TESTS)
     pstl/generate.cpp
     pstl/generate_n.cpp
     pstl/replace.cpp
+    pstl/replace_if.cpp
     pstl/transform.cpp
     pstl/transform_reduce.cpp)
 

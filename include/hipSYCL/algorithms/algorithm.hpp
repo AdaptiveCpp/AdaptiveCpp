@@ -269,6 +269,8 @@ template<class ForwardIt,
          class UnaryPredicate, class T >
 sycl::event replace_if(sycl::queue& q, ForwardIt first, ForwardIt last,
                       UnaryPredicate p, const T& new_value) {
+  if(first == last)
+    return sycl::event{};
   return for_each(q, first, last, [=](auto& x){
     if(p(x))
       x = new_value;

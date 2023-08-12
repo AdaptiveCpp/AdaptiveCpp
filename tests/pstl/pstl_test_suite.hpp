@@ -39,4 +39,35 @@ struct enable_unified_shared_memory {
   }
 };
 
+
+static thread_local int counter = 0;
+struct non_trivial_copy {
+
+  non_trivial_copy(){}
+
+  non_trivial_copy(int val)
+  : x{val} {}
+
+  non_trivial_copy(const non_trivial_copy& other){
+    x = other.x;
+    __hipsycl_if_target_host(++counter;)
+  }
+
+  non_trivial_copy& operator=(const non_trivial_copy& other) {
+    x = other.x;
+    __hipsycl_if_target_host(++counter;)
+    return *this;
+  }
+
+  friend bool operator==(const non_trivial_copy &a, const non_trivial_copy &b) {
+    return a.x == b.x;
+  }
+
+  friend bool operator!=(const non_trivial_copy &a, const non_trivial_copy &b) {
+    return a.x != b.x;
+  }
+
+  int x;
+};
+
 #endif

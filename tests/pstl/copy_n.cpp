@@ -37,31 +37,6 @@
 
 BOOST_FIXTURE_TEST_SUITE(pstl_copy_n, enable_unified_shared_memory)
 
-struct non_trivial_copy {
-  non_trivial_copy(){}
-
-  non_trivial_copy(int val)
-  : x{val} {}
-
-  non_trivial_copy(const non_trivial_copy& other)
-  : x{other.x + 1} {}
-
-  non_trivial_copy& operator=(const non_trivial_copy& other) {
-    x = other.x + 1;
-    return *this;
-  }
-
-  friend bool operator==(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x == b.x;
-  }
-
-  friend bool operator!=(const non_trivial_copy &a, const non_trivial_copy &b) {
-    return a.x != b.x;
-  }
-
-  int x;
-};
-
 template<class T>
 void test_copy_n(std::size_t problem_size) {
   std::vector<T> data(problem_size);

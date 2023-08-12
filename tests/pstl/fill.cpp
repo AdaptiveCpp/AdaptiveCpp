@@ -35,42 +35,41 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_copy, enable_unified_shared_memory)
+BOOST_FIXTURE_TEST_SUITE(pstl_fill, enable_unified_shared_memory)
 
 
 template<class T>
-void test_copy(std::size_t problem_size) {
+void test_fill(std::size_t problem_size) {
   std::vector<T> data(problem_size);
   for(int i = 0; i < problem_size; ++i) {
     data[i] = T{i};
   }
 
-  std::vector<T> dest_device(problem_size);
-  std::vector<T> dest_host(problem_size);
+  std::fill(std::execution::par_unseq, data.begin(), data.end(), T(42));
 
-  auto ret = std::copy(std::execution::par_unseq, data.begin(), data.end(),
-                       dest_device.begin());
-  std::copy(data.begin(), data.end(), dest_host.begin());
+  std::vector<T> host_data(problem_size);
+  for(int i = 0; i < problem_size; ++i) {
+   host_data[i] = T{i};
+  }
 
-  BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  BOOST_CHECK(dest_device == dest_host);
+  std::fill(host_data.begin(), host_data.end(), T(42));
+
+  BOOST_CHECK(host_data == data);
 }
 
 using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_empty, T, types::type) {
-  test_copy<T>(0);
+  test_fill<T>(0);
 }
 
 using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_single_element, T, types::type) {
-  test_copy<T>(1);
+  test_fill<T>(1);
 }
 
 using types = boost::mpl::list<int, non_trivial_copy>;
 BOOST_AUTO_TEST_CASE_TEMPLATE(par_unseq_medium_size, T, types::type) {
-  test_copy<T>(1000);
+  test_fill<T>(1000);
 }
-
-
 
 BOOST_AUTO_TEST_SUITE_END()

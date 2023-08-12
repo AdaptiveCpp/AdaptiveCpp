@@ -282,6 +282,8 @@ template <class ForwardIt1, class ForwardIt2,
 sycl::event replace_copy_if(
     sycl::queue& q, ForwardIt1 first,
     ForwardIt1 last, ForwardIt2 d_first, UnaryPredicate p, const T &new_value) {
+  if (first == last)
+    return sycl::event{};
   return q.parallel_for(sycl::range{std::distance(first, last)},
                         [=](sycl::id<1> id) {
                           auto input = first;
@@ -301,6 +303,8 @@ sycl::event
 replace_copy(sycl::queue& q,
              ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first,
              const T &old_value, const T &new_value) {
+  if (first == last)
+    return sycl::event{};
   return replace_copy_if(
       q, first, last, d_first, [=](const auto &x) { return x == old_value; },
       new_value);

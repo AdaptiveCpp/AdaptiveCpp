@@ -111,6 +111,7 @@ if(WITH_PSTL_TESTS)
     pstl/copy_if.cpp
     pstl/copy_n.cpp
     pstl/fill.cpp
+    pstl/fill_n.cpp
     pstl/for_each.cpp
     pstl/for_each_n.cpp
     pstl/transform.cpp

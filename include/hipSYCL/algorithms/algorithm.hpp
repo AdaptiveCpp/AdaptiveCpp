@@ -220,7 +220,7 @@ sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
 template<class ForwardIt, class Size, class T >
 sycl::event fill_n(sycl::queue& q,
                   ForwardIt first, Size count, const T& value ) {
-  if(count <= 0)
+  if(count <= Size{0})
     return sycl::event{};
   
   auto last = first;

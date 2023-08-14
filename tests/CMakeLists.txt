@@ -107,6 +107,8 @@ if(WITH_PSTL_TESTS)
   add_executable(pstl_tests 
     pstl/pstl_test_suite.cpp
     pstl/std_math.cpp
+    pstl/all_of.cpp
+    pstl/any_of.cpp
     pstl/copy.cpp
     pstl/copy_if.cpp
     pstl/copy_n.cpp
@@ -116,6 +118,7 @@ if(WITH_PSTL_TESTS)
     pstl/for_each_n.cpp
     pstl/generate.cpp
     pstl/generate_n.cpp
+    pstl/none_of.cpp
     pstl/replace.cpp
     pstl/replace_if.cpp
     pstl/replace_copy.cpp

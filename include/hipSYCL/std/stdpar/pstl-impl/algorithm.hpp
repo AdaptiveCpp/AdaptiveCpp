@@ -365,6 +365,10 @@ bool all_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
 
   auto offloader = [&](auto& queue){
+    
+    if(std::distance(first, last) == 0)
+      return true;
+    
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
@@ -392,6 +396,10 @@ bool any_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
   
   auto offloader = [&](auto& queue){
+
+    if(std::distance(first, last) == 0)
+      return false;
+
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<
@@ -419,6 +427,10 @@ bool none_of(hipsycl::stdpar::par_unseq, ForwardIt first, ForwardIt last,
             UnaryPredicate p ) {
   
   auto offloader = [&](auto& queue){
+
+    if(std::distance(first, last) == 0)
+      return true;
+
     auto output_scratch_group =
         hipsycl::stdpar::detail::stdpar_tls_runtime::get()
             .make_scratch_group<

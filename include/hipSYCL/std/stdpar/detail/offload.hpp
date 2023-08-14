@@ -35,6 +35,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <chrono>
+#include <limits>
 #include <utility>
 
 namespace hipsycl::stdpar {
@@ -69,14 +70,19 @@ class offload_heuristic {
 public:
   offload_heuristic() {
     auto devs = sycl::device::get_devices();
+    auto offloading_backend = hipsycl::stdpar::detail::single_device_dispatch::get_queue()
+              .get_device()
+              .get_backend();
     for(const auto& dev : devs) {
-      if(dev.hipSYCL_has_compiled_kernels()) {
+      if (dev.get_backend() == offloading_backend) {
         sycl::queue q{dev, hipsycl::sycl::property_list{
                                hipsycl::sycl::property::queue::in_order{},
                                hipsycl::sycl::property::queue::
                                    hipSYCL_coarse_grained_events{}}};
         std::size_t s = measure_crossover_problem_size(q);
         _offloading_min_problem_sizes.push_back(std::make_pair(dev, s));
+      } else {
+        _offloading_min_problem_sizes.push_back(std::make_pair(dev, 0));
       }
     }
 
@@ -117,6 +123,16 @@ private:
     return (static_cast<double>(duration.count()) * 1.e-9) / num_times;
   }
 
+  template<class F>
+  double measure_time(F&& f) {
+    auto start = std::chrono::high_resolution_clock::now();
+    f();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    return static_cast<double>(duration.count()) * 1.e-9;
+  }
+
   template<class Queue>
   void run_offload(Queue& q, float* data, std::size_t problem_size){
     q.parallel_for(sycl::range<1>{problem_size}, [=](auto idx) {
@@ -138,56 +154,37 @@ private:
 
   template<class Queue>
   std::size_t measure_crossover_problem_size(Queue& q) {
+    constexpr std::size_t max_size = 1024*1024*128;
+    constexpr std::size_t min_measurement_size = 32*1024*1024;
+    float* device_data = sycl::malloc_shared<float>(max_size, q);
+    float* host_data = sycl::malloc_shared<float>(max_size, q);
 
-    int num_times = 3;
-
-    constexpr std::size_t small_size = 1024;
-    constexpr std::size_t large_size = 1024*1024*256;
-    float* data = sycl::malloc_shared<float>(large_size, q);
-    std::memset(data, 2, large_size * sizeof(float));
+    std::memset(host_data, 2, max_size * sizeof(float));
+    q.parallel_for(sycl::range<1>{max_size}, [=](auto idx){
+      device_data[idx] = 2;
+    });
+    q.wait();
     
+    std::size_t current_size = 8192;
+    for(; current_size <= max_size; current_size *= 2) {
+      std::size_t num_measurements =
+          std::max(std::size_t{1}, min_measurement_size / current_size);
 
-    auto run = [&](bool offload, std::size_t problem_size){
-      if(offload)
-        run_offload(q, data, problem_size);
-      else
-        run_host(data, problem_size);
-    };
+      double t_offload = measure_time(num_measurements, [&](){
+        run_offload(q, device_data, current_size);
+      });
+      double t_host = measure_time(num_measurements, [&](){
+        run_host(host_data, current_size);
+      });
+      
+      if(t_offload < t_host)
+        break;
+    }
+
+    sycl::free(device_data, q);
+    sycl::free(host_data, q);
     
-
-    double t_host_small = measure_time(num_times, [&](){
-      run_host(data, small_size);
-    });
-
-    double t_host_large = measure_time(num_times, [&](){
-      run_host(data, large_size);
-    });
-
-    double t_offload_small = measure_time(num_times, [&](){
-      run_offload(q, data, small_size);
-    });
-
-    double t_offload_large = measure_time(num_times, [&](){
-      run_offload(q, data, large_size);
-    });
-
-    sycl::free(data, q);
-
-    // simple linear model, t(x)=a+bx
-    double b_host = (t_host_large - t_host_small) /
-                    static_cast<double>(large_size - small_size);
-    double b_offload = (t_offload_large - t_offload_small) /
-                       static_cast<double>(large_size - small_size);
-
-    double a_host = t_host_small - b_host * small_size;
-    double a_offload = t_offload_small - b_offload * small_size;
-
-    //b1*x+a1 = b2*x+a2 => (b1-b2)x = a2-a1 => x = (a2-a1)/(b1-b2)
-    double x = (a_host - a_offload) / (b_offload - b_host);
-    
-    if(x < 0.0)
-      return 0;
-    return static_cast<std::size_t>(x);
+    return current_size;
   }
 
   std::vector<std::pair<sycl::device, std::size_t>> _offloading_min_problem_sizes;

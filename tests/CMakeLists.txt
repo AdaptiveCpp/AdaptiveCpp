@@ -119,6 +119,7 @@ if(WITH_PSTL_TESTS)
     pstl/generate.cpp
     pstl/generate_n.cpp
     pstl/none_of.cpp
+    pstl/reduce.cpp
     pstl/replace.cpp
     pstl/replace_if.cpp
     pstl/replace_copy.cpp

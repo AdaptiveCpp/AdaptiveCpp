@@ -139,12 +139,21 @@ private:
   template<class Queue>
   std::size_t measure_crossover_problem_size(Queue& q) {
 
+    int num_times = 3;
+
     constexpr std::size_t small_size = 1024;
     constexpr std::size_t large_size = 1024*1024*256;
     float* data = sycl::malloc_shared<float>(large_size, q);
     std::memset(data, 2, large_size * sizeof(float));
     
-    int num_times = 3;
+
+    auto run = [&](bool offload, std::size_t problem_size){
+      if(offload)
+        run_offload(q, data, problem_size);
+      else
+        run_host(data, problem_size);
+    };
+    
 
     double t_host_small = measure_time(num_times, [&](){
       run_host(data, small_size);

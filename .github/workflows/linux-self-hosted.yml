@@ -88,7 +88,7 @@ jobs:
     - name: build
       run : |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm -DCMAKE_INSTALL_REFIX=`pwd`/install ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm ..
         make -j3 install
     - name: build generic SSCP tests
       if: matrix.clang_version >= 14
@@ -122,4 +122,29 @@ jobs:
     - name: run PSTL ROCm tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ./pstl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./pstl_tests
+  test-gpu-intel:
+    name: Intel with clang ${{ matrix.clang_version }}
+    runs-on: [self-hosted, gpu-intel]
+    strategy:
+      matrix:
+        clang_version: ['15']
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run : |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+        make -j3 install
+    - name: build generic SSCP tests
+      if: matrix.clang_version >= 14
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        make pstl_tests -j3
+    - name: run PSTL Intel tests (L0)
+      if: matrix.clang_version >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests

@@ -313,7 +313,7 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
 std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
-    return _props.numSlices * _props.numSubslicesPerSlice;
+    return _props.numSlices * _props.numSubslicesPerSlice * _props.numEUsPerSubslice;
     break;
   case device_uint_property::max_global_size0:
     return _compute_props.maxGroupSizeX * _compute_props.maxGroupCountX;

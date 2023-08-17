@@ -48,6 +48,12 @@ std::ostream &operator<<(std::ostream &out, const hardware_platform value) {
   case rt::hardware_platform::rocm:
     out << "ROCm";
     break;
+  case rt::hardware_platform::level_zero:
+    out << "Level Zero";
+    break;
+  case rt::hardware_platform::ocl:
+    out << "OpenCL";
+    break;
   default:
     out << "<unknown>";
     break;
@@ -62,6 +68,15 @@ std::ostream &operator<<(std::ostream &out, const api_platform value) {
     break;
   case rt::api_platform::omp:
     out << "OpenMP";
+    break;
+  case rt::api_platform::cuda:
+    out << "CUDA";
+    break;
+  case rt::api_platform::level_zero:
+    out << "Level Zero";
+    break;
+  case rt::api_platform::ocl:
+    out << "OpenCL";
     break;
   default:
     out << "<unknown>";
@@ -80,6 +95,12 @@ std::ostream &operator<<(std::ostream &out, const backend_id value) {
     break;
   case rt::backend_id::omp:
     out << "OpenMP";
+    break;
+  case rt::backend_id::level_zero:
+    out << "Level Zero";
+    break;
+  case rt::backend_id::ocl:
+    out << "OpenCL";
     break;
   default:
     out << "<unknown>";

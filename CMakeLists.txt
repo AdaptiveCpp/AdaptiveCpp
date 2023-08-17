@@ -41,6 +41,8 @@ endif()
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
+# Check for OpenCL
+find_package(OpenCL QUIET)
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
@@ -76,8 +78,15 @@ if(WITH_ROCM_BACKEND)
   endif()
 endif()
 
+if(WITH_OPENCL_BACKEND)
+  if(NOT OpenCL_FOUND)
+    message(SEND_ERROR "OpenCL was not found")
+  endif()
+endif()
+
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build hipSYCL support for OpenCL SPIR-V devices supporting USM")
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
@@ -136,6 +145,10 @@ if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
 endif()
 if(WITH_ROCM_BACKEND)
   set(BUILD_CLANG_PLUGIN true)
+endif()
+if(WITH_OPENCL_BACKEND OR WITH_LEVEL_ZERO_BACKEND)
+  set(BUILD_CLANG_PLUGIN true)
+  set(WITH_SSCP_COMPILER true)
 endif()
 
 if(BUILD_CLANG_PLUGIN)

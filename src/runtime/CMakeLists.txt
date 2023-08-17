@@ -188,6 +188,32 @@ if(WITH_LEVEL_ZERO_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_OPENCL_BACKEND)
+  add_library(rt-backend-ocl SHARED
+    ocl/ocl_backend.cpp
+    ocl/ocl_code_object.cpp
+    ocl/ocl_hardware_manager.cpp
+    ocl/ocl_allocator.cpp
+    ocl/ocl_usm.cpp
+    ocl/ocl_event.cpp
+    ocl/ocl_queue.cpp)
+  
+  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES})
+
+  target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-ocl PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-ocl PRIVATE llvm-to-spirv)
+  endif()
+
+  install(TARGETS rt-backend-ocl
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
 if(WITH_CPU_BACKEND)
   add_library(rt-backend-omp SHARED
     omp/omp_allocator.cpp

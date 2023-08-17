@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 
 namespace hipsycl {
@@ -64,6 +65,8 @@ std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out) {
     } else if (name == "omp") {
       // looking for this, even though we have to allow it always.
       out.push_back(rt::backend_id::omp);
+    } else if (name == "ocl" || name == "opencl") {
+      out.push_back(rt::backend_id::ocl);
     } else {
       istr.setstate(std::ios_base::failbit);
       HIPSYCL_DEBUG_WARNING << "'" << name << "' is not a known backend name." << std::endl;

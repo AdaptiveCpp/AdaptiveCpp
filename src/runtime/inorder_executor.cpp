@@ -172,7 +172,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
                    "requirement follows in the same inorder queue)"
                 << std::endl;
           } else {
-            res = _q->submit_queue_wait_for(req->get_event());
+            res = _q->submit_queue_wait_for(req);
           }
         }
       }

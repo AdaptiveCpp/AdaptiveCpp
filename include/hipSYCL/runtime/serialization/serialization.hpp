@@ -40,6 +40,7 @@ namespace hipsycl::rt {
 std::ostream &operator<<(std::ostream &out, const hardware_platform value);
 std::ostream &operator<<(std::ostream &out, const api_platform value);
 std::ostream &operator<<(std::ostream &out, const backend_id value);
+std::ostream &operator<<(std::ostream &out, device_id dev);
 
 template <int Dim>
 std::ostream &operator<<(std::ostream &out, const static_array<Dim> &v) {

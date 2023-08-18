@@ -27,6 +27,7 @@
 
 
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/runtime/serialization/serialization.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/executor.hpp"
@@ -156,6 +157,13 @@ std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
 }
 
 result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
+
+  HIPSYCL_DEBUG_INFO << "ocl_queue: On device "
+                     << _hw_manager->get_device_id(_device_index)
+                     << ": Processing memcpy request from device "
+                     << op.source().get_device() << " to "
+                     << op.dest().get_device() << std::endl;
+
   // TODO We could probably unify some of the logic here between
   // backends
   device_id source_dev = op.source().get_device();
@@ -258,9 +266,17 @@ result ocl_queue::submit_memset(memset_operation& op, dag_node_ptr) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result ocl_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
-  ocl_node_event* ocl_evt = static_cast<ocl_node_event*>(evt.get());
+result ocl_queue::submit_queue_wait_for(dag_node_ptr evt) {
+
+  ocl_node_event *ocl_evt =
+      static_cast<ocl_node_event *>(evt->get_event().get());
+  
   std::vector<cl::Event> events{ocl_evt->get_event()};
+
+  if (_hw_manager->get_context(ocl_evt->get_device()) !=
+      _hw_manager->get_context(_hw_manager->get_device_id(_device_index))) {
+    return submit_external_wait_for(evt);
+  }
 
   cl::Event wait_evt;
   cl_int err = _queue.enqueueBarrierWithWaitList(&events, &wait_evt);

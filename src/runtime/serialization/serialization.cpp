@@ -185,4 +185,9 @@ void device_id::dump(std::ostream &ostr) const {
   ostr << _backend.hw_platform << "-Device" << _device_id;
 }
 
+std::ostream &operator<<(std::ostream &out, device_id dev) {
+  dev.dump(out);
+  return out;
+}
+
 } // end of namespace hipsycl::rt

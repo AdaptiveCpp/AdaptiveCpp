@@ -103,6 +103,7 @@ public:
   
   cl::Platform get_platform(int platform_id);
   cl::Context get_context(int platform_id);
+  cl::Context get_context(device_id dev);
 private:
   std::vector<ocl_hardware_context> _devices;
   std::vector<cl::Platform> _platforms;

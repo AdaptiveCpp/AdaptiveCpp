@@ -421,7 +421,10 @@ ocl_hardware_manager::ocl_hardware_manager()
     int platform_id = _platforms.size() - 1;
 
     std::vector<cl::Device> devs;
-    err = p.getDevices(CL_DEVICE_TYPE_ALL, &devs);
+    // CL param validation layer does not like CL_DEVICE_TYPE_ALL here
+    err = p.getDevices(CL_DEVICE_TYPE_CPU | CL_DEVICE_TYPE_GPU |
+                           CL_DEVICE_TYPE_ACCELERATOR,
+                       &devs);
     if(err != CL_SUCCESS) {
       print_warning(
           __hipsycl_here(),
@@ -467,6 +470,11 @@ cl::Platform ocl_hardware_manager::get_platform(int platform_id) {
 }
 
 cl::Context ocl_hardware_manager::get_context(int platform_id) {
+  return _platform_contexts[platform_id];
+}
+
+cl::Context ocl_hardware_manager::get_context(device_id dev) {
+  int platform_id = _devices[dev.get_id()].get_platform_id();
   return _platform_contexts[platform_id];
 }
 

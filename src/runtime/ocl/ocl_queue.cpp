@@ -143,12 +143,32 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
 ocl_queue::~ocl_queue() {}
 
 std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
-  if(_most_recent_event) {
-    return _most_recent_event;
-  } else {
-    return std::make_shared<ocl_node_event>(
-        _hw_manager->get_device_id(_device_index));
+  if(!_most_recent_event) {
+    // Normally, this code path should only be triggered
+    // when no work has been submitted to the queue, and so
+    // nothing needs to be synchronized with. Thus
+    // the returned event should never actually be needed
+    // by other nodes in the DAG.
+    // However, if some work fails to execute, we can end up
+    // with the situation that the "no work submitted yet" situation
+    // appears at later stages in the program, when events
+    // are expected to work correctly.
+    // It is thus safer to enqueue a barrier here.
+    cl::Event wait_evt;
+    cl_int err = _queue.enqueueBarrierWithWaitList(nullptr, &wait_evt);
+
+    if(err != CL_SUCCESS) {
+      register_error(
+            __hipsycl_here(),
+            error_info{
+                "ocl_queue: enqueueBarrierWithWaitList() failed",
+                error_code{"CL", err}});
+    }
+    register_submitted_op(wait_evt);
+    
   }
+
+  return _most_recent_event;
 }
 
 std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {

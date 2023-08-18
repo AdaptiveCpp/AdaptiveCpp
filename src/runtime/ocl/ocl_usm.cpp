@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/ocl/opencl.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
+#include <CL/cl.h>
 #include <CL/cl_ext.h>
 #include <memory>
 
@@ -164,13 +165,6 @@ public:
       return CL_INVALID_PLATFORM;
     }
     return _free(_ctx.get(), ptr);
-  }
-
-  virtual cl_int blocking_free(void* ptr) override {
-    if(!_blocking_free) {
-      return CL_INVALID_PLATFORM;
-    }
-    return _blocking_free(_ctx.get(), ptr);
   }
 
   virtual cl_int get_alloc_info(const void* ptr, pointer_info& out) override {
@@ -326,6 +320,142 @@ private:
   bool _is_cpu = false;
 };
 
+
+
+class ocl_usm_svm : public ocl_usm {
+public:
+  ocl_usm_svm(ocl_hardware_manager *hw_mgr, int device_index,
+              const cl::Platform &platform, const cl::Device &dev,
+              const cl::Context &ctx)
+      : _ctx{ctx}, _dev{dev}, _hw_mgr{hw_mgr}, _device_index{device_index} {
+
+    _is_cpu = _hw_mgr->get_device(device_index)->is_cpu();
+
+    cl_device_svm_capabilities cap;
+    cl_int err = dev.getInfo(CL_DEVICE_SVM_CAPABILITIES, &cap);
+    // Need at least fine-grained system for proper USM semantics,
+    // as SVM otherwise requires us to specify all pointers a kernel uses.
+    // This we cannot know in general, however.
+    
+    if (err == CL_SUCCESS && (cap & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM)) {
+      _is_available = true;
+      if(cap & (cap & CL_DEVICE_SVM_ATOMICS))
+        _has_atomics = true;
+    }
+  }
+
+  virtual bool is_available() const override {
+    return _is_available;
+  }
+
+  virtual bool has_usm_device_allocations() const override {
+    return has_usm_shared_allocations();
+  }
+
+  virtual bool has_usm_host_allocations() const override {
+    return has_usm_shared_allocations();
+  }
+
+  virtual bool has_usm_atomic_host_allocations() const override {
+    return has_usm_atomic_shared_allocations();
+  }
+
+  virtual bool has_usm_shared_allocations() const override {
+    return _is_available;
+  }
+
+  virtual bool has_usm_atomic_shared_allocations() const override {
+    if (!_is_available)
+      return false;
+    
+    return _has_atomics;
+  }
+
+  virtual bool has_usm_system_allocations() const override {
+    return _is_available;
+  }
+
+  virtual void* malloc_host(std::size_t size, std::size_t alignment, cl_int& err) override {
+    return this->malloc_shared(size, alignment, err);
+  }
+
+  virtual void* malloc_device(std::size_t size, std::size_t alignment, cl_int& err) override {
+    return this->malloc_shared(size, alignment, err);
+  }
+
+  virtual void* malloc_shared(std::size_t size, std::size_t alignment, cl_int& err) override {
+    if(!_is_available) {
+      err = CL_INVALID_PLATFORM;
+      return nullptr;
+    }
+    
+    void* ptr = clSVMAlloc(_ctx.get(),
+                      CL_MEM_SVM_FINE_GRAIN_BUFFER & CL_DEVICE_SVM_ATOMICS,
+                      size, static_cast<cl_uint>(alignment));
+    if(ptr)
+      err = CL_SUCCESS;
+    else
+      err = CL_MEM_OBJECT_ALLOCATION_FAILURE;
+    return ptr;
+  }
+
+  virtual cl_int free(void* ptr) override {
+    if(!_is_available) {
+      return CL_INVALID_PLATFORM;
+    }
+    clSVMFree(_ctx.get(), ptr);
+    return CL_SUCCESS;
+  }
+
+
+  virtual cl_int get_alloc_info(const void* ptr, pointer_info& out) override {
+    if(!_is_available) {
+      return CL_INVALID_PLATFORM;
+    }
+
+    // TODO: We don't have a direct way of querying where a SVM pointer
+    // comes from, so for now we just assume everything is a SVM pointer from
+    // this device with shared USM semantics. This might not be correct
+    // if other devices are used too.
+    out.is_from_host_backend = false;
+    out.is_usm = true;
+    out.is_optimized_host = false;
+    out.dev = _hw_mgr->get_device_id(_device_index);
+
+    return CL_SUCCESS;
+  }
+
+  virtual cl_int enqueue_memcpy(cl::CommandQueue &queue, void *dst,
+                                const void *src, std::size_t size,
+                                const std::vector<cl::Event> &wait_events,
+                                cl::Event *evt_out) override {
+    return queue.enqueueMemcpySVM(dst, src, false, size, &wait_events, evt_out);
+  }
+
+
+
+  cl_int enqueue_memset(cl::CommandQueue &queue, void *ptr,
+                                cl_int pattern, std::size_t bytes,
+                                const std::vector<cl::Event> &wait_events,
+                                cl::Event *out) override {
+    unsigned char pattern_byte = static_cast<char>(pattern);
+    return queue.enqueueMemFillSVM(ptr, pattern_byte, bytes, &wait_events, out);
+  }
+
+  cl_int enable_indirect_usm_access(cl::Kernel& k) override {
+    return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, true);
+  }
+
+private:
+  bool _is_available = false;
+  cl::Context _ctx;
+  cl::Device _dev;
+  ocl_hardware_manager* _hw_mgr;
+  bool _is_cpu = false;
+  bool _has_atomics = false;
+  int _device_index;
+};
+
 std::unique_ptr<ocl_usm>
 ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
   
@@ -333,6 +463,17 @@ ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
       static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
   int platform_id = ctx->get_platform_id();
   return std::make_unique<ocl_usm_intel_extension>(
+      hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
+      hw_mgr->get_context(platform_id));
+}
+
+std::unique_ptr<ocl_usm>
+ocl_usm::from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int dev_id) {
+  
+  ocl_hardware_context *ctx =
+      static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
+  int platform_id = ctx->get_platform_id();
+  return std::make_unique<ocl_usm_svm>(
       hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
       hw_mgr->get_context(platform_id));
 }

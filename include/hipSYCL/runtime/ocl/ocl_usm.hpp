@@ -52,7 +52,6 @@ public:
   virtual void* malloc_device(std::size_t size, std::size_t alignment, cl_int& err) = 0;
   virtual void* malloc_shared(std::size_t size, std::size_t alignment, cl_int& err) = 0;
   virtual cl_int free(void* ptr) = 0;
-  virtual cl_int blocking_free(void* ptr) = 0;
 
   virtual cl_int get_alloc_info(const void* ptr, pointer_info& out) = 0;
 
@@ -69,6 +68,7 @@ public:
   virtual cl_int enable_indirect_usm_access(cl::Kernel&) = 0;
 
   static std::unique_ptr<ocl_usm> from_intel_extension(ocl_hardware_manager* hw_mgr, int device_index);
+  static std::unique_ptr<ocl_usm> from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int device_index);
 };
 
 

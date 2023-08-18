@@ -198,7 +198,7 @@ if(WITH_OPENCL_BACKEND)
     ocl/ocl_event.cpp
     ocl/ocl_queue.cpp)
   
-  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include ${OpenCL_INCLUDE_DIRS})
   target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES})
 
   target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})

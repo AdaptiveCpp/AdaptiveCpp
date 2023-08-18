@@ -59,6 +59,28 @@ bool all_bytes_equal(const T& val, unsigned char& byte_value) {
   return true;
 }
 
+inline bool should_use_memcpy(const sycl::device& dev) {
+  // OpenMP backend implements queue::memcpy() using std::memcpy
+  // which can break perf on NUMA systems
+  if(dev.get_backend() == sycl::backend::omp)
+    return false;
+  // Some OpenCL implementations (e.g. Intel GPU) seem to be very
+  // inefficient for memcpy calls between two pointers if data
+  // is source and dest are on the same device (does it always go
+  // through the host?)
+  if(dev.get_backend() == sycl::backend::ocl)
+    return false;
+  return true;
+}
+
+inline bool should_use_memset(const sycl::device& dev) {
+  if(dev.get_backend() == sycl::backend::omp)
+    return false;
+  if(dev.get_backend() == sycl::backend::ocl)
+    return false;
+  return true;
+}
+
 }
 
 template <class ForwardIt, class UnaryFunction2>
@@ -139,7 +161,7 @@ sycl::event copy(sycl::queue &q, ForwardIt1 first, ForwardIt1 last,
   if (std::is_trivially_copyable_v<value_type1> &&
       std::is_same_v<value_type1, value_type2> &&
       util::is_contiguous<ForwardIt1>() && util::is_contiguous<ForwardIt2>() &&
-      !q.get_device().is_cpu()) {
+      detail::should_use_memcpy(q.get_device())) {
     return q.memcpy(&(*d_first), &(*first), size * sizeof(value_type1));
   } else {
     return q.parallel_for(sycl::range{size},
@@ -206,7 +228,7 @@ sycl::event fill(sycl::queue &q, ForwardIt first, ForwardIt last,
                 util::is_contiguous<ForwardIt>()) {
     unsigned char equal_byte;
     if (detail::all_bytes_equal(value, equal_byte) &&
-        !q.get_device().is_cpu()) {
+        detail::should_use_memset(q.get_device())) {
       return q.memset(&(*first), static_cast<int>(equal_byte),
                       size * sizeof(T));
     } else {

@@ -55,7 +55,8 @@ ResultT info_query(const cl::Device& dev) {
 
 class ocl_usm_intel_extension : public ocl_usm {
 public:
-  ocl_usm_intel_extension(ocl_hardware_manager* hw_mgr, const cl::Platform &platform, const cl::Device &dev,
+  ocl_usm_intel_extension(ocl_hardware_manager *hw_mgr, int device_index,
+                          const cl::Platform &platform, const cl::Device &dev,
                           const cl::Context &ctx)
       : _ctx{ctx}, _dev{dev}, _hw_mgr{hw_mgr} {
     std::string str;
@@ -78,6 +79,10 @@ public:
       initialize_func(_mem_copy, "clEnqueueMemcpyINTEL", id);
       initialize_func(_mem_advise, "clEnqueueMemAdviseINTEL", id);
       initialize_func(_migrate_mem, "clEnqueueMigrateMemINTEL", id);
+
+      // On CPU, we can be more relaxed in a couple of places as
+      // USM will generally "just work"
+      _is_cpu = _hw_mgr->get_device(device_index)->is_cpu();
     }
   }
 
@@ -268,14 +273,24 @@ public:
   }
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
-    cl_int err = k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, true);
+    auto maybe_ignore = [this](cl_int error_code) {
+      // Intel CPU OpenCL seems to not understand these flags. We can just ignore USM errors
+      // on CPUs anyway.
+      if(_is_cpu)
+        return CL_SUCCESS;
+      return error_code;
+    };
+
+    cl_int err = maybe_ignore(
+        k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, true));
+
     if(err != CL_SUCCESS)
       return err;
-    err = k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, true);
+    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, true));
     if(err != CL_SUCCESS)
       return err;
-    err = k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, true);
-    
+    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, true));
+
     return err;
   }
 
@@ -308,6 +323,7 @@ private:
   cl::Context _ctx;
   cl::Device _dev;
   ocl_hardware_manager* _hw_mgr;
+  bool _is_cpu = false;
 };
 
 std::unique_ptr<ocl_usm>
@@ -317,7 +333,7 @@ ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
       static_cast<ocl_hardware_context *>(hw_mgr->get_device(dev_id));
   int platform_id = ctx->get_platform_id();
   return std::make_unique<ocl_usm_intel_extension>(
-      hw_mgr, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
+      hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
       hw_mgr->get_context(platform_id));
 }
 

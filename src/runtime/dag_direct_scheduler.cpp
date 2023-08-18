@@ -188,6 +188,9 @@ backend_executor *select_executor(runtime* rt, dag_node_ptr node, operation *op)
     // If we want an executor from a different backend, we may need to pass
     // a different device id.
 
+    // Make sure assigned device aligns with preferred executor
+    node->assign_to_device(preferred_device);
+
     if (user_preferred_executor &&
         user_preferred_executor->can_execute_on_device(preferred_device))
         return user_preferred_executor;

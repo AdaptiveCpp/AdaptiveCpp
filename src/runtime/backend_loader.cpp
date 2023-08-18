@@ -187,7 +187,7 @@ bool is_plugin_active(const std::string& name)
   } else if(name == "ocl") {
     id = hipsycl::rt::backend_id::ocl;
   }
-  return std::find(backends_active.cbegin(), backends_active.cend(), id) != backends_active.cend();
+  return backends_active.find(id) != backends_active.cend();
 }
 
 }

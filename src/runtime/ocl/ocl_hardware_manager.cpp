@@ -25,12 +25,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/ocl/ocl_allocator.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 #include "hipSYCL/runtime/ocl/opencl.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 #include <CL/cl.h>
 #include <cstddef>
 
@@ -417,6 +419,7 @@ void ocl_hardware_context::init_allocator(ocl_hardware_manager *mgr) {
 
 ocl_hardware_manager::ocl_hardware_manager()
 : _hw_platform{hardware_platform::ocl} {
+  auto visibility_mask = application::get_settings().get<setting::visibility_mask>();
 
   std::vector<cl::Platform> platforms;
   cl_int err = cl::Platform::get(&platforms);
@@ -428,6 +431,7 @@ ocl_hardware_manager::ocl_hardware_manager()
     platforms.clear();
   }
 
+  int global_device_index = 0;
   for(const auto& p : platforms) {
     std::string platform_name;
     if(p.getInfo(CL_PLATFORM_NAME, &platform_name) == CL_SUCCESS) {
@@ -454,15 +458,23 @@ ocl_hardware_manager::ocl_hardware_manager()
       cl::Context platform_ctx{devs};
       _platform_contexts.push_back(platform_ctx);
 
+      int platform_device_index = 0;
       for(const auto& dev : devs) {
         ocl_hardware_context hw_ctx{
             dev, platform_ctx, static_cast<int>(_devices.size()), platform_id};
 
-        _devices.push_back(hw_ctx);
-        // Allocator can only be initialized once the hardware context
-        // is in the list, because the allocator may itself attempt to access it
-        // using hardware_manager::get_device()
-        _devices.back().init_allocator(this);
+        if (device_matches(visibility_mask, backend_id::ocl,
+                           global_device_index, platform_device_index,
+                           platform_id, hw_ctx.get_device_name(),
+                           platform_name)) {
+          _devices.push_back(hw_ctx);
+          // Allocator can only be initialized once the hardware context
+          // is in the list, because the allocator may itself attempt to access
+          // it using hardware_manager::get_device()
+          _devices.back().init_allocator(this);
+        }
+        ++global_device_index;
+        ++platform_device_index;
       }
     }
 

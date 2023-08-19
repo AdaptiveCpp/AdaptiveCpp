@@ -181,7 +181,6 @@ cl::Context ocl_executable_object::get_cl_context() const {
 result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& out) const {
   if(!_build_status.is_success())
     return _build_status;
-  out = cl::Kernel{_program, name.c_str()};
   auto it = _kernel_handles.find(name);
   if(it == _kernel_handles.end())
     return make_error(__hipsycl_here(),

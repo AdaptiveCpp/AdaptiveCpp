@@ -129,7 +129,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
   ocl_hardware_context *dev_ctx =
       static_cast<ocl_hardware_context *>(hw_manager->get_device(device_index));
   cl::Device cl_dev = dev_ctx->get_cl_device();
-  cl::Context cl_ctx = hw_manager->get_context(dev_ctx->get_platform_id());
+  cl::Context cl_ctx = dev_ctx->get_cl_context();
 
   cl_int err;
   _queue = cl::CommandQueue{cl_ctx, cl_dev, props, &err};
@@ -316,7 +316,7 @@ result ocl_queue::submit_external_wait_for(dag_node_ptr node) {
   ocl_hardware_context* hw_ctx = static_cast<ocl_hardware_context *>(
       _hw_manager->get_device(_device_index));
   cl_int err;
-  cl::UserEvent uevt{_hw_manager->get_context(hw_ctx->get_platform_id()), &err};
+  cl::UserEvent uevt{hw_ctx->get_cl_context(), &err};
   if(err != CL_SUCCESS) {
     return make_error(
           __hipsycl_here(),
@@ -399,7 +399,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   ocl_hardware_context *hw_ctx = static_cast<ocl_hardware_context *>(
       _hw_manager->get_device(_device_index));
-  cl::Context ctx = _hw_manager->get_context(hw_ctx->get_platform_id());
+  cl::Context ctx = hw_ctx->get_cl_context();
   cl::Device dev = hw_ctx->get_cl_device();
 
   // Need to create custom config to ensure we can distinguish other

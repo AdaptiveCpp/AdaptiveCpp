@@ -80,11 +80,13 @@ public:
   int get_platform_id() const;
   int get_device_id() const;
   cl::Device get_cl_device() const;
+  cl::Context get_cl_context() const;
 
   void init_allocator(ocl_hardware_manager* mgr);
 private:
   int _dev_id;
   int _platform_id;
+  cl::Context _ctx;
   cl::Device _dev;
   std::shared_ptr<ocl_usm> _usm_provider;
   ocl_allocator _alloc;
@@ -102,12 +104,11 @@ public:
   virtual ~ocl_hardware_manager() {}
   
   cl::Platform get_platform(int platform_id);
-  cl::Context get_context(int platform_id);
   cl::Context get_context(device_id dev);
 private:
   std::vector<ocl_hardware_context> _devices;
   std::vector<cl::Platform> _platforms;
-  std::vector<cl::Context> _platform_contexts;
+  
   hardware_platform _hw_platform;
 };
 

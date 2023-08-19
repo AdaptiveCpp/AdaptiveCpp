@@ -446,7 +446,7 @@ ocl_usm::from_intel_extension(ocl_hardware_manager* hw_mgr, int dev_id) {
   int platform_id = ctx->get_platform_id();
   return std::make_unique<ocl_usm_intel_extension>(
       hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
-      hw_mgr->get_context(platform_id));
+      ctx->get_cl_context());
 }
 
 std::unique_ptr<ocl_usm>
@@ -457,7 +457,7 @@ ocl_usm::from_fine_grained_system_svm(ocl_hardware_manager* hw_mgr, int dev_id) 
   int platform_id = ctx->get_platform_id();
   return std::make_unique<ocl_usm_svm>(
       hw_mgr, dev_id, hw_mgr->get_platform(platform_id), ctx->get_cl_device(),
-      hw_mgr->get_context(platform_id));
+      ctx->get_cl_context());
 }
 
 }

@@ -59,7 +59,7 @@ ResultT info_query(const cl::Device& dev) {
 ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
                                            const cl::Context &ctx, int dev_id,
                                            int platform_id)
-    : _dev_id{dev_id}, _platform_id{platform_id}, _dev{dev} {}
+    : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev} {}
 
 bool ocl_hardware_context::is_cpu() const {
   return info_query<CL_DEVICE_TYPE, cl_device_type>(_dev) & CL_DEVICE_TYPE_CPU;
@@ -395,6 +395,10 @@ cl::Device ocl_hardware_context::get_cl_device() const {
   return _dev;
 }
 
+cl::Context ocl_hardware_context::get_cl_context() const {
+  return _ctx;
+}
+
 void ocl_hardware_context::init_allocator(ocl_hardware_manager *mgr) {
   _usm_provider = ocl_usm::from_intel_extension(mgr, _dev_id);
   if(!_usm_provider->is_available()) {
@@ -451,12 +455,11 @@ ocl_hardware_manager::ocl_hardware_manager()
           __hipsycl_here(),
           error_info{"ocl_hardware_manager: Could not list devices of platform",
                     error_code{"CL", err}});
-      // To make platform_contexts.size() match platforms.size()
-      _platform_contexts.push_back(cl::Context{});
     } else {
-      
-      cl::Context platform_ctx{devs};
-      _platform_contexts.push_back(platform_ctx);
+      cl_platform_id pid = p.cl::detail::Wrapper<cl_platform_id>::get();
+      cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM,
+                                           (cl_context_properties)pid, 0};
+      cl::Context platform_ctx{devs, ctx_props};
 
       int platform_device_index = 0;
       for(const auto& dev : devs) {
@@ -498,13 +501,10 @@ cl::Platform ocl_hardware_manager::get_platform(int platform_id) {
   return _platforms[platform_id];
 }
 
-cl::Context ocl_hardware_manager::get_context(int platform_id) {
-  return _platform_contexts[platform_id];
-}
 
 cl::Context ocl_hardware_manager::get_context(device_id dev) {
-  int platform_id = _devices[dev.get_id()].get_platform_id();
-  return _platform_contexts[platform_id];
+  return static_cast<ocl_hardware_context *>(get_device(dev.get_id()))
+      ->get_cl_context();
 }
 
 }

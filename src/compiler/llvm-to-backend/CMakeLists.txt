@@ -28,6 +28,8 @@ function(create_llvm_based_library)
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   llvm_config(${target} USE_SHARED core support irreader passes)
+  # We need symbolic functions for stdpar
+  target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
   install(TARGETS ${target} DESTINATION lib/hipSYCL/llvm-to-backend)
 endfunction()

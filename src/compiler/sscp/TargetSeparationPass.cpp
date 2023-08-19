@@ -31,6 +31,7 @@
 #include "hipSYCL/compiler/sscp/KernelOutliningPass.hpp"
 #include "hipSYCL/compiler/sscp/HostKernelNameExtractionPass.hpp"
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
+#include "hipSYCL/compiler/sscp/StdBuiltinRemapperPass.hpp"
 #include "hipSYCL/compiler/CompilationState.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 
@@ -213,6 +214,12 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, DeviceMAM);
 
+  // Fix std:: math function calls to point to our builtins.
+  // This is required such that e.g. std::sin() can be called in kernels.
+  // This should be done prior to kernel outlining, such that the now defunct
+  // std math functions can be thrown away during kernel outlining.
+  StdBuiltinRemapperPass SBMP;
+  SBMP.run(*DeviceModule, DeviceMAM);
 
   // Fix attributes for generic IR representation
   llvm::SmallVector<llvm::Attribute::AttrKind, 16> AttrsToRemove;

@@ -100,4 +100,41 @@ target_include_directories(rt_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURREN
 target_link_libraries(rt_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads)
 add_sycl_to_target(TARGET rt_tests)
 
+# We cannot enable building them unconditionally at the moment,
+# because --hipsycl-stdpar is not compatible with all --hipsycl-targets
+# values. Enabling them in all cases would break some existing test flows.
+if(WITH_PSTL_TESTS)
+  add_executable(pstl_tests 
+    pstl/pstl_test_suite.cpp
+    pstl/std_math.cpp
+    pstl/all_of.cpp
+    pstl/any_of.cpp
+    pstl/copy.cpp
+    pstl/copy_if.cpp
+    pstl/copy_n.cpp
+    pstl/fill.cpp
+    pstl/fill_n.cpp
+    pstl/for_each.cpp
+    pstl/for_each_n.cpp
+    pstl/generate.cpp
+    pstl/generate_n.cpp
+    pstl/none_of.cpp
+    pstl/reduce.cpp
+    pstl/replace.cpp
+    pstl/replace_if.cpp
+    pstl/replace_copy.cpp
+    pstl/replace_copy_if.cpp
+    pstl/transform.cpp
+    pstl/transform_reduce.cpp)
+
+  target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)
+  # pstl tests cannot run with global memory allocation hijacking, because apparently
+  # the boost test headers allocate memory that is then transferred to libboost_unit_tests
+  # which then cannot free it anymore. We we need to selectively enable it only for the actual test code.
+  target_compile_definitions(pstl_tests PRIVATE -DHIPSYCL_STDPAR_MEMORY_MANAGEMENT_DEFAULT_DISABLED)
+  target_include_directories(pstl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+  target_link_libraries(pstl_tests PRIVATE ${Boost_LIBRARIES} Threads::Threads -ltbb)
+  add_sycl_to_target(TARGET pstl_tests)
+endif()
+
 add_subdirectory(compiler)

@@ -1,5 +1,17 @@
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+if(NOT APPLE AND NOT WIN32)
+  # symbolic functions causes references in our libraries to be resolved
+  # to definitions within the libraries themselves, if possible.
+  # If both runtime library and SYCL headers define some of the same
+  # symbols, this can prevent code using hijacked USM malloc for standard
+  # parallelism to bleed into code that is executed within the runtime, where
+  # USM is a big no-no.
+  set(HIPSYCL_STDPAR_RT_LINKER_FLAGS "-Wl,-Bsymbolic-functions")
+else()
+  set(HIPSYCL_STDPAR_RT_LINKER_FLAGS "")
+endif()
+
 add_subdirectory(common)
 
 list( APPEND CMAKE_INSTALL_RPATH

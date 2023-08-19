@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
+#include "hipSYCL/common/string_utils.hpp"
 #include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -84,29 +85,34 @@ ocl_executable_object::ocl_executable_object(const cl::Context& ctx, cl::Device&
     return;
   }
 
-  std::vector<cl::Kernel> kernels;
-  err = _program.createKernels(&kernels);
-
+  // clCreateKernelsInProgram seems to not work reliably
+  //err = _program.createKernels(&kernels);
+  std::string concatenated_name_list;
+  err = _program.getInfo(CL_PROGRAM_KERNEL_NAMES, &concatenated_name_list);
+  
   if(err != CL_SUCCESS) {
     _build_status = register_error(
         __hipsycl_here(),
         error_info{
-            "ocl_code_object: Could not extract kernels from compiled program",
+            "ocl_code_object: Could not obtain kernel names in program",
             error_code{"CL", static_cast<int>(err)}});
     return;
   }
 
-  for(const auto& k : kernels) {
-    std::string kernel_name;
-    err = k.getInfo(CL_KERNEL_FUNCTION_NAME, &kernel_name);
+  std::vector<std::string> kernel_names =
+      common::split_by_delimiter(concatenated_name_list, ';');
+  std::vector<cl::Kernel> kernels;
+  for(const auto& name : kernel_names) {
+    cl::Kernel k{_program, name.c_str(), &err};
     if(err != CL_SUCCESS) {
       _build_status = register_error(
         __hipsycl_here(),
         error_info{
-            "ocl_code_object: Could not extract kernel name for OpenCL kernel",
+            "ocl_code_object: Could not construct kernel object for kernel "+name,
             error_code{"CL", static_cast<int>(err)}});
+      return;
     }
-    _kernel_handles[kernel_name] = k;
+    _kernel_handles[name] = k;
   }
 
   _build_status = make_success();
@@ -175,6 +181,7 @@ cl::Context ocl_executable_object::get_cl_context() const {
 result ocl_executable_object::get_kernel(const std::string& name, cl::Kernel& out) const {
   if(!_build_status.is_success())
     return _build_status;
+  out = cl::Kernel{_program, name.c_str()};
   auto it = _kernel_handles.find(name);
   if(it == _kernel_handles.end())
     return make_error(__hipsycl_here(),

@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/string_utils.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 
@@ -47,20 +48,6 @@ std::istream &operator>>(std::istream &istr, scheduler_type &out) {
 }
 
 namespace {
-std::vector<std::string> split_by_delimiter(const std::string &str, char delim,
-                                            bool include_empty = true) {
-
-  std::istringstream istream{str};
-
-  std::vector<std::string> result;
-  std::string current;
-  while(std::getline(istream, current, delim)) {
-    if(current.empty() && !include_empty)
-      continue;
-    result.push_back(current);
-  }
-  return result;
-}
 
 void trim(std::string& str) {
   str.erase(0, str.find_first_not_of("\t\n\v\f\r "));
@@ -75,11 +62,11 @@ bool is_number(const std::string& str){
 visibility_mask_t::mapped_type parse_device_visibility_mask(const std::string& str) {
   visibility_mask_t::mapped_type device_visibility_conditions;
 
-  std::vector<std::string> condition_substrings = split_by_delimiter(str, ',', false);
+  std::vector<std::string> condition_substrings = common::split_by_delimiter(str, ',', false);
   for(auto& s : condition_substrings) {
     trim(s);
     device_visibility_condition current;
-    auto components = split_by_delimiter(s, '.', true);
+    auto components = common::split_by_delimiter(s, '.', true);
     for(auto& c : components)
       trim(c);
 

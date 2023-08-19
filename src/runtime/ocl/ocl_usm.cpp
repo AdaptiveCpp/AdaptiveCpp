@@ -212,29 +212,17 @@ public:
   virtual cl_int enqueue_memcpy(cl::CommandQueue &queue, void *dst,
                                 const void *src, std::size_t size,
                                 const std::vector<cl::Event> &wait_events,
-                                cl::Event *evt_out) override {
+                                cl::Event *event) override {
     if(!_mem_copy)
       return CL_INVALID_PLATFORM;
     
-    cl_event* cl_wait_list = nullptr;
-    cl_uint num_wait_events = 0;
-
-    std::vector<cl_event> raw_wait_events;
-    for(const auto& evt : wait_events)
-      raw_wait_events.push_back(evt.get());
-    if(raw_wait_events.size() > 0) {
-      cl_wait_list = raw_wait_events.data();
-      num_wait_events = raw_wait_events.size();
-    }
-
-    cl_event out;
-    cl_event* out_ptr = nullptr;
-    if(evt_out)
-      out_ptr = &out;
-    cl_int err = _mem_copy(queue.get(), false, dst, src, size, num_wait_events,
-                           cl_wait_list, out_ptr);
-    if(out_ptr)
-      *evt_out = cl::Event{out};
+    cl_event tmp;
+    cl_int err = _mem_copy(
+        queue.get(), false, dst, src, size, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+    if(event != nullptr && err == CL_SUCCESS)
+      *event = tmp;
     
     return err;
   }
@@ -244,24 +232,18 @@ public:
   cl_int enqueue_memset(cl::CommandQueue &queue, void *ptr,
                                 cl_int pattern, std::size_t bytes,
                                 const std::vector<cl::Event> &wait_events,
-                                cl::Event *out) override {
+                                cl::Event *event) override {
     
     unsigned char pattern_byte = static_cast<char>(pattern);
 
-    std::vector<cl_event> cl_wait_events;
-    for(const auto& e : wait_events)
-      cl_wait_events.push_back(e.get());
-    
-    cl_event* cl_out_ptr = nullptr;
-    cl_event cl_out;
-    if(out) {
-      cl_out_ptr = &cl_out;
-    }
-    cl_int err = _mem_fill(queue.get(), ptr, &pattern_byte, 1 /*pattern size*/,
-                          bytes, static_cast<cl_uint>(cl_wait_events.size()),
-                          cl_wait_events.data(), cl_out_ptr);
-    if(out) {
-      *out = cl::Event{cl_out};
+    cl_event tmp;
+    cl_int err = _mem_fill(
+        queue.get(), ptr, &pattern_byte, 1 /*pattern size*/, bytes,
+        wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
     }
     return err;
   }

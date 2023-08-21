@@ -53,20 +53,20 @@ jobs:
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run CUDA tests (explicit multipass)
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run PSTL CUDA tests (integrated multipass)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        ./pstl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     - name: run PSTL CUDA tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        ./pstl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     #- name: run CUDA tests (nvc++)
     #  run: |
     #    echo "Running tests on CUDA..."
@@ -113,12 +113,12 @@ jobs:
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run ROCm tests (explicit multipass)
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run PSTL ROCm tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp

@@ -135,10 +135,13 @@ BOOST_AUTO_TEST_CASE(marray_aliases) {
   BOOST_CHECK(MARRAY_ALIAS_CHECK(double, double));
 }
 
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+// nvc++ seems to have a problem with these tests
 BOOST_AUTO_TEST_CASE(marray_constexpr) {
   constexpr sycl::marray arr1{42};
   constexpr sycl::marray<int, 2> arr2{arr1, arr1};
   constexpr sycl::marray<int, 4> arr3{123, arr2, 456};
+#endif
 }
 
 BOOST_AUTO_TEST_SUITE_END()

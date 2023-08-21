@@ -33,8 +33,9 @@
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 #include "hipSYCL/runtime/ocl/opencl.hpp"
 #include "hipSYCL/runtime/settings.hpp"
-#include <CL/cl.h>
+
 #include <cstddef>
+#include <optional>
 
 
 namespace hipsycl {
@@ -461,15 +462,16 @@ ocl_hardware_manager::ocl_hardware_manager()
     } else {
       cl_platform_id pid = p.cl::detail::Wrapper<cl_platform_id>::get();
 
-      cl::Context cl_ctx;
+      std::optional<cl::Context> platform_ctx;
 
-      bool has_context = false;
       if(!no_shared_contexts) {
         // First attempt to create shared context
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM,
                                             (cl_context_properties)pid, 0};
-        cl_ctx = cl::Context{devs, ctx_props, nullptr, nullptr, &err};
-        if(err != CL_SUCCESS) {
+        cl::Context ctx{devs, ctx_props, nullptr, nullptr, &err};
+        if(err == CL_SUCCESS)
+          platform_ctx = ctx;
+        else {
           print_warning(
               __hipsycl_here(),
               error_info{"ocl_hardware_manager: Shared context construction "
@@ -477,8 +479,6 @@ ocl_hardware_manager::ocl_hardware_manager()
                         "context per device, but this may prevent data "
                         "transfers between devices from working.",
                         error_code{"CL", err}});
-        } else {
-          has_context = true;
         }
       } else {
         print_warning(
@@ -490,23 +490,26 @@ ocl_hardware_manager::ocl_hardware_manager()
 
       int platform_device_index = 0;
       for(const auto& dev : devs) {
-        if(!has_context) {
+        std::optional<cl::Context> chosen_context = platform_ctx;
+
+        if(!chosen_context.has_value()) {
           // If we don't have a shared context yet, try creating
           // an individual context for the device.
-          cl_ctx = cl::Context{dev, nullptr, nullptr, nullptr, &err};
-          if(err != CL_SUCCESS) {
+          cl::Context ctx{dev, nullptr, nullptr, nullptr, &err};
+          if(err == CL_SUCCESS)
+            chosen_context = ctx;
+          else {
             print_error(
                 __hipsycl_here(),
                 error_info{
                     "ocl_hardware_manager: Individual context creation failed",
                     error_code{"CL", err}});
-          }
-          else
-            has_context = true;
+          } 
         }
-        if(has_context) {
-          ocl_hardware_context hw_ctx{
-              dev, cl_ctx, static_cast<int>(_devices.size()), platform_id};
+        if(chosen_context.has_value()) {
+          ocl_hardware_context hw_ctx{dev, chosen_context.value(),
+                                      static_cast<int>(_devices.size()),
+                                      platform_id};
 
           if (device_matches(visibility_mask, backend_id::ocl,
                             global_device_index, platform_device_index,

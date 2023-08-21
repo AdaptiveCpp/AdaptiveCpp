@@ -194,7 +194,7 @@ if(WITH_OPENCL_BACKEND)
       GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
       GIT_TAG main
       BUILD_ALWAYS OFF
-      INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/include
+      INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/ocl-headers
       CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
@@ -213,7 +213,7 @@ if(WITH_OPENCL_BACKEND)
     ocl/ocl_event.cpp
     ocl/ocl_queue.cpp)
   
-  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include -isystem ${CMAKE_CURRENT_BINARY_DIR}/ext/include)
+  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/ext/include)
   target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES})
 
   target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})

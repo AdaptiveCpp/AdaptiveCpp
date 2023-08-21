@@ -82,7 +82,8 @@ enum class setting {
   persistent_runtime,
   max_cached_nodes,
   sscp_failed_ir_dump_directory,
-  gc_trigger_batch_size
+  gc_trigger_batch_size,
+  ocl_no_shared_context
 };
 
 template <setting S> struct setting_trait {};
@@ -112,6 +113,7 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::max_cached_nodes, "rt_max_cached_nodes", 
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::sscp_failed_ir_dump_directory,
                               "sscp_failed_ir_dump_directory", std::string)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::gc_trigger_batch_size, "rt_gc_trigger_batch_size", std::size_t)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_context", bool)
 
 class settings
 {
@@ -142,6 +144,8 @@ public:
       return _sscp_failed_ir_dump_directory;
     } else if constexpr(S == setting::gc_trigger_batch_size) {
       return _gc_trigger_batch_size;
+    } else if constexpr(S == setting::ocl_no_shared_context) {
+      return _ocl_no_shared_context;
     }
     return typename setting_trait<S>::type{};
   }
@@ -179,6 +183,8 @@ public:
         setting::sscp_failed_ir_dump_directory>(std::string{});
     _gc_trigger_batch_size =
         get_environment_variable_or_default<setting::gc_trigger_batch_size>(128);
+    _ocl_no_shared_context =
+        get_environment_variable_or_default<setting::ocl_no_shared_context>(false);
   }
 
 private:
@@ -220,6 +226,7 @@ private:
   std::string _sscp_failed_ir_dump_directory;
   std::size_t _gc_trigger_batch_size;
   visibility_mask_t _visibility_mask;
+  bool _ocl_no_shared_context;
 };
 
 }

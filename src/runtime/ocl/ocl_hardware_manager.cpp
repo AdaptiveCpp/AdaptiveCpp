@@ -423,7 +423,10 @@ void ocl_hardware_context::init_allocator(ocl_hardware_manager *mgr) {
 
 ocl_hardware_manager::ocl_hardware_manager()
 : _hw_platform{hardware_platform::ocl} {
-  auto visibility_mask = application::get_settings().get<setting::visibility_mask>();
+  const auto visibility_mask =
+      application::get_settings().get<setting::visibility_mask>();
+  const bool no_shared_contexts =
+      application::get_settings().get<setting::ocl_no_shared_context>();
 
   std::vector<cl::Platform> platforms;
   cl_int err = cl::Platform::get(&platforms);
@@ -439,7 +442,7 @@ ocl_hardware_manager::ocl_hardware_manager()
   for(const auto& p : platforms) {
     std::string platform_name;
     if(p.getInfo(CL_PLATFORM_NAME, &platform_name) == CL_SUCCESS) {
-      HIPSYCL_DEBUG_INFO << "OpenCL: Discovered platform " << platform_name
+      HIPSYCL_DEBUG_INFO << "ocl_hardware_manager: Discovered OpenCL platform " << platform_name
                          << std::endl;
     }
     _platforms.push_back(p);
@@ -457,24 +460,64 @@ ocl_hardware_manager::ocl_hardware_manager()
                     error_code{"CL", err}});
     } else {
       cl_platform_id pid = p.cl::detail::Wrapper<cl_platform_id>::get();
-      cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM,
-                                           (cl_context_properties)pid, 0};
-      cl::Context platform_ctx{devs, ctx_props};
+
+      cl::Context cl_ctx;
+
+      bool has_context = false;
+      if(!no_shared_contexts) {
+        // First attempt to create shared context
+        cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM,
+                                            (cl_context_properties)pid, 0};
+        cl_ctx = cl::Context{devs, ctx_props, nullptr, nullptr, &err};
+        if(err != CL_SUCCESS) {
+          print_warning(
+              __hipsycl_here(),
+              error_info{"ocl_hardware_manager: Shared context construction "
+                        "failed. Will attempt to fall back to individual "
+                        "context per device, but this may prevent data "
+                        "transfers between devices from working.",
+                        error_code{"CL", err}});
+        } else {
+          has_context = true;
+        }
+      } else {
+        print_warning(
+            __hipsycl_here(),
+            error_info{"ocl_hardware_manager: Not constructing shared context "
+                       "across devices. Note that this may prevent data "
+                       "transfers between devices from working."});
+      }
 
       int platform_device_index = 0;
       for(const auto& dev : devs) {
-        ocl_hardware_context hw_ctx{
-            dev, platform_ctx, static_cast<int>(_devices.size()), platform_id};
+        if(!has_context) {
+          // If we don't have a shared context yet, try creating
+          // an individual context for the device.
+          cl_ctx = cl::Context{dev, nullptr, nullptr, nullptr, &err};
+          if(err != CL_SUCCESS) {
+            print_error(
+                __hipsycl_here(),
+                error_info{
+                    "ocl_hardware_manager: Individual context creation failed",
+                    error_code{"CL", err}});
+          }
+          else
+            has_context = true;
+        }
+        if(has_context) {
+          ocl_hardware_context hw_ctx{
+              dev, cl_ctx, static_cast<int>(_devices.size()), platform_id};
 
-        if (device_matches(visibility_mask, backend_id::ocl,
-                           global_device_index, platform_device_index,
-                           platform_id, hw_ctx.get_device_name(),
-                           platform_name)) {
-          _devices.push_back(hw_ctx);
-          // Allocator can only be initialized once the hardware context
-          // is in the list, because the allocator may itself attempt to access
-          // it using hardware_manager::get_device()
-          _devices.back().init_allocator(this);
+          if (device_matches(visibility_mask, backend_id::ocl,
+                            global_device_index, platform_device_index,
+                            platform_id, hw_ctx.get_device_name(),
+                            platform_name)) {
+            _devices.push_back(hw_ctx);
+            // Allocator can only be initialized once the hardware context
+            // is in the list, because the allocator may itself attempt to access
+            // it using hardware_manager::get_device()
+            _devices.back().init_allocator(this);
+          }
         }
         ++global_device_index;
         ++platform_device_index;

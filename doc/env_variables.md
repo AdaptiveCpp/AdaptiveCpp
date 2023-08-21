@@ -17,3 +17,4 @@
 * `HIPSYCL_RT_MAX_CACHED_NODES`: Maximum number of nodes that the runtime buffers before flushing work.
 * `HIPSYCL_SSCP_FAILED_IR_DUMP_DIRECTORY`: If non-empty, hipSYCL will dump the IR of code that fails SSCP JIT into this directory.
 * `HIPSYCL_RT_GC_TRIGGER_BATCH_SIZE`: Number of nodes in flight that trigger a garbage collection job to be spawned
+* `HIPSYCL_RT_OCL_NO_SHARED_CONTEXT`: If set to a non-zero value, instructs the OpenCL backend to not attempt to construct a shared context across devices within a platform. This can be necessary on OpenCL implementations that do not support this. Note that if shared contexts are unavailable, support for data transfers between devices might be limited as the devices can no longer directly talk to each other.

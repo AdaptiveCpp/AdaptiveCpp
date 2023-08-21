@@ -1,6 +1,3 @@
-#ifndef CL_HPP_TARGET_OPENCL_VERSION
-#define CL_HPP_TARGET_OPENCL_VERSION 300
-#endif
 //
 // Copyright (c) 2008-2023 The Khronos Group Inc.
 //

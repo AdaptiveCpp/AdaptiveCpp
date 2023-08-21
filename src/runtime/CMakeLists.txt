@@ -203,6 +203,7 @@ if(WITH_OPENCL_BACKEND)
 
   target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+  target_compile_definitions(rt-backend-ocl PRIVATE -DCL_HPP_TARGET_OPENCL_VERSION=210)
 
   if(WITH_SSCP_COMPILER)
     target_compile_definitions(rt-backend-ocl PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)

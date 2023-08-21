@@ -134,7 +134,7 @@ jobs:
     - name: build
       run : |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_LEVEL_ZERO_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_LEVEL_ZERO_BACKEND=ON -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
         make -j3 install
     - name: build generic SSCP tests
       if: matrix.clang_version >= 14
@@ -148,3 +148,4 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

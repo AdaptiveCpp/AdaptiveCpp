@@ -25,6 +25,7 @@ jobs:
         mkdir build && cd build
         cmake .. \
         -DOpenMP_ROOT=$OMP_ROOT \
+        -DWITH_OPENCL_BACKEND=OFF \
         -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/build/install
         make -j 2 install VERBOSE=ON
     - name: build CPU tests

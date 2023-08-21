@@ -189,6 +189,21 @@ if(WITH_LEVEL_ZERO_BACKEND)
 endif()
 
 if(WITH_OPENCL_BACKEND)
+  ExternalProject_Add(ocl-headers
+      GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
+      GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+      GIT_TAG main
+      BUILD_ALWAYS OFF
+      INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/include
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/ocl-headers
+      CMAKE_CACHE_ARGS
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DOPENCL_HEADERS_BUILD_CXX_TESTS:BOOL=OFF
+        -DOPENCL_HEADERS_BUILD_TESTING:BOOL=OFF
+      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
+    )
+  
+
   add_library(rt-backend-ocl SHARED
     ocl/ocl_backend.cpp
     ocl/ocl_code_object.cpp
@@ -198,7 +213,7 @@ if(WITH_OPENCL_BACKEND)
     ocl/ocl_event.cpp
     ocl/ocl_queue.cpp)
   
-  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include ${OpenCL_INCLUDE_DIRS})
+  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/ext/include)
   target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES})
 
   target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})

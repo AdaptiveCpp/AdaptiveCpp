@@ -30,7 +30,7 @@
 
 #include <string>
 
-#include "opencl.hpp"
+#include <CL/opencl.hpp>
 
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/error.hpp"

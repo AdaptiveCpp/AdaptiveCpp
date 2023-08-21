@@ -28,9 +28,9 @@
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
 #include "hipSYCL/runtime/ocl/ocl_usm.hpp"
-#include "hipSYCL/runtime/ocl/opencl.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 
+#include <CL/opencl.hpp>
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
 #include <memory>

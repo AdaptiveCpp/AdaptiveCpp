@@ -28,14 +28,13 @@
 #ifndef HIPSYCL_OCL_QUEUE_HPP
 #define HIPSYCL_OCL_QUEUE_HPP
 
-
+#include <CL/opencl.hpp>
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
 
 #include "hipSYCL/runtime/event.hpp"
 #include "hipSYCL/runtime/generic/async_worker.hpp"
-#include "hipSYCL/runtime/ocl/opencl.hpp"
 #include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
 
 namespace hipsycl {

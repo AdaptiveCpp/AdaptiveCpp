@@ -29,7 +29,7 @@
 #define HIPSYCL_OCL_EVENT_HPP
 
 #include "../inorder_queue_event.hpp"
-#include "opencl.hpp"
+#include <CL/opencl.hpp>
 
 namespace hipsycl {
 namespace rt {

@@ -204,6 +204,19 @@ if(WITH_OPENCL_BACKEND)
   add_library(ocl-headers INTERFACE)
   target_include_directories(ocl-headers INTERFACE ${ocl-headers_SOURCE_DIR})
   
+  FetchContent_Declare(ocl-cxx-headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP
+    GIT_TAG main
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+  )
+  FetchContent_GetProperties(ocl-cxx-headers)
+  if(NOT ocl-cxx-headers_POPULATED)
+    FetchContent_Populate(ocl-cxx-headers)
+    add_subdirectory(${ocl-cxx-headers_SOURCE_DIR} ${ocl-cxx-headers_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+  add_library(ocl-cxx-headers INTERFACE)
+  target_include_directories(ocl-cxx-headers INTERFACE ${ocl-cxx-headers_SOURCE_DIR}/include)
 
   add_library(rt-backend-ocl SHARED
     ocl/ocl_backend.cpp
@@ -215,7 +228,7 @@ if(WITH_OPENCL_BACKEND)
     ocl/ocl_queue.cpp)
 
   target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES} ocl-headers)
+  target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES} ocl-headers ocl-cxx-headers)
 
   target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})

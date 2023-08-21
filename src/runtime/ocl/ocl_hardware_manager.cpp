@@ -31,9 +31,9 @@
 #include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/ocl/ocl_allocator.hpp"
 #include "hipSYCL/runtime/ocl/ocl_hardware_manager.hpp"
-#include "hipSYCL/runtime/ocl/opencl.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 
+#include <CL/opencl.hpp>
 #include <cstddef>
 #include <optional>
 

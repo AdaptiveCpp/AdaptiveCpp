@@ -28,7 +28,7 @@
 #ifndef HIPSYCL_OCL_USM_HPP
 #define HIPSYCL_OCL_USM_HPP
 
-#include "opencl.hpp"
+#include <CL/opencl.hpp>
 #include "../allocator.hpp"
 #include <memory>
 

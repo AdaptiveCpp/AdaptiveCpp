@@ -32,8 +32,9 @@
 #include <vector>
 #include <memory>
 
+#include <CL/opencl.hpp>
+
 #include "../hardware.hpp"
-#include "opencl.hpp"
 #include "ocl_allocator.hpp"
 #include "ocl_usm.hpp"
 

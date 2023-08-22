@@ -61,7 +61,7 @@ public:
                           const cl::Context &ctx)
       : _ctx{ctx}, _dev{dev}, _hw_mgr{hw_mgr} {
     std::string str;
-    cl_int err = platform.getInfo(CL_PLATFORM_EXTENSIONS, &str);
+    cl_int err = dev.getInfo(CL_DEVICE_EXTENSIONS, &str);
     if (err == CL_SUCCESS &&
         (str.find("cl_intel_unified_shared_memory") != std::string::npos)) {
       _is_available = true;

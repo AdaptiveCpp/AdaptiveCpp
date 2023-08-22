@@ -10,6 +10,7 @@ C++ standard parallelism offload currently is only supported in conjunction with
 ## Using accelerated C++ standard parallelism
 
 Offloading of C++ standard parallelism is enabled using `--opensycl-stdpar`. This flag does not by itself imply a target or compilation flow, which will have to be provided in addition using the normal `--opensycl-targets` argument. C++ standard parallelism is expected to work with any of our clang compiler-based compilation flows, such as `omp.accelerated`, `cuda`, `hip` or the generic SSCP compiler (`--opensycl-targets=generic`). It is not currently supported in library-only compilation flows. The focus of testing currently is the generic SSCP compiler.
+Open SYCL by default uses some experimental heuristics to determine if a problem is worth offloading. These heuristics are currently very simplistic and might not work well for you. They can be disabled using `--opensycl-stdpar-unconditional-offload`.
 
 
 ## Algorithms and policies supported for offloading

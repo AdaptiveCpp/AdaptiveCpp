@@ -148,4 +148,8 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests
+    - name: run PSTL Intel tests (OpenCL)
+      if: matrix.clang_version >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
         HIPSYCL_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

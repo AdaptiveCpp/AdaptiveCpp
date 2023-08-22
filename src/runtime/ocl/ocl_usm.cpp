@@ -258,14 +258,14 @@ public:
     };
 
     cl_int err = maybe_ignore(
-        k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, true));
+        k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, cl_bool{true}));
 
     if(err != CL_SUCCESS)
       return err;
-    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, true));
+    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, cl_bool{true}));
     if(err != CL_SUCCESS)
       return err;
-    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, true));
+    err = maybe_ignore(k.setExecInfo(CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, cl_bool{true}));
 
     return err;
   }
@@ -425,7 +425,7 @@ public:
   }
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
-    return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, true);
+    return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, cl_bool{true});
   }
 
 private:

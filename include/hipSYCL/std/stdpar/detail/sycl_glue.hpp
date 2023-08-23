@@ -172,9 +172,11 @@ public:
       return ptr;
 
     } else {
-      if(alignment != 0)
-        return ::aligned_alloc(alignment, n);
-      else
+      if(alignment != 0) {
+        void *ptr = 0;
+        posix_memalign(&ptr, alignment, n);
+        return ptr;
+      } else
         return __libc_malloc(n);
     }
   }

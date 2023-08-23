@@ -12,7 +12,9 @@ In order to successfully build and install Open SYCL, the following dependencies
   * it may be helpful to set the `BOOST_ROOT` `cmake` variable to the path to the root directory of Boost you wish to use if `cmake` does not find it automatically
   * **Note for boost 1.78 users:** There seems to be a bug in the build system for boost 1.78, causing the compiled fiber and context libraries not to be copied to the installation directory. You will have to copy these libraries manually to the installation directory. In binary packages from some distribution repositories this issue is fixed. You might be only affected when building boost manually from source.
 
-In addition, the various supported compilation flows have additional requirements (see [here](compilation.md) for more information on available compilation flows):
+In addition, the various supported [compilation flows](compilation.md) and programming models have additional requirements:
+
+#### Compilation flows
 
 | Compilation flow | Target hardware | Short description | Requirements |
 |------------------|-------------------|-------------------|-------------------|
@@ -23,7 +25,12 @@ In addition, the various supported compilation flows have additional requirement
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 10 |
 | `spirv` | Intel GPUs | SPIR-V/Level Zero backend | Level Zero driver and loader, clang with SYCL patches (e.g DPC++) |
-| `generic` | NVIDIA, AMD, Intel GPUs | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. Open SYCL runtime backends for the respective target hardware need to be available. |
+| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. Open SYCL runtime backends for the respective target hardware need to be available. |
+
+#### Models
+
+* SYCL: (No SYCL-specific requirements)
+* C++ standard parallelism: See [here](stdpar.md) for dependencies.
 
 Please make sure to read the instructions below for the dependencies that apply to your use case.
 
@@ -42,6 +49,10 @@ Follow [these](install-rocm.md) instructions
 #### SPIR-V/Level Zero (skip if you don't need SPIR-V/Level Zero support)
 
 Follow [these](install-spirv.md) instructions.
+
+#### SPIR-V/OpenCL (skip if you don't need SPIR-V/OpenCL support)
+
+Follow [these](install-ocl.md) instructions.
 
 #### Building and installing 
 

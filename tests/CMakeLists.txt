@@ -118,6 +118,7 @@ if(WITH_PSTL_TESTS)
     pstl/for_each_n.cpp
     pstl/generate.cpp
     pstl/generate_n.cpp
+    pstl/memory.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp
     pstl/replace.cpp

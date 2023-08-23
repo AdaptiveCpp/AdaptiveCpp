@@ -42,7 +42,8 @@
 #include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
 #include <new>
 
-
+extern "C" void *__libc_malloc(size_t);
+extern "C" void __libc_free(void*);
 
 namespace hipsycl::stdpar::detail {
 
@@ -174,13 +175,13 @@ public:
       if(alignment != 0)
         return ::aligned_alloc(alignment, n);
       else
-        return ::malloc(n);
+        return __libc_malloc(n);
     }
   }
 
   static void free(void* ptr) {
     if(!get()._is_initialized) {
-      ::free(ptr);
+      __libc_free(ptr);
       return;
     }
 
@@ -199,13 +200,13 @@ public:
       push_disabled();
       if (hipsycl::sycl::get_pointer_type(ptr, ctx.get()) ==
           hipsycl::sycl::usm::alloc::unknown) {
-        ::free(ptr);
+        __libc_free(ptr);
       } else {
         sycl::free(ptr, ctx.get());
       }
       pop_disabled();
     } else {
-      ::free(ptr);
+      __libc_free(ptr);
     }
   }
 private:
@@ -362,6 +363,19 @@ void operator delete[]( void* ptr, std::align_val_t al,
                         const std::nothrow_t& tag ) noexcept {
   hipsycl::stdpar::unified_shared_memory::free(ptr);
 }
+
+/* Both libc++ and libstdc++ define std::malloc as ::malloc and std::free
+   as ::free, so it is enough to implement ::malloc and ::free here. */
+HIPSYCL_STDPAR_ALLOC
+void* malloc(std::size_t size) {
+  return hipsycl::stdpar::unified_shared_memory::malloc(size);
+}
+
+HIPSYCL_STDPAR_FREE
+void free(void* ptr) {
+  hipsycl::stdpar::unified_shared_memory::free(ptr);
+}
+
 
 
 #endif

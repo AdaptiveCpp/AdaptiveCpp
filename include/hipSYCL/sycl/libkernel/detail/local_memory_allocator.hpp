@@ -55,8 +55,8 @@ public:
   using smallest_type = int;
 
   // ToDo: Query max shared memory of device and check when allocating
-  local_memory_allocator()
-    : _num_allocated_bytes{0}
+  local_memory_allocator(std::size_t already_allocated_mem = 0)
+    : _num_allocated_bytes{already_allocated_mem}
   {}
 
   template<class T>
@@ -66,6 +66,10 @@ public:
 
     size_t alignment = get_alignment<T>();
 
+    return alloc(alignment, num_bytes);
+  }
+
+  address alloc(size_t alignment, size_t num_bytes) {
     size_t start_byte =
         alignment * ((get_allocation_size() + alignment - 1) / alignment);
 

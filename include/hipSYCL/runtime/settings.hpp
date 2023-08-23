@@ -44,8 +44,30 @@ namespace rt {
 enum class scheduler_type { direct, unbound };
 enum class default_selector_behavior { strict, multigpu, system };
 
+struct device_visibility_condition{
+  int device_index_equality = -1;
+  int platform_index_equality = -1;
+  std::string device_name_match;
+  std::string platform_name_match;
+};
+
+using visibility_mask_t =
+    std::unordered_map<rt::backend_id,
+                       std::vector<device_visibility_condition>>;
+
+bool device_matches(const visibility_mask_t &mask, backend_id backend,
+                    int global_device_index, int platform_device_index,
+                    int platform_index, const std::string &dev_name,
+                    const std::string &platform_name);
+
+bool device_matches(const visibility_mask_t::mapped_type &visibility_conditions,
+                    int global_device_index, int platform_device_index,
+                    int platform_index, const std::string &dev_name,
+                    const std::string &platform_name);
+bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend);
+
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
-std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
+std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
 
 enum class setting {
@@ -60,7 +82,8 @@ enum class setting {
   persistent_runtime,
   max_cached_nodes,
   sscp_failed_ir_dump_directory,
-  gc_trigger_batch_size
+  gc_trigger_batch_size,
+  ocl_no_shared_context
 };
 
 template <setting S> struct setting_trait {};
@@ -71,9 +94,10 @@ template <setting S> struct setting_trait {};
     static constexpr const char *str = string_identifier;                      \
   };
 
+
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::debug_level, "debug_level", int)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::scheduler_type, "rt_scheduler", scheduler_type)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", std::vector<rt::backend_id>)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", visibility_mask_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::dag_req_optimization_depth,
                               "rt_dag_req_optimization_depth", std::size_t);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_max_size,
@@ -89,6 +113,7 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::max_cached_nodes, "rt_max_cached_nodes", 
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::sscp_failed_ir_dump_directory,
                               "sscp_failed_ir_dump_directory", std::string)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::gc_trigger_batch_size, "rt_gc_trigger_batch_size", std::size_t)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_context", bool)
 
 class settings
 {
@@ -119,6 +144,8 @@ public:
       return _sscp_failed_ir_dump_directory;
     } else if constexpr(S == setting::gc_trigger_batch_size) {
       return _gc_trigger_batch_size;
+    } else if constexpr(S == setting::ocl_no_shared_context) {
+      return _ocl_no_shared_context;
     }
     return typename setting_trait<S>::type{};
   }
@@ -135,7 +162,7 @@ public:
             scheduler_type::unbound);
     _visibility_mask =
         get_environment_variable_or_default<setting::visibility_mask>(
-            std::vector<rt::backend_id>{});
+            visibility_mask_t{});
     _dag_requirement_optimization_depth = get_environment_variable_or_default<
         setting::dag_req_optimization_depth>(10);
     _mqe_lane_statistics_max_size = get_environment_variable_or_default<
@@ -156,6 +183,8 @@ public:
         setting::sscp_failed_ir_dump_directory>(std::string{});
     _gc_trigger_batch_size =
         get_environment_variable_or_default<setting::gc_trigger_batch_size>(128);
+    _ocl_no_shared_context =
+        get_environment_variable_or_default<setting::ocl_no_shared_context>(false);
   }
 
 private:
@@ -187,7 +216,6 @@ private:
 
   int _debug_level;
   scheduler_type _scheduler_type;
-  std::vector<rt::backend_id> _visibility_mask;
   std::size_t _dag_requirement_optimization_depth;
   std::size_t _mqe_lane_statistics_max_size;
   double _mqe_lane_statistics_decay_time_sec;
@@ -197,6 +225,8 @@ private:
   std::size_t _max_cached_nodes;
   std::string _sscp_failed_ir_dump_directory;
   std::size_t _gc_trigger_batch_size;
+  visibility_mask_t _visibility_mask;
+  bool _ocl_no_shared_context;
 };
 
 }

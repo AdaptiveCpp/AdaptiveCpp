@@ -9,7 +9,20 @@ export NVHPC_MAJOR_VERSION="22"
 export NVHPC_MINOR_VERSION="11"
 
 apt-get update
-apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq
+apt-get install -y libboost-all-dev wget git libnuma-dev cmake curl unzip apt-transport-https ca-certificates software-properties-common sudo build-essential gettext libcurl4-openssl-dev openssh-client libnuma-dev jq libtbb-dev
+
+wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.14062.11/intel-igc-core_1.0.14062.11_amd64.deb
+wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.14062.11/intel-igc-opencl_1.0.14062.11_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/23.22.26516.18/intel-level-zero-gpu-dbgsym_1.3.26516.18_amd64.ddeb
+wget https://github.com/intel/compute-runtime/releases/download/23.22.26516.18/intel-level-zero-gpu_1.3.26516.18_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/23.22.26516.18/intel-opencl-icd-dbgsym_23.22.26516.18_amd64.ddeb
+wget https://github.com/intel/compute-runtime/releases/download/23.22.26516.18/intel-opencl-icd_23.22.26516.18_amd64.deb
+wget https://github.com/intel/compute-runtime/releases/download/23.22.26516.18/libigdgmm12_22.3.0_amd64.deb
+
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero-devel_1.13.5+u22.04_amd64.deb
+wget https://github.com/oneapi-src/level-zero/releases/download/v1.13.5/level-zero_1.13.5+u22.04_amd64.deb
+
+sudo dpkg -i *.deb
 
 mkdir -p /opt/cuda-11.0
 wget -q -O cuda-11.0.sh http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run

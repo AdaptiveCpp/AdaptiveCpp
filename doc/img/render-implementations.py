@@ -231,8 +231,11 @@ if __name__ == '__main__':
   add_backend(graph, "opensycl_l0", opensycl_grey, {'Intel GPUs' : intel_blue},
               description="Level Zero")
 
+  add_backend(graph, "opensycl_ocl", opensycl_grey, {'OpenCL SPIR-V devices' : intel_blue},
+              description="OpenCL")
+
   add_implementation(graph, "Open SYCL", opensycl_grey, opensycl_red,
-                     ["opensycl_cuda", "opensycl_rocm", "opensycl_openmp", "opensycl_l0"])
+                     ["opensycl_cuda", "opensycl_rocm", "opensycl_openmp", "opensycl_l0", "opensycl_ocl"])
 
   ####################### triSYCL ##############################
 

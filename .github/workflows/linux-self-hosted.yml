@@ -23,13 +23,13 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (explicit multipass)
       run: |
@@ -53,12 +53,20 @@ jobs:
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run CUDA tests (explicit multipass)
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
+    - name: run PSTL CUDA tests (integrated multipass)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-cuda
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
+    - name: run PSTL CUDA tests (SSCP)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     #- name: run CUDA tests (nvc++)
     #  run: |
     #    echo "Running tests on CUDA..."
@@ -80,14 +88,14 @@ jobs:
     - name: build
       run : |
         mkdir build && cd build
-        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm -DCMAKE_INSTALL_REFIX=`pwd`/install ..
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_CUDA_BACKEND=ON -DWITH_ROCM_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install -DCUDA_TOOLKIT_ROOT_DIR=/opt/cuda-${{matrix.cuda}} -DROCM_PATH=/opt/rocm ..
         make -j3 install
     - name: build generic SSCP tests
       if: matrix.clang_version >= 14
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: build ROCm tests (integrated multipass)
       run: |
@@ -105,9 +113,43 @@ jobs:
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run ROCm tests (explicit multipass)
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        ./sycl_tests
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
+    - name: run PSTL ROCm tests (SSCP)
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        HIPSYCL_VISIBILITY_MASK="omp;hip" ./pstl_tests
+  test-gpu-intel:
+    name: Intel with clang ${{ matrix.clang_version }}
+    runs-on: [self-hosted, gpu-intel]
+    strategy:
+      matrix:
+        clang_version: ['15']
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run : |
+        mkdir build && cd build
+        cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang_version}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang_version}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang_version}}/cmake -DWITH_LEVEL_ZERO_BACKEND=ON -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+        make -j3 install
+    - name: build generic SSCP tests
+      if: matrix.clang_version >= 14
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        make pstl_tests -j3
+    - name: run PSTL Intel tests (L0)
+      if: matrix.clang_version >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests
+    - name: run PSTL Intel tests (OpenCL)
+      if: matrix.clang_version >= 14
+      run: |
+        cd ${GITHUB_WORKSPACE}/build/tests-sscp
+        HIPSYCL_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

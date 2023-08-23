@@ -57,6 +57,10 @@ Of course, the desired flows can also always be specified explicitly.
 * `"omp.accelerated;cuda:sm_70;spirv`" - compiles for the CPU backend (compiler accelerated), NVIDIA Volta era GPUs, and SPIR-V devices
 * `"omp;cuda-nvcxx"` - compiles for the CPU backend and NVIDIA GPUs using nvc++
 
+### Offloading C++ standard parallelism
+
+See [here](stdpar.md) for details on how to offload C++ standard STL algorithms using Open SYCL.
+
 ## Manually compiling with syclcc
 `syclcc` is the compilation driver used by Open SYCL to build the final compiler invocations.
 After installing Open SYCL, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.

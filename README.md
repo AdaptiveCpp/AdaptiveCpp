@@ -4,17 +4,24 @@
 
 **(Note: This project is currently in progress of changing its name. Documentation and code may still use the older name hipSYCL)**
 
-Open SYCL is a modern SYCL implementation targeting CPUs and GPUs from all major vendors that supports many use cases and approaches for implementing SYCL:
+Open SYCL is a modern platform for C++-based heterogeneous programming models targeting CPUs and GPUs from all major vendors. Currently, Open SYCL supports the following programming models:
+1. SYCL: At its core is a SYCL implementation that supports many use cases and approaches of implementing SYCL. 
+2. C++ standard parallelism: Additionally, Open SYCL features experimental support for offloading C++ algorithms from the parallel STL. See [here](doc/stdpar.md) for details on which algorithms can be offloaded.
+
+**Open SYCL is currently the only solution that can offload C++ standard parallelism constructs to GPUs from Intel, NVIDIA and AMD -- even from a single binary.**
+
+Supported compilation flows include:
 
 1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. Support includes:
    1. NVIDIA CUDA GPUs through PTX;
    2. AMD ROCm GPUs through amdgcn code;
-   3. Intel GPUs through SPIR-V;
+   3. Intel GPUs through SPIR-V (Level Zero);
+   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs)
 2. Additionally, **Open SYCL can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. Support includes:
    1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
    2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
    3. AMD ROCm GPUs through the clang HIP toolchain;
-   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental)
+   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental, deprecated)
 3. Or **Open SYCL can be used in library-only compilation flows**. In these compilation flows, Open SYCL acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
    1. Any CPU supported by any OpenMP compilers;
    2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem
@@ -84,6 +91,7 @@ Open SYCL has been repeatedly shown to deliver very competitive performance comp
       * If you don't need barriers or local memory, use `parallel_for` with `range` argument.
       * If you need local memory or barriers, scoped parallelism or hierarchical parallelism models may perform better on CPU than `parallel_for` kernels using `nd_range` argument and should be preferred. Especially scoped parallelism also works well on GPUs.
       * If you *have* to use `nd_range parallel_for` with barriers on CPU, the `omp.accelerated` compilation flow will most likely provide substantially better performance than the `omp.library-only` compilation target. See the [documentation on compilation flows](doc/compilation.md) for details.
+* For performance in the C++ parallelism model specifically, see also [here](doc/stdpar.md).
 
 #### Comparing against other LLVM-based compilers
 
@@ -110,9 +118,9 @@ Operating system support currently strongly focuses on Linux. On Mac, only the C
 ## Installing and using Open SYCL
 * [Building & Installing](doc/installing.md)
 
-In order to compile software with Open SYCL, use `syclcc` which automatically adds all required compiler arguments to the CUDA/HIP compiler. `syclcc` can be used like a regular compiler, i.e. you can use `syclcc -o test test.cpp` to compile your SYCL application called `test.cpp` with Open SYCL.
+In order to compile software with Open SYCL, use `syclcc`. `syclcc` can be used like a regular compiler, i.e. you can use `syclcc -o test test.cpp` to compile your SYCL application called `test.cpp` with Open SYCL.
 
-`syclcc` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target platform CUDA/ROCm/CPU to compile for). See `syclcc --help` for a comprehensive list of options.
+`syclcc` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `syclcc --help` for a comprehensive list of options.
 
 When compiling with Open SYCL, you will need to specify the targets you wish to compile for using the `--hipsycl-targets="backend1:target1,target2,...;backend2:..."` command line argument, `HIPSYCL_TARGETS` environment variable or cmake argument. See the documentation on [using Open SYCL](doc/using-hipsycl.md) for details.
 

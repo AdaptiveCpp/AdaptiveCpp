@@ -42,10 +42,20 @@ if(WITH_SSCP_COMPILER)
     sscp/IRConstantReplacer.cpp
     sscp/TargetSeparationPass.cpp
     sscp/HostKernelNameExtractionPass.cpp
-    sscp/AggregateArgumentExpansionPass.cpp)
+    sscp/AggregateArgumentExpansionPass.cpp
+    sscp/StdBuiltinRemapperPass.cpp)
   add_definitions(-DHIPSYCL_WITH_SSCP_COMPILER)
 else()
   set(SSCP_COMPILER "")
+endif()
+
+if(WITH_STDPAR_COMPILER)
+  set(STDPAR_COMPILER
+    stdpar/MallocToUSM.cpp
+    stdpar/SyncElision.cpp)
+    add_definitions(-DHIPSYCL_WITH_STDPAR_COMPILER)
+else()
+  set(STDPAR_COMPILER "")
 endif()
 
 add_library(opensycl-clang SHARED
@@ -53,6 +63,7 @@ add_library(opensycl-clang SHARED
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
   ${SSCP_COMPILER}
+  ${STDPAR_COMPILER}
 )
 
 target_include_directories(opensycl-clang PRIVATE

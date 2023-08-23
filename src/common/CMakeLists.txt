@@ -11,6 +11,8 @@ target_include_directories(opensycl-common
     ${PROJECT_BINARY_DIR}/include
 )
 
+target_link_libraries(opensycl-common PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
+
 list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(Filesystem REQUIRED Final Experimental Boost)
 set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)

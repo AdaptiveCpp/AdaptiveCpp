@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DUMP_RUNTIME_HPP
-#define HIPSYCL_DUMP_RUNTIME_HPP
+#ifndef HIPSYCL_OCL_ALLOCATOR_HPP
+#define HIPSYCL_OCL_ALLOCATOR_HPP
 
-#define HIPSYCL_DUMP_INDENTATION "   "
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include <CL/opencl.hpp>
 
-#include <ostream>
-#include <sstream>
-#include <map>
+#include "../allocator.hpp"
+#include "ocl_usm.hpp"
 
-namespace hipsycl::rt {
-std::ostream &operator<<(std::ostream &out, const hardware_platform value);
-std::ostream &operator<<(std::ostream &out, const api_platform value);
-std::ostream &operator<<(std::ostream &out, const backend_id value);
-std::ostream &operator<<(std::ostream &out, device_id dev);
+namespace hipsycl {
+namespace rt {
 
-template <int Dim>
-std::ostream &operator<<(std::ostream &out, const static_array<Dim> &v) {
-  out << "{";
-  for (int i = 0; i < Dim; ++i) {
-    out << v[i];
-    if (i != Dim - 1)
-      out << ", ";
-  }
-  out << "}";
-  return out;
+class ocl_allocator : public backend_allocator 
+{
+public:
+  ocl_allocator() = default;
+  ocl_allocator(ocl_usm* usm_provier);
+
+  virtual void* allocate(size_t min_alignment, size_t size_bytes) override;
+
+  virtual void *allocate_optimized_host(size_t min_alignment,
+                                        size_t bytes) override;
+  
+  virtual void free(void *mem) override;
+
+  virtual void *allocate_usm(size_t bytes) override;
+  virtual bool is_usm_accessible_from(backend_descriptor b) const override;
+
+  virtual result query_pointer(const void* ptr, pointer_info& out) const override;
+
+  virtual result mem_advise(const void *addr, std::size_t num_bytes,
+                            int advise) const override;
+
+private:
+  ocl_usm* _usm;
+};
+
 }
-
-template <typename T> std::string dump(T *val) {
-  std::stringstream sstr;
-  val->dump(sstr);
-  return sstr.str();
 }
-
-} // namespace hipsycl::rt
 
 #endif

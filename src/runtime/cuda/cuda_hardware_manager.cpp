@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hardware.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 
 
 #include <cuda_runtime_api.h>
@@ -43,6 +44,16 @@ namespace rt {
 
 cuda_hardware_manager::cuda_hardware_manager(hardware_platform hw_platform)
     : _hw_platform(hw_platform) {
+
+  if (has_device_visibility_mask(
+          application::get_settings().get<setting::visibility_mask>(),
+          backend_id::cuda)) {
+    print_warning(
+        __hipsycl_here(),
+        error_info{
+            "cuda_hardware_manager: CUDA backend does not support device "
+            "visibility masks. Use CUDA_VISIBILE_DEVICES instead."});
+  }
 
   int num_devices = 0;
 

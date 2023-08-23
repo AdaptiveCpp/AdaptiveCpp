@@ -521,6 +521,16 @@ uint32_t ze_hardware_context::get_ze_global_memory_ordinal() const {
 
 ze_hardware_manager::ze_hardware_manager() {
 
+  if (has_device_visibility_mask(
+          application::get_settings().get<setting::visibility_mask>(),
+          backend_id::level_zero)) {
+    print_warning(
+        __hipsycl_here(),
+        error_info{
+            "ze_hardware_manager: Level Zero backend does not support device "
+            "visibility masks. Use ZE_AFFINITY_MASK instead."});
+  }
+
   uint32_t num_drivers = 0;
   ze_result_t err = zeDriverGet(&num_drivers, nullptr);
 

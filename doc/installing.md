@@ -25,7 +25,7 @@ In addition, the various supported [compilation flows](compilation.md) and progr
 | `cuda-nvcxx` | NVIDIA GPUs | CUDA backend (nvc++) | Latest NVIDIA HPC SDK |
 | `hip.integrated-multipass` | AMD GPUs (supported by ROCm) | HIP backend (clang) | ROCm >= 4.0, LLVM >= 10 |
 | `spirv` | Intel GPUs | SPIR-V/Level Zero backend | Level Zero driver and loader, clang with SYCL patches (e.g DPC++) |
-| `generic` | NVIDIA, AMD, Intel GPUs | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. Open SYCL runtime backends for the respective target hardware need to be available. |
+| `generic` | NVIDIA, AMD, Intel GPUs, OpenCL SPIR-V devices | Generic single-pass compiler | LLVM >= 14. When dispatching kernels to AMD hardware, ROCm >= 5.3 is recommended. When dispatching to NVIDIA, clang needs nvptx64 backend enabled. Open SYCL runtime backends for the respective target hardware need to be available. |
 
 #### Models
 
@@ -49,6 +49,10 @@ Follow [these](install-rocm.md) instructions
 #### SPIR-V/Level Zero (skip if you don't need SPIR-V/Level Zero support)
 
 Follow [these](install-spirv.md) instructions.
+
+#### SPIR-V/OpenCL (skip if you don't need SPIR-V/OpenCL support)
+
+Follow [these](install-ocl.md) instructions.
 
 #### Building and installing 
 

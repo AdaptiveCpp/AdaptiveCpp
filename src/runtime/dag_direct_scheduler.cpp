@@ -28,6 +28,7 @@
 
 #include <algorithm>
 
+#include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
@@ -170,7 +171,8 @@ void for_each_explicit_operation(
   }
 }
 
-backend_executor *select_executor(runtime* rt, dag_node_ptr node, operation *op) {
+std::pair<backend_executor *, device_id>
+select_executor(runtime *rt, dag_node_ptr node, operation *op) {
   device_id dev = node->get_assigned_device();
 
   assert(!op->is_requirement());
@@ -190,17 +192,20 @@ backend_executor *select_executor(runtime* rt, dag_node_ptr node, operation *op)
 
     if (user_preferred_executor &&
         user_preferred_executor->can_execute_on_device(preferred_device))
-        return user_preferred_executor;
-    
-    return rt->backends().get(executor_backend)->get_executor(preferred_device);
+        return std::make_pair(user_preferred_executor, preferred_device);
+
+    return std::make_pair(
+        rt->backends().get(executor_backend)->get_executor(preferred_device),
+        preferred_device);
 
   } else {
     
     if (user_preferred_executor &&
         user_preferred_executor->can_execute_on_device(dev))
-      return user_preferred_executor;
+      return std::make_pair(user_preferred_executor, dev);
 
-    return rt->backends().get(dev.get_backend())->get_executor(dev);
+    return std::make_pair(
+        rt->backends().get(dev.get_backend())->get_executor(dev), dev);
   }
 }
 
@@ -270,10 +275,37 @@ result submit_requirement(runtime* rt, dag_node_ptr req) {
                   "as operations generated from implicit requirements.",
                   error_type::feature_not_supported});
         } else {
-          backend_executor *executor = select_executor(rt, req, op);
+          std::pair<backend_executor *, device_id> execution_config =
+              select_executor(rt, req, op);
           // TODO What if we need to copy between two device backends through
           // host?
-          submit(executor, req, op);
+          
+          // TODO: The following is super-hacky and hints that we might
+          // have to do some larger architectural changes here:
+          //
+          // For host accessors, their target device will be set to the host
+          // device, but that might not be the correct device to carry
+          // out the memcpy, because the host device cannot access e.g. GPU memory.
+          // So we set the assigned device to the one we get from select_executor()
+          // which takes such considerations into account.
+          // Without this, since the executor tries to execute on the device
+          // assigned to the node, it might attempt to dispatch to some invalid device.
+          //
+          // However, at the end of submit() below this section, we then try to
+          // to update the data state for device assigned to the node.
+          // For a host accessor, because we have in fact updated the host memory,
+          // get_assigned_device() must return the original device at this point.
+          //
+          // Currently we solve this by retrieving the original assigned device,
+          // changing it to the one we wish to carry out the memcpy during submission,
+          // and then change back afterwards.
+          // This is not pretty. Is this a hint that there are actual two different
+          // parts of the DAG node that we should distinguish architecturally - the SYCL
+          // view and the backend execution view?
+          auto original_device = req->get_assigned_device();
+          req->assign_to_device(execution_config.second);
+          submit(execution_config.first, req, op);
+          req->assign_to_device(original_device);
         }
       });
     } else {
@@ -371,8 +403,13 @@ void dag_direct_scheduler::submit(dag_node_ptr node) {
   } else {
     // TODO What if this is an explicit copy between two device backends through
     // host?
-    backend_executor *exec = select_executor(_rt, node, node->get_operation());
-    rt::submit(exec, node, node->get_operation());
+    std::pair<backend_executor *, device_id> execution_config =
+        select_executor(_rt, node, node->get_operation());
+    // If we are not a requirement, execution target should not have changed
+    // -- only e.g. for host accessors a change is expected as they target the
+    // CPU device, but their memcyp may need to be executed on a device.
+    assert(execution_config.second == target_device);
+    rt::submit(execution_config.first, node, node->get_operation());
   }
 }
 

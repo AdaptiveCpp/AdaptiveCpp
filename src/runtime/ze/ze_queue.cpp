@@ -37,6 +37,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/ze/ze_code_object.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
@@ -356,7 +357,8 @@ result ze_queue::wait() {
   return make_success();
 }
 
-result ze_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
+  auto evt = node->get_event();
   _enqueued_synchronization_ops.push_back(evt);
   return make_success();
 }

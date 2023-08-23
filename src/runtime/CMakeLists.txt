@@ -188,6 +188,62 @@ if(WITH_LEVEL_ZERO_BACKEND)
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
 
+if(WITH_OPENCL_BACKEND)
+  include(FetchContent)
+  FetchContent_Declare(ocl-headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-Headers
+    GIT_TAG main
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+  )
+  FetchContent_GetProperties(ocl-headers)
+  if(NOT ocl-headers_POPULATED)
+    FetchContent_Populate(ocl-headers)
+    add_subdirectory(${ocl-headers_SOURCE_DIR} ${ocl-headers_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+  add_library(ocl-headers INTERFACE)
+  target_include_directories(ocl-headers INTERFACE ${ocl-headers_SOURCE_DIR})
+  
+  FetchContent_Declare(ocl-cxx-headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/OpenCL-CLHPP
+    GIT_TAG main
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+  )
+  FetchContent_GetProperties(ocl-cxx-headers)
+  if(NOT ocl-cxx-headers_POPULATED)
+    FetchContent_Populate(ocl-cxx-headers)
+    add_subdirectory(${ocl-cxx-headers_SOURCE_DIR} ${ocl-cxx-headers_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+  add_library(ocl-cxx-headers INTERFACE)
+  target_include_directories(ocl-cxx-headers INTERFACE ${ocl-cxx-headers_SOURCE_DIR}/include)
+
+  add_library(rt-backend-ocl SHARED
+    ocl/ocl_backend.cpp
+    ocl/ocl_code_object.cpp
+    ocl/ocl_hardware_manager.cpp
+    ocl/ocl_allocator.cpp
+    ocl/ocl_usm.cpp
+    ocl/ocl_event.cpp
+    ocl/ocl_queue.cpp)
+
+  target_include_directories(rt-backend-ocl PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_link_libraries(rt-backend-ocl PRIVATE hipSYCL-rt ${OpenCL_LIBRARIES} ocl-headers ocl-cxx-headers)
+
+  target_compile_options(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
+  target_link_libraries(rt-backend-ocl PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
+  target_compile_definitions(rt-backend-ocl PRIVATE -DCL_HPP_TARGET_OPENCL_VERSION=210)
+
+  if(WITH_SSCP_COMPILER)
+    target_compile_definitions(rt-backend-ocl PRIVATE -DHIPSYCL_WITH_SSCP_COMPILER)
+    target_link_libraries(rt-backend-ocl PRIVATE llvm-to-spirv)
+  endif()
+
+  install(TARGETS rt-backend-ocl
+        LIBRARY DESTINATION lib/hipSYCL
+        ARCHIVE DESTINATION lib/hipSYCL)
+endif()
+
 if(WITH_CPU_BACKEND)
   add_library(rt-backend-omp SHARED
     omp/omp_allocator.cpp

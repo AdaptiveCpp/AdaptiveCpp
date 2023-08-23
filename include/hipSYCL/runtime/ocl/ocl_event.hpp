@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2023 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DUMP_RUNTIME_HPP
-#define HIPSYCL_DUMP_RUNTIME_HPP
+#ifndef HIPSYCL_OCL_EVENT_HPP
+#define HIPSYCL_OCL_EVENT_HPP
 
-#define HIPSYCL_DUMP_INDENTATION "   "
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../inorder_queue_event.hpp"
+#include <CL/opencl.hpp>
 
-#include <ostream>
-#include <sstream>
-#include <map>
+namespace hipsycl {
+namespace rt {
 
-namespace hipsycl::rt {
-std::ostream &operator<<(std::ostream &out, const hardware_platform value);
-std::ostream &operator<<(std::ostream &out, const api_platform value);
-std::ostream &operator<<(std::ostream &out, const backend_id value);
-std::ostream &operator<<(std::ostream &out, device_id dev);
+class ocl_node_event : public inorder_queue_event<cl::Event>
+{
+public:
+  using backend_event_type = cl::Event;
+ 
+  ocl_node_event(device_id dev, cl::Event evt);
+  ocl_node_event(device_id dev);
 
-template <int Dim>
-std::ostream &operator<<(std::ostream &out, const static_array<Dim> &v) {
-  out << "{";
-  for (int i = 0; i < Dim; ++i) {
-    out << v[i];
-    if (i != Dim - 1)
-      out << ", ";
-  }
-  out << "}";
-  return out;
+  ~ocl_node_event();
+
+  virtual bool is_complete() const override;
+  virtual void wait() override;
+
+  backend_event_type get_event() const;
+  device_id get_device() const;
+
+  backend_event_type request_backend_event() override;
+private:
+  bool _is_empty = false;
+  device_id _dev;
+  backend_event_type _evt;
+};
+
+}
 }
 
-template <typename T> std::string dump(T *val) {
-  std::stringstream sstr;
-  val->dump(sstr);
-  return sstr.str();
-}
-
-} // namespace hipsycl::rt
 
 #endif

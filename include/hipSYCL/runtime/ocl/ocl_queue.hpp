@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019-2020 Aksel Alpay and contributors
+ * Copyright (c) 2021 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,70 +25,32 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_HIP_QUEUE_HPP
-#define HIPSYCL_HIP_QUEUE_HPP
+#ifndef HIPSYCL_OCL_QUEUE_HPP
+#define HIPSYCL_OCL_QUEUE_HPP
+
+#include <CL/opencl.hpp>
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
-#include "../generic/host_timestamped_event.hpp"
-#include "../code_object_invoker.hpp"
 
-#include "hip_instrumentation.hpp"
-
-// Avoid including HIP headers to prevent conflicts with CUDA
-struct ihipStream_t;
+#include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/generic/async_worker.hpp"
+#include "hipSYCL/runtime/ocl/ocl_code_object.hpp"
 
 namespace hipsycl {
 namespace rt {
 
-class hip_queue;
-class hip_backend;
+class ocl_hardware_manager;
 
-class hip_multipass_code_object_invoker : public multipass_code_object_invoker {
-public:
-  hip_multipass_code_object_invoker(hip_queue* q);
-
-  virtual result submit_kernel(const kernel_operation& op,
-                               hcf_object_id hcf_object,
-                               const rt::range<3> &num_groups,
-                               const rt::range<3> &group_size,
-                               unsigned local_mem_size, void **args,
-                               std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name_tag,
-                               const std::string &kernel_body_name) override;
-  virtual ~hip_multipass_code_object_invoker(){}
-private:
-  hip_queue* _queue;
-};
-
-
-class hip_sscp_code_object_invoker : public sscp_code_object_invoker {
-public:
-  hip_sscp_code_object_invoker(hip_queue* q)
-  : _queue{q} {}
-
-  virtual ~hip_sscp_code_object_invoker(){}
-
-  virtual result submit_kernel(const kernel_operation& op,
-                               hcf_object_id hcf_object,
-                               const rt::range<3> &num_groups,
-                               const rt::range<3> &group_size,
-                               unsigned local_mem_size, void **args,
-                               std::size_t *arg_sizes, std::size_t num_args,
-                               const std::string &kernel_name,
-                               const glue::kernel_configuration& config) override;
-private:
-  hip_queue* _queue;
-};
-
-class hip_queue : public inorder_queue
+class ocl_queue : public inorder_queue
 {
 public:
-  hip_queue(hip_backend* be, device_id dev, int priority = 0);
+  ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index);
+  
+  ocl_queue(const ocl_queue&) = delete;
+  ocl_queue& operator=(const ocl_queue&) = delete;
 
-  ihipStream_t* get_stream() const;
-
-  virtual ~hip_queue();
+  virtual ~ocl_queue();
 
   /// Inserts an event into the stream
   virtual std::shared_ptr<dag_node_event> insert_event() override;
@@ -107,15 +69,12 @@ public:
   virtual result wait() override;
 
   virtual device_id get_device() const override;
+  /// Return native type if supported, nullptr otherwise
   virtual void* get_native_type() const override;
 
   virtual result query_status(inorder_queue_status& status) override;
 
-  result submit_multipass_kernel_from_code_object(
-      const kernel_operation &op, hcf_object_id hcf_object,
-      const std::string &backend_kernel_name, const rt::range<3> &grid_size,
-      const rt::range<3> &block_size, unsigned dynamic_shared_mem,
-      void **kernel_args, std::size_t* arg_sizes, std::size_t num_args);
+  ocl_hardware_manager* get_hardware_manager() const;
 
   result submit_sscp_kernel_from_code_object(
       const kernel_operation &op, hcf_object_id hcf_object,
@@ -124,18 +83,16 @@ public:
       std::size_t *arg_sizes, std::size_t num_args,
       const glue::kernel_configuration &config);
 
-  const host_timestamped_event& get_timing_reference() const {
-    return _reference_event;
-  }
 private:
-  void activate_device() const;
+  void register_submitted_op(cl::Event);
 
-  device_id _dev;
-  ihipStream_t* _stream;
-  host_timestamped_event _reference_event;
-  hip_backend* _backend;
-  hip_multipass_code_object_invoker _multipass_code_object_invoker;
-  hip_sscp_code_object_invoker _sscp_code_object_invoker;
+  ocl_hardware_manager* _hw_manager;
+  std::size_t _device_index;
+
+  cl::CommandQueue _queue;
+  std::shared_ptr<dag_node_event> _most_recent_event = nullptr;
+  ocl_sscp_code_object_invoker _sscp_invoker;
+  worker_thread _host_worker;
 };
 
 }

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2020 Aksel Alpay
+ * Copyright (c) 2019 Aksel Alpay
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,41 +25,47 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIPSYCL_DUMP_RUNTIME_HPP
-#define HIPSYCL_DUMP_RUNTIME_HPP
+#include <vector>
 
-#define HIPSYCL_DUMP_INDENTATION "   "
-#include "hipSYCL/runtime/backend.hpp"
-#include "hipSYCL/runtime/util.hpp"
+#include "../backend.hpp"
+#include "../multi_queue_executor.hpp"
 
-#include <ostream>
-#include <sstream>
-#include <map>
+#include "ocl_allocator.hpp"
+#include "ocl_queue.hpp"
+#include "ocl_hardware_manager.hpp"
 
-namespace hipsycl::rt {
-std::ostream &operator<<(std::ostream &out, const hardware_platform value);
-std::ostream &operator<<(std::ostream &out, const api_platform value);
-std::ostream &operator<<(std::ostream &out, const backend_id value);
-std::ostream &operator<<(std::ostream &out, device_id dev);
+#ifndef HIPSYCL_OCL_BACKEND_HPP
+#define HIPSYCL_OCL_BACKEND_HPP
 
-template <int Dim>
-std::ostream &operator<<(std::ostream &out, const static_array<Dim> &v) {
-  out << "{";
-  for (int i = 0; i < Dim; ++i) {
-    out << v[i];
-    if (i != Dim - 1)
-      out << ", ";
-  }
-  out << "}";
-  return out;
+namespace hipsycl {
+namespace rt {
+
+
+class ocl_backend : public backend
+{
+public:
+  ocl_backend();
+  virtual api_platform get_api_platform() const override;
+  virtual hardware_platform get_hardware_platform() const override;
+  virtual backend_id get_unique_backend_id() const override;
+  
+  virtual backend_hardware_manager* get_hardware_manager() const override;
+  virtual backend_executor* get_executor(device_id dev) const override;
+  virtual backend_allocator *get_allocator(device_id dev) const override;
+
+  virtual std::string get_name() const override;
+  
+  virtual ~ocl_backend();
+
+  virtual std::unique_ptr<backend_executor>
+  create_inorder_executor(device_id dev, int priority) override;
+private:
+  mutable ocl_hardware_manager _hw_manager;
+  mutable multi_queue_executor _executor;
+};
+
+}
 }
 
-template <typename T> std::string dump(T *val) {
-  std::stringstream sstr;
-  val->dump(sstr);
-  return sstr.str();
-}
-
-} // namespace hipsycl::rt
 
 #endif

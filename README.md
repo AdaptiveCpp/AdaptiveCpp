@@ -15,12 +15,13 @@ Supported compilation flows include:
 1. **A generic, single-pass compiler infrastructure that compiles kernels to a unified code representation** that is then lowered at runtime to target devices, providing a high degree of portability, low compilation times, flexibility and extensibility. Support includes:
    1. NVIDIA CUDA GPUs through PTX;
    2. AMD ROCm GPUs through amdgcn code;
-   3. Intel GPUs through SPIR-V;
+   3. Intel GPUs through SPIR-V (Level Zero);
+   4. SPIR-V compatible OpenCL devices supporting Intel USM extensions or fine-grained system SVM (such as Intel's OpenCL implementation for CPUs or GPUs)
 2. Additionally, **Open SYCL can aggregate existing clang toolchains and augment them with support for SYCL constructs**. This allows for a high degree of interoperability between SYCL and other models such as CUDA or HIP. Support includes:
    1. Any LLVM-supported CPU (including e.g. x86, arm, power etc) through the regular clang host toolchain with dedicated compiler transformation to accelerate SYCL constructs;
    2. NVIDIA CUDA GPUs through the clang CUDA toolchain;
    3. AMD ROCm GPUs through the clang HIP toolchain;
-   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental)
+   4. Intel GPUs through oneAPI Level Zero and the clang SYCL toolchain (*highly* experimental, deprecated)
 3. Or **Open SYCL can be used in library-only compilation flows**. In these compilation flows, Open SYCL acts as a C++ library for third-party compilers. This can have portability advantages or simplify deployment. This includes support:
    1. Any CPU supported by any OpenMP compilers;
    2. NVIDIA GPUs through CUDA and the NVIDIA nvc++ compiler, bringing NVIDIA vendor support and day 1 hardware support to the SYCL ecosystem

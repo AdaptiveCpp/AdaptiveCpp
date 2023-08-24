@@ -374,8 +374,9 @@ void operator delete[]( void* ptr, std::align_val_t al,
   hipsycl::stdpar::unified_shared_memory::free(ptr);
 }
 
-/* Both libc++ and libstdc++ define std::malloc as ::malloc and std::free
-   as ::free, so it is enough to implement ::malloc and ::free here. */
+/* Both libc++ and libstdc++ define std::malloc as ::malloc and similarly
+ * for std::calloc, std::aligned_alloc, and std::free, so it is enough to 
+ * implement the global functions here. */
 HIPSYCL_STDPAR_ALLOC
 void* malloc(std::size_t size) {
   return hipsycl::stdpar::unified_shared_memory::malloc(size);

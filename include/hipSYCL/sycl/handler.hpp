@@ -505,7 +505,7 @@ public:
 
 
     this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
-        get_offset(dest), get_range(dest),
+        sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
   }

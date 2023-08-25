@@ -228,7 +228,7 @@ private:
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 {
-  if(_node->is_complete())
+  if(!_node || _node->is_complete())
     return info::event_command_status::complete;
 
   if(_node->is_submitted())

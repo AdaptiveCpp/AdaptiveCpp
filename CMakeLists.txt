@@ -41,6 +41,8 @@ endif()
 # Check for CUDA/ROCm and clang
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
+# Check for OpenCL
+find_package(OpenCL QUIET)
 
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
@@ -76,16 +78,25 @@ if(WITH_ROCM_BACKEND)
   endif()
 endif()
 
+if(WITH_OPENCL_BACKEND)
+  if(NOT OpenCL_FOUND)
+    message(SEND_ERROR "OpenCL was not found")
+  endif()
+endif()
+
 set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build hipSYCL support for NVIDIA GPUs with CUDA")
 set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build hipSYCL support for AMD GPUs with ROCm")
+set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build hipSYCL support for OpenCL SPIR-V devices supporting USM")
 set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "Whether to target CUDA exclusively with nvc++")
 
 if(APPLE OR WIN32 OR WITH_CUDA_NVCXX_ONLY)
   set(WITH_ACCELERATED_CPU false CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
   set(WITH_SSCP_COMPILER false CACHE BOOL "Build hipSYCL generic SSCP compiler support")
+  set(WITH_STDPAR_COMPILER false CACHE BOOL "Build hipSYCL C++ standard parallelism support")
 else()
   set(WITH_ACCELERATED_CPU true CACHE BOOL "Build hipSYCL compiler support for accelerating the CPU backend")
   set(WITH_SSCP_COMPILER true CACHE BOOL "Build hipSYCL generic SSCP compiler support")
+  set(WITH_STDPAR_COMPILER true CACHE BOOL "Build hipSYCL C++ standard parallelism compiler support")
 endif()
 set(WITH_CPU_BACKEND true)
 
@@ -122,11 +133,22 @@ else()
   set(WITH_SSCP_COMPILER false)
 endif()
 
+if(WITH_STDPAR_COMPILER) # sanitize input
+  set(WITH_STDPAR_COMPILER true)
+  set(BUILD_CLANG_PLUGIN true)
+else()
+  set(WITH_STDPAR_COMPILER false)
+endif()
+
 if(WITH_CUDA_BACKEND AND NOT WITH_CUDA_NVCXX_ONLY)
   set(BUILD_CLANG_PLUGIN true)
 endif()
 if(WITH_ROCM_BACKEND)
   set(BUILD_CLANG_PLUGIN true)
+endif()
+if(WITH_OPENCL_BACKEND OR WITH_LEVEL_ZERO_BACKEND)
+  set(BUILD_CLANG_PLUGIN true)
+  set(WITH_SSCP_COMPILER true)
 endif()
 
 if(BUILD_CLANG_PLUGIN)
@@ -201,7 +223,10 @@ if(BUILD_CLANG_PLUGIN)
     message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with SSCP compiler, disabling WITH_SSCP_COMPILER")
     set(WITH_SSCP_COMPILER false)
   endif()
-
+  if(${LLVM_VERSION_MAJOR} LESS 14 AND ${WITH_STDPAR_COMPILER})
+    message(WARNING "clang version too old (${LLVM_VERSION_MAJOR} < 14) to be used with C++ standard parallelism support, disabling WITH_STDPAR_COMPILER")
+    set(WITH_STDPAR_COMPILER false)
+  endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
 endif()
 

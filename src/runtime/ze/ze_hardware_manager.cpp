@@ -313,7 +313,7 @@ bool ze_hardware_context::has(device_support_aspect aspect) const {
 std::size_t ze_hardware_context::get_property(device_uint_property prop) const {
   switch (prop) {
   case device_uint_property::max_compute_units:
-    return _props.numSlices * _props.numSubslicesPerSlice;
+    return _props.numSlices * _props.numSubslicesPerSlice * _props.numEUsPerSubslice;
     break;
   case device_uint_property::max_global_size0:
     return _compute_props.maxGroupSizeX * _compute_props.maxGroupCountX;
@@ -520,6 +520,16 @@ uint32_t ze_hardware_context::get_ze_global_memory_ordinal() const {
 }
 
 ze_hardware_manager::ze_hardware_manager() {
+
+  if (has_device_visibility_mask(
+          application::get_settings().get<setting::visibility_mask>(),
+          backend_id::level_zero)) {
+    print_warning(
+        __hipsycl_here(),
+        error_info{
+            "ze_hardware_manager: Level Zero backend does not support device "
+            "visibility masks. Use ZE_AFFINITY_MASK instead."});
+  }
 
   uint32_t num_drivers = 0;
   ze_result_t err = zeDriverGet(&num_drivers, nullptr);

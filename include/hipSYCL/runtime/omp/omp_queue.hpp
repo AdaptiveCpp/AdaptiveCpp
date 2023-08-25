@@ -53,7 +53,7 @@ public:
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_queue_wait_for(dag_node_ptr evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
   virtual result wait() override;

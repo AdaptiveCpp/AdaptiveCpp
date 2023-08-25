@@ -441,7 +441,8 @@ result hip_queue::query_status(inorder_queue_status &status) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result hip_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result hip_queue::submit_queue_wait_for(dag_node_ptr node) {
+  auto evt = node->get_event();
   assert(dynamic_is<inorder_queue_event<hipEvent_t>>(evt.get()));
 
   inorder_queue_event<hipEvent_t> *hip_evt =

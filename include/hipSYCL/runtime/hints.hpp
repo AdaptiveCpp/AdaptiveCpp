@@ -28,7 +28,6 @@
 #ifndef HIPSYCL_HINTS_HPP
 #define HIPSYCL_HINTS_HPP
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 

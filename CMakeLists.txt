@@ -1,4 +1,7 @@
-cmake_minimum_required (VERSION 3.17)
+cmake_minimum_required (VERSION 3.5)
+if(NOT CMAKE_VERSION VERSION_LESS 3.12)
+  cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
+endif()
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)

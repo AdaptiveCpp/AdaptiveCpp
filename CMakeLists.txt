@@ -36,7 +36,8 @@ if(NOT Boost_FOUND)
 endif()
 
 # Check for CUDA/ROCm and clang
-find_package(CUDAToolkit QUIET)
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
+find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 # Check for OpenCL
 find_package(OpenCL QUIET)
@@ -57,23 +58,9 @@ else()
 endif()
 
 if(WITH_CUDA_BACKEND)
-  if(NOT CUDAToolkit_FOUND)
+  if(NOT CUDA_FOUND)
     message(SEND_ERROR "CUDA was not found")
-  else()
-    # CMake version < 3.18 does not define CUDAToolkit_LIBRARY_ROOT, and in some
-    # cases CMake does not define this variable even for CMake version >= 3.18.
-    # In these cases we define it ourselves by taking the parent directory of
-    # the CUDAToolkit_LIBRARY_DIR directory and check if this is the right directory.
-    if (CMAKE_VERSION VERSION_LESS 3.18 OR NOT CUDAToolkit_LIBRARY_ROOT)
-      get_filename_component(CUDAToolkit_LIBRARY_ROOT ${CUDAToolkit_LIBRARY_DIR} DIRECTORY)
-
-      if (NOT EXISTS "${CUDAToolkit_LIBRARY_ROOT}/nvvm")
-        message(SEND_ERROR "CUDAToolkit_LIBRARY_ROOT does not point to the correct directory")
-      endif()
-    endif()
   endif()
-
-  message(STATUS "Found CUDA version ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_ROOT}")
 endif()
 if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
@@ -391,7 +378,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
-  \"default-cuda-path\" : \"${CUDAToolkit_LIBRARY_ROOT}\",
+  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",

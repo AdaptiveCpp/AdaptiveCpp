@@ -103,9 +103,9 @@ if(WITH_CUDA_BACKEND)
 
   target_include_directories(rt-backend-cuda PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include
-    ${CUDAToolkit_INCLUDE_DIRS})
+    ${CUDA_TOOLKIT_ROOT_DIR}/include)
   
-  target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt CUDA::cudart CUDA::cuda_driver)
+  target_link_libraries(rt-backend-cuda PRIVATE hipSYCL-rt ${CUDA_LIBS})
 
   target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})

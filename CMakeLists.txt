@@ -1,7 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
-if(NOT CMAKE_VERSION VERSION_LESS 3.12)
-  cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
-endif()
+cmake_minimum_required (VERSION 3.17)
 
 set(HIPSYCL_VERSION_MAJOR 0)
 set(HIPSYCL_VERSION_MINOR 9)
@@ -39,7 +36,7 @@ if(NOT Boost_FOUND)
 endif()
 
 # Check for CUDA/ROCm and clang
-find_package(CUDA QUIET)
+find_package(CUDAToolkit QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 # Check for OpenCL
 find_package(OpenCL QUIET)
@@ -60,9 +57,23 @@ else()
 endif()
 
 if(WITH_CUDA_BACKEND)
-  if(NOT CUDA_FOUND)
+  if(NOT CUDAToolkit_FOUND)
     message(SEND_ERROR "CUDA was not found")
+  else()
+    # CMake version < 3.18 does not define CUDAToolkit_LIBRARY_ROOT, and in some
+    # cases CMake does not define this variable even for CMake version >= 3.18.
+    # In these cases we define it ourselves by taking the parent directory of
+    # the CUDAToolkit_LIBRARY_DIR directory and check if this is the right directory.
+    if (CMAKE_VERSION VERSION_LESS 3.18 OR NOT CUDAToolkit_LIBRARY_ROOT)
+      get_filename_component(CUDAToolkit_LIBRARY_ROOT ${CUDAToolkit_LIBRARY_DIR} DIRECTORY)
+
+      if (NOT EXISTS "${CUDAToolkit_LIBRARY_ROOT}/nvvm")
+        message(SEND_ERROR "CUDAToolkit_LIBRARY_ROOT does not point to the correct directory")
+      endif()
+    endif()
   endif()
+
+  message(STATUS "Found CUDA version ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_ROOT}")
 endif()
 if(WITH_ROCM_BACKEND)
   if(NOT ROCM_FOUND)
@@ -102,8 +113,6 @@ set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
-  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
-  message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 
   find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)
@@ -382,7 +391,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
+  \"default-cuda-path\" : \"${CUDAToolkit_LIBRARY_ROOT}\",
   \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",

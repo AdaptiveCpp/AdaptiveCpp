@@ -146,7 +146,7 @@ if(WITH_SSCP_COMPILER)
 
     target_compile_definitions(llvm-to-ptx PRIVATE
       -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}")
+      -DHIPSYCL_CUDA_PATH="${CUDAToolkit_LIBRARY_ROOT}")
   endif()
 
   if(WITH_LLVM_TO_AMDGPU_AMDHSA)

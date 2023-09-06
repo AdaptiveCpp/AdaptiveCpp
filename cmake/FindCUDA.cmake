@@ -16,8 +16,8 @@ if (CMAKE_VERSION VERSION_LESS 3.17)
                    HINTS
                    ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs
                    ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
-      message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 
+      message(STATUS "Found CUDA version ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
 
       set(CUDA_LIBS "${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY}")
    endif()
@@ -40,6 +40,8 @@ else()
             message(SEND_ERROR "CUDAToolkit_LIBRARY_ROOT does not point to the correct directory, try setting it manually")
          endif()
       endif()
+
+      message(STATUS "Found CUDA version ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_ROOT}")
 
       set(CUDA_FOUND TRUE)
       set(CUDA_TOOLKIT_ROOT_DIR ${CUDAToolkit_LIBRARY_ROOT})

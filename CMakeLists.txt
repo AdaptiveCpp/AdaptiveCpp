@@ -39,6 +39,7 @@ if(NOT Boost_FOUND)
 endif()
 
 # Check for CUDA/ROCm and clang
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 # Check for OpenCL
@@ -102,8 +103,6 @@ set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
-  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
-  message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 
   find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)

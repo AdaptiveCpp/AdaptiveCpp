@@ -22,6 +22,10 @@ if (CMAKE_VERSION VERSION_LESS 3.17)
       set(CUDA_LIBS "${CUDA_LIBRARIES} ${CUDA_DRIVER_LIBRARY}")
    endif()
 else()
+   if (DEFINED CUDA_TOOLKIT_ROOT_DIR AND NOT DEFINED CUDAToolkit_ROOT)
+      set(CUDAToolkit_ROOT ${CUDA_TOOLKIT_ROOT_DIR})
+   endif()
+
    find_package(CUDAToolkit QUIET)
 
    if (CUDAToolkit_FOUND)

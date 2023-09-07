@@ -73,6 +73,7 @@ add_executable(sycl_tests
   sycl/half.cpp
   sycl/id_range.cpp
   sycl/info_queries.cpp
+  sycl/interop_handle.cpp
   sycl/item.cpp
   sycl/kernel_invocation.cpp
   sycl/math.cpp

@@ -49,6 +49,10 @@ public:
                  rt::backend_executor *executor)
       : _dev{assigned_device}, _launcher_params{nullptr}, _executor{executor} {}
   
+  backend get_backend() const noexcept {
+    return _dev.get_backend();
+  }
+
   template <backend Backend, typename dataT, int dims, access::mode accessMode,
             access::target accessTarget, access::placeholder isPlaceholder>
   dataT* get_native_mem(const accessor<dataT, dims, accessMode, accessTarget,

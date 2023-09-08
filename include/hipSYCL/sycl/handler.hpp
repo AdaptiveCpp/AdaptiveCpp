@@ -937,7 +937,7 @@ private:
         op->is_requirement()) {
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
-      return build.builder()->add_command_group(std::move(op), _requirements);
+      return build.builder()->add_command_group(std::move(op), _requirements, hints);
     } else {
       // instant submission
       hints.add_hint(rt::make_execution_hint<rt::hints::instant_execution>());

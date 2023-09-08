@@ -177,11 +177,11 @@ multi_queue_executor::multi_queue_executor(
 
 
 bool multi_queue_executor::is_inorder_queue() const {
-  return true;
+  return false;
 }
 
 bool multi_queue_executor::is_outoforder_queue() const {
-  return false;
+  return true;
 }
 
 bool multi_queue_executor::is_taskgraph() const {

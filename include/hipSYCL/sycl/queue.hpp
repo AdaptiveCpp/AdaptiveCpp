@@ -305,10 +305,11 @@ public:
       {
         std::lock_guard<std::mutex> lock{*_lock};
 
-        most_recent_event = _previous_submission->lock();
+        most_recent_event = *_previous_submission;
       }
       if(most_recent_event) {
-        
+        // Flush DAG for non-submitted events. Note that this does not affect
+        // instant nodes, as they immediately assume the submitted state.
         if(!most_recent_event->is_submitted())
           _requires_runtime.get()->dag().flush_sync();
         
@@ -448,7 +449,7 @@ public:
     if(is_in_order()) {
       std::lock_guard<std::mutex> lock{*_lock};
 
-      if(auto prev = this->_previous_submission->lock()){
+      if(auto prev = *_previous_submission){
         if(!prev->is_known_complete()) {
           return std::vector<event>{event{prev, _handler}};
         }
@@ -903,7 +904,7 @@ private:
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
     if (is_in_order()) {
-      auto previous = _previous_submission->lock();
+      auto previous = *_previous_submission;
       if(previous)
         cgh.depends_on(event{previous, _handler});
     }
@@ -977,7 +978,7 @@ private:
 
     _is_in_order = this->has_property<property::queue::in_order>();
     _lock = std::make_shared<std::mutex>();
-    _previous_submission = std::make_shared<std::weak_ptr<rt::dag_node>>();
+    _previous_submission = std::make_shared<rt::dag_node_ptr>(nullptr);
 
     if(_is_in_order && get_devices().size() == 1) {
       int priority = 0;
@@ -1019,7 +1020,9 @@ private:
   async_handler _handler;
   bool _is_in_order;
 
-  std::shared_ptr<std::weak_ptr<rt::dag_node>> _previous_submission;
+  // Note: This must not be a weak_ptr, since in the case of instant submissions,
+  // the lifetime of nodes is not guaranteed to exceed task runtime.
+  std::shared_ptr<rt::dag_node_ptr> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
 };

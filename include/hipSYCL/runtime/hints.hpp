@@ -52,6 +52,7 @@ enum class execution_hint_type
   node_group,
   coarse_grained_synchronization,
   prefer_executor,
+  instant_execution,
 
   request_instrumentation_submission_timestamp,
   request_instrumentation_start_timestamp,
@@ -177,6 +178,16 @@ public:
 private:
   backend_executor* _executor;
   std::shared_ptr<backend_executor> _shared_executor;
+};
+
+class instant_execution : public execution_hint
+{
+public:
+  static constexpr execution_hint_type type =
+      execution_hint_type::instant_execution;
+  
+  instant_execution()
+  : execution_hint{execution_hint_type::instant_execution} {}
 };
 
 class request_instrumentation_submission_timestamp : public execution_hint {

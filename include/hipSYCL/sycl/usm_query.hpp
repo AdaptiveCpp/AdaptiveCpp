@@ -109,6 +109,15 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
   return selected_backend;
 }
 
+inline int select_usm_device_index(const context& ctx, rt::backend_id backend) {
+  const rt::unique_device_list &devs = detail::extract_context_devices(ctx);
+  for(auto it = devs.devices_begin(); it != devs.devices_end(); ++it) {
+    if(it->get_backend() == backend)
+      return it->get_id();
+  }
+  return 0;
+}
+
 inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
   rt::backend_id selected_backend = select_usm_backend(ctx);
 
@@ -119,8 +128,9 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
     throw memory_allocation_error{"USM: Context has no devices on which "
                                   "requested operation could be carried out"};
 
+  int device_id = select_usm_device_index(ctx, selected_backend);
   return backend_object.get_allocator(
-      rt::device_id{backend_object.get_backend_descriptor(), 0});
+      rt::device_id{backend_object.get_backend_descriptor(), device_id});
 }
 
 inline rt::backend_allocator *select_usm_allocator(const context &ctx,

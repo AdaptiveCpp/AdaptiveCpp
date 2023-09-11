@@ -944,6 +944,9 @@ private:
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
           hints, _requirements.get(), std::move(op), _rt);
+      node->assign_to_device(
+          hints.get_hint<rt::hints::bind_to_device>()->get_device_id());
+      node->assign_to_executor(executor);
       executor->submit_directly(node, node->get_operation(), _requirements.get());
       return node;
     }

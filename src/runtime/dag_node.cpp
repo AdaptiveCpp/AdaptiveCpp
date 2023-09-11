@@ -51,13 +51,7 @@ dag_node::dag_node(const execution_hints &hints,
     _requirements.push_back(req);
 }
 
-dag_node::~dag_node() {
-  if(!is_complete()){
-    HIPSYCL_DEBUG_WARNING << "dag_node: Destructor invoked before operation "
-                             "has completed, this should never happen."
-                          << std::endl;
-  }
-}
+dag_node::~dag_node() {}
 
 bool dag_node::is_submitted() const { return _is_submitted; }
 

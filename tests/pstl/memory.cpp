@@ -45,21 +45,6 @@ BOOST_AUTO_TEST_CASE(pstl_global_malloc_free) {
   free(p1);
 }
 
-BOOST_AUTO_TEST_CASE(pstl_calloc) {
-  constexpr std::size_t size = 64;
-
-  int *p1 = reinterpret_cast<int *>(std::calloc(size, sizeof(int)));
-
-  std::vector<int> host_data(size, 123);
-  std::copy(std::execution::par_unseq, p1, p1 + size,
-            host_data.begin());
-
-  for (std::size_t i = 0; i < size; ++i)
-    BOOST_CHECK_EQUAL(host_data[i], 0);
-
-  std::free(p1);
-}
-
 BOOST_AUTO_TEST_CASE(pstl_aligned_alloc) {
   constexpr std::size_t alignment = 8;
   constexpr std::size_t size = alignment * 8;

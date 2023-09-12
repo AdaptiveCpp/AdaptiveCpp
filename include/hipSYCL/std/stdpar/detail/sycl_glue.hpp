@@ -181,14 +181,6 @@ public:
     }
   }
 
-  static void memset(void* ptr, int value, std::size_t num_bytes) {
-    if(thread_local_storage::get().disabled_stack == 0) {
-      detail::single_device_dispatch::get_queue().memset(ptr, value, num_bytes);
-    } else {
-      std::memset(ptr, value, num_bytes);
-    }
-  }
-
   static void free(void* ptr) {
     if(!get()._is_initialized) {
       __libc_free(ptr);
@@ -380,13 +372,6 @@ void operator delete[]( void* ptr, std::align_val_t al,
 HIPSYCL_STDPAR_ALLOC
 void* malloc(std::size_t size) {
   return hipsycl::stdpar::unified_shared_memory::malloc(size);
-}
-
-HIPSYCL_STDPAR_ALLOC
-void* calloc(std::size_t num, std::size_t size) {
-  auto ptr = hipsycl::stdpar::unified_shared_memory::malloc(num*size);
-  hipsycl::stdpar::unified_shared_memory::memset(ptr, 0, num*size);
-  return ptr;
 }
 
 HIPSYCL_STDPAR_ALLOC

@@ -953,6 +953,8 @@ private:
           hints.get_hint<rt::hints::bind_to_device>()->get_device_id());
       node->assign_to_executor(executor);
       executor->submit_directly(node, node->get_operation(), _requirements.get());
+      // Signal that instrumentation setup phase is complete
+      node->get_operation()->get_instrumentations().mark_set_complete();
       return node;
     }
   }

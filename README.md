@@ -29,6 +29,9 @@ Supported compilation flows include:
 
 Open SYCL supports compiling source files into a single binary that can run on all these backends when building against appropriate clang distributions. Additionally, **Open SYCL is the only major SYCL implementation that supports a single-pass compiler design, where the code is only parsed once for both host and target devices**. More information about the supported [compilation flows can be found here](doc/compilation.md).
 
+The following illustration shows the complete stack and its capabilities to target hardware:
+![Compiler stack](/doc/img/stack.png)
+
 The runtime architecture of Open SYCL consists of the main library `hipSYCL-rt`, as well as independent, modular plugin libraries for the individual backends:
 ![Runtime architecture](/doc/img/runtime.png)
 

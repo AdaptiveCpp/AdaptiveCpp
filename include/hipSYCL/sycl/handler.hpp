@@ -67,6 +67,10 @@
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
 
+#ifndef HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#define HIPSYCL_ALLOW_INSTANT_SUBMISSION 0
+#endif
+
 namespace hipsycl {
 namespace sycl {
 
@@ -932,7 +936,8 @@ private:
     if(executor && executor->is_inorder_queue())
       is_dedicated_in_order_queue = true;
 
-    if (uses_buffers || has_non_instant_dependency || is_unbound ||
+    if (!HIPSYCL_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
+        has_non_instant_dependency || is_unbound ||
         !is_dedicated_in_order_queue || _operation_uses_reductions ||
         op->is_requirement()) {
       // traditional submission

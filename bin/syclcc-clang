@@ -1797,7 +1797,7 @@ class compiler:
       stdpar_include_path = os.path.join(self._opensycl_include_path,"hipSYCL","std","stdpar")
       args += [
         "-isystem", stdpar_include_path,
-        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__",
+        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1",
         # TODO We should find a way to only emit this argument if the clang plugin is used.
         "-mllvm", "-hipsycl-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")

@@ -234,7 +234,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
-  return_type ret = is_offloaded ? offload_invoker(q) : fallback_invoker();    \
+  const auto blocking_fallback_invoker = [&]() {                               \
+    q.wait();                                                                  \
+    return fallback_invoker();                                                 \
+  };                                                                           \
+  return_type ret =                                                            \
+      is_offloaded ? offload_invoker(q) : blocking_fallback_invoker();         \
   return ret;
 } // namespace hipsycl::stdpar
 

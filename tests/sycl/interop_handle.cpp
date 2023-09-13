@@ -34,6 +34,17 @@ BOOST_FIXTURE_TEST_SUITE(interop_handle_tests, reset_device_fixture)
 BOOST_AUTO_TEST_CASE(interop_handle_api) {
   namespace s = cl::sycl;
   using namespace hipsycl;
+
+  sycl::device d;
+
+  try {
+    d = sycl::device(sycl::gpu_selector_v);
+  }
+  catch {
+    d = sycl::device(sycl::cpu_selector_v);
+  }
+
+  s::queue q(d);
   
   rt::device_id assigned_device{rt::backend_descriptor{rt::hardware_platform::cpu,
                                 rt::api_platform::omp}, 12345};

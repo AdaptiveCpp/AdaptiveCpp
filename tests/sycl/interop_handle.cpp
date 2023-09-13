@@ -35,8 +35,6 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
   namespace s = cl::sycl;
   using namespace hipsycl;
   
-  s::queue q;
-  // can set to an arbitrary device, cuda queue with 10,000 devices
   rt::device_id assigned_device{rt::backend_descriptor{rt::hardware_platform::cpu,
                                 rt::api_platform::omp}, 12345};
 
@@ -44,7 +42,6 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
   s::interop_handle ih{assigned_device, executor};
   s::backend b = ih.get_backend();
 
-  // good practice is to call the device name inside the command group scope.
   BOOST_CHECK(b == q.get_device().get_backend());
 }
 

@@ -135,6 +135,17 @@ BOOST_AUTO_TEST_CASE(marray_aliases) {
   BOOST_CHECK(MARRAY_ALIAS_CHECK(double, double));
 }
 
+BOOST_AUTO_TEST_CASE(marray_implicit_conversion) {
+  constexpr int val = 42;
+
+  const auto f = [val](int x) {
+    BOOST_CHECK_EQUAL(x, val);
+  };
+
+  sycl::marray<int, 1> arr(val);
+  f(arr);
+}
+
 #ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
 // nvc++ seems to have a problem with these tests
 BOOST_AUTO_TEST_CASE(marray_constexpr) {

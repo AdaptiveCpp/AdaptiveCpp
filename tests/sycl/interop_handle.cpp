@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
   try {
     d = sycl::device(sycl::gpu_selector_v);
   }
-  catch {
+  catch (sycl::exception const &e) {
     d = sycl::device(sycl::cpu_selector_v);
   }
 

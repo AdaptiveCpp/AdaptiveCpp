@@ -3,6 +3,7 @@ name: Self-hosted CI
 on: [push, pull_request]
 jobs:
   test-gpu-nvidia:
+    if: github.repository == 'OpenSYCL/OpenSYCL'
     name: NVIDIA with clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
@@ -77,6 +78,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
         HIPSYCL_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-gpu-amd:
+    if: github.repository == 'OpenSYCL/OpenSYCL'
     name: AMD with clang ${{ matrix.clang_version }}
     runs-on: [self-hosted, gpu-amd]
     strategy:
@@ -124,6 +126,7 @@ jobs:
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
         HIPSYCL_VISIBILITY_MASK="omp;hip" ./pstl_tests
   test-gpu-intel:
+    if: github.repository == 'OpenSYCL/OpenSYCL'
     name: Intel with clang ${{ matrix.clang_version }}
     runs-on: [self-hosted, gpu-intel]
     strategy:

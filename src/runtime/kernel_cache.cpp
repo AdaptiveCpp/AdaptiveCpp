@@ -374,6 +374,7 @@ hcf_cache::get_image_info(hcf_object_id obj,
 
 const kernel_cache::kernel_name_index_t*
 kernel_cache::get_global_kernel_index(const std::string &kernel_name) const {
+  std::lock_guard<std::mutex> lock{_mutex};
   auto it = _kernel_index_map.find(kernel_name);
   if(it == _kernel_index_map.end())
     return nullptr;

@@ -120,8 +120,7 @@ void inorder_executor::submit_directly(dag_node_ptr node, operation *op,
 
   node->assign_to_execution_lane(_q.get());
 
-  node->assign_execution_index(_num_submitted_operations);
-  ++_num_submitted_operations;
+  node->assign_execution_index(++_num_submitted_operations);
 
   // Submit synchronization mechanisms
   result res;

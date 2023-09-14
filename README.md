@@ -82,8 +82,9 @@ Open SYCL has been repeatedly shown to deliver very competitive performance comp
 
 #### General performance hints
 
+* For strong-scaling/latency-bound problems, the alternative instant task submission mode can be used, which can substantially lower task launch latencies. Define the macro `HIPSYCL_ALLOW_INSTANT_SUBMISSION=1` before including `sycl.hpp` to enable it. Instant submission is possible with operations that do not use buffers (USM only), have no dependencies on non-instant tasks, do not use SYCL 2020 reductions and use in-order queues. In the stdpar model, instant submission is active by default.
 * Building Open SYCL against newer LLVM generally results in better performance for backends that are relying on LLVM.
-* Unlike other SYCL implementations that may rely on kernel compilation at runtime, Open SYCL relies heavily on ahead-of-time compilation. So make sure to use appropriate optimization flags when compiling.
+* Unlike other SYCL implementations that may rely on kernel compilation at runtime, some Open SYCL compilation flows rely heavily on ahead-of-time compilation. So make sure to use appropriate optimization flags when compiling.
 * For the CPU backend:
    * Don't forget that, due to Open SYCL's ahead-of-time compilation nature, you may also want to enable latest vectorization instruction sets when compiling, e.g. using `-march=native`.
    * Enable OpenMP thread pinning (e.g. `OMP_PROC_BIND=true`). Open SYCL uses asynchronous worker threads for some light-weight tasks such as garbage collection, and these additional threads can interfere with kernel execution if OpenMP threads are not bound to cores.

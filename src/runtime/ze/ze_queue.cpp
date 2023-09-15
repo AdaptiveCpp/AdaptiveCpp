@@ -235,6 +235,8 @@ std::shared_ptr<dag_node_event> ze_queue::create_queue_completion_event() {
 
 
 std::shared_ptr<dag_node_event> ze_queue::insert_event() {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   if(!_last_submitted_op_event) {
     auto evt = create_event();
     ze_result_t err = zeEventHostSignal(
@@ -245,6 +247,7 @@ std::shared_ptr<dag_node_event> ze_queue::insert_event() {
 }
 
 result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
 
   // TODO We could probably unify some of the logic here between
   // ze/cuda/hip backends
@@ -304,6 +307,8 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 }
 
 result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   rt::backend_kernel_launcher *l = 
       op.get_launcher().find_launcher(backend_id::level_zero);
   
@@ -329,6 +334,7 @@ result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
 }
 
 result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
 
   std::shared_ptr<dag_node_event> completion_evt = create_event();
   std::vector<ze_event_handle_t> wait_events = get_enqueued_event_handles();
@@ -353,17 +359,27 @@ result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
 }
 
 result ze_queue::wait() {
-  _last_submitted_op_event->wait();
+  std::shared_ptr<dag_node_event> _last_event;
+  {
+    std::lock_guard<std::mutex> lock{_mutex};
+    _last_event = _last_submitted_op_event;
+  }
+  if(_last_event)
+    _last_event->wait();
   return make_success();
 }
 
 result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   auto evt = node->get_event();
   _enqueued_synchronization_ops.push_back(evt);
   return make_success();
 }
 
 result ze_queue::submit_external_wait_for(dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   // Clean up old futures before adding new ones
   _external_waits.erase(
       std::remove_if(_external_waits.begin(), _external_waits.end(),
@@ -394,6 +410,7 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
 }
 
 result ze_queue::query_status(inorder_queue_status &status) {
+  std::lock_guard<std::mutex> lock{_mutex};
   status = inorder_queue_status{this->_last_submitted_op_event->is_complete()};
   return make_success();
 }

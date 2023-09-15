@@ -29,6 +29,7 @@
 #define HIPSYCL_OCL_QUEUE_HPP
 
 #include <CL/opencl.hpp>
+#include <mutex>
 
 #include "../executor.hpp"
 #include "../inorder_queue.hpp"
@@ -86,13 +87,33 @@ public:
 private:
   void register_submitted_op(cl::Event);
 
+  // These member variables have to be thread-safe.
   ocl_hardware_manager* _hw_manager;
-  std::size_t _device_index;
+  const std::size_t _device_index;
 
   cl::CommandQueue _queue;
-  std::shared_ptr<dag_node_event> _most_recent_event = nullptr;
   ocl_sscp_code_object_invoker _sscp_invoker;
   worker_thread _host_worker;
+
+  // Non-thread safe state should go here
+  struct protected_state {
+  public:
+    auto get_most_recent_event() const {
+      std::lock_guard<std::mutex> lock {_mutex};
+      return _most_recent_event;
+    }
+
+    template<class T>
+    void set_most_recent_event(const T& x) {
+      std::lock_guard<std::mutex> lock {_mutex};
+      _most_recent_event = x;
+    }
+  private:
+    std::shared_ptr<dag_node_event> _most_recent_event = nullptr;
+    mutable std::mutex _mutex;
+  };
+
+  protected_state _state;
 };
 
 }

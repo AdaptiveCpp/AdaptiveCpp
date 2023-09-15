@@ -65,7 +65,7 @@ public:
   
   worker_thread& get_worker();
 private:
-  backend_id _backend_id;
+  const backend_id _backend_id;
   worker_thread _worker;
 };
 

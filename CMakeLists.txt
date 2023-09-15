@@ -427,6 +427,7 @@ else()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
 endif()
 install(PROGRAMS bin/syclcc-clang DESTINATION bin)
+install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME acpp)
 
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})

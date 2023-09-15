@@ -138,7 +138,7 @@ public:
 private:
   void activate_device() const;
 
-  device_id _dev;
+  const device_id _dev;
   CUstream_st *_stream;
   cuda_multipass_code_object_invoker _multipass_code_object_invoker;
   cuda_sscp_code_object_invoker _sscp_code_object_invoker;

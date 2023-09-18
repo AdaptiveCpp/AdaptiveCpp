@@ -3,7 +3,7 @@
 # Read-only macros
 
 ## General macros
-* `__OPENSYCL__` - defined if compiling with AdaptiveCpp
+* `__ACPP__`, `__ADAPTIVECPP__` - defined if compiling with AdaptiveCpp
 
 ## Macros to specialize code paths based on backend
 

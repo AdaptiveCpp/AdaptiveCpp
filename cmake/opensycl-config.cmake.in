@@ -1,5 +1,7 @@
 @PACKAGE_INIT@
 
+message(DEPRECATION "find_package(OpenSYCL) is deprecated. Use find_package(AdaptiveCpp) instead. For this, you may have to set -DAdaptiveCpp_DIR=/install/prefix/lib/cmake/AdaptiveCpp. Additionally, replace -DOPENSYCL_* cmake arguments with -DACPP_*")
+
 set(OPENSYCL_SYCLCC "@PACKAGE_OPENSYCL_INSTALL_COMPILER_DIR@/syclcc-clang")
 set(OPENSYCL_SYCLCC_LAUNCHER "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_DIR@/syclcc-launcher")
 set(OPENSYCL_SYCLCC_LAUNCH_RULE_IN_FILE "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_RULE_DIR@/syclcc-launch.rule.in")

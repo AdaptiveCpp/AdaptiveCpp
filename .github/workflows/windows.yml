@@ -56,7 +56,7 @@ jobs:
         .\bootstrap.bat
         .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release embed-manifest-via=linker --build-type=complete stage
         
-    - name: Build OpenSYCL (without CUDA backend)
+    - name: Build AdaptiveCpp (without CUDA backend)
       if: matrix.clang == 15
       shell: powershell
       run: |
@@ -72,7 +72,7 @@ jobs:
         $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
         mkdir $env:GITHUB_WORKSPACE/build/tests-cpu
         cd $env:GITHUB_WORKSPACE/build/tests-cpu
-        cmake -G Ninja -DOPENSYCL_TARGETS="omp" -DOpenSYCL_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/OpenSYCL" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
+        cmake -G Ninja -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/AdaptiveCpp" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
         ninja -j2
 
     - name: run CPU tests

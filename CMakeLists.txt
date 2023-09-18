@@ -435,7 +435,7 @@ include(GNUInstallDirs)
 
 
 
-# Legacy module
+# Legacy module (hipSYCL)
 
 
 set(HIPSYCL_INSTALL_CMAKE_DIR
@@ -484,7 +484,7 @@ mark_as_advanced(
 )
 
 
-# New package
+# Legacy module (Open SYCL)
 
 set(OPENSYCL_INSTALL_CMAKE_DIR
   "lib/cmake/OpenSYCL" CACHE PATH "Install path for CMake config files")
@@ -530,3 +530,52 @@ install(EXPORT install_exports
 mark_as_advanced(
   OPENSYCL_INSTALL_CMAKE_DIR
 )
+
+# New module
+
+
+set(ADAPTIVECPP_INSTALL_CMAKE_DIR
+  "lib/cmake/AdaptiveCpp" CACHE PATH "Install path for CMake config files")
+
+# Set relative paths for install root in the following variables so that
+# configure_package_config_file will generate paths relative whatever is
+# the future install root
+set(ADAPTIVECPP_INSTALL_COMPILER_DIR bin)
+set(ADAPTIVECPP_INSTALL_LAUNCHER_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+set(ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+
+install(PROGRAMS cmake/syclcc-launcher DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/adaptivecpp-config-version.cmake"
+  VERSION ${hipSYCL_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/adaptivecpp-config.cmake.in
+    ${PROJECT_BINARY_DIR}/adaptivecpp-config.cmake
+    INSTALL_DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+    PATH_VARS
+    ADAPTIVECPP_INSTALL_COMPILER_DIR
+    ADAPTIVECPP_INSTALL_LAUNCHER_DIR
+    ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR
+)
+
+install(FILES
+  ${PROJECT_BINARY_DIR}/adaptivecpp-config.cmake
+  ${PROJECT_BINARY_DIR}/adaptivecpp-config-version.cmake
+  DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+)
+
+install(EXPORT install_exports
+  FILE "adaptivecpp-targets.cmake"
+  NAMESPACE AdaptiveCpp::
+  DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+)
+
+mark_as_advanced(
+  ADAPTIVECPP_INSTALL_CMAKE_DIR
+)
+

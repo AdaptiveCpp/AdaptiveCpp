@@ -24,19 +24,19 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;cuda:sm_61" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (explicit multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-emp
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j16
     # NVC++ is commented out for now, because the build takes ages
     # and it seems that nvc++ currently miscompiles some tests
@@ -47,8 +47,8 @@ jobs:
     #    mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
     #    cd ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
     #    export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc_version}}
-    #    export OPENSYCL_NVCXX=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ 
-    #    cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+    #    export ACPP_NVCXX=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ 
+    #    cmake -DACPP_TARGETS="cuda-nvcxx" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
     #    make -j16
     - name: run CUDA tests (integrated multipass)
       run: |
@@ -97,19 +97,19 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: build ROCm tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        cmake -DOPENSYCL_TARGETS="omp;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: build ROCm tests (explicit multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm-emp
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        cmake -DOPENSYCL_TARGETS="omp;hip.explicit-multipass:gfx906;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;hip.explicit-multipass:gfx906;cuda:sm_61" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: run ROCm tests (integrated multipass)
       run: |
@@ -144,7 +144,7 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make pstl_tests -j3
     - name: run PSTL Intel tests (L0)
       if: matrix.clang_version >= 14

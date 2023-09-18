@@ -1,6 +1,6 @@
 @PACKAGE_INIT@
 
-message(DEPRECATION "find_package(hipSYCL) is deprecated. Use find_package(OpenSYCL) instead. For this, you may have to set -DOpenSYCL_DIR=/install/prefix/lib/cmake/OpenSYCL. Additionally, replace -DHIPSYCL_* cmake arguments with -DOPENSYCL_*")
+message(DEPRECATION "find_package(hipSYCL) is deprecated. Use find_package(AdaptiveCpp) instead. For this, you may have to set -DAdaptiveCpp_DIR=/install/prefix/lib/cmake/AdaptiveCpp. Additionally, replace -DHIPSYCL_* cmake arguments with -DACPP_*")
 
 set(HIPSYCL_SYCLCC "@PACKAGE_HIPSYCL_INSTALL_COMPILER_DIR@/syclcc-clang")
 set(HIPSYCL_SYCLCC_LAUNCHER "@PACKAGE_HIPSYCL_INSTALL_LAUNCHER_DIR@/syclcc-launcher")

@@ -2,7 +2,7 @@
 
 # AdaptiveCpp (formerly known as hipSYCL / Open SYCL)
 
-**(Note: This project is currently in progress of changing its name. Documentation and code may still use the older name hipSYCL / Open SYCL)**
+**(Note: This project is currently in progress of changing its name to AdaptiveCpp due to external legal pressure. Documentation and code may still use the older name hipSYCL / Open SYCL)**
 
 AdaptiveCpp is the independent, community-driven modern platform for C++-based heterogeneous programming models targeting CPUs and GPUs from all major vendors. AdaptiveCpp lets applications adapt themselves to all the hardware found in the system. This includes use cases where a single binary needs to be able to target all supported hardware, or utilize hardware from different vendors simultaneously.
 
@@ -30,6 +30,8 @@ The following illustration shows the complete stack and its capabilities to targ
 ![Compiler stack](/doc/img/stack.png)
 
 Because a program compiled with AdaptiveCpp appears just like any other program written in vendor-supported programming models (like CUDA or HIP) to vendor-provided software, vendor tools such as profilers or debuggers also work well with AdaptiveCpp.
+
+An illustration on how the project fits into the SYCL ecosystem can be found ([here](doc/sycl-ecosystem.md)).
 
 ## About the project
 

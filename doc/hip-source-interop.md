@@ -1,4 +1,4 @@
-# Using platform-specific features in Open SYCL
+# Using platform-specific features in AdaptiveCpp
 
 Platform specific features can be used as follows:
 ```cpp

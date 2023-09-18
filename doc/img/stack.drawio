@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2023-09-06T16:00:30.348Z" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0" etag="oUVONPy4xFEfs23jAeGG" version="21.7.0" type="device">
+<mxfile host="app.diagrams.net" modified="2023-09-18T18:29:20.850Z" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0" etag="tPnopiENAXynrpBdwNU3" version="21.7.0" type="device">
   <diagram name="Seite-1" id="0SLCvcLKsHxv7A8LpPj7">
-    <mxGraphModel dx="2074" dy="1142" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1434" dy="773" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -16,7 +16,7 @@
         <mxCell id="ecabpJtwDSr2gYmt2dEg-17" value="C++ standard parallelism layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="570" y="289.87" width="170" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="ecabpJtwDSr2gYmt2dEg-18" value="hipSYCL compiler driver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-18" value="AdaptiveCpp compiler driver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
           <mxGeometry x="220" y="366.87" width="540" height="60" as="geometry" />
         </mxCell>
         <mxCell id="ecabpJtwDSr2gYmt2dEg-19" value="nvc++" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
@@ -57,7 +57,7 @@
         <mxCell id="ecabpJtwDSr2gYmt2dEg-26" value="OpenMP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" parent="1" vertex="1">
           <mxGeometry x="120" y="431" width="90" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="ecabpJtwDSr2gYmt2dEg-27" value="hipSYCL compiler driver (library-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-27" value="AdaptiveCpp compiler driver (library-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
           <mxGeometry x="42.01" y="366.87" width="169.99" height="60" as="geometry" />
         </mxCell>
         <mxCell id="ecabpJtwDSr2gYmt2dEg-28" value="SYCL support layer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fa6800;fontColor=#000000;strokeColor=#C73500;" parent="1" vertex="1">

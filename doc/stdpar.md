@@ -1,6 +1,6 @@
 # C++ standard parallelism support
 
-Open SYCL supports automatic offloading of C++ standard algorithms.
+AdaptiveCpp supports automatic offloading of C++ standard algorithms.
 
 ## Installation & dependencies
 
@@ -9,8 +9,8 @@ C++ standard parallelism offload currently is only supported in conjunction with
 
 ## Using accelerated C++ standard parallelism
 
-Offloading of C++ standard parallelism is enabled using `--opensycl-stdpar`. This flag does not by itself imply a target or compilation flow, which will have to be provided in addition using the normal `--opensycl-targets` argument. C++ standard parallelism is expected to work with any of our clang compiler-based compilation flows, such as `omp.accelerated`, `cuda`, `hip` or the generic SSCP compiler (`--opensycl-targets=generic`). It is not currently supported in library-only compilation flows. The focus of testing currently is the generic SSCP compiler.
-Open SYCL by default uses some experimental heuristics to determine if a problem is worth offloading. These heuristics are currently very simplistic and might not work well for you. They can be disabled using `--opensycl-stdpar-unconditional-offload`.
+Offloading of C++ standard parallelism is enabled using `--acpp-stdpar`. This flag does not by itself imply a target or compilation flow, which will have to be provided in addition using the normal `--acpp-targets` argument. C++ standard parallelism is expected to work with any of our clang compiler-based compilation flows, such as `omp.accelerated`, `cuda`, `hip` or the generic SSCP compiler (`--acpp-targets=generic`). It is not currently supported in library-only compilation flows. The focus of testing currently is the generic SSCP compiler.
+AdaptiveCpp by default uses some experimental heuristics to determine if a problem is worth offloading. These heuristics are currently very simplistic and might not work well for you. They can be disabled using `--acpp-stdpar-unconditional-offload`.
 
 
 ## Algorithms and policies supported for offloading
@@ -80,7 +80,7 @@ std::transform(std::execution::par_unseq, first, last, dest, ...);
 
 ### Automatic migration of heap allocations to USM shared allocations
 
-C++ is unaware of separate devices with their own device memory. In order to retain C++ semantics, when offloading C++ standard algorithms Open SYCL tries to move all memory allocations that the application performs in translation units compiled with `--opensycl-stdpar` to SYCL shared USM allocations. To this end, `operator new` and `operator delete` as well as the C-Style functions `malloc`, `aligned_alloc` and `free` are replaced by our own implementations (`calloc` and `realloc` are not yet implemented).
+C++ is unaware of separate devices with their own device memory. In order to retain C++ semantics, when offloading C++ standard algorithms AdaptiveCpp tries to move all memory allocations that the application performs in translation units compiled with `--acpp-stdpar` to SYCL shared USM allocations. To this end, `operator new` and `operator delete` as well as the C-Style functions `malloc`, `aligned_alloc` and `free` are replaced by our own implementations (`calloc` and `realloc` are not yet implemented).
 **Note that pointers to host stack memory cannot be used in offloaded C++ algorithms, because we cannot move stack allocations to USM memory! This also means that lambdas passed to C++ algorithms should never capture by reference!**
 
 This replacement is performed using a special compiler transformation. This compiler transformation also enforces that the SYCL headers perform regular allocations instead. This is important because in general the SYCL headers construct complex objects such as `std::vector` or `std::shared_ptr` which then get handed over to the SYCL runtime library. The runtime library however cannot rely on SYCL USM pointers -- in short: The runtime as the code responsible for managing these allocations cannot itself sit on them. Therefore, the compiler performs non-trivial operations to only selectively replace memory allocations.
@@ -90,12 +90,12 @@ The backend used to perform USM allocations is the backend managing the executin
 
 ## Scope and visibility of replaced functions
 
-Functions for memory allocation are only exchanged for USM variants within translation units compiled with `--opensycl-stdpar`. Our USM functions for releasing memory are however overriding the standard functions within the entire linkage unit. This is motivated by the expectation that pointers may be shared within the application, and the place where they are released may not be the place where they are created. As our functions for freeing memory can handle both regular and USM allocations, making them more widely available seems like the safer choice. However, our memory release functions are currently not exported to external linkage units, such as shared libraries that the application may load. **As such, you should be cautious when transferring ownership of a pointer to an external shared library, as this library may be unable to release the memory if it is a USM allocation!**
+Functions for memory allocation are only exchanged for USM variants within translation units compiled with `--acpp-stdpar`. Our USM functions for releasing memory are however overriding the standard functions within the entire linkage unit. This is motivated by the expectation that pointers may be shared within the application, and the place where they are released may not be the place where they are created. As our functions for freeing memory can handle both regular and USM allocations, making them more widely available seems like the safer choice. However, our memory release functions are currently not exported to external linkage units, such as shared libraries that the application may load. **As such, you should be cautious when transferring ownership of a pointer to an external shared library, as this library may be unable to release the memory if it is a USM allocation!**
 
-Note that in C++ due to the one definition rule (ODR) the linker may in certain circumstances pick one definition of a symbol when multiple definitions are available. This can potentially be a problem if a user-defined function is both defined in a translation unit compiled with `--opensycl-stdpar` and one without it. In this case, there is no guarantee that the linker will pick the variant that does USM allocations. Be aware that the most vulnerable code for this issue might not only be user code directly, but also header-only library code such as `std::` functions (think of e.g. the allocations performed by `std::vector` of common types) as these functions may be commonly used in multiple translation units.
-**We therefore recommend that if you enable `--opensycl-stdpar` for one translation unit, you also enable it for the other translation units in your project!**
+Note that in C++ due to the one definition rule (ODR) the linker may in certain circumstances pick one definition of a symbol when multiple definitions are available. This can potentially be a problem if a user-defined function is both defined in a translation unit compiled with `--acpp-stdpar` and one without it. In this case, there is no guarantee that the linker will pick the variant that does USM allocations. Be aware that the most vulnerable code for this issue might not only be user code directly, but also header-only library code such as `std::` functions (think of e.g. the allocations performed by `std::vector` of common types) as these functions may be commonly used in multiple translation units.
+**We therefore recommend that if you enable `--acpp-stdpar` for one translation unit, you also enable it for the other translation units in your project!**
 
-Such issues are not present for the functions defined in the SYCL headers, because the compiler inserts special ABI tags into their symbol names when compiled with `--opensycl-stdpar` to distinguish them from the regular variants, thus preventing such linking issues. Unfortunately, we cannot do the same for client code because we cannot know if other translation or linkage units will attempt to link against the user code, and expect the unaltered symbol names.
+Such issues are not present for the functions defined in the SYCL headers, because the compiler inserts special ABI tags into their symbol names when compiled with `--acpp-stdpar` to distinguish them from the regular variants, thus preventing such linking issues. Unfortunately, we cannot do the same for client code because we cannot know if other translation or linkage units will attempt to link against the user code, and expect the unaltered symbol names.
 
 ### User-controlled USM device pointers
 
@@ -104,10 +104,10 @@ Note that you may need to invoke SYCL functions to explicitly copy memory to dev
 
 ### Systems with system-level USM support
 
-If you are on a system that supports system-level USM, i.e. a system where every CPU pointer returned from regular memory allocations or even stack pointers can directly be used on GPUs (such as on AMD MI300 or Grace-Hopper), the compiler transformation to turn heap allocations to SYCL USM shared allocations is unnecessary. In this case, you may want to request the compiler to assume system-level USM and disable the compiler transformations regarding SYCL shared USM allocations using `--opensycl-stdpar-system-usm`.
+If you are on a system that supports system-level USM, i.e. a system where every CPU pointer returned from regular memory allocations or even stack pointers can directly be used on GPUs (such as on AMD MI300 or Grace-Hopper), the compiler transformation to turn heap allocations to SYCL USM shared allocations is unnecessary. In this case, you may want to request the compiler to assume system-level USM and disable the compiler transformations regarding SYCL shared USM allocations using `--acpp-stdpar-system-usm`.
 
 ## Functionality supported in device code
 
 The functionality supported in device code aligns with the kernel restrictions from SYCL. This means that no exceptions, dynamic polymorphism, dynamic memory management, or calls to external shared libraries are allowed. Note that this functionality might already be pohibited in the C++ `par_unseq` model anyway.
 
-The `std::` math functions are supported in device code in an experimental state when using the generic SSCP compilation flow (`--opensycl-targets=generic`). This is accomplished using a dedicated compiler pass that maps standard functions to our SSCP builtins.
+The `std::` math functions are supported in device code in an experimental state when using the generic SSCP compilation flow (`--acpp-targets=generic`). This is accomplished using a dedicated compiler pass that maps standard functions to our SSCP builtins.

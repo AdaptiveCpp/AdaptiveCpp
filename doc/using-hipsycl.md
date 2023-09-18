@@ -262,10 +262,10 @@ Note: Command line arguments take precedence over environment variables.
 
 ## Using the CMake integration
 Setting up a project using the AdaptiveCpp CMake integration is quite straight forward.
-The main points are adding `find_package(AdaptiveCpp REQUIRED)` and after defining the targets to build, adding `add_sycl_to_target(TARGET <target_name>)` to have the compilation handled by the hipSYCL toolchain.
+The main points are adding `find_package(AdaptiveCpp REQUIRED)` and after defining the targets to build, adding `add_sycl_to_target(TARGET <target_name>)` to have the compilation handled by the AdaptiveCpp toolchain.
 See the [example cmake project](../examples/CMakeLists.txt).
 
-A typical configure command line looks like this: `cmake .. -DAdaptiveCpp_DIR=</acpp/install/lib/cmake/hipSYCL> -DHIPSYCL_TARGETS="<targets>"`.
-`HIPSYCL_TARGETS` has to be set either as environment variable or on the command line for the `find_package` call to succeed. See the documentation of this flag above.
+A typical configure command line looks like this: `cmake .. -DAdaptiveCpp_DIR=/acpp/install/dir/lib/cmake/AdaptiveCpp -DACPP_TARGETS="<targets>"`.
+`ACPP_TARGETS` has to be set either as environment variable or on the command line for the `find_package` call to succeed. See the documentation of this flag above.
 
-If the accelerated CPU flow has been built, `-DHIPSYCL_USE_ACCELERATED_CPU=ON/OFF` can be used to override whether `omp` should refer to the `omp.library-only` or `omp.accelerated` compilation flow.
+If the accelerated CPU flow has been built, `-DACPP_USE_ACCELERATED_CPU=ON/OFF` can be used to override whether `omp` should refer to the `omp.library-only` or `omp.accelerated` compilation flow.

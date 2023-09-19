@@ -37,6 +37,11 @@ An illustration on how the project fits into the SYCL ecosystem can be found ([h
 
 While AdaptiveCpp started its life as a hobby project, development is now primarily led and funded by Heidelberg University, with contributions from the community. AdaptiveCpp not only serves as a research platform, but is also a solution used in production on machines of all scales, including some of the most powerful supercomputers.
 
+### Getting in touch
+
+Join us on [Discord](https://discord.gg/s2p7Vccwh3)!
+Alternatively, open a discussion or issue in this repository.
+
 ### Contributing to AdaptiveCpp
 
 We encourage contributions and are looking forward to your pull request! Please have a look at [CONTRIBUTING.md](CONTRIBUTING.md). If you need any guidance, please just open an issue and we will get back to you shortly.

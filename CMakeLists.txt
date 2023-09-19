@@ -419,14 +419,13 @@ install(DIRECTORY include/hipSYCL/std DESTINATION include/hipSYCL/ )
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
 
 if(NOT WIN32)
-install(PROGRAMS bin/syclcc DESTINATION bin)
 # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
 # we already have SYCL/sycl.hpp
 install(FILES include/SYCL/sycl.hpp DESTINATION include/sycl/)
-else()
-install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
 endif()
-install(PROGRAMS bin/syclcc-clang DESTINATION bin)
+install(PROGRAMS bin/acpp DESTINATION bin)
+install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
+install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})

@@ -45,7 +45,7 @@ jobs:
           echo "CC=${CC}" >> $GITHUB_ENV
           echo "CXX=${CXX}" >> $GITHUB_ENV
           echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
-      - name: build Open SYCL
+      - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
           echo ${CXXFLAGS}
@@ -57,7 +57,7 @@ jobs:
           mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           
-          cmake -DOPENSYCL_TARGETS=omp -DOPENSYCL_USE_ACCELERATED_CPU=true -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
+          cmake -DACPP_TARGETS=omp -DACPP_USE_ACCELERATED_CPU=true -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
       - name: build CPU tests with loop splitting
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-cpu

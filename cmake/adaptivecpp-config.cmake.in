@@ -1,0 +1,136 @@
+@PACKAGE_INIT@
+
+set(ACPP_COMPILER "@PACKAGE_ADAPTIVECPP_INSTALL_COMPILER_DIR@/acpp")
+set(ACPP_COMPILER_LAUNCHER "@PACKAGE_ADAPTIVECPP_INSTALL_LAUNCHER_DIR@/syclcc-launcher")
+set(ACPP_COMPILER_LAUNCH_RULE_IN_FILE "@PACKAGE_ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR@/syclcc-launch.rule.in")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+include(adaptivecpp-targets)
+
+set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to syclcc.")
+set(ACPP_EXTRA_COMPILE_OPTIONS "${ACPP_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
+
+set(ACPP_TARGETS_DESC "in the format ACPP_TARGETS=<platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>]. See acpp --help for a list of platforms.")
+set(ACPP_TARGETS "${ACPP_TARGETS}" CACHE STRING "The platforms and architectures AdaptiveCpp should target, ${ACPP_TARGETS_DESC}.")
+# IF ACPP_TARGETS has not been explicitly set by the user, first try to find the corresponding environment variable.
+
+if(NOT ACPP_TARGETS)
+  set(ACPP_TARGETS_ENV $ENV{ACPP_TARGETS})
+  if(ACPP_TARGETS_ENV)
+    message("Found ACPP_TARGETS from environment: ${ACPP_TARGETS_ENV}")
+    set(ACPP_TARGETS "${ACPP_TARGETS_ENV}")
+  endif()
+endif()
+if(ACPP_TARGETS)
+  set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-targets=\"${ACPP_TARGETS}\"")
+endif()
+
+set(ACPP_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")
+if(ACPP_CLANG)
+  set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-clang=${ACPP_CLANG}")
+endif()
+
+set(ACPP_CUDA_PATH "" CACHE STRING "The path to the CUDA toolkit installation directory.")
+if(ACPP_CUDA_PATH)
+  if(ACPP_TARGETS MATCHES "cuda")
+    set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-cuda-path=${ACPP_CUDA_PATH}")
+  else()
+    message(WARNING "ACPP_CUDA_PATH (${ACPP_CUDA_PATH}) is ignored for current target specification")
+  endif()
+endif()
+
+set(ACPP_ROCM_PATH "" CACHE STRING "The path to the ROCm installation directory.")
+if(ACPP_ROCM_PATH)
+  if(ACPP_TARGETS MATCHES "hip")
+    set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-rocm-path=${ACPP_ROCM_PATH}")
+  else()
+    message(WARNING "ACPP_ROCM_PATH (${ACPP_ROCM_PATH}) is ignored for current targets specification")
+  endif()
+endif()
+
+set(ACPP_CPU_CXX "" CACHE STRING "The compiler that should be used when targeting only CPUs.")
+if(ACPP_CPU_CXX)
+  if(ACPP_TARGETS MATCHES "omp")
+    set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-cpu-cxx=${ACPP_CPU_CXX}")
+  else()
+    message(WARNING "ACPP_CPU_CXX (${ACPP_CPU_CXX}) is ignored for current targets specification")
+  endif()
+endif()
+
+set(ACPP_USE_ACCELERATED_CPU "${ACPP_USE_ACCELERATED_CPU}" CACHE STRING "Enable compiler support for the nd_range parallel_for paradigm to accelerate it. Requires using clang as host compiler.")
+if(NOT ACPP_USE_ACCELERATED_CPU)
+  set(ACPP_USE_ACCELERATED_CPU_ENV $ENV{ACPP_USE_ACCELERATED_CPU})
+  if(ACPP_USE_ACCELERATED_CPU_ENV)
+    message("Found ACPP_USE_ACCELERATED_CPU from environment: ${ACPP_USE_ACCELERATED_CPU_ENV}")
+    set(ACPP_USE_ACCELERATED_CPU "${ACPP_USE_ACCELERATED_CPU_ENV}")
+  endif()
+endif()
+if(ACPP_USE_ACCELERATED_CPU)
+  set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-use-accelerated-cpu")
+elseif(NOT ACPP_USE_ACCELERATED_CPU STREQUAL "")
+  set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-use-accelerated-cpu=false")
+endif()
+
+# To invoke acpp, the add_sycl_to_target function sets a compiler and linker launch rule on the target that will pass
+# the entire GCC or Clang command line to lib/cmake/AdaptiveCpp/syclcc-launcher. The launcher will prepend syclcc-specific
+# arguments from ACPP_EXTRA_ARGS and replace GCC or Clang with syclcc in the command line.
+# This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
+# by clang(d)-based tooling and IDEs.
+if(WIN32)
+  set(ACPP_COMPILER_LAUNCH_RULE "python ${ACPP_COMPILER_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${ACPP_COMPILER}\" ${ACPP_EXTRA_ARGS}")
+else()
+  set(ACPP_COMPILER_LAUNCH_RULE "${ACPP_COMPILER_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${ACPP_COMPILER} ${ACPP_EXTRA_ARGS}")
+endif()
+
+# All SYCL targets must be rebuilt when syclcc arguments change, e.g. by changing the target platform. Since the
+# contents of ACPP_COMPILER_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
+# the variables's content and have every object file within a SYCL target depend on it.
+set(ACPP_COMPILER_LAUNCH_RULE_FILE "${CMAKE_BINARY_DIR}/CMakeFiles/adaptivecpp-syclcc-launch.rule")
+configure_file("${ACPP_COMPILER_LAUNCH_RULE_IN_FILE}" "${ACPP_COMPILER_LAUNCH_RULE_FILE}" @ONLY)
+set(ACPP_EXTRA_OBJECT_DEPENDS "${ACPP_COMPILER_LAUNCHER};${ACPP_COMPILER_LAUNCH_RULE_FILE}")
+
+# Do not call target_sources after add_sycl_to_target or dependency tracking on compiler flags will break in subtle ways
+function(add_sycl_to_target)
+  set(options)
+  set(one_value_keywords TARGET)
+  set(multi_value_keywords SOURCES)
+  cmake_parse_arguments(ADD_SYCL
+    "${options}"
+    "${one_value_keywords}"
+    "${multi_value_keywords}"
+    ${ARGN}
+  )
+
+  set_property(SOURCE ${ADD_SYCL_SOURCES} APPEND PROPERTY COMPILE_OPTIONS
+      ${ACPP_EXTRA_COMPILE_OPTIONS})
+
+  # The compiler launcher can only be set with per-target granularity. Dependencies on the launcher args are therefore
+  # also set for all files in the list.
+  get_target_property(ADD_SYCL_TARGET_ALL_SOURCES "${ADD_SYCL_TARGET}" SOURCES)
+
+  foreach(SOURCE_FILE_ITER IN LISTS ADD_SYCL_TARGET_ALL_SOURCES)
+    get_source_file_property(ADD_SYCL_OBJECT_DEPENDS "${SOURCE_FILE_ITER}" OBJECT_DEPENDS)
+    if(ADD_SYCL_OBJECT_DEPENDS)
+      set(ADD_SYCL_OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS};${ACPP_EXTRA_OBJECT_DEPENDS}")
+    else()
+      set(ADD_SYCL_OBJECT_DEPENDS "${ACPP_EXTRA_OBJECT_DEPENDS}")
+    endif()
+    set_source_files_properties("${SOURCE_FILE_ITER}" PROPERTIES OBJECT_DEPENDS "${ADD_SYCL_OBJECT_DEPENDS}")
+  endforeach()
+
+  # Make sure we keep the existing target rules if defined.
+  get_target_property(EXISTING_LAUNCH_COMPILE_RULE "${ADD_SYCL_TARGET}" RULE_LAUNCH_COMPILE)
+  if("${EXISTING_LAUNCH_COMPILE_RULE}" STREQUAL "EXISTING_LAUNCH_COMPILE_RULE-NOTFOUND")
+    set(EXISTING_LAUNCH_COMPILE_RULE "")
+  endif()
+  get_target_property(EXISTING_LAUNCH_LINK_RULE "${ADD_SYCL_TARGET}" RULE_LAUNCH_LINK)
+  if ("${EXISTING_LAUNCH_LINK_RULE}" STREQUAL "EXISTING_LAUNCH_LINK_RULE-NOTFOUND")
+    set(EXISTING_LAUNCH_LINK_RULE "")
+  endif()
+
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
+
+  target_link_libraries(${ADD_SYCL_TARGET} PRIVATE AdaptiveCpp::hipSYCL-rt)
+endfunction()

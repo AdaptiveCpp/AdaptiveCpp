@@ -1,6 +1,6 @@
 @PACKAGE_INIT@
 
-message(DEPRECATION "find_package(hipSYCL) is deprecated. Use find_package(OpenSYCL) instead. For this, you may have to set -DOpenSYCL_DIR=/install/prefix/lib/cmake/OpenSYCL. Additionally, replace -DHIPSYCL_* cmake arguments with -DOPENSYCL_*")
+message(DEPRECATION "find_package(hipSYCL) is deprecated. Use find_package(AdaptiveCpp) instead. For this, you may have to set -DAdaptiveCpp_DIR=/install/prefix/lib/cmake/AdaptiveCpp. Additionally, replace -DHIPSYCL_* cmake arguments with -DACPP_*")
 
 set(HIPSYCL_SYCLCC "@PACKAGE_HIPSYCL_INSTALL_COMPILER_DIR@/syclcc-clang")
 set(HIPSYCL_SYCLCC_LAUNCHER "@PACKAGE_HIPSYCL_INSTALL_LAUNCHER_DIR@/syclcc-launcher")
@@ -158,13 +158,13 @@ endif()
 # This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
 # by clang(d)-based tooling and IDEs.
 if(WIN32)
-  set(OPENSYCL_SYCLCC_LAUNCH_RULE "python ${HIPSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${HIPSYCL_SYCLCC}\" ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
+  set(ACPP_COMPILER_LAUNCH_RULE "python ${HIPSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${HIPSYCL_SYCLCC}\" ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
 else()
-  set(OPENSYCL_SYCLCC_LAUNCH_RULE "${HIPSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${HIPSYCL_SYCLCC} ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
+  set(ACPP_COMPILER_LAUNCH_RULE "${HIPSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${HIPSYCL_SYCLCC} ${HIPSYCL_SYCLCC_EXTRA_ARGS}")
 endif()
 
 # All SYCL targets must be rebuilt when syclcc arguments change, e.g. by changing the target platform. Since the
-# contents of OPENSYCL_SYCLCC_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
+# contents of ACPP_COMPILER_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
 # the variables's content and have every object file within a SYCL target depend on it.
 set(HIPSYCL_SYCLCC_LAUNCH_RULE_FILE "${CMAKE_BINARY_DIR}/CMakeFiles/hipsycl-syclcc-launch.rule")
 configure_file("${HIPSYCL_SYCLCC_LAUNCH_RULE_IN_FILE}" "${HIPSYCL_SYCLCC_LAUNCH_RULE_FILE}" @ONLY)
@@ -209,8 +209,8 @@ function(add_sycl_to_target)
     set(EXISTING_LAUNCH_LINK_RULE "")
   endif()
 
-  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${OPENSYCL_SYCLCC_LAUNCH_RULE}")
-  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${OPENSYCL_SYCLCC_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
 
   target_link_libraries(${ADD_SYCL_TARGET} PRIVATE hipSYCL::hipSYCL-rt)
 endfunction()

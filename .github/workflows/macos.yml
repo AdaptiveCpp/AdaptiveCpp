@@ -32,9 +32,9 @@ jobs:
       run: |
         mkdir build/tests-cpu && cd build/tests-cpu
         cmake \
-        -DOPENSYCL_TARGETS=omp.library-only \
+        -DACPP_TARGETS=omp.library-only \
         -DCMAKE_CXX_FLAGS=-I$OMP_ROOT/include \
-        -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL \
+        -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp \
         ${GITHUB_WORKSPACE}/tests
         make -j 2 VERBOSE=ON
     - name: run CPU tests

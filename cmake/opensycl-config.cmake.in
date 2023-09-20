@@ -1,5 +1,7 @@
 @PACKAGE_INIT@
 
+message(DEPRECATION "find_package(OpenSYCL) is deprecated. Use find_package(AdaptiveCpp) instead. For this, you may have to set -DAdaptiveCpp_DIR=/install/prefix/lib/cmake/AdaptiveCpp. Additionally, replace -DOPENSYCL_* cmake arguments with -DACPP_*")
+
 set(OPENSYCL_SYCLCC "@PACKAGE_OPENSYCL_INSTALL_COMPILER_DIR@/syclcc-clang")
 set(OPENSYCL_SYCLCC_LAUNCHER "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_DIR@/syclcc-launcher")
 set(OPENSYCL_SYCLCC_LAUNCH_RULE_IN_FILE "@PACKAGE_OPENSYCL_INSTALL_LAUNCHER_RULE_DIR@/syclcc-launch.rule.in")
@@ -78,13 +80,13 @@ endif()
 # This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
 # by clang(d)-based tooling and IDEs.
 if(WIN32)
-  set(OPENSYCL_SYCLCC_LAUNCH_RULE "python ${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${OPENSYCL_SYCLCC}\" ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
+  set(ACPP_COMPILER_LAUNCH_RULE "python ${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${OPENSYCL_SYCLCC}\" ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
 else()
-  set(OPENSYCL_SYCLCC_LAUNCH_RULE "${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${OPENSYCL_SYCLCC} ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
+  set(ACPP_COMPILER_LAUNCH_RULE "${OPENSYCL_SYCLCC_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${OPENSYCL_SYCLCC} ${OPENSYCL_SYCLCC_EXTRA_ARGS}")
 endif()
 
 # All SYCL targets must be rebuilt when syclcc arguments change, e.g. by changing the target platform. Since the
-# contents of OPENSYCL_SYCLCC_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
+# contents of ACPP_COMPILER_LAUNCH_RULE are invisible to CMake's dependency tracking, we configure() a file with
 # the variables's content and have every object file within a SYCL target depend on it.
 set(OPENSYCL_SYCLCC_LAUNCH_RULE_FILE "${CMAKE_BINARY_DIR}/CMakeFiles/opensycl-syclcc-launch.rule")
 configure_file("${OPENSYCL_SYCLCC_LAUNCH_RULE_IN_FILE}" "${OPENSYCL_SYCLCC_LAUNCH_RULE_FILE}" @ONLY)
@@ -129,8 +131,8 @@ function(add_sycl_to_target)
     set(EXISTING_LAUNCH_LINK_RULE "")
   endif()
 
-  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${OPENSYCL_SYCLCC_LAUNCH_RULE}")
-  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${OPENSYCL_SYCLCC_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
+  set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
 
   target_link_libraries(${ADD_SYCL_TARGET} PRIVATE OpenSYCL::hipSYCL-rt)
 endfunction()

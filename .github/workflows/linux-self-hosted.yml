@@ -54,20 +54,20 @@ jobs:
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run CUDA tests (explicit multipass)
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run PSTL CUDA tests (integrated multipass)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     - name: run PSTL CUDA tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     #- name: run CUDA tests (nvc++)
     #  run: |
     #    echo "Running tests on CUDA..."
@@ -76,7 +76,7 @@ jobs:
     - name: run CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+        ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-gpu-amd:
     if: github.repository_id == '140986400'
     name: AMD with clang ${{ matrix.clang_version }}
@@ -115,16 +115,16 @@ jobs:
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run ROCm tests (explicit multipass)
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run PSTL ROCm tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./pstl_tests
   test-gpu-intel:
     if: github.repository_id == '140986400'
     name: Intel with clang ${{ matrix.clang_version }}
@@ -150,9 +150,9 @@ jobs:
       if: matrix.clang_version >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests
     - name: run PSTL Intel tests (OpenCL)
       if: matrix.clang_version >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

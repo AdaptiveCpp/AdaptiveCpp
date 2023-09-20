@@ -116,7 +116,7 @@ In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used li
 
 `syclcc` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `syclcc --help` for a comprehensive list of options.
 
-When compiling with AdaptiveCpp, you will need to specify the targets you wish to compile for using the `--acpp-targets="backend1:target1,target2,...;backend2:..."` command line argument, `HIPSYCL_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details.
+When compiling with AdaptiveCpp, you will need to specify the targets you wish to compile for using the `--acpp-targets="backend1:target1,target2,...;backend2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details.
 
 Instructions for using AdaptiveCpp in CMake projects can also be found in the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
 

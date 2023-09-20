@@ -1,4 +1,4 @@
-# Open SYCL accessor variants
+# AdaptiveCpp accessor variants
 
 ## Terminology
 
@@ -19,7 +19,7 @@ SYCL accessors need to store several different kinds of information, depending o
 
 As a consequence, accessors are, in general, not light-weight objects. Accessor bloat however is highly undesirable, because it can have significant negative performance impact in kernels dominated by register pressure. This is especially true since accessors are a primary mechanism to operate on data, and therefore tend to be used in the most computationally intensive parts of the kernel.
 
-In a compiler-based SYCL implementation, some of the information stored inside accessors can be stripped if it is not used. However, in a SYCL implementation that tries to minimize compiler engineering efforts such as Open SYCL, or even an entirely library-based implementation, this is very difficult or even impossible.
+In a compiler-based SYCL implementation, some of the information stored inside accessors can be stripped if it is not used. However, in a SYCL implementation that tries to minimize compiler engineering efforts such as AdaptiveCpp, or even an entirely library-based implementation, this is very difficult or even impossible.
 
 But even in compiler-based SYCL implementations, information may be duplicated unnecessarily. Consider the following example:
 
@@ -39,15 +39,15 @@ q.submit([&](sycl::handler& cgh){
 ```
 Here, the the range of the buffer for both `acc1` and `acc2` will have to be passed into the kernel, because the compiler cannot know in general that the buffers have the same size. After all, the buffer size is a runtime parameter and in general unknown at compile-time. Consequently, the range of the accessors will be duplicated for both `acc1` and `acc2`, and take up unnecessary space in the kernel. In standard SYCL 2020, there is no way for the user to enforce that the accessor sizes are, in fact, equal and hence only need to be stored once.
 
-## Open SYCL accessor variants
+## AdaptiveCpp accessor variants
 
-The Open SYCL accessor variants extension is based on the realization that accessor size can be optimized if the way in which the accessor was constructed enters the accessor type, e.g. via template parameters.
+The AdaptiveCpp accessor variants extension is based on the realization that accessor size can be optimized if the way in which the accessor was constructed enters the accessor type, e.g. via template parameters.
 
 For example, an unranged accessor does not have to store access offset and an additional access range - it only needs to store the buffer allocation shape.
 
 With SYCL 2020 deduction guides and C++17 class template argument deduction, these additional template parameters can even be deduced automatically.
 
-Open SYCL introduces the following accessor variants, which are described by the `sycl::accessor_variant` enumeration:
+AdaptiveCpp introduces the following accessor variants, which are described by the `sycl::accessor_variant` enumeration:
 * `ranged_placeholder` - ranged placeholder accessor.
 * `unranged_placholder` - unranged placeholder accessor
 * `ranged` - ranged non-placeholder accessor
@@ -69,7 +69,7 @@ The following table describes which data is stored in the different accessor var
 * [1] Queries for offset return zero-initialized `sycl::id<>` object
 * [2] Queries for access range return buffer range
 
-In order to avoid incompatibility with SYCL 2020 and SYCL 1.2.1 as much as possible, Open SYCL accessor variants are exposed by extending the existing `access::placeholder` accessor template parameter with additional values for the accessor variants:
+In order to avoid incompatibility with SYCL 2020 and SYCL 1.2.1 as much as possible, AdaptiveCpp accessor variants are exposed by extending the existing `access::placeholder` accessor template parameter with additional values for the accessor variants:
 
 ```c++
 namespace sycl {
@@ -85,7 +85,7 @@ enum class accessor_variant {
 };
 
 namespace access {
-// Deprecated (reused in Open SYCL to store accessor variants)
+// Deprecated (reused in AdaptiveCpp to store accessor variants)
 using placeholder = sycl::accessor_variant;
 } // access
 } // sycl
@@ -99,7 +99,7 @@ class accessor { ... };
 
 However, note that using distinct accessor variants might potentially break certain code patterns. While common accessor usage works, the introduction of new distinct accessor types can break the assumption of compatibility between different accessors. For example, you might not be able to store different accessors in a container anymore.
 
-## Constructing Open SYCL accessor variants
+## Constructing AdaptiveCpp accessor variants
 
 hipSYCL accessor variants can be constructed in the following way:
 1. By explicitly setting the `accessor_variant` template parameter of the accessor to a value that differs from the standard `access::placeholder::false_t` and `access::placeholder::true_t`.
@@ -154,7 +154,7 @@ Two accessor objects of different accessor variant can be implicitly converted, 
 * the destination accessor is unranged for a ranged source accessor, or a standard SYCL 2020 accessor. In that case, the destination accessor might expose access to regions of the buffer that are not guaranteed to be in a consistent state on the target device, if they are outside of the original access range of the source accessor.
 * the destination accessor is a placeholder accessor for a non-placeholder source accessor.
 
-Conversion from Open SYCL accessor variants to standard accessors (variant is `access::placeholder::false_t` or `access::placeholder::true_t`) is supported.
+Conversion from AdaptiveCpp accessor variants to standard accessors (variant is `access::placeholder::false_t` or `access::placeholder::true_t`) is supported.
 The opposite direction is currently allowed for compatibility reasons, but might be disabled in the future as correctness for ranged accessors cannot be preserved.
 
 ### Raw accessors

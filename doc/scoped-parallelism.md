@@ -209,8 +209,8 @@ int main(){
     [=](auto grp){
       // Outside of distribute_items(), the degree of parallelism is implementation-defined.
       // the implementation can use whatever is most efficient for hardware/backend.
-      // In Open SYCL CPU, this would be executed by a single thread on CPU
-      // and Group_size threads on Open SYCL GPU
+      // On AdaptiveCpp CPU backend, this would be executed by a single thread on CPU
+      // and Group_size threads on AdaptiveCpp GPU backend.
       // Information about the position in the physical iteration space can be obtained
       // using grp.get_physical_local_id() and grp.get_physical_local_range().
 

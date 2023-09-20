@@ -1,9 +1,9 @@
-# Open SYCL runtime specification
+# AdaptiveCpp runtime specification
 
-The Open SYCL runtime library follows the requirements of a SYCL runtime library as described in the SYCL specification. The following specification assumes the SYCL specification, but expands on it where Open SYCL provides stronger or slightly different guarantees.
+The AdaptiveCpp runtime library follows the requirements of a SYCL runtime library as described in the SYCL specification. The following specification assumes the SYCL specification, but expands on it where AdaptiveCpp provides stronger or slightly different guarantees.
 It is assumed that the reader is at least familiar with the SYCL programming model.
 
-## Open SYCL buffer-accessor model
+## AdaptiveCpp buffer-accessor model
 
 ### Buffer behavior
 
@@ -43,7 +43,7 @@ Memory shall be allocated lazily on a particular device when a `buffer` is first
 
 A SYCL implementation needs to track whether data stored in the `buffer` in an allocation on a particular device is up-to-date or outdated. This information allows it to determine whether the implicit requirements formulated by accessors need to be translated into actual data transfers.
 
-In the Open SYCL model, the range of the buffer is interpreted as a 3D grid that is divided into 3D chunks of fixed size in each dimension. These chunks will in the following be referred to as *pages* (unrelated to virtual memory pages of the operating system). An implementation may expose mechanisms that allow the user to set the page size in each dimension in the `buffer` constructor. The page size determines the granularity of memory management and data state tracking.
+In the AdaptiveCpp model, the range of the buffer is interpreted as a 3D grid that is divided into 3D chunks of fixed size in each dimension. These chunks will in the following be referred to as *pages* (unrelated to virtual memory pages of the operating system). An implementation may expose mechanisms that allow the user to set the page size in each dimension in the `buffer` constructor. The page size determines the granularity of memory management and data state tracking.
 
 For each allocation managed on each device, the `buffer` implementation shall track for each page whether the data contained within the page is up-to-date or outdated.
 
@@ -78,4 +78,4 @@ Independent command groups may be executed in parallel. For example, this includ
 #### Comments
 
 * A smaller page size means a finer data management granularity; it may allow for more operations to be executed without dependencies in between them, but may also lead to a larger runtime overhead when tracking data state. The optimal page size is therefore a tradeoff. 
-* Note that in the Open SYCL model, subbuffers are neither needed, nor necessary, nor recommended to obtain parallel execution of kernels.
+* Note that in the AdaptiveCpp model, subbuffers are neither needed, nor necessary, nor recommended to obtain parallel execution of kernels.

@@ -1,13 +1,13 @@
 # Extension: Enqueue custom operation
 
-This extension allows for efficient interoperability with the backend by exposing a mechanism that allows enqueuing custom asynchronous backend operations. Open SYCL will treat these operations like kernels, and will ensure that they synchronize with other SYCL operations like a kernel would.
+This extension allows for efficient interoperability with the backend by exposing a mechanism that allows enqueuing custom asynchronous backend operations. AdaptiveCpp will treat these operations like kernels, and will ensure that they synchronize with other SYCL operations like a kernel would.
 The main advantage over interoperability via SYCL 2020 host tasks is that a host task requires that the flow of execution returns to the host from device, and then potentially back to device again. This can add additional latency, and is not necessary if you only wish to enqueue additional backend operations. Custom operations allow enqueuing additional backend operations without having the execution flow return to the host.
 
 Custom operations are submitted by providing a lambda or function object to `handler::hipSYCL_enqueue_custom_operation()`. This function object will be evaluated at DAG submission. It will be provided with an `interop_handle` as argument which is able to expose backend specific information, such as the backend queue (e.g. CUDA/HIP stream) that was selected for this operation.
 
 Because custom operation function objects are evaluated at submission time (not DAG execution time), no host operations should be performed on input data inside the custom operation, since dependencies are not guaranteed to have completed yet. Similarly, no synchronous operations should be submitted to the backend.
 
-Only asynchronous operations operating on the target device from the backend are guaranteed to behave correctly. It is also necessary to submit custom operations only to the backend queue (e.g. CUDA stream) provided by the `interop_handle`. This is because Open SYCL will assume that any subsequent SYCL operations can synchronize with the custom operation by synchronizing with the backend queue.
+Only asynchronous operations operating on the target device from the backend are guaranteed to behave correctly. It is also necessary to submit custom operations only to the backend queue (e.g. CUDA stream) provided by the `interop_handle`. This is because AdaptiveCpp will assume that any subsequent SYCL operations can synchronize with the custom operation by synchronizing with the backend queue.
 
 ## host task vs enqueuing custom operations for interoperability
 

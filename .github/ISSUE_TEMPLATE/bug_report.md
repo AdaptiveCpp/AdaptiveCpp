@@ -32,7 +32,7 @@ A clear and concise description of what you expected to happen.
 The following information can potentially help us:
 * For compilation/toolchain or setup-related issues: Setting the environment variable `HIPSYCL_DRYRUN=1` during compilation will cause `syclcc` to print the commands it would execute instead of actually executing. This can help verify the sanity of your setup.
 * `syclcc --hipsycl-version` prints information about the AdaptiveCpp configuration that may be interesting for setup-related issues.
-* For issues related to the runtime, setting the environment variable `HIPSYCL_DEBUG_LEVEL=3` will cause it to print *a lot* of diagnostic information that might be helpful. Attach the output of your program with `HIPSYCL_DEBUG_LEVEL=3` if you think it might be helpful for your issue.
+* For issues related to the runtime, setting the environment variable `ACPP_DEBUG_LEVEL=3` will cause it to print *a lot* of diagnostic information that might be helpful. Attach the output of your program with `ACPP_DEBUG_LEVEL=3` if you think it might be helpful for your issue.
 * Recent AdaptiveCpp versions include a tool called `acpp-info`, which will print information about available backends and devices. This may be interesting for issues related to e.g. device visibility.
 
 **Additional context**

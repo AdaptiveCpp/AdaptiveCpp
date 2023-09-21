@@ -57,7 +57,7 @@ In general, USM relies on memory pages automatically migrating between host and 
 ### Queues and devices
 
 Each thread in the user application maintains a dedicated thread-local in-order SYCL queue that will be used to dispatch STL algorithms. Thus, concurrent operations can be expressed by launching them from separate threads.
-The selected device is currently the device returned from the default selector. Use `HIPSYCL_VISIBILITY_MASK` and/or backend-specific environment variables such as `HIP_VISIBLE_DEVICES` to control which device this is. Because `sycl::event` objects are not needed in the C++ standard parallelism model, queues are set up to rely exclusively on the hipSYCL coarse grained events extension. This means that offloading a C++ standard parallel algorithm can potentially have lower overhead compared to submitting a regular SYCL kernel.
+The selected device is currently the device returned from the default selector. Use `ACPP_VISIBILITY_MASK` and/or backend-specific environment variables such as `HIP_VISIBLE_DEVICES` to control which device this is. Because `sycl::event` objects are not needed in the C++ standard parallelism model, queues are set up to rely exclusively on the hipSYCL coarse grained events extension. This means that offloading a C++ standard parallel algorithm can potentially have lower overhead compared to submitting a regular SYCL kernel.
 
 ### Synchronous and asynchronous execution
 

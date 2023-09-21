@@ -738,11 +738,11 @@ class acpp_config:
   @property
   def acpp_plugin_path(self):
     if sys.platform.startswith('win32'):
-      return os.path.join(self.acpp_installation_path, "bin", "opensycl-clang.dll")
+      return os.path.join(self.acpp_installation_path, "bin", "acpp-clang.dll")
     elif sys.platform == "darwin":
-      return os.path.join(self.acpp_installation_path, "lib", "libopensycl-clang.dylib")
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.dylib")
     else:
-      return os.path.join(self.acpp_installation_path, "lib", "libopensycl-clang.so")
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.so")
 
   @property
   def sequential_link_line(self):

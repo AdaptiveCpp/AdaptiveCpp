@@ -44,8 +44,6 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
     d = sycl::device(sycl::cpu_selector_v);
   }
 
-  s::queue q(d);
-  
   rt::device_id assigned_device{rt::backend_descriptor{rt::hardware_platform::cpu,
                                 rt::api_platform::omp}, 12345};
 
@@ -53,7 +51,7 @@ BOOST_AUTO_TEST_CASE(interop_handle_api) {
   s::interop_handle ih{assigned_device, executor};
   s::backend b = ih.get_backend();
 
-  BOOST_CHECK(b == q.get_device().get_backend());
+  BOOST_CHECK(b == s::backend::omp);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

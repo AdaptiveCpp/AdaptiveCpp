@@ -58,7 +58,7 @@ Follow [these](install-ocl.md) instructions.
 
 Once the software requirements mentioned above are met, clone the repository:
 ```
-$ git clone https://github.com/OpenSYCL/OpenSYCL
+$ git clone https://github.com/AdaptiveCpp/AdaptiveCpp
 ```
 Then, create a build directory and compile AdaptiveCpp. As described below, some backends and compilation flows must be configured with specific cmake arguments which should be passed during the cmake step.
 

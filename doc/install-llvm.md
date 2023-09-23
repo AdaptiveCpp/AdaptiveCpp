@@ -15,12 +15,12 @@ Install
 * libomp (including development headers)
 * lld (only for the ROCm backend)
 
-For example, the required steps to install clang 13 on an Ubuntu system are:
+For example, the required steps to install clang 16 on an Ubuntu system are:
 ```
 wget https://apt.llvm.org/llvm.sh #Convenience script that sets up the repositories
 chmod +x llvm.sh
-./llvm.sh 13 #Set up repositories for clang 13
-apt install -y libclang-13-dev clang-tools-13 libomp-13-dev llvm-13-dev lld-13
+./llvm.sh 16 #Set up repositories for clang 16
+apt install -y libclang-16-dev clang-tools-16 libomp-16-dev llvm-16-dev lld-16
 ```
 
 #### Only if you wish to compile LLVM from source (not recommended)
@@ -41,9 +41,9 @@ If AdaptiveCpp does not automatically configure the build for the desired clang/
 Verify from the cmake that the selected `clang++` and include headers match the LLVM that you have requested. Example output:
 ```
 ...
--- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-13/cmake/
--- Selecting clang: /usr/bin/clang++-13
--- Using clang include directory: /usr/include/clang/13.0.1/include/..
+-- Building AdaptiveCpp against LLVM configured from /usr/lib/llvm-16/cmake/
+-- Selecting clang: /usr/bin/clang++-16
+-- Using clang include directory: /usr/include/clang/16.0.1/include/..
 ...
 ```
 

@@ -15,6 +15,7 @@
 #include "hipSYCL/compiler/cbs/VectorShape.hpp"
 #include "hipSYCL/compiler/cbs/VectorizationInfo.hpp"
 
+#include "hipSYCL/compiler/cbs/LLVMUtils.hpp"
 #include "hipSYCL/compiler/cbs/MathUtils.hpp"
 
 #include <llvm/IR/Instructions.h>
@@ -24,17 +25,6 @@
 
 using namespace hipsycl::compiler;
 using namespace llvm;
-
-#if LLVM_VERSION_MAJOR < 13 || (LLVM_VERSION_MAJOR == 13 && defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR < 5)
-#define IS_OPAQUE(pointer) constexpr(false)
-#define HAS_TYPED_PTR 1
-#elif LLVM_VERSION_MAJOR < 16
-#define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
-#define HAS_TYPED_PTR 1
-#else
-#define IS_OPAQUE(pointer) constexpr(true)
-#define HAS_TYPED_PTR 0
-#endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())

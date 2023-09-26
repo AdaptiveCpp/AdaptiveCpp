@@ -29,9 +29,10 @@
 #include "hipSYCL/compiler/cbs/SubCfgFormation.hpp"
 
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
-#include "hipSYCL/compiler/cbs/LLVMUtils.hpp"
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 
 #include "hipSYCL/common/debug.hpp"
 

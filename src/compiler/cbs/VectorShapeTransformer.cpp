@@ -15,8 +15,9 @@
 #include "hipSYCL/compiler/cbs/VectorShape.hpp"
 #include "hipSYCL/compiler/cbs/VectorizationInfo.hpp"
 
-#include "hipSYCL/compiler/cbs/LLVMUtils.hpp"
 #include "hipSYCL/compiler/cbs/MathUtils.hpp"
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/IntrinsicInst.h>

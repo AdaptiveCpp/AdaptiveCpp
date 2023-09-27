@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hipSYCL/sycl/libkernel/functional.hpp"
 #include "sycl_test_suite.hpp"
 
 #include <bitset>
@@ -372,6 +373,58 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(common_functions, T,
       BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(comp(acc[0], c), comp(acc[0], c) + 10, comp(acc[1], c)), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_smoothstep(input_scalar, input_scalar + 1, comp(acc[0], c)), tolerance);
       BOOST_TEST(comp(acc[i++], c) == ref_sign(comp(acc[0], c)), tolerance);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(functional_float, T,
+    math_test_genfloats::type) {
+
+  constexpr int D = vector_length_v<T>;
+  using DT = vector_elem_t<T>;
+
+  namespace s = cl::sycl;
+
+  constexpr int FUN_COUNT = 2;
+
+  // build inputs
+
+  s::queue queue;
+  s::buffer<T> buf{{FUN_COUNT + 2}};
+  constexpr DT input_scalar = 3.5f;
+  constexpr DT mix_input_1 = 0.5f;
+  constexpr DT mix_input_2 = 0.8f;
+  {
+    auto acc = buf.template get_access<s::access::mode::write>();
+    acc[0] = get_math_input<DT, D>({7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0});
+    acc[1] = get_math_input<DT, D>({17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0, 17.0, -4.0, -2.0, 3.0, 7.0, -8.0, 9.0, -1.0});
+    for(int i = 2; i < FUN_COUNT + 2; ++i) {
+      acc[i] = T{DT{0}};
+    }
+  }
+
+  // run functions
+  // some of these are tested multiple times to ensure that all overloads are covered
+  // (e.g. combinations of vec and scalar input)
+
+  queue.submit([&](s::handler &cgh) {
+    auto acc = buf.template get_access<s::access::mode::read_write>(cgh);
+    cgh.single_task<kernel_name<class functional_float, D, DT>>([=]() {
+      int i = 2;
+      acc[i++] = s::maximum<T>{}(acc[0], acc[1]);
+      acc[i++] = s::minimum<T>{}(acc[0], acc[1]);
+    });
+  });
+
+  // check results
+
+  {
+    auto acc = buf.template get_access<s::access::mode::read>();
+
+    for(int c = 0; c < std::max(D,1); ++c) {
+      int i = 2;
+      BOOST_TEST(comp(acc[i++], c) == std::max(comp(acc[0], c), comp(acc[1], c)), tolerance);
+      BOOST_TEST(comp(acc[i++], c) == std::min(comp(acc[0], c), comp(acc[1], c)), tolerance);
     }
   }
 }

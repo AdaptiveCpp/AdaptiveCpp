@@ -39,10 +39,6 @@ jobs:
     - name: Install TBB for PSTL tests
       run : |
         sudo apt install libtbb-dev
-    - name: uninstall gcc 12 development headers due to CUDA incompatibility
-      if: matrix.os == 'ubuntu-22.04'
-      run : |
-        sudo apt remove libgcc-12-dev libstdc++-12-dev
     - name: install Level Zero
       run : |
         wget https://github.com/oneapi-src/level-zero/releases/download/v1.2.3/level-zero-devel_1.2.3+u18.04_amd64.deb

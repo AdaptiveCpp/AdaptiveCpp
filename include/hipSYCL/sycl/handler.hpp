@@ -339,6 +339,21 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  void parallel_for(range<1> numWorkItems,
+                    id<1> workItemOffset,
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          workItemOffset, numWorkItems,
+          get_preferred_group_size<1>(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(nd_range<dimensions> executionRange,
                     const ReductionsAndKernel &... redu_kernel) {

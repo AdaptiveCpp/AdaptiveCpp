@@ -56,8 +56,8 @@ jobs:
         echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
     - name: install ROCm
       run: |
-        [[ ${{matrix.rocm}} == 4.0.1 ]] && CODENAME=xenial
-        [[ ${{matrix.rocm}} == 5.4.3 ]] && CODENAME=focal
+        [[ ${{matrix.os}} == ubuntu-20.04 ]] && CODENAME=xenial
+        [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=focal
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list

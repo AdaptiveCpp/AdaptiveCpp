@@ -57,7 +57,7 @@ jobs:
     - name: install ROCm
       run: |
         [[ ${{matrix.os}} == ubuntu-20.04 ]] && CODENAME=xenial
-        [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=focal
+        [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list

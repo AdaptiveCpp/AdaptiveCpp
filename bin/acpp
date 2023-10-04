@@ -638,11 +638,14 @@ class acpp_config:
       raise OptionNotSet("Could not retrieve major version from config file")
     if not self._config_file.contains_key("version-patch"):
       raise OptionNotSet("Could not retrieve major version from config file")
+    if not self._config_file.contains_key("version-suffix"):
+      raise OptionNotSet("Could not retrieve version suffix from config file")
 
     return (
       self._config_file.get("version-major"), 
       self._config_file.get("version-minor"),
-      self._config_file.get("version-patch"))
+      self._config_file.get("version-patch"),
+      self._config_file.get("version-suffix"))
 
   @property
   def plugin_llvm_version(self):
@@ -1930,7 +1933,7 @@ def print_config(config):
 def print_version(config):
   version = config.version
   print("acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project")
-  print("  AdaptiveCpp version: {}.{}.{}".format(version[0],version[1],version[2]))
+  print("  AdaptiveCpp version: {}.{}.{}{}".format(version[0],version[1],version[2],version[3]))
   print("  Installation root:",os.path.abspath(config.acpp_installation_path))
   if config.has_plugin:
     print("  Plugin LLVM version: {}, can accelerate CPU: {}".format(config.plugin_llvm_version, config.has_plugin_cpu_acceleration))

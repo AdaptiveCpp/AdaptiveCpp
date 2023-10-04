@@ -3,11 +3,23 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.12)
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
 
-set(HIPSYCL_VERSION_MAJOR 23)
-set(HIPSYCL_VERSION_MINOR 10)
-set(HIPSYCL_VERSION_PATCH 0)
 
-project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
+set(ACPP_VERSION_MAJOR 23)
+set(ACPP_VERSION_MINOR 10)
+set(ACPP_VERSION_PATCH 0)
+if(NOT ACPP_VERSION_SUFFIX)
+  # Get the latest abbreviated commit hash of the working branch
+  execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
+  set(ACPP_VERSION_SUFFIX "+git${ACPP_GIT_COMMIT_HASH}")
+endif()
+
+project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
 set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
@@ -375,9 +387,10 @@ else()
 endif()
 
 set(SYCLCC_CONFIG_FILE "{
-  \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
-  \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
-  \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
+  \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
+  \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
+  \"version-patch\" : \"${ACPP_VERSION_PATCH}\",
+  \"version-suffix\" : \"${ACPP_VERSION_SUFFIX}\",
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",

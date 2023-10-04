@@ -31,6 +31,21 @@ namespace compiler {
 
 namespace {
 
+bool isUsedInFunctions(llvm::SmallPtrSet<llvm::User*, 16>& VisitedUsers, llvm::User* User) {
+  if(llvm::isa<llvm::Function>(User))
+      return true;
+  
+  if(VisitedUsers.contains(User))
+    return false;
+  VisitedUsers.insert(User);
+
+  for(auto* U : User->users()) {
+    if(isUsedInFunctions(VisitedUsers, U))
+      return true;
+  }
+  return false;
+}
+
 template<class FunctionSetT>
 void descendCallGraphAndAdd(llvm::Function* F, llvm::CallGraph& CG, FunctionSetT& Set){
   if(!F || Set.contains(F))
@@ -351,7 +366,11 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   llvm::SmallVector<llvm::GlobalVariable*, 16> UnneededGlobals;
   for(auto& G: M.globals()) {
     G.removeDeadConstantUsers();
-    if(G.getNumUses() == 0)
+    // Throw away globals that are either totally unused or don't have any
+    // use inside functions (either directly or indirectly). The latter is
+    // to remove globals with circular dependencies, which can cause JIT failures.
+    llvm::SmallPtrSet<llvm::User*, 16> VisitedUsers;
+    if(G.getNumUses() == 0 || !isUsedInFunctions(VisitedUsers, &G))
       UnneededGlobals.push_back(&G);
   }
   for(auto& G : UnneededGlobals) {

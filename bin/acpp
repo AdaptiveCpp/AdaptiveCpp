@@ -843,7 +843,7 @@ class acpp_config:
 
   @property
   def acpp_include_path(self):
-    return os.path.join(self.acpp_installation_path, "include/")
+    return os.path.join(self.acpp_installation_path, "include/AdaptiveCpp/")
 
   def has_optimization_flag(self):
     for arg in self._forwarded_args:

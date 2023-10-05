@@ -41,6 +41,16 @@ if(BUILD_CLANG_PLUGIN)
   add_subdirectory(libkernel)
 endif()
 
+set(ACPP_RT_SANITIZE "" CACHE STRING
+    "Enable building AdaptiveCpp runtime with specified sanitizers")
+
+if(NOT ${ACPP_RT_SANITIZE} STREQUAL "")
+  set(ACPP_RT_SANITIZE_FLAGS "-fsanitize=${ACPP_RT_SANITIZE}")
+else()
+  set(ACPP_RT_SANITIZE_FLAGS "")
+endif()
+
+
 add_subdirectory(runtime)
 add_subdirectory(tools)
 

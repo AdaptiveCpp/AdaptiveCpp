@@ -5,5 +5,11 @@ target_include_directories(acpp-info PRIVATE
     ${HIPSYCL_SOURCE_DIR}
     ${HIPSYCL_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include)
+
 target_link_libraries(acpp-info PRIVATE acpp-rt)
+
+# Make sure that acpp-info uses compatible sanitizer flags for sanitized runtime builds
+target_link_libraries(acpp-info PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
+target_compile_options(acpp-info PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
+
 install(TARGETS acpp-info DESTINATION bin)

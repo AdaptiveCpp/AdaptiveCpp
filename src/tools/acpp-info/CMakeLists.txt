@@ -5,5 +5,5 @@ target_include_directories(acpp-info PRIVATE
     ${HIPSYCL_SOURCE_DIR}
     ${HIPSYCL_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include)
-target_link_libraries(acpp-info PRIVATE hipSYCL-rt)
+target_link_libraries(acpp-info PRIVATE acpp-rt)
 install(TARGETS acpp-info DESTINATION bin)

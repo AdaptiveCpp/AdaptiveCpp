@@ -134,5 +134,5 @@ function(add_sycl_to_target)
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
 
-  target_link_libraries(${ADD_SYCL_TARGET} PRIVATE OpenSYCL::hipSYCL-rt)
+  target_link_libraries(${ADD_SYCL_TARGET} PRIVATE OpenSYCL::acpp-rt)
 endfunction()

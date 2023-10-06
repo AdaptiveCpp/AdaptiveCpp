@@ -1812,7 +1812,7 @@ class compiler:
   def common_linker_flags(self):
     linker_args = [
       "-L"+self._acpp_lib_path,
-      "-lhipSYCL-rt"
+      "-lacpp-rt"
     ]
     
     if sys.platform == "darwin":

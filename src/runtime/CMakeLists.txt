@@ -22,7 +22,6 @@ add_library(acpp-rt SHARED
   error.cpp
   backend.cpp
   backend_loader.cpp
-  hints.cpp
   device_id.cpp
   operations.cpp
   data.cpp

@@ -1,4 +1,4 @@
-project(opensycl-tests)
+project(adaptivecpp-tests)
 cmake_minimum_required(VERSION 3.12)
 
 set(Boost_USE_STATIC_LIBS off)
@@ -7,7 +7,7 @@ set(REDUCED_LOCAL_MEM_USAGE OFF CACHE BOOL "Only run tests with reduced local me
 
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
-find_package(OpenSYCL REQUIRED)
+find_package(AdaptiveCpp REQUIRED)
 
 find_package(Threads REQUIRED)
 
@@ -15,13 +15,13 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-if(NOT OPENSYCL_DEBUG_LEVEL)
+if(NOT ACPP_DEBUG_LEVEL)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(OPENSYCL_DEBUG_LEVEL 3 CACHE STRING
+    set(ACPP_DEBUG_LEVEL 3 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
     FORCE)
   else()
-    set(OPENSYCL_DEBUG_LEVEL 2 CACHE STRING
+    set(ACPP_DEBUG_LEVEL 2 CACHE STRING
       "Choose the debug level, options are: 0 (no debug), 1 (print errors), 2 (also print warnings), 3 (also print general information)"
       FORCE)
   endif()
@@ -42,7 +42,7 @@ endif()
 
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
-add_definitions(-DHIPSYCL_DEBUG_LEVEL=${OPENSYCL_DEBUG_LEVEL})
+add_definitions(-DHIPSYCL_DEBUG_LEVEL=${ACPP_DEBUG_LEVEL})
 if(HIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
   add_definitions(-DHIPSYCL_DISABLE_UNNAMED_LAMBDA_TESTS)
 endif()
@@ -73,6 +73,7 @@ add_executable(sycl_tests
   sycl/half.cpp
   sycl/id_range.cpp
   sycl/info_queries.cpp
+  sycl/interop_handle.cpp
   sycl/item.cpp
   sycl/kernel_invocation.cpp
   sycl/math.cpp
@@ -120,6 +121,7 @@ if(WITH_PSTL_TESTS)
     pstl/for_each_n.cpp
     pstl/generate.cpp
     pstl/generate_n.cpp
+    pstl/memory.cpp
     pstl/none_of.cpp
     pstl/reduce.cpp
     pstl/replace.cpp
@@ -129,7 +131,7 @@ if(WITH_PSTL_TESTS)
     pstl/transform.cpp
     pstl/transform_reduce.cpp)
 
-  target_compile_options(pstl_tests PRIVATE --hipsycl-stdpar --hipsycl-stdpar-unconditional-offload)
+  target_compile_options(pstl_tests PRIVATE --acpp-stdpar --acpp-stdpar-unconditional-offload)
   # pstl tests cannot run with global memory allocation hijacking, because apparently
   # the boost test headers allocate memory that is then transferred to libboost_unit_tests
   # which then cannot free it anymore. We we need to selectively enable it only for the actual test code.

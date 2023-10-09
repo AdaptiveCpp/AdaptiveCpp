@@ -1,3 +1,3 @@
 
-add_subdirectory(opensycl-hcf-tool)
-add_subdirectory(opensycl-info)
+add_subdirectory(acpp-hcf-tool)
+add_subdirectory(acpp-info)

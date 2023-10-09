@@ -143,8 +143,8 @@ class integration_header:
     hcf_string = self._hcf.escaped_bytes
     
     header = """
-#ifndef OPENSYCL_{capital_name}_INTEGRATION_HEADER
-#define OPENSYCL_{capital_name}_INTEGRATION_HEADER
+#ifndef ACPP_{capital_name}_INTEGRATION_HEADER
+#define ACPP_{capital_name}_INTEGRATION_HEADER
 
 static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id}ull;
 const unsigned char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
@@ -231,10 +231,10 @@ class option:
   def description(self):
     return self._description
 
-class syclcc_config:
+class acpp_config:
   def __init__(self, args):
     config_file_path = os.path.abspath(
-      os.path.join(self.opensycl_installation_path,
+      os.path.join(self.acpp_installation_path,
                   "etc/hipSYCL/syclcc.json"))
     
     self._config_file = None
@@ -252,81 +252,81 @@ class syclcc_config:
     # 2.) the corresponding environment variable
     # 3.) the field in the config file.
     self._options = {
-      'platform': option("--opensycl-platform", "OPENSYCL_PLATFORM", "default-platform",
+      'platform': option("--acpp-platform", "ACPP_PLATFORM", "default-platform",
 """  (deprecated) The platform that hipSYCL should target. Valid values:
     * cuda: Target NVIDIA CUDA GPUs
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs"""),
 
-      'clang': option("--opensycl-clang", "OPENSYCL_CLANG", "default-clang",
+      'clang': option("--acpp-clang", "ACPP_CLANG", "default-clang",
 """  The path to the clang executable that should be used for compilation
     (Note: *must* be compatible with the clang version that the 
      hipSYCL clang plugin was compiled against!)"""),
 
-      'nvcxx': option("--opensycl-nvcxx", "OPENSYCL_NVCXX", "default-nvcxx",
+      'nvcxx': option("--acpp-nvcxx", "ACPP_NVCXX", "default-nvcxx",
 """  The path to the nvc++ executable that should be used for compilation
     with the cuda-nvcxx backend."""),
 
-      'cuda-path': option("--opensycl-cuda-path", "OPENSYCL_CUDA_PATH", "default-cuda-path",
+      'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "default-cuda-path",
 """  The path to the CUDA toolkit installation directry"""),
 
-      'rocm-path': option("--opensycl-rocm-path", "OPENSYCL_ROCM_PATH", "default-rocm-path",
+      'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "default-rocm-path",
 """  The path to the ROCm installation directory"""),
 
-      'gpu-arch': option("--opensycl-gpu-arch", "OPENSYCL_GPU_ARCH", "default-gpu-arch",
+      'gpu-arch': option("--acpp-gpu-arch", "ACPP_GPU_ARCH", "default-gpu-arch",
 """  (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
     For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
-      'cpu-compiler': option("--opensycl-cpu-cxx", "OPENSYCL_CPU_CXX", "default-cpu-cxx",
+      'cpu-compiler': option("--acpp-cpu-cxx", "ACPP_CPU_CXX", "default-cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
       
-      'clang-include-path' : option("--opensycl-clang-include-path", "OPENSYCL_CLANG_INCLUDE_PATH", "default-clang-include-path",
+      'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "default-clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
 
-      'sequential-link-line' : option("--opensycl-squential-link-line", "OPENSYCL_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
+      'sequential-link-line' : option("--acpp-squential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
 """ The arguments passed to the linker for the sequential backend"""),
 
-      'sequential-cxx-flags' : option("--opensycl-squential-cxx-flags", "OPENSYCL_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
+      'sequential-cxx-flags' : option("--acpp-squential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
 """ The arguments passed to the compiler to compile for the sequential backend"""),
 
-      'omp-link-line' : option("--opensycl-omp-link-line", "OPENSYCL_OMP_LINK_LINE", "default-omp-link-line",
+      'omp-link-line' : option("--acpp-omp-link-line", "ACPP_OMP_LINK_LINE", "default-omp-link-line",
 """ The arguments passed to the linker for the OpenMP backend."""),
 
-      'omp-cxx-flags' : option("--opensycl-omp-cxx-flags", "OPENSYCL_OMP_CXX_FLAGS", "default-omp-cxx-flags",
+      'omp-cxx-flags' : option("--acpp-omp-cxx-flags", "ACPP_OMP_CXX_FLAGS", "default-omp-cxx-flags",
 """ The arguments passed to the compiler to compile for the OpenMP backend"""),
 
-      'rocm-link-line' : option("--opensycl-rocm-link-line", "OPENSYCL_ROCM_LINK_LINE", "default-rocm-link-line",
+      'rocm-link-line' : option("--acpp-rocm-link-line", "ACPP_ROCM_LINK_LINE", "default-rocm-link-line",
 """ The arguments passed to the linker for the ROCm backend."""),
 
-      'rocm-cxx-flags' : option("--opensycl-rocm-cxx-flags", "OPENSYCL_ROCM_CXX_FLAGS", "default-rocm-cxx-flags",
+      'rocm-cxx-flags' : option("--acpp-rocm-cxx-flags", "ACPP_ROCM_CXX_FLAGS", "default-rocm-cxx-flags",
 """ The arguments passed to the compiler to compile for the ROCm backend"""),
 
-      'cuda-link-line' : option("--opensycl-cuda-link-line", "OPENSYCL_CUDA_LINK_LINE", "default-cuda-link-line",
+      'cuda-link-line' : option("--acpp-cuda-link-line", "ACPP_CUDA_LINK_LINE", "default-cuda-link-line",
 """ The arguments passed to the linker for the CUDA backend."""),
 
-      'cuda-cxx-flags' : option("--opensycl-cuda-cxx-flags", "OPENSYCL_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
+      'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
 """ The arguments passed to the compiler to compile for the CUDA backend"""),
 
-      'config-file' : option("--opensycl-config-file", "OPENSYCL_CONFIG_FILE", "default-config-file",
+      'config-file' : option("--acpp-config-file", "ACPP_CONFIG_FILE", "default-config-file",
 """  Select an alternative path for the config file containing the default hipSYCL settings.
     It is normally not necessary for the user to change this setting. """),
     
-      'targets': option("--opensycl-targets", "OPENSYCL_TARGETS", "default-targets",
-"""  Specify backends and targets to compile for. Example: --opensycl-targets='omp;hip:gfx900,gfx906'
+      'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
+"""  Specify backends and targets to compile for. Example: --acpp-targets='omp;hip:gfx900,gfx906'
     Available backends:
       * omp - OpenMP CPU backend
                Backend Flavors:
                - omp.library-only: Works with any OpenMP enabled CPU compiler.
                                    Uses Boost.Fiber for nd_range parallel_for support.
                - omp.accelerated: Uses clang as host compiler to enable compiler support
-                                  for nd_range parallel_for (see --opensycl-use-accelerated-cpu).
+                                  for nd_range parallel_for (see --acpp-use-accelerated-cpu).
       * cuda - CUDA backend 
                Requires specification of targets of the form sm_XY,
                e.g. sm_70 for Volta, sm_60 for Pascal
                Backend Flavors:
                - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
-                                          (see --opensycl-explicit-multipass)
+                                          (see --acpp-explicit-multipass)
                - cuda.integrated-multipass: Force CUDA backend to operate in integrated
                                            multipass mode.
       * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
@@ -336,63 +336,63 @@ class syclcc_config:
                e.g. gfx906 for Vega 20, gfx900 for Vega 10
                Backend Flavors:
                - hip.explicit-multipass: HIP backend in explicit multipass mode
-                                         (see --opensycl-explicit-multipass)
+                                         (see --acpp-explicit-multipass)
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
       * spirv - use clang SYCL driver to generate spirv
       * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
     }
     self._flags = {
-      'use-accelerated-cpu': option("--opensycl-use-accelerated-cpu", "OPENSYCL_USE_ACCELERATED_CPU",
+      'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
                                     "default-use-accelerated-cpu",
 """  If set, Clang is used for host compilation and explicit compiler support
   is enabled for accelerating the nd-range parallel_for on CPU.
   Uses continuation-based synchronization to execute all work-items
   of a work-group in a single thread, eliminating scheduling overhead
   and enabling enhanced vectorization opportunities compared to the fiber variant."""),
-      'is-dryrun': option("--opensycl-dryrun", "OPENSYCL_DRYRUN", "default-is-dryrun",
+      'is-dryrun': option("--acpp-dryrun", "ACPP_DRYRUN", "default-is-dryrun",
 """  If set, only shows compilation commands that would be executed, 
   but does not actually execute it. """),
-      'is-explicit-multipass': option("--opensycl-explicit-multipass", "OPENSYCL_EXPLICIT_MULTIPASS",
+      'is-explicit-multipass': option("--acpp-explicit-multipass", "ACPP_EXPLICIT_MULTIPASS",
       "default-is-explicit-multipass",
-"""  If set, executes device passes as separate compiler invocation and lets Open SYCL control embedding device
+"""  If set, executes device passes as separate compiler invocation and lets AdaptiveCpp control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
   For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. """),
-      'should-save-temps': option("--opensycl-save-temps", "OPENSYCL_SAVE_TEMPS", "default-save-temps",
+      'should-save-temps': option("--acpp-save-temps", "ACPP_SAVE_TEMPS", "default-save-temps",
 """  If set, do not delete temporary files created during compilation."""),
-      'stdpar' : option("--opensycl-stdpar", "OPENSYCL_STDPAR", "default-is-stdpar", 
+      'stdpar' : option("--acpp-stdpar", "ACPP_STDPAR", "default-is-stdpar", 
 """  If set, enables SYCL offloading of C++ standard parallel algorithms."""),
-      'stdpar-system-usm' : option("--opensycl-stdpar-system-usm", "OPENSYCL_STDPAR_SYSTEM_USM", "default-is-stdpar-system-usm", 
+      'stdpar-system-usm' : option("--acpp-stdpar-system-usm", "ACPP_STDPAR_SYSTEM_USM", "default-is-stdpar-system-usm", 
 """  If set, assume availability of system-level unified shared memory where every pointer from regular
   malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
-  level by Open SYCL."""),
-      'stdpar-unconditional-offload' : option("--opensycl-stdpar-unconditional-offload", "OPENSYCL_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload", 
+  level by AdaptiveCpp."""),
+      'stdpar-unconditional-offload' : option("--acpp-stdpar-unconditional-offload", "ACPP_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload", 
 """  Normally, heuristics are employed to determine whether algorithms should be offloaded.
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
   algorithms will be offloaded unconditionally.""")
     }
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
-    self._opensycl_args = []
-    self._opensycl_environment_args = {}
+    self._acpp_args = []
+    self._acpp_environment_args = {}
     self._forwarded_args = []
     self._targets = None
     self._cxx_path = None
     self._clang_path = None
     
     for arg in self._args:
-      if self._is_opensycl_arg(arg):
-        self._opensycl_args.append(arg)
-      elif self._is_opensycl_arg(self._upgrade_legacy_arg(arg)):
-        self._opensycl_args.append(self._upgrade_legacy_arg(arg))
+      if self._is_acpp_arg(arg):
+        self._acpp_args.append(arg)
+      elif self._is_acpp_arg(self._upgrade_legacy_arg(arg)):
+        self._acpp_args.append(self._upgrade_legacy_arg(arg))
       else:
         self._forwarded_args.append(arg)
     
     for envvar in os.environ:
-      if self._is_opensycl_envvar(envvar):
-        self._opensycl_environment_args[envvar] = os.environ[envvar]
-      elif self._is_opensycl_envvar(self._upgrade_legacy_environ_var(envvar)):
-        self._opensycl_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
+      if self._is_acpp_envvar(envvar):
+        self._acpp_environment_args[envvar] = os.environ[envvar]
+      elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
+        self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
         
     if self._is_option_set_to_non_default_value("config-file"):
       self._config_file = config_file(self._retrieve_option("config-file"))
@@ -415,16 +415,16 @@ class syclcc_config:
 
 
   def _upgrade_legacy_arg(self, arg):
-    if(arg.startswith("--hipsycl")):
-      return arg.replace("--hipsycl", "--opensycl")
+    if arg.startswith("--hipsycl") or arg.startswith("--opensycl"):
+      return arg.replace("--hipsycl", "--acpp").replace("--opensycl", "--acpp")
     return arg
 
   def _upgrade_legacy_environ_var(self, arg):
-    if(arg.startswith("HIPSYCL_")):
-      return arg.replace("HIPSYCL_", "OPENSYCL_")
+    if arg.startswith("HIPSYCL_") or arg.startswith("OPENSYCL_"):
+      return arg.replace("HIPSYCL_", "ACPP_").replace("OPENSYCL_", "ACPP_")
     return arg
 
-  def _is_opensycl_arg(self, arg):
+  def _is_acpp_arg(self, arg):
     accepted_args = [self._options[opt].commandline for opt in self._options]
     accepted_args += [self._flags[flag].commandline for flag in self._flags]
     for accepted_arg in accepted_args:
@@ -432,7 +432,7 @@ class syclcc_config:
         return True
     return False
   
-  def _is_opensycl_envvar(self, varname):
+  def _is_acpp_envvar(self, varname):
     accepted_vars = [self._options[opt].environment for opt in self._options]
     accepted_vars += [self._flags[flag].environment for flag in self._flags]
     return varname in accepted_vars
@@ -481,15 +481,15 @@ class syclcc_config:
   def _is_flag_set(self, flag_name):
     flag = self._flags[flag_name]
 
-    for arg in self._opensycl_args:
+    for arg in self._acpp_args:
       if arg == flag.commandline:
         return True
       
       if arg.startswith(flag.commandline + "="):
         return self._interpret_flag(arg.split("=")[1])
 
-    if flag.environment in self._opensycl_environment_args:
-      env_value = self._opensycl_environment_args[flag.environment]
+    if flag.environment in self._acpp_environment_args:
+      env_value = self._acpp_environment_args[flag.environment]
       return self._interpret_flag(env_value)
 
     if self._config_file.contains_key(flag.configfile):
@@ -503,36 +503,36 @@ class syclcc_config:
 
   def _get_rocm_substitution_vars(self):
     return {
-      'OPENSYCL_ROCM_PATH' : self.rocm_path,
-      'OPENSYCL_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
-      'OPENSYCL_PATH' : self.opensycl_installation_path,
-      'OPENSYCL_LIB_PATH' : os.path.join(self.opensycl_installation_path, "lib")
+      'ACPP_ROCM_PATH' : self.rocm_path,
+      'ACPP_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
     }
 
   def _get_cuda_substitution_vars(self):
     vars = {
-      'OPENSYCL_CUDA_PATH' : self.cuda_path,
-      'OPENSYCL_PATH' : self.opensycl_installation_path,
-      'OPENSYCL_LIB_PATH' : os.path.join(self.opensycl_installation_path, "lib")
+      'ACPP_CUDA_PATH' : self.cuda_path,
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
     }
     if sys.platform.startswith("win32"):
-      vars['OPENSYCL_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib", "x64")
+      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib", "x64")
     else:
-      vars['OPENSYCL_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib64")
+      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib64")
 
     return vars
 
   def _get_omp_substitution_vars(self):
     return {
-      'OPENSYCL_PATH' : self.opensycl_installation_path,
-      'OPENSYCL_LIB_PATH' : os.path.join(self.opensycl_installation_path, "lib")
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
     }
 
   def _substitute_template_string(self, template_string, substitution_dict):
     legacy_compatible_substitution_dict = {}
     for k in substitution_dict:
       legacy_compatible_substitution_dict[k] = substitution_dict[k]
-      legacy_compatible_substitution_dict[k.replace("OPENSYCL", "HIPSYCL")] = substitution_dict[k]
+      legacy_compatible_substitution_dict[k.replace("ACPP", "HIPSYCL")] = substitution_dict[k]
 
     template = string.Template(template_string)
     return template.substitute(legacy_compatible_substitution_dict)
@@ -552,11 +552,11 @@ class syclcc_config:
   def _is_option_set_to_non_default_value(self, option_name):
     opt = self._options[option_name]
 
-    for arg in self._opensycl_args:
+    for arg in self._acpp_args:
       if arg.startswith(opt.commandline+"="):
         return True
 
-    if opt.environment in self._opensycl_environment_args:
+    if opt.environment in self._acpp_environment_args:
       return True
 
     return False
@@ -565,13 +565,13 @@ class syclcc_config:
     opt = self._options[option_name]
 
     # Try commandline first
-    for arg in self._opensycl_args:
+    for arg in self._acpp_args:
       if arg.startswith(opt.commandline+"="):
         return self._parse_compound_argument(arg)
 
     # Try environment variables
-    if opt.environment in self._opensycl_environment_args:
-      return self._opensycl_environment_args[opt.environment]
+    if opt.environment in self._acpp_environment_args:
+      return self._acpp_environment_args[opt.environment]
 
     # Try config file
     if self._config_file.contains_key(opt.configfile):
@@ -662,7 +662,7 @@ class syclcc_config:
 
   @property
   def runtime_backends(self):
-    backend_path = os.path.join(self.opensycl_installation_path, "lib", "hipSYCL")
+    backend_path = os.path.join(self.acpp_installation_path, "lib", "hipSYCL")
     content = os.listdir(backend_path)
     return [c for c in content if os.path.isfile(os.path.join(backend_path, c))]
 
@@ -694,9 +694,9 @@ class syclcc_config:
           elif platform in pure_cpu_platform_synonyms:
             raw_target_string = "omp"
         except OptionNotSet:
-          raise OptionNotSet("Neither a --opensycl-targets specification "
-                             "nor the legacy combination of --opensycl-platform and "
-                             "--opensycl-gpu-arch was provided")
+          raise OptionNotSet("Neither a --acpp-targets specification "
+                             "nor the legacy combination of --acpp-platform and "
+                             "--acpp-gpu-arch was provided")
 
       self._targets = self._parse_targets(raw_target_string)
 
@@ -731,18 +731,18 @@ class syclcc_config:
     return self._retrieve_option("clang-include-path")
 
   @property
-  def opensycl_installation_path(self):
-    syclcc_path = os.path.dirname(os.path.realpath(__file__))
-    return os.path.join(syclcc_path, "..")
+  def acpp_installation_path(self):
+    acpp_path = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(acpp_path, "..")
 
   @property
-  def opensycl_plugin_path(self):
+  def acpp_plugin_path(self):
     if sys.platform.startswith('win32'):
-      return os.path.join(self.opensycl_installation_path, "bin", "opensycl-clang.dll")
+      return os.path.join(self.acpp_installation_path, "bin", "acpp-clang.dll")
     elif sys.platform == "darwin":
-      return os.path.join(self.opensycl_installation_path, "lib", "libopensycl-clang.dylib")
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.dylib")
     else:
-      return os.path.join(self.opensycl_installation_path, "lib", "libopensycl-clang.so")
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.so")
 
   @property
   def sequential_link_line(self):
@@ -842,8 +842,8 @@ class syclcc_config:
     return self._common_compiler_args
 
   @property
-  def opensycl_include_path(self):
-    return os.path.join(self.opensycl_installation_path, "include/")
+  def acpp_include_path(self):
+    return os.path.join(self.acpp_installation_path, "include", "AdaptiveCpp")
 
   def has_optimization_flag(self):
     for arg in self._forwarded_args:
@@ -910,7 +910,7 @@ class cuda_multipass_invocation:
   def set_temp_dir(self, temp_dir):
     self._temp_dir = temp_dir
     self._integration_header = os.path.join(
-      self._temp_dir,"__opensycl_embedded_cuda_kernels.hpp")
+      self._temp_dir,"__acpp_embedded_cuda_kernels.hpp")
 
   def get_requested_targets(self):
     return self._targets
@@ -958,7 +958,7 @@ class cuda_multipass_invocation:
         "-x", "cuda",
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + self._config.opensycl_plugin_path,
+        "-fplugin=" + self._config.acpp_plugin_path,
         "--cuda-path=" + self._config.cuda_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
@@ -970,7 +970,7 @@ class cuda_multipass_invocation:
       flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
 
     if not sys.platform.startswith("win32"):
-      flags += ["-fpass-plugin=" + self._config.opensycl_plugin_path]
+      flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
     return flags
 
   # CXX flags for main pass
@@ -996,7 +996,7 @@ class cuda_multipass_invocation:
     return self._config.cuda_link_line
 
   def _explicit_pass_output_file(self, target):
-    return os.path.join(self._temp_dir, "nvptx-"+target+".opensycl_kernels")
+    return os.path.join(self._temp_dir, "nvptx-"+target+".acpp_kernels")
 
 
   def create_code_objects(self, targets):
@@ -1040,7 +1040,7 @@ class hip_multipass_invocation:
   def set_temp_dir(self, temp_dir):
     self._temp_dir = temp_dir
     self._integration_header = os.path.join(
-      self._temp_dir,"__opensycl_embedded_hip_kernels.hpp")
+      self._temp_dir,"__acpp_embedded_hip_kernels.hpp")
 
   def get_requested_targets(self):
     return self._targets
@@ -1088,7 +1088,7 @@ class hip_multipass_invocation:
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
         "-D__HIPSYCL_CLANG__",
-        "-fplugin=" + self._config.opensycl_plugin_path,
+        "-fplugin=" + self._config.acpp_plugin_path,
         "--cuda-device-only",
         "--cuda-gpu-arch=" + target,
         "-c","-o",self._explicit_pass_output_file(target)
@@ -1098,7 +1098,7 @@ class hip_multipass_invocation:
       flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
 
     if not sys.platform.startswith("win32"):
-      flags += ["-fpass-plugin=" + self._config.opensycl_plugin_path]
+      flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
     return flags
 
   # CXX flags for main pass
@@ -1124,7 +1124,7 @@ class hip_multipass_invocation:
     return self._config.rocm_link_line
 
   def _explicit_pass_output_file(self, target):
-    return os.path.join(self._temp_dir, "hipfb-"+target+".opensycl_kernels")
+    return os.path.join(self._temp_dir, "hipfb-"+target+".acpp_kernels")
 
 
   def create_code_objects(self, targets):
@@ -1158,14 +1158,14 @@ class spirv_multipass_invocation:
 
   def __init__(self, config):
     self._config = config
-    self._opensycl_lib_path = os.path.join(
-      config.opensycl_installation_path, "lib/")
+    self._acpp_lib_path = os.path.join(
+      config.acpp_installation_path, "lib/")
     self.set_temp_dir("/tmp")
 
   def set_temp_dir(self, temp_dir):
     self._temp_dir = temp_dir
     self._integration_header = os.path.join(
-      self._temp_dir,"__opensycl_embedded_spirv_kernels.hpp")
+      self._temp_dir,"__acpp_embedded_spirv_kernels.hpp")
 
   def get_requested_targets(self):
     return ["spirv"]
@@ -1222,7 +1222,7 @@ class spirv_multipass_invocation:
     return []
 
   def _explicit_pass_output_file(self, target):
-    return os.path.join(self._temp_dir, "opensycl-kernels.spv")
+    return os.path.join(self._temp_dir, "acpp-kernels.spv")
 
   def create_code_objects(self, targets):
 
@@ -1260,7 +1260,7 @@ class cuda_invocation:
     self._cuda_targets = target_list
     self._cuda_path = config.cuda_path
     self._clang = config.clang_path
-    self._opensycl_plugin_path = config.opensycl_plugin_path
+    self._acpp_plugin_path = config.acpp_plugin_path
     self._linker_args = config.cuda_link_line
     self._cxx_flags = config.cuda_cxx_flags
 
@@ -1281,7 +1281,7 @@ class cuda_invocation:
         "-x", "cuda",
         "--cuda-path=" + self._cuda_path,
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
-        "-fplugin=" + self._opensycl_plugin_path,
+        "-fplugin=" + self._acpp_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
 
@@ -1290,7 +1290,7 @@ class cuda_invocation:
       flags += ["--cuda-gpu-arch=" + t]
 
     if not sys.platform.startswith("win32"):
-      flags += ["-fpass-plugin=" + self._opensycl_plugin_path]
+      flags += ["-fpass-plugin=" + self._acpp_plugin_path]
       
     return flags
 
@@ -1316,7 +1316,7 @@ class cuda_nvcxx_invocation:
     self._nvcxx = config.nvcxx_path
     self._linker_args = config.cuda_link_line
     self._cxx_flags = config.cuda_cxx_flags
-    self._opensycl_include_path = config.opensycl_include_path
+    self._acpp_include_path = config.acpp_include_path
 
   def get_compiler_preference(self):
     return (self._nvcxx, 200)
@@ -1335,7 +1335,7 @@ class cuda_nvcxx_invocation:
         "-cuda",
         "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
         # Needed to avoid warnings about unused functions/variables in SYCL headers
-        "-isystem", self._opensycl_include_path
+        "-isystem", self._acpp_include_path
       ]
 
     flags += self._cxx_flags
@@ -1372,7 +1372,7 @@ class hip_invocation:
     self._linker_args = config.rocm_link_line
     self._cxx_flags = config.rocm_cxx_flags
     self._clang_include_path = config.clang_include_path
-    self._opensycl_plugin_path = config.opensycl_plugin_path
+    self._acpp_plugin_path = config.acpp_plugin_path
 
   def get_compiler_preference(self):
     return (self._clang, 100)
@@ -1390,7 +1390,7 @@ class hip_invocation:
     flags += [
         "-x", "hip",
         "-D__HIPSYCL_ENABLE_HIP_TARGET__",
-        "-fplugin=" + self._opensycl_plugin_path,
+        "-fplugin=" + self._acpp_plugin_path,
         "-D__HIPSYCL_CLANG__"
       ]
     
@@ -1398,7 +1398,7 @@ class hip_invocation:
       flags += ["--cuda-gpu-arch=" + t]
 
     if not sys.platform.startswith("win32"):
-      flags += ["-fpass-plugin=" + self._opensycl_plugin_path]
+      flags += ["-fpass-plugin=" + self._acpp_plugin_path]
       
     return flags
 
@@ -1490,8 +1490,8 @@ class omp_accelerated_invocation:
     flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
     if not sys.platform.startswith("win32"):
       flags += [
-        "-fplugin=" + config.opensycl_plugin_path
-        , "-fpass-plugin=" + config.opensycl_plugin_path
+        "-fplugin=" + config.acpp_plugin_path
+        , "-fpass-plugin=" + config.acpp_plugin_path
         , "-D__HIPSYCL_USE_ACCELERATED_CPU__"
       ]
     flags += self._cxx_flags
@@ -1586,8 +1586,8 @@ class llvm_sscp_invocation:
 
     if not sys.platform.startswith("win32"):
       flags += [
-        "-fplugin=" + config.opensycl_plugin_path
-        , "-fpass-plugin=" + config.opensycl_plugin_path
+        "-fplugin=" + config.acpp_plugin_path
+        , "-fpass-plugin=" + config.acpp_plugin_path
       ]
     flags += self._cxx_flags
 
@@ -1606,9 +1606,9 @@ class compiler:
     self._is_dry_run = config.is_dryrun
     self._targets = config.targets
     self._common_compiler_args = config.common_compiler_args
-    self._opensycl_path = config.opensycl_installation_path
-    self._opensycl_lib_path = os.path.join(self._opensycl_path, "lib/")
-    self._opensycl_include_path = config.opensycl_include_path
+    self._acpp_path = config.acpp_installation_path
+    self._acpp_lib_path = os.path.join(self._acpp_path, "lib/")
+    self._acpp_include_path = config.acpp_include_path
     self._is_explicit_multipass = config.is_explicit_multipass
     self._save_temps = config.save_temps
     self._host_compiler = ""
@@ -1618,7 +1618,7 @@ class compiler:
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
-          print("syclcc warning: CUDA and HIP cannot be targeted "
+          print("acpp warning: CUDA and HIP cannot be targeted "
               "simultaneously in non-explicit multipass; enabling explicit "
               "multipass compilation.")
           self._is_explicit_multipass = True
@@ -1790,14 +1790,15 @@ class compiler:
   @property
   def common_cxx_flags(self):
     args = [
-      "-isystem", self._opensycl_include_path,
-      "-D__OPENSYCL__","-D__HIPSYCL__",
+      "-isystem", self._acpp_include_path,
+      "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
     ]
     if self._is_stdpar:
-      stdpar_include_path = os.path.join(self._opensycl_include_path,"hipSYCL","std","stdpar")
+      stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [
         "-isystem", stdpar_include_path,
-        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1",
+        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-D__ADAPTIVECPP_STDPAR__", "-D__ACPP_STDPAR__",
+        "-DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1",
         # TODO We should find a way to only emit this argument if the clang plugin is used.
         "-mllvm", "-hipsycl-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
@@ -1811,15 +1812,15 @@ class compiler:
   @property
   def common_linker_flags(self):
     linker_args = [
-      "-L"+self._opensycl_lib_path,
-      "-lhipSYCL-rt"
+      "-L"+self._acpp_lib_path,
+      "-lacpp-rt"
     ]
     
     if sys.platform == "darwin":
       linker_args.append("-Wl,-rpath")
-      linker_args.append(self._opensycl_lib_path)
+      linker_args.append(self._acpp_lib_path)
     elif not sys.platform.startswith("win32"):
-      linker_args.append("-Wl,-rpath="+self._opensycl_lib_path)
+      linker_args.append("-Wl,-rpath="+self._acpp_lib_path)
     return linker_args
 
   def _run_device_passes(self, temp_dir, multipass_backend):
@@ -1906,13 +1907,13 @@ class compiler:
                         self._is_dry_run)
 
   def run(self):
-    temp_prefix = "opensycl-syclcc-"
+    temp_prefix = "adaptivecpp-"
     if not self._save_temps:
       with tempfile.TemporaryDirectory(prefix=temp_prefix) as temp_dir:
         return self._run(temp_dir)
     else:
       temp_dir = tempfile.mkdtemp(prefix=temp_prefix)
-      print("syclcc: Using temporary directory:",temp_dir)
+      print("acpp: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
 def print_config(config):
@@ -1929,9 +1930,9 @@ def print_config(config):
 
 def print_version(config):
   version = config.version
-  print("syclcc [Open SYCL compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the Open SYCL project")
-  print("  Open SYCL version: {}.{}.{}".format(version[0],version[1],version[2]))
-  print("  Installation root:",os.path.abspath(config.opensycl_installation_path))
+  print("acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project")
+  print("  AdaptiveCpp version: {}.{}.{}".format(version[0],version[1],version[2]))
+  print("  Installation root:",os.path.abspath(config.acpp_installation_path))
   if config.has_plugin:
     print("  Plugin LLVM version: {}, can accelerate CPU: {}".format(config.plugin_llvm_version, config.has_plugin_cpu_acceleration))
   print("  Available runtime backends:")
@@ -1941,24 +1942,24 @@ def print_version(config):
 
 def print_usage(config):
   print_version(config)
-  print("Usage: syclcc <options>\n")
+  print("Usage: acpp <options>\n")
   print("Options are:")
   config.print_options()
   config.print_flags()
-  print("--opensycl-version\n  Print Open SYCL version and configuration\n")
+  print("--acpp-version\n  Print AdaptiveCpp version and configuration\n")
   print("--help\n  Print this help message\n")
   print("\nAny other options will be forwarded to the compiler.")
   print("\nNote: Command line arguments take precedence over environment variables.")
 
 if __name__ == '__main__':
   if sys.version_info[0] < 3:
-    print("syclcc requires python 3.")
+    print("acpp requires python 3.")
     sys.exit(-1)
   
   args = sys.argv[1:]
 
   try:
-    config = syclcc_config(args)
+    config = acpp_config(args)
 
     if len(args) == 0:
       print_usage(config)
@@ -1968,19 +1969,19 @@ if __name__ == '__main__':
       if arg == "--help":
         print_usage(config)
         sys.exit(0)
-      elif arg == "--opensycl-version" or arg == "--hipsycl-version":
+      elif arg == "--acpp-version" or arg == "--opensycl-version" or arg == "--hipsycl-version":
         print_version(config)
         print_config(config)
         sys.exit(0)
 
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():
-        print("syclcc warning: No optimization flag was given, optimizations are "
+        print("acpp warning: No optimization flag was given, optimizations are "
               "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
               "enable optimizations.")
     
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    print("syclcc fatal error: "+str(e))
+    print("acpp fatal error: "+str(e))
     sys.exit(-1)

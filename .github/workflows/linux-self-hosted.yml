@@ -3,6 +3,7 @@ name: Self-hosted CI
 on: [push, pull_request]
 jobs:
   test-gpu-nvidia:
+    if: github.repository_id == '140986400'
     name: NVIDIA with clang ${{ matrix.clang_version }}, CUDA ${{matrix.cuda}}
     runs-on: [self-hosted, gpu-nvidia]
     strategy:
@@ -23,19 +24,19 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        cmake -DOPENSYCL_TARGETS="omp;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;cuda:sm_61" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j16
     - name: build CUDA tests (explicit multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-emp
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        cmake -DOPENSYCL_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;cuda.explicit-multipass:sm_61;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j16
     # NVC++ is commented out for now, because the build takes ages
     # and it seems that nvc++ currently miscompiles some tests
@@ -46,27 +47,27 @@ jobs:
     #    mkdir ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
     #    cd ${GITHUB_WORKSPACE}/build/tests-cuda-nvcxx
     #    export NV_HPC_SDK_ROOT=/opt/nvidia/hpc_sdk/Linux_x86_64/${{matrix.nvhpc_version}}
-    #    export OPENSYCL_NVCXX=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ 
-    #    cmake -DOPENSYCL_TARGETS="cuda-nvcxx" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+    #    export ACPP_NVCXX=${NV_HPC_SDK_ROOT}/compilers/bin/nvc++ 
+    #    cmake -DACPP_TARGETS="cuda-nvcxx" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
     #    make -j16
     - name: run CUDA tests (integrated multipass)
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run CUDA tests (explicit multipass)
       run: |
         echo "Running tests on CUDA..."
         cd ${GITHUB_WORKSPACE}/build/tests-cuda-emp
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./sycl_tests
     - name: run PSTL CUDA tests (integrated multipass)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     - name: run PSTL CUDA tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;cuda" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;cuda" ./pstl_tests
     #- name: run CUDA tests (nvc++)
     #  run: |
     #    echo "Running tests on CUDA..."
@@ -75,8 +76,9 @@ jobs:
     - name: run CPU tests
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-cuda
-        HIPSYCL_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+        ACPP_VISIBILITY_MASK=omp LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   test-gpu-amd:
+    if: github.repository_id == '140986400'
     name: AMD with clang ${{ matrix.clang_version }}
     runs-on: [self-hosted, gpu-amd]
     strategy:
@@ -95,35 +97,36 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: build ROCm tests (integrated multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        cmake -DOPENSYCL_TARGETS="omp;hip:gfx906" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;hip:gfx906" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: build ROCm tests (explicit multipass)
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-rocm-emp
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        cmake -DOPENSYCL_TARGETS="omp;hip.explicit-multipass:gfx906;cuda:sm_61" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="omp;hip.explicit-multipass:gfx906;cuda:sm_61" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j3
     - name: run ROCm tests (integrated multipass)
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run ROCm tests (explicit multipass)
       run: |
         echo "Running tests on AMD..."
         cd ${GITHUB_WORKSPACE}/build/tests-rocm-emp
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./sycl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./sycl_tests
     - name: run PSTL ROCm tests (SSCP)
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;hip" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;hip" ./pstl_tests
   test-gpu-intel:
+    if: github.repository_id == '140986400'
     name: Intel with clang ${{ matrix.clang_version }}
     runs-on: [self-hosted, gpu-intel]
     strategy:
@@ -141,15 +144,15 @@ jobs:
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        cmake -DOPENSYCL_TARGETS="generic" -DOpenSYCL_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/OpenSYCL -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="generic" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DWITH_PSTL_TESTS=ON ${GITHUB_WORKSPACE}/tests
         make pstl_tests -j3
     - name: run PSTL Intel tests (L0)
       if: matrix.clang_version >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;ze" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;ze" ./pstl_tests
     - name: run PSTL Intel tests (OpenCL)
       if: matrix.clang_version >= 14
       run: |
         cd ${GITHUB_WORKSPACE}/build/tests-sscp
-        HIPSYCL_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests
+        ACPP_VISIBILITY_MASK="omp;ocl:Graphics.*" ./pstl_tests

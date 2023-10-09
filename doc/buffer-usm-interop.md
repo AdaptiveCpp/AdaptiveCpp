@@ -1,9 +1,9 @@
-# Open SYCL buffer-USM interoperability
+# AdaptiveCpp buffer-USM interoperability
 
-Open SYCL supports interoperability between `buffer` objects and USM pointers. All `buffer` memory allocations are USM pointers internally that can be extracted and be used with USM operations.
+AdaptiveCpp supports interoperability between `buffer` objects and USM pointers. All `buffer` memory allocations are USM pointers internally that can be extracted and be used with USM operations.
 Similarly, `buffer` objects can be constructed on top of existing USM pointers.
 
-Open SYCL follows its own [specification](runtime-spec.md) for the Open SYCL buffer-accessor model. Refer to this document to understand the memory management and allocation behavior of Open SYCL buffer objects. Using buffer-USM interoperability without a solid understanding of Open SYCL's buffer model is not recommended.
+AdaptiveCpp follows its own [specification](runtime-spec.md) for the AdaptiveCpp buffer-accessor model. Refer to this document to understand the memory management and allocation behavior of AdaptiveCpp buffer objects. Using buffer-USM interoperability without a solid understanding of AdaptiveCpp's buffer model is not recommended.
 
 ## Buffer introspection
 
@@ -93,7 +93,7 @@ public:
 
 ## Constructing buffer objects on top of USM pointers
 
-Open SYCL can also construct buffers on top of existing USM pointers.
+AdaptiveCpp can also construct buffers on top of existing USM pointers.
 
 ### API reference
 
@@ -138,7 +138,7 @@ public:
   /// Construct buffer on top of existing USM pointers with given range.
   /// Will not write back at destruction unless set_final_data() is used.
   /// Modifying the USM pointers externally during the duration of the buffer lifetime
-  /// should be avoided unless the user has expert knowledge of Open SYCL's data
+  /// should be avoided unless the user has expert knowledge of AdaptiveCpp's data
   /// state tracking mechanisms.
   buffer(
     const std::vector<buffer_allocation::tracked_descriptor<T>>& input_allocations,

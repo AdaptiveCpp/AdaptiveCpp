@@ -95,13 +95,13 @@ private:
 #endif
 
 #ifdef HIPSYCL_DEBUG_NOCOLOR
-#define HIPSYCL_DEBUG_PREFIX_ERROR   "[hipSYCL Error] "
-#define HIPSYCL_DEBUG_PREFIX_WARNING "[hipSYCL Warning] "
-#define HIPSYCL_DEBUG_PREFIX_INFO    "[hipSYCL Info] "
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "[AdaptiveCpp Error] "
+#define HIPSYCL_DEBUG_PREFIX_WARNING "[AdaptiveCpp Warning] "
+#define HIPSYCL_DEBUG_PREFIX_INFO    "[AdaptiveCpp Info] "
 #else
-#define HIPSYCL_DEBUG_PREFIX_ERROR   "\033[1;31m[hipSYCL Error] \033[0m"
-#define HIPSYCL_DEBUG_PREFIX_WARNING "\033[;35m[hipSYCL Warning] \033[0m"
-#define HIPSYCL_DEBUG_PREFIX_INFO    "\033[;32m[hipSYCL Info] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_ERROR   "\033[1;31m[AdaptiveCpp Error] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_WARNING "\033[;35m[AdaptiveCpp Warning] \033[0m"
+#define HIPSYCL_DEBUG_PREFIX_INFO    "\033[;32m[AdaptiveCpp Info] \033[0m"
 #endif
 
 #define HIPSYCL_DEBUG_ERROR \

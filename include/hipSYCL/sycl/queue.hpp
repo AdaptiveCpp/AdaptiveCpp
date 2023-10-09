@@ -509,6 +509,15 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems,
+                     const ReductionsAndKernel &... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems, event dependency,
                      const ReductionsAndKernel &... redu_kernel) {
@@ -519,8 +528,29 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems, event dependency,
+                     const ReductionsAndKernel &... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependency);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int Dims>
   event parallel_for(range<Dims> NumWorkItems,
+                     const std::vector<event> &dependencies,
+                     const ReductionsAndKernel& ... redu_kernel) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependencies);
+      cgh.parallel_for<KernelName>(NumWorkItems, redu_kernel...);
+    });
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  event parallel_for(range<1> NumWorkItems,
                      const std::vector<event> &dependencies,
                      const ReductionsAndKernel& ... redu_kernel) {
     return this->submit([&](sycl::handler &cgh) {

@@ -1,13 +1,13 @@
-# SYCL extensions in Open SYCL
+# SYCL extensions in AdaptiveCpp
 
-Open SYCL implements several extensions that are not defined by the specification.
+AdaptiveCpp implements several extensions that are not defined by the specification.
 
 ## Supported extensions
 
 
 ### `HIPSYCL_EXT_SCOPED_PARALLELISM_V2`
 This extension provides the scoped parallelism kernel invocation and programming model. This extension does not need to be enabled explicitly and is always available.
-See [here](scoped-parallelism.md) for more details. **Scoped parallelism is the recommended way in Open SYCL to write programs that are performance portable between CPU and GPU backends.**
+See [here](scoped-parallelism.md) for more details. **Scoped parallelism is the recommended way in AdaptiveCpp to write programs that are performance portable between CPU and GPU backends.**
 
 ### `HIPSYCL_EXT_ENQUEUE_CUSTOM_OPERATION`
 
@@ -16,7 +16,7 @@ See [here](enqueue-custom-operation.md) for more details.
 
 ### `HIPSYCL_EXT_BUFFER_USM_INTEROP`
 
-Open SYCL supports interoperability between `sycl::buffer` and USM pointers. See [here](buffer-usm-interop.md) for details.
+AdaptiveCpp supports interoperability between `sycl::buffer` and USM pointers. See [here](buffer-usm-interop.md) for details.
 
 ### `HIPSYCL_EXT_EXPLICIT_BUFFER_POLICIES`
 
@@ -28,7 +28,7 @@ Allows constructing a queue that automatically distributes work across multiple 
 
 ### `HIPSYCL_EXT_ACCESSOR_VARIANTS` and `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION`
 
-Open SYCL supports various flavors of accessors that encode the purpose and feature set of the accessor (e.g. placeholder, ranged, unranged) in the accessor type. Based on this information, the size of the accessor is optimized by eliding unneeded information at compile time. This can be beneficial for performance in kernels bound by register pressure.
+AdaptiveCpp supports various flavors of accessors that encode the purpose and feature set of the accessor (e.g. placeholder, ranged, unranged) in the accessor type. Based on this information, the size of the accessor is optimized by eliding unneeded information at compile time. This can be beneficial for performance in kernels bound by register pressure.
 If `HIPSYCL_EXT_ACCESSOR_VARIANT_DEDUCTION` is enabled, the SYCL 2020 CTAD deduction guides automatically construct optimized accessor types.
 See [here](accessor-variants.md) for more details.
 
@@ -73,8 +73,8 @@ public:
 
 ### `HIPSYCL_EXT_COARSE_GRAINED_EVENTS`
 
-This extension allows to hint to Open SYCL that events associated with command groups can be more coarse-grained and are allowed to synchronize with potentially more operations.
-This can allow Open SYCL to trade less synchronization performance for lighter-weight events, and hence lower kernel launch latency. The main benefit are situations where the returned event from `submit` is not of particular interest, e.g. in in-order queues when no user synchronization with those events are expected.
+This extension allows to hint to AdaptiveCpp that events associated with command groups can be more coarse-grained and are allowed to synchronize with potentially more operations.
+This can allow AdaptiveCpp to trade less synchronization performance for lighter-weight events, and hence lower kernel launch latency. The main benefit are situations where the returned event from `submit` is not of particular interest, e.g. in in-order queues when no user synchronization with those events are expected.
 
 For example, a coarse grained event for a backend based on in-order queues (e.g. CUDA or HIP) might just synchronize with the entire HIP or CUDA stream - thereby completely eliding the need to create a new backend event.
 
@@ -100,7 +100,7 @@ class hipSYCL_coarse_grained_events {};
 
 ### `HIPSYCL_EXT_CG_PROPERTY_*`: Command group properties
 
-Open SYCL supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:
+AdaptiveCpp supports attaching special command group properties to individual command groups. This is done by passing a property list to the queue's `submit` member function:
 
 ```cpp
 template <typename T>
@@ -149,12 +149,12 @@ struct hipSYCL_retarget {
 
 ##### Description
 
-If this property is added to a command group property list, it instructs the Open SYCL runtime to execute the submitted operation on a different device than the one the queue was bound to. This can be useful as a more convenient mechanism to dispatch to multiple devices compared to creating multiple queues.
+If this property is added to a command group property list, it instructs the AdaptiveCpp runtime to execute the submitted operation on a different device than the one the queue was bound to. This can be useful as a more convenient mechanism to dispatch to multiple devices compared to creating multiple queues.
 
 Using this property does *not* introduce additional overheads compared to using multiple queues. In particular, it does *not* silently lead to the creation of additional backend execution resources such as CUDA streams.
 
-In order to understand this, it is important to realize that because of the design of the Open SYCL runtime, a queue is decoupled from backend objects. Instead, the Open SYCL runtime internally manages a pool of backend execution resources such as CUDA streams, and automatically distributes work across those resources.
-In this design, a queue is nothing more than an interface to Open SYCL runtime functionality. This allows us to efficiently retarget operations submitted to a queue arbitrarily.
+In order to understand this, it is important to realize that because of the design of the AdaptiveCpp runtime, a queue is decoupled from backend objects. Instead, the AdaptiveCpp runtime internally manages a pool of backend execution resources such as CUDA streams, and automatically distributes work across those resources.
+In this design, a queue is nothing more than an interface to AdaptiveCpp runtime functionality. This allows us to efficiently retarget operations submitted to a queue arbitrarily.
 
 Compared to using multiple queues bound to different devices, using a single queue and submitting with the `hipSYCL_retarget` property comes with some minor semantic differences:
 
@@ -181,14 +181,14 @@ struct hipSYCL_prefer_execution_lane {
 
 Provides a hint to the runtime on which *execution lane* to execute the operation. Execution lanes refer to a generalization of resources that can execute kernels and data transfers, such as a CUDA or HIP stream.
 
-Many backends in Open SYCL such as CUDA or HIP maintain a pool of inorder queues as execution lanes. By default, the scheduler will already automatically attempt to distribute work across all those queues.
+Many backends in AdaptiveCpp such as CUDA or HIP maintain a pool of inorder queues as execution lanes. By default, the scheduler will already automatically attempt to distribute work across all those queues.
 If this distribution turns out to be not optimal, the `hipSYCL_prefer_execution_lane` property can be used to influence the distribution, for example in order to achieve better overlap of data transfers and kernels, or to make sure that certain kernels execute concurrently if supported by backend and hardware.
 
 Execution lanes for a device are enumerated starting from 0. If a non-existent execution lane is provided, it is mapped back to the permitted range using a modulo operation. Therefore, the execution lane id provided by the property can be seen as additional information on *potential* and desired parallelism that the runtime can exploit.
 
 ### `HIPSYCL_EXT_BUFFER_PAGE_SIZE`
 
-A property that can be attached to the buffer to set the buffer page size. See the Open SYCL buffer model [specification](runtime-spec.md) for more details.
+A property that can be attached to the buffer to set the buffer page size. See the AdaptiveCpp buffer model [specification](runtime-spec.md) for more details.
 
 #### API reference
 
@@ -230,7 +230,7 @@ event queue::prefetch_host(const void *ptr, std::size_t num_bytes,
 
 ### `HIPSYCL_EXT_SYNCHRONOUS_MEM_ADVISE`
 
-Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In Open SYCL, the synchronous variant is expected to be more efficient.
+Provides a synchronous, free `sycl::mem_advise()` function as an alternative to the asynchronous `handler::mem_advise()`. In AdaptiveCpp, the synchronous variant is expected to be more efficient.
 
 #### API reference
 
@@ -244,7 +244,7 @@ void sycl::mem_advise(const void *ptr, std::size_t num_bytes, int advise,
 ```
 
 ### `HIPSYCL_EXT_FP_ATOMICS`
-This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all Open SYCL backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this. This extension must be enabled explicitly by `#define HIPSYCL_EXT_FP_ATOMICS` before including `sycl.hpp`
+This extension allows atomic operations on floating point types. Since this is not in the spec, this may break portability. Additionally, not all AdaptiveCpp backends may support the same set of FP atomics. It is the user's responsibility to ensure that the code remains portable and to implement fallbacks for platforms that don't support this. This extension must be enabled explicitly by `#define HIPSYCL_EXT_FP_ATOMICS` before including `sycl.hpp`
 
 ### `HIPSYCL_EXT_AUTO_PLACEHOLDER_REQUIRE`
 This SYCL extension allows to `require()` placeholder accessors automatically. This extension does not need to be enabled explicitly and is always available.

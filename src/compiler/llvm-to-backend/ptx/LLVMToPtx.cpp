@@ -41,6 +41,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -157,6 +158,11 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceInferencePass ASIPass {ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  // It seems there is an issue with debug info in PTX, so strip it for now
+  // TODO: We should attempt to find out what exactly is causing the problem
+  // so that code still can be debugged on NVIDIA GPUs.
+  llvm::StripDebugInfo(M);
 
   if(!this->linkBitcodeFile(M, BuiltinBitcodeFile))
     return false;

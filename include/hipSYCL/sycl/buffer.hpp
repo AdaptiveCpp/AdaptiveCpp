@@ -263,11 +263,10 @@ private:
   }
 
   void add_writeback_hints(rt::device_id dev, rt::execution_hints& hints) {
-    hints.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+    hints.set_hint(rt::hints::bind_to_device{dev});
     if (has_writeback_node_group()) {
-      hints.add_hint(rt::make_execution_hint<rt::hints::node_group>(
-          write_back_node_group));
+      hints.set_hint(rt::hints::node_group{
+          write_back_node_group});
     }
   }
   

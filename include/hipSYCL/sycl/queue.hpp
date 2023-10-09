@@ -133,13 +133,13 @@ public:
       : queue{default_selector_v,
               [](exception_list e) { glue::default_async_handler(e); },
               propList} {
-    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+    assert(_default_hints->has_hint<rt::hints::bind_to_device>());
   }
 
   explicit queue(const async_handler &asyncHandler,
                  const property_list &propList = {})
       : queue{default_selector_v, asyncHandler, propList} {
-    assert(_default_hints.has_hint<rt::hints::bind_to_device>());
+    assert(_default_hints->has_hint<rt::hints::bind_to_device>());
   }
 
   template <
@@ -216,6 +216,8 @@ public:
       : detail::property_carrying_object{propList}, _ctx{syclContext},
         _handler{asyncHandler} {
 
+    _default_hints = std::make_shared<rt::execution_hints>();
+
     if(devices.empty()) {
       throw invalid_parameter_error{"queue: No devices in device list"};
     }
@@ -225,16 +227,16 @@ public:
         throw invalid_object_error{"queue: Device is not in context"};
 
     if(devices.size() == 1){
-      _default_hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(
-          detail::extract_rt_device(devices[0])));
+      _default_hints->set_hint(rt::hints::bind_to_device{
+          detail::extract_rt_device(devices[0])});
     }
     else if(devices.size() > 1) {
       std::vector<rt::device_id> rt_devs;
       for(const auto& d : devices) {
         rt_devs.push_back(detail::extract_rt_device(d));
       }
-      _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::bind_to_device_group>(rt_devs));
+      _default_hints->set_hint(
+          rt::hints::bind_to_device_group{rt_devs});
     }
     // Otherwise we are in completely unrestricted scheduling land - don't
     // add any hints regarding target device.
@@ -252,9 +254,9 @@ public:
   }
 
   device get_device() const {
-    if (_default_hints.has_hint<rt::hints::bind_to_device>()) {
+    if (_default_hints->has_hint<rt::hints::bind_to_device>()) {
       rt::device_id id =
-          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+          _default_hints->get_hint<rt::hints::bind_to_device>()->get_device_id();
       return device{id};
     } else {
       throw feature_not_supported{
@@ -263,17 +265,17 @@ public:
   }
 
   std::vector<device> get_devices() const {
-    if(_default_hints.has_hint<rt::hints::bind_to_device>()) {
+    if(_default_hints->has_hint<rt::hints::bind_to_device>()) {
 
       rt::device_id id =
-          _default_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
+          _default_hints->get_hint<rt::hints::bind_to_device>()->get_device_id();
       return std::vector<device>{device{id}};
 
-    } else if(_default_hints.has_hint<rt::hints::bind_to_device_group>()) {
+    } else if(_default_hints->has_hint<rt::hints::bind_to_device_group>()) {
 
       std::vector<device> devs;
       for (const auto &d :
-           _default_hints.get_hint<rt::hints::bind_to_device_group>()
+           _default_hints->get_hint<rt::hints::bind_to_device_group>()
                ->get_devices()) {
         devs.push_back(device{d});
       }
@@ -338,7 +340,7 @@ public:
   event submit(const property_list& prop_list, T cgf) {
     std::lock_guard<std::mutex> lock{*_lock};
 
-    rt::execution_hints hints = _default_hints;
+    rt::execution_hints hints = *_default_hints;
     
     if(prop_list.has_property<property::command_group::hipSYCL_retarget>()) {
 
@@ -355,8 +357,7 @@ public:
             << std::endl;
       }
 
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::bind_to_device>(dev));
+      hints.set_hint(rt::hints::bind_to_device{dev});
     }
     if (prop_list.has_property<
             property::command_group::hipSYCL_prefer_execution_lane>()) {
@@ -367,13 +368,11 @@ public:
                   property::command_group::hipSYCL_prefer_execution_lane>()
               .lane;
 
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::prefer_execution_lane>(lane_id));
+      hints.set_hint(rt::hints::prefer_execution_lane{lane_id});
     }
     if (prop_list.has_property<
             property::command_group::hipSYCL_coarse_grained_events>()) {
-      hints.overwrite_with(
-          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
+      hints.set_hint(rt::hints::coarse_grained_synchronization{});
     }
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
@@ -987,23 +986,19 @@ private:
     HIPSYCL_DEBUG_INFO << "queue: Constructed queue with node group id "
                        << _node_group_id << std::endl;
 
-    _default_hints.add_hint(
-        rt::make_execution_hint<rt::hints::node_group>(_node_group_id));
+    _default_hints->set_hint(rt::hints::node_group{_node_group_id});
 
     if (this->has_property<property::queue::enable_profiling>()) {
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_submission_timestamp>());
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_start_timestamp>());
-      _default_hints.add_hint(
-          rt::make_execution_hint<
-              rt::hints::request_instrumentation_finish_timestamp>());
+      _default_hints->set_hint(
+          rt::hints::request_instrumentation_submission_timestamp{});
+      _default_hints->set_hint(
+              rt::hints::request_instrumentation_start_timestamp{});
+      _default_hints->set_hint(
+              rt::hints::request_instrumentation_finish_timestamp{});
     }
     if(this->has_property<property::queue::hipSYCL_coarse_grained_events>()){
-      _default_hints.add_hint(
-          rt::make_execution_hint<rt::hints::coarse_grained_synchronization>());
+      _default_hints->set_hint(
+          rt::hints::coarse_grained_synchronization{});
     }
 
     _is_in_order = this->has_property<property::queue::in_order>();
@@ -1026,9 +1021,7 @@ private:
               ->create_inorder_executor(rt_dev, priority);
       
       if(dedicated_executor) {
-        _default_hints.add_hint(
-            rt::make_execution_hint<rt::hints::prefer_executor>(
-                dedicated_executor));
+        _default_hints->set_hint(rt::hints::prefer_executor{dedicated_executor});
       }
     }
 
@@ -1045,7 +1038,7 @@ private:
   rt::runtime_keep_alive_token _requires_runtime;  
   detail::queue_submission_hooks_ptr _hooks;
 
-  rt::execution_hints _default_hints;
+  std::shared_ptr<rt::execution_hints> _default_hints;
   context _ctx;
   async_handler _handler;
   bool _is_in_order;

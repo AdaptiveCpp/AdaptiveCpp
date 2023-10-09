@@ -653,8 +653,8 @@ public:
 
       auto usm_dev = detail::extract_rt_device(get_pointer_device(ptr, _ctx));
 
-      hints.overwrite_with(rt::make_execution_hint<rt::hints::bind_to_device>(
-          usm_dev));
+      hints.set_hint(rt::hints::bind_to_device{
+          usm_dev});
     }
 
     auto op = rt::make_operation<rt::prefetch_operation>(
@@ -759,14 +759,10 @@ private:
       mode, tgt
     );
 
-    rt::execution_hints enforce_bind_to_dev;
-    enforce_bind_to_dev.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(
-            dev));
-
     // Merge new hint into default hints
     rt::execution_hints hints = _execution_hints;
-    hints.overwrite_with(enforce_bind_to_dev);
+    hints.set_hint(rt::hints::bind_to_device{
+            dev});
     assert(hints.has_hint<rt::hints::bind_to_device>());
     assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
            dev);
@@ -975,7 +971,7 @@ private:
       return build.builder()->add_command_group(std::move(op), _requirements, hints);
     } else {
       // instant submission
-      hints.add_hint(rt::make_execution_hint<rt::hints::instant_execution>());
+      hints.set_hint(rt::hints::instant_execution{});
 
       rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
           hints, _requirements.get(), std::move(op), _rt);

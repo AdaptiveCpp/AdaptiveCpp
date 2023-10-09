@@ -79,8 +79,7 @@ void dag_unbound_scheduler::submit(dag_node_ptr node) {
     ++dev;
 
     rt::device_id target_dev = eligible_devices[dev % eligible_devices.size()];
-    node->get_execution_hints().add_hint(
-        make_execution_hint<rt::hints::bind_to_device>(target_dev));
+    node->get_execution_hints().set_hint(rt::hints::bind_to_device{target_dev});
   }
 
   _direct_scheduler.submit(node);

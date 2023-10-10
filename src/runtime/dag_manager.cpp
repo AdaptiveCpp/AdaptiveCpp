@@ -32,6 +32,7 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/settings.hpp"
@@ -189,7 +190,7 @@ void dag_manager::trigger_flush_opportunity()
   }
 }
 
-std::vector<dag_node_ptr> dag_manager::get_group(std::size_t node_group_id) {
+node_list_t dag_manager::get_group(std::size_t node_group_id) {
   return _submitted_ops.get_group(node_group_id);
 }
 }

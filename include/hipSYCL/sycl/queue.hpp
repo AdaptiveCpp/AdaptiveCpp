@@ -32,6 +32,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/glue/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_executor.hpp"
@@ -957,9 +958,8 @@ private:
   }
 
   rt::dag_node_ptr extract_dag_node(sycl::handler& cgh) {
-  
-    const std::vector<rt::dag_node_ptr>& dag_nodes =
-      cgh.get_cg_nodes();
+
+    const rt::node_list_t &dag_nodes = cgh.get_cg_nodes();
 
     if(dag_nodes.empty()) {
       HIPSYCL_DEBUG_ERROR

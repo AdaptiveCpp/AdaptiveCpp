@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/async_errors.hpp"
@@ -152,7 +153,7 @@ template<class Handler>
 void throw_asynchronous_errors(Handler h){
   sycl::exception_list exceptions;
 
-  std::vector<rt::result> async_errors;
+  common::auto_small_vector<rt::result> async_errors;
   rt::application::errors().pop_each_error(
       [&](const rt::result &err) {
         async_errors.push_back(err);

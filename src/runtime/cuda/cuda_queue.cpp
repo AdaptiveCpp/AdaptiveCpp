@@ -27,6 +27,7 @@
 
 #include "driver_types.h"
 #include "hipSYCL/common/hcf_container.hpp"
+#include "hipSYCL/common/timer.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/cuda/cuda_instrumentation.hpp"
@@ -654,6 +655,9 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
+    common::timer full_timer{"SSCP code object construction (total)", false};
+    common::timer s2_timer{"SSCP stage 2 compilation", false};
+    
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
@@ -674,15 +678,18 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, ptx_image);
     
+    s2_timer.stop_and_print();
+    
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
     }
 
+    common::timer module_timer{"SSCP backend code object construction", false};
     cuda_sscp_executable_object *exec_obj = new cuda_sscp_executable_object{
         ptx_image, target_arch_name, hcf_object, kernel_names, device, config};
     result r = exec_obj->get_build_result();
-
+    module_timer.stop_and_print();
     HIPSYCL_DEBUG_INFO
         << "cuda_queue: Successfully compiled SSCP kernels to module " << exec_obj->get_module()
         << std::endl;
@@ -693,6 +700,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
       return nullptr;
     }
 
+    full_timer.stop_and_print();
     return exec_obj;
   };
 

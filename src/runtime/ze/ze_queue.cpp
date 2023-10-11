@@ -31,7 +31,7 @@
 #include <utility>
 #include <level_zero/ze_api.h>
 #include <vector>
-
+#include "hipSYCL/common/timer.hpp"
 #include "hipSYCL/common/hcf_container.hpp"
 #include "hipSYCL/runtime/code_object_invoker.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -586,6 +586,8 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   };
 
   auto code_object_constructor = [&]() -> code_object* {
+    common::timer full_timer{"SSCP code object construction (total)", false};
+    common::timer s2_timer{"SSCP stage 2 compilation", false};
     const common::hcf_container* hcf = rt::hcf_cache::get().get_hcf(hcf_object);
     
     std::vector<std::string> kernel_names;
@@ -607,21 +609,24 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     auto err = glue::jit::compile(translator.get(),
         hcf, selected_image_name, config, compiled_image);
     
+    s2_timer.stop_and_print();
+
     if(!err.is_success()) {
       register_error(err);
       return nullptr;
     }
 
+    common::timer module_timer{"SSCP backend code object construction", false};
     ze_sscp_executable_object *exec_obj = new ze_sscp_executable_object{
         ctx, dev, hcf_object, compiled_image, config};
     result r = exec_obj->get_build_result();
-
+    module_timer.stop_and_print();
     if(!r.is_success()) {
       register_error(r);
       delete exec_obj;
       return nullptr;
     }
-
+    full_timer.stop_and_print();
     return exec_obj;
   };
 
@@ -637,7 +642,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
   ze_kernel_handle_t kernel;
   result res = static_cast<const ze_executable_object *>(obj)->get_kernel(
       kernel_name, kernel);
-  
+
   if(!res.is_success())
     return res;
 
@@ -647,7 +652,6 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   HIPSYCL_DEBUG_INFO << "ze_queue: Attempting to submit SSCP kernel"
                      << std::endl;
-
 
   glue::jit::cxx_argument_mapper arg_mapper{*kernel_info, args, arg_sizes,
                                             num_args};

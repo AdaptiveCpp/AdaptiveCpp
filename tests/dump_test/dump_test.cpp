@@ -45,7 +45,8 @@ int main()
   // Kernel Operation
   std::cout << std::endl << "Dumping Kernel Operation: " << std::endl << std::endl;        
   requirements_list reqs{rt.get()};
-  std::vector<std::unique_ptr<backend_kernel_launcher>> backend_kernel_list;
+  hipsycl::common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
+      backend_kernel_list;
   std::string kernel_name = "test_kernel";
   kernel_operation kernel_op(kernel_name, std::move(backend_kernel_list), reqs);
   kernel_op.dump(std::cout);

@@ -1,0 +1,11 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d4259818..dfb68cc7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -164,3 +164,6 @@ install(
+   DESTINATION
+     ${CMAKE_INSTALL_PREFIX}/lib${LLVM_LIBDIR_SUFFIX}/pkgconfig
+ )
++
++set(CPACK_DEBIAN_PACKAGE_MAINTAINER "The Khronos Group")
++include(CPack)

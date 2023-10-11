@@ -529,6 +529,9 @@ install(EXPORT install_exports
   DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
 )
 
+set(CPACK_PACKAGE_CONTACT aksel.alpay@uni-heidelberg.de)
+include(CPack)
+
 mark_as_advanced(
   OPENSYCL_INSTALL_CMAKE_DIR
 )

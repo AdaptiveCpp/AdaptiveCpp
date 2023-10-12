@@ -44,6 +44,7 @@ void* ocl_allocator::allocate(size_t min_alignment, size_t size_bytes) {
                               error_type::memory_allocation_error});
     return nullptr;
   }
+  
   cl_int err;
   void* ptr = _usm->malloc_device(size_bytes, min_alignment, err);
   if(err != CL_SUCCESS) {

@@ -38,10 +38,13 @@ omp_allocator::omp_allocator(const device_id &my_device)
     : _my_device{my_device} {}
 
 void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
+  if(min_alignment == 0)
+    return std::malloc(size_bytes);
+
 #ifndef _WIN32
   // posix requires alignment to be a multiple of sizeof(void*)
   if (min_alignment < sizeof(void*))
-    return malloc(size_bytes);
+    return std::malloc(size_bytes);
 #else
   min_alignment = std::max(min_alignment, 1ULL);
 #endif

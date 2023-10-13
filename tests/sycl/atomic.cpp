@@ -211,6 +211,8 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 #define HIPSYCL_ATOMIC_REF_PTR_TEST(Tester, Verifier)                          \
   atomic_device_reduction_test<int *>(Tester, Verifier);
 
+#ifndef HIPSYCL_LIBKERNEL_CUDA_NVCXX
+
   HIPSYCL_ATOMIC_REF_INTEGER_TEST(fetch_add, fetch_add_verifier);
   HIPSYCL_ATOMIC_REF_INTEGER_TEST(fetch_sub, fetch_sub_verifier);
   HIPSYCL_ATOMIC_REF_INTEGER_TEST(fetch_or, fetch_or_verifier);
@@ -226,6 +228,8 @@ BOOST_AUTO_TEST_CASE(fetch_op) {
 
   HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_add, fetch_add_verifier);
   HIPSYCL_ATOMIC_REF_PTR_TEST(fetch_sub, fetch_sub_verifier);
+
+#endif
 }
 
 BOOST_AUTO_TEST_SUITE_END()

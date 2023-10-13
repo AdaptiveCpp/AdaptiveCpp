@@ -98,12 +98,14 @@ result ensure_allocation_exists(runtime *rt,
     const std::size_t num_bytes =
         bmem_req->get_data_region()->get_num_elements().size() *
         bmem_req->get_data_region()->get_element_size();
-    const std::size_t min_align = // max requested alignment the size of a sycl::vec<double, 16>
-        std::min(bmem_req->get_data_region()->get_element_size(), sizeof(double) * 16);
 
     backend_allocator *allocator =
         rt->backends().get(target_dev.get_backend())->get_allocator(target_dev);
-    void *ptr = allocator->allocate(min_align, num_bytes);
+    // Currently we just pass 0 for the alignment which should
+    // cause backends to align to the largest supported type.
+    // TODO: A better solution might be to select a custom alignment
+    // best on sizeof(T). This requires querying backend alignment capabilities.
+    void *ptr = allocator->allocate(0, num_bytes);
 
     if(!ptr)
       return register_error(

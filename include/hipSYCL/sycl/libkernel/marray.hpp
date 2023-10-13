@@ -55,8 +55,8 @@ private:
     if constexpr(std::is_scalar_v<T>) {
       _data[offset] = x;
     } else {
-      for(std::size_t i = 0; i < _data.size(); ++i)
-      _data[offset + i] = x[i];  
+      for(std::size_t i = 0; i < x.size(); ++i)
+        _data[offset + i] = x[i];  
     }
   }
 

@@ -1,7 +1,7 @@
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2019 Aksel Alpay
+ * Copyright (c) 2021 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,70 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "hipSYCL/runtime/hints.hpp"
-#include "hipSYCL/runtime/operations.hpp"
-#include "hipSYCL/runtime/dag_node.hpp"
+#ifndef HIPSYCL_LLVMUTILS_HPP
+#define HIPSYCL_LLVMUTILS_HPP
 
-namespace hipsycl {
-namespace rt {
+#if LLVM_VERSION_MAJOR < 13 || (LLVM_VERSION_MAJOR == 13 && defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR < 5)
+#define IS_OPAQUE(pointer) constexpr(false)
+#define HAS_TYPED_PTR 1
+#elif LLVM_VERSION_MAJOR < 16
+#define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
+#define HAS_TYPED_PTR 1
+#else
+#define IS_OPAQUE(pointer) constexpr(true)
+#define HAS_TYPED_PTR 0
+#endif
 
-execution_hint::execution_hint(execution_hint_type type)
-: _type{type}
-{}
-
-execution_hint_type execution_hint::get_hint_type() const
-{
-  return _type;
-}
-
-execution_hint::~execution_hint(){}
-
-namespace hints {
-
-bind_to_device::bind_to_device(device_id d)
-: execution_hint{execution_hint_type::bind_to_device}, _dev{d}
-{}
-
-device_id bind_to_device::get_device_id() const
-{ return _dev; }
-
-} // hints
-
-void execution_hints::add_hint(execution_hint_ptr hint)
-{
-  _hints.push_back(hint);
-}
-
-void execution_hints::overwrite_with(const execution_hints& other)
-{
-  for(const auto& hint : other._hints){
-    this->overwrite_with(hint);
-  }
-}
-
-void execution_hints::overwrite_with(execution_hint_ptr hint) {
-  for (std::size_t i = 0; i < _hints.size(); ++i) {
-    if (_hints[i]->get_hint_type() == hint->get_hint_type()) {
-      _hints[i] = hint;
-      return;
-    }
-  }
-  _hints.push_back(hint);
-}
-
-bool execution_hints::has_hint(execution_hint_type type) const
-{
-  return get_hint(type) != nullptr;
-}
-
-execution_hint* execution_hints::get_hint(execution_hint_type type) const
-{
-  for(const auto& hint : _hints)
-    if(hint->get_hint_type() == type)
-      return hint.get();
-  return nullptr;
-}
-
-
-}
-}
+#endif // HIPSYCL_LLVMUTILS_HPP

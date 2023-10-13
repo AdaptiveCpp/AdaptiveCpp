@@ -309,6 +309,21 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  void parallel_for(range<1> numWorkItems,
+                    const ReductionsAndKernel &... redu_kernel) {
+
+    auto invoker = [&](auto&& kernel, auto&&... reductions){
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          sycl::id<1>{}, numWorkItems,
+          get_preferred_group_size<1>(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
@@ -317,6 +332,21 @@ public:
       this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<dimensions>(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  void parallel_for(range<1> numWorkItems,
+                    id<1> workItemOffset,
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          workItemOffset, numWorkItems,
+          get_preferred_group_size<1>(),
           kernel, reductions...);
     };
 
@@ -507,7 +537,7 @@ public:
 
 
     this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
-        get_offset(dest), get_range(dest),
+        sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
   }
@@ -636,8 +666,8 @@ public:
 
       auto usm_dev = detail::extract_rt_device(get_pointer_device(ptr, _ctx));
 
-      hints.overwrite_with(rt::make_execution_hint<rt::hints::bind_to_device>(
-          usm_dev));
+      hints.set_hint(rt::hints::bind_to_device{
+          usm_dev});
     }
 
     auto op = rt::make_operation<rt::prefetch_operation>(
@@ -752,14 +782,10 @@ private:
       mode, tgt
     );
 
-    rt::execution_hints enforce_bind_to_dev;
-    enforce_bind_to_dev.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(
-            dev));
-
     // Merge new hint into default hints
     rt::execution_hints hints = _execution_hints;
-    hints.overwrite_with(enforce_bind_to_dev);
+    hints.set_hint(rt::hints::bind_to_device{
+            dev});
     assert(hints.has_hint<rt::hints::bind_to_device>());
     assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
            dev);

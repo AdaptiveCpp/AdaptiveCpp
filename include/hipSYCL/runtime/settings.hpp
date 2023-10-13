@@ -190,17 +190,26 @@ public:
 private:
   template <setting S, class T>
   T get_environment_variable_or_default(const T &default_value) {
-    const char *env = std::getenv(get_environment_variable_name<S>().c_str());
-    if (env) {
+    std::string env;
+
+    if (const char *env_value =
+            std::getenv(get_environment_variable_name<S>("ACPP_").c_str())) {
+      env = std::string{env_value};
+    } else if (const char *env_value =
+            std::getenv(get_environment_variable_name<S>("HIPSYCL_").c_str())) {
+      env = std::string{env_value};
+    }
+    
+    if (!env.empty()) {
       
       T val;
       std::stringstream sstr{std::string{env}};
       sstr >> val;
 
       if (sstr.fail() || sstr.bad()) {
-        std::cerr << "hipSYCL prelaunch: Could not parse value of environment "
+        std::cerr << "AdaptiveCpp prelaunch: Could not parse value of environment "
                      "variable: "
-                  << get_environment_variable_name<S>() << std::endl;
+                  << get_environment_variable_name<S>("ACPP_") << std::endl;
         return default_value;
       }
       return val;
@@ -208,10 +217,11 @@ private:
     return default_value;
   }
 
-  template <setting S> std::string get_environment_variable_name() {
+  template <setting S>
+  std::string get_environment_variable_name(const std::string &prefix) {
     std::string id = setting_trait<S>::str;
     std::transform(id.begin(), id.end(), id.begin(), ::toupper);
-    return "HIPSYCL_"+id;
+    return prefix+id;
   }
 
   int _debug_level;

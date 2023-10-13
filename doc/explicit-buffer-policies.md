@@ -4,7 +4,7 @@
 For example, whether a writeback occurs depends on the combination of constness of the buffer's pointer argument, constness of buffer type and potentially buffer properties.
 This can potentially make it error-prone to use. Errors can either lead to undesired behavior affecting correctness (e.g. no writeback when it *was* expected) or performance issues (e.g. writeback when it *was not* expected).
 
-Open SYCL therefore introduces explicit buffer policies that allow the programmer to explicitly specify the desired buffer behavior. Additionally, Open SYCL adds certain buffer behaviors not covered by the SYCL specification.
+AdaptiveCpp therefore introduces explicit buffer policies that allow the programmer to explicitly specify the desired buffer behavior. Additionally, AdaptiveCpp adds certain buffer behaviors not covered by the SYCL specification.
 
 Buffer policies can be enabled by passing buffer policy property to the `property_list` of the `buffer` constructor.
 
@@ -16,7 +16,7 @@ Buffer policies can be enabled by passing buffer policy property to the `propert
 | `property::buffer::hipSYCL_buffer_writes_back(bool)` | Submit writeback to supplied user pointer at buffer destruction. If no data needs to be transferred, the writeback may be optimized away by the runtime. | Do not submit writeback in destructor. |
 | `property::buffer::hipSYCL_buffer_destructor_blocks(bool)` | buffer destructor blocks until all tasks operating on the buffer have completed. | buffer destructor does not block. The user is responsible for making sure that all kernels and other operations working on the buffer are synchronized, e.g. using `queue::wait()` or `event::wait()`. It is allowed for the buffer to be destroyed before operations have completed because operations will retain references to the buffer's data storage. |
 
-To describe buffers and their behavior better, Open SYCL adopts the following terminology:
+To describe buffers and their behavior better, AdaptiveCpp adopts the following terminology:
 
 | | Destructor blocks? | Writes back ? | Uses external storage? |
 | ----- | ----- | ----- | ----- |

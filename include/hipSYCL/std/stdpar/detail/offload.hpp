@@ -223,12 +223,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
-  return_type ret;                                                             \
-  if (is_offloaded) {                                                          \
-    ret = offload_invoker(q);                                                  \
-  } else {                                                                     \
-    ret = fallback_invoker();                                                  \
-  }                                                                            \
+  return_type ret = is_offloaded ? offload_invoker(q) : fallback_invoker();    \
   __hipsycl_stdpar_optimizable_sync(q, is_offloaded);                          \
   return ret;
 
@@ -239,13 +234,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
-  return_type ret;                                                             \
-  if (is_offloaded) {                                                          \
-    ret = offload_invoker(q);                                                  \
-  } else {                                                                     \
+  const auto blocking_fallback_invoker = [&]() {                               \
     q.wait();                                                                  \
-    ret = fallback_invoker();                                                  \
-  }                                                                            \
+    return fallback_invoker();                                                 \
+  };                                                                           \
+  return_type ret =                                                            \
+      is_offloaded ? offload_invoker(q) : blocking_fallback_invoker();         \
   return ret;
 } // namespace hipsycl::stdpar
 

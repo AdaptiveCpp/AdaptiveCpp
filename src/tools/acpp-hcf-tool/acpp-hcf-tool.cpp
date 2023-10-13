@@ -33,7 +33,7 @@
 
 void help() {
   std::cout <<
-  "Usage: opensycl-hcf-tool <hcf-file> <-x|-r <file>|-p> root [subnode] [subsubnode] ...\n" <<
+  "Usage: acpp-hcf-tool <hcf-file> <-x|-r <file>|-p> root [subnode] [subsubnode] ...\n" <<
   "  -x: Extract binary attachment and print to stdout\n" <<
   "  -r <file>: Replace binary attachment with file content and print to stdout\n" << 
   "  -p: Print node content" << std::endl;

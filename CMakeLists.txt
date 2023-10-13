@@ -3,9 +3,9 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.12)
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
 
-set(HIPSYCL_VERSION_MAJOR 0)
-set(HIPSYCL_VERSION_MINOR 9)
-set(HIPSYCL_VERSION_PATCH 4)
+set(HIPSYCL_VERSION_MAJOR 23)
+set(HIPSYCL_VERSION_MINOR 10)
+set(HIPSYCL_VERSION_PATCH 0)
 
 project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
 
@@ -39,6 +39,7 @@ if(NOT Boost_FOUND)
 endif()
 
 # Check for CUDA/ROCm and clang
+list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/")
 find_package(CUDA QUIET)
 find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 # Check for OpenCL
@@ -102,8 +103,6 @@ set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
   set(DEFAULT_PLATFORM "cuda")
-  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64 REQUIRED)
-  message(STATUS "Found CUDA driver library: ${CUDA_DRIVER_LIBRARY}")
 
   find_program(NVCXX_COMPILER NAMES nvc++)
 elseif(WITH_ROCM_BACKEND)
@@ -187,6 +186,8 @@ if(BUILD_CLANG_PLUGIN)
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
     ${LLVM_PREFIX_DIR}/lib/clang/${LLVM_VERSION_MAJOR}/include
     ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
+    ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
+    ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}/include
     DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
 
   if(EXISTS ${FOUND_CLANG_INCLUDE_PATH})
@@ -348,14 +349,14 @@ if(NOT ROCM_CXX_FLAGS)
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
 
-  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
+  set(ROCM_CXX_FLAGS "-isystem $HIPSYCL_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$HIPSYCL_ROCM_PATH/include -I$HIPSYCL_ROCM_PATH/include --rocm-device-lib-path=$HIPSYCL_ROCM_PATH/amdgcn/bitcode --rocm-path=$HIPSYCL_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
 endif()
 
 if(NOT CUDA_CXX_FLAGS)	
   # clang erroneously sets feature detection flags for 
   # __float128 even though it is not supported for CUDA / HIP,
   # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
+  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $HIPSYCL_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
 endif()
 
 # always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
@@ -412,22 +413,21 @@ configure_file(
   ${PROJECT_SOURCE_DIR}/include/hipSYCL/common/config.hpp.in
   ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp)
 
-install(DIRECTORY include/CL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/SYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/hipSYCL DESTINATION include/ FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY include/hipSYCL/std DESTINATION include/hipSYCL/ )
-install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/hipSYCL/common/)
+install(DIRECTORY include/CL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/SYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY include/hipSYCL/std DESTINATION include/AdaptiveCpp/hipSYCL/ )
+install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp DESTINATION include/AdaptiveCpp/hipSYCL/common/)
 
 if(NOT WIN32)
-install(PROGRAMS bin/syclcc DESTINATION bin)
 # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
 # we already have SYCL/sycl.hpp
-install(FILES include/SYCL/sycl.hpp DESTINATION include/sycl/)
-else()
-install(PROGRAMS bin/syclcc-clang DESTINATION bin RENAME syclcc)
+install(FILES include/SYCL/sycl.hpp DESTINATION include/AdaptiveCpp/sycl/)
 endif()
-install(PROGRAMS bin/syclcc-clang DESTINATION bin)
+install(PROGRAMS bin/acpp DESTINATION bin)
+install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
+install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
 install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
@@ -437,7 +437,7 @@ include(GNUInstallDirs)
 
 
 
-# Legacy module
+# Legacy module (hipSYCL)
 
 
 set(HIPSYCL_INSTALL_CMAKE_DIR
@@ -486,7 +486,7 @@ mark_as_advanced(
 )
 
 
-# New package
+# Legacy module (Open SYCL)
 
 set(OPENSYCL_INSTALL_CMAKE_DIR
   "lib/cmake/OpenSYCL" CACHE PATH "Install path for CMake config files")
@@ -532,3 +532,52 @@ install(EXPORT install_exports
 mark_as_advanced(
   OPENSYCL_INSTALL_CMAKE_DIR
 )
+
+# New module
+
+
+set(ADAPTIVECPP_INSTALL_CMAKE_DIR
+  "lib/cmake/AdaptiveCpp" CACHE PATH "Install path for CMake config files")
+
+# Set relative paths for install root in the following variables so that
+# configure_package_config_file will generate paths relative whatever is
+# the future install root
+set(ADAPTIVECPP_INSTALL_COMPILER_DIR bin)
+set(ADAPTIVECPP_INSTALL_LAUNCHER_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+set(ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+
+install(PROGRAMS cmake/syclcc-launcher DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+
+write_basic_package_version_file(
+  "${PROJECT_BINARY_DIR}/adaptivecpp-config-version.cmake"
+  VERSION ${hipSYCL_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/adaptivecpp-config.cmake.in
+    ${PROJECT_BINARY_DIR}/adaptivecpp-config.cmake
+    INSTALL_DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+    PATH_VARS
+    ADAPTIVECPP_INSTALL_COMPILER_DIR
+    ADAPTIVECPP_INSTALL_LAUNCHER_DIR
+    ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR
+)
+
+install(FILES
+  ${PROJECT_BINARY_DIR}/adaptivecpp-config.cmake
+  ${PROJECT_BINARY_DIR}/adaptivecpp-config-version.cmake
+  DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+)
+
+install(EXPORT install_exports
+  FILE "adaptivecpp-targets.cmake"
+  NAMESPACE AdaptiveCpp::
+  DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
+)
+
+mark_as_advanced(
+  ADAPTIVECPP_INSTALL_CMAKE_DIR
+)
+

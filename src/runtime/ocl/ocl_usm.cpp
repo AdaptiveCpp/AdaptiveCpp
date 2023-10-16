@@ -177,9 +177,11 @@ public:
                                  sizeof(mem_type), &mem_type, nullptr);
 
     out.is_from_host_backend = false;
+    out.is_optimized_host = false;
+
     if(err != CL_SUCCESS)
       return err;
-    
+
     if(mem_type == CL_MEM_TYPE_HOST_INTEL)
       out.is_optimized_host = true;
     else if(mem_type == CL_MEM_TYPE_SHARED_INTEL)

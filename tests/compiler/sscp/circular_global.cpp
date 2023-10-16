@@ -2,6 +2,8 @@
 // RUN: %t
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t
+// RUN: %acpp %s -o %t --acpp-targets=generic -g
+// RUN: %t
 
 #include <sycl/sycl.hpp>
 

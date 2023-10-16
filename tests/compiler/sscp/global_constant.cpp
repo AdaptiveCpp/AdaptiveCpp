@@ -2,6 +2,8 @@
 // RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
 // RUN: %t | FileCheck %s
+// RUN: %acpp %s -o %t --acpp-targets=generic -g
+// RUN: %t | FileCheck %s
 
 #include <iostream>
 
@@ -12,6 +14,8 @@ constexpr int table [] = {10, 20, 30, 40};
 int main()
 {
   sycl::queue q;
+  // CHECK: Offloading
+  std::cout << ((q.get_device().get_backend() == sycl::backend::omp) ? "Host" : "Offloading") << std::endl;
 
   int* data = sycl::malloc_device<int>(1024, q);
   q.parallel_for(sycl::range{1024}, [=](auto idx){

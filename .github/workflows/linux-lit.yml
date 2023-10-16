@@ -101,20 +101,17 @@ jobs:
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt update
-          sudo apt install intel-oneapi-runtime-opencl
+          sudo apt install intel-oneapi-runtime-opencl ocl-icd-libopencl1 ocl-icd-opencl-dev
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
           echo ${CXXFLAGS}
           
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install
           make -j2 install
       - name: run SSCP LIT tests
         run: |
           mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
           cd ${GITHUB_WORKSPACE}/build/tests-sscp  
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
-      - name: run LIT tests on CPU
-        run: |
-          cd ${GITHUB_WORKSPACE}/build/tests-sscp
-          ACPP_DEBUG_LEVEL=3 LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp

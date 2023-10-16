@@ -1,10 +1,10 @@
-name: Linux CBS build and test
+name: Linux LIT tests
 
 on: [push, pull_request]
 
 jobs:
-  test:
-    name: clang ${{ matrix.clang }}, ${{ matrix.os }}
+  cbs:
+    name: CBS, clang ${{ matrix.clang }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -65,8 +65,56 @@ jobs:
       - name: run LIT tests on CPU
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
-          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-cbs
       - name: run CPU tests
         run: |
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+  sscp:
+    name: SSCP, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang: [14, 15, 16]
+        os: [ubuntu-22.04]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: install LLVM
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev
+          sudo python -m pip install lit
+          sudo ln -s /usr/bin/FileCheck-${{matrix.clang}} /usr/bin/FileCheck
+          if [[ "${{matrix.clang}}" == "16" ]]; then
+            sudo rm -r /usr/lib/clang/16*
+            sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
+          fi
+      - name: install boost (from apt)
+        run: |
+          sudo apt install libboost-all-dev
+      - name: Install OpenCL
+        run: |
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt update
+          sudo apt install intel-oneapi-runtime-opencl
+      - name: build AdaptiveCpp
+        run: |
+          mkdir build && cd build
+          echo ${CXXFLAGS}
+          
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          make -j2 install
+      - name: run SSCP LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+          cd ${GITHUB_WORKSPACE}/build/tests-sscp  
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+      - name: run LIT tests on CPU
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-sscp
+          ACPP_DEBUG_LEVEL=3 LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp

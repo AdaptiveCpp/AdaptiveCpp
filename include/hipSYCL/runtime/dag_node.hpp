@@ -33,6 +33,7 @@
 
 #include "hints.hpp"
 #include "event.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 
 
 namespace hipsycl {
@@ -43,13 +44,18 @@ class backend_executor;
 
 class dag_node;
 class runtime;
+// These two aliases should be consistent with the definitions in
+// operations.hpp, where they are defined as well.
+// TODO: Unify these two separate alias definitions!
 using dag_node_ptr = std::shared_ptr<dag_node>;
+using node_list_t = common::small_vector<dag_node_ptr, 8>;
+using weak_node_list_t = common::small_vector<std::weak_ptr<dag_node>, 8>;
 
 class dag_node
 {
 public:
   dag_node(const execution_hints& hints,
-          const std::vector<dag_node_ptr>& requirements,
+          const node_list_t& requirements,
           std::unique_ptr<operation> op,
           runtime* rt);
 
@@ -98,7 +104,7 @@ public:
   // Add requirement if not already present
   void add_requirement(dag_node_ptr requirement);
   operation* get_operation() const;
-  const std::vector<std::weak_ptr<dag_node>>& get_requirements() const;
+  const weak_node_list_t& get_requirements() const;
 
   // Wait until the associated event has completed.
   // Can be invoked before the event has been set (pre-submission),
@@ -127,7 +133,7 @@ public:
   runtime* get_runtime() const;
 private:
   execution_hints _hints;
-  std::vector<std::weak_ptr<dag_node>> _requirements;
+  weak_node_list_t _requirements;
 
   device_id _assigned_device;
   backend_executor *_assigned_executor;

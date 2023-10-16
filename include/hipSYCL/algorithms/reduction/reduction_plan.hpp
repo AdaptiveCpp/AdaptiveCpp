@@ -78,7 +78,7 @@ public:
   }
 
 private:
-  std::vector<ReductionStage> _stages;
+  common::auto_small_vector<ReductionStage> _stages;
   std::tuple<ReductionDescriptors...> _descriptors;
 };
 

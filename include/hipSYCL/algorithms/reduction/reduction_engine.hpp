@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "hipSYCL/common/small_vector.hpp"
 
 #include "hipSYCL/algorithms/reduction/threading_model/cache_line.hpp"
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
@@ -136,9 +137,10 @@ class wg_hierarchical_reduction_engine {
 
   using reduction_stage_type = wg_model::reduction_stage<GroupHorizontalReducer>;
 
-  static void determine_stages(std::size_t global_size, std::size_t wg_size,
-                              std::vector<reduction_stage_type> &stages_out) {
-    
+  static void determine_stages(
+      std::size_t global_size, std::size_t wg_size,
+      common::auto_small_vector<reduction_stage_type> &stages_out) {
+
     std::size_t current_num_groups = detail::ceil_division(global_size, wg_size);
     std::size_t current_num_work_items = global_size;
 
@@ -282,7 +284,7 @@ public:
         wg_size, detail::ceil_division(global_size, wg_size), global_size});
     
     // Give reducer the chance to perform its own stage calculation
-    std::vector<reduction_stage_type> additional_plan;
+    common::auto_small_vector<reduction_stage_type> additional_plan;
     
     std::size_t num_groups = detail::ceil_division(global_size, wg_size);
     // if we only have a single group, we are already done.

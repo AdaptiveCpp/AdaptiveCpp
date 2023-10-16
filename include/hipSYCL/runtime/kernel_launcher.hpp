@@ -33,6 +33,7 @@
 #include <vector>
 #include <memory>
 
+#include "hipSYCL/common/small_vector.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -110,7 +111,7 @@ class kernel_launcher
 {
 public:
   kernel_launcher(
-      std::vector<std::unique_ptr<backend_kernel_launcher>>&& kernels)
+      common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>> kernels)
   : _kernels{std::move(kernels)}
   {}
 
@@ -144,7 +145,8 @@ public:
     return _kernel_config;
   }
 private:
-  std::vector<std::unique_ptr<backend_kernel_launcher>> _kernels;
+  common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
+      _kernels;
   glue::kernel_configuration _kernel_config;
 };
 

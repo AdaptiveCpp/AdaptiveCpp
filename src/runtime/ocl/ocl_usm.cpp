@@ -187,7 +187,8 @@ public:
     else if(mem_type == CL_MEM_TYPE_DEVICE_INTEL) {
       cl_device_id dev;
       err = _mem_alloc_info(_ctx.get(), ptr, CL_MEM_ALLOC_DEVICE_INTEL,
-                                 sizeof(mem_type), &dev, nullptr);
+                                 sizeof(dev), &dev, nullptr);
+
       if(err != CL_SUCCESS)
         return err;
       

@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(default_hints) {
                                           rt::api_platform::omp},
                    12345};
   
-  hints.add_hint(rt::make_execution_hint<rt::hints::bind_to_device>(id));
+  hints.set_hint(rt::hints::bind_to_device{id});
   rt::dag_builder builder{rt.get()};
 
   auto reqs = rt::requirements_list{rt.get()};

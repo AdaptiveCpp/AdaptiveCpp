@@ -34,6 +34,10 @@ namespace {
 bool isUsedInFunctions(llvm::SmallPtrSet<llvm::User*, 16>& VisitedUsers, llvm::User* User) {
   if(llvm::isa<llvm::Function>(User))
       return true;
+  if(llvm::Instruction* I = llvm::dyn_cast<llvm::Instruction>(User)){
+    if(I->getFunction())
+      return true;
+  }
   
   if(VisitedUsers.contains(User))
     return false;

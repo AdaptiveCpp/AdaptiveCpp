@@ -105,14 +105,10 @@ jobs:
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
-          echo ${CXXFLAGS}
-          
-          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
           make -j2 install
-      - name: some debug output
+      - name: Print detected devices
         run: |
-          ls /etc/OpenCL/vendors
-          cat /etc/OpenCL/vendors/*
           ${GITHUB_WORKSPACE}/build/install/bin/acpp-info
       - name: run SSCP LIT tests
         run: |

@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include <sycl/sycl.hpp>
 
 inline sycl::queue get_queue() {

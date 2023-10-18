@@ -146,7 +146,15 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
                    error_info{"ze_allocator: zeMemGetAllocProperties() failed",
                               error_code{"ze", static_cast<int>(err)}});
   }
-  
+
+  if(props.type == ZE_MEMORY_TYPE_UNKNOWN) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"ze_allocator: query_pointer(): pointer is unknown by backend",
+                     error_code{"ze", static_cast<int>(err)},
+                     error_type::invalid_parameter_error});
+  }
+
   out.is_optimized_host = props.type == ZE_MEMORY_TYPE_HOST;
   out.is_usm = props.type == ZE_MEMORY_TYPE_SHARED;
 
@@ -156,7 +164,16 @@ result ze_allocator::query_pointer(const void* ptr, pointer_info& out) const {
   // to hipSYCL device_id. This might fail if the
   // ze_device_handle_t is unknown, so return the result of this function
   // for error handling.
-  return _hw_manager->device_handle_to_device_id(dev, out.dev);
+  // However, if the allocation is shared or it is a host allocation,
+  // no device might be associated, and the error is expected, so do
+  // not fail in that case. Only if we have a device allocation do 
+  // we really need to enforce that we get a valid value.
+  auto dev_handle_err = _hw_manager->device_handle_to_device_id(dev, out.dev);
+  if(props.type == ZE_MEMORY_TYPE_DEVICE && !dev_handle_err.is_success()){
+    return dev_handle_err;
+  }
+
+  return make_success();
 }
 
 result ze_allocator::mem_advise(const void *addr, std::size_t num_bytes,

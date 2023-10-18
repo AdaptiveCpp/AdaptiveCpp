@@ -130,7 +130,7 @@ public:
 private:
   void activate_device() const;
 
-  device_id _dev;
+  const device_id _dev;
   ihipStream_t* _stream;
   host_timestamped_event _reference_event;
   hip_backend* _backend;

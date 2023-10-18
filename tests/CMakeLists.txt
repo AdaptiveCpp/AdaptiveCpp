@@ -88,6 +88,8 @@ add_executable(sycl_tests
   sycl/vec.cpp
   sycl/queue.cpp)
 
+# Also test instant submission mode
+target_compile_definitions(sycl_tests PRIVATE -DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1)
 target_include_directories(sycl_tests PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sycl_tests PRIVATE ${Boost_LIBRARIES})
 add_sycl_to_target(TARGET sycl_tests)

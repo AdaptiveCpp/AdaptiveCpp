@@ -60,6 +60,11 @@ result submit_ocl_kernel(cl::Kernel& kernel,
                         ocl_usm* usm,
                         const hcf_kernel_info *info,
                         cl::Event* evt_out = nullptr) {
+  // All OpenCL API calls are safe, except calls that configure kernel objects
+  // like clSetKernelArgs. Currently we are not guaranteed that each thread gets
+  // its own separate kernel object, so we have to lock the submission process for now.
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock{mutex};
 
   cl_int err = 0;
   for(std::size_t i = 0; i < num_args; ++i ){
@@ -143,7 +148,7 @@ ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
 ocl_queue::~ocl_queue() {}
 
 std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
-  if(!_most_recent_event) {
+  if(!_state.get_most_recent_event()) {
     // Normally, this code path should only be triggered
     // when no work has been submitted to the queue, and so
     // nothing needs to be synchronized with. Thus
@@ -168,7 +173,7 @@ std::shared_ptr<dag_node_event> ocl_queue::insert_event() {
     
   }
 
-  return _most_recent_event;
+  return _state.get_most_recent_event();
 }
 
 std::shared_ptr<dag_node_event> ocl_queue::create_queue_completion_event() {
@@ -364,8 +369,9 @@ void* ocl_queue::get_native_type() const {
 }
 
 result ocl_queue::query_status(inorder_queue_status& status) {
-  if(_most_recent_event) {
-    status = inorder_queue_status{_most_recent_event->is_complete()};
+  auto evt = _state.get_most_recent_event();
+  if(evt) {
+    status = inorder_queue_status{evt->is_complete()};
   } else {
     status = inorder_queue_status{true};
   }
@@ -524,8 +530,8 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
 
 void ocl_queue::register_submitted_op(cl::Event evt) {
-  this->_most_recent_event = std::make_shared<ocl_node_event>(
-      _hw_manager->get_device_id(_device_index), evt);
+  this->_state.set_most_recent_event(std::make_shared<ocl_node_event>(
+      _hw_manager->get_device_id(_device_index), evt));
 }
 
 }

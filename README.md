@@ -76,6 +76,7 @@ AdaptiveCpp has been repeatedly shown to deliver very competitive performance co
 
 #### General performance hints
 
+* For strong-scaling/latency-bound problems, the alternative instant task submission mode can be used, which can substantially lower task launch latencies. Define the macro `HIPSYCL_ALLOW_INSTANT_SUBMISSION=1` before including `sycl.hpp` to enable it. Instant submission is possible with operations that do not use buffers (USM only), have no dependencies on non-instant tasks, do not use SYCL 2020 reductions and use in-order queues. In the stdpar model, instant submission is active by default.
 * Building AdaptiveCpp against newer LLVM generally results in better performance for backends that are relying on LLVM.
 * Unlike other SYCL implementations that may rely on kernel compilation at runtime, some compilation flows in AdaptiveCpp rely heavily on ahead-of-time compilation. So make sure to use appropriate optimization flags when compiling.
 * For the CPU backend:

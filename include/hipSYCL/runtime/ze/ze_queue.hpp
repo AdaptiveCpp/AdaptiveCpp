@@ -29,6 +29,7 @@
 #define HIPSYCL_ZE_QUEUE_HPP
 
 #include <future>
+#include <mutex>
 #include <level_zero/ze_api.h>
 
 #include "../executor.hpp"
@@ -108,7 +109,7 @@ private:
 
   ze_command_list_handle_t _command_list;
   ze_hardware_manager* _hw_manager;
-  std::size_t _device_index;
+  const std::size_t _device_index;
   ze_multipass_code_object_invoker _multipass_code_object_invoker;
   ze_sscp_code_object_invoker _sscp_code_object_invoker;
 
@@ -116,6 +117,12 @@ private:
   std::vector<std::shared_ptr<dag_node_event>> _enqueued_synchronization_ops;
 
   std::vector<std::future<void>> _external_waits;
+
+  // Most L0 API functions that add to a command list are not thread-safe.
+  // Since most of the public API functions of this class do exactly that,
+  // arguably the best strategy to achieve thread-safety is to just have a mutex
+  // and lock in every public function.
+  std::mutex _mutex;
 };
 
 }

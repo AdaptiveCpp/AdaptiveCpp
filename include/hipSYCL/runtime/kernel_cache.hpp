@@ -146,6 +146,8 @@ private:
 
 // Stores all HCF data, and also extracts information for data
 // in the SSCP format.
+//
+// This class is thread-safe.
 class hcf_cache {
 public:
   static hcf_cache& get();
@@ -222,12 +224,15 @@ public:
 
   static kernel_cache& get();
 
+  // This function is currently only partially thread-safe, as the
+  // returned pointer may become invalid if another thread registers a new kernel.
   const kernel_name_index_t*
   get_global_kernel_index(const std::string &kernel_name) const;
 
 
   template<class KernelT>
   void register_kernel() {
+    std::lock_guard<std::mutex> lock{_mutex};
     std::string name = get_global_kernel_name<KernelT>();
 
     HIPSYCL_DEBUG_INFO << "kernel_cache: Registering kernel " << name << std::endl;
@@ -289,6 +294,7 @@ public:
   }
 
   // Only to be used within a Constructor passed to get_or_construct_code_object!
+  // Only then is this function thread-safe!
   template <class Constructor, class Predicate>
   const code_object *recursive_get_or_construct_code_object(
       kernel_name_index_t kernel_index, const std::string &backend_kernel_name,

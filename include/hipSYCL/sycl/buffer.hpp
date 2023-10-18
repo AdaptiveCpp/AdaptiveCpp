@@ -296,7 +296,7 @@ private:
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, data_src->get_num_elements());
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
+    rt::dag_node_ptr node = build.builder()->add_command_group(
         std::move(explicit_copy), reqs, hints);
 
     return node;

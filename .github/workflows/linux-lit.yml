@@ -75,7 +75,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang: [14, 15, 16]
+        clang: [14, 15, 16, 17]
         os: [ubuntu-22.04]
     steps:
       - uses: actions/checkout@v2

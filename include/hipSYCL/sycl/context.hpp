@@ -34,10 +34,10 @@
 
 #include "types.hpp"
 #include "platform.hpp"
-#include "exception.hpp"
 #include "device.hpp"
 #include "device_selector.hpp"
 #include "info/info.hpp"
+#include "exception.hpp"
 
 #include "hipSYCL/runtime/device_list.hpp"
 #include "hipSYCL/glue/error.hpp"
@@ -90,7 +90,8 @@ public:
       }) {
     
     if(deviceList.empty())
-      throw platform_error{"context: Cannot construct context for empty device list"};
+      throw exception{make_error_code(errc::platform),
+                      "context: Cannot construct context for empty device list"};
 
     this->init(handler);
     for(const device& dev : deviceList) {
@@ -143,9 +144,11 @@ public:
     return devs;
   }
 
+
   template <typename Param>
   typename Param::return_type get_info() const {
-    throw unimplemented{"context::get_info() is unimplemented"};
+    throw exception{make_error_code(errc::runtime),
+                    "context::get_info() is unimplemented"};
   }
 
   std::size_t hipSYCL_hash_code() const {
@@ -198,18 +201,46 @@ HIPSYCL_SPECIALIZE_GET_INFO(context, platform)
 HIPSYCL_SPECIALIZE_GET_INFO(context, devices)
 { return get_devices(); }
 
-inline context exception::get_context() const {
-  // ToDo In hipSYCL, most operations are not associated
-  // with a context at all, so just return empty one?
-  return context{};
-}
-
 namespace detail {
 
 inline const rt::unique_device_list &extract_context_devices(const context &ctx) {
   return ctx._impl->devices;
 }
 
+}
+
+inline exception::exception(context ctx, std::error_code ec, const std::string& what_arg)
+  : _context{std::make_shared<context>(ctx)}, error_code{ec},
+    _msg{what_arg} {}
+
+inline exception::exception(context ctx, std::error_code ec, const char* what_arg)
+    : _context{std::make_shared<context>(ctx)}, error_code{ec},
+      _msg{what_arg} {}
+
+inline exception::exception(context ctx, std::error_code ec)
+  : _context{std::make_shared<context>(ctx)}, error_code{ec} {}
+
+inline exception::exception(context ctx, int ev, const std::error_category& ecat,
+                     const std::string& what_arg)
+  : _context{std::make_shared<context>(ctx)}, error_code{ev, ecat},
+    _msg{what_arg} {}
+
+inline exception::exception(context ctx, int ev,
+                            const std::error_category &ecat,
+                            const char *what_arg)
+  : _context{std::make_shared<context>(ctx)},
+    error_code{ev, ecat}, _msg{what_arg} {}
+
+inline exception::exception(context ctx, int ev,
+                            const std::error_category &ecat)
+  : _context{std::make_shared<context>(ctx)},
+    error_code{ev, ecat} {}
+
+inline context exception::get_context() const {
+  if (!has_context())
+    throw exception{make_error_code(errc::invalid)};
+
+  return *_context;
 }
 
 } // namespace sycl

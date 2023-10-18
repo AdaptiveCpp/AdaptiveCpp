@@ -154,7 +154,7 @@ public:
       }
     }
 
-    throw invalid_object_error{"Property not found"};
+    throw exception{make_error_code(errc::invalid), "Property not found"};
   }
 private:
 

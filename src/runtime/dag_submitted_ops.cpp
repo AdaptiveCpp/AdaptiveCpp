@@ -134,9 +134,9 @@ void dag_submitted_ops::wait_for_group(std::size_t node_group) {
   }
 }
 
-std::vector<dag_node_ptr> dag_submitted_ops::get_group(std::size_t node_group) {
+node_list_t dag_submitted_ops::get_group(std::size_t node_group) {
   
-  std::vector<dag_node_ptr> ops;
+  node_list_t ops;
   {
     std::lock_guard lock{_lock};
     for(dag_node_ptr node : _ops) {

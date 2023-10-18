@@ -39,7 +39,7 @@ namespace hipsycl {
 namespace rt {
 
 dag_node::dag_node(const execution_hints &hints,
-                   const std::vector<dag_node_ptr> &requirements,
+                   const node_list_t &requirements,
                    std::unique_ptr<operation> op,
                    runtime* rt)
     : _hints{hints},
@@ -237,7 +237,7 @@ void dag_node::add_requirement(dag_node_ptr requirement)
 
 operation *dag_node::get_operation() const { return _operation.get(); }
 
-const std::vector<std::weak_ptr<dag_node>> &dag_node::get_requirements() const
+const weak_node_list_t &dag_node::get_requirements() const
 {
   return _requirements;
 }

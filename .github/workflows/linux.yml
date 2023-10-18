@@ -29,6 +29,10 @@ jobs:
             os: ubuntu-20.04
             cuda: 11.0.2
             rocm: 4.0.1
+          - clang: 17
+            os: ubuntu-22.04
+            cuda: 11.0.2
+            rocm: 5.6.1
     steps:
     - uses: actions/checkout@v2
       with:
@@ -52,8 +56,8 @@ jobs:
         echo "CUDA Version ${{matrix.cuda}}" | sudo tee /opt/AdaptiveCpp/cuda/version.txt
     - name: install ROCm
       run: |
-        [[ ${{matrix.rocm}} == 4.0.1 ]] && CODENAME=xenial
-        [[ ${{matrix.rocm}} == 5.4.3 ]] && CODENAME=focal
+        [[ ${{matrix.os}} == ubuntu-20.04 ]] && CODENAME=xenial
+        [[ ${{matrix.os}} == ubuntu-22.04 ]] && CODENAME=jammy
         sudo apt install libnuma-dev cmake unzip
         wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
         echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/${{matrix.rocm}} $CODENAME main" | sudo tee /etc/apt/sources.list.d/rocm.list
@@ -121,23 +125,34 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        nvhpc: [22.11]
-        cuda: [11.8]
+        nvhpc: [23.9]
+        cuda: [12.2]
     steps:
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
     - name: install dependencies
       run : |
         sudo apt update
-        sudo apt install cmake libboost-all-dev wget
+        sudo apt install cmake libboost-all-dev wget gpg curl
     - name: install nvcxx
       run: |
         MAJOR_VERSION=$(echo ${{matrix.nvhpc}} | sed 's/\..*//')
         MINOR_VERSION=$(echo ${{matrix.nvhpc}} | sed 's/.*\.//')
-        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-${MAJOR_VERSION}-${MINOR_VERSION}_${{matrix.nvhpc}}_amd64.deb
-        wget https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64/nvhpc-20${MAJOR_VERSION}_${{matrix.nvhpc}}_amd64.deb
-        sudo apt install ./nvhpc-*
+        curl https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-hpcsdk-archive-keyring.gpg
+        echo 'deb [signed-by=/usr/share/keyrings/nvidia-hpcsdk-archive-keyring.gpg] https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' | sudo tee /etc/apt/sources.list.d/nvhpc.list
+        sudo apt-get update -y
+        sudo apt-get install -y nvhpc-${MAJOR_VERSION}-${MINOR_VERSION}
     - name: build AdaptiveCpp
       run: |
         mkdir build && cd build
@@ -150,5 +165,5 @@ jobs:
     - name: build tests
       run: |
         mkdir ${GITHUB_WORKSPACE}/build/tests-nvcxx
-        cmake -DACPP_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
+        cmake -DACPP_TARGETS="cuda-nvcxx" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-DHIPSYCL_NO_FIBERS" -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp ${GITHUB_WORKSPACE}/tests
         make -j2

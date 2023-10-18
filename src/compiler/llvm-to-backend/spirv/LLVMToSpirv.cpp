@@ -42,6 +42,7 @@
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -181,8 +182,9 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Configuring kernel for " << DynamicLocalMemSize
                        << " bytes of local memory\n";
     if(!setDynamicLocalMemoryCapacity(M, DynamicLocalMemSize)) {
-      this->registerError("Could not set dynamic local memory size");
-      return false;
+      HIPSYCL_DEBUG_WARNING
+          << "Could not set dynamic local memory size; this could imply that local memory "
+             "requested by the application is not actually used inside kernels\n";
     }
   } else {
     HIPSYCL_DEBUG_INFO << "LLVMToSpirv: Removing dynamic local memory support from module\n";
@@ -211,6 +213,10 @@ bool LLVMToSpirvTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
   AddressSpaceInferencePass ASIPass{ASMap};
   ASIPass.run(M, *PH.ModuleAnalysisManager);
+
+  // It seems there is an issue with debug info in llvm-spirv, so strip it for now
+  // TODO: We should attempt to find out what exactly is causing the problem
+  llvm::StripDebugInfo(M);
 
   return true;
 }

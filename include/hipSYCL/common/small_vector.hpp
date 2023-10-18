@@ -1,8 +1,7 @@
-
 /*
  * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
  *
- * Copyright (c) 2023 Aksel Alpay
+ * Copyright (c) 2019-2023 Aksel Alpay and contributors
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,31 +25,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <vector>
+#ifndef HIPSYCL_COMMON_SMALL_VECTOR_HPP
+#define HIPSYCL_COMMON_SMALL_VECTOR_HPP
 
-#ifndef HIPSYCL_THREADING_REDUCTION_STAGE_HPP
-#define HIPSYCL_THREADING_REDUCTION_STAGE_HPP
+#include <memory>
+#include "sbo/small_vector.hpp"
 
-#include "../reduction_descriptor.hpp"
-#include "cache_line.hpp"
+namespace hipsycl {
+namespace common {
 
-namespace hipsycl::algorithms::reduction::threading_model {
+template<class T, int N, class Allocator = std::allocator<T>>
+using small_vector = sbo::small_vector<T, N>;
 
-
-struct reduction_stage_data {
-  cache_line_aligned<initialization_flag_t> *is_data_initialized;
-  void *scratch_data;
-};
-
-struct reduction_stage {
-  std::size_t global_size;
-
-  // this should be initialized to have one entry
-  // per reduction operation.
-  common::auto_small_vector<reduction_stage_data> data_plan;
-};
-
+template <class T, class Allocator = std::allocator<T>>
+using auto_small_vector =
+    sbo::small_vector<T, ((64 + sizeof(T) - 1)/ sizeof(T))>;
 }
-
+}
 
 #endif

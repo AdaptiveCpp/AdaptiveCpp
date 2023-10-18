@@ -52,7 +52,7 @@ struct reduction_stage {
 
   // this should be initialized to have one entry
   // per reduction operation.
-  std::vector<reduction_stage_data> data_plan;
+  common::auto_small_vector<reduction_stage_data> data_plan;
   HorizontalReducer reducer;
   // The amount of local memory that will be allocated
   // for dedicated reduction kernel launches. reducers may

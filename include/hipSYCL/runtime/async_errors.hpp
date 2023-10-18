@@ -34,6 +34,7 @@
 
 #include "error.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 
 namespace hipsycl {
 namespace rt {
@@ -79,7 +80,7 @@ public:
   }
 private:
   mutable std::mutex _lock;
-  std::vector<result> _errors;
+  common::auto_small_vector<result> _errors;
 };
 
 }  

@@ -33,6 +33,7 @@
 #include <vector>
 #include <mutex>
 
+#include "hipSYCL/common/small_vector.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -139,7 +140,7 @@ private:
   }
 
   rt::runtime_keep_alive_token _rt;
-  std::vector<allocation> _allocations;
+  common::auto_small_vector<allocation> _allocations;
   std::mutex _mutex;
   allocation_type _alloc_type;
 };
@@ -195,7 +196,7 @@ public:
 private:
   allocation_cache* _parent;
   rt::device_id _dev;
-  std::vector<allocation> _managed_allocations;
+  common::auto_small_vector<allocation> _managed_allocations;
 };
 
 

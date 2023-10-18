@@ -30,6 +30,7 @@
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -98,12 +99,14 @@ result ensure_allocation_exists(runtime *rt,
     const std::size_t num_bytes =
         bmem_req->get_data_region()->get_num_elements().size() *
         bmem_req->get_data_region()->get_element_size();
-    const std::size_t min_align = // max requested alignment the size of a sycl::vec<double, 16>
-        std::min(bmem_req->get_data_region()->get_element_size(), sizeof(double) * 16);
 
     backend_allocator *allocator =
         rt->backends().get(target_dev.get_backend())->get_allocator(target_dev);
-    void *ptr = allocator->allocate(min_align, num_bytes);
+    // Currently we just pass 0 for the alignment which should
+    // cause backends to align to the largest supported type.
+    // TODO: A better solution might be to select a custom alignment
+    // best on sizeof(T). This requires querying backend alignment capabilities.
+    void *ptr = allocator->allocate(0, num_bytes);
 
     if(!ptr)
       return register_error(
@@ -211,7 +214,7 @@ select_executor(runtime *rt, dag_node_ptr node, operation *op) {
 
 void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   
-  std::vector<dag_node_ptr> reqs;
+  node_list_t reqs;
   node->for_each_nonvirtual_requirement([&](dag_node_ptr req) {
     if(std::find(reqs.begin(), reqs.end(), req) == reqs.end())
       reqs.push_back(req);

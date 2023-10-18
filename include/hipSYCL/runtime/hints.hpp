@@ -142,12 +142,12 @@ private:
   std::shared_ptr<backend_executor> _shared_executor;
 };
 
+
 class instant_execution : public execution_hint {};
 
 class request_instrumentation_submission_timestamp : public execution_hint {};
 class request_instrumentation_start_timestamp : public execution_hint {};
 class request_instrumentation_finish_timestamp : public execution_hint {};
-
 
 } // hints
 
@@ -208,7 +208,7 @@ private:
       _request_instrumentation_start_timestamp;
   hints::request_instrumentation_finish_timestamp
       _request_instrumentation_finish_timestamp;
-  
+
   hints::instant_execution _instant_execution;
 };
 
@@ -236,7 +236,6 @@ HIPSYCL_RT_HINTS_MAP_GETTER(request_instrumentation_finish_timestamp,
                             _request_instrumentation_finish_timestamp);
 HIPSYCL_RT_HINTS_MAP_GETTER(instant_execution,
                             _instant_execution);
-
 }
 }
 

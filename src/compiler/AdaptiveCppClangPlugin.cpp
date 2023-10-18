@@ -121,8 +121,8 @@ static llvm::RegisterStandardPasses
 #define HIPSYCL_RESOLVE_AND_QUOTE(V) #V
 #define HIPSYCL_STRINGIFY(V) HIPSYCL_RESOLVE_AND_QUOTE(V)
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
-  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
-      HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)
+  "v" HIPSYCL_STRINGIFY(ACPP_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
+      ACPP_VERSION_MINOR) "." HIPSYCL_STRINGIFY(ACPP_VERSION_PATCH)
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {
@@ -161,7 +161,8 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
 #ifdef HIPSYCL_WITH_ACCELERATED_CPU
           PB.registerAnalysisRegistrationCallback([](llvm::ModuleAnalysisManager &MAM) {
-            MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
+            if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
+              MAM.registerPass([] { return SplitterAnnotationAnalysis{}; });
           });
 #if LLVM_VERSION_MAJOR < 12
           PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM) {
@@ -169,12 +170,14 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 #else
           PB.registerPipelineStartEPCallback([](llvm::ModulePassManager &MPM, OptLevel Opt) {
 #endif
-            registerCBSPipeline(MPM, Opt);
+            if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
+              registerCBSPipeline(MPM, Opt);
           });
           // SROA adds loads / stores without adopting the llvm.access.group MD, need to re-add.
           // todo: check back with LLVM 13, might be fixed with https://reviews.llvm.org/D103254
           PB.registerVectorizerStartEPCallback([](llvm::FunctionPassManager &FPM, OptLevel) {
-            FPM.addPass(LoopsParallelMarkerPass{});
+            if(!CompilationStateManager::getASTPassState().isDeviceCompilation())
+              FPM.addPass(LoopsParallelMarkerPass{});
           });
 #endif
         }

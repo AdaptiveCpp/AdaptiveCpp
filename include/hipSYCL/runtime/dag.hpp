@@ -49,10 +49,8 @@ class dag
 public:
   void add_command_group(dag_node_ptr node);
 
-  const std::vector<dag_node_ptr>& get_command_groups() const;
-  const std::vector<dag_node_ptr>& get_memory_requirements() const;
-
-  using node_iterator = std::vector<dag_node_ptr>::iterator;
+  const node_list_t& get_command_groups() const;
+  const node_list_t& get_memory_requirements() const;
 
   bool contains_node(dag_node_ptr node) const;
 
@@ -67,8 +65,8 @@ public:
 
   void dump(std::ostream& ostr) const;
 private:
-  std::vector<dag_node_ptr> _command_groups;
-  std::vector<dag_node_ptr> _memory_requirements;
+  node_list_t _command_groups;
+  node_list_t _memory_requirements;
 };
 
 

@@ -36,6 +36,7 @@
 #include "exception.hpp"
 #include "access.hpp"
 #include "context.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "libkernel/backend.hpp"
@@ -934,7 +935,7 @@ private:
       "supported for copying");
   }
 
-  const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
+  const rt::node_list_t& get_cg_nodes() const
   { return _command_group_nodes; }
 
   
@@ -977,7 +978,7 @@ private:
 
   rt::requirements_list _requirements;
   rt::execution_hints _execution_hints;
-  std::vector<rt::dag_node_ptr> _command_group_nodes;
+  rt::node_list_t _command_group_nodes;
 
   range<1> _preferred_group_size1d;
   range<2> _preferred_group_size2d;

@@ -30,6 +30,7 @@
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/error.hpp"
@@ -213,7 +214,7 @@ select_executor(runtime *rt, dag_node_ptr node, operation *op) {
 
 void submit(backend_executor *executor, dag_node_ptr node, operation *op) {
   
-  std::vector<dag_node_ptr> reqs;
+  node_list_t reqs;
   node->for_each_nonvirtual_requirement([&](dag_node_ptr req) {
     if(std::find(reqs.begin(), reqs.end(), req) == reqs.end())
       reqs.push_back(req);

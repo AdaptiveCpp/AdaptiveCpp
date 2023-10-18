@@ -3,11 +3,56 @@ if(NOT CMAKE_VERSION VERSION_LESS 3.12)
   cmake_policy(SET CMP0074 NEW) # Don't complain about using BOOST_ROOT...
 endif()
 
-set(HIPSYCL_VERSION_MAJOR 23)
-set(HIPSYCL_VERSION_MINOR 10)
-set(HIPSYCL_VERSION_PATCH 0)
 
-project(hipSYCL VERSION ${HIPSYCL_VERSION_MAJOR}.${HIPSYCL_VERSION_MINOR}.${HIPSYCL_VERSION_PATCH})
+set(ACPP_VERSION_MAJOR 23)
+set(ACPP_VERSION_MINOR 10)
+set(ACPP_VERSION_PATCH 0)
+if(NOT ACPP_VERSION_SUFFIX)
+  # Get the latest abbreviated commit hash of the working branch
+  execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE ACPP_GIT_COMMIT_HASH
+    RESULT_VARIABLE GIT_HASH_RETURN_CODE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  # git branch
+  execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE ACPP_GIT_BRANCH
+    RESULT_VARIABLE GIT_BRANCH_RETURN_CODE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  # date of commit
+  execute_process(COMMAND git show -s --format=%cd --date=format:%Y%m%d HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE ACPP_GIT_DATE
+    RESULT_VARIABLE GIT_DATE_RETURN_CODE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  # check whether there are local changes
+  execute_process(COMMAND git diff-index --name-only HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE ACPP_LOCAL_CHANGES
+    RESULT_VARIABLE GIT_LOCAL_CHANGES_RETURN_CODE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  
+  if (GIT_HASH_RETURN_CODE EQUAL 0 AND GIT_BRANCH_RETURN_CODE EQUAL 0 AND 
+      GIT_DATE_RETURN_CODE EQUAL 0 AND GIT_LOCAL_CHANGES_RETURN_CODE EQUAL 0)
+    
+    if(NOT "${ACPP_LOCAL_CHANGES}" STREQUAL "")
+      set(DIRTY_STR ".dirty")
+    else()
+      set(DIRTY_STR "")
+    endif()
+  
+    set(ACPP_VERSION_SUFFIX "+git.${ACPP_GIT_COMMIT_HASH}.${ACPP_GIT_DATE}.branch.${ACPP_GIT_BRANCH}${DIRTY_STR}")
+  endif()
+endif()
+
+project(hipSYCL VERSION ${ACPP_VERSION_MAJOR}.${ACPP_VERSION_MINOR}.${ACPP_VERSION_PATCH})
 
 set(HIPSYCL_DEVICE_COMPILER ${PROJECT_SOURCE_DIR}/bin/syclcc-clang)
 set(HIPSYCL_SOURCE_DIR ${PROJECT_SOURCE_DIR})
@@ -375,9 +420,10 @@ else()
 endif()
 
 set(SYCLCC_CONFIG_FILE "{
-  \"version-major\" : \"${HIPSYCL_VERSION_MAJOR}\",
-  \"version-minor\" : \"${HIPSYCL_VERSION_MINOR}\",
-  \"version-patch\" : \"${HIPSYCL_VERSION_PATCH}\",
+  \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
+  \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
+  \"version-patch\" : \"${ACPP_VERSION_PATCH}\",
+  \"version-suffix\" : \"${ACPP_VERSION_SUFFIX}\",
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",

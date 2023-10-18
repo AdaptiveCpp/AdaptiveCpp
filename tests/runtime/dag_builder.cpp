@@ -48,10 +48,10 @@ BOOST_AUTO_TEST_CASE(default_hints) {
   rt::dag_builder builder{rt.get()};
 
   auto reqs = rt::requirements_list{rt.get()};
-  
+
   auto dummy_kernel_op = rt::make_operation<rt::kernel_operation>(
       "test_kernel",
-      std::vector<std::unique_ptr<rt::backend_kernel_launcher>>{},
+      common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>{},
       reqs);
 
   rt::dag_node_ptr node = builder.add_kernel(

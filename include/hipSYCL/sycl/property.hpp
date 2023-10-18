@@ -36,6 +36,8 @@
 #include "types.hpp"
 #include "exception.hpp"
 
+#include "hipSYCL/common/small_vector.hpp"
+
 namespace hipsycl {
 namespace sycl {
 
@@ -186,7 +188,7 @@ private:
     _props.push_back(ptr);
   }
 
-  std::vector<property_ptr> _props;
+  common::auto_small_vector<property_ptr> _props;
 };
 
 

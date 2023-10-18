@@ -31,6 +31,7 @@
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/sycl/access.hpp"
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 
 #include "hipSYCL/glue/embedded_pointer.hpp"
 
@@ -65,6 +66,8 @@ class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
 class memset_operation;
+
+using node_list_t = common::small_vector<dag_node_ptr, 8>;
 
 class operation_dispatcher
 {
@@ -327,9 +330,11 @@ class requirements_list;
 class kernel_operation : public operation
 {
 public:
-  kernel_operation(const std::string& kernel_name,
-                  std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
-                  const requirements_list& requirements);
+  kernel_operation(
+      const std::string &kernel_name,
+      common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
+          kernels,
+      const requirements_list &requirements);
 
   kernel_launcher& get_launcher();
   const kernel_launcher& get_launcher() const;
@@ -381,7 +386,7 @@ private:
   // that they are alive as long as kernel operations live.
   // This is required to guarantee the functionality of
   // initialize_embedded_pointers()
-  std::vector<dag_node_ptr> _requirements;
+  node_list_t _requirements;
 };
 
 // To describe memcpy operations, we need an abstract
@@ -640,10 +645,10 @@ public:
   void add_requirement(std::unique_ptr<requirement> req);
   void add_node_requirement(dag_node_ptr node);
 
-  const std::vector<dag_node_ptr>& get() const;
+  const node_list_t& get() const;
   
 private:
-  std::vector<dag_node_ptr> _reqs;
+  node_list_t _reqs;
   runtime* _rt;
 };
 

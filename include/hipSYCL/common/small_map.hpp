@@ -27,7 +27,8 @@
 
 
 #include <algorithm>
-#include <vector>
+
+#include "small_vector.hpp"
 
 #ifndef HIPSYCL_COMMON_SMALL_MAP_HPP
 #define HIPSYCL_COMMON_SMALL_MAP_HPP
@@ -86,7 +87,7 @@ public:
   }
 
 private:
-  std::vector<std::pair<Key,Value>> _v;
+  common::auto_small_vector<std::pair<Key,Value>> _v;
 };
 
 }

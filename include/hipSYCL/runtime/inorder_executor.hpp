@@ -30,6 +30,7 @@
 #define HIPSYCL_INORDER_EXECUTOR_HPP
 
 #include "executor.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "inorder_queue.hpp"
 
 namespace hipsycl {
@@ -48,7 +49,7 @@ public:
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
-                  const std::vector<dag_node_ptr> &reqs) override;
+                  const node_list_t &reqs) override;
 
   inorder_queue* get_queue() const;
 

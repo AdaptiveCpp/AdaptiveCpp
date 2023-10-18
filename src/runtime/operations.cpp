@@ -41,10 +41,11 @@ const instrumentation_set &operation::get_instrumentations() const {
 }
 
 kernel_operation::kernel_operation(
-    const std::string &kernel_name, std::vector<std::unique_ptr<backend_kernel_launcher>> kernels,
-    const requirements_list& reqs)
-    : _kernel_name{kernel_name}, _launcher{std::move(kernels)}
-{
+    const std::string &kernel_name,
+    common::auto_small_vector<
+        std::unique_ptr<backend_kernel_launcher>> kernels,
+    const requirements_list &reqs)
+    : _kernel_name{kernel_name}, _launcher{std::move(kernels)} {
   for(auto req_node : reqs.get()){
     operation* op = req_node->get_operation();
     assert(op);
@@ -71,7 +72,7 @@ void requirements_list::add_requirement(std::unique_ptr<requirement> req)
 {
   auto node = std::make_shared<dag_node>(
     execution_hints{}, 
-    std::vector<dag_node_ptr>{},
+    node_list_t{},
     std::move(req),
     _rt);
   
@@ -85,7 +86,7 @@ void requirements_list::add_node_requirement(dag_node_ptr node)
     _reqs.push_back(node);
 }
 
-const std::vector<dag_node_ptr>& requirements_list::get() const
+const node_list_t& requirements_list::get() const
 { return _reqs; }
 
 memory_location::memory_location(

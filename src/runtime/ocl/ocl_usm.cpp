@@ -177,9 +177,11 @@ public:
                                  sizeof(mem_type), &mem_type, nullptr);
 
     out.is_from_host_backend = false;
+    out.is_optimized_host = false;
+
     if(err != CL_SUCCESS)
       return err;
-    
+
     if(mem_type == CL_MEM_TYPE_HOST_INTEL)
       out.is_optimized_host = true;
     else if(mem_type == CL_MEM_TYPE_SHARED_INTEL)
@@ -187,7 +189,8 @@ public:
     else if(mem_type == CL_MEM_TYPE_DEVICE_INTEL) {
       cl_device_id dev;
       err = _mem_alloc_info(_ctx.get(), ptr, CL_MEM_ALLOC_DEVICE_INTEL,
-                                 sizeof(mem_type), &dev, nullptr);
+                                 sizeof(dev), &dev, nullptr);
+
       if(err != CL_SUCCESS)
         return err;
       

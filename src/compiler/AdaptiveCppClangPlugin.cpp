@@ -121,8 +121,8 @@ static llvm::RegisterStandardPasses
 #define HIPSYCL_RESOLVE_AND_QUOTE(V) #V
 #define HIPSYCL_STRINGIFY(V) HIPSYCL_RESOLVE_AND_QUOTE(V)
 #define HIPSYCL_PLUGIN_VERSION_STRING                                                              \
-  "v" HIPSYCL_STRINGIFY(HIPSYCL_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
-      HIPSYCL_VERSION_MINOR) "." HIPSYCL_STRINGIFY(HIPSYCL_VERSION_PATCH)
+  "v" HIPSYCL_STRINGIFY(ACPP_VERSION_MAJOR) "." HIPSYCL_STRINGIFY(                              \
+      ACPP_VERSION_MINOR) "." HIPSYCL_STRINGIFY(ACPP_VERSION_PATCH)
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() {
   return {

@@ -25,12 +25,15 @@ if(NOT ACPP_VERSION_SUFFIX)
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
   # date of commit
-  execute_process(COMMAND git show -s --format=%cd --date=format:%Y%m%d HEAD
+  execute_process(COMMAND git show -s --format=%cd --date=short HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE ACPP_GIT_DATE
     RESULT_VARIABLE GIT_DATE_RETURN_CODE
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
+  # Convert YYYY-MM-DD to YYYYMMDD
+  # We can't use --date=format:%Y%m%d to be compatible with git pre-2.6
+  string(REPLACE "-" "" ACPP_GIT_DATE ${ACPP_GIT_DATE})
   # check whether there are local changes
   execute_process(COMMAND git diff-index --name-only HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

@@ -196,7 +196,11 @@ if(WITH_OPENCL_BACKEND OR WITH_LEVEL_ZERO_BACKEND)
 endif()
 
 if(BUILD_CLANG_PLUGIN)
+  set(LLVM_DIR_OLD ${LLVM_DIR})
   find_package(LLVM CONFIG)
+  if(LLVM_DIR_OLD AND NOT ("${LLVM_DIR_OLD}" STREQUAL "${LLVM_DIR}"))
+    message(WARNING "Could not find LLVM in the requested location LLVM_DIR=${LLVM_DIR_OLD}; using ${LLVM_DIR}.")
+  endif()
   message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
   #find_package(Clang REQUIRED)
 

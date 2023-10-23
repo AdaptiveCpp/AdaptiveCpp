@@ -1,3 +1,9 @@
+cmake_minimum_required (VERSION 3.5)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 project(opensycl-examples)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/../cmake)
@@ -28,8 +34,6 @@ add_definitions(-DHIPSYCL_DEBUG_LEVEL=${ACPP_DEBUG_LEVEL})
 if(WIN32)
   add_definitions(-D_USE_MATH_DEFINES)
 endif()
-
-cmake_minimum_required (VERSION 3.5)
 
 include_directories(${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR})
 

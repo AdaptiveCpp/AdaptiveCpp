@@ -80,6 +80,7 @@ endif()
 
 install(TARGETS acpp-rt
         EXPORT install_exports
+        INCLUDES DESTINATION include/AdaptiveCpp
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)

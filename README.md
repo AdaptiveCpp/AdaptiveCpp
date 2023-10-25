@@ -118,7 +118,7 @@ In order to compile software with AdaptiveCpp, use `acpp`. `acpp` can be used li
 
 `acpp` accepts both command line arguments and environment variables to configure its behavior (e.g., to select the target to compile for). See `acpp --help` for a comprehensive list of options.
 
-When compiling with AdaptiveCpp, you will need to specify the targets you wish to compile for using the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details. When in doubt, use `--acpp-targets=generic` which will generate a binary that can run everywhere.
+When compiling with AdaptiveCpp, you will need to specify the targets you wish to compile for using the `--acpp-targets="compilation-flow1:target1,target2,...;compilation-flow2:..."` command line argument, `ACPP_TARGETS` environment variable or cmake argument. See the documentation on [using AdaptiveCpp](doc/using-hipsycl.md) for details. When in doubt, use `--acpp-targets=generic` which will generate a binary that can run ony any supported offload device. If parallel kernel execution on CPU is also needed, use `--acpp-targets="omp;generic"`.
 
 Instructions for using AdaptiveCpp in CMake projects can also be found in the documentation on [using AdaptiveCpp](doc/using-hipsycl.md).
 

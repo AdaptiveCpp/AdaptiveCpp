@@ -60,7 +60,7 @@ ResultT info_query(const cl::Device& dev) {
 ocl_hardware_context::ocl_hardware_context(const cl::Device &dev,
                                            const cl::Context &ctx, int dev_id,
                                            int platform_id)
-    : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev}, _alloc() {}
+    : _dev_id{dev_id}, _platform_id{platform_id}, _ctx{ctx}, _dev{dev}, _alloc{} {}
 
 bool ocl_hardware_context::is_cpu() const {
   return info_query<CL_DEVICE_TYPE, cl_device_type>(_dev) & CL_DEVICE_TYPE_CPU;

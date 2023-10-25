@@ -191,8 +191,6 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
 
   // TODO We could probably unify some of the logic here between
   // backends
-  device_id source_dev = op.source().get_device();
-  device_id dest_dev = op.dest().get_device();
 
   assert(op.source().get_access_ptr());
   assert(op.dest().get_access_ptr());

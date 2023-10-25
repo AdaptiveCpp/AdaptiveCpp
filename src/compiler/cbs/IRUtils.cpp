@@ -295,7 +295,8 @@ llvm::Loop *getOneWorkItemLoop(const llvm::LoopInfo &LI) {
 }
 
 llvm::BasicBlock *getWorkItemLoopBodyEntry(const llvm::Loop *WILoop) {
-  llvm::BasicBlock *Entry;
+  llvm::BasicBlock *Entry = nullptr;
+  assert(!llvm::successors(WILoop->getHeader()).empty() && "WILoop must have a body!");
   for (auto *Succ : llvm::successors(WILoop->getHeader())) {
     if (Succ != WILoop->getExitBlock()) {
       Entry = Succ;

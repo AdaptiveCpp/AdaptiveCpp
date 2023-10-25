@@ -121,7 +121,7 @@ std::string select_image(const rt::hcf_kernel_info* kernel_info,
                                           image_name);
 
   if (!selected_image_info)
-    return nullptr;
+    return {};
 
   if(all_kernels_in_image_out) {
     *all_kernels_in_image_out = selected_image_info->get_contained_kernels();

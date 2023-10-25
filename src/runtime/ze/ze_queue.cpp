@@ -156,7 +156,8 @@ result submit_ze_kernel(ze_kernel_handle_t kernel,
 
 ze_queue::ze_queue(ze_hardware_manager *hw_manager, std::size_t device_index)
     : _hw_manager{hw_manager}, _device_index{device_index},
-      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this} {
+      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this},
+      _kernel_cache{kernel_cache::get()} {
   assert(hw_manager);
 
   ze_hardware_context *hw_context =
@@ -457,7 +458,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
 
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -514,7 +515,7 @@ result ze_queue::submit_multipass_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, backend_kernel_name, backend_id::level_zero, hcf_object,
       code_object_selector, code_object_constructor);
 
@@ -558,7 +559,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
 
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -642,7 +643,7 @@ result ze_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, kernel_name, backend_id::level_zero, hcf_object,
       code_object_selector, code_object_constructor);
 

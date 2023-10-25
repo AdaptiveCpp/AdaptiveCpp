@@ -178,7 +178,8 @@ void cuda_queue::activate_device() const {
 
 cuda_queue::cuda_queue(cuda_backend *be, device_id dev, int priority)
     : _dev{dev}, _multipass_code_object_invoker{this},
-      _sscp_code_object_invoker{this}, _stream{nullptr}, _backend{be} {
+      _sscp_code_object_invoker{this}, _stream{nullptr}, _backend{be},
+      _kernel_cache{kernel_cache::get()} {
   this->activate_device();
 
   cudaError_t err;
@@ -470,7 +471,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
 
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t *kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -549,7 +550,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
     };
 
     const cuda_source_object *source = static_cast<const cuda_source_object *>(
-        rt::kernel_cache::get().recursive_get_or_construct_code_object(
+        _kernel_cache->recursive_get_or_construct_code_object(
             *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
             source_object_selector, source_object_constructor));
 
@@ -566,7 +567,7 @@ result cuda_queue::submit_multipass_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, backend_kernel_name, backend_id::cuda, hcf_object,
       code_object_selector, code_object_constructor);
 
@@ -611,7 +612,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
 
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -696,7 +697,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, kernel_name, backend_id::cuda, hcf_object,
       code_object_selector, code_object_constructor);
 

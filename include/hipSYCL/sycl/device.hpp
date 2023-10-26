@@ -150,7 +150,7 @@ public:
 
   bool hipSYCL_has_compiled_kernels() const {
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
-    if (is_cpu())
+    if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
     

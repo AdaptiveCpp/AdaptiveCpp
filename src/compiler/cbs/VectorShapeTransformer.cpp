@@ -119,15 +119,7 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
 
   switch (I.getOpcode()) {
   case Instruction::Alloca: {
-    const int alignment = vecInfo.getVectorWidth();
-    auto *AllocatedType = llvm::cast<llvm::AllocaInst>(I).getAllocatedType();
-    const bool Vectorizable = false;
-
-    if (Vectorizable) {
-      int typeStoreSize = (int)(layout.getTypeStoreSize(AllocatedType));
-      return VectorShape::strided(typeStoreSize, alignment);
-    }
-
+    // AdaptiveCpp CBS: we moved allocas out of the wi-loop.
     return VectorShape::varying();
   }
   case Instruction::Br: {
@@ -274,10 +266,10 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
     }
 
     // next: query resolver mechanism // TODO account for predicate
-    bool hasVaryingBlockPredicate = false;
-    if (!vecInfo.getVaryingPredicateFlag(BB, hasVaryingBlockPredicate)) {
-      hasVaryingBlockPredicate = false; // assume uniform block pred unless shown otherwise
-    }
+    // bool hasVaryingBlockPredicate = false;
+    // if (!vecInfo.getVaryingPredicateFlag(BB, hasVaryingBlockPredicate)) {
+    //   hasVaryingBlockPredicate = false; // assume uniform block pred unless shown otherwise
+    // }
 
     // todo: do we need this in hipSYCL? should be inlined already anyways
     //    auto resolver = platInfo.getResolver(callee->getName(), *callee->getFunctionType(),

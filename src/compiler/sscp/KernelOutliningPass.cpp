@@ -334,10 +334,10 @@ KernelOutliningPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &AM) {
   for(auto F: SSCPEntrypoints)
     descendCallGraphAndAdd(F, CG, DeviceFunctions);
 
-  for(auto* F : DeviceFunctions) {
+  // for(auto* F : DeviceFunctions) {
     //HIPSYCL_DEBUG_INFO << "SSCP Kernel outlining: Function is device function: "
     //                   << F->getName().str() << "\n";
-  }
+  // }
   
   llvm::SmallVector<llvm::Function*, 16> PureHostFunctions;
   for(auto& F: M) {

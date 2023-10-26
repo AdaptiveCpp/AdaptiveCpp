@@ -48,7 +48,7 @@ namespace hipsycl {
 namespace rt {
 
 hip_backend::hip_backend()
-    : _hw_manager{get_hardware_platform()},
+    : _hw_manager{hip_backend::get_hardware_platform()},
       _executor{*this, [this](device_id dev) {
                   return std::make_unique<hip_queue>(this, dev);
                 }} {}

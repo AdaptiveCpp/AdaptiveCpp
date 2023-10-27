@@ -1679,6 +1679,9 @@ class compiler:
         self._multipass_backends.append(
           hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
       elif backend == 'spirv':
+        print("acpp warning: 'spirv' target is deprecated, incomplete and may not work. It should not be "
+              "used outside of experiments and will be removed in a future version. Production "
+              "use cases should use 'generic' target instead to target SPIR-V devices.")
         self._multipass_backends.append(
           spirv_multipass_invocation(config))
       elif backend == 'sscp' or backend == 'generic':

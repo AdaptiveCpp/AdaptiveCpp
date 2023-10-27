@@ -29,7 +29,7 @@ function(create_llvm_based_library)
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
   find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS})
   if(NOT LLVM_LIBRARY)
-    message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and OpenCL (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF) or choose another LLVM installation")
+    message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
   endif()
   llvm_config(${target} USE_SHARED core support irreader passes)
   # We need symbolic functions for stdpar

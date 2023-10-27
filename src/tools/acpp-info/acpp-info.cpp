@@ -195,18 +195,19 @@ void print_help(const char* exe_name)
 {
     std::cout << "Usage: " << exe_name << " [options]\n\n";
     std::cout << "Options:\n";
-    std::cout << "\t-h\t\tShow this message.\n";
-    std::cout << "\t-l\t\tOnly list backends and devices, without detailed info\n";
+    std::cout << "\t-h, --help              Show this message.\n";
+    std::cout << "\t-l, --list-devices      Only list backends and devices, without detailed information.\n";
 }
 
 int main(int argc, char *argv[]) {
   bool print_device_details = true;
   for (int arg = 1; arg < argc; arg++) {
-    if (std::string(argv[arg]) == "-h") {
+    const std::string current_arg{argv[arg]};
+    if (current_arg == "-h" || current_arg == "--help") {
       print_help(argv[0]);
       return 0;
     }
-    else if (std::string(argv[arg]) == "-l") {
+    else if (current_arg == "-l" || current_arg == "--list-devices") {
       print_device_details = false;
     }
     else {

@@ -84,6 +84,7 @@ bool should_include_platform(const std::string& platform_name, const cl::Platfor
                              "version for platform " +
                                  platform_name,
                              error_code{"CL", err}});
+    return false;
   } else {
     int ocl_version_major = 0;
     if (!parse_ocl_version_string(ocl_version, ocl_version_major)) {

@@ -31,6 +31,9 @@
 #include <cstdio>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/print.hpp"
+#endif
 
 #include "id.hpp"
 #include "range.hpp"

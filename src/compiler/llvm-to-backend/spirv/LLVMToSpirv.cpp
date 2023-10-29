@@ -80,7 +80,7 @@ void appendIntelLLVMSpirvOptions(llvm::SmallVector<std::string>& out) {
       "long_constant_composite,+SPV_INTEL_fpga_invocation_pipelining_attributes,+SPV_INTEL_fpga_"
       "dsp_control,+SPV_INTEL_arithmetic_fence,+SPV_INTEL_runtime_aligned,"
       "+SPV_INTEL_optnone,+SPV_INTEL_token_type,+SPV_INTEL_bfloat16_conversion,+SPV_INTEL_joint_"
-      "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing"
+      "matrix,+SPV_INTEL_hw_thread_queries,+SPV_INTEL_memory_access_aliasing,+SPV_EXT_relaxed_printf_string_address_space"
   };
   for(const auto& S : Args) {
     out.push_back(S);
@@ -252,6 +252,9 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   };
   if(UseIntelLLVMSpirvArgs)
     appendIntelLLVMSpirvOptions(Args);
+  else {
+    Args.push_back("-spirv-ext=+SPV_EXT_relaxed_printf_string_address_space");
+  }
 
   llvm::SmallVector<llvm::StringRef, 16> Invocation{LLVMSpirVTranslator};
   for(const auto& A : Args)

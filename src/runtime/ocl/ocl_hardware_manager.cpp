@@ -36,6 +36,7 @@
 #include <CL/cl.h>
 #include <CL/opencl.hpp>
 #include <cstddef>
+#include <array>
 #include <optional>
 
 
@@ -43,6 +44,15 @@ namespace hipsycl {
 namespace rt {
 
 namespace {
+
+// These commonly encountered OpenCL platforms will be silently hidden due to
+// known incompatibilities. The hardware they support is eithers supported via other backends,
+// or not supported at all (e.g. FPGA). All other platforms will be hidden with a warning if
+// they fail feature support queries.
+constexpr std::array incompatible_ocl_platforms = {
+    "NVIDIA CUDA", "Intel(R) FPGA Emulation Platform for OpenCL(TM)",
+    "AMD Accelerated Parallel Processing"};
+
 template<int Query, class ResultT>
 ResultT info_query(const cl::Device& dev) {
   ResultT r{};
@@ -75,6 +85,17 @@ bool should_include_platform(const std::string& platform_name, const cl::Platfor
   const bool show_all_devices = application::get_settings().get<setting::ocl_show_all_devices>();
   if(show_all_devices)
     return true;
+
+  for(const auto& incompatible_platform : incompatible_ocl_platforms) {
+    if(platform_name == incompatible_platform) {
+      HIPSYCL_DEBUG_INFO << "ocl_hardware_manager: Hiding platform '"
+                         << platform_name
+                         << "' because it has known incompatibilities. Set "
+                            "ACPP_RT_OCL_SHOW_ALL_DEVICES=1 to override."
+                         << std::endl;
+      return false;
+    }
+  }
 
   std::string ocl_version;
   cl_int err = p.getInfo(CL_PLATFORM_VERSION, &ocl_version);

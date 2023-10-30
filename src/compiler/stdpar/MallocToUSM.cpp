@@ -101,7 +101,7 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
 
 bool isStdFunction(llvm::Function* F) {
   llvm::StringRef Name = F->getName();
-  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt"))
+  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt") || Name.startswith("_ZNKSt"))
     return true;
   return false;
 }

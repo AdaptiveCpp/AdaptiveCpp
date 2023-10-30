@@ -100,7 +100,7 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
 }
 
 bool isStdFunction(llvm::Function* F) {
-  static const std::string StdPrefixes[21] =
+  static const std::string StdPrefixes[] =
     {
       "_ZSt", "_ZNSt", "_ZNKSt",
       "_ZSa", "_ZNSa", "_ZNKSa",

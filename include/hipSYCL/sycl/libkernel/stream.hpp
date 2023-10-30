@@ -31,6 +31,9 @@
 #include <cstdio>
 
 #include "hipSYCL/sycl/libkernel/backend.hpp"
+#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "hipSYCL/sycl/libkernel/sscp/builtins/print.hpp"
+#endif
 
 #include "id.hpp"
 #include "range.hpp"
@@ -43,6 +46,24 @@
 
 namespace hipsycl {
 namespace sycl {
+
+namespace detail {
+
+template<typename... Args>
+void print(const char* s, Args... args) {
+  __hipsycl_backend_switch(
+    printf(s, args...),
+    if constexpr(sizeof...(args) == 0) {
+      __hipsycl_sscp_print(s);
+    } else {
+      __hipsycl_sscp_print("Type not yet supported for printing with generic target\n");
+    },
+    printf(s, args...),
+    printf(s, args...),
+    printf(s, args...));
+}
+
+}
 
 enum class stream_manipulator {
   flush,
@@ -117,91 +138,91 @@ const stream& operator<<(const stream& os, T v) {
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, stream_manipulator manip) {
   if(manip == endl)
-    printf("\n");
+    detail::print("\n");
   // Other stream_manipulators are not yet supported
   return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, char v){
-  printf("%c", v); return os;
+  detail::print("%c", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned char v){
-  printf("%hhu", v); return os;
+  detail::print("%hhu", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, short v){
-  printf("%hd", v); return os;
+  detail::print("%hd", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned short v){
-  printf("%hu", v); return os;
+  detail::print("%hu", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, int v){
-  printf("%d", v); return os;
+  detail::print("%d", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned int v){
-  printf("%u", v); return os;
+  detail::print("%u", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, long v){
-  printf("%ld", v); return os;
+  detail::print("%ld", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned long v){
-  printf("%lu", v); return os;
+  detail::print("%lu", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, long long v){
-  printf("%lld", v); return os;
+  detail::print("%lld", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, unsigned long long v){
-  printf("%llu", v); return os;
+  detail::print("%llu", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, char* v) {
-  printf("%s", v); return os;
+  detail::print(v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, const char* v) {
-  printf("%s", v); return os;
+  detail::print(v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, float v){
-  printf("%f", v); return os;
+  detail::print("%f", v); return os;
 }
 
 HIPSYCL_KERNEL_TARGET
 inline const stream& operator<<(const stream& os, double v){
-  printf("%f", v); return os;
+  detail::print("%f", v); return os;
 }
 
 template<class T>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, T* v) {
-  printf("%p", v); return os;
+  detail::print("%p", v); return os;
 }
 
 template<class T>
 HIPSYCL_KERNEL_TARGET
 const stream& operator<<(const stream& os, const T* v){
-  printf("%p", v); return os;
+  detail::print("%p", v); return os;
 }
 
 template<int Dim>

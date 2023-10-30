@@ -146,7 +146,7 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
 
   out.dev = rt::device_id{_backend_descriptor, attribs.device};
   out.is_from_host_backend = false;
-  out.is_optimized_host = memoryType == hipMemoryTypeHost;
+  out.is_optimized_host = (memoryType == hipMemoryTypeHost);
 #ifndef HIPSYCL_RT_NO_HIP_MANAGED_MEMORY
   out.is_usm = attribs.isManaged;
 #else
@@ -154,7 +154,7 @@ result hip_allocator::query_pointer(const void *ptr, pointer_info &out) const
   // correct as HIP versions that do not support attribs.isManaged
   // have no way of querying whether something was malloc'd with
   // hipMallocManaged().
-  out.is_usm = memoryType == hipMemoryTypeUnified;
+  out.is_usm = (memoryType == hipMemoryTypeUnified);
 #endif
   
   return make_success();

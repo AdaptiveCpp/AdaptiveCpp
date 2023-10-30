@@ -100,9 +100,21 @@ bool isRestrictedToRegularMalloc(llvm::Function* F) {
 }
 
 bool isStdFunction(llvm::Function* F) {
+  static const std::string StdPrefixes[] =
+    {
+      "_ZSt", "_ZNSt", "_ZNKSt",
+      "_ZSa", "_ZNSa", "_ZNKSa",
+      "_ZSb", "_ZNSb", "_ZNKSb",
+      "_ZSs", "_ZNSs", "_ZNKSs",
+      "_ZSi", "_ZNSi", "_ZNKSi",
+      "_ZSo", "_ZNSo", "_ZNKSo",
+      "_ZSd", "_ZNSd", "_ZNKSd"
+    };
+
   llvm::StringRef Name = F->getName();
-  if(Name.startswith("_ZNSt") || Name.startswith("_ZSt"))
-    return true;
+  for (const auto &Prefix : StdPrefixes)
+    if(Name.startswith(Prefix))
+      return true;
   return false;
 }
 

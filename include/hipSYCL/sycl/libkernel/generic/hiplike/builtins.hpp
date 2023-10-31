@@ -101,12 +101,7 @@ HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ceil, ceilf, ceil)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_copysign, copysignf, copysign)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cos, cosf, cos)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cosh, coshf, cosh)
-
-template<class T>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_cospi(T x) noexcept {
-  return hiplike_builtins::__hipsycl_cos(x * M_PI);
-}
-
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_cospi, cospif, cospi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erf, erff, erf)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_erfc, erfcf, erfc)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_exp, expf, exp)
@@ -132,13 +127,29 @@ template<class T>
 HIPSYCL_HIPLIKE_BUILTIN
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
-// Unsupported
-template<class T, class IntPtr>
-HIPSYCL_HIPLIKE_BUILTIN
-T __hipsycl_frexp(T x, IntPtr y) noexcept;
+template<class IntPtr>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_frexp(float x, IntPtr y) noexcept {
+  return ::frexpf(x, y);
+}
+
+template<class IntPtr>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_frexp(double x, IntPtr y) noexcept {
+  return ::frexp(x, y);
+}
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_hypot, hypotf, hypot)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_ilogb, ilogbf, ilogb)
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_ldexp(float x, IntType k) noexcept {
+  return ::ldexpf(x, k);
+}
+
+template<class IntType>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_ldexp(double x, IntType k) noexcept {
+  return ::ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_lgamma, lgammaf, lgamma)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tgamma, tgammaf, tgamma)
 
@@ -177,10 +188,15 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-// Not yet supported
-template<class T, class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN
-T __hipsycl_modf(T x, FloatPtr y) noexcept;
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_modf(float x, FloatPtr y) noexcept {
+  return ::modff(x, y);
+};
+
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_modf(double x, FloatPtr y) noexcept {
+  return ::modf(x, y);
+};
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN2(__hipsycl_nextafter, nextafterf, nextafter)
 
@@ -216,19 +232,22 @@ HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_rsqrt(double x) noexcept {
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sin, sinf, sin)
 
-template<class T, class FloatPtr>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
-  *cosval = hiplike_builtins::__hipsycl_cos(x);
-  return hiplike_builtins::__hipsycl_sin(x);
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN float __hipsycl_sincos(float x, FloatPtr cosval) noexcept {
+  float sinval;
+  ::sincosf(x, &sinval, cosval);
+  return sinval;
+}
+
+template<class FloatPtr>
+HIPSYCL_HIPLIKE_BUILTIN double __hipsycl_sincos(double x, FloatPtr cosval) noexcept {
+  double sinval;
+  ::sincos(x, &sinval, cosval);
+  return sinval;
 }
 
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sinh, sinhf, sinh)
-
-template<class T>
-HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_sinpi(T x) noexcept {
-  return hiplike_builtins::__hipsycl_sin(x * M_PI);
-}
-
+HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_sinpi, sinpif, sinpi)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tan, tanf, tan)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_tanh, tanhf, tanh)
 HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_trunc, truncf, trunc)
@@ -396,6 +415,43 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
     hiplike_builtins::__hipsycl_max(x, minval), maxval);
 }
 
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) < 4),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  //we convert to the unsigned type to avoid the typecast creating 
+  //additional ones in front of the value if x is negative
+  using Usigned = typename std::make_unsigned<T>::type; 
+
+  constexpr T diff = CHAR_BIT*(sizeof(__hipsycl_int32) - sizeof(Usigned));
+
+  return __clz(static_cast<__hipsycl_int32>(static_cast<Usigned>(x)))-diff;
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 4),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clz(static_cast<__hipsycl_int32>(x));
+  
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_integral_v<T> && sizeof(T) == 8),
+              int> = 0>
+HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  return __clzll(static_cast<__hipsycl_int64>(x));
+
+}
+
 template<class T>
 HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_mul24(T x, T y) noexcept {
   return __mul24(x, y);
@@ -473,7 +529,7 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_dot(T a, T b) noexcept {
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_HIPLIKE_BUILTIN typename T::element_type __hipsycl_dot(T a, T b) noexcept {
   typename T::element_type result = 0;
-  for (int i = 0; i < a.get_count(); ++i) {
+  for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
   return result;
@@ -525,8 +581,19 @@ HIPSYCL_HIPLIKE_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 
 // ********************** relational functions *********************
 
-HIPSYCL_DEFINE_HIPLIKE_MATH_BUILTIN(__hipsycl_isnan, isnan, isnan);
+#define HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(name, impl_name_sp, impl_name_dp)   \
+  HIPSYCL_HIPLIKE_BUILTIN int name(float x) { return ::impl_name_sp(x); }      \
+  HIPSYCL_HIPLIKE_BUILTIN int name(double x) { return ::impl_name_dp(x); }
 
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isnan, isnan, isnan);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isinf, isinf, isinf);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isfinite, isfinite, isfinite);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_isnormal, __builtin_isnormal, __builtin_isnormal);
+
+HIPSYCL_DEFINE_HIPLIKE_REL_BUILTIN(__hipsycl_signbit, signbit, signbit);
 
 }
 }

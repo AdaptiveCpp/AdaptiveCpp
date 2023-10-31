@@ -59,6 +59,10 @@
 #include "host/group_functions.hpp"
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "sscp/group_functions.hpp"
+#endif
+
 #define HIPSYCL_RETURN_DISPATCH_GROUP_ALGORITHM(name, ...)                     \
   using namespace detail;                                                      \
   HIPSYCL_RETURN_DISPATCH_BUILTIN(name, __VA_ARGS__);

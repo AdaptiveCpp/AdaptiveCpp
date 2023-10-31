@@ -49,7 +49,7 @@ In general, the backend will configure scoped parallelism groups with compile-ti
 
 ## `distribute_groups()`
 
-Additionally, the user can invoke `sycl::distribute_groups()`, which instructs the backend that the user would like to subdivide a group into smaller units (this can be useful for tiling opimization strategies). `distribute_groups()` will then attempt to provide subdivided groups to the user, and distribute a number of physical work items across the new groups.
+Additionally, the user can invoke `sycl::distribute_groups()`, which instructs the backend that the user would like to subdivide a group into smaller units (this can be useful for tiling optimization strategies). `distribute_groups()` will then attempt to provide subdivided groups to the user, and distribute a number of physical work items across the new groups.
 
 `distribute_groups()` invocations can be nested arbitrarily deep. However, the size of the provided smaller groups is backend-defined, and might also depend on the device, specific kernels, or kernel parameters. For example, if the logical work group size is not divisible by sub group sizes that can be executed by the backend or device, the SYCL implementation might be forced to instead subdivide into trivial scalar groups that only contain a single work item.
 
@@ -209,8 +209,8 @@ int main(){
     [=](auto grp){
       // Outside of distribute_items(), the degree of parallelism is implementation-defined.
       // the implementation can use whatever is most efficient for hardware/backend.
-      // In hipSYCL CPU, this would be executed by a single thread on CPU
-      // and Group_size threads on hipSYCL GPU
+      // On AdaptiveCpp CPU backend, this would be executed by a single thread on CPU
+      // and Group_size threads on AdaptiveCpp GPU backend.
       // Information about the position in the physical iteration space can be obtained
       // using grp.get_physical_local_id() and grp.get_physical_local_range().
 

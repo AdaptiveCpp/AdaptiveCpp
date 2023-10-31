@@ -36,6 +36,10 @@
 #include "range.hpp"
 #include "memory.hpp"
 
+#ifdef HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "sscp/builtins/subgroup.hpp"
+#endif
+
 namespace hipsycl {
 namespace sycl {
 
@@ -59,15 +63,12 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_local_linear_id() const {
-    __hipsycl_if_target_hiplike(
-      return local_tid() & get_warp_mask();
-    );
-    __hipsycl_if_target_spirv(
-      return __spirv_BuiltInSubgroupLocalInvocationId;
-    );
-    __hipsycl_if_target_host(
-      return 0;
-    );
+    __hipsycl_backend_switch(
+        return 0, 
+        return __hipsycl_sscp_get_subgroup_local_id(),
+        return local_tid() & get_warp_mask(),
+        return local_tid() & get_warp_mask(),
+        return __spirv_BuiltInSubgroupLocalInvocationId);
   }
 
   // always returns the maximum sub_group size
@@ -79,28 +80,23 @@ public:
   // always returns the maximum sub_group size
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_local_linear_range() const {
-    __hipsycl_if_target_hiplike(
-      return __hipsycl_warp_size;
-    );
-    __hipsycl_if_target_spirv(
-      return __spirv_BuiltInSubgroupSize;
-    );
-    __hipsycl_if_target_host(
-      return 1;
-    );
+    __hipsycl_backend_switch(
+        return 1, 
+        return __hipsycl_sscp_get_subgroup_size(),
+        // TODO This is not actually correct for incomplete subgroups
+        return __hipsycl_warp_size,
+        return __hipsycl_warp_size,
+        return __spirv_BuiltInSubgroupSize);
   }
 
   HIPSYCL_KERNEL_TARGET
   range_type get_max_local_range() const {
-    __hipsycl_if_target_hiplike(
-      return range_type{__hipsycl_warp_size};
-    );
-    __hipsycl_if_target_spirv(
-      return range_type{__spirv_BuiltInSubgroupMaxSize};
-    );
-    __hipsycl_if_target_host(
-      return range_type{1};
-    );
+    __hipsycl_backend_switch(
+        return range_type{1},
+        return range_type{__hipsycl_sscp_get_subgroup_max_size()},
+        return range_type{__hipsycl_warp_size},
+        return range_type{__hipsycl_warp_size},
+        return range_type{__spirv_BuiltInSubgroupMaxSize});
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -110,33 +106,22 @@ public:
 
   HIPSYCL_KERNEL_TARGET
   linear_id_type get_group_linear_id() const {
-    __hipsycl_if_target_hiplike(
-      // Assumes __hipsycl_warp_size is power of two
-      return local_tid() >> (__ffs(__hipsycl_warp_size) - 1);
-    );
-    __hipsycl_if_target_spirv(
-      return __spirv_BuiltInSubgroupId;
-    );
-    __hipsycl_if_target_host(
-      // TODO: Is this correct?
-      return 0;
-    );
+    __hipsycl_backend_switch(
+        return 0, // TODO This is probably incorrect
+        return __hipsycl_sscp_get_subgroup_id(),
+        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
+        return local_tid() >> (__ffs(__hipsycl_warp_size) - 1),
+        return __spirv_BuiltInSubgroupId);
   }
 
   HIPSYCL_KERNEL_TARGET
   linear_range_type get_group_linear_range() const {
-    __hipsycl_if_target_hiplike(
-        int local_range =
-            __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
-        return (local_range + __hipsycl_warp_size - 1) / __hipsycl_warp_size;
-    );
-    __hipsycl_if_target_spirv(
-      return __spirv_BuiltInNumSubgroups;
-    );
-    __hipsycl_if_target_host(
-      // TODO This is incorrect
-      return 1;
-    );
+    __hipsycl_backend_switch(
+        return 1,
+        return __hipsycl_sscp_get_num_subgroups(),
+        return hiplike_num_subgroups(),
+        return hiplike_num_subgroups(),
+        return __spirv_BuiltInNumSubgroups);
   }
 
   HIPSYCL_KERNEL_TARGET
@@ -155,6 +140,15 @@ public:
     return get_local_linear_id() == 0;
   }
 private:
+  int hiplike_num_subgroups() const {
+    __hipsycl_if_target_hiplike(
+        int local_range =
+            __hipsycl_lsize_x * __hipsycl_lsize_y * __hipsycl_lsize_z;
+        return (local_range + __hipsycl_warp_size - 1) / __hipsycl_warp_size;
+    );
+    return 0;
+  }
+
   HIPSYCL_KERNEL_TARGET
   int local_tid() const {
     __hipsycl_if_target_device(
@@ -163,9 +157,7 @@ private:
               + __hipsycl_lid_z * __hipsycl_lsize_x * __hipsycl_lsize_y;
       return tid;
     );
-    __hipsycl_if_target_host(
-      return 0;
-    );
+    return 0;
   }
 
   HIPSYCL_KERNEL_TARGET

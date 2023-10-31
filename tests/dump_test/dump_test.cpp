@@ -45,7 +45,8 @@ int main()
   // Kernel Operation
   std::cout << std::endl << "Dumping Kernel Operation: " << std::endl << std::endl;        
   requirements_list reqs{rt.get()};
-  std::vector<std::unique_ptr<backend_kernel_launcher>> backend_kernel_list;
+  hipsycl::common::auto_small_vector<std::unique_ptr<backend_kernel_launcher>>
+      backend_kernel_list;
   std::string kernel_name = "test_kernel";
   kernel_operation kernel_op(kernel_name, std::move(backend_kernel_list), reqs);
   kernel_op.dump(std::cout);
@@ -69,22 +70,22 @@ int main()
   std::cout << "Dumping entire DAG: " << std::endl << std::endl;
   dag test_dag;
   execution_hints no_hint;
-  std::vector<dag_node_ptr> no_requirements = {};
+  hipsycl::rt::node_list_t no_requirements = {};
   //kernels
   auto node_ptr1 = std::make_shared<dag_node>(no_hint, 
                                     no_requirements, 
                                     std::unique_ptr<operation>(&kernel_op),
                                     rt.get());
   auto node_memcpy1 = std::make_shared<dag_node>(no_hint, 
-                                    std::vector{ node_ptr1 }, 
+                                    hipsycl::rt::node_list_t{ node_ptr1 }, 
                                     std::unique_ptr<operation>(&test_memcpy),
                                     rt.get());
   auto node_ptr2 = std::make_shared<dag_node>(no_hint, 
-                                    std::vector{ node_ptr1 , node_memcpy1},
+                                    hipsycl::rt::node_list_t{ node_ptr1 , node_memcpy1},
                                     std::unique_ptr<operation>(&kernel_op),
                                     rt.get());
   auto node_ptr3 = std::make_shared<dag_node>(no_hint, 
-                                    std::vector{ node_ptr2, node_ptr1 },
+                                    hipsycl::rt::node_list_t{ node_ptr2, node_ptr1 },
                                     std::unique_ptr<operation>(&kernel_op),
                                     rt.get());
   //Memcpy

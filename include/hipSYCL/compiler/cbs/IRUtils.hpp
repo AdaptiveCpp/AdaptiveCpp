@@ -31,6 +31,7 @@
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/LoopInfo.h>
+#include <llvm/IR/Constants.h>
 
 namespace llvm {
 class Region;
@@ -44,6 +45,7 @@ struct MDKind {
   static constexpr const char Arrayified[] = "hipSYCL.arrayified";
   static constexpr const char InnerLoop[] = "hipSYCL.loop.inner";
   static constexpr const char WorkItemLoop[] = "hipSYCL.loop.workitem";
+  static constexpr const char LoopState[] = "hipSYCL.loop_state";
 };
 
 static constexpr const char BarrierIntrinsicName[] = "__hipsycl_barrier";
@@ -65,6 +67,7 @@ template <class PtrSet> struct PtrSetWrapper {
   template <class IT, class ValueT> IT insert(IT, const ValueT &Value) {
     return Set.insert(Value).first;
   }
+  auto begin() -> decltype(Set.begin()) { return Set.begin(); }
 };
 
 llvm::Loop *updateDtAndLi(llvm::LoopInfo &LI, llvm::DominatorTree &DT, const llvm::BasicBlock *B,
@@ -133,11 +136,9 @@ void arrayifyAllocas(llvm::BasicBlock *EntryBlock, llvm::Loop &L, llvm::Value *I
                      const llvm::DominatorTree &DT);
 llvm::AllocaInst *arrayifyValue(llvm::Instruction *IPAllocas, llvm::Value *ToArrayify,
                                 llvm::Instruction *InsertionPoint, llvm::Value *Idx,
-                                size_t NumValues = hipsycl::compiler::NumArrayElements,
-                                llvm::MDTuple *MDAlloca = nullptr);
+                                llvm::Value *NumValues, llvm::MDTuple *MDAlloca = nullptr);
 llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instruction *ToArrayify,
-                                      llvm::Value *Idx,
-                                      size_t NumValues = hipsycl::compiler::NumArrayElements,
+                                      llvm::Value *Idx, llvm::Value *NumValues,
                                       llvm::MDTuple *MDAlloca = nullptr);
 llvm::LoadInst *loadFromAlloca(llvm::AllocaInst *Alloca, llvm::Value *Idx,
                                llvm::Instruction *InsertBefore, const llvm::Twine &NamePrefix = "");
@@ -177,6 +178,26 @@ template <class T> T *getValueOneLevel(llvm::Constant *V, unsigned idx = 0) {
   if (V->getNumOperands() == 0)
     return nullptr;
   return llvm::dyn_cast<T>(V->getOperand(idx));
+}
+
+template <class Handler> void findFunctionsWithStringAnnotations(llvm::Module &M, Handler &&f) {
+  for (auto &I : M.globals()) {
+    if (I.getName() == "llvm.global.annotations") {
+      auto *CA = llvm::dyn_cast<llvm::ConstantArray>(I.getOperand(0));
+      for (auto *OI = CA->op_begin(); OI != CA->op_end(); ++OI) {
+        if (auto *CS = llvm::dyn_cast<llvm::ConstantStruct>(OI->get());
+            CS && CS->getNumOperands() >= 2)
+          if (auto *F = utils::getValueOneLevel<llvm::Function>(CS->getOperand(0)))
+            if (auto *AnnotationGL =
+                    utils::getValueOneLevel<llvm::GlobalVariable>(CS->getOperand(1)))
+              if (auto *Initializer =
+                      llvm::dyn_cast<llvm::ConstantDataArray>(AnnotationGL->getInitializer())) {
+                llvm::StringRef Annotation = Initializer->getAsCString();
+                f(F, Annotation);
+              }
+      }
+    }
+  }
 }
 
 } // namespace utils

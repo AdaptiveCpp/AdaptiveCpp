@@ -50,13 +50,13 @@ namespace detail::spirv_builtins {
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN2(name)                                    \
   template <class T> HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y) noexcept {   \
-    return __spirv_ocl_##name(x,y);                                              \
+    return __spirv_ocl_##name(x,y);                                            \
   }
 
 #define HIPSYCL_DEFINE_SPIRV_BUILTIN3(name)                                    \
   template <class T>                                                           \
   HIPSYCL_BUILTIN T __hipsycl_##name(T x, T y, T z) noexcept {                 \
-    return __spirv_ocl_##name(x,y,z);                                              \
+    return __spirv_ocl_##name(x,y,z);                                          \
   }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(acos)
@@ -122,12 +122,19 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN2(fmod)
 template<class T>
 T __hipsycl_fract(T x, T* ptr) noexcept;
 
-// Unsupported
 template<class T, class IntPtr>
-T __hipsycl_frexp(T x, IntPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_frexp(T x, IntPtr y) noexcept {
+  return __spirv_ocl_frexp(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(hypot)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(ilogb)
+
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  return __spirv_ocl_ldexp(x, k);
+}
+
 HIPSYCL_DEFINE_SPIRV_BUILTIN(lgamma)
 HIPSYCL_DEFINE_SPIRV_BUILTIN(tgamma)
 
@@ -163,9 +170,10 @@ HIPSYCL_BUILTIN T __hipsycl_minmag(T x, T y) noexcept {
   return (abs_x < abs_y) ? x : y;
 }
 
-// Not yet supported
 template<class T, class FloatPtr>
-T __hipsycl_modf(T x, FloatPtr y) noexcept;
+HIPSYCL_BUILTIN T __hipsycl_modf(T x, FloatPtr y) noexcept {
+  return __spirv_ocl_modf(x, y);
+}
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(nextafter)
 HIPSYCL_DEFINE_SPIRV_BUILTIN2(powr)
@@ -191,8 +199,7 @@ HIPSYCL_DEFINE_SPIRV_BUILTIN(sin)
 
 template<class T, class FloatPtr>
 HIPSYCL_BUILTIN T __hipsycl_sincos(T x, FloatPtr cosval) noexcept {
-  *cosval = spirv_builtins::__hipsycl_cos(x);
-  return spirv_builtins::__hipsycl_sin(x);
+  return __spirv_ocl_sincos(x, cosval);
 }
 
 HIPSYCL_DEFINE_SPIRV_BUILTIN(sinh)
@@ -339,6 +346,11 @@ HIPSYCL_BUILTIN T __hipsycl_min(T x, T y) noexcept {
   return (x < y) ? x : y;
 }
 
+template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  return return __spirv_ocl_clz(x);
+}
+
 template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
 HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return spirv_builtins::__hipsycl_min(
@@ -427,7 +439,7 @@ HIPSYCL_BUILTIN T __hipsycl_dot(T a, T b) noexcept {
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_BUILTIN typename T::element_type __hipsycl_dot(T a, T b) noexcept {
   typename T::element_type result = 0;
-  for (int i = 0; i < a.get_count(); ++i) {
+  for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
   return result;
@@ -478,12 +490,20 @@ HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
 }
 
 // ****************** relational functions ******************
-#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(builtin_name, dispatched_name)   \
-  template <class T> HIPSYCL_BUILTIN T __hipsycl_##builtin_name(T x) noexcept {    \
-    return __spirv_##dispatched_name(x);                                              \
+#define HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(builtin_name, dispatched_name)       \
+  template <class T> HIPSYCL_BUILTIN T __hipsycl_##builtin_name(T x) noexcept {\
+    return __spirv_##dispatched_name(x);                                       \
   }
 
 HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isnan, IsNan)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isinf, IsInf)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isfinite, IsFinite)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(isnormal, IsNormal)
+
+HIPSYCL_DEFINE_SPIRV_CORE_BUILTIN(signbit, SignBitSet)
 
 }
 }

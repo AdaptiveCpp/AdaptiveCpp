@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <iostream>
 
 #include "sycl_test_suite.hpp"
 using namespace cl;
@@ -38,6 +38,8 @@ BOOST_AUTO_TEST_CASE(device_queries) {
 
   std::string device = d.get_info<sycl::info::device::name>();
   BOOST_TEST(device.length() > 0);
+  std::cout << "Default-selected queue runs on device: " << device << std::endl;
+  
   // TODO Add tests for more queries
 }
 BOOST_AUTO_TEST_CASE(kernel_specific_queries) {

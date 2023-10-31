@@ -33,6 +33,7 @@
 #include <tuple>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
@@ -358,11 +359,12 @@ public:
     };
   }
 
-  virtual rt::backend_id get_backend() const final override {
-    return rt::backend_id::level_zero;
+  virtual int get_backend_score(rt::backend_id b) const final override {
+    return (b == rt::backend_id::level_zero) ? 2 : -1;
   }
 
-  virtual void invoke(rt::dag_node* node) final override {
+  virtual void invoke(rt::dag_node *node,
+                      const kernel_configuration &config) final override {
     _invoker(node);
   }
 
@@ -426,7 +428,9 @@ private:
     std::string kernel_name_tag = get_stable_kernel_name<KernelName>();
     std::string kernel_body_name = get_stable_kernel_name<KernelBodyT>();
 
-    rt::code_object_invoker *invoker = _queue->get_code_object_invoker();
+    assert(this->get_launch_capabilities().get_multipass_invoker());
+    rt::multipass_code_object_invoker *invoker =
+        this->get_launch_capabilities().get_multipass_invoker().value();
 
     assert(invoker &&
             "Runtime backend does not support invoking kernels from modules");

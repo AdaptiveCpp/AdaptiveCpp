@@ -115,7 +115,8 @@ inline int select_host(const device& dev) {
 inline int select_default(const device& dev) {
 #if defined(__HIPSYCL_ENABLE_CUDA_TARGET__) ||                                 \
     defined(__HIPSYCL_ENABLE_HIP_TARGET__) ||                                  \
-    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__)
+    defined(__HIPSYCL_ENABLE_SPIRV_TARGET__) ||                                \
+    defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
   // Add 2 to make sure that, if no GPU is found
   if(!dev.is_cpu() && dev.hipSYCL_has_compiled_kernels()) {
     // Prefer GPUs (or other accelerators) that have been targeted
@@ -173,7 +174,8 @@ public:
 class error_selector {
 public:
   int operator()(const device &dev) const {
-    throw unimplemented{"error_selector device selection invoked"};
+    throw exception{make_error_code(errc::runtime),
+                    "error_selector device selection invoked"};
   }
 };
 
@@ -328,7 +330,7 @@ std::vector<device> select_devices(const Selector &s) {
   }
 
   if (result.empty()) {
-    throw sycl::runtime_error{"No matching device"};
+    throw exception{make_error_code(errc::runtime), "No matching device"};
   }
 
   return result;

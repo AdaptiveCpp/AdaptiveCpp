@@ -39,6 +39,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
@@ -256,11 +257,13 @@ public:
     KernelNameMangler.reset(NameMangler);
     DeviceKernelNameMangler.reset(DeviceNameMangler);
 #ifdef _WIN32
+#if LLVM_VERSION_MAJOR == 11 || LLVM_VERSION_MAJOR == 12
     // necessary, to rely on device mangling. API introduced in 
     // https://reviews.llvm.org/D69322 thus only available if merged.. LLVM 12+ hopefully...
     KernelNameMangler->setDeviceMangleContext(
       Instance.getASTContext().getTargetInfo().getCXXABI().isMicrosoft()
       && Instance.getASTContext().getAuxTargetInfo()->getCXXABI().isItaniumFamily());
+#endif
 #endif // _WIN32
   }
 
@@ -393,7 +396,7 @@ public:
       }
     }
 
-    for(auto* F : HostNDKernels) {
+    auto MakeKernelsNoexcept = [&](clang::FunctionDecl* F) {
       detail::CompleteCallSet CCS(F);
       for (auto &D : CCS.getReachableDecls()) {
         if (!clang::isNoexceptExceptionSpec(D->getExceptionSpecType())) {
@@ -402,6 +405,13 @@ public:
           D->addAttr(clang::NoThrowAttr::CreateImplicit(Instance.getASTContext()));
         }
       }
+    };
+
+    for(auto* F : HostNDKernels) {
+      MakeKernelsNoexcept(F);
+    }
+    for(auto* F : SSCPOutliningEntrypoints) {
+      MakeKernelsNoexcept(F);
     }
   }
 
@@ -429,6 +439,7 @@ private:
   std::unordered_map<clang::FunctionDecl*, const clang::RecordType*> KernelBodies;
 
   std::unordered_set<clang::FunctionDecl*> HostNDKernels;
+  std::unordered_set<clang::FunctionDecl*> SSCPOutliningEntrypoints;
 
   std::unique_ptr<clang::MangleContext> KernelNameMangler;
   // Only used on clang 13+. Name mangler that takes into account
@@ -450,6 +461,11 @@ private:
     this->HostNDKernels.insert(F);
   }
 
+  void markAsSSCPOutliningEntrypoint(clang::FunctionDecl* F)
+  {
+    this->SSCPOutliningEntrypoints.insert(F);
+  }
+
   void processFunctionDecl(clang::FunctionDecl* f)
   {
     if(!f)
@@ -468,9 +484,17 @@ private:
       markAsKernel(f); 
     }
 
-    if (auto *AAttr = f->getAttr<clang::AnnotateAttr>()) {
-      if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
-        markAsNDKernel(f);
+    // Need to iterate over all attributes to support the case
+    // where multiple annotate attributes are present.
+    if(f->hasAttrs()) {
+      for(auto* Attr : f->getAttrs()) {
+        if(auto* AAttr = clang::dyn_cast<clang::AnnotateAttr>(Attr)) {
+          if (AAttr->getAnnotation() == "hipsycl_nd_kernel") {
+            markAsNDKernel(f);
+          } else if (AAttr->getAnnotation() == "hipsycl_sscp_outlining") {
+            markAsSSCPOutliningEntrypoint(f);
+          }
+        }
       }
     }
   }

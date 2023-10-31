@@ -31,9 +31,11 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/libkernel/vec.hpp"
 
+#include <bitset>
 #include <cstdlib>
 #include <cmath>
 #include <type_traits>
+#include <climits>
 
 #if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST
 
@@ -209,6 +211,11 @@ HIPSYCL_BUILTIN T __hipsycl_hypot(T x, T y) noexcept {
 template<class T>
 HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
   return std::ilogb(x);
+}
+
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  return std::ldexp(x, k);
 }
 
 template<class T>
@@ -528,6 +535,68 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
   return std::min(std::max(x, minval), maxval);
 }
 
+template<class T, std::enable_if_t<std::is_integral_v<T>,int> = 0>
+inline T fallback_clz(T x) noexcept {
+
+  if(x==0){return sizeof(T)*CHAR_BIT;}
+  std::bitset<sizeof(T)*CHAR_BIT> bset(x);
+  int idx = 0;
+  while(!bset[sizeof(T)*CHAR_BIT - idx -1]){idx++;}
+  return idx;
+
+}
+
+template <class T,
+          std::enable_if_t<
+              (std::is_same_v<T, unsigned int> || std::is_same_v<T, int> ||
+               std::is_same_v<T, unsigned short> || std::is_same_v<T, short> ||
+               std::is_same_v<T, unsigned char> ||
+               std::is_same_v<T, signed char> || std::is_same_v<T, char>),
+              int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+
+  #if __has_builtin(__builtin_clz)
+    // builtin_clz(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
+    //we convert to the unsigned type to avoid the typecast creating 
+    //additional ones in front of the value if x is negative
+    using Usigned = typename std::make_unsigned<T>::type; 
+    constexpr T diff = CHAR_BIT*(sizeof(unsigned int) - sizeof(Usigned));
+    return __builtin_clz(static_cast<Usigned>(x)) - diff;
+  #else
+    return fallback_clz(x);
+  #endif
+}
+
+template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long> ||
+                                     std::is_same_v<T, long>),
+                                    int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  #if __has_builtin(__builtin_clzl)
+    // builtin_clzl(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
+    return __builtin_clzl(static_cast<unsigned long>(x));
+  #else
+    return fallback_clz(x);
+  #endif
+}
+
+template <class T, std::enable_if_t<(std::is_same_v<T, unsigned long long> ||
+                                     std::is_same_v<T, long long>),
+                                    int> = 0>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  #if __has_builtin(__builtin_clzll)
+    // builtin_clzll(0) is UB on some arch
+    if(x==0){return sizeof(T)*CHAR_BIT;}
+
+    return __builtin_clzll(static_cast<unsigned long long>(x));
+  #else
+    return fallback_clz(x);
+  #endif
+}
+
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_max(T x, T y) noexcept {
   return (x > y) ? x : y;
@@ -614,7 +683,7 @@ HIPSYCL_BUILTIN T __hipsycl_dot(T a, T b) noexcept {
 template <class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 HIPSYCL_BUILTIN typename T::element_type __hipsycl_dot(T a, T b) noexcept {
   typename T::element_type result = 0;
-  for (int i = 0; i < a.get_count(); ++i) {
+  for (int i = 0; i < a.size(); ++i) {
     result += a[i] * b[i];
   }
   return result;
@@ -670,6 +739,27 @@ template<class T>
 HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
   return std::isnan(x);
 }
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isinf(T x) noexcept {
+  return std::isinf(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
+  return std::isfinite(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isnormal(T x) noexcept {
+  return std::isnormal(x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_signbit(T x) noexcept {
+  return std::signbit(x);
+}
+
 }
 }
 }

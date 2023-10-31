@@ -39,6 +39,7 @@
 
  #ifdef __HIPSYCL_ENABLE_CUDA_TARGET__
   #include <cuda_runtime_api.h>
+  #include <cuda_fp16.h>
  #endif
 
  #ifdef HIPSYCL_LIBKERNEL_CUDA_NVCXX
@@ -48,7 +49,8 @@
  #define HIPSYCL_LIBKERNEL_COMPILER_SUPPORTS_CUDA 0
 #endif
 
-#if (defined(__CUDA_ARCH__) && __CUDA_ARCH__ != 0) \
+#if (defined(__CUDA_ARCH__) && __CUDA_ARCH__ != 0 \
+  && !defined(HIPSYCL_SSCP_LIBKERNEL_LIBRARY)) \
   || defined(HIPSYCL_LIBKERNEL_CUDA_NVCXX)
 
  #define HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_CUDA 1

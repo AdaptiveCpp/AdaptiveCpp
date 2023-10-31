@@ -121,6 +121,9 @@ bool omp_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::execution_timestamps:
     return true;
     break;
+  case device_support_aspect::sscp_kernels:
+    return false;
+    break;
   }
   assert(false && "Unknown device aspect");
   return false;
@@ -155,6 +158,9 @@ omp_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::max_num_sub_groups:
     return std::numeric_limits<std::size_t>::max();
+    break;
+  case device_uint_property::needs_dimension_flip:
+    return true;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;

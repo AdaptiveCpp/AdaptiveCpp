@@ -215,45 +215,6 @@ dag_builder::add_command_group(std::unique_ptr<operation> op,
   return node;
 }
 
-dag_node_ptr dag_builder::add_kernel(std::unique_ptr<operation> op,
-                                     const requirements_list &requirements,
-                                     const execution_hints &hints)
-{
-  assert_is<kernel_operation>(op.get());
-  return add_command_group(std::move(op), requirements, hints);
-}
-
-dag_node_ptr dag_builder::add_memcpy(std::unique_ptr<operation> op,
-                                     const requirements_list &requirements,
-                                     const execution_hints &hints)
-{
-  assert_is<memcpy_operation>(op.get());
-  return add_command_group(std::move(op), requirements, hints);
-}
-
-dag_node_ptr dag_builder::add_fill(std::unique_ptr<operation> op,
-                                   const requirements_list &requirements,
-                                   const execution_hints &hints)
-{
-  assert_is<kernel_operation>(op.get());
-  return add_command_group(std::move(op), requirements, hints);
-}
-
-dag_node_ptr dag_builder::add_prefetch(std::unique_ptr<operation> op,
-                                      const requirements_list& requirements,
-                                      const execution_hints& hints)
-{
-  assert_is<prefetch_operation>(op.get());
-  return add_command_group(std::move(op), requirements, hints);
-}
-
-dag_node_ptr dag_builder::add_memset(std::unique_ptr<operation> op,
-                                      const requirements_list& requirements,
-                                      const execution_hints& hints)
-{
-  assert_is<memset_operation>(op.get());
-  return add_command_group(std::move(op), requirements, hints);
-}
 
 dag_node_ptr dag_builder::add_explicit_mem_requirement(
     std::unique_ptr<operation> req,

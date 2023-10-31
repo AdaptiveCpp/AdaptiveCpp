@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 #define HIPSYCL_OPENMP_KERNEL_LAUNCHER_HPP
 
+#include "hipSYCL/glue/kernel_configuration.hpp"
 #include <cassert>
 #include <tuple>
 #ifdef _OPENMP
@@ -479,7 +480,7 @@ public:
     if (type == rt::kernel_type::ndrange_parallel_for) {
       this->_invoker = [](rt::dag_node* node) {};
 
-      throw sycl::feature_not_supported{
+      throw sycl::exception{sycl::make_error_code(sycl::errc::feature_not_supported),
         "nd_range kernels on CPU are only supported if either compiler support (requires using Clang)\n"
         "or fibers are enabled, as otherwise they cannot be efficiently implemented. It is recommended:\n"
         " * to verify that you really need the features of nd_range parallel for.\n"
@@ -607,11 +608,12 @@ public:
     };
   }
 
-  virtual rt::backend_id get_backend() const final override {
-    return rt::backend_id::omp;
+  virtual int get_backend_score(rt::backend_id b) const final override {
+    return (b == rt::backend_id::omp) ? 2 : -1;
   }
 
-  virtual void invoke(rt::dag_node* node) final override {
+  virtual void invoke(rt::dag_node *node,
+                      const kernel_configuration &) final override {
     _invoker(node);
   }
 

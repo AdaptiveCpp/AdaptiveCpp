@@ -1,0 +1,1996 @@
+#!/usr/bin/env python3
+
+'''
+ *
+ * This file is part of hipSYCL, a SYCL implementation based on CUDA/HIP
+ *
+ * Copyright (c) 2018,2019 Aksel Alpay
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ '''
+
+import json
+import os
+import os.path
+import sys
+import subprocess
+import string
+import tempfile
+import uuid
+import binascii
+import shutil
+
+class OptionNotSet(Exception):
+  def __init__(self, msg):
+    super().__init__(msg)
+
+class hcf_node:
+  def __init__(self, node_name, nesting_level=0):
+    self._subnodes = []
+    self._key_value_pairs = {}
+    self._node_name = node_name
+    self._nesting_level = nesting_level
+
+  @property
+  def subnodes(self):
+    return self._subnodes
+  
+  def make_subnode(self, name):
+    n = hcf_node(name, self._nesting_level+1)
+    self._subnodes.append(n)
+    return n
+
+  def add_binary_attachment(self, offset, size):
+    n = self.make_subnode("__binary")
+    n.values["start"] = offset
+    n.values["size"] = size
+
+  @property
+  def values(self):
+    return self._key_value_pairs
+  
+  @property
+  def name(self):
+    return self._node_name
+
+  def __str__(self):
+    result = ""
+    indent = " "*self._nesting_level
+
+    for k in self._key_value_pairs:
+      result += "{}{}={}\n".format(indent,k, self._key_value_pairs[k])
+    
+    for n in self._subnodes:
+      result += indent + "{." + n.name + "\n"
+      result += str(n)
+      result += indent + "}." + n.name + "\n"
+    
+    return result
+
+class hcf_generator:
+  def __init__(self):
+    self._root = hcf_node("root")
+    self._binary_content = []
+    self._binary_content_size = 0
+
+  @property
+  def root(self):
+    return self._root
+
+  def attach_binary_content(self, node, content):
+    offset = self._binary_content_size
+    size = len(content)
+
+    node.add_binary_attachment(offset, size)
+
+    self._binary_content_size += len(content)
+    self._binary_content.append(bytes(content))
+
+  def attach_text_content(self, node, content):
+    self.attach_binary_content(node, content.encode("utf-8"))
+
+  # Return non-binary readable part
+  def __str__(self) -> str:
+    return str(self._root) + "__hipsycl_hcf_binary_appendix"
+  
+  @property
+  def bytes(self):
+    result = str(self).encode("utf-8")
+    for b in self._binary_content:
+      result += b
+    return result
+
+  @property
+  def escaped_bytes(self):
+    hex = binascii.hexlify(self.bytes).decode("utf-8")
+    return ",".join(["0x" + hex[i:i+2] 
+        for i in range(0,len(hex),2)])
+
+
+class integration_header:
+  def __init__(self, backend_name):
+    self._object_id = uuid.uuid1().int >> 64
+    self._hcf = hcf_generator()
+    self._hcf.root.values["object-id"] = self._object_id
+    self._hcf.root.values["generator"] = "syclcc"
+    self._backend = backend_name
+  
+  @property
+  def hcf_object(self):
+    return self._hcf
+  
+  def __str__(self) -> str:
+    hcf_string = self._hcf.escaped_bytes
+    
+    header = """
+#ifndef ACPP_{capital_name}_INTEGRATION_HEADER
+#define ACPP_{capital_name}_INTEGRATION_HEADER
+
+static const std::size_t __hipsycl_local_{name}_hcf_object_id = {hcf_object_id}ull;
+const unsigned char __hipsycl_hcf_object_{hcf_object_id} [] = {{ {hcf_binary} }};
+HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_object_id}, {hcf_size})
+
+#endif
+""".format(
+      capital_name = self._backend.upper(), 
+      name = self._backend.lower(),
+      hcf_object_id = self._object_id,
+      hcf_size = len(self._hcf.bytes),
+      hcf_binary = hcf_string)
+    
+    return header
+
+  def write_header(self, filename):
+    with open(filename, 'w') as f:
+      f.write(str(self))
+
+class config_file:
+  def __init__(self, filepath):
+    self._location = filepath
+    try:
+      with open(filepath, 'r') as config_file:
+        self._data = json.load(config_file)
+        self._is_loaded = True
+    except:
+      print("Could not open config",filepath)
+      self._data = {}
+      self._is_loaded = False
+
+  @property
+  def is_loaded(self):
+    return self._is_loaded
+
+  @property
+  def location(self):
+    return self._location
+
+  @property
+  def keys(self):
+    return self._data.keys()
+
+  def contains_key(self, key):
+    if not key in self._data:
+      return False
+    if isinstance(self._data[key], str):
+      if(self._data[key].endswith("-NOTFOUND") or
+        self._data[key] == ""):
+        return False
+    return True
+
+  def get(self, key):
+    if not self.contains_key(key):
+      raise RuntimeError("Accessed missing key in config file: "+key)
+
+    return self._data[key]
+
+  def get_or_default(self, key, default_value):
+    if self.contains_key(key):
+      return self._data[key]
+    return default_value
+
+class option:
+  def __init__(self, commandline, environment, configfile, description):
+    self._commandline = commandline
+    self._environment = environment
+    self._configfile = configfile
+    self._description = description
+
+  @property
+  def commandline(self):
+    return self._commandline
+
+  @property
+  def environment(self):
+    return self._environment
+
+  @property
+  def configfile(self):
+    return self._configfile
+
+  @property
+  def description(self):
+    return self._description
+
+class acpp_config:
+  def __init__(self, args):
+    config_file_path = os.path.abspath(
+      os.path.join(self.acpp_installation_path,
+                  "etc/hipSYCL/syclcc.json"))
+    
+    self._config_file = None
+    # First check silently if we can open the default config file.
+    # If that fails, we try later on after argument parsing if a
+    # custom location for the config file has been supplied.
+    # (This happens when compiling hipSYCL)
+    if os.path.exists(config_file_path):
+      self._config_file = config_file(config_file_path)
+      
+    self._args = args
+
+    # Describes different representations of options:
+    # 1.) the corresponding command line argument
+    # 2.) the corresponding environment variable
+    # 3.) the field in the config file.
+    self._options = {
+      'platform': option("--acpp-platform", "ACPP_PLATFORM", "default-platform",
+"""  (deprecated) The platform that hipSYCL should target. Valid values:
+    * cuda: Target NVIDIA CUDA GPUs
+    * rocm: Target AMD GPUs running on the ROCm platform
+    * cpu: Target only CPUs"""),
+
+      'clang': option("--acpp-clang", "ACPP_CLANG", "default-clang",
+"""  The path to the clang executable that should be used for compilation
+    (Note: *must* be compatible with the clang version that the 
+     hipSYCL clang plugin was compiled against!)"""),
+
+      'nvcxx': option("--acpp-nvcxx", "ACPP_NVCXX", "default-nvcxx",
+"""  The path to the nvc++ executable that should be used for compilation
+    with the cuda-nvcxx backend."""),
+
+      'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "default-cuda-path",
+"""  The path to the CUDA toolkit installation directry"""),
+
+      'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "default-rocm-path",
+"""  The path to the ROCm installation directory"""),
+
+      'gpu-arch': option("--acpp-gpu-arch", "ACPP_GPU_ARCH", "default-gpu-arch",
+"""  (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
+    For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
+    For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
+
+      'cpu-compiler': option("--acpp-cpu-cxx", "ACPP_CPU_CXX", "default-cpu-cxx",
+"""  The compiler that should be used when targeting only CPUs."""),
+      
+      'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "default-clang-include-path",
+"""  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
+
+      'sequential-link-line' : option("--acpp-squential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
+""" The arguments passed to the linker for the sequential backend"""),
+
+      'sequential-cxx-flags' : option("--acpp-squential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
+""" The arguments passed to the compiler to compile for the sequential backend"""),
+
+      'omp-link-line' : option("--acpp-omp-link-line", "ACPP_OMP_LINK_LINE", "default-omp-link-line",
+""" The arguments passed to the linker for the OpenMP backend."""),
+
+      'omp-cxx-flags' : option("--acpp-omp-cxx-flags", "ACPP_OMP_CXX_FLAGS", "default-omp-cxx-flags",
+""" The arguments passed to the compiler to compile for the OpenMP backend"""),
+
+      'rocm-link-line' : option("--acpp-rocm-link-line", "ACPP_ROCM_LINK_LINE", "default-rocm-link-line",
+""" The arguments passed to the linker for the ROCm backend."""),
+
+      'rocm-cxx-flags' : option("--acpp-rocm-cxx-flags", "ACPP_ROCM_CXX_FLAGS", "default-rocm-cxx-flags",
+""" The arguments passed to the compiler to compile for the ROCm backend"""),
+
+      'cuda-link-line' : option("--acpp-cuda-link-line", "ACPP_CUDA_LINK_LINE", "default-cuda-link-line",
+""" The arguments passed to the linker for the CUDA backend."""),
+
+      'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
+""" The arguments passed to the compiler to compile for the CUDA backend"""),
+
+      'config-file' : option("--acpp-config-file", "ACPP_CONFIG_FILE", "default-config-file",
+"""  Select an alternative path for the config file containing the default hipSYCL settings.
+    It is normally not necessary for the user to change this setting. """),
+    
+      'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
+"""  Specify backends and targets to compile for. Example: --acpp-targets='omp;hip:gfx900,gfx906'
+    Available backends:
+      * omp - OpenMP CPU backend
+               Backend Flavors:
+               - omp.library-only: Works with any OpenMP enabled CPU compiler.
+                                   Uses Boost.Fiber for nd_range parallel_for support.
+               - omp.accelerated: Uses clang as host compiler to enable compiler support
+                                  for nd_range parallel_for (see --acpp-use-accelerated-cpu).
+      * cuda - CUDA backend 
+               Requires specification of targets of the form sm_XY,
+               e.g. sm_70 for Volta, sm_60 for Pascal
+               Backend Flavors:
+               - cuda.explicit-multipass: CUDA backend in explicit multipass mode 
+                                          (see --acpp-explicit-multipass)
+               - cuda.integrated-multipass: Force CUDA backend to operate in integrated
+                                           multipass mode.
+      * cuda-nvcxx - CUDA backend with nvc++. Target specification is optional;
+               if given requires the format ccXY.
+      * hip  - HIP backend
+               Requires specification of targets of the form gfxXYZ,
+               e.g. gfx906 for Vega 20, gfx900 for Vega 10
+               Backend Flavors:
+               - hip.explicit-multipass: HIP backend in explicit multipass mode
+                                         (see --acpp-explicit-multipass)
+               - hip.integrated-multipass: Force HIP backend to operate in integrated
+                                           multipass mode.
+      * spirv - use clang SYCL driver to generate spirv
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
+    }
+    self._flags = {
+      'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
+                                    "default-use-accelerated-cpu",
+"""  If set, Clang is used for host compilation and explicit compiler support
+  is enabled for accelerating the nd-range parallel_for on CPU.
+  Uses continuation-based synchronization to execute all work-items
+  of a work-group in a single thread, eliminating scheduling overhead
+  and enabling enhanced vectorization opportunities compared to the fiber variant."""),
+      'is-dryrun': option("--acpp-dryrun", "ACPP_DRYRUN", "default-is-dryrun",
+"""  If set, only shows compilation commands that would be executed, 
+  but does not actually execute it. """),
+      'is-explicit-multipass': option("--acpp-explicit-multipass", "ACPP_EXPLICIT_MULTIPASS",
+      "default-is-explicit-multipass",
+"""  If set, executes device passes as separate compiler invocation and lets AdaptiveCpp control embedding device
+  images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
+  incompatible. In this mode, source code level interoperability may not be supported in the host pass.
+  For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. """),
+      'should-save-temps': option("--acpp-save-temps", "ACPP_SAVE_TEMPS", "default-save-temps",
+"""  If set, do not delete temporary files created during compilation."""),
+      'stdpar' : option("--acpp-stdpar", "ACPP_STDPAR", "default-is-stdpar", 
+"""  If set, enables SYCL offloading of C++ standard parallel algorithms."""),
+      'stdpar-system-usm' : option("--acpp-stdpar-system-usm", "ACPP_STDPAR_SYSTEM_USM", "default-is-stdpar-system-usm", 
+"""  If set, assume availability of system-level unified shared memory where every pointer from regular
+  malloc() is accessible on GPU. This disables automatic hijacking of memory allocations at the compiler
+  level by AdaptiveCpp."""),
+      'stdpar-unconditional-offload' : option("--acpp-stdpar-unconditional-offload", "ACPP_STDPAR_UNCONDITIONAL_OFFLOAD", "default-is-stdpar-unconditional-offload", 
+"""  Normally, heuristics are employed to determine whether algorithms should be offloaded.
+  This particularly affects small problem sizes. If this flag is set, supported parallel STL
+  algorithms will be offloaded unconditionally.""")
+    }
+    self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
+    self._acpp_args = []
+    self._acpp_environment_args = {}
+    self._forwarded_args = []
+    self._targets = None
+    self._cxx_path = None
+    self._clang_path = None
+    
+    for arg in self._args:
+      if self._is_acpp_arg(arg):
+        self._acpp_args.append(arg)
+      elif self._is_acpp_arg(self._upgrade_legacy_arg(arg)):
+        self._acpp_args.append(self._upgrade_legacy_arg(arg))
+      else:
+        self._forwarded_args.append(arg)
+    
+    for envvar in os.environ:
+      if self._is_acpp_envvar(envvar):
+        self._acpp_environment_args[envvar] = os.environ[envvar]
+      elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
+        self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
+        
+    if self._is_option_set_to_non_default_value("config-file"):
+      self._config_file = config_file(self._retrieve_option("config-file"))
+      
+    if self._config_file == None:
+      # If the config file is still None at this point, probably no alternative
+      # config file was supplied and the default one doesn't exist.
+      # As a last resort, we check if there is a global config file
+      # TODO try using some more portable path here
+      global_config_file = '/etc/hipSYCL/syclcc.json'
+      if os.path.exists(global_config_file):
+        self._config_file = config_file(global_config_file)
+      else:
+        # The main purpose of opening the default config file explicitly 
+        # here is that it will print a warning for the user
+        # if it doesn't exist and set the config file content to {}.
+        self._config_file = config_file(config_file_path)
+    
+    self._common_compiler_args = self._get_std_compiler_args()
+
+
+  def _upgrade_legacy_arg(self, arg):
+    if arg.startswith("--hipsycl") or arg.startswith("--opensycl"):
+      return arg.replace("--hipsycl", "--acpp").replace("--opensycl", "--acpp")
+    return arg
+
+  def _upgrade_legacy_environ_var(self, arg):
+    if arg.startswith("HIPSYCL_") or arg.startswith("OPENSYCL_"):
+      return arg.replace("HIPSYCL_", "ACPP_").replace("OPENSYCL_", "ACPP_")
+    return arg
+
+  def _is_acpp_arg(self, arg):
+    accepted_args = [self._options[opt].commandline for opt in self._options]
+    accepted_args += [self._flags[flag].commandline for flag in self._flags]
+    for accepted_arg in accepted_args:
+      if arg.startswith(accepted_arg + "=") or arg == accepted_arg:
+        return True
+    return False
+  
+  def _is_acpp_envvar(self, varname):
+    accepted_vars = [self._options[opt].environment for opt in self._options]
+    accepted_vars += [self._flags[flag].environment for flag in self._flags]
+    return varname in accepted_vars
+
+  def _parse_compound_argument(self, arg):
+    parsed_args = arg.split("=")
+    if len(parsed_args) != 2:
+      raise RuntimeError("Invalid argument: "+arg)
+    return parsed_args[1]
+
+  def print_options(self):
+    for option_name in self._options:
+      opt = self._options[option_name]
+      print(opt.commandline + "=<value>")
+      print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
+      print("  [default value provided by field '{}' in {}.]".format(opt.configfile, self._config_file.location))
+      try:
+        print("  [current value: {}]".format(self._retrieve_option(option_name)))
+      except OptionNotSet:
+        print("  [current value: NOT SET]")
+      print(opt.description)
+      print("")
+
+  def print_flags(self):
+    for flag_name in self._flags:
+      flag = self._flags[flag_name]
+      print(flag.commandline)
+      print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
+        flag.environment
+      ))
+      print("  [default value provided by field '{}' in {}.]".format(flag.configfile, self._config_file.location))
+      try:
+        print("  [current value: {}]".format(self._is_flag_set(flag_name)))
+      except OptionNotSet:
+        print("  [current value: NOT SET]")
+      print(flag.description)
+      print("")
+
+  def _interpret_flag(self, flag_value):
+    v = flag_value.lower()
+    if (v == "0" or v == "off" or
+        v == "false"):
+      return False
+    return True
+
+  def _is_flag_set(self, flag_name):
+    flag = self._flags[flag_name]
+
+    for arg in self._acpp_args:
+      if arg == flag.commandline:
+        return True
+      
+      if arg.startswith(flag.commandline + "="):
+        return self._interpret_flag(arg.split("=")[1])
+
+    if flag.environment in self._acpp_environment_args:
+      env_value = self._acpp_environment_args[flag.environment]
+      return self._interpret_flag(env_value)
+
+    if self._config_file.contains_key(flag.configfile):
+      return self._interpret_flag(self._config_file.get(flag.configfile))
+
+    raise OptionNotSet(
+      "Could not infer value of required flag from command line argument {}, "
+      "environment variable {} or config file.".format(
+        flag.commandline, flag.environment
+    ))
+
+  def _get_rocm_substitution_vars(self):
+    return {
+      'ACPP_ROCM_PATH' : self.rocm_path,
+      'ACPP_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+    }
+
+  def _get_cuda_substitution_vars(self):
+    vars = {
+      'ACPP_CUDA_PATH' : self.cuda_path,
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+    }
+    if sys.platform.startswith("win32"):
+      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib", "x64")
+    else:
+      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib64")
+
+    return vars
+
+  def _get_omp_substitution_vars(self):
+    return {
+      'ACPP_PATH' : self.acpp_installation_path,
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+    }
+
+  def _substitute_template_string(self, template_string, substitution_dict):
+    legacy_compatible_substitution_dict = {}
+    for k in substitution_dict:
+      legacy_compatible_substitution_dict[k] = substitution_dict[k]
+      legacy_compatible_substitution_dict[k.replace("ACPP", "HIPSYCL")] = substitution_dict[k]
+
+    template = string.Template(template_string)
+    return template.substitute(legacy_compatible_substitution_dict)
+
+  def _substitute_rocm_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_rocm_substitution_vars())
+      
+  def _substitute_cuda_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_cuda_substitution_vars())
+
+  def _substitute_omp_template_string(self, template_string):
+    return self._substitute_template_string(
+      template_string, self._get_omp_substitution_vars())
+
+  def _is_option_set_to_non_default_value(self, option_name):
+    opt = self._options[option_name]
+
+    for arg in self._acpp_args:
+      if arg.startswith(opt.commandline+"="):
+        return True
+
+    if opt.environment in self._acpp_environment_args:
+      return True
+
+    return False
+
+  def _retrieve_option(self, option_name, allow_unset=False):
+    opt = self._options[option_name]
+
+    # Try commandline first
+    for arg in self._acpp_args:
+      if arg.startswith(opt.commandline+"="):
+        return self._parse_compound_argument(arg)
+
+    # Try environment variables
+    if opt.environment in self._acpp_environment_args:
+      return self._acpp_environment_args[opt.environment]
+
+    # Try config file
+    if self._config_file.contains_key(opt.configfile):
+      return self._config_file.get(opt.configfile)
+  
+    if not allow_unset:
+      raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
+            opt.commandline, opt.environment))
+    else:
+      return ""
+
+  # Make sure that at least c++17 is added to the common args
+  def _get_std_compiler_args(self):
+    std_args=[]
+    for arg in self._args:
+      split_arg = arg.split("=")
+      if split_arg[0]=="-std":
+        std_args.append(split_arg[1])
+    if not std_args:
+       return ["-std=c++17"]
+    else:
+        if len(std_args) > 1:
+            raise RuntimeError("Multiple c++ standards defined")
+        std_version = std_args[0].strip("c++").strip("gnu++")
+        if std_version in self._insufficient_cpp_standards:
+            raise RuntimeError("Insufficient c++ standard '{}'".format(std_args[0]))
+        return []
+
+  def _parse_targets(self, target_arg):
+    # Split backends by ;
+    platform_substrings = target_arg.replace("'","").replace('"',"").split(';')
+    
+    result = {}
+    for p in platform_substrings:
+      platform_target_separated = p.split(':', 1)
+      if len(platform_target_separated) > 2 or len(platform_target_separated) == 0:
+        raise RuntimeError("Invalid target description: " + p)
+      
+      platform = platform_target_separated[0].strip().lower()
+
+      if not platform in result:
+        result[platform] = []
+
+      if len(platform_target_separated) > 1:
+        targets = [t.strip().lower() for t in platform_target_separated[1].split(",")]
+        for t in targets:
+          if not t in result[platform]:
+            result[platform].append(t)
+
+    return result
+  
+  def _get_executable_path(self, path):
+    normalized_path = shutil.which(path)
+    if normalized_path:
+      return normalized_path
+    return path
+
+  @property
+  def version(self):
+  
+    if not self._config_file.contains_key("version-major"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+    if not self._config_file.contains_key("version-minor"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+    if not self._config_file.contains_key("version-patch"):
+      raise OptionNotSet("Could not retrieve major version from config file")
+    
+    # version suffix may be empty if git queries fail
+    suffix = ""
+    if self._config_file.contains_key("version-suffix"):
+      suffix = self._config_file.get("version-suffix")
+
+    return (
+      self._config_file.get("version-major"), 
+      self._config_file.get("version-minor"),
+      self._config_file.get("version-patch"),
+      suffix)
+
+  @property
+  def plugin_llvm_version(self):
+    if not self._config_file.contains_key("plugin-llvm-version-major"):
+      raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
+    return int(self._config_file.get("plugin-llvm-version-major"))
+
+  @property
+  def has_plugin(self):
+    return self.plugin_llvm_version != 0
+
+  @property
+  def has_plugin_cpu_acceleration(self):
+    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+      raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
+    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
+
+  @property
+  def runtime_backends(self):
+    backend_path = os.path.join(self.acpp_installation_path, "lib", "hipSYCL")
+    content = os.listdir(backend_path)
+    return [c for c in content if os.path.isfile(os.path.join(backend_path, c))]
+
+  @property
+  def targets(self):
+    
+    if self._targets == None:
+      raw_target_string = ""
+      try:
+        raw_target_string = self._retrieve_option("targets")
+      except OptionNotSet:
+        # Legacy compatibility args
+        try:
+          platform = self._retrieve_option("platform")
+
+          hip_platform_synonyms      = set(["rocm", "amd", "hip"])
+          cuda_platform_synonyms     = set(["nvidia", "cuda"])
+          pure_cpu_platform_synonyms = set(["host", "cpu", "hipcpu", "omp"])
+
+
+          if platform in hip_platform_synonyms:
+            target_arch = self._retrieve_option("gpu-arch")
+            raw_target_string = "hip:" + target_arch
+            
+          elif platform in cuda_platform_synonyms:
+            target_arch = self._retrieve_option("gpu-arch")
+            raw_target_string = "cuda:" + target_arch
+            
+          elif platform in pure_cpu_platform_synonyms:
+            raw_target_string = "omp"
+        except OptionNotSet:
+          raise OptionNotSet("Neither a --acpp-targets specification "
+                             "nor the legacy combination of --acpp-platform and "
+                             "--acpp-gpu-arch was provided")
+
+      self._targets = self._parse_targets(raw_target_string)
+
+    return self._targets
+
+  @property
+  def cuda_path(self):
+    return self._retrieve_option("cuda-path")
+
+  @property
+  def rocm_path(self):
+    return self._retrieve_option("rocm-path")
+
+  @property
+  def clang_path(self):
+    if self._clang_path is None:
+      self._clang_path = self._get_executable_path(self._retrieve_option("clang"))
+    return self._clang_path
+
+  @property
+  def nvcxx_path(self):
+    return self._retrieve_option("nvcxx")
+
+  @property
+  def pure_cpu_compiler(self):
+    if self._cxx_path is None:
+      self._cxx_path = self._get_executable_path(self._retrieve_option("cpu-compiler"))
+    return self._cxx_path
+
+  @property
+  def clang_include_path(self):
+    return self._retrieve_option("clang-include-path")
+
+  @property
+  def acpp_installation_path(self):
+    acpp_path = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(acpp_path, "..")
+
+  @property
+  def acpp_plugin_path(self):
+    if sys.platform.startswith('win32'):
+      return os.path.join(self.acpp_installation_path, "bin", "acpp-clang.dll")
+    elif sys.platform == "darwin":
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.dylib")
+    else:
+      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.so")
+
+  @property
+  def sequential_link_line(self):
+    components = self._retrieve_option("sequential-link-line", allow_unset=True).split(' ')
+    return [self._substitute_omp_template_string(arg) for arg in components]
+
+  @property
+  def sequential_cxx_flags(self):
+    components = self._retrieve_option("sequential-cxx-flags", allow_unset=False).split(' ')
+    return [self._substitute_omp_template_string(arg) for arg in components]
+
+  @property
+  def omp_link_line(self):
+    components = self._retrieve_option("omp-link-line", allow_unset=True).split(' ')
+    return [self._substitute_omp_template_string(arg) for arg in components]
+
+  @property
+  def omp_cxx_flags(self):
+    components = self._retrieve_option("omp-cxx-flags", allow_unset=True).split(' ')
+    return [self._substitute_omp_template_string(arg) for arg in components]
+
+  @property
+  def rocm_link_line(self):
+    components = self._retrieve_option("rocm-link-line", allow_unset=True).split(' ')
+    return [self._substitute_rocm_template_string(arg) for arg in components]
+
+  @property
+  def rocm_cxx_flags(self):
+    components = self._retrieve_option("rocm-cxx-flags", allow_unset=True).split(' ')
+    return [self._substitute_rocm_template_string(arg) for arg in components]
+
+  @property
+  def cuda_link_line(self):
+    components = self._retrieve_option("cuda-link-line", allow_unset=True).split(' ')
+    return [self._substitute_cuda_template_string(arg) for arg in components]
+
+  @property
+  def cuda_cxx_flags(self):
+    components = self._retrieve_option("cuda-cxx-flags", allow_unset=True).split(' ')
+    return [self._substitute_cuda_template_string(arg) for arg in components]
+
+  @property
+  def forwarded_compiler_arguments(self):
+    return self._forwarded_args
+
+  @property
+  def is_dryrun(self):
+    try:
+      return self._is_flag_set("is-dryrun")
+    except OptionNotSet:
+      return False
+
+  @property
+  def use_accelerated_cpu(self):
+    try:
+      return self._is_flag_set("use-accelerated-cpu")
+    except OptionNotSet:
+      return False
+  
+  @property
+  def is_explicit_multipass(self):
+    try:
+      return self._is_flag_set("is-explicit-multipass")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar(self):
+    try:
+      return self._is_flag_set("stdpar")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar_system_usm(self):
+    try:
+      return self._is_flag_set("stdpar-system-usm")
+    except OptionNotSet:
+      return False
+
+  @property
+  def is_stdpar_unconditional_offload(self):
+    try:
+      return self._is_flag_set("stdpar-unconditional-offload")
+    except OptionNotSet:
+      return False
+
+  @property
+  def save_temps(self):
+    try:
+      return self._is_flag_set("should-save-temps")
+    except OptionNotSet:
+      return False
+
+  @property
+  def common_compiler_args(self):
+    return self._common_compiler_args
+
+  @property
+  def acpp_include_path(self):
+    return os.path.join(self.acpp_installation_path, "include", "AdaptiveCpp")
+
+  def has_optimization_flag(self):
+    for arg in self._forwarded_args:
+      if arg.startswith("-O"):
+        ending = arg.replace("-O", "", 1)
+        if ending.isnumeric() or ending in ["s", "fast", "g"]:
+          return True
+    return False
+  
+  def contains_linking_stage(self):
+    for arg in self.forwarded_compiler_arguments:
+      if (arg == "-E" or
+          arg == "-fsyntax-only" or
+          arg == "-S" or
+          arg == "-c"):
+        return False
+    return True
+
+  @property
+  def source_file_arguments(self):
+    source_file_endings = set([".cpp", ".cxx", ".c++", ".cc", ".c", ".hip", ".cu", ".sycl"])
+    source_files = []
+    for arg in self.forwarded_compiler_arguments:
+      if not arg.startswith("-"):
+        for ending in source_file_endings:
+          if arg.lower().endswith(ending):
+            source_files.append(arg)
+    return source_files
+
+  @property
+  def configfile(self):
+    return self._config_file
+
+  def is_pure_linking_stage(self):
+    return len(self.source_file_arguments) == 0
+
+def run_or_print(command, print_only):
+  if not print_only:
+    return subprocess.call(command)
+  else:
+    print(' '.join(command))
+    return 0
+
+class cuda_multipass_invocation:
+  @property
+  def unique_name(self):
+    return "cuda.explicit-multipass"
+
+  @property
+  def is_integrated_multipass(self):
+    return False
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._config = config
+    self._enable_cuda_host_pass = False
+    self._targets = target_list
+    self._host_compiler = self._config.clang_path
+    self.set_temp_dir("/tmp")
+
+  def set_temp_dir(self, temp_dir):
+    self._temp_dir = temp_dir
+    self._integration_header = os.path.join(
+      self._temp_dir,"__acpp_embedded_cuda_kernels.hpp")
+
+  def get_requested_targets(self):
+    return self._targets
+
+  def get_device_compiler(self):
+    return self._config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._config.clang_path, 100)
+
+  def enable_extended_host_pass(self):
+    self._enable_cuda_host_pass = True
+
+  @property
+  def is_extended_host_pass_enabled(self):
+    return self._enable_cuda_host_pass
+
+  def set_host_compiler(self, host_compiler):
+    self._host_compiler = host_compiler
+
+  def get_host_pass_requirements(self):
+    requires_extended_host_pass = True
+    caveats = []
+
+    if self._host_compiler != self._config.clang_path:
+      requires_extended_host_pass = False
+      caveats = [
+        'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
+        +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
+        ]
+      
+
+    return {
+      'requires-extended-host-pass' : requires_extended_host_pass,
+      'extended-host-pass-providers' : [
+        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.integrated-multipass', 'hip.integrated-multipass'],
+      'conflicts' : [],
+      'caveats' : caveats
+    }
+
+  def get_flags(self, target):
+    flags = self._config.cuda_cxx_flags
+    flags += [
+        "-x", "cuda",
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        "-fplugin=" + self._config.acpp_plugin_path,
+        "--cuda-path=" + self._config.cuda_path,
+        "--cuda-device-only",
+        "--cuda-gpu-arch=" + target,
+        "-S",
+        "-o",self._explicit_pass_output_file(target)
+      ]
+
+    if self._host_compiler != self._config.clang_path:
+      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
+    return flags
+
+  # CXX flags for main pass
+  def get_cxx_flags(self):
+    cuda_host_flags = []
+
+    if self._enable_cuda_host_pass:
+      cuda_host_flags = [
+        "-x","cuda",
+        "--cuda-host-only"
+      ] + self._config.cuda_cxx_flags
+
+    return [
+      "-D__HIPSYCL_MULTIPASS_CUDA_HEADER__=\"{}\"".format(
+            self._integration_header),
+      "-D__HIPSYCL_ENABLE_CUDA_TARGET__"
+    ] + cuda_host_flags
+
+
+
+  # Linker flags for main pass
+  def get_linker_flags(self):
+    return self._config.cuda_link_line
+
+  def _explicit_pass_output_file(self, target):
+    return os.path.join(self._temp_dir, "nvptx-"+target+".acpp_kernels")
+
+
+  def create_code_objects(self, targets):
+    kernel_files = [self._explicit_pass_output_file(target) for target in targets]
+
+    ptx_content = []
+    for filename in kernel_files:
+      with open(filename, 'r') as f:
+        ptx_content.append(f.read())
+
+    header = integration_header("cuda")
+    for target,ptx in zip(targets, ptx_content):
+      target_node = header.hcf_object.root.make_subnode(target)
+      header.hcf_object.attach_text_content(target_node, ptx)
+    
+    header.write_header(self._integration_header)
+
+class hip_multipass_invocation:
+  @property
+  def unique_name(self):
+    return "hip.explicit-multipass"
+
+  @property
+  def is_integrated_multipass(self):
+    return False
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._config = config
+    self._enable_hip_host_pass = False
+    self._targets = target_list
+    self._host_compiler = self._config.clang_path
+    self.set_temp_dir("/tmp")
+
+    if config.plugin_llvm_version < 13:
+      raise RuntimeError("hip.explicit-multipass is not supported for clang < 13.")
+
+  def set_temp_dir(self, temp_dir):
+    self._temp_dir = temp_dir
+    self._integration_header = os.path.join(
+      self._temp_dir,"__acpp_embedded_hip_kernels.hpp")
+
+  def get_requested_targets(self):
+    return self._targets
+
+  def get_device_compiler(self):
+    return self._config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._config.clang_path, 100)
+
+  def enable_extended_host_pass(self):
+    self._enable_hip_host_pass = True
+
+  @property
+  def is_extended_host_pass_enabled(self):
+    return self._enable_hip_host_pass
+
+  def set_host_compiler(self, host_compiler):
+    self._host_compiler = host_compiler
+
+  def get_host_pass_requirements(self):
+    requires_extended_host_pass = True
+    caveats = []
+
+    if self._host_compiler != self._config.clang_path:
+      requires_extended_host_pass = False
+      caveats = [
+        'Unnamed kernel lambdas are unsupported in this configuration because the selected host compiler '
+        +self._host_compiler+' does not match the device compiler of the backend '+self.get_device_compiler()
+        ]
+      
+
+    return {
+      'requires-extended-host-pass' : requires_extended_host_pass,
+      'extended-host-pass-providers' : [
+        'cuda.explicit-multipass', 'hip.explicit-multipass', 
+        'cuda.integrated-multipass', 'hip.integrated-multipass'],
+      'conflicts' : [],
+      'caveats' : caveats
+    }
+
+  def get_flags(self, target):
+    flags = self._config.rocm_cxx_flags
+    flags += [
+        "-x", "hip",
+        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
+        "-D__HIPSYCL_CLANG__",
+        "-fplugin=" + self._config.acpp_plugin_path,
+        "--cuda-device-only",
+        "--cuda-gpu-arch=" + target,
+        "-c","-o",self._explicit_pass_output_file(target)
+      ]
+
+    if self._host_compiler != self._config.clang_path:
+      flags += ["-D__HIPSYCL_SPLIT_COMPILER__"]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._config.acpp_plugin_path]
+    return flags
+
+  # CXX flags for main pass
+  def get_cxx_flags(self):
+    hip_host_flags = []
+
+    if self._enable_hip_host_pass:
+      hip_host_flags = [
+        "-x","hip",
+        "--cuda-host-only"
+      ] + self._config.rocm_cxx_flags
+
+    return [
+      "-D__HIPSYCL_MULTIPASS_HIP_HEADER__=\"{}\"".format(
+            self._integration_header),
+      "-D__HIPSYCL_ENABLE_HIP_TARGET__"
+    ] + hip_host_flags
+
+
+
+  # Linker flags for main pass
+  def get_linker_flags(self):
+    return self._config.rocm_link_line
+
+  def _explicit_pass_output_file(self, target):
+    return os.path.join(self._temp_dir, "hipfb-"+target+".acpp_kernels")
+
+
+  def create_code_objects(self, targets):
+    kernel_files = [self._explicit_pass_output_file(target) for target in targets]
+
+    hipfb_content = []
+    for filename in kernel_files:
+      with open(filename, 'rb') as f:
+        hipfb_content.append(f.read())
+
+    header = integration_header("hip")
+    for target,hipfb in zip(targets, hipfb_content):
+      target_node = header.hcf_object.root.make_subnode(target)
+      header.hcf_object.attach_binary_content(target_node, hipfb)
+    
+    header.write_header(self._integration_header)
+
+class spirv_multipass_invocation:
+  @property
+  def unique_name(self):
+    return "spirv"
+
+  @property
+  def is_integrated_multipass(self):
+    return False
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+
+  def __init__(self, config):
+    self._config = config
+    self._acpp_lib_path = os.path.join(
+      config.acpp_installation_path, "lib/")
+    self.set_temp_dir("/tmp")
+
+  def set_temp_dir(self, temp_dir):
+    self._temp_dir = temp_dir
+    self._integration_header = os.path.join(
+      self._temp_dir,"__acpp_embedded_spirv_kernels.hpp")
+
+  def get_requested_targets(self):
+    return ["spirv"]
+
+  def get_device_compiler(self):
+    return self._config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._config.clang_path, 100)
+
+  def set_host_compiler(self, host_compiler):
+    pass
+
+  def enable_extended_host_pass(self):
+    pass
+
+  @property
+  def is_extended_host_pass_enabled(self):
+    return False
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_flags(self, target):
+    flags = self._config.cuda_cxx_flags
+    
+    flags += [
+        "-fsycl-device-only",
+        "-fsycl-unnamed-lambda",
+        "-fno-sycl-use-bitcode",
+        "-D__HIPSYCL_ENABLE_SPIRV_TARGET__",
+        "-D__HIPSYCL_SPIRV__",
+        "-o",self._explicit_pass_output_file(target)
+      ]
+
+    return flags
+
+  # CXX flags for main pass
+  def get_cxx_flags(self):
+    return [
+      "-Xclang", "-fsycl-is-host",
+      "-D__HIPSYCL_MULTIPASS_SPIRV_HEADER__=\"{}\"".format(
+            self._integration_header),
+      "-D__HIPSYCL_ENABLE_SPIRV_TARGET__"
+    ]
+
+  # Linker flags for main pass
+  def get_linker_flags(self):
+    return []
+
+  def _explicit_pass_output_file(self, target):
+    return os.path.join(self._temp_dir, "acpp-kernels.spv")
+
+  def create_code_objects(self, targets):
+
+    if len(targets) != 1 or targets[0] != "spirv":
+      raise RuntimeError("SPIR-V multipass invocation: Invalid target")
+
+    with open(self._explicit_pass_output_file(targets[0]), "rb") as f:
+      data = f.read()
+
+      header = integration_header("spirv")
+      header.hcf_object.attach_binary_content(header.hcf_object.root, data)
+    
+      header.write_header(self._integration_header)
+
+
+class cuda_invocation:
+
+  @property
+  def unique_name(self):
+    return "cuda.integrated-multipass"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+
+  def __init__(self, config, target_list):
+    if len(target_list) == 0:
+      raise OptionNotSet("No CUDA targets specified")
+
+    self._cuda_targets = target_list
+    self._cuda_path = config.cuda_path
+    self._clang = config.clang_path
+    self._acpp_plugin_path = config.acpp_plugin_path
+    self._linker_args = config.cuda_link_line
+    self._cxx_flags = config.cuda_cxx_flags
+
+  def get_compiler_preference(self):
+    return (self._clang, 100)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['hip.integrated-multipass', 'cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+
+    flags = [
+        "-x", "cuda",
+        "--cuda-path=" + self._cuda_path,
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        "-fplugin=" + self._acpp_plugin_path,
+        "-D__HIPSYCL_CLANG__"
+      ]
+
+    flags += self._cxx_flags
+    for t in self._cuda_targets:
+      flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._acpp_plugin_path]
+      
+    return flags
+
+  def get_linker_flags(self):
+    return self._linker_args
+
+class cuda_nvcxx_invocation:
+  @property
+  def unique_name(self):
+    return "cuda-nvcxx"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._cuda_targets = target_list
+    self._cuda_path = config.cuda_path
+    self._nvcxx = config.nvcxx_path
+    self._linker_args = config.cuda_link_line
+    self._cxx_flags = config.cuda_cxx_flags
+    self._acpp_include_path = config.acpp_include_path
+
+  def get_compiler_preference(self):
+    return (self._nvcxx, 200)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['hip.integrated-multipass', 'cuda.integrated-multipass'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+
+    flags = [
+        "-cuda",
+        "-D__HIPSYCL_ENABLE_CUDA_TARGET__",
+        # Needed to avoid warnings about unused functions/variables in SYCL headers
+        "-isystem", self._acpp_include_path
+      ]
+
+    flags += self._cxx_flags
+    try:
+      for t in self._cuda_targets:
+        flags += ["-gpu=" + t]
+    except OptionNotSet:
+      # nvc++ can handle not setting targets explicitly
+      pass
+      
+    return flags
+
+  def get_linker_flags(self):
+    return ["-cuda"]+self._linker_args
+
+class hip_invocation:
+
+  @property
+  def unique_name(self):
+    return "hip.integrated-multipass"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, target_list):
+    self._hip_targets = target_list
+    self._rocm_path = config.rocm_path
+    self._clang = config.clang_path
+    self._linker_args = config.rocm_link_line
+    self._cxx_flags = config.rocm_cxx_flags
+    self._clang_include_path = config.clang_include_path
+    self._acpp_plugin_path = config.acpp_plugin_path
+
+  def get_compiler_preference(self):
+    return (self._clang, 100)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda.integrated-multipass', 'cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = self._cxx_flags
+    flags += [
+        "-x", "hip",
+        "-D__HIPSYCL_ENABLE_HIP_TARGET__",
+        "-fplugin=" + self._acpp_plugin_path,
+        "-D__HIPSYCL_CLANG__"
+      ]
+    
+    for t in self._hip_targets:
+      flags += ["--cuda-gpu-arch=" + t]
+
+    if not sys.platform.startswith("win32"):
+      flags += ["-fpass-plugin=" + self._acpp_plugin_path]
+      
+    return flags
+
+  def get_linker_flags(self):
+    return self._linker_args
+
+class omp_invocation:
+
+  @property
+  def unique_name(self):
+    return "omp.library-only"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = config.omp_link_line
+    self._cxx_flags = config.omp_cxx_flags
+
+    if len(targets) != 0:
+      raise RuntimeError("OpenMP backend does not support specifiying target architecture")
+
+    self._cxx = config.pure_cpu_compiler
+
+  def get_compiler_preference(self):
+    return (self._cxx, 1)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['omp.accelerated'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags += self._cxx_flags
+      
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
+class omp_accelerated_invocation:
+
+  @property
+  def unique_name(self):
+    return "omp.accelerated"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = config.omp_link_line
+    self._cxx_flags = config.omp_cxx_flags
+
+    if len(targets) != 0:
+      raise RuntimeError("OpenMP backend does not support specifiying target architecture")
+    if not config.has_plugin_cpu_acceleration:
+      raise RuntimeError("Trying to use accelerated CPU variant, but plugin was built without support for it")
+
+    self._clang_path = config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._clang_path, 10)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx', 'omp.library-only'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    if not sys.platform.startswith("win32"):
+      flags += [
+        "-fplugin=" + config.acpp_plugin_path
+        , "-fpass-plugin=" + config.acpp_plugin_path
+        , "-D__HIPSYCL_USE_ACCELERATED_CPU__"
+      ]
+    flags += self._cxx_flags
+
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
+# This is a workaround to have access to a backend
+# that can execute host tasks when compiling for GPUs.
+# It should be removed once we have non-OpenMP host backends
+# (e.g. TBB)
+class omp_sequential_invocation:
+
+  @property
+  def unique_name(self):
+    return "omp-sequential"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config):
+    self._cxx = config.pure_cpu_compiler
+    self._linker_args = config.sequential_link_line
+    self._cxx_flags = config.sequential_cxx_flags
+
+  def get_compiler_preference(self):
+    return (self._cxx, 1)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : [],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_OMPHOST_TARGET__"]
+    flags += self._cxx_flags
+    return flags
+
+  def get_linker_flags(self):
+    return self._linker_args
+
+
+class llvm_sscp_invocation:
+
+  @property
+  def unique_name(self):
+    return "sscp"
+
+  @property
+  def is_integrated_multipass(self):
+    return True
+
+  @property
+  def is_explicit_multipass(self):
+    return not self.is_integrated_multipass
+
+  def __init__(self, config, targets):
+    self._linker_args = []
+    self._cxx_flags = []
+
+    if len(targets) != 0:
+      raise RuntimeError("LLVM SSCP backend does not support specifiying target architecture")
+
+    self._clang_path = config.clang_path
+
+  def get_compiler_preference(self):
+    return (self._clang_path, 10)
+
+  def get_host_pass_requirements(self):
+    return {
+      'requires-extended-host-pass' : False,
+      'extended-host-pass-providers' : [],
+      'conflicts' : ['cuda-nvcxx'],
+      'caveats' : []
+    }
+
+  def get_cxx_flags(self):
+    flags = ["-D__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__",
+            "-Xclang", "-disable-O0-optnone", "-mllvm", "-hipsycl-sscp"]
+
+    if not sys.platform.startswith("win32"):
+      flags += [
+        "-fplugin=" + config.acpp_plugin_path
+        , "-fpass-plugin=" + config.acpp_plugin_path
+      ]
+    flags += self._cxx_flags
+
+    return flags
+
+  def get_linker_flags(self):
+    linker_args = self._linker_args
+
+    return linker_args
+
+class compiler:
+  def __init__(self, config):
+    self._user_args = config.forwarded_compiler_arguments
+    self._requires_linking = config.contains_linking_stage()
+    self._requires_compilation = not config.is_pure_linking_stage()
+    self._is_dry_run = config.is_dryrun
+    self._targets = config.targets
+    self._common_compiler_args = config.common_compiler_args
+    self._acpp_path = config.acpp_installation_path
+    self._acpp_lib_path = os.path.join(self._acpp_path, "lib/")
+    self._acpp_include_path = config.acpp_include_path
+    self._is_explicit_multipass = config.is_explicit_multipass
+    self._save_temps = config.save_temps
+    self._host_compiler = ""
+    self._is_stdpar = config.is_stdpar
+    self._is_stdpar_system_usm = config.is_stdpar_system_usm
+    self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+
+    if "hip" in self._targets and "cuda" in self._targets:
+        if not self._is_explicit_multipass:
+          print("acpp warning: CUDA and HIP cannot be targeted "
+              "simultaneously in non-explicit multipass; enabling explicit "
+              "multipass compilation.")
+          self._is_explicit_multipass = True
+
+    self._backends = []
+    self._multipass_backends = []
+
+    for backend in self._targets:
+      if backend == "omp":
+        def default_to_accelerated(config):
+          clang_path = None
+          try:
+            clang_path = config.clang_path
+          except OptionNotSet:
+            return False
+          return not "cuda-nvcxx" in config.targets and config.pure_cpu_compiler == clang_path\
+            and config.has_plugin_cpu_acceleration and int(config.plugin_llvm_version) >= 11
+
+        if config.use_accelerated_cpu or default_to_accelerated(config):
+          self._backends.append(omp_accelerated_invocation(config, config.targets["omp"]))
+        else:
+          self._backends.append(omp_invocation(config, config.targets["omp"]))
+      elif backend == "omp.library-only":
+        self._backends.append(omp_invocation(config, config.targets["omp.library-only"]))
+      elif backend == "omp.accelerated":
+        self._backends.append(omp_accelerated_invocation(config, config.targets["omp.accelerated"]))
+      elif backend == "cuda":
+        targets = config.targets["cuda"]
+        if self._is_explicit_multipass:
+          self._multipass_backends.append(cuda_multipass_invocation(config, targets))
+        else:
+          self._backends.append(cuda_invocation(config, targets))
+      elif backend == "cuda.integrated-multipass":
+        self._backends.append(
+          cuda_invocation(config, config.targets["cuda.integrated-multipass"]))
+      elif backend == "cuda.explicit-multipass":
+        self._multipass_backends.append(
+          cuda_multipass_invocation(config, config.targets["cuda.explicit-multipass"]))
+      elif backend == "cuda-nvcxx":
+        self._backends.append(
+          cuda_nvcxx_invocation(config, config.targets["cuda-nvcxx"]))
+      elif backend == "hip":
+        targets = config.targets["hip"]
+        if self._is_explicit_multipass:
+          self._multipass_backends.append(hip_multipass_invocation(config, targets))
+        else:
+          self._backends.append(hip_invocation(config, targets))
+      elif backend == "hip.integrated-multipass":
+        self._backends.append(
+          hip_invocation(config, config.targets["hip.integrated-multipass"]))
+      elif backend == "hip.explicit-multipass":
+        self._multipass_backends.append(
+          hip_multipass_invocation(config, config.targets["hip.explicit-multipass"]))
+      elif backend == 'spirv':
+        print("acpp warning: 'spirv' target is deprecated, incomplete and may not work. It should not be "
+              "used outside of experiments and will be removed in a future version. Production "
+              "use cases should use 'generic' target instead to target SPIR-V devices.")
+        self._multipass_backends.append(
+          spirv_multipass_invocation(config))
+      elif backend == 'sscp' or backend == 'generic':
+        self._backends.append(llvm_sscp_invocation(config, config.targets[backend]))
+      else:
+        raise RuntimeError("Unknown backend: " + backend)
+
+    self._backends += self._multipass_backends
+    
+    self._host_compiler = self._select_compiler()
+    for mb in self._multipass_backends:
+      mb.set_host_compiler(self._host_compiler)
+
+    if not "omp" in self._targets and not "omp.accelerated" in self._targets and\
+            not "omp.library-only" in self._targets:
+      # We need at least OpenMP "lite" (i.e. without -fopenmp) to
+      # get access to things like host tasks
+     self._backends.append(omp_sequential_invocation(config))
+
+    self._verify_backend_combinations()
+
+    # Take into account extended host pass requirements for 
+    # explicit multipass. E.g., CUDA explicit multipass requires
+    # -x cuda or -x hip in the host pass.
+    # The "extended host pass" concept is an abstraction of the fact
+    # that some explicit multipass backends may need to enable language extensions
+    # in the host pass that could however also be satisfied by other backends.
+    #
+    # When a backend is selected as extended host pass provider,
+    # this backend's language extensions will be available in the host pass.
+    for mb in self._multipass_backends:
+      self._configure_multipass_extended_host_pass(mb)
+
+    self._source_files = config.source_file_arguments
+    self._multipass_user_args = self._construct_multipass_user_args()
+
+  def _verify_backend_combinations(self):
+    selected_backends = [b.unique_name for b in self._backends]
+
+    fatal_error = False
+    for b in self._backends:
+      if selected_backends.count(b) > 1:
+        print("Error: backend",b,
+          "appears multiple times in processed target specification")
+
+      reqs = b.get_host_pass_requirements()
+      
+      conflicts = reqs['conflicts']
+      caveats = reqs['caveats']
+      for c in caveats:
+        print("Warning: caveat in backend",b.unique_name,
+                  "detected:",c)
+
+      for c in conflicts:
+        if c in selected_backends:
+          print("Error: requested backends",b.unique_name,
+                "and",c,"are incompatible.")
+          fatal_error = True
+    
+    if fatal_error:
+      raise RuntimeError("Errors encountered while verifying combination of requested backends.")
+
+
+  # Detect extended host pass requirements for explicit multipass
+  # backends, and potentially enable them.
+  def _configure_multipass_extended_host_pass(self, backend):
+
+    host_pass_reqs = backend.get_host_pass_requirements()
+    active_backends = {b.unique_name:b for b in self._backends}
+
+    if host_pass_reqs['requires-extended-host-pass']:
+      extended_pass_providers = host_pass_reqs['extended-host-pass-providers']
+      
+      available_providers = []
+      for provider in extended_pass_providers:
+        if provider in active_backends:
+          available_providers.append(provider)
+      
+      # If there is already an integrated multipass backend running
+      # that already provides the flags, or if an explicit multipass
+      # provider is already enabled, there is nothing to do
+      for p in available_providers:
+        if active_backends[p].is_integrated_multipass:
+          return
+        elif active_backends[p].is_extended_host_pass_enabled:
+          return
+      
+      # Otherwise, we need to select and enable an explicit multipass
+      # provider. Currently we always select the backend we are configuring.
+      # TODO make this user configurable, especially if we add HIP explicit multipass
+      #  when this might actually change things.
+      if backend.unique_name in available_providers:
+        backend.enable_extended_host_pass()
+      else:
+        raise RuntimeError("Tried to select "+backend.unique_name+" as extended host pass provider, but it is not an active backend")
+
+  def _construct_multipass_user_args(self):
+    args = list(self._user_args)
+
+    # For multipass, we need to remove -c and -o arguments
+    if "-c" in args:
+      args.remove("-c")
+    if "-o" in args:
+      idx = args.index("-o")
+      # Also remove argument to -o
+      if idx + 1 < len(args):
+        args.pop(idx + 1)
+      args.pop(idx)
+    # Need to remove source file arguments
+    for source_file in self._source_files:
+      if source_file in args:
+        args.remove(source_file)
+    return args
+
+  @property
+  def common_cxx_flags(self):
+    args = [
+      "-isystem", self._acpp_include_path,
+      "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
+    ]
+    if self._is_stdpar:
+      stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
+      args += [
+        "-isystem", stdpar_include_path,
+        "-D__OPENSYCL_STDPAR__", "-D__HIPSYCL_STDPAR__", "-D__ADAPTIVECPP_STDPAR__", "-D__ACPP_STDPAR__",
+        "-DHIPSYCL_ALLOW_INSTANT_SUBMISSION=1",
+        # TODO We should find a way to only emit this argument if the clang plugin is used.
+        "-mllvm", "-hipsycl-stdpar",
+        "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
+      ]
+      if self._is_stdpar_system_usm:
+        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
+      if self._is_stdpar_unconditional_offload:
+        args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+    return args + self._common_compiler_args
+
+  @property
+  def common_linker_flags(self):
+    linker_args = [
+      "-L"+self._acpp_lib_path,
+      "-lacpp-rt"
+    ]
+    
+    if sys.platform == "darwin":
+      linker_args.append("-Wl,-rpath")
+      linker_args.append(self._acpp_lib_path)
+    elif not sys.platform.startswith("win32"):
+      linker_args.append("-Wl,-rpath="+self._acpp_lib_path)
+    return linker_args
+
+  def _run_device_passes(self, temp_dir, multipass_backend):
+    if len(self._source_files) > 1:
+      raise RuntimeError("Multipass compilations only support a single source file "
+                        "as argument")
+    if len(self._source_files) == 0:
+      raise RuntimeError("No input file for compilation was identified")
+
+    multipass_backend.set_temp_dir(temp_dir)
+    cxx = multipass_backend.get_device_compiler()
+    targets = multipass_backend.get_requested_targets()
+
+    for target in targets:
+      flags = self.common_cxx_flags + multipass_backend.get_flags(target)
+      flags += self._multipass_user_args
+      flags += [self._source_files[0]]
+
+      ret_val = run_or_print([cxx] + flags,
+                            self._is_dry_run)
+      if ret_val != 0:
+        sys.exit(ret_val)
+
+    if not self._is_dry_run:
+      multipass_backend.create_code_objects(targets)
+
+  def _select_compiler(self):
+    compiler_executable, compiler_priority = ("", 0)
+
+    for backend in self._backends:
+      cxx, priority = backend.get_compiler_preference()
+      if priority > compiler_priority:
+        compiler_executable = cxx
+        compiler_priority = priority
+    
+    return compiler_executable
+
+  def _flag_should_be_unique(self, flag):
+    unique_list = ["-fplugin", "-fpass-plugin"]
+    for unique_flag in unique_list:
+      if flag.startswith(unique_flag):
+        return True
+
+  def _uniquify_flags(self, flags):
+    flag_counts = set()
+    i = 0
+    n = len(flags)
+    while i < n:
+      flag = flags[i]
+      if self._flag_should_be_unique(flag):
+        if flag in flag_counts:
+          del flags[i]
+          n = n - 1
+          i = i - 1
+        else:
+          flag_counts.add(flag)
+      i = i + 1
+
+  def _run(self, temp_dir):
+    if len(self._multipass_backends) > 0 and self._requires_compilation:
+      for b in self._multipass_backends:
+        self._run_device_passes(temp_dir, b)
+
+    cxx_flags = self.common_cxx_flags
+    ld_flags = self.common_linker_flags
+    compiler_executable = self._host_compiler
+
+    for backend_args in self._backends:
+      cxx_flags += backend_args.get_cxx_flags()
+      ld_flags += backend_args.get_linker_flags()
+
+    self._uniquify_flags(cxx_flags)
+
+    args = []
+    if self._requires_compilation:
+      args += cxx_flags
+
+    args += self._user_args
+
+    if self._requires_linking:
+      args += ld_flags
+
+    return run_or_print([compiler_executable] + args,
+                        self._is_dry_run)
+
+  def run(self):
+    temp_prefix = "adaptivecpp-"
+    if not self._save_temps:
+      with tempfile.TemporaryDirectory(prefix=temp_prefix) as temp_dir:
+        return self._run(temp_dir)
+    else:
+      temp_dir = tempfile.mkdtemp(prefix=temp_prefix)
+      print("acpp: Using temporary directory:",temp_dir)
+      return self._run(temp_dir)
+
+def print_config(config):
+  config_file = config.configfile
+  print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
+  for k in config_file.keys:
+    v = "(unconfigured)"
+    try:
+      v = config_file.get(k)
+    except Exception as e:
+      pass
+    print("    {}: {}".format(k, v))
+
+
+def print_version(config):
+  version = config.version
+  print("acpp [AdaptiveCpp compilation driver], Copyright (C) 2018-2023 Aksel Alpay and the AdaptiveCpp project")
+  print("  AdaptiveCpp version: {}.{}.{}{}".format(version[0],version[1],version[2],version[3]))
+  print("  Installation root:",os.path.abspath(config.acpp_installation_path))
+  if config.has_plugin:
+    print("  Plugin LLVM version: {}, can accelerate CPU: {}".format(config.plugin_llvm_version, config.has_plugin_cpu_acceleration))
+  print("  Available runtime backends:")
+  for b in config.runtime_backends:
+    print("    ",b)
+
+
+def print_usage(config):
+  print_version(config)
+  print("Usage: acpp <options>\n")
+  print("Options are:")
+  config.print_options()
+  config.print_flags()
+  print("--acpp-version\n  Print AdaptiveCpp version and configuration\n")
+  print("--help\n  Print this help message\n")
+  print("\nAny other options will be forwarded to the compiler.")
+  print("\nNote: Command line arguments take precedence over environment variables.")
+
+if __name__ == '__main__':
+  if sys.version_info[0] < 3:
+    print("acpp requires python 3.")
+    sys.exit(-1)
+  
+  args = sys.argv[1:]
+
+  try:
+    config = acpp_config(args)
+
+    if len(args) == 0:
+      print_usage(config)
+      sys.exit(-1)
+
+    for arg in args:
+      if arg == "--help":
+        print_usage(config)
+        sys.exit(0)
+      elif arg == "--acpp-version" or arg == "--opensycl-version" or arg == "--hipsycl-version":
+        print_version(config)
+        print_config(config)
+        sys.exit(0)
+
+    if not config.is_pure_linking_stage():
+      if not config.has_optimization_flag():
+        print("acpp warning: No optimization flag was given, optimizations are "
+              "disabled by default. Performance may be degraded. Compile with e.g. -O2/-O3 to "
+              "enable optimizations.")
+    
+    c = compiler(config)
+    sys.exit(c.run())
+  except Exception as e:
+    print("acpp fatal error: "+str(e))
+    sys.exit(-1)

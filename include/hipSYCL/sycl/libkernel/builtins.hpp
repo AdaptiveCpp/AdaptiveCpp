@@ -388,8 +388,9 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_TRINARY_T_T_T(T, name, impl_name)            \
   HIPSYCL_BUILTIN T name(T a, T b, T c) noexcept {                             \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0), detail::data_element(b, 0), \
-                       detail::data_element(c, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0),              \
+                                      detail::data_element(c, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -405,8 +406,8 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_T(T, name, impl_name)               \
   HIPSYCL_BUILTIN T name(T a, T b) noexcept {                                  \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0),                             \
-                       detail::data_element(b, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -429,6 +430,22 @@ using ulonglong16 = vec<unsigned long long, 16>;
         auto a_i = detail::data_element(a, i);                                 \
         auto b_i_ptr = &(detail::data_element(*b, i));                         \
         detail::data_element(result, i) = impl_name(a_i, b_i_ptr);             \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+  }
+
+#define HIPSYCL_BUILTIN_GENERATOR_BINARY_T_INT(T, name, impl_name)             \
+  HIPSYCL_BUILTIN T name(T a, int b) noexcept {                                \
+    if constexpr (std::is_arithmetic_v<T>) {                                   \
+      return static_cast<T>(impl_name(detail::data_element(a, 0),              \
+                                      detail::data_element(b, 0)));            \
+    } else {                                                                   \
+      T result;                                                                \
+      auto b_0 = detail::data_element(b, 0);                                   \
+      for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
+        auto a_i = detail::data_element(a, i);                                 \
+        detail::data_element(result, i) = impl_name(a_i, b_0);                 \
       }                                                                        \
       return result;                                                           \
     }                                                                          \
@@ -474,7 +491,7 @@ using ulonglong16 = vec<unsigned long long, 16>;
 #define HIPSYCL_BUILTIN_GENERATOR_UNARY_T(T, name, impl_name)                  \
   HIPSYCL_BUILTIN T name(T a) noexcept {                                       \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
+      return static_cast<T>(impl_name(detail::data_element(a, 0)));            \
     } else {                                                                   \
       T result;                                                                \
       for (int i = 0; i < detail::builtin_type_traits<T>::num_elements; ++i) { \
@@ -490,7 +507,10 @@ using ulonglong16 = vec<unsigned long long, 16>;
   typename detail::builtin_type_traits<T>::alternative_data_type<int> name(    \
       T a) noexcept {                                                          \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
+      return static_cast<                                                      \
+          typename detail::builtin_type_traits<T>                              \
+                         ::alternative_data_type<int>>                         \
+                             (impl_name(detail::data_element(a, 0)));          \
     } else {                                                                   \
       typename detail::builtin_type_traits<T>::alternative_data_type<int>      \
           result;                                                              \
@@ -507,7 +527,10 @@ using ulonglong16 = vec<unsigned long long, 16>;
   typename detail::builtin_type_traits<T>::alternative_data_type<int64_t> name(\
       T a) noexcept {                                                          \
     if constexpr (std::is_arithmetic_v<T>) {                                   \
-      return impl_name(detail::data_element(a, 0));                            \
+      return static_cast<                                                      \
+          typename detail::builtin_type_traits<T>                              \
+                         ::alternative_data_type<int64_t>>                     \
+                             (impl_name(detail::data_element(a, 0)));          \
     } else {                                                                   \
       typename detail::builtin_type_traits<T>::alternative_data_type<int64_t>  \
           result;                                                              \
@@ -625,9 +648,10 @@ HIPSYCL_DEFINE_BUILTIN(hypot, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_BINARY_T_T)
 HIPSYCL_DEFINE_BUILTIN(ilogb, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
-
-// TODO ldexp
-
+HIPSYCL_DEFINE_BUILTIN(ldexp, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                       HIPSYCL_BUILTIN_GENERATOR_BINARY_T_GENINT)
+HIPSYCL_DEFINE_BUILTIN(ldexp, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
+                       HIPSYCL_BUILTIN_GENERATOR_BINARY_T_INT)
 HIPSYCL_DEFINE_BUILTIN(lgamma, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 HIPSYCL_DEFINE_BUILTIN(lgamma_r, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOAT,
@@ -785,6 +809,8 @@ HIPSYCL_BUILTIN VecType clamp(const VecType &a, ScalarType minval,
                VecType{static_cast<element_type>(maxval)});
 }
 
+HIPSYCL_DEFINE_BUILTIN(clz, HIPSYCL_BUILTIN_OVERLOAD_SET_GENINTEGER,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T)
 
 // TODO clz
 // TODO ctz
@@ -967,6 +993,25 @@ HIPSYCL_DEFINE_BUILTIN(isnan, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
 HIPSYCL_DEFINE_BUILTIN(isnan, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
                        HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
 
+HIPSYCL_DEFINE_BUILTIN(isinf, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
+HIPSYCL_DEFINE_BUILTIN(isinf, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
+
+HIPSYCL_DEFINE_BUILTIN(isfinite, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
+HIPSYCL_DEFINE_BUILTIN(isfinite, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
+
+HIPSYCL_DEFINE_BUILTIN(isnormal, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
+HIPSYCL_DEFINE_BUILTIN(isnormal, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
+
+HIPSYCL_DEFINE_BUILTIN(signbit, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATF,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT)
+HIPSYCL_DEFINE_BUILTIN(signbit, HIPSYCL_BUILTIN_OVERLOAD_SET_GENFLOATD,
+                       HIPSYCL_BUILTIN_GENERATOR_UNARY_T_RET_INT64)
 }
 }
 

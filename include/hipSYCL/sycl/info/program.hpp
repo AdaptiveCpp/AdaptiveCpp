@@ -25,11 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef HIPSYCL_INFO_PROGRAM_HPP
 #define HIPSYCL_INFO_PROGRAM_HPP
 
+#include "info.hpp"
 #include "../types.hpp"
-#include "param_traits.hpp"
 
 namespace hipsycl {
 namespace sycl {
@@ -39,16 +40,12 @@ class context;
 
 namespace info {
 
-enum class program : int
+namespace program
 {
-  reference_count,
-  context,
-  devices
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(reference_count, detail::u_int);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(context, sycl::context);
+  HIPSYCL_DEFINE_INFO_DESCRIPTOR(devices, vector_class<sycl::device>);
 };
-
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::reference_count, detail::u_int);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::context, sycl::context);
-HIPSYCL_PARAM_TRAIT_RETURN_VALUE(program, program::devices, vector_class<sycl::device>);
 
 } // info
 } // sycl

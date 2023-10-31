@@ -70,6 +70,10 @@ void registerCBSPipelineLegacy(llvm::legacy::PassManagerBase &PM) {
 }
 #endif // LLVM_VERSION_MAJOR < 16
 
+#if defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR == 5 && ROCM_CLANG_VERSION_MINOR == 5
+#define IS_ROCM_CLANG_VERSION_5_5_0
+#endif
+
 void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
   MPM.addPass(SplitterAnnotationAnalysisCacher{});
 
@@ -81,11 +85,13 @@ void registerCBSPipeline(llvm::ModulePassManager &MPM, OptLevel Opt) {
     FPM.addPass(SimplifyKernelPass{});
 
     MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+    FPM = llvm::FunctionPassManager{};
+
     MPM.addPass(llvm::IPSCCPPass{});
     FPM.addPass(llvm::InstCombinePass{});
 #if LLVM_VERSION_MAJOR <= 13
     FPM.addPass(llvm::SROA{});
-#elif LLVM_VERSION_MAJOR < 16
+#elif (LLVM_VERSION_MAJOR < 16) || defined(IS_ROCM_CLANG_VERSION_5_5_0)
     FPM.addPass(llvm::SROAPass{});
 #else
     FPM.addPass(llvm::SROAPass{llvm::SROAOptions::ModifyCFG});

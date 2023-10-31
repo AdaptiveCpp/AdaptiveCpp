@@ -118,26 +118,27 @@ public:
     // Just invoke handler of first event?
     if(eventList.empty())
       glue::throw_asynchronous_errors(
-          [](sycl::exception_list e) { glue::default_async_handler(e); });
+          [](exception_list e) { glue::default_async_handler(e); });
     else
       glue::throw_asynchronous_errors(eventList.front()._handler);
   }
 
-  template <info::event param>
-  typename info::param_traits<info::event, param>::return_type get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
 
   // Wait for and retrieve profiling timestamps. Supports all handler operations except
   // handler::require() and handler::update_host().
   // Will throw sycl::invalid_object_error unless the queue was constructed with
   // `property::queue::enable_profiling`.
   // Timestamps are returned in std::chrono::system_clock nanoseconds-since-epoch.
-  template <info::event_profiling param>
-  typename info::param_traits<info::event_profiling, param>::return_type get_profiling_info() const
+  template <typename Param>
+  typename Param::return_type get_profiling_info() const
   {
     if(!_node) {
-      throw invalid_object_error{rt::make_error(
-          __hipsycl_here(),
-          {"Operation not profiled: node is invalid.", rt::error_type::invalid_object_error})};
+      const auto error = rt::make_error(__hipsycl_here(),
+                                        {"Operation not profiled: node is invalid.",
+                                         rt::error_type::invalid_object_error});
+      throw exception{make_error_code(errc::invalid), error.what()};
     }
     // Instrumentations are only set up once a node has passed
     // the scheduler.
@@ -159,53 +160,60 @@ public:
         hints.has_hint<rt::hints::request_instrumentation_finish_timestamp>();
 
     if(!was_full_profiling_requested) {
-      throw invalid_object_error{rt::make_error(
-          __hipsycl_here(),
-          {"Operation not profiled: Profiling was not requested by user.", rt::error_type::invalid_object_error})};
+      const auto error = rt::make_error(__hipsycl_here(),
+                                        {"Operation not profiled: "
+                                         "Profiling was not requested by user.",
+                                         rt::error_type::invalid_object_error});
+      throw exception{make_error_code(errc::invalid), error.what()};
     }
     if(_node->get_operation()->is_requirement()) {
-      throw invalid_object_error{rt::make_error(
-          __hipsycl_here(),
-          {"Operation not profiled: hipSYCL currently does not support "
-           "profiling explicit requirements or host updates",
-           rt::error_type::invalid_object_error})};
+      const auto error = rt::make_error(__hipsycl_here(),
+                                        {"Operation not profiled: "
+                                         "hipSYCL currently does not support "
+                                         "profiling explicit requirements "
+                                         "or host updates",
+                                         rt::error_type::invalid_object_error});
+      throw exception{make_error_code(errc::invalid), error.what()};
     }
 
-    if (param == info::event_profiling::command_submit) {
+    if (std::is_same_v<Param, info::event_profiling::command_submit>) {
       auto submission =
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::submission_timestamp>();
       
       if(!submission)
-          throw invalid_object_error(
-              "Operation not profiled: No submission timestamp available");
+        throw exception{make_error_code(errc::invalid),                      
+                        "Operation not profiled: No submission timestamp available"};
 
       return rt::profiler_clock::ns_ticks(submission->get_time_point());
-    } else if (param == info::event_profiling::command_start) {
+    } else if (std::is_same_v<Param, info::event_profiling::command_start>) {
       auto start =
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::execution_start_timestamp>();
 
       if(!start)
-          throw invalid_object_error(
-              "Operation not profiled: No execution start timestamp available");
+        throw exception{make_error_code(errc::invalid),
+                        "Operation not profiled: No execution "
+                        "start timestamp available"};
 
       return rt::profiler_clock::ns_ticks(start->get_time_point());
-    } else if (param == info::event_profiling::command_end) {
+    } else if (std::is_same_v<Param, info::event_profiling::command_end>) {
       auto finish =
           _node->get_operation()
               ->get_instrumentations()
               .get<rt::instrumentations::execution_finish_timestamp>();
       
       if(!finish)
-          throw invalid_object_error(
-              "Operation not profiled: No execution end timestamp available");
+        throw exception{make_error_code(errc::invalid),
+                        "Operation not profiled: No execution "
+                        "end timestamp available"};
 
       return rt::profiler_clock::ns_ticks(finish->get_time_point());
     } else {
-      throw invalid_parameter_error{"Unknown event profiling request"};
+      throw exception{make_error_code(errc::invalid),
+                      "Unknown event profiling request"};
     }
   }
 
@@ -228,7 +236,7 @@ private:
 
 HIPSYCL_SPECIALIZE_GET_INFO(event, command_execution_status)
 {
-  if(_node->is_complete())
+  if(!_node || _node->is_complete())
     return info::event_command_status::complete;
 
   if(_node->is_submitted())

@@ -43,6 +43,10 @@
 #include "generic/hiplike/builtins.hpp"
 #endif
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "sscp/builtins.hpp"
+#endif
+
 namespace hipsycl {
 namespace sycl {
 namespace detail {
@@ -51,11 +55,6 @@ namespace detail {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_acos(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_acos, x);
-}
-
-template<class T>
-HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
-  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnan, x);
 }
 
 template<class T>
@@ -221,6 +220,11 @@ HIPSYCL_BUILTIN T __hipsycl_hypot(T x, T y) noexcept {
 template<class T>
 HIPSYCL_BUILTIN int __hipsycl_ilogb(T x) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ilogb, x);
+}
+
+template<class T, class IntType>
+HIPSYCL_BUILTIN T __hipsycl_ldexp(T x, IntType k) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_ldexp, x, k);
 }
 
 template<class T>
@@ -526,6 +530,11 @@ HIPSYCL_BUILTIN T __hipsycl_clamp(T x, T minval, T maxval) noexcept {
 }
 
 template<class T>
+HIPSYCL_BUILTIN T __hipsycl_clz(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_clz, x);
+}
+
+template<class T>
 HIPSYCL_BUILTIN T __hipsycl_max(T x, T y) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_max, x, y);
 }
@@ -627,6 +636,33 @@ HIPSYCL_BUILTIN auto __hipsycl_fast_distance(T a, T b) noexcept {
 template<class T>
 HIPSYCL_BUILTIN T __hipsycl_fast_normalize(T a) noexcept {
   HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_fast_normalize, a);
+}
+
+// ****************** relational functions ******************
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isnan(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnan, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isinf(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isinf, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isfinite(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isfinite, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_isnormal(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_isnormal, x);
+}
+
+template<class T>
+HIPSYCL_BUILTIN int __hipsycl_signbit(T x) noexcept {
+  HIPSYCL_RETURN_DISPATCH_BUILTIN(__hipsycl_signbit, x);
 }
 
 }

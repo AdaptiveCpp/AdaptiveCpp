@@ -31,6 +31,10 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/sycl/exception.hpp"
 
+#if HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_SSCP
+#include "../sscp/builtins/localmem.hpp"
+#endif
+
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
@@ -51,8 +55,8 @@ public:
   using smallest_type = int;
 
   // ToDo: Query max shared memory of device and check when allocating
-  local_memory_allocator()
-    : _num_allocated_bytes{0}
+  local_memory_allocator(std::size_t already_allocated_mem = 0)
+    : _num_allocated_bytes{already_allocated_mem}
   {}
 
   template<class T>
@@ -62,6 +66,10 @@ public:
 
     size_t alignment = get_alignment<T>();
 
+    return alloc(alignment, num_bytes);
+  }
+
+  address alloc(size_t alignment, size_t num_bytes) {
     size_t start_byte =
         alignment * ((get_allocation_size() + alignment - 1) / alignment);
 
@@ -179,10 +187,8 @@ inline void* hiplike_dynamic_local_memory() {
   __hipsycl_if_target_hip(
     return __amdgcn_get_dynamicgroupbaseptr();
   );
-  __hipsycl_if_target_host(
-    assert(false && "this function should only be called on device");
-    return nullptr;
-  );
+  
+  return nullptr;
 }
 
 class local_memory
@@ -194,12 +200,12 @@ public:
   HIPSYCL_KERNEL_TARGET
   static T* get_ptr(const address addr)
   {
-    __hipsycl_if_target_device(
-      return reinterpret_cast<T *>(
-        reinterpret_cast<char *>(hiplike_dynamic_local_memory()) + addr);
-    );
-    __hipsycl_if_target_host(
-      return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr);
+    __hipsycl_backend_switch(
+      return reinterpret_cast<T*>(host_local_memory::get_ptr() + addr),
+      return reinterpret_cast<T*>((char*)__hipsycl_sscp_get_dynamic_local_memory() + addr),
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
+      return reinterpret_cast<T*>(reinterpret_cast<char*>(hiplike_dynamic_local_memory()) + addr),
+      return nullptr /* SPIR-V not implemented */
     );
   }
 };

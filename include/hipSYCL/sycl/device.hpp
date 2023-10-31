@@ -39,7 +39,7 @@
 #include "backend.hpp"
 #include "exception.hpp"
 #include "version.hpp"
-#include "hipSYCL/sycl/libkernel/id.hpp"
+#include "hipSYCL/sycl/libkernel/range.hpp"
 
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -150,7 +150,7 @@ public:
 
   bool hipSYCL_has_compiled_kernels() const {
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__)
-    if (is_cpu())
+    if (_device_id.get_backend() == rt::backend_id::omp)
       return true;
 #endif
     
@@ -168,16 +168,20 @@ public:
     if(_device_id.get_backend() == rt::backend_id::level_zero)
       return true;
 #endif
-    
+
+#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+    if (get_rt_device()->has(rt::device_support_aspect::sscp_kernels))
+      return true;
+#endif
+
     return false;
   }
 
   // Implemented in platform.hpp
   platform get_platform() const;
 
-  template <info::device param>
-  typename info::param_traits<info::device, param>::return_type
-  get_info() const;
+  template <typename Param>
+  typename Param::return_type get_info() const;
 
   bool has_extension(const string_class &extension) const
   {
@@ -192,7 +196,8 @@ public:
               = nullptr>
   std::vector<device> create_sub_devices(size_t nbSubDev) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   // Available only when prop == info::partition_property::partition_by_counts
@@ -201,7 +206,8 @@ public:
               = nullptr>
   std::vector<device> create_sub_devices(const std::vector<size_t> &counts) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   // Available only when prop == info::partition_property::partition_by_affinity_domain
@@ -211,7 +217,8 @@ public:
   std::vector<device> create_sub_devices(info::partition_affinity_domain
                                           affinityDomain) const
   {
-    throw feature_not_supported{"subdevices are unsupported."};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "subdevices are unsupported."};
   }
 
   static std::vector<device>
@@ -267,6 +274,10 @@ public:
   rt::runtime* hipSYCL_runtime() const {
     return _requires_runtime.get();
   }
+
+  rt::device_id hipSYCL_device_id() const {
+    return _device_id;
+  }
 private:
   rt::device_id _device_id;
   rt::runtime_keep_alive_token _requires_runtime;
@@ -276,7 +287,8 @@ private:
                    ->get_hardware_manager()
                    ->get_device(_device_id.get_id());
     if (!ptr) {
-      throw runtime_error{"Could not access device"};
+      throw exception{make_error_code(errc::runtime),
+                      "Could not access device"};
     }
     return ptr;
   }
@@ -307,7 +319,27 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_compute_units)
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_dimensions)
 { return 3; }
 
-HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<1>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size0));
+  return range<1>{size0};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<2>)
+{
+  std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size0));
+  std::size_t size1 = static_cast<std::size_t>(get_rt_device()->get_property(
+      rt::device_uint_property::max_group_size1));
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<2>{size1, size0};
+  else
+    return range<2>{size0, size1};
+}
+
+HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes<3>)
 {
   std::size_t size0 = static_cast<std::size_t>(get_rt_device()->get_property(
       rt::device_uint_property::max_group_size0));
@@ -315,7 +347,11 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_item_sizes)
       rt::device_uint_property::max_group_size1));
   std::size_t size2 = static_cast<std::size_t>(get_rt_device()->get_property(
       rt::device_uint_property::max_group_size2));
-  return id<3>{size0, size1, size2};
+  if (get_rt_device()->get_property(
+      rt::device_uint_property::needs_dimension_flip))
+    return range<3>{size2, size1, size0};
+  else
+    return range<3>{size0, size1, size2};
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, max_work_group_size)
@@ -637,7 +673,7 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, profile)
 { return get_rt_device()->get_profile(); }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, version) {
-  return "1.2 "+detail::version_string();
+  return get_rt_device()->get_device_arch();
 }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, opencl_c_version)
@@ -690,7 +726,10 @@ HIPSYCL_SPECIALIZE_GET_INFO(device, preferred_interop_user_sync)
 { return true; }
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, parent_device)
-{ throw invalid_object_error{"Device is not a subdevice"}; }
+{
+  throw exception{make_error_code(errc::invalid),
+                  "Device is not a subdevice"};
+}
 
 HIPSYCL_SPECIALIZE_GET_INFO(device, partition_max_sub_devices) {
   return get_rt_device()->get_property(

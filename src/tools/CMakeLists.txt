@@ -1,3 +1,3 @@
 
-add_subdirectory(hipsycl-hcf-tool)
-add_subdirectory(hipsycl-info)
+add_subdirectory(acpp-hcf-tool)
+add_subdirectory(acpp-info)

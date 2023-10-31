@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cassert>
 
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/util.hpp"
@@ -47,13 +48,11 @@ void dag::add_command_group(dag_node_ptr node) {
   _command_groups.push_back(node);
 }
 
-const std::vector<dag_node_ptr> &dag::get_command_groups() const {
+const node_list_t &dag::get_command_groups() const {
   return _command_groups;
 }
 
-const std::vector<dag_node_ptr>& 
-dag::get_memory_requirements() const
-{
+const node_list_t &dag::get_memory_requirements() const {
   return _memory_requirements;
 }
 

@@ -53,7 +53,7 @@ public:
   
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_queue_wait_for(dag_node_ptr evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
   virtual result wait() override;
@@ -61,13 +61,11 @@ public:
   virtual device_id get_device() const override;
   virtual void *get_native_type() const override;
 
-  virtual code_object_invoker* get_code_object_invoker() override;
-
   virtual result query_status(inorder_queue_status& status) override;
   
   worker_thread& get_worker();
 private:
-  backend_id _backend_id;
+  const backend_id _backend_id;
   worker_thread _worker;
 };
 

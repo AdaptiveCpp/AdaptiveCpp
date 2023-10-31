@@ -26,6 +26,7 @@
  */
 
 #include "hipSYCL/runtime/hip/hip_hardware_manager.hpp"
+#include "hipSYCL/runtime/hardware.hpp"
 #include "hipSYCL/runtime/hip/hip_event_pool.hpp"
 #include "hipSYCL/runtime/hip/hip_allocator.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
@@ -39,6 +40,16 @@ namespace rt {
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     : _hw_platform(hw_platform) {
+  
+  if (has_device_visibility_mask(
+          application::get_settings().get<setting::visibility_mask>(),
+          backend_id::hip)) {
+    print_warning(
+        __hipsycl_here(),
+        error_info{
+            "hip_hardware_manager: HIP backend does not support device "
+            "visibility masks. Use HIP_VISIBILE_DEVICES instead."});
+  }
 
   int num_devices = 0;
 
@@ -55,7 +66,7 @@ hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
   }
   
   for (int dev = 0; dev < num_devices; ++dev) {
-    _devices.push_back(std::move(hip_hardware_context{dev}));
+    _devices.emplace_back(dev);
   }
 
 }
@@ -207,6 +218,13 @@ bool hip_hardware_context::has(device_support_aspect aspect) const {
   case device_support_aspect::execution_timestamps:
     return true;
     break;
+  case device_support_aspect::sscp_kernels:
+#ifdef HIPSYCL_WITH_SSCP_COMPILER
+    return true;
+#else
+    return false;
+#endif
+    break;
   }
   assert(false && "Unknown device aspect");
   std::terminate();
@@ -219,13 +237,16 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     return _properties->multiProcessorCount;
     break;
   case device_uint_property::max_global_size0:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[0];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[0]) *
+                                    _properties->maxGridSize[0];
     break;
   case device_uint_property::max_global_size1:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[1];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[1]) *
+                                    _properties->maxGridSize[1];
     break;
   case device_uint_property::max_global_size2:
-    return _properties->maxThreadsPerBlock * _properties->maxGridSize[2];
+    return static_cast<std::size_t>(_properties->maxThreadsDim[2]) *
+                                    _properties->maxGridSize[2];
     break;
   case device_uint_property::max_group_size0:
     return _properties->maxThreadsDim[0];
@@ -241,6 +262,9 @@ hip_hardware_context::get_property(device_uint_property prop) const {
     break;
   case device_uint_property::max_num_sub_groups:
     return _properties->maxThreadsPerBlock / _properties->warpSize;
+    break;
+  case device_uint_property::needs_dimension_flip:
+    return true;
     break;
   case device_uint_property::preferred_vector_width_char:
     return 4;

@@ -32,6 +32,7 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/dag_manager.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/dag_unbound_scheduler.hpp"
 #include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/settings.hpp"
@@ -137,16 +138,10 @@ void dag_manager::flush_async()
           this->register_submitted_ops(node);
         for(auto node : new_dag.get_memory_requirements())
           this->register_submitted_ops(node);
-              
-        // We do not need to wait for the requirements explicitly
-        // because they will also have completed by the time
-        // their command groups have finished and can
-        // be purged together with them.
-        //
-        // This is the case, because dag_node::wait() also
-        // marks all its requirements as complete.
-        this->_submitted_ops.async_wait_and_unregister(
-            new_dag.get_command_groups());
+
+        if (this->_submitted_ops.get_num_nodes() >
+            application::get_settings().get<setting::gc_trigger_batch_size>())
+          this->_submitted_ops.async_wait_and_unregister();
       });
     }
   } else {
@@ -157,6 +152,9 @@ void dag_manager::flush_async()
 void dag_manager::flush_sync()
 {
   this->flush_async();
+  // In a flush_sync, we can assume that we have finished a submission burst.
+  // So this may be a good time to clean up and perform garbage collection!
+  this->_submitted_ops.async_wait_and_unregister();
   
   HIPSYCL_DEBUG_INFO << "dag_manager: waiting for async worker..."
                      << std::endl;
@@ -192,7 +190,7 @@ void dag_manager::trigger_flush_opportunity()
   }
 }
 
-std::vector<dag_node_ptr> dag_manager::get_group(std::size_t node_group_id) {
+node_list_t dag_manager::get_group(std::size_t node_group_id) {
   return _submitted_ops.get_group(node_group_id);
 }
 }

@@ -217,5 +217,65 @@ BOOST_AUTO_TEST_CASE(buffer_external_writeback_nullptr) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(buffer_container_constructor) {
+  cl::sycl::queue q;
+
+  const int testVal = 42;
+
+  std::size_t size = 1024;
+  std::vector<int> host_buff(size, 0);
+  {
+    cl::sycl::buffer<int> buff{host_buff};
+
+    q.submit([&](cl::sycl::handler &cgh) {
+      auto acc =
+        buff.get_access<cl::sycl::access::mode::write>(cgh);
+
+      cgh.parallel_for(cl::sycl::range{size}, [=](auto idx) {
+        acc[idx] = testVal;
+      });
+    });
+  }
+
+  for(int i = 0; i < host_buff.size(); ++i) {
+    BOOST_CHECK(host_buff[i] == testVal);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(buffer_container_constructor_no_def_constr) {
+  cl::sycl::queue q;
+
+  struct A {
+    A() = delete;
+    A(int val) : val(val) {}
+    int val;
+  };
+
+  A testVal = A{42};
+  std::array<A, 2> data1 = {A{1}, A{2}};
+  std::array<A, 2> data2 = {A{1}, A{2}};
+  {
+    cl::sycl::buffer<A> buff1{data1};
+    cl::sycl::buffer<A> buff2{data2.begin(), data2.end()};
+    buff2.set_final_data(data2.data());
+
+    q.submit([&](cl::sycl::handler &cgh) {
+      auto acc1 =
+        buff1.get_access<cl::sycl::access::mode::write>(cgh);
+      auto acc2 =
+        buff2.get_access<cl::sycl::access::mode::write>(cgh);
+
+      cgh.parallel_for(cl::sycl::range{2}, [=](auto idx) {
+        acc1[idx] = testVal;
+        acc2[idx] = testVal;
+      });
+    });
+  }
+
+  for(int i = 0; i < data1.size(); ++i)
+    BOOST_CHECK(data1[i].val == testVal.val);
+  for(int i = 0; i < data2.size(); ++i)
+    BOOST_CHECK(data2[i].val == testVal.val);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

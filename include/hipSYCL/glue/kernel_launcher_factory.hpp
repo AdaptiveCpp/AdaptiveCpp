@@ -35,6 +35,7 @@
 #include "hipSYCL/sycl/libkernel/backend.hpp"
 #include "hipSYCL/runtime/kernel_launcher.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 
 #if defined(__HIPSYCL_ENABLE_HIP_TARGET__)
 #include "hip/hip_kernel_launcher.hpp"
@@ -52,6 +53,10 @@
 #include "ze/ze_kernel_launcher.hpp"
 #endif
 
+#if defined(__HIPSYCL_ENABLE_LLVM_SSCP_TARGET__)
+#include "llvm-sscp/sscp_kernel_launcher.hpp"
+#endif
+
 namespace hipsycl {
 namespace glue {
 
@@ -60,15 +65,16 @@ namespace glue {
 ///       If it is non-0, it *may* be used as a hint for the backend.
 template <class KernelNameTag, rt::kernel_type Type, int Dim, class Kernel,
           typename... Reductions>
-std::vector<std::unique_ptr<rt::backend_kernel_launcher>>
+common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
 make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
                       sycl::range<Dim> global_range,
                       std::size_t dynamic_local_memory, Kernel k,
                       Reductions... reductions) {
 
   using name_traits = kernel_name_traits<KernelNameTag, Kernel>;
-  
-  std::vector<std::unique_ptr<rt::backend_kernel_launcher>> launchers;
+
+  common::auto_small_vector<std::unique_ptr<rt::backend_kernel_launcher>>
+      launchers;
 #ifdef __HIPSYCL_ENABLE_HIP_TARGET__
   {
     auto launcher = std::make_unique<hip_kernel_launcher>();
@@ -96,6 +102,15 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
   }
 #endif
 
+#ifdef __HIPSYCL_ENABLE_LLVM_SSCP_TARGET__
+  {
+    auto launcher = std::make_unique<sscp_kernel_launcher>();
+    launcher->bind<name_traits, Type>(offset, global_range, local_range,
+                                      dynamic_local_memory, k, reductions...);
+    launchers.emplace_back(std::move(launcher));
+  }
+#endif
+
   // Don't try to compile host kernel during device passes
 #if defined(__HIPSYCL_ENABLE_OMPHOST_TARGET__) && \
    !defined(SYCL_DEVICE_ONLY)
@@ -106,7 +121,7 @@ make_kernel_launchers(sycl::id<Dim> offset, sycl::range<Dim> local_range,
     launchers.emplace_back(std::move(launcher));
   }
 #endif
-  return launchers;
+  return std::move(launchers);
 }
 }
 }

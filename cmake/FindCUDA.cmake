@@ -39,10 +39,13 @@ else()
          get_filename_component(CUDAToolkit_LIBRARY_ROOT ${CUDAToolkit_LIBRARY_DIR} DIRECTORY)
 
          if (NOT EXISTS "${CUDAToolkit_LIBRARY_ROOT}/nvvm")
-            message(SEND_ERROR "CUDAToolkit_LIBRARY_ROOT does not point to the correct directory, try setting it manually")
+            message(WARNING "CUDAToolkit_LIBRARY_ROOT does not point to the correct directory, try setting it manually. Detected CUDA installation cannot be used.")
+            set(CUDAToolkit_FOUND FALSE)
          endif()
       endif()
+   endif()
 
+   if (CUDAToolkit_FOUND)
       message(STATUS "Found CUDA version ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_ROOT}")
 
       set(CUDA_FOUND TRUE)

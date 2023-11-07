@@ -7,6 +7,17 @@ endif()
 set(ACPP_VERSION_MAJOR 23)
 set(ACPP_VERSION_MINOR 10)
 set(ACPP_VERSION_PATCH 0)
+
+execute_process(
+        COMMAND git status
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_STATUS
+)
+# With a release tarball, "git status" will fail (return non zero)
+if(GIT_STATUS)
+  set(ACPP_VERSION_SUFFIX "Release")
+endif()
+
 if(NOT ACPP_VERSION_SUFFIX)
   # Get the latest abbreviated commit hash of the working branch
   execute_process(

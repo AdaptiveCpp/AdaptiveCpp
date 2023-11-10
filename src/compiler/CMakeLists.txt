@@ -37,6 +37,7 @@ else()
 endif()
 
 if(WITH_SSCP_COMPILER)
+  set(WITH_REFLECTION_BUILTINS ON)
   set(SSCP_COMPILER 
     sscp/KernelOutliningPass.cpp
     sscp/IRConstantReplacer.cpp
@@ -50,6 +51,7 @@ else()
 endif()
 
 if(WITH_STDPAR_COMPILER)
+  set(WITH_REFLECTION_BUILTINS ON)
   set(STDPAR_COMPILER
     stdpar/MallocToUSM.cpp
     stdpar/SyncElision.cpp)
@@ -58,16 +60,12 @@ else()
   set(STDPAR_COMPILER "")
 endif()
 
-# TODO Think about whether there are cases where might not want to have them
-# enabled
-set(WITH_REFLECTION_BUILTINS ON)
-
 if(WITH_REFLECTION_BUILTINS)
   set(REFLECTION_BUILTINS
     reflection/IntrospectStructPass.cpp)
     add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
 else()
-  set(STDPAR_COMPILER "")
+  set(REFLECTION_BUILTINS "")
 endif()
 
 add_library(acpp-clang SHARED

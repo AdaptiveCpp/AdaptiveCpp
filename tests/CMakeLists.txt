@@ -129,7 +129,8 @@ if(WITH_PSTL_TESTS)
     pstl/replace_copy.cpp
     pstl/replace_copy_if.cpp
     pstl/transform.cpp
-    pstl/transform_reduce.cpp)
+    pstl/transform_reduce.cpp
+    pstl/pointer_validation.cpp)
 
   target_compile_options(pstl_tests PRIVATE --acpp-stdpar --acpp-stdpar-unconditional-offload)
   # pstl tests cannot run with global memory allocation hijacking, because apparently

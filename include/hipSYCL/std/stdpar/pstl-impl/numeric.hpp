@@ -85,8 +85,8 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm_type::transform_reduce{},
-      std::distance(first1, last1), T, offloader, fallback, first1, last1,
-      first2, init);
+      std::distance(first1, last1), T, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, init);
 }
 
 template<class ForwardIt1, class ForwardIt2, class T,
@@ -130,8 +130,8 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm_type::transform_reduce{},
-      std::distance(first1, last1), T, offloader, fallback, first1, last1,
-      first2, init, reduce, transform);
+      std::distance(first1, last1), T, offloader, fallback, first1,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last1), first2, init, reduce, transform);
 }
 
 template<class ForwardIt, class T,
@@ -173,8 +173,8 @@ T transform_reduce(hipsycl::stdpar::par_unseq,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
       hipsycl::stdpar::algorithm_type::transform_reduce{},
-      std::distance(first, last), T, offloader, fallback, first, last, init,
-      reduce, transform);
+      std::distance(first, last), T, offloader, fallback, first,
+      HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init, reduce, transform);
 }
 
 template <class ForwardIt>
@@ -214,7 +214,8 @@ reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
 
   HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::reduce{},
                                   std::distance(first, last), result_type,
-                                  offloader, fallback, first, last);
+                                  offloader, fallback, first,
+                                  HIPSYCL_STDPAR_NO_PTR_VALIDATION(last));
 }
 
 template <class ForwardIt, class T>
@@ -251,9 +252,9 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
                        init);
   };
 
-  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::reduce{},
-                                  std::distance(first, last), T, offloader,
-                                  fallback, first, last, init);
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::reduce{}, std::distance(first, last), T,
+      offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init);
 }
 
 template <class ForwardIt, class T, class BinaryOp>
@@ -289,9 +290,10 @@ T reduce(hipsycl::stdpar::par_unseq, ForwardIt first,
                        init, binary_op);
   };
 
-  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(hipsycl::stdpar::algorithm_type::reduce{},
-                                  std::distance(first, last), T, offloader,
-                                  fallback, first, last, init, binary_op);
+  HIPSYCL_STDPAR_BLOCKING_OFFLOAD(
+      hipsycl::stdpar::algorithm_type::reduce{}, std::distance(first, last), T,
+      offloader, fallback, first, HIPSYCL_STDPAR_NO_PTR_VALIDATION(last), init,
+      binary_op);
 }
 
 }

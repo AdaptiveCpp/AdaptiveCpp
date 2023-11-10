@@ -58,12 +58,25 @@ else()
   set(STDPAR_COMPILER "")
 endif()
 
+# TODO Think about whether there are cases where might not want to have them
+# enabled
+set(WITH_REFLECTION_BUILTINS ON)
+
+if(WITH_REFLECTION_BUILTINS)
+  set(REFLECTION_BUILTINS
+    reflection/IntrospectStructPass.cpp)
+    add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+else()
+  set(STDPAR_COMPILER "")
+endif()
+
 add_library(acpp-clang SHARED
   AdaptiveCppClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
   ${SSCP_COMPILER}
   ${STDPAR_COMPILER}
+  ${REFLECTION_BUILTINS}
 )
 
 target_include_directories(acpp-clang PRIVATE

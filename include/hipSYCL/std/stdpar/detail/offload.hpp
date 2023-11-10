@@ -31,6 +31,8 @@
 #include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
+#include "hipSYCL/glue/reflection.hpp"
+#include <cstring>
 #include <iterator>
 #include <cstddef>
 #include <algorithm>
@@ -65,6 +67,47 @@ struct none_of {};
 struct transform_reduce {};
 struct reduce {};
 } // namespace algorithm_type
+
+template<class T, typename... Args>
+struct decorated_type {
+  __attribute__((always_inline))
+  decorated_type(const T& arg)
+  : value{arg} {}
+
+  template<class Decoration>
+  static constexpr bool has_decoration() {
+    return (std::is_same_v<Decoration, Args> || ...);
+  }
+
+  using value_type = T;
+  T value;
+};
+
+template<class Decoration, class T>
+constexpr bool has_decoration(const T& x) {
+  return false;
+}
+
+template<class Decoration, typename... Args>
+constexpr bool has_decoration(const decorated_type<Args...> &x) {
+  return decorated_type<Args...>::template has_decoration<Decoration>();
+}
+
+namespace decorations {
+struct no_pointer_validation {};
+}
+
+template<class T, typename... Attributes>
+__attribute__((always_inline))
+auto decorate(const T& x, Attributes... attrs) {
+  return decorated_type<T, Attributes...>{x};
+}
+
+#define HIPSYCL_STDPAR_DECORATE(Arg, ...)                                      \
+  hipsycl::stdpar::decorate(Arg, __VA_ARGS__)
+#define HIPSYCL_STDPAR_NO_PTR_VALIDATION(Arg)                                  \
+  HIPSYCL_STDPAR_DECORATE(                                                     \
+      Arg, hipsycl::stdpar::decorations::no_pointer_validation{})
 
 class offload_heuristic {
 public:
@@ -190,8 +233,57 @@ private:
   std::vector<std::pair<sycl::device, std::size_t>> _offloading_min_problem_sizes;
 };
 
+template<class T>
+bool validate_contained_pointers(const T& x) {
+  if(has_decoration<decorations::no_pointer_validation>(x)) {
+    return true;
+  }
+
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto* allocator = q.get_context()
+      .hipSYCL_runtime()
+      ->backends()
+      .get(q.get_device().get_backend())
+      ->get_allocator(q.get_device().hipSYCL_device_id());
+
+  // Check if all contained pointers are valid on the device; otherwise
+  // return false.
+  glue::reflection::introspect_flattened_struct introspection{x};
+  for(int i = 0; i < introspection.get_num_members(); ++i) {
+    if(introspection.get_member_kind(i) == glue::reflection::type_kind::pointer) {
+      void* ptr = nullptr;
+      std::memcpy(&ptr, (char*)&x + introspection.get_member_offset(i), sizeof(void*));
+      // Ignore nullptr
+      if(ptr) {
+        rt::pointer_info pinfo;
+        if(!allocator->query_pointer(ptr, pinfo).is_success())
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
+template<typename... Args>
+bool validate_all_pointers(const Args&... args){
+  bool result = true;
+  
+  auto f = [&](const auto& arg){
+    bool ptr_validation = validate_contained_pointers(arg);
+    result = result && ptr_validation;
+  };
+  (f(args), ...);
+  return result;
+}
+
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
+  if(!validate_all_pointers(args...)) {
+    HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
+                             "pointers; not offloading stdpar call.\n";
+    return false;
+  }
+
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else

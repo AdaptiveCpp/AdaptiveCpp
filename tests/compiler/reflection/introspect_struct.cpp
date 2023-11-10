@@ -1,9 +1,9 @@
 // RUN: %acpp %s -o %t --acpp-targets=generic
-// RUN: %t
+// RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -O3
-// RUN: %t
+// RUN: %t | FileCheck %s
 // RUN: %acpp %s -o %t --acpp-targets=generic -g
-// RUN: %t
+// RUN: %t | FileCheck %s
 
 #include <iostream>
 #include "hipSYCL/glue/reflection.hpp"

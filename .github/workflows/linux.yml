@@ -2,6 +2,9 @@ name: Linux build and test
 
 on: [push, pull_request]
 
+env:
+  BOOST_TEST_LOG_LEVEL: test_suite
+
 jobs:
   test-clang-based:
     name: clang ${{ matrix.clang }}, ${{ matrix.os }}, CUDA ${{matrix.cuda}}, ROCm ${{matrix.rocm}}

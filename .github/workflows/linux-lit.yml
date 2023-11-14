@@ -2,6 +2,9 @@ name: Linux LIT tests
 
 on: [push, pull_request]
 
+env:
+  BOOST_TEST_LOG_LEVEL: test_suite
+
 jobs:
   cbs:
     name: CBS, clang ${{ matrix.clang }}, ${{ matrix.os }}

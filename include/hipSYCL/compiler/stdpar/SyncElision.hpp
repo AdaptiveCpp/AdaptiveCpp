@@ -35,6 +35,13 @@
 
 namespace hipsycl {
 namespace compiler {
+// Detects stdpar calls, replaces noinline with always_inline attribute
+// and ensure __hipsycl_stdpar_consume_sync() is right at the start of the function.
+class SyncElisionEntrypointPreparationPass
+    : public llvm::PassInfoMixin<SyncElisionEntrypointPreparationPass> {
+public:
+  llvm::PreservedAnalyses run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+};
 
 class SyncElisionInliningPass : public llvm::PassInfoMixin<SyncElisionInliningPass> {
 public:

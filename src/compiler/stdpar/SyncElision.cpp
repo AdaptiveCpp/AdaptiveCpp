@@ -30,6 +30,7 @@
 #include "hipSYCL/compiler/stdpar/SyncElision.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
 
+#include <llvm/IR/Attributes.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Instruction.h>
@@ -89,7 +90,44 @@ bool instructionRequiresSync(llvm::Instruction* I) {
 
 constexpr const char* ConsumeMarker = "__hipsycl_stdpar_consume_sync";
 constexpr const char* OptimizableMarker = "__hipsycl_stdpar_optimizable_sync";
+constexpr const char* EntrypointMarker = "hipsycl_stdpar_entrypoint";
 
+void beginWithCallToConsumeBuiltin(llvm::Function* F, llvm::Module& M) {
+  llvm::Type* RetType = llvm::Type::getVoidTy(M.getContext());
+  auto ConsumeFunction =
+      M.getOrInsertFunction(ConsumeMarker, llvm::FunctionType::get(RetType, false));
+  
+  if (F->size() > 0) {
+
+    llvm::Instruction *FirstInst = &(*F->getEntryBlock().begin());
+    llvm::CallInst *CI = llvm::CallInst::Create(ConsumeFunction, "", FirstInst);
+    if(auto* CF = CI->getCalledFunction()) {
+      if(!CF->hasFnAttribute(llvm::Attribute::NoUnwind))
+        CF->addFnAttr(llvm::Attribute::NoUnwind);
+    }
+  }
+}
+
+}
+
+llvm::PreservedAnalyses SyncElisionEntrypointPreparationPass::run(llvm::Module &M,
+                                                                  llvm::ModuleAnalysisManager &AM) {
+  utils::findFunctionsWithStringAnnotations(M,  [&](llvm::Function* F, llvm::StringRef Annotation){
+    if(F) {
+      if(Annotation.compare(EntrypointMarker) == 0) {
+        HIPSYCL_DEBUG_INFO << "Found stdpar call: " << F->getName() << "\n";
+        if(F->hasFnAttribute(llvm::Attribute::NoInline)) {
+          F->removeFnAttr(llvm::Attribute::NoInline);
+        }
+        if(!F->hasFnAttribute(llvm::Attribute::AlwaysInline)) {
+          F->addFnAttr(llvm::Attribute::AlwaysInline);
+        }
+        beginWithCallToConsumeBuiltin(F, M);
+      }
+    }  
+  });
+
+  return llvm::PreservedAnalyses::none();
 }
 
 llvm::PreservedAnalyses SyncElisionInliningPass::run(llvm::Module& M, llvm::ModuleAnalysisManager& AM) {

@@ -297,7 +297,6 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
 #define HIPSYCL_STDPAR_OFFLOAD_NORET(algorithm_type_object, problem_size,      \
                                      offload_invoker, fallback_invoker, ...)   \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
@@ -311,7 +310,6 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 #define HIPSYCL_STDPAR_OFFLOAD(algorithm_type_object, problem_size,            \
                                return_type, offload_invoker, fallback_invoker, \
                                ...)                                            \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
@@ -322,7 +320,6 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 #define HIPSYCL_STDPAR_BLOCKING_OFFLOAD(algorithm_type_object, problem_size,   \
                                         return_type, offload_invoker,          \
                                         fallback_invoker, ...)                 \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \

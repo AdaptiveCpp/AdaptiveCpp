@@ -46,6 +46,10 @@
 #include "hipSYCL/compiler/sscp/TargetSeparationPass.hpp"
 #endif
 
+#ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
+#include "hipSYCL/compiler/reflection/IntrospectStructPass.hpp"
+#endif
+
 #include "clang/Frontend/FrontendPluginRegistry.h"
 
 #include "llvm/Pass.h"
@@ -133,6 +137,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
           PB.registerOptimizerLastEPCallback([](llvm::ModulePassManager &MPM, OptLevel) {
             MPM.addPass(hipsycl::compiler::GlobalsPruningPass{});
           });
+#ifdef HIPSYCL_WITH_REFLECTION_BUILTINS
+          PB.registerPipelineStartEPCallback(
+                [&](llvm::ModulePassManager &MPM, OptLevel Level) {
+                  MPM.addPass(IntrospectStructPass{});
+                });
+#endif
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
           if(EnableStdPar) {

@@ -37,6 +37,7 @@ else()
 endif()
 
 if(WITH_SSCP_COMPILER)
+  set(WITH_REFLECTION_BUILTINS ON)
   set(SSCP_COMPILER 
     sscp/KernelOutliningPass.cpp
     sscp/IRConstantReplacer.cpp
@@ -50,6 +51,7 @@ else()
 endif()
 
 if(WITH_STDPAR_COMPILER)
+  set(WITH_REFLECTION_BUILTINS ON)
   set(STDPAR_COMPILER
     stdpar/MallocToUSM.cpp
     stdpar/SyncElision.cpp)
@@ -58,12 +60,21 @@ else()
   set(STDPAR_COMPILER "")
 endif()
 
+if(WITH_REFLECTION_BUILTINS)
+  set(REFLECTION_BUILTINS
+    reflection/IntrospectStructPass.cpp)
+    add_definitions(-DHIPSYCL_WITH_REFLECTION_BUILTINS)
+else()
+  set(REFLECTION_BUILTINS "")
+endif()
+
 add_library(acpp-clang SHARED
   AdaptiveCppClangPlugin.cpp
   GlobalsPruningPass.cpp
   ${CBS_PLUGIN}
   ${SSCP_COMPILER}
   ${STDPAR_COMPILER}
+  ${REFLECTION_BUILTINS}
 )
 
 target_include_directories(acpp-clang PRIVATE

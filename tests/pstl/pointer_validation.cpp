@@ -34,50 +34,36 @@
 
 #include "pstl_test_suite.hpp"
 
-BOOST_FIXTURE_TEST_SUITE(pstl_copy_if, enable_unified_shared_memory)
+BOOST_FIXTURE_TEST_SUITE(pstl_ptr_validation, enable_unified_shared_memory)
 
 
-template<class Generator>
-void test_copy_if(std::size_t problem_size, Generator&& gen) {
-  std::vector<int> data(problem_size);
-  for(int i = 0; i < problem_size; ++i) {
-    data[i] = gen(i);
+template<class F>
+void test_call(F f) {
+  std::vector<int> data(1000);
+  for(int i = 0; i < data.size(); ++i) {
+    data[i] = i;
   }
 
-  std::vector<int> dest_device(problem_size);
-  std::vector<int> dest_host(problem_size);
+  std::vector<int> output_pstl(data.size());
+  std::vector<int> output_host(data.size());
+  std::transform(std::execution::par_unseq, data.begin(), data.end(), output_pstl.begin(), f);
 
-  auto p = [](auto x) { return x % 2 == 0; };
+  for(int i = 0; i < data.size(); ++i) {
+    output_host[i] = f(data[i]);
+  }
 
-  auto ret = std::copy_if(std::execution::par_unseq, data.begin(), data.end(),
-                          dest_device.begin(), p);
-  std::copy_if(data.begin(), data.end(), dest_host.begin(), p);
-
-  BOOST_CHECK(ret == dest_device.begin() + problem_size);
-  // Our copy_if implementation is currently incorrect, since
-  // we always copy results to the same position (we would
-  // actually need to run a scan algorithm to find the right place)
-  //BOOST_CHECK(dest_device == dest_host);
+  BOOST_CHECK(output_pstl == output_host);
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_empty) {
-  test_copy_if(0, [](int i){return i;});
+
+BOOST_AUTO_TEST_CASE(unused_capture_by_ref) {
+  test_call([&](int x){return x+1;});
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_single_element) {
-  test_copy_if(1, [](int i){return i+3;});
+BOOST_AUTO_TEST_CASE(used_capture_by_ref) {
+  int c = 4;
+  test_call([&](int x){return x+c;});
 }
 
-BOOST_AUTO_TEST_CASE(par_unseq_none) {
-  test_copy_if(1000, [](int i){return 1;});
-}
-
-BOOST_AUTO_TEST_CASE(par_unseq_all) {
-  test_copy_if(1000, [](int i){return 2*i;});
-}
-
-BOOST_AUTO_TEST_CASE(par_unseq_half) {
-  test_copy_if(1000, [](int i){return i;});
-}
 
 BOOST_AUTO_TEST_SUITE_END()

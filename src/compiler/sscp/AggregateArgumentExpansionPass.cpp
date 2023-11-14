@@ -27,6 +27,7 @@
  */
 
 #include "hipSYCL/compiler/sscp/AggregateArgumentExpansionPass.hpp"
+#include "hipSYCL/compiler/utils/AggregateTypeUtils.hpp"
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/MapVector.h>
@@ -43,31 +44,6 @@ namespace compiler {
 
 namespace {
 
-template <class F>
-void ForEachNonAggregateContainedType(llvm::Type *T, F &&Handler,
-                                      llvm::SmallVector<int, 16> CurrentIndices) {
-  if(!T)
-    return;
-  
-  if(T->isArrayTy()) {
-    llvm::Type* ArrayElementT = T->getArrayElementType();
-    for(int i = 0; i < T->getArrayNumElements(); ++i) {
-      auto NextIndices = CurrentIndices;
-      NextIndices.push_back(i);
-      ForEachNonAggregateContainedType(ArrayElementT, Handler, NextIndices);
-    }
-  } else if(T->isAggregateType()) {
-    for(int i = 0; i < T->getNumContainedTypes(); ++i) {
-      auto NextIndices = CurrentIndices;
-      NextIndices.push_back(i);
-      llvm::Type* SubType = T->getContainedType(i);
-
-      ForEachNonAggregateContainedType(SubType, Handler, NextIndices);   
-    }
-  } else {
-    Handler(T, CurrentIndices);
-  }
-}
 
 llvm::Type* getValueType(llvm::Function& F, int ArgNo) {
   llvm::Type* ArgT = F.getFunctionType()->getParamType(ArgNo);
@@ -124,7 +100,7 @@ void ExpandAggregateArguments(llvm::Module &M, llvm::Function &F,
       };
 
       auto* ValueT = getValueType(F, i);
-      ForEachNonAggregateContainedType(ValueT, OnContainedType, {});
+      utils::ForEachNonAggregateContainedType(ValueT, OnContainedType, {});
       Info.OriginalByValType = ValueT;
       Info.NumExpandedArguments = Info.GEPIndices.size();
     } else {

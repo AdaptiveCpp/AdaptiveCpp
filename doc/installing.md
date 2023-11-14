@@ -106,7 +106,7 @@ On Mac, only the CPU backends are supported. The required steps are analogous to
 
 ## Manual installation (Windows)
 
-For experimental building on Windows (CPU and CUDA backends) see the corresponding [wiki](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-hipSYCL-on-Windows).
+For experimental building on Windows (CPU and CUDA backends) see the corresponding [wiki](https://github.com/OpenSYCL/OpenSYCL/wiki/Using-AdaptiveCpp-on-Windows).
 The `omp.accelerated` CPU compilation flow is unsupported on Windows.
 
 ## Repositories (Linux)

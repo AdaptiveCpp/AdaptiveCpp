@@ -71,10 +71,23 @@ private:
   algorithms::util::allocation_cache _device_scratch_cache;
   algorithms::util::allocation_cache _shared_scratch_cache;
   algorithms::util::allocation_cache _host_scratch_cache;
+  int _outstanding_offloaded_operations = 0;
 public:
   
   sycl::queue& get_queue() {
     return _queue;
+  }
+
+  int get_num_outstanding_operations() const {
+    return _outstanding_offloaded_operations;
+  }
+
+  void increment_num_outstanding_operations() {
+    ++_outstanding_offloaded_operations;
+  }
+
+  void reset_num_outstanding_operations() {
+    _outstanding_offloaded_operations = 0;
   }
 
   template<algorithms::util::allocation_type AT>

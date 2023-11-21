@@ -40,6 +40,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <string>
 
 #ifndef HIPSYCL_COMPILER_COMPONENT
 #include "hipSYCL/runtime/application.hpp"

@@ -30,9 +30,6 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${ACPP_DEBUG_LEVEL})
-if (WIN32 OR DEFINED ENV{NO_COLOR})
-	add_definitions(-DHIPSYCL_DEBUG_NOCOLOR)
-endif()
 
 if(WIN32)
   add_definitions(-D_USE_MATH_DEFINES)

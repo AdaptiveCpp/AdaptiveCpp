@@ -287,7 +287,7 @@ if(BUILD_CLANG_PLUGIN)
   
 # Check if building on Windows and LLVM_LIBS is set, if not, use LLVM_AVAILABLE_LIBS 
   if(WIN32 AND NOT LLVM_LIBS AND LLVM_AVAILABLE_LIBS)
-    set(LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+    llvm_map_components_to_libnames(LLVM_LIBS analysis core support passes)
   endif()
 endif()
 

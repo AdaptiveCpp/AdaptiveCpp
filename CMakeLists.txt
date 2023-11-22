@@ -290,6 +290,19 @@ endif()
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
+if (WIN32 OR DEFINED ENV{NO_COLOR})
+	add_definitions(-DHIPSYCL_DEBUG_NOCOLOR)
+endif()
+
+execute_process(
+	COMMAND [[ -t 1 && -t 2 ]]
+	RESULT_VARIABLE TTY
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+       )
+if (NOT TTY)
+	add_definitions(-DHIPSYCL_DEBUG_NOCOLOR)
+endif()
+
 option(HIPSYCL_NO_DEVICE_MANGLER "Disable the use of DeviceMangler. necessary for LLVM 13 distributed with the rocm packages." OFF)
 
 set(CMAKE_CXX_STANDARD 17)

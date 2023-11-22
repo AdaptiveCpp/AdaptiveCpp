@@ -40,6 +40,7 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <unistd.h>
 
 #ifndef HIPSYCL_COMPILER_COMPONENT
 #include "hipSYCL/runtime/application.hpp"
@@ -80,10 +81,16 @@ private:
       process_env(env);
     }
 #endif
+
+    _isatty = isatty(fileno(stdout)) && isatty(fileno(stderr));
+    if (!_isatty)
+      // define HIPSYCL_DEBUG_NOCOLOR
+      ;
   }
 
   int _debug_level;
   std::ostream& _output_stream;
+  int _isatty;
 };
 
 }

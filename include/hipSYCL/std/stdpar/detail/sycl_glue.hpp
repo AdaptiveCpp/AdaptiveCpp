@@ -42,6 +42,8 @@
 #include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
 #include <new>
 
+#include "allocation_map.hpp"
+
 extern "C" void *__libc_malloc(size_t);
 extern "C" void __libc_free(void*);
 
@@ -182,6 +184,11 @@ public:
       }
       get()._is_initialized = true;
       pop_disabled();
+
+      allocation_map_t::value_type v;
+      v.allocation_size = n;
+      get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
+
       return ptr;
 
     } else {
@@ -217,12 +224,30 @@ public:
           hipsycl::sycl::usm::alloc::unknown) {
         __libc_free(ptr);
       } else {
+        get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
         sycl::free(ptr, ctx.get());
       }
       pop_disabled();
     } else {
       __libc_free(ptr);
     }
+  }
+
+  struct allocation_lookup_result {
+    void* root_address;
+    std::size_t size;
+  };
+
+  static bool allocation_lookup(void* ptr, allocation_lookup_result& result) {
+    uint64_t root_address;
+    auto* ret = get()._allocation_map.get_entry(reinterpret_cast<uint64_t>(ptr), root_address);
+    if(!ret)
+      return false;
+
+    result.root_address = reinterpret_cast<void*>(root_address);
+    result.size = ret->allocation_size;
+   
+    return true;
   }
 private:
   unified_shared_memory()
@@ -234,6 +259,9 @@ private:
   }
 
   std::atomic<bool> _is_initialized;
+
+  using allocation_map_t = allocation_map<>;
+  allocation_map_t _allocation_map;
 
   class thread_local_storage {
   public:

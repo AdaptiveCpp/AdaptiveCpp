@@ -276,6 +276,28 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+template<typename... Args>
+void process_allocations(const Args&... args) {
+  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto f = [&](const auto& arg){
+    if(!has_decoration<decorations::no_pointer_validation>(arg)) {
+      glue::reflection::introspect_flattened_struct introspection{arg};
+      for(int i = 0; i < introspection.get_num_members(); ++i) {
+        if(introspection.get_member_kind(i) == glue::reflection::type_kind::pointer) {
+          void* ptr = nullptr;
+          std::memcpy(&ptr, (char*)&arg + introspection.get_member_offset(i), sizeof(void*));
+          
+          unified_shared_memory::allocation_lookup_result lookup_result;
+          if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
+            q.prefetch(lookup_result.root_address, lookup_result.size);
+          }
+        }
+      } 
+    }
+  };
+  (f(args), ...);
+}
+
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   if(!validate_all_pointers(args...)) {
@@ -283,6 +305,8 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
                              "pointers; not offloading stdpar call.\n";
     return false;
   }
+
+  process_allocations(args...);
 
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;

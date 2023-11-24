@@ -42,7 +42,7 @@ extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
     HIPSYCL_DEBUG_INFO << "[stdpar] Initializing wait for " << num_ops
                        << " operations" << std::endl;
     rt.get_queue().wait();
-    rt.reset_num_outstanding_operations();
+    rt.finalize_offloading_batch();
   }
 }
 

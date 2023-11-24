@@ -57,7 +57,7 @@ public:
 
   // Access entry of allocation that address belongs to, or nullptr if the address
   // does not belong to a known allocation.
-  const value_type* get_entry(uint64_t address, uint64_t& root_address) const noexcept {
+  value_type* get_entry(uint64_t address, uint64_t& root_address) noexcept {
     operation_lock lock{_num_in_progress_operations};
     root_address = 0;
     return get_entry(_root, address, root_address);
@@ -158,11 +158,11 @@ private:
     __libc_free(ptr);
   }
 
-  const value_type *get_entry(const leaf_node &current_node,
-                              uint64_t address, uint64_t &root_address) const noexcept {
+  value_type *get_entry(leaf_node &current_node,
+                        uint64_t address, uint64_t &root_address) noexcept {
     for (int local_address = get_index_in_level(address, 0); local_address >= 0;
          --local_address) {
-      const auto& element = current_node.entries[local_address];
+      auto& element = current_node.entries[local_address];
       if(element.allocation_size > 0) {
         root_address |= static_cast<uint64_t>(local_address)
                         << get_bitoffset_in_level(0);
@@ -178,8 +178,8 @@ private:
   }
 
   template <int Level>
-  const value_type *get_entry(const intermediate_node<Level> &current_node,
-                              uint64_t address, uint64_t &root_address) const noexcept {
+  value_type *get_entry(intermediate_node<Level> &current_node,
+                        uint64_t address, uint64_t &root_address) noexcept {
     for (int local_address = get_index_in_level(address, Level);
          local_address >= 0; --local_address) {
       
@@ -383,7 +383,7 @@ private:
 
   intermediate_node<root_level_idx> _root;
   
-  mutable std::atomic<int> _num_in_progress_operations;
+  std::atomic<int> _num_in_progress_operations;
   std::atomic<int> _num_empty_leaves;
 };
 

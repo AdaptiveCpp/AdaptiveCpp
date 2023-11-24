@@ -31,6 +31,7 @@
 
 
 #include "hipSYCL/algorithms/util/allocation_cache.hpp"
+#include <atomic>
 #include <cstdlib>
 #include <hipSYCL/sycl/queue.hpp>
 #include <hipSYCL/sycl/device.hpp>
@@ -74,6 +75,15 @@ private:
   algorithms::util::allocation_cache _shared_scratch_cache;
   algorithms::util::allocation_cache _host_scratch_cache;
   int _outstanding_offloaded_operations = 0;
+
+  static std::atomic<std::size_t>& offloading_batch_counter() {
+    static std::atomic<std::size_t> batch_counter = 0;
+    return batch_counter;
+  }
+
+  void reset_num_outstanding_operations() {
+    _outstanding_offloaded_operations = 0;
+  }
 public:
   
   sycl::queue& get_queue() {
@@ -88,8 +98,14 @@ public:
     ++_outstanding_offloaded_operations;
   }
 
-  void reset_num_outstanding_operations() {
-    _outstanding_offloaded_operations = 0;
+
+  std::size_t get_current_offloading_batch_id() const {
+    return offloading_batch_counter().load(std::memory_order::memory_order_acquire);
+  }
+
+  void finalize_offloading_batch() noexcept {
+    reset_num_outstanding_operations();
+    ++offloading_batch_counter();
   }
 
   template<algorithms::util::allocation_type AT>
@@ -157,6 +173,12 @@ private:
 namespace hipsycl::stdpar {
 
 class unified_shared_memory {
+  
+  struct allocation_map_payload {
+    std::size_t most_recent_offload_batch;
+  };
+
+  using allocation_map_t = allocation_map<allocation_map_payload>;
 public:
 
   static void pop_disabled() {
@@ -187,6 +209,7 @@ public:
 
       allocation_map_t::value_type v;
       v.allocation_size = n;
+      v.most_recent_offload_batch = 0;
       get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
 
       return ptr;
@@ -235,7 +258,7 @@ public:
 
   struct allocation_lookup_result {
     void* root_address;
-    std::size_t size;
+    allocation_map_t::value_type* info;
   };
 
   static bool allocation_lookup(void* ptr, allocation_lookup_result& result) {
@@ -245,7 +268,7 @@ public:
       return false;
 
     result.root_address = reinterpret_cast<void*>(root_address);
-    result.size = ret->allocation_size;
+    result.info = ret;
    
     return true;
   }
@@ -259,8 +282,6 @@ private:
   }
 
   std::atomic<bool> _is_initialized;
-
-  using allocation_map_t = allocation_map<>;
   allocation_map_t _allocation_map;
 
   class thread_local_storage {

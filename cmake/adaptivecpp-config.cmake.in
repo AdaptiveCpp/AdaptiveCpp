@@ -78,7 +78,7 @@ endif()
 # This is done to keep COMPILE_FLAGS free from Clang-incompatible command line arguments, allowing it to be reused
 # by clang(d)-based tooling and IDEs.
 if(WIN32)
-  set(ACPP_COMPILER_LAUNCH_RULE "python ${ACPP_COMPILER_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=\"python*${ACPP_COMPILER}\" ${ACPP_EXTRA_ARGS}")
+  set(ACPP_COMPILER_LAUNCH_RULE "python ${ACPP_COMPILER_LAUNCHER} --launcher-cxx-compiler=\"${CMAKE_CXX_COMPILER}\" --launcher-syclcc=\"python*${ACPP_COMPILER}\" ${ACPP_EXTRA_ARGS}")
 else()
   set(ACPP_COMPILER_LAUNCH_RULE "${ACPP_COMPILER_LAUNCHER} --launcher-cxx-compiler=${CMAKE_CXX_COMPILER} --launcher-syclcc=${ACPP_COMPILER} ${ACPP_EXTRA_ARGS}")
 endif()

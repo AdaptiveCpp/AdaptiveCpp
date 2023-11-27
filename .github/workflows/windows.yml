@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: clang ${{ matrix.clang }}
+    name: Preinstalled LLVM
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

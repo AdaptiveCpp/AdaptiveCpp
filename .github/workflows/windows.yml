@@ -8,7 +8,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang: [15]
         os: [windows-2022]
     steps:
     - uses: actions/checkout@v3
@@ -22,31 +21,15 @@ jobs:
         path: ${{github.workspace}}/boost/boost_1_81_0
         key: ${{runner.os}}-boost
 
-    - name: Cache LLVM-15
-      id: cache-llvm15
-      uses: actions/cache@v3
-      with:
-        path: ${{github.workspace}}/llvm
-        key: ${{runner.os}}-llvm15
-
     - name: Add Ninja to PATH
       shell: powershell
       run: |
         echo "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         
-    - name: Download prebuilt LLVM 15
-      if: steps.cache-llvm15.outputs.cache-hit != 'true' && matrix.clang == 15
-      shell: powershell
-      run: |
-        cd $env:GITHUB_WORKSPACE
-        Invoke-WebRequest -o llvm.7z https://www.dropbox.com/s/o8eth32n9ajzw0l/llvm-15-windows-prebuilt.7z?dl=1
-        7z.exe x llvm.7z
-        
     - name: Build boost from source
       if: steps.cache-boost.outputs.cache-hit != 'true'
       shell: powershell
       run: |
-        $env:PATH += ";$env:GITHUB_WORKSPACE/llvm/bin"
         md -Force $env:GITHUB_WORKSPACE/boost
         cd $env:GITHUB_WORKSPACE/boost
         Invoke-WebRequest https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z -OutFile boost.7z
@@ -57,20 +40,17 @@ jobs:
         .\b2.exe --with-context --with-fiber --with-test toolset=clang-win address-model=64 variant=release embed-manifest-via=linker --build-type=complete stage
         
     - name: Build AdaptiveCpp (without CUDA backend)
-      if: matrix.clang == 15
       shell: powershell
       run: |
-        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
-        mkdir $env:GITHUB_WORKSPACE/build/core
+        md -Force $env:GITHUB_WORKSPACE/build/core
         cd $env:GITHUB_WORKSPACE/build/core
-        cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=OFF -DLLVM_DIR="$env:GITHUB_WORKSPACE/llvm/lib/cmake/llvm" -DCMAKE_BUILD_TYPE=Release
+        cmake "$env:GITHUB_WORKSPACE" -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DCMAKE_INSTALL_PREFIX=".\install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DWITH_CUDA_BACKEND=OFF -DCMAKE_BUILD_TYPE=Release
         ninja -j2 install
 
     - name: build CPU tests
       shell: powershell
       run: |
-        $env:PATH = "$env:GITHUB_WORKSPACE/llvm/bin;$env:PATH"
-        mkdir $env:GITHUB_WORKSPACE/build/tests-cpu
+        md -Force $env:GITHUB_WORKSPACE/build/tests-cpu
         cd $env:GITHUB_WORKSPACE/build/tests-cpu
         cmake -G Ninja -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/AdaptiveCpp" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
         ninja -j2

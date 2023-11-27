@@ -52,7 +52,7 @@ jobs:
       run: |
         md -Force $env:GITHUB_WORKSPACE/build/tests-cpu
         cd $env:GITHUB_WORKSPACE/build/tests-cpu
-        cmake -G Ninja -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/AdaptiveCpp" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
+        cmake -G Ninja -DCMAKE_C_COMPILER="clang.exe" -DCMAKE_CXX_COMPILER="clang++.exe" -DACPP_TARGETS="omp" -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE/build/core/install/lib/cmake/AdaptiveCpp" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost/boost_1_81_0" -DCMAKE_BUILD_TYPE=Release "$env:GITHUB_WORKSPACE/tests"
         ninja -j2
 
     - name: run CPU tests

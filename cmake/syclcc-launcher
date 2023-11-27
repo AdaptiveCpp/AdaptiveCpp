@@ -32,6 +32,7 @@
 import subprocess
 import sys
 import os
+import shutil
 
 CXX_COMPILER_ARG = '--launcher-cxx-compiler='
 SYCLCC_ARG = '--launcher-syclcc='
@@ -66,6 +67,11 @@ if __name__ == '__main__':
   command_in = sys.argv[command_offset]
   command_in_args = sys.argv[command_offset + 1:]
 
+  # Deal with non-standard compiler invocations
+  if not os.path.isdir(cxx_compiler_exe):
+    cxx_compiler_exe = shutil.which(cxx_compiler_exe)
+  if not os.path.isdir(command_in):
+    command_in = shutil.which(command_in)
   # When invoked with a command line for expected compiler (e.g. clang++), replace with a syclcc invocation.
   # Otherwise, e.g. for invocations of `ar` for linking static libraries, just continue with the command as-is.
   if os.path.samefile(cxx_compiler_exe, command_in):

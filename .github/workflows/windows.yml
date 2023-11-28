@@ -2,6 +2,9 @@ name: Windows build and test
 
 on: [push, pull_request]
 
+env:
+  BOOST_TEST_LOG_LEVEL: test_suite
+
 jobs:
   test:
     name: Preinstalled LLVM

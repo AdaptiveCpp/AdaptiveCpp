@@ -71,7 +71,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   sscp:
-    name: SSCP/Reflection, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    name: SSCP/Reflection/stdpar, clang ${{ matrix.clang }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -122,3 +122,9 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-reflection  
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
+      - name: run stdpar LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cd ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar

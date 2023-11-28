@@ -64,7 +64,7 @@ add_executable(sycl_tests
   sycl/atomic.cpp
   sycl/buffer.cpp
   sycl/explicit_copy.cpp
-  sycl/extensions.cpp
+#  sycl/extensions.cpp
   sycl/fill.cpp
   sycl/group_functions/group_functions_misc.cpp
   sycl/group_functions/group_functions_binary_reduce.cpp

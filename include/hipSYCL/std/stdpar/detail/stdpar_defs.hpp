@@ -30,8 +30,9 @@
 
 #ifdef __clang__
 #define HIPSYCL_STDPAR_INLINE __attribute__((always_inline))
-#define HIPSYCL_STDPAR_ENTRYPOINT HIPSYCL_STDPAR_INLINE
 #define HIPSYCL_STDPAR_NOINLINE __attribute__((noinline))
+#define HIPSYCL_STDPAR_ENTRYPOINT \
+    HIPSYCL_STDPAR_NOINLINE __attribute__((annotate("hipsycl_stdpar_entrypoint")))
 #else
 #define HIPSYCL_STDPAR_INLINE
 #define HIPSYCL_STDPAR_ENTRYPOINT

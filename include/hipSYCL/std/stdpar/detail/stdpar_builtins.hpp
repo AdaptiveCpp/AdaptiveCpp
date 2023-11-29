@@ -35,17 +35,16 @@
 // these calls, so mark them as noexcept (which should be fine) such
 // that call instructions are generated instead.
 HIPSYCL_STDPAR_NOINLINE
-extern "C" void __hipsycl_stdpar_optimizable_sync(hipsycl::sycl::queue &q,
-                                                  bool is_offloaded) noexcept {
-  if(is_offloaded)
-    q.wait();
+extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
+  auto& rt = hipsycl::stdpar::detail::stdpar_tls_runtime::get();
+  int num_ops = rt.get_num_outstanding_operations();
+  if(num_ops > 0) {
+    HIPSYCL_DEBUG_INFO << "[stdpar] Initializing wait for " << num_ops
+                       << " operations" << std::endl;
+    rt.get_queue().wait();
+    rt.reset_num_outstanding_operations();
+  }
 }
-
-#ifdef __clang__
-extern "C" void __hipsycl_stdpar_consume_sync() noexcept;
-#else
-inline void __hipsycl_stdpar_consume_sync() noexcept {}
-#endif
 
 
 

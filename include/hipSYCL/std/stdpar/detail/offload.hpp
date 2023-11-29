@@ -297,32 +297,34 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
 #define HIPSYCL_STDPAR_OFFLOAD_NORET(algorithm_type_object, problem_size,      \
                                      offload_invoker, fallback_invoker, ...)   \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
     offload_invoker(q);                                                        \
+    hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
+        .increment_num_outstanding_operations();                               \
   } else {                                                                     \
     fallback_invoker();                                                        \
   }                                                                            \
-  __hipsycl_stdpar_optimizable_sync(q, is_offloaded);
+  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/
 
 #define HIPSYCL_STDPAR_OFFLOAD(algorithm_type_object, problem_size,            \
                                return_type, offload_invoker, fallback_invoker, \
                                ...)                                            \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   return_type ret = is_offloaded ? offload_invoker(q) : fallback_invoker();    \
-  __hipsycl_stdpar_optimizable_sync(q, is_offloaded);                          \
+  if (is_offloaded)                                                            \
+    hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
+        .increment_num_outstanding_operations();                               \
+  __hipsycl_stdpar_optional_barrier(); /*Compiler might move/elide this call*/ \
   return ret;
 
 #define HIPSYCL_STDPAR_BLOCKING_OFFLOAD(algorithm_type_object, problem_size,   \
                                         return_type, offload_invoker,          \
                                         fallback_invoker, ...)                 \
-  __hipsycl_stdpar_consume_sync();                                             \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
   bool is_offloaded = hipsycl::stdpar::should_offload(                         \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
@@ -332,6 +334,17 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   };                                                                           \
   return_type ret =                                                            \
       is_offloaded ? offload_invoker(q) : blocking_fallback_invoker();         \
+  if (is_offloaded) {                                                          \
+    int num_ops = hipsycl::stdpar::detail::stdpar_tls_runtime::get()           \
+                      .get_num_outstanding_operations();                       \
+    HIPSYCL_DEBUG_INFO                                                         \
+        << "[stdpar] Considering " << num_ops                                  \
+        << " outstanding operations as completed due to call to "              \
+           "blocking stdpar algorithm."                                        \
+        << std::endl;                                                          \
+    hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
+        .reset_num_outstanding_operations();                                   \
+  }                                                                            \
   return ret;
 } // namespace hipsycl::stdpar
 

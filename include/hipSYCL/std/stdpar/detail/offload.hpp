@@ -32,6 +32,7 @@
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
 #include "hipSYCL/glue/reflection.hpp"
+#include <atomic>
 #include <cstring>
 #include <iterator>
 #include <cstddef>
@@ -284,7 +285,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-  auto f = [&](const auto& arg){
+  auto arg_handler = [&](const auto& arg){
     if(!has_decoration<decorations::no_pointer_validation>(arg)) {
       glue::reflection::introspect_flattened_struct introspection{arg};
       for(int i = 0; i < introspection.get_num_members(); ++i) {
@@ -294,17 +295,23 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
           
           unified_shared_memory::allocation_lookup_result lookup_result;
           if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
-            if(lookup_result.info->most_recent_offload_batch < current_batch_id) {
+            std::size_t *most_recent_offload_batch =
+                &(lookup_result.info->most_recent_offload_batch);
+
+            // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
+            if (__atomic_load_n(most_recent_offload_batch, __ATOMIC_ACQUIRE) <
+                current_batch_id) {
               q.prefetch(lookup_result.root_address,
                          lookup_result.info->allocation_size);
-              lookup_result.info->most_recent_offload_batch = current_batch_id;
+              __atomic_store_n(most_recent_offload_batch, current_batch_id,
+                               __ATOMIC_RELEASE);
             }
           }
         }
       } 
     }
   };
-  (f(args), ...);
+  (arg_handler(args), ...);
 }
 
 template <class AlgorithmType, class Size, typename... Args>

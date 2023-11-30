@@ -207,11 +207,13 @@ public:
       get()._is_initialized = true;
       pop_disabled();
 
-      allocation_map_t::value_type v;
-      v.allocation_size = n;
-      v.most_recent_offload_batch = 0;
-      get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
-
+      if(ptr) {
+        allocation_map_t::value_type v;
+        v.allocation_size = n;
+        v.most_recent_offload_batch = 0;
+        get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
+      }
+      
       return ptr;
 
     } else {

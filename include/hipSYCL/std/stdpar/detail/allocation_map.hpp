@@ -113,7 +113,6 @@ private:
   static constexpr int root_level_idx = num_levels - 1;
   static constexpr int bitsizes[num_levels] = {4, 4, 4, 4, 4, 4, 4, 4,
                                                4, 4, 4, 4, 4, 4, 4, 4};
-  static constexpr int empty_leaves_gc_trigger = 10000;
 
   static constexpr int get_num_entries_in_level(int level) {
     return 1ull << bitsizes[level];

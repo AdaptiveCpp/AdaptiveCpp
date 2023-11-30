@@ -316,11 +316,15 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
 
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
+  // If we have system USM, no need to validate pointers as all
+  // will be automatically valid.
+#if !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
   if(!validate_all_pointers(args...)) {
     HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
                              "pointers; not offloading stdpar call.\n";
     return false;
   }
+#endif
 
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;

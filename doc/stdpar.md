@@ -101,6 +101,7 @@ Such issues are not present for the functions defined in the SYCL headers, becau
 
 Of course, if you wish to have greater control over memory, USM device pointers from user-controlled USM memory management function calls can also be used, as in any regular SYCL kernel. The buffer-accessor model is not supported; memory stored in `sycl::buffer` objects can only be used when converting it to a USM pointer using our buffer-USM interoperability extension.
 Note that you may need to invoke SYCL functions to explicitly copy memory to device and back if you use explicit SYCL device USM allocations.
+It is not recommended to use USM shared allocations from direct calls to `sycl::malloc_shared` in C++ standard algorithms. Such allocations will not be tracked by the stdpar runtime, and as such might not benefit from optimizations such as automatic prefetching.
 
 ### Systems with system-level USM support
 

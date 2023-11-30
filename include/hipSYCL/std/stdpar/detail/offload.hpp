@@ -32,6 +32,7 @@
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
 #include "hipSYCL/glue/reflection.hpp"
+#include <atomic>
 #include <cstring>
 #include <iterator>
 #include <cstddef>
@@ -108,6 +109,8 @@ auto decorate(const T& x, Attributes... attrs) {
 #define HIPSYCL_STDPAR_NO_PTR_VALIDATION(Arg)                                  \
   HIPSYCL_STDPAR_DECORATE(                                                     \
       Arg, hipsycl::stdpar::decorations::no_pointer_validation{})
+
+namespace detail {
 
 class offload_heuristic {
 public:
@@ -239,7 +242,7 @@ bool validate_contained_pointers(const T& x) {
     return true;
   }
 
-  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
+  auto& q = detail::single_device_dispatch::get_queue();
   auto* allocator = q.get_context()
       .hipSYCL_runtime()
       ->backends()
@@ -276,6 +279,41 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+template<class AlgorithmType, class Size, typename... Args>
+void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
+  auto& q = detail::single_device_dispatch::get_queue();
+  std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
+                                     .get_current_offloading_batch_id();
+
+  auto arg_handler = [&](const auto& arg){
+    if(!has_decoration<decorations::no_pointer_validation>(arg)) {
+      glue::reflection::introspect_flattened_struct introspection{arg};
+      for(int i = 0; i < introspection.get_num_members(); ++i) {
+        if(introspection.get_member_kind(i) == glue::reflection::type_kind::pointer) {
+          void* ptr = nullptr;
+          std::memcpy(&ptr, (char*)&arg + introspection.get_member_offset(i), sizeof(void*));
+          
+          unified_shared_memory::allocation_lookup_result lookup_result;
+          if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
+            std::size_t *most_recent_offload_batch =
+                &(lookup_result.info->most_recent_offload_batch);
+
+            // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
+            if (__atomic_load_n(most_recent_offload_batch, __ATOMIC_ACQUIRE) <
+                current_batch_id) {
+              q.prefetch(lookup_result.root_address,
+                         lookup_result.info->allocation_size);
+              __atomic_store_n(most_recent_offload_batch, current_batch_id,
+                               __ATOMIC_RELEASE);
+            }
+          }
+        }
+      } 
+    }
+  };
+  (arg_handler(args), ...);
+}
+
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   if(!validate_all_pointers(args...)) {
@@ -298,9 +336,11 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 #define HIPSYCL_STDPAR_OFFLOAD_NORET(algorithm_type_object, problem_size,      \
                                      offload_invoker, fallback_invoker, ...)   \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
-  bool is_offloaded = hipsycl::stdpar::should_offload(                         \
+  bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   if (is_offloaded) {                                                          \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+                                                problem_size, __VA_ARGS__);    \
     offload_invoker(q);                                                        \
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
         .increment_num_outstanding_operations();                               \
@@ -313,8 +353,11 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
                                return_type, offload_invoker, fallback_invoker, \
                                ...)                                            \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
-  bool is_offloaded = hipsycl::stdpar::should_offload(                         \
+  bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
+  if (is_offloaded)                                                            \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+                                                problem_size, __VA_ARGS__);    \
   return_type ret = is_offloaded ? offload_invoker(q) : fallback_invoker();    \
   if (is_offloaded)                                                            \
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
@@ -326,12 +369,15 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
                                         return_type, offload_invoker,          \
                                         fallback_invoker, ...)                 \
   auto &q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();      \
-  bool is_offloaded = hipsycl::stdpar::should_offload(                         \
+  bool is_offloaded = hipsycl::stdpar::detail::should_offload(                 \
       algorithm_type_object, problem_size, __VA_ARGS__);                       \
   const auto blocking_fallback_invoker = [&]() {                               \
     q.wait();                                                                  \
     return fallback_invoker();                                                 \
   };                                                                           \
+  if (is_offloaded)                                                            \
+    hipsycl::stdpar::detail::prepare_offloading(algorithm_type_object,         \
+                                                problem_size, __VA_ARGS__);    \
   return_type ret =                                                            \
       is_offloaded ? offload_invoker(q) : blocking_fallback_invoker();         \
   if (is_offloaded) {                                                          \
@@ -343,9 +389,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
            "blocking stdpar algorithm."                                        \
         << std::endl;                                                          \
     hipsycl::stdpar::detail::stdpar_tls_runtime::get()                         \
-        .reset_num_outstanding_operations();                                   \
+        .finalize_offloading_batch();                                          \
   }                                                                            \
   return ret;
+
+
+} // namespace detail
 } // namespace hipsycl::stdpar
 
 #endif

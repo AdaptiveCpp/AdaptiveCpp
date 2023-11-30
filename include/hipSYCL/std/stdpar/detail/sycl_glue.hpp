@@ -213,7 +213,7 @@ public:
         v.most_recent_offload_batch = 0;
         get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
       }
-      
+
       return ptr;
 
     } else {
@@ -245,8 +245,8 @@ public:
         return;
 
       push_disabled();
-      if (hipsycl::sycl::get_pointer_type(ptr, ctx.get()) ==
-          hipsycl::sycl::usm::alloc::unknown) {
+      uint64_t root_address = 0;
+      if (!get()._allocation_map.get_entry(reinterpret_cast<uint64_t>(ptr), root_address)) {
         __libc_free(ptr);
       } else {
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));

@@ -293,7 +293,7 @@ private:
     __atomic_store_n(allocation_size_ptr, v.allocation_size, __ATOMIC_RELEASE);
     current_node.entries[local_address].UserPayload::operator=(v);
     
-    auto val = current_node.num_entries.fetch_add(
+    current_node.num_entries.fetch_add(
         1, std::memory_order::memory_order_acq_rel);
 
     return true;

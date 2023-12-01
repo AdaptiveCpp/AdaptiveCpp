@@ -149,15 +149,6 @@ bool instructionAccessesMemory(llvm::Instruction* I) {
   return false;
 }
 
-bool isSkippableStoreInstruction(llvm::Instruction* I) {
-  if(!I)
-    return false;
-  if(auto* S = llvm::dyn_cast<llvm::StoreInst>(I)) {
-    
-  }
-  return false;
-}
-
 bool functionDoesNotAccessMemory(llvm::Function* F){
   if(!F)
     return true;

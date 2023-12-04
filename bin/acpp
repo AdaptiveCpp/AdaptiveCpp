@@ -1813,7 +1813,7 @@ class compiler:
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
       if self._is_stdpar_system_usm:
-        args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
+        args += ["-mllvm", "-hipsycl-stdpar-assume-system-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
     return args + self._common_compiler_args

@@ -282,6 +282,8 @@ bool validate_all_pointers(const Args&... args){
 template<class AlgorithmType, class Size, typename... Args>
 void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
   auto& q = detail::single_device_dispatch::get_queue();
+  bool is_cpu = q.get_device().is_cpu();
+
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
@@ -294,7 +296,8 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
           std::memcpy(&ptr, (char*)&arg + introspection.get_member_offset(i), sizeof(void*));
           
           unified_shared_memory::allocation_lookup_result lookup_result;
-          if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
+          if (!is_cpu && ptr &&
+              unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
             std::size_t *most_recent_offload_batch =
                 &(lookup_result.info->most_recent_offload_batch);
 
@@ -316,20 +319,25 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
 
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
+  
+  auto& q = detail::single_device_dispatch::get_queue();
+
   // If we have system USM, no need to validate pointers as all
   // will be automatically valid.
 #if !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
-  if(!validate_all_pointers(args...)) {
-    HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
-                             "pointers; not offloading stdpar call.\n";
-    return false;
+  // No need to validate memory for a CPU device
+  if(!q.get_device().is_cpu()) {
+    if(!validate_all_pointers(args...)) {
+      HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
+                              "pointers; not offloading stdpar call.\n";
+      return false;
+    }
   }
 #endif
 
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else
-  auto& q = hipsycl::stdpar::detail::single_device_dispatch::get_queue();
   std::size_t min_size =
       offload_heuristic::get_offloading_min_problem_size(q.get_device());
   

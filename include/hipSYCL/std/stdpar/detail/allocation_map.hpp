@@ -64,6 +64,13 @@ public:
     return get_entry(_root, address, num_leaf_attempts, root_address);
   }
 
+  // Access entry of allocation that has the given address. Unlike get_entry(),
+  // this does not succeed if the address does not point to the base of the allocation.
+  value_type* get_entry_of_root_address(uint64_t address, uint64_t& root_address) noexcept {
+    insert_or_get_entry_lock lock{_num_in_progress_operations};
+    return get_entry_of_root_address(_root, address);
+  }
+
   // Insert new element. Element's allocation range must be
   // non-overlapping w.r.t existing entries.
   // ~0ull is unsupported, because then non-zero allocation
@@ -273,6 +280,34 @@ private:
           return nullptr;
         }
       }
+    }
+    return nullptr;
+  }
+
+  value_type *get_entry_of_root_address(leaf_node &current_node, uint64_t address) noexcept {
+    int local_address = get_index_in_level(address, 0);
+  
+    auto& element = current_node.entries[local_address];
+    std::size_t allocation_size =
+        __atomic_load_n(&(element.allocation_size), __ATOMIC_ACQUIRE);
+
+    if (allocation_size > 0) {
+      return &element;
+    }
+
+    return nullptr;
+  }
+
+  template <int Level>
+  value_type *get_entry_of_root_address(intermediate_node<Level> &current_node,
+                                        uint64_t address) noexcept {
+    int local_address = get_index_in_level(address, Level);
+  
+    auto *ptr = current_node.children[local_address].load(
+          std::memory_order::memory_order_acquire);
+      
+    if(ptr) {
+      return get_entry_of_root_address(*ptr, address);
     }
     return nullptr;
   }

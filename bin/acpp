@@ -340,7 +340,17 @@ class acpp_config:
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
       * spirv - use clang SYCL driver to generate spirv
-      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device"""),
+
+      'stdpar-prefetch-mode' : option("--acpp-stdpar-prefetch-mode", "ACPP_STDPAR_PREFETCH_MODE", "default-stdpar-prefetch-mode", 
+"""  AdaptiveCpp supports issuing automati USM prefetch operations for allocations used inside offloaded C++ PSTL
+    algorithms. This flags determines the strategy for submitting such prefetches.
+    Supported values are:
+      * always - Prefetches every allocation
+      * never  - Disables prefetching
+      * first  - Prefetch only allocations for the first kernel submitted after a synchronization point.
+                 (Prefetches running on non-idling queues can be expensive!)
+      * auto   - Let AdaptiveCpp decide (default)""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -835,6 +845,15 @@ class acpp_config:
       return self._is_flag_set("stdpar-unconditional-offload")
     except OptionNotSet:
       return False
+  
+  @property
+  def stdpar_prefetch_mode(self):
+    mode = "auto"
+    try:
+      mode = self._retrieve_option("stdpar-prefetch-mode")
+    except OptionNotSet:
+      pass
+    return mode
 
   @property
   def save_temps(self):
@@ -1621,6 +1640,7 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    self._stdpar_prefetch_mode = config.stdpar_prefetch_mode
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1802,6 +1822,7 @@ class compiler:
       "-isystem", self._acpp_include_path,
       "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
     ]
+
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [
@@ -1816,6 +1837,20 @@ class compiler:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+      prefetch_mode_string = self._stdpar_prefetch_mode
+      prefetch_mode_id = 0
+      if prefetch_mode_string == "auto":
+        prefetch_mode_id = 0
+      elif prefetch_mode_string == "always":
+        prefetch_mode_id = 1
+      elif prefetch_mode_string == "never":
+        prefetch_mode_id = 2
+      elif prefetch_mode_string == "first":
+        prefetch_mode_id = 3
+      else:
+        raise RuntimeError("Invalid value for stdpar-prefetch-mode: "+prefetch_mode_string)
+      args += ["-D__HIPSYCL_STDPAR_PREFETCH_MODE__="+str(prefetch_mode_id)]
+
     return args + self._common_compiler_args
 
   @property

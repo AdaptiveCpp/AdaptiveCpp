@@ -279,13 +279,29 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+enum prefetch_mode {
+  automatic = 0,
+  always = 1,
+  never = 2,
+  first = 3,
+};
+
+inline constexpr prefetch_mode get_prefetch_mode() noexcept {
+#ifdef __HIPSYCL_STDPAR_PREFETCH_MODE__
+  prefetch_mode mode = static_cast<prefetch_mode>(__HIPSYCL_STDPAR_PREFETCH_MODE__);
+#else
+  prefetch_mode mode = prefetch_mode::automatic;
+#endif
+  return mode;
+}
+
 template<class AlgorithmType, class Size, typename... Args>
 void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
   auto& q = detail::single_device_dispatch::get_queue();
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-  auto arg_handler = [&](const auto& arg){
+  auto prefetch_handler = [&](const auto& arg){
     if(!has_decoration<decorations::no_pointer_validation>(arg)) {
       glue::reflection::introspect_flattened_struct introspection{arg};
       for(int i = 0; i < introspection.get_num_members(); ++i) {
@@ -312,7 +328,22 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
       } 
     }
   };
-  (arg_handler(args), ...);
+  
+  // Use "first" mode in case of automatic prefetch decision for now
+  const auto prefetch_mode =
+      (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
+                                                        : get_prefetch_mode();
+
+  if(prefetch_mode == prefetch_mode::first) {
+    int submission_id_in_batch = stdpar::detail::stdpar_tls_runtime::get()
+                                   .get_num_outstanding_operations();
+    if(submission_id_in_batch == 0)
+      (prefetch_handler(args), ...);
+  } else if(prefetch_mode == prefetch_mode::always){
+    (prefetch_handler(args), ...);
+  } else if(prefetch_mode == prefetch_mode::never) {
+    /* nothing to do */
+  }
 }
 
 template <class AlgorithmType, class Size, typename... Args>

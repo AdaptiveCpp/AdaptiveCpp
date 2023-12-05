@@ -298,11 +298,12 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
             std::size_t *most_recent_offload_batch =
                 &(lookup_result.info->most_recent_offload_batch);
 
+            std::size_t prefetch_size = lookup_result.info->allocation_size;
+
             // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
             if (__atomic_load_n(most_recent_offload_batch, __ATOMIC_ACQUIRE) <
-                current_batch_id) {
-              q.prefetch(lookup_result.root_address,
-                         lookup_result.info->allocation_size);
+                    current_batch_id) {
+              q.prefetch(lookup_result.root_address, prefetch_size);
               __atomic_store_n(most_recent_offload_batch, current_batch_id,
                                __ATOMIC_RELEASE);
             }

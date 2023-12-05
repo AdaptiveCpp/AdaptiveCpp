@@ -246,7 +246,8 @@ public:
 
       push_disabled();
       uint64_t root_address = 0;
-      if (!get()._allocation_map.get_entry(reinterpret_cast<uint64_t>(ptr), root_address)) {
+      if (!get()._allocation_map.get_entry_of_root_address(
+              reinterpret_cast<uint64_t>(ptr), root_address)) {
         __libc_free(ptr);
       } else {
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
@@ -271,7 +272,6 @@ public:
 
     result.root_address = reinterpret_cast<void*>(root_address);
     result.info = ret;
-   
     return true;
   }
 private:

@@ -283,7 +283,8 @@ enum prefetch_mode {
   automatic = 0,
   always = 1,
   never = 2,
-  first = 3,
+  after_sync = 3,
+  first = 4
 };
 
 inline constexpr prefetch_mode get_prefetch_mode() noexcept {
@@ -301,6 +302,12 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
+  
+  // Use "first" mode in case of automatic prefetch decision for now
+  const auto prefetch_mode =
+      (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
+                                                        : get_prefetch_mode();
+
   auto prefetch_handler = [&](const auto& arg){
     if(!has_decoration<decorations::no_pointer_validation>(arg)) {
       glue::reflection::introspect_flattened_struct introspection{arg};
@@ -311,16 +318,27 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
           
           unified_shared_memory::allocation_lookup_result lookup_result;
           if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
-            std::size_t *most_recent_offload_batch =
+            int64_t *most_recent_offload_batch_ptr =
                 &(lookup_result.info->most_recent_offload_batch);
 
             std::size_t prefetch_size = lookup_result.info->allocation_size;
 
             // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
-            if (__atomic_load_n(most_recent_offload_batch, __ATOMIC_ACQUIRE) <
-                    current_batch_id) {
+            std::size_t most_recent_offload_batch = __atomic_load_n(
+                most_recent_offload_batch_ptr, __ATOMIC_ACQUIRE);
+            
+            bool should_prefetch = false;
+            if(prefetch_mode == prefetch_mode::first)
+              // an allocation that was never used will still contain the
+              // initialization value of -1
+              should_prefetch = most_recent_offload_batch == -1;
+            else
+              // Never emit multiple prefetches for the same allocation in one batch
+              should_prefetch = most_recent_offload_batch < current_batch_id;
+
+            if (should_prefetch) {
               q.prefetch(lookup_result.root_address, prefetch_size);
-              __atomic_store_n(most_recent_offload_batch, current_batch_id,
+              __atomic_store_n(most_recent_offload_batch_ptr, current_batch_id,
                                __ATOMIC_RELEASE);
             }
           }
@@ -329,19 +347,16 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
     }
   };
   
-  // Use "first" mode in case of automatic prefetch decision for now
-  const auto prefetch_mode =
-      (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
-                                                        : get_prefetch_mode();
 
-  if(prefetch_mode == prefetch_mode::first) {
+  if(prefetch_mode == prefetch_mode::after_sync) {
     int submission_id_in_batch = stdpar::detail::stdpar_tls_runtime::get()
                                    .get_num_outstanding_operations();
     if(submission_id_in_batch == 0)
       (prefetch_handler(args), ...);
-  } else if(prefetch_mode == prefetch_mode::always){
+  } else if (prefetch_mode == prefetch_mode::always ||
+             prefetch_mode == prefetch_mode::first) {
     (prefetch_handler(args), ...);
-  } else if(prefetch_mode == prefetch_mode::never) {
+  } else if (prefetch_mode == prefetch_mode::never) {
     /* nothing to do */
   }
 }

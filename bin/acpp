@@ -346,11 +346,12 @@ class acpp_config:
 """  AdaptiveCpp supports issuing automati USM prefetch operations for allocations used inside offloaded C++ PSTL
     algorithms. This flags determines the strategy for submitting such prefetches.
     Supported values are:
-      * always - Prefetches every allocation
-      * never  - Disables prefetching
-      * first  - Prefetch only allocations for the first kernel submitted after a synchronization point.
-                 (Prefetches running on non-idling queues can be expensive!)
-      * auto   - Let AdaptiveCpp decide (default)""")
+      * always      - Prefetches every allocation used by every stdpar kernel
+      * never       - Disables prefetching
+      * after-sync  - Prefetch all allocations used by the first kernel submitted after each synchronization point.
+                      (Prefetches running on non-idling queues can be expensive!)
+      * first       - Prefetch allocations only the very first time they are used in a kernel
+      * auto        - Let AdaptiveCpp decide (default)""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -1833,10 +1834,12 @@ class compiler:
         "-mllvm", "-hipsycl-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
+      
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+      
       prefetch_mode_string = self._stdpar_prefetch_mode
       prefetch_mode_id = 0
       if prefetch_mode_string == "auto":
@@ -1845,8 +1848,10 @@ class compiler:
         prefetch_mode_id = 1
       elif prefetch_mode_string == "never":
         prefetch_mode_id = 2
-      elif prefetch_mode_string == "first":
+      elif prefetch_mode_string == "after-sync":
         prefetch_mode_id = 3
+      elif prefetch_mode_string == "first":
+        prefetch_mode_id = 4
       else:
         raise RuntimeError("Invalid value for stdpar-prefetch-mode: "+prefetch_mode_string)
       args += ["-D__HIPSYCL_STDPAR_PREFETCH_MODE__="+str(prefetch_mode_id)]

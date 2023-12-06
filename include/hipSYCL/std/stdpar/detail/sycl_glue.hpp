@@ -175,7 +175,10 @@ namespace hipsycl::stdpar {
 class unified_shared_memory {
   
   struct allocation_map_payload {
-    std::size_t most_recent_offload_batch;
+    // Note: This gets updated when logic, such as the prefetch
+    // heuristic, touches this value - so it may not be up to date
+    // if there is no prefetch!
+    int64_t most_recent_offload_batch;
   };
 
   using allocation_map_t = allocation_map<allocation_map_payload>;
@@ -210,7 +213,7 @@ public:
       if(ptr) {
         allocation_map_t::value_type v;
         v.allocation_size = n;
-        v.most_recent_offload_batch = 0;
+        v.most_recent_offload_batch = -1;
         get()._allocation_map.insert(reinterpret_cast<uint64_t>(ptr), v);
       }
 

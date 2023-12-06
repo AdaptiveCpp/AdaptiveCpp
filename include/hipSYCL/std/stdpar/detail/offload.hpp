@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_PSTL_OFFLOAD_HPP
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
@@ -296,6 +297,22 @@ inline constexpr prefetch_mode get_prefetch_mode() noexcept {
   return mode;
 }
 
+inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcept {
+  auto* inorder_executor = q.hipSYCL_inorder_executor();
+  if(inorder_executor) {
+    // Attempt to invoke backend functionality directly -
+    // in general we might have to issue multiple prefetches for
+    // each kernel, so overheads can quickly add up.
+    HIPSYCL_DEBUG_INFO << "[stdpar] Submitting raw prefetch to backend: "
+                       << bytes << " bytes @" << ptr << std::endl;
+    rt::inorder_queue* ordered_q = inorder_executor->get_queue();
+    rt::prefetch_operation op{ptr, bytes, ordered_q->get_device()};
+    ordered_q->submit_prefetch(op, nullptr);
+  } else {
+    q.prefetch(ptr, bytes);
+  }
+}
+
 template<class AlgorithmType, class Size, typename... Args>
 void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
   auto& q = detail::single_device_dispatch::get_queue();
@@ -337,7 +354,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
               should_prefetch = most_recent_offload_batch < current_batch_id;
 
             if (should_prefetch) {
-              q.prefetch(lookup_result.root_address, prefetch_size);
+              prefetch(q, lookup_result.root_address, prefetch_size);
               __atomic_store_n(most_recent_offload_batch_ptr, current_batch_id,
                                __ATOMIC_RELEASE);
             }

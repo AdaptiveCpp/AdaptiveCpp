@@ -921,6 +921,12 @@ public:
   std::size_t hipSYCL_hash_code() const {
     return _node_group_id;
   }
+
+  rt::inorder_executor* hipSYCL_inorder_executor() const {
+    if(!_dedicated_inorder_executor)
+      return nullptr;
+    return static_cast<rt::inorder_executor*>(_dedicated_inorder_executor.get());
+  }
 private:
   template<int Dim>
   void apply_preferred_group_size(const property_list& prop_list, handler& cgh) {
@@ -1017,14 +1023,14 @@ private:
       rt::device_id rt_dev = detail::extract_rt_device(this->get_device());
       // Dedicated executor may not be supported by all backends,
       // so this might return nullptr.
-      std::shared_ptr<rt::backend_executor> dedicated_executor =
+      _dedicated_inorder_executor =
           _requires_runtime.get()
               ->backends()
               .get(rt_dev.get_backend())
               ->create_inorder_executor(rt_dev, priority);
       
-      if(dedicated_executor) {
-        _default_hints->set_hint(rt::hints::prefer_executor{dedicated_executor});
+      if(_dedicated_inorder_executor) {
+        _default_hints->set_hint(rt::hints::prefer_executor{_dedicated_inorder_executor});
       }
     }
 
@@ -1051,6 +1057,7 @@ private:
   std::shared_ptr<rt::dag_node_ptr> _previous_submission;
   std::shared_ptr<std::mutex> _lock;
   std::size_t _node_group_id;
+  std::shared_ptr<rt::backend_executor> _dedicated_inorder_executor;
 };
 
 HIPSYCL_SPECIALIZE_GET_INFO(queue, context)

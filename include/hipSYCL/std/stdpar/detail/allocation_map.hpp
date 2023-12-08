@@ -29,6 +29,7 @@
 #define HIPSYCL_ALLOCATION_MAP_HPP
 
 
+#include <cstddef>
 #include <cstdlib>
 #include <cstdint>
 #include <type_traits>
@@ -42,8 +43,58 @@ namespace hipsycl::stdpar {
 
 struct default_allocation_map_payload {};
 
-template<class UserPayload = default_allocation_map_payload>
-class allocation_map {
+template<class Int_type, int... Bit_sizes>
+class bit_tree {
+protected:
+  
+  static constexpr int num_levels = sizeof...(Bit_sizes);
+  static constexpr int root_level_idx = num_levels - 1;
+  static constexpr int bitsizes[num_levels] = {Bit_sizes...};
+
+  static constexpr int get_num_entries_in_level(int level) {
+    return 1ull << bitsizes[level];
+  }
+
+  static constexpr int get_bitoffset_in_level(int level) {
+    int result = 0;
+    for(int i = 0; i < level; ++i) {
+      result += bitsizes[i];
+    }
+    return result;
+  }
+
+  static constexpr int get_index_in_level(Int_type address, int level) {
+    Int_type bitmask = get_n_low_bits_set(bitsizes[level]);
+    return (address >> get_bitoffset_in_level(level)) & bitmask;
+  }
+
+  static constexpr uint64_t get_n_low_bits_set(int n) {
+    if(n == 64)
+      return ~0ull;
+    return (1ull << n) - 1;
+  }
+
+  static constexpr uint64_t get_space_spanned_by_node_in_level(int level) {
+    uint64_t result = 1;
+    for(int i = 0; i < level; ++i)
+      result *= get_num_entries_in_level(level);
+    return result;
+  }
+
+  template<class T>
+  static T* alloc(int count) {
+    return static_cast<T*>(__libc_malloc(sizeof(T) * count));
+  }
+
+  static void free(void* ptr) {
+    __libc_free(ptr);
+  }
+};
+
+template <class UserPayload = default_allocation_map_payload>
+class allocation_map : public bit_tree<uint64_t, 
+  4, 4, 4, 4,  4, 4, 4, 4,
+  4, 4, 4, 4,  4, 4, 4, 4> {
 public:
   static_assert(sizeof(void*) == 8, "Unsupported pointer size");
   static_assert(std::is_trivial_v<UserPayload>, "UserPayload must be trivial type");
@@ -116,34 +167,6 @@ private:
     ostr << "\n";
   }
 
-  static constexpr int num_levels = 16;
-  static constexpr int root_level_idx = num_levels - 1;
-  static constexpr int bitsizes[num_levels] = {4, 4, 4, 4, 4, 4, 4, 4,
-                                               4, 4, 4, 4, 4, 4, 4, 4};
-
-  static constexpr int get_num_entries_in_level(int level) {
-    return 1ull << bitsizes[level];
-  }
-
-  static constexpr int get_bitoffset_in_level(int level) {
-    int result = 0;
-    for(int i = 0; i < level; ++i) {
-      result += bitsizes[i];
-    }
-    return result;
-  }
-
-  static constexpr int get_index_in_level(uint64_t address, int level) {
-    uint64_t bitmask = get_n_low_bits_set(bitsizes[level]);
-    return (address >> get_bitoffset_in_level(level)) & bitmask;
-  }
-
-  static constexpr uint64_t get_n_low_bits_set(int n) {
-    if(n == 64)
-      return ~0ull;
-    return (1ull << n) - 1;
-  }
-
   struct leaf_node {
     leaf_node()
     : num_entries {} {
@@ -159,7 +182,7 @@ private:
   template<int Level>
   struct intermediate_node {
   private:
-      static constexpr auto make_child() {
+    static constexpr auto make_child() {
       if constexpr (Level > 1) return 
         intermediate_node<Level - 1>{};
       else return leaf_node{};
@@ -173,15 +196,6 @@ private:
     std::atomic<child_type*> children [get_num_entries_in_level(Level)];
     std::atomic<int> num_entries;
   };
-
-  template<class T>
-  static T* alloc(int count) {
-    return static_cast<T*>(__libc_malloc(sizeof(T) * count));
-  }
-
-  static void free(void* ptr) {
-    __libc_free(ptr);
-  }
 
   value_type *get_entry(leaf_node &current_node, uint64_t address,
                         int &num_leaf_attempts,
@@ -419,7 +433,7 @@ private:
       if (auto *ptr = current_node.children[i].load(
               std::memory_order::memory_order_acquire)) {
         release(*ptr);
-        free(ptr);
+        this->free(ptr);
       }
     }
     destroy(current_node);
@@ -475,6 +489,244 @@ private:
 
   intermediate_node<root_level_idx> _root;
   std::atomic<int> _num_in_progress_operations;
+};
+
+class used_space_map : public bit_tree<uint64_t, 
+  2, 2, 2, 2,  2, 2, 2, 2,
+  2, 2, 2, 2,  2, 2, 2, 2,
+  2, 2, 2, 2,  2, 2, 2, 2,
+  2, 2, 2, 2,  2, 2, 2, 2> {
+public:
+  used_space_map(std::size_t max_assignable_space)
+  : _max_assignable_space{max_assignable_space}, _lock{0} {}
+
+  ~used_space_map() {
+    release_all(_root);
+  }
+
+  bool claim(std::size_t size, uint64_t& address) {
+    spin_lock lock{_lock};
+    address = 0;
+    return this->claim(_root, size, address);
+  }
+
+  bool release(uint64_t address) {
+    spin_lock lock{_lock};
+    return this->release(_root, address);
+  }
+private:
+
+  struct leaf_node {
+    leaf_node()
+    : is_filled{}, num_entries {} {}
+    
+    bool is_filled [get_num_entries_in_level(0)];
+    int num_entries;
+  };
+
+  template<int Level>
+  struct intermediate_node {
+    intermediate_node()
+    : children{}, num_entries{}, is_filled{false} {}
+
+    using child_type = intermediate_node<Level-1>;
+
+    child_type* children [get_num_entries_in_level(Level)];
+    bool is_filled [get_num_entries_in_level(Level)];
+    int num_entries;
+  };
+
+  template<>
+  struct intermediate_node<1> {
+    intermediate_node()
+    : children{}, num_entries{}, is_filled{false} {}
+
+    using child_type = leaf_node;
+
+    child_type* children [get_num_entries_in_level(1)];
+    bool is_filled [get_num_entries_in_level(1)];
+    int num_entries;
+  };
+
+
+  template<class T>
+  void destroy(T& v) {
+    v.~T();
+  }
+
+  class spin_lock {
+  public:
+    spin_lock(std::atomic<int>& lock)
+    : _lock{lock} {
+      int expected = 0;
+      while (!_lock.compare_exchange_strong(
+          expected, 1, std::memory_order::memory_order_release,
+          std::memory_order::memory_order_relaxed))
+        expected = 0;
+    }
+
+    ~spin_lock() {
+      _lock.store(0, std::memory_order::memory_order_release);
+    }
+  private:
+    std::atomic<int>& _lock;
+  };
+  
+  bool claim(leaf_node& current_node, std::size_t size, uint64_t& address) {
+    for(int local_address = 0; local_address < get_num_entries_in_level(0); ++local_address) {
+      if(!current_node.is_filled[local_address]) {
+        uint64_t address_candidate =
+            address | (static_cast<uint64_t>(local_address) << get_bitoffset_in_level(0));
+        
+        if(address_candidate + size > _max_assignable_space)
+          return false;
+        else {
+          address = address_candidate;
+          current_node.is_filled[local_address] = true;
+          ++current_node.num_entries;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  template<int Level>
+  bool claim(intermediate_node<Level>& current_node, std::size_t size, uint64_t& address) {
+    static_assert(Level >= 1, "Invalid level for intermediate node claim");
+
+    if(get_space_spanned_by_node_in_level(Level) < size)
+      return false;
+
+    bool is_target_level = get_space_spanned_by_node_in_level(Level - 1) < size;
+
+    if(is_target_level) {
+      for (int local_address = 0;
+          local_address < get_num_entries_in_level(Level); ++local_address) {
+        if (!current_node.is_filled[local_address] &&
+            !current_node.children[local_address]) {
+          uint64_t address_candidate =
+            address | (static_cast<uint64_t>(local_address)
+                            << get_bitoffset_in_level(Level));
+          
+          if(address_candidate + size > _max_assignable_space)
+            return false;
+          else {
+            address = address_candidate;
+            current_node.is_filled[local_address] = true;
+            ++current_node.num_entries;
+            return true;
+          }
+        }
+      }
+      return false;
+    } else {
+      // First try finding an existing node
+      for (int local_address = 0;
+          local_address < get_num_entries_in_level(Level); ++local_address) {
+        if(!current_node.is_filled[local_address]) {
+          auto* ptr = current_node.children[local_address];
+          if(ptr) {
+            uint64_t address_candidate =
+              address | (static_cast<uint64_t>(local_address)
+                            << get_bitoffset_in_level(Level));
+            if(claim(*ptr, size, address_candidate)) {
+              address = address_candidate;
+              return true;
+            }
+          }
+        }
+      }
+      // Next try with a new node
+      for(int local_address = 0;
+        local_address < get_num_entries_in_level(Level); ++local_address) {
+        if(!current_node.is_filled[local_address]) {
+          auto* ptr = current_node.children[local_address];
+          if(!ptr) {
+            using child_t = typename intermediate_node<Level>::child_type;
+            ptr = alloc<child_t>(1);
+            new (ptr) child_t{};
+            
+            current_node.children[local_address] = ptr;
+            ++current_node.num_entries;
+
+            uint64_t address_candidate =
+              address | (static_cast<uint64_t>(local_address)
+                            << get_bitoffset_in_level(Level));
+            // Since this is a brand new node and we are not target level,
+            // this call should always succeed - unless we are exceeding
+            // the assignable space.
+            if(claim(*ptr, size, address_candidate)) {
+              address = address_candidate;
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  bool release(leaf_node& current_node, uint64_t address) {
+    int local_address = get_index_in_level(address, 0);
+
+    // Entry was already deleted or does not exist
+    if(current_node.is_filled[local_address])
+      return false;
+
+    current_node.is_filled[local_address] = false;
+
+    --current_node.num_entries;
+    
+    return true;
+  }
+
+  template <int Level>
+  bool release(intermediate_node<Level> &current_node, uint64_t address) {
+
+    int local_address = get_index_in_level(address, Level);
+
+    if(current_node.is_filled[local_address]) {
+      current_node.is_filled[local_address] = false;
+      --current_node.num_entries;
+      return true;
+    }
+
+    auto* ptr = current_node.children[local_address];
+    if(!ptr)
+      return false;
+    
+    bool result = release(*ptr, address);
+    if(result) {
+      if(ptr->num_entries == 0) {
+        current_node.children[local_address] = nullptr;
+        
+        destroy(*ptr);
+        this->free(ptr);
+        --current_node.num_entries;
+      }
+    }
+    return result;
+  }
+
+  void release_all(leaf_node& node) {}
+
+  template <int Level>
+  void release_all(intermediate_node<Level> &current_node) {
+    for(int i = 0; i < get_num_entries_in_level(Level); ++i) {
+      auto* ptr = current_node.children[i];
+      if(ptr) {
+        release_all(*ptr);
+        destroy(*ptr);
+        this->free(ptr);
+        current_node.children[i] = nullptr;
+      }
+    }
+  }
+  
+  const std::size_t _max_assignable_space;
+  intermediate_node<root_level_idx> _root;
+  std::atomic<int> _lock;
 };
 
 }

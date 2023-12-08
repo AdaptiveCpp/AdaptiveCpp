@@ -30,9 +30,14 @@
 
 
 
-#include "hipSYCL/algorithms/util/allocation_cache.hpp"
+
 #include <atomic>
+#include <cstdint>
 #include <cstdlib>
+#include <new>
+#include <unistd.h>
+
+#include <hipSYCL/algorithms/util/allocation_cache.hpp>
 #include <hipSYCL/sycl/queue.hpp>
 #include <hipSYCL/sycl/device.hpp>
 #include <hipSYCL/sycl/context.hpp>
@@ -41,7 +46,7 @@
 // Fetch builtin declarations to aid SSCP StdBuiltinRemapperPass for
 // std:: math function support inside kernels.
 #include <hipSYCL/sycl/libkernel/builtin_interface.hpp>
-#include <new>
+
 
 #include "allocation_map.hpp"
 
@@ -172,6 +177,83 @@ private:
 
 namespace hipsycl::stdpar {
 
+class memory_pool {
+private:
+  uint64_t ceil_division(uint64_t a, uint64_t b) {
+    return (a + b - 1) / b;
+  }
+
+  uint64_t next_multiple_of(uint64_t a, uint64_t b) {
+    return ceil_division(a, b) * b;
+  }
+public:
+  memory_pool(std::size_t size)
+      : _pool_size{size}, _used_space_map{size}, _pool{nullptr},
+        _page_size{static_cast<int>(sysconf(_SC_PAGESIZE))} {}
+
+  void* claim(std::size_t size) {
+    
+    if(!_pool) {
+      std::lock_guard<std::mutex> lock{_lock};
+      if(!_pool) {
+        // Make sure to allocate an additional page so that we can fix alignment if needed
+        _pool = sycl::malloc_shared(
+            _pool_size + _page_size, detail::single_device_dispatch::get_queue());
+        uint64_t aligned_pool_base = next_multiple_of((uint64_t)_pool, _page_size);
+        _base_address = (void*)aligned_pool_base;
+        assert(aligned_pool_base % _page_size == 0);
+      }
+    }
+
+    //if(size < _page_size)
+    //  size = _page_size;
+
+    uint64_t address = 0;
+    if(_used_space_map.claim(size, address)) {
+      
+      void* ptr = static_cast<void*>((char*)_base_address + address);
+      assert(is_from_pool(ptr));
+      assert(is_from_pool((char*)ptr+size));
+      return ptr;
+    }
+
+    return nullptr;
+  }
+
+  void release(void* ptr) {
+    if(_pool && is_from_pool(ptr)) {
+      uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_pool);
+      _used_space_map.release(address);
+    }
+  }
+
+  ~memory_pool() {
+    // Memory pool might be destroyed after runtime shutdown, so rely on OS
+    // to clean up for now
+    //if(_pool)
+    //  sycl::free(_pool, detail::single_device_dispatch::get_queue());
+  }
+
+  std::size_t get_size() const {
+    return _pool_size;
+  }
+
+  bool is_from_pool(void* ptr) const {
+    if(!_pool)
+      return false;
+
+    void* pool_end = (char*)_base_address + _pool_size;
+    return ptr >= _base_address && ptr < pool_end;
+  }
+private:
+  std::size_t _pool_size;
+  void* _pool;
+  void* _base_address;
+  used_space_map _used_space_map;
+  int _page_size;
+  std::mutex _lock;
+};
+
 class unified_shared_memory {
   
   struct allocation_map_payload {
@@ -205,7 +287,13 @@ public:
         ptr = sycl::aligned_alloc_shared(alignment, n,
                                           detail::single_device_dispatch::get_queue());
       } else {
-        ptr = sycl::malloc_shared(n, detail::single_device_dispatch::get_queue());
+        if(n < get()._memory_pool.get_size() / 2) {
+          ptr = get()._memory_pool.claim(n);
+        }
+        // ptr will still be nullptr if pool was not used, or pool allocation
+        // failed.
+        if(!ptr)
+          ptr = sycl::malloc_shared(n, detail::single_device_dispatch::get_queue());
       }
       get()._is_initialized = true;
       pop_disabled();
@@ -254,7 +342,10 @@ public:
         __libc_free(ptr);
       } else {
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
-        sycl::free(ptr, ctx.get());
+        if(get()._memory_pool.is_from_pool(ptr)) {
+          get()._memory_pool.release(ptr);
+        } else
+          sycl::free(ptr, ctx.get());
       }
       pop_disabled();
     } else {
@@ -279,7 +370,7 @@ public:
   }
 private:
   unified_shared_memory()
-  : _is_initialized{false} {}
+  : _is_initialized{false}, _memory_pool{1024*1024*1024} {}
 
   static unified_shared_memory& get() {
     static unified_shared_memory usm_state;
@@ -288,6 +379,7 @@ private:
 
   std::atomic<bool> _is_initialized;
   allocation_map_t _allocation_map;
+  memory_pool _memory_pool;
 
   class thread_local_storage {
   public:

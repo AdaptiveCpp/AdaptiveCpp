@@ -188,7 +188,7 @@ private:
   }
 public:
   memory_pool(std::size_t size)
-      : _pool_size{size}, _used_space_map{size}, _pool{nullptr},
+      : _pool_size{size}, _free_space_map{size}, _pool{nullptr},
         _page_size{static_cast<int>(sysconf(_SC_PAGESIZE))} {}
 
   void* claim(std::size_t size) {
@@ -205,11 +205,11 @@ public:
       }
     }
 
-    //if(size < _page_size)
-    //  size = _page_size;
+    if(size < _page_size)
+      size = _page_size;
 
     uint64_t address = 0;
-    if(_used_space_map.claim(size, address)) {
+    if(_free_space_map.claim(size, address)) {
       
       void* ptr = static_cast<void*>((char*)_base_address + address);
       assert(is_from_pool(ptr));
@@ -220,10 +220,10 @@ public:
     return nullptr;
   }
 
-  void release(void* ptr) {
+  void release(void* ptr, std::size_t size) {
     if(_pool && is_from_pool(ptr)) {
       uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_pool);
-      _used_space_map.release(address);
+      _free_space_map.release(address, size);
     }
   }
 
@@ -249,7 +249,7 @@ private:
   std::size_t _pool_size;
   void* _pool;
   void* _base_address;
-  used_space_map _used_space_map;
+  free_space_map _free_space_map;
   int _page_size;
   std::mutex _lock;
 };
@@ -292,8 +292,9 @@ public:
         }
         // ptr will still be nullptr if pool was not used, or pool allocation
         // failed.
-        if(!ptr)
+        if(!ptr) {
           ptr = sycl::malloc_shared(n, detail::single_device_dispatch::get_queue());
+        }
       }
       get()._is_initialized = true;
       pop_disabled();
@@ -337,15 +338,19 @@ public:
 
       push_disabled();
       uint64_t root_address = 0;
-      if (!get()._allocation_map.get_entry_of_root_address(
-              reinterpret_cast<uint64_t>(ptr), root_address)) {
+      auto* map_entry = get()._allocation_map.get_entry_of_root_address(
+              reinterpret_cast<uint64_t>(ptr), root_address);
+      if (!map_entry) {
         __libc_free(ptr);
       } else {
+        uint64_t allocation_size = map_entry->allocation_size;
+
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
         if(get()._memory_pool.is_from_pool(ptr)) {
-          get()._memory_pool.release(ptr);
-        } else
+          get()._memory_pool.release(ptr, allocation_size);
+        } else {
           sycl::free(ptr, ctx.get());
+        }
       }
       pop_disabled();
     } else {

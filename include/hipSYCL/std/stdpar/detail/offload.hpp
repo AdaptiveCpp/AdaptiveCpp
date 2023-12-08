@@ -34,6 +34,7 @@
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
 #include "hipSYCL/glue/reflection.hpp"
 #include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <cstddef>
@@ -334,6 +335,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
           std::memcpy(&ptr, (char*)&arg + introspection.get_member_offset(i), sizeof(void*));
           
           unified_shared_memory::allocation_lookup_result lookup_result;
+          
           if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
             int64_t *most_recent_offload_batch_ptr =
                 &(lookup_result.info->most_recent_offload_batch);
@@ -341,7 +343,7 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
             std::size_t prefetch_size = lookup_result.info->allocation_size;
 
             // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
-            std::size_t most_recent_offload_batch = __atomic_load_n(
+            int64_t most_recent_offload_batch = __atomic_load_n(
                 most_recent_offload_batch_ptr, __ATOMIC_ACQUIRE);
             
             bool should_prefetch = false;
@@ -351,9 +353,11 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
               should_prefetch = most_recent_offload_batch == -1;
             else
               // Never emit multiple prefetches for the same allocation in one batch
-              should_prefetch = most_recent_offload_batch < current_batch_id;
+              should_prefetch = most_recent_offload_batch <
+                                static_cast<int64_t>(current_batch_id);
 
             if (should_prefetch) {
+              //sycl::mem_advise(lookup_result.root_address, prefetch_size, 3, q);
               prefetch(q, lookup_result.root_address, prefetch_size);
               __atomic_store_n(most_recent_offload_batch_ptr, current_batch_id,
                                __ATOMIC_RELEASE);

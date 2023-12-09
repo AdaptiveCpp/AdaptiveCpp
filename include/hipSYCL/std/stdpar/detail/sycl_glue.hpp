@@ -49,6 +49,8 @@
 
 
 #include "allocation_map.hpp"
+#include "hipSYCL/runtime/settings.hpp"
+#include "hipSYCL/sycl/info/device.hpp"
 
 extern "C" void *__libc_malloc(size_t);
 extern "C" void __libc_free(void*);
@@ -188,22 +190,14 @@ private:
   }
 public:
   memory_pool(std::size_t size)
-      : _pool_size{size}, _free_space_map{size}, _pool{nullptr},
-        _page_size{static_cast<int>(sysconf(_SC_PAGESIZE))} {}
+      : _pool_size{size}, _free_space_map{size > 0 ? size : 1024},
+        _pool{nullptr}, _page_size{static_cast<int>(sysconf(_SC_PAGESIZE))} {
+    init();
+  }
 
   void* claim(std::size_t size) {
-    
-    if(!_pool) {
-      std::lock_guard<std::mutex> lock{_lock};
-      if(!_pool) {
-        // Make sure to allocate an additional page so that we can fix alignment if needed
-        _pool = sycl::malloc_shared(
-            _pool_size + _page_size, detail::single_device_dispatch::get_queue());
-        uint64_t aligned_pool_base = next_multiple_of((uint64_t)_pool, _page_size);
-        _base_address = (void*)aligned_pool_base;
-        assert(aligned_pool_base % _page_size == 0);
-      }
-    }
+    if(_pool_size == 0)
+      return nullptr;
 
     if(size < _page_size)
       size = _page_size;
@@ -246,12 +240,25 @@ public:
     return ptr >= _base_address && ptr < pool_end;
   }
 private:
+
+  void init() {
+    HIPSYCL_DEBUG_INFO << "[stdpar] Building a memory pool of size "
+                       << static_cast<double>(_pool_size) / (1024 * 1024 * 1024)
+                       << " GB" << std::endl;
+    // Make sure to allocate an additional page so that we can fix alignment if needed
+    _pool = sycl::malloc_shared(
+        _pool_size + _page_size, detail::single_device_dispatch::get_queue());
+    uint64_t aligned_pool_base = next_multiple_of((uint64_t)_pool, _page_size);
+    _base_address = (void*)aligned_pool_base;
+    assert(aligned_pool_base % _page_size == 0);
+  }
+
+
   std::size_t _pool_size;
   void* _pool;
   void* _base_address;
   free_space_map _free_space_map;
   int _page_size;
-  std::mutex _lock;
 };
 
 class unified_shared_memory {
@@ -287,8 +294,15 @@ public:
         ptr = sycl::aligned_alloc_shared(alignment, n,
                                           detail::single_device_dispatch::get_queue());
       } else {
-        if(n < get()._memory_pool.get_size() / 2) {
-          ptr = get()._memory_pool.claim(n);
+        auto& usm_manager = get();
+        // We need to lazily construct the memory pool because our free()
+        // will be called early on during program startup. Querying devices
+        // to determine an appropriate pool size might cause recursive initialization.
+        if(!usm_manager._memory_pool){
+          usm_manager.init_mem_pool();
+        }
+        if(n < usm_manager._memory_pool->get_size() / 2) {
+          ptr = usm_manager._memory_pool->claim(n);
         }
         // ptr will still be nullptr if pool was not used, or pool allocation
         // failed.
@@ -346,8 +360,8 @@ public:
         uint64_t allocation_size = map_entry->allocation_size;
 
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
-        if(get()._memory_pool.is_from_pool(ptr)) {
-          get()._memory_pool.release(ptr, allocation_size);
+        if(get()._memory_pool && get()._memory_pool->is_from_pool(ptr)) {
+          get()._memory_pool->release(ptr, allocation_size);
         } else {
           sycl::free(ptr, ctx.get());
         }
@@ -374,8 +388,45 @@ public:
     return true;
   }
 private:
+  void init_mem_pool() {
+    std::lock_guard<std::mutex> pool_construction_lock{_pool_construction_lock};
+    if (!_memory_pool) {
+      _memory_pool = (memory_pool *)__libc_malloc(sizeof(memory_pool));
+      std::size_t pool_size = get_mem_pool_size_gb() * 1024 * 1024 * 1024;
+      new (_memory_pool) memory_pool{pool_size};
+    }
+  }
+
+  double get_mem_pool_size_gb() {
+    auto dev = detail::single_device_dispatch::get_queue().get_device();
+
+    double user_defined_mem_pool_size = 0.0;
+    if (rt::try_get_environment_variable("stdpar_mem_pool_size",
+                                         user_defined_mem_pool_size))
+      return user_defined_mem_pool_size;
+    
+    // If we have system allocations, mem pool is not really needed.
+    // Note: This also excludes OpenMP backend from the following calculations,
+    // which might be important since it return 2^64 for both queries.
+    if(dev.has(sycl::aspect::usm_system_allocations))
+      return 0.0;
+
+    std::size_t max_alloc_size = dev.get_info<sycl::info::device::max_mem_alloc_size>();
+    std::size_t global_mem_size = dev.get_info<sycl::info::device::global_mem_size>();
+
+    return 0.4 * static_cast<double>((max_alloc_size < global_mem_size)
+                                   ? max_alloc_size
+                                   : global_mem_size) /
+           (1024 * 1024 * 1024);
+  }
+
   unified_shared_memory()
-  : _is_initialized{false}, _memory_pool{1024*1024*1024} {}
+      : _is_initialized{false}, _memory_pool{nullptr} {}
+  
+  ~unified_shared_memory() {
+    _memory_pool->~memory_pool();
+    __libc_free(_memory_pool);
+  }
 
   static unified_shared_memory& get() {
     static unified_shared_memory usm_state;
@@ -384,7 +435,8 @@ private:
 
   std::atomic<bool> _is_initialized;
   allocation_map_t _allocation_map;
-  memory_pool _memory_pool;
+  memory_pool* _memory_pool;
+  std::mutex _pool_construction_lock;
 
   class thread_local_storage {
   public:

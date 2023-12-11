@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <set>
 #include <array>
+#include <cassert>
 
 
 extern "C" void *__libc_malloc(size_t);
@@ -592,13 +593,19 @@ private:
         return false;
       } 
     }
-    
-    address = *target_block_set.rbegin();
-    if(address + size >= _max_assignable_space)
-      return false;
 
-    target_block_set.erase(address);
-    return true;
+    assert(!target_block_set.empty());
+
+    for (auto it = target_block_set.rbegin(); it != target_block_set.rend();
+         ++it) {
+      address = *it;
+      if(address + size < _max_assignable_space) {
+        target_block_set.erase(address);
+        return true;
+      }
+    }
+
+    return false;
   
   }
 
@@ -608,8 +615,11 @@ private:
       return false;
     }
 
-    uint64_t address_to_split = *_sorted_free_blocks_in_level[next_available_level].begin();
-    _sorted_free_blocks_in_level[next_available_level].erase(address_to_split);
+    assert(!_sorted_free_blocks_in_level[next_available_level].empty());
+
+    auto begin_it = _sorted_free_blocks_in_level[next_available_level].begin();
+    uint64_t address_to_split = *begin_it;
+    _sorted_free_blocks_in_level[next_available_level].erase(begin_it);
 
     for(int i = next_available_level-1; i >= level; --i) {
       if(i == level)
@@ -659,11 +669,6 @@ private:
         try_merge_blocks(next.first, first_block_address, level + 1);
       }
     }
-  }
-
-  void try_merge_blocks(uint64_t address, int level) {
-    try_merge_blocks(_sorted_free_blocks_in_level[level].find(address), address,
-                     level);
   }
 
   bool release_block(uint64_t address, int target_level) {

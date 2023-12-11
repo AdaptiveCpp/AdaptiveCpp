@@ -298,11 +298,14 @@ public:
         // We need to lazily construct the memory pool because our free()
         // will be called early on during program startup. Querying devices
         // to determine an appropriate pool size might cause recursive initialization.
-        if(!usm_manager._memory_pool){
+        auto* mem_pool = usm_manager.get_memory_pool();
+        if(!mem_pool){
           usm_manager.init_mem_pool();
+          mem_pool = usm_manager.get_memory_pool();
         }
-        if(n < usm_manager._memory_pool->get_size() / 2) {
-          ptr = usm_manager._memory_pool->claim(n);
+
+        if(n < mem_pool->get_size() / 2) {
+          ptr = mem_pool->claim(n);
         }
         // ptr will still be nullptr if pool was not used, or pool allocation
         // failed.
@@ -360,8 +363,9 @@ public:
         uint64_t allocation_size = map_entry->allocation_size;
 
         get()._allocation_map.erase(reinterpret_cast<uint64_t>(ptr));
-        if(get()._memory_pool && get()._memory_pool->is_from_pool(ptr)) {
-          get()._memory_pool->release(ptr, allocation_size);
+        memory_pool* mem_pool = get().get_memory_pool();
+        if(mem_pool && mem_pool->is_from_pool(ptr)) {
+          mem_pool->release(ptr, allocation_size);
         } else {
           sycl::free(ptr, ctx.get());
         }
@@ -388,12 +392,20 @@ public:
     return true;
   }
 private:
+  memory_pool* get_memory_pool() const {
+    return __atomic_load_n(&_memory_pool, __ATOMIC_ACQUIRE);
+  }
+  
   void init_mem_pool() {
     std::lock_guard<std::mutex> pool_construction_lock{_pool_construction_lock};
-    if (!_memory_pool) {
-      _memory_pool = (memory_pool *)__libc_malloc(sizeof(memory_pool));
+    if (!get_memory_pool()) {
+      memory_pool* mem_pool = (memory_pool *)__libc_malloc(sizeof(memory_pool));
       std::size_t pool_size = get_mem_pool_size_gb() * 1024 * 1024 * 1024;
-      new (_memory_pool) memory_pool{pool_size};
+
+      new (mem_pool) memory_pool{pool_size};
+      __atomic_store_n(&_memory_pool,
+                       mem_pool,
+                       __ATOMIC_RELEASE);
     }
   }
 
@@ -424,8 +436,10 @@ private:
       : _is_initialized{false}, _memory_pool{nullptr} {}
   
   ~unified_shared_memory() {
-    _memory_pool->~memory_pool();
-    __libc_free(_memory_pool);
+    if(_memory_pool) {
+      _memory_pool->~memory_pool();
+      __libc_free(_memory_pool);
+    }
   }
 
   static unified_shared_memory& get() {

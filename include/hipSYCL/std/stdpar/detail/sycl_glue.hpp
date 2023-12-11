@@ -208,6 +208,7 @@ public:
       void* ptr = static_cast<void*>((char*)_base_address + address);
       assert(is_from_pool(ptr));
       assert(is_from_pool((char*)ptr+size));
+      assert((uint64_t)ptr % _page_size == 0);
       return ptr;
     }
 
@@ -216,7 +217,7 @@ public:
 
   void release(void* ptr, std::size_t size) {
     if(_pool && is_from_pool(ptr)) {
-      uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_pool);
+      uint64_t address = reinterpret_cast<uint64_t>(ptr)-reinterpret_cast<uint64_t>(_base_address);
       _free_space_map.release(address, size);
     }
   }

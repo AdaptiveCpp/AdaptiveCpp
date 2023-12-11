@@ -548,6 +548,7 @@ public:
   }
 
   bool release(uint64_t address, std::size_t size) {
+    assert(address % get_block_size(get_desired_level(size)) == 0);
     spin_lock lock{_lock};
     return release_block(address, get_desired_level(size));
   }
@@ -600,6 +601,7 @@ private:
          ++it) {
       address = *it;
       if(address + size < _max_assignable_space) {
+        assert(address % get_block_size(desired_level) == 0);
         target_block_set.erase(address);
         return true;
       }
@@ -620,6 +622,8 @@ private:
     auto begin_it = _sorted_free_blocks_in_level[next_available_level].begin();
     uint64_t address_to_split = *begin_it;
     _sorted_free_blocks_in_level[next_available_level].erase(begin_it);
+
+    assert(address_to_split % get_block_size(next_available_level) == 0);
 
     for(int i = next_available_level-1; i >= level; --i) {
       if(i == level)
@@ -650,6 +654,8 @@ private:
   template<class Iterator>
   void try_merge_blocks(Iterator it, uint64_t address, int level) {
     auto merge_candidate = it;
+    assert(address % get_block_size(level) == 0);
+
     if(address % get_block_size(level + 1) == 0) {
       ++merge_candidate;
     } else {

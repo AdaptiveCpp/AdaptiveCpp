@@ -2022,6 +2022,10 @@ if __name__ == '__main__':
         print_version(config)
         print_config(config)
         sys.exit(0)
+      elif arg.startswith("-fsycl"):
+        raise RuntimeError("The {} flag is a component from a different SYCL implementation. "
+              "This flag is neither neither needed nor meaningful for AdaptiveCpp. "
+              "Its use is unsupported.".format(arg))
 
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():

@@ -35,7 +35,6 @@ jobs:
         $ninjaURL = "https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip"
         Invoke-WebRequest $ninjaURL -OutFile ninja.zip
         Expand-Archive -Path ninja.zip -DestinationPath $env:GITHUB_WORKSPACE\ninja_install
-        $env:GITHUB_PATH += ";$env:GITHUB_WORKSPACE\ninja_install"
 
     - name: Install MinGW LLVM ${{matrix.clang}}
       # if: steps.cache-llvm.outputs.cache-hit != 'true'
@@ -47,8 +46,9 @@ jobs:
         Expand-Archive $env:GITHUB_WORKSPACE\llvm.zip
         Move-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName\* $env:GITHUB_WORKSPACE\llvm
         Remove-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName
-        $env:GITHUB_PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:GITHUB_PATH"
 
     - name: Test LLVM
       shell: powershell
-      run: clang++ --version
+      run: |
+        $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
+        clang++ --version

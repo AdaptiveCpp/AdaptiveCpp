@@ -78,7 +78,7 @@ jobs:
       run: |
         $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
         $env:PATH = "$env:GITHUB_WORKSPACE\ninja_install;$env:PATH"
-        $env:PATH = "$env:GITHUB_WORKSPACE\acpp_install;$env:PATH"
+        $env:PATH = "$env:GITHUB_WORKSPACE\acpp_install\bin;$env:PATH"
 
         cd $env:GITHUB_WORKSPACE\tests
         md build

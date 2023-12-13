@@ -20,14 +20,14 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ${{github.workspace}}/boost_1_81_0
-        key: ${{runner.os}}-boost
+        key: ${{runner.os}}-boost1810
 
     - name: Cache LLVM ${{matrix.clang}}
       id: cache-llvm
       uses: actions/cache@v3
       with:
         path: ${{github.workspace}}/llvm
-        key: ${{runner.os}}-llvm${{matrix.clang}}
+        key: ${{runner.os}}-llvm-${{matrix.clang}}
 
     - name: Download Ninja
       shell: powershell

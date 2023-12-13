@@ -333,7 +333,7 @@ else()
   set(DEFAULT_OMP_FLAG "-fopenmp")
 endif()
 
-set(DEFAULT_GPU_ARCH "" CACHE STRING "Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
+
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$HIPSYCL_CUDA_LIB_PATH -lcudart")
@@ -429,6 +429,26 @@ else()
   set(PLUGIN_LLVM_VERSION_MAJOR 0)
 endif()
 
+set(DEFAULT_GPU_ARCH "" CACHE STRING "(Deprecated, use DEFAULT_TARGETS instead) Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
+set(DEFAULT_TARGETS "" CACHE STRING "Default targets to compile for")
+
+if(DEFAULT_GPU_ARCH)
+  message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
+  if(NOT DEFAULT_TARGETS)
+    set(DEFAULT_TARGETS ${DEFAULT_GPU_ARCH})
+  endif()
+endif()
+
+if(NOT DEFAULT_TARGETS)
+  if(WITH_SSCP_COMPILER)
+    set(DEFAULT_TARGETS "generic")
+  else()
+    set(DEFAULT_TARGETS "omp")
+  endif()
+endif()
+
+message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
+
 set(SYCLCC_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
   \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
@@ -440,7 +460,7 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
   \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-  \"default-gpu-arch\"  : \"${DEFAULT_GPU_ARCH}\",
+  \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
   \"default-use-bootstrap-mode\" : \"false\",

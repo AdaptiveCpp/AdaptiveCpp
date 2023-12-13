@@ -22,8 +22,8 @@ jobs:
         path: ${{github.workspace}}/boost_1_81_0
         key: ${{runner.os}}-boost
 
-    - name: Cache LLVM-15
-      id: cache-llvm15
+    - name: Cache LLVM ${{matrix.clang}}
+      id: cache-llvm${{matrix.clang}}
       uses: actions/cache@v3
       with:
         path: ${{github.workspace}}/llvm
@@ -35,9 +35,10 @@ jobs:
         $ninjaURL = "https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip"
         Invoke-WebRequest $ninjaURL -OutFile ninja.zip
         Expand-Archive -Path ninja.zip -DestinationPath $env:GITHUB_WORKSPACE\ninja_install
-        $env:Path += ";$env:GITHUB_WORKSPACE\ninja_install"
+        $env:GITHUB_PATH += ";$env:GITHUB_WORKSPACE\ninja_install"
 
-    - name: Install MinGW LLVM
+    - name: Install MinGW LLVM ${{matrix.clang}}
+      if: steps.cache-llvm${{matrix.clang}}.outputs.cache-hit != 'true'
       shell: powershell
       run: |
         $llvmURL = "https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-msvcrt-x86_64.zip"
@@ -46,7 +47,7 @@ jobs:
         Expand-Archive $env:GITHUB_WORKSPACE\llvm.zip
         Move-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName\* $env:GITHUB_WORKSPACE\llvm
         Remove-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName
-        $env:Path = "$env:GITHUB_WORKSPACE\llvm\bin;$env:Path"
+        $env:GITHUB_PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:GITHUB_PATH"
 
     - name: Test LLVM
       shell: powershell

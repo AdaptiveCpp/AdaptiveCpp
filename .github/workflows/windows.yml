@@ -22,12 +22,12 @@ jobs:
         path: ${{github.workspace}}/boost_1_81_0
         key: ${{runner.os}}-boost
 
-    - name: Cache LLVM ${{matrix.clang}}
-      id: cache-llvm
-      uses: actions/cache@v3
-      with:
-        path: ${{github.workspace}}/llvm
-        key: ${{runner.os}}-llvm${{matrix.clang}}
+    # - name: Cache LLVM ${{matrix.clang}}
+    #   id: cache-llvm
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: ${{github.workspace}}/llvm
+    #     key: ${{runner.os}}-llvm${{matrix.clang}}
 
     - name: Download Ninja
       shell: powershell
@@ -38,7 +38,7 @@ jobs:
         $env:GITHUB_PATH += ";$env:GITHUB_WORKSPACE\ninja_install"
 
     - name: Install MinGW LLVM ${{matrix.clang}}
-      if: steps.cache-llvm.outputs.cache-hit != 'true'
+      # if: steps.cache-llvm.outputs.cache-hit != 'true'
       shell: powershell
       run: |
         $llvmURL = "https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-msvcrt-x86_64.zip"

@@ -47,8 +47,30 @@ jobs:
         Move-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName\* $env:GITHUB_WORKSPACE\llvm
         Remove-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName
 
-    - name: Test LLVM
+    - name: Build boost
       shell: powershell
       run: |
         $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
-        clang++ --version
+        $boostURL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z"
+        $boostFolderName = $boostUrl.Split("/")[-1].Split(".")[0]
+        Invoke-WebRequest $boostURL -OutFile boost.7z
+        7z.exe x boost.7z
+        cd $boostFolderName
+        .\bootstrap.bat clang
+        .\b2.exe --with-context --with-fiber --with-atomic --with-filesystem --with-test toolset=clang address-model=64 variant=release --build-type=complete stage
+
+    - name: Build AdaptiveCpp
+      shell: powershell
+      run: |
+         $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
+         $env:PATH = "$env:GITHUB_WORKSPACE\ninja_install;$env:PATH"
+
+         git clone https://github.com/AdaptiveCpp/AdaptiveCpp
+         cd AdaptiveCpp
+         md build
+         cd build
+
+         cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="../acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
+         ninja install
+         
+        

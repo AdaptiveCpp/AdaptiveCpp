@@ -74,4 +74,18 @@ jobs:
          cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="../acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
          ninja install
          
-        
+    - name: Build and run CPU tests
+      shell: powershell
+      run: |
+        $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
+        $env:PATH = "$env:GITHUB_WORKSPACE\ninja_install;$env:PATH"
+        $env:PATH = "$env:GITHUB_WORKSPACE\AdaptiveCpp\acpp_install;$env:PATH"
+
+        cd $env:GITHUB_WORKSPACE\AdaptiveCpp\tests
+        md build
+        cd build
+        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DACPP_TARGETS=omp -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64 -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE\AdaptiveCpp\acpp_install\lib\cmake\AdaptiveCpp"
+        ninja
+
+        .\sycl_tests
+        .\rt_tests

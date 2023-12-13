@@ -150,13 +150,7 @@ endif()
 set(WITH_CPU_BACKEND true)
 
 if(WITH_CUDA_BACKEND)
-  set(DEFAULT_PLATFORM "cuda")
-
   find_program(NVCXX_COMPILER NAMES nvc++)
-elseif(WITH_ROCM_BACKEND)
-  set(DEFAULT_PLATFORM "rocm")
-else()
-  set(DEFAULT_PLATFORM "cpu")
 endif()
 
 if(WITH_CUDA_NVCXX_ONLY)
@@ -432,9 +426,26 @@ endif()
 set(DEFAULT_GPU_ARCH "" CACHE STRING "(Deprecated, use DEFAULT_TARGETS instead) Optional: Default GPU architecture to compile for when targeting GPUs (e.g.: sm_60 or gfx900)")
 set(DEFAULT_TARGETS "" CACHE STRING "Default targets to compile for")
 
-if(DEFAULT_GPU_ARCH)
-  message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
-  if(NOT DEFAULT_TARGETS)
+if(NOT DEFAULT_TARGETS)
+  if(DEFAULT_PLATFORM)  
+    message(DEPRECATION "DEFAULT_PLATFORM is deprecated; use DEFAULT_TARGETS instead.")
+    
+    if(DEFAULT_PLATFORM STREQUAL "cpu")
+      set(DEFAULT_TARGETS "omp")
+    endif()
+    
+    if(DEFAULT_GPU_ARCH)
+      message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
+
+      if(DEFAULT_PLATFORM STREQUAL "cuda")
+        set(DEFAULT_TARGETS "cuda:${DEFAULT_GPU_ARCH}")
+      elseif(DEFAULT_PLATFORM STREQUAL "rocm")
+        set(DEFAULT_TARGETS "hip:${DEFAULT_GPU_ARCH}")
+      endif()
+      
+    endif()
+  elseif(DEFAULT_GPU_ARCH)
+    message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
     set(DEFAULT_TARGETS ${DEFAULT_GPU_ARCH})
   endif()
 endif()
@@ -458,7 +469,6 @@ set(SYCLCC_CONFIG_FILE "{
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
   \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
-  \"default-platform\"  : \"${DEFAULT_PLATFORM}\",
   \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",

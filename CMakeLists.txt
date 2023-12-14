@@ -446,7 +446,7 @@ if(NOT DEFAULT_TARGETS)
     endif()
   elseif(DEFAULT_GPU_ARCH)
     message(DEPRECATION "DEFAULT_GPU_ARCH is deprecated; use DEFAULT_TARGETS instead.")
-    set(DEFAULT_TARGETS ${DEFAULT_GPU_ARCH})
+    message(SEND_ERROR "DEFAULT_GPU_ARCH cannot be used without specifying DEFAULT_PLATFORM.")
   endif()
 endif()
 

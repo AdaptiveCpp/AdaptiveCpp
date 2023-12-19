@@ -441,6 +441,8 @@ if(NOT DEFAULT_TARGETS)
         set(DEFAULT_TARGETS "cuda:${DEFAULT_GPU_ARCH}")
       elseif(DEFAULT_PLATFORM STREQUAL "rocm")
         set(DEFAULT_TARGETS "hip:${DEFAULT_GPU_ARCH}")
+      else()
+        message(SEND_ERROR "Invalid value for DEFAULT_PLATFORM: \"${DEFAULT_PLATFORM}\". When DEFAULT_GPU_ARCH is specified, only \"cuda\" and \"rocm\" are supported.")
       endif()
       
     endif()

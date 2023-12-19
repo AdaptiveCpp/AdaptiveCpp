@@ -142,7 +142,7 @@ public:
 
   ~allocation_map() {
     for(int i = 0; i < get_num_entries_in_level(root_level_idx); ++i) {
-      auto* ptr = _root.children[i].load(std::memory_order::memory_order_acquire);
+      auto* ptr = _root.children[i].load(std::memory_order_acquire);
       if(ptr)
         release(*ptr);
     }
@@ -275,7 +275,7 @@ private:
          local_address >= 0; --local_address) {
       
       auto *ptr = current_node.children[local_address].load(
-          std::memory_order::memory_order_acquire);
+          std::memory_order_acquire);
       
       if(ptr) {
         uint64_t root_address_candidate =
@@ -322,7 +322,7 @@ private:
     int local_address = get_index_in_level(address, Level);
   
     auto *ptr = current_node.children[local_address].load(
-          std::memory_order::memory_order_acquire);
+          std::memory_order_acquire);
       
     if(ptr) {
       return get_entry_of_root_address(*ptr, address);
@@ -347,7 +347,7 @@ private:
     current_node.entries[local_address].UserPayload::operator=(v);
     
     current_node.num_entries.fetch_add(
-        1, std::memory_order::memory_order_acq_rel);
+        1, std::memory_order_acq_rel);
 
     return true;
   }
@@ -360,7 +360,7 @@ private:
     int local_address = get_index_in_level(address, Level);
     
     auto *ptr = current_node.children[local_address].load(
-        std::memory_order::memory_order_acquire);
+        std::memory_order_acquire);
     
     if(!ptr) {
       child_t* new_child = alloc<child_t>(1);
@@ -374,7 +374,7 @@ private:
         this->free(new_child);
       } else {
         current_node.num_entries.fetch_add(
-            1, std::memory_order::memory_order_acq_rel);
+            1, std::memory_order_acq_rel);
         ptr = new_child;
       }
     }
@@ -394,7 +394,7 @@ private:
     __atomic_store_n(allocation_size_ptr, 0, __ATOMIC_RELEASE);
 
     current_node.num_entries.fetch_sub(
-        1, std::memory_order::memory_order_acq_rel);
+        1, std::memory_order_acq_rel);
     
     return true;
   }
@@ -404,15 +404,15 @@ private:
 
     int local_address = get_index_in_level(address, Level);
     auto *ptr = current_node.children[local_address].load(
-        std::memory_order::memory_order_acquire);
+        std::memory_order_acquire);
     if(!ptr)
       return false;
     
     bool result = erase(*ptr, address);
     if(result) {
-      if(ptr->num_entries.load(std::memory_order::memory_order_acquire) == 0) {
+      if(ptr->num_entries.load(std::memory_order_acquire) == 0) {
         auto *current_ptr = current_node.children[local_address].exchange(
-            nullptr, std::memory_order::memory_order_acq_rel);
+            nullptr, std::memory_order_acq_rel);
         // TODO: We could potentially get erase() lock-free
         // by counting by how many ops each node is currently used,
         // and waiting here until the count turns to 0.
@@ -420,7 +420,7 @@ private:
           destroy(*current_ptr);
           this->free(current_ptr);
           current_node.num_entries.fetch_sub(
-              1, std::memory_order::memory_order_acq_rel);
+              1, std::memory_order_acq_rel);
         }
       }
     }
@@ -435,7 +435,7 @@ private:
   void release(intermediate_node<Level>& current_node) {
     for(int i = 0; i < get_num_entries_in_level(Level); ++i){
       if (auto *ptr = current_node.children[i].load(
-              std::memory_order::memory_order_acquire)) {
+              std::memory_order_acquire)) {
         release(*ptr);
         this->free(ptr);
       }
@@ -458,14 +458,13 @@ private:
     : _op_counter{op_counter} {
       int expected = 0;
       while (!_op_counter.compare_exchange_strong(
-          expected, -1, std::memory_order::memory_order_release,
-          std::memory_order_relaxed)) {
+          expected, -1, std::memory_order_release, std::memory_order_relaxed)) {
         expected = 0;
       }
     }
 
     ~erase_lock() {
-      _op_counter.store(0, std::memory_order::memory_order_release);
+      _op_counter.store(0, std::memory_order_release);
     }
   private:
     std::atomic<int>& _op_counter;
@@ -477,7 +476,7 @@ private:
     : _op_counter{op_counter} {
       int expected = std::max(0, _op_counter.load(std::memory_order_acquire));
       while (!_op_counter.compare_exchange_strong(
-          expected, expected+1, std::memory_order::memory_order_release,
+          expected, expected+1, std::memory_order_release,
           std::memory_order_relaxed)) {
         if(expected < 0)
           expected = 0;
@@ -485,7 +484,7 @@ private:
     }
 
     ~insert_or_get_entry_lock() {
-      _op_counter.fetch_sub(1, std::memory_order::memory_order_acq_rel);
+      _op_counter.fetch_sub(1, std::memory_order_acq_rel);
     }
   private:
    std::atomic<int>& _op_counter;
@@ -564,13 +563,13 @@ private:
     : _lock{lock} {
       int expected = 0;
       while (!_lock.compare_exchange_strong(
-          expected, 1, std::memory_order::memory_order_release,
-          std::memory_order::memory_order_relaxed))
+          expected, 1, std::memory_order_release,
+          std::memory_order_relaxed))
         expected = 0;
     }
 
     ~spin_lock() {
-      _lock.store(0, std::memory_order::memory_order_release);
+      _lock.store(0, std::memory_order_release);
     }
   private:
     std::atomic<int>& _lock;

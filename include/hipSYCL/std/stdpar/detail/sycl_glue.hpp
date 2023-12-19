@@ -135,7 +135,7 @@ public:
   }
 
   std::size_t get_current_offloading_batch_id() const {
-    return offloading_batch_counter().load(std::memory_order::memory_order_acquire);
+    return offloading_batch_counter().load(std::memory_order_acquire);
   }
 
   void finalize_offloading_batch() noexcept {

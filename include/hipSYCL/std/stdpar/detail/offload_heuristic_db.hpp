@@ -118,10 +118,15 @@ public:
     device_t dev;
     uint64_t problem_size;
     double runtime = std::numeric_limits<double>::max();
+    uint64_t num_samples = 0;
 
     void merge(const device_entry& other) {
-      if(dev == other.dev && problem_size == other.problem_size)
-        runtime = (runtime < other.runtime) ? runtime : other.runtime;
+      if(dev == other.dev && problem_size == other.problem_size) {
+        uint64_t aggregated_num_samples = num_samples + other.num_samples;
+        runtime = (num_samples * runtime + other.num_samples * other.runtime) /
+                  aggregated_num_samples;
+        num_samples = aggregated_num_samples;
+      }
     }
 
     bool is_sampled() const {
@@ -132,7 +137,8 @@ public:
       in >> entry.dev;
       in >> entry.problem_size;
       in >> entry.runtime;
-      
+      in >> entry.num_samples;
+
       return in;
     }
 
@@ -140,6 +146,8 @@ public:
       out << entry.dev << " ";
       out << entry.problem_size << " ";
       out << entry.runtime << " ";
+      out << entry.num_samples << " ";
+
       return out;
     }
   };
@@ -299,19 +307,29 @@ public:
   }
 
   void update_entry(uint64_t op_hash, std::size_t problem_size, device_t dev, double runtime) {
+
+    uint64_t& op_invocation_count = _kernel_invocation_counts[op_hash];
+    if(op_invocation_count == 0) {
+      // Always ignore the first measurement due to potential JIT or other initialization
+      // overheads
+      ++op_invocation_count;
+      return;
+    } else {
+      ++op_invocation_count;
+    }
+
     auto& e = _entries[op_hash];
+
+    offload_heuristic_db_storage::device_entry d_entry {dev, problem_size, runtime, 1};
     
     for(auto& measurement_entry : e.entries) {
       if(measurement_entry.dev == dev && measurement_entry.problem_size == problem_size) {
-        measurement_entry.runtime = (runtime < measurement_entry.runtime)
-                                        ? runtime
-                                        : measurement_entry.runtime;
+        measurement_entry.merge(d_entry);
         return;
       }
     }
 
-    e.entries.push_back(
-        offload_heuristic_db_storage::device_entry{dev, problem_size, runtime});
+    e.entries.push_back(d_entry);
   }
 
 
@@ -319,6 +337,7 @@ private:
   std::shared_ptr<offload_heuristic_db_storage> _storage;
   host_malloc_unordered_map<uint64_t, offload_heuristic_db_storage::entry>
       _entries;
+  host_malloc_unordered_map<uint64_t, uint64_t> _kernel_invocation_counts;
 };
 
 

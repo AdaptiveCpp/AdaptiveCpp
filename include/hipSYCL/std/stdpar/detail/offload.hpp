@@ -29,6 +29,7 @@
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
 #include "hipSYCL/runtime/operations.hpp"
+#include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
@@ -240,6 +241,31 @@ using host_malloc_unordered_pair_map =
     std::unordered_map<K, V, pair_hash, std::equal_to<K>,
                        libc_allocator<std::pair<const K, V>>>;
 
+class offload_heuristic_config {
+public:
+  offload_heuristic_config() {
+    if(!rt::try_get_environment_variable("stdpar_ohc_min_ops", _min_ops_per_offload_decision)) {
+      _min_ops_per_offload_decision = 128;
+    }
+    if(!rt::try_get_environment_variable("stdpar_ohc_min_time", _min_time_per_offload_decision)) {
+      _min_time_per_offload_decision = 1;
+    }
+    // Convert from seconds to ns
+    _min_time_per_offload_decision *= 1.e9;
+  }
+
+  double get_min_time_per_offload_decision() const {
+    return _min_time_per_offload_decision;
+  }
+
+  int get_min_ops_per_offload_decision() const {
+    return _min_time_per_offload_decision;
+  }
+private:
+  double _min_time_per_offload_decision;
+  int _min_ops_per_offload_decision;
+};
+
 struct offload_heuristic_state {
   static offload_heuristic_state& get() {
     static thread_local offload_heuristic_state state;
@@ -298,7 +324,18 @@ struct offload_heuristic_state {
   bool is_offload_sampling_run() const {
     return _is_offload_sampling_run;
   }
+
+  void set_num_predicted_ops(int n) {
+    _num_predicted_ops = n;
+  }
+
+  int get_num_predicted_ops() const {
+    return _num_predicted_ops;
+  }
   
+  const offload_heuristic_config& get_configuration() const {
+    return _config;
+  }
 private:
   
   offload_heuristic_state()
@@ -306,7 +343,7 @@ private:
         _is_offload_sampling_run{is_offload_sampling_run_requested()},
         _num_ops_since_offloading_change{0}, _previous_op{},
         _previous_offloading_change_timestamp{0}, _time_since_previous_op{0},
-        _is_currently_offloading{false}, _num_total_ops{0} {}
+        _is_currently_offloading{false}, _num_total_ops{0}, _num_predicted_ops{0} {}
 
   bool _is_host_sampling_run;
   bool _is_offload_sampling_run;
@@ -317,6 +354,8 @@ private:
   uint64_t _time_since_previous_op;
   bool _is_currently_offloading;
   std::size_t _num_total_ops;
+  int _num_predicted_ops;
+  offload_heuristic_config _config;
 
   static bool is_host_sampling_run_requested(){
     bool is_requested = false;
@@ -350,8 +389,7 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;
 #else
-  
-  constexpr int min_ops_before_offloading_change = 32;
+
 
   offload_heuristic_state& state = offload_heuristic_state::get();
   if(state.is_host_sampling_run())
@@ -359,6 +397,10 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
   else if(state.is_offload_sampling_run())
     return true;
 
+  int min_ops_before_offloading_change =
+      state.get_configuration().get_min_ops_per_offload_decision();
+
+  int num_predicted_ops = 0;
   uint64_t op_hash = get_operation_hash(type, n, args...);
   // Identify ops using a combination of hash and problem size
   using op_id = offload_heuristic_state::op_id;
@@ -400,6 +442,9 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
     double host_time_estimate = 0.0;
     double offload_time_estimate = 0.0;
+    
+    num_predicted_ops = 0;
+
     for_each_known_op_in_batch([&](op_id op) -> bool{
       auto& db = detail::stdpar_tls_runtime::get().get_offload_db();
       double current_host_estimate = db.estimate_runtime(
@@ -414,9 +459,12 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
       host_time_estimate += current_host_estimate;
       offload_time_estimate += current_offload_estimate;
+      ++num_predicted_ops;
 
       return true;
     });
+
+    
 
     if(host_time_estimate <= 0.0)
       // If we don't have host sampling data, offload.
@@ -446,11 +494,13 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
 
   state.proceed_to(op_hash, n);
   
-  if (state.get_num_ops_since_offloading_change() < min_ops_before_offloading_change ||
-      state.get_ns_since_previous_op() < 1.e9) {
+  if (state.get_num_ops_since_offloading_change() < state.get_num_predicted_ops() ||
+      state.get_num_ops_since_offloading_change() < min_ops_before_offloading_change ||
+      state.get_ns_since_previous_op() < state.get_configuration().get_min_time_per_offload_decision()) {
     return state.is_currently_offloading();
   } else {
     state.set_offloading(decide_offloading_viability(state.is_currently_offloading()));
+    state.set_num_predicted_ops(num_predicted_ops);
 
     HIPSYCL_DEBUG_INFO << "[stdpar] Offloading behavior decision: "
                        << (state.is_currently_offloading() ? "Offloading!"

@@ -39,8 +39,10 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/std/stdpar/detail/allocation_map.hpp"
 #include "hipSYCL/common/stable_running_hash.hpp"
+
 
 namespace hipsycl::stdpar {
 
@@ -88,7 +90,7 @@ public:
   }
 
   offload_heuristic_db_storage() {
-    std::fstream f{".acpp-stdpar-profile", std::ios::in};
+    std::fstream f{get_dataset_filename().c_str(), std::ios::in};
     if(f.is_open()) {
       std::string line;
       while(std::getline(f, line)) {
@@ -104,11 +106,12 @@ public:
   }
 
   ~offload_heuristic_db_storage() {
-    std::fstream f{".acpp-stdpar-profile", std::ios::out | std::ios::trunc};
-      for (const auto &entry : _entries) {
-        f << entry.first << " ";
-        entry.second.write(f);
-        f << "\n";
+    std::fstream f{get_dataset_filename().c_str(),
+                   std::ios::out | std::ios::trunc};
+    for (const auto &entry : _entries) {
+      f << entry.first << " ";
+      entry.second.write(f);
+      f << "\n";
     }
   }
 
@@ -213,6 +216,18 @@ public:
   }
   
 private:
+
+  static std::string get_dataset_filename() {
+    return ".acpp-stdpar-"+get_dataset_name();
+  }
+
+  static std::string get_dataset_name() {
+    std::string dataset_name;
+    if(rt::try_get_environment_variable("stdpar_dataset_name", dataset_name)) {
+      return dataset_name;
+    }
+    return ".acpp-stdpar-profile";
+  }
 
   host_malloc_unordered_map<uint64_t, entry> _entries;
   mutable std::mutex _lock;

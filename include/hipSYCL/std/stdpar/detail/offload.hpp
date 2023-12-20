@@ -429,10 +429,9 @@ bool should_offload(AlgorithmType type, Size n, const Args &...args) {
         offload_time_estimate += data_transfer_time_estimate;
       }
 
-      double rel_diff =
-          (offload_time_estimate - host_time_estimate) / offload_time_estimate;
+      double ratio = host_time_estimate / offload_time_estimate;
       double tolerance = 0.2;
-      if(rel_diff >= (1.0 - tolerance) && rel_diff <= (1.0 + tolerance))
+      if(ratio >= (1.0 - tolerance) && ratio <= (1.0 + tolerance))
         return is_currently_offloading.value();
 
     }

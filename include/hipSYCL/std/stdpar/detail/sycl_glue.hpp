@@ -49,6 +49,7 @@
 
 
 #include "allocation_map.hpp"
+#include "offload_heuristic_db.hpp"
 #include "hipSYCL/runtime/settings.hpp"
 #include "hipSYCL/sycl/info/device.hpp"
 
@@ -56,6 +57,15 @@ extern "C" void *__libc_malloc(size_t);
 extern "C" void __libc_free(void*);
 
 namespace hipsycl::stdpar::detail {
+
+
+inline uint64_t get_time_now() {
+  uint64_t now =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              std::chrono::high_resolution_clock::now().time_since_epoch())
+              .count();
+  return now;
+}
 
 inline sycl::queue construct_default_queue() {
   return sycl::queue{hipsycl::sycl::property_list{
@@ -83,6 +93,11 @@ private:
   algorithms::util::allocation_cache _host_scratch_cache;
   int _outstanding_offloaded_operations = 0;
 
+  offload_heuristic_db _offload_db;
+  std::vector<uint64_t, libc_allocator<uint64_t>> _instrumented_ops_in_batch;
+  std::vector<std::size_t, libc_allocator<std::size_t>> _instrumented_op_problem_sizes_in_batch;
+  uint64_t _batch_start_timestamp = 0;
+
   static std::atomic<std::size_t>& offloading_batch_counter() {
     static std::atomic<std::size_t> batch_counter = 0;
     return batch_counter;
@@ -92,6 +107,13 @@ private:
     _outstanding_offloaded_operations = 0;
   }
 public:
+  const offload_heuristic_db& get_offload_db() const {
+    return _offload_db;
+  }
+
+  offload_heuristic_db& get_offload_db() {
+    return _offload_db;
+  }
   
   sycl::queue& get_queue() {
     return _queue;
@@ -105,12 +127,35 @@ public:
     ++_outstanding_offloaded_operations;
   }
 
+  void instrument_offloaded_operation(uint64_t op_hash, std::size_t problem_size) {
+    if(_outstanding_offloaded_operations == 0)
+      _batch_start_timestamp = get_time_now();
+    _instrumented_ops_in_batch.push_back(op_hash);
+    _instrumented_op_problem_sizes_in_batch.push_back(problem_size);
+  }
 
   std::size_t get_current_offloading_batch_id() const {
     return offloading_batch_counter().load(std::memory_order_acquire);
   }
 
   void finalize_offloading_batch() noexcept {
+#ifndef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
+    uint64_t batch_end = get_time_now();
+    double mean_time = static_cast<double>(batch_end - _batch_start_timestamp) /
+                       _instrumented_ops_in_batch.size();
+    
+    assert(_instrumented_ops_in_batch.size() ==
+           _instrumented_op_problem_sizes_in_batch.size());
+    
+    for(int i = 0; i < _instrumented_ops_in_batch.size(); ++i) {
+      std::size_t problem_size = _instrumented_op_problem_sizes_in_batch[i];
+      _offload_db.update_entry(_instrumented_ops_in_batch[i], problem_size,
+                               offload_heuristic_db::offload_device_id,
+                               mean_time);
+    }
+    _instrumented_ops_in_batch.clear();
+    _instrumented_op_problem_sizes_in_batch.clear();
+#endif
     reset_num_outstanding_operations();
     ++offloading_batch_counter();
   }

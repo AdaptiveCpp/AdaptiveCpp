@@ -147,11 +147,34 @@ enum prefetch_mode {
   first = 4
 };
 
-inline constexpr prefetch_mode get_prefetch_mode() noexcept {
+inline prefetch_mode get_prefetch_mode() noexcept {
 #ifdef __HIPSYCL_STDPAR_PREFETCH_MODE__
   prefetch_mode mode = static_cast<prefetch_mode>(__HIPSYCL_STDPAR_PREFETCH_MODE__);
 #else
-  prefetch_mode mode = prefetch_mode::automatic;
+  auto determine_prefetch_mode = [&]() -> prefetch_mode {
+    std::string prefetch_mode_string;
+    if(rt::try_get_environment_variable("stdpar_prefetch_mode", prefetch_mode_string)) {
+      if(prefetch_mode_string == "auto") {
+        return prefetch_mode::automatic;
+      } else if(prefetch_mode_string == "always") {
+        return prefetch_mode::always;
+      } else if(prefetch_mode_string == "never") {
+        return prefetch_mode::never;
+      } else if(prefetch_mode_string == "always") {
+        return prefetch_mode::always;
+      } else if(prefetch_mode_string == "after-sync") {
+        return prefetch_mode::after_sync;
+      } else if(prefetch_mode_string == "first") {
+        return prefetch_mode::first;
+      } else {
+        HIPSYCL_DEBUG_ERROR << "Invalid prefetch mode: " << prefetch_mode_string
+                            << ", falling back to 'auto'\n";
+      }
+    }
+    return prefetch_mode::automatic;
+  };
+
+  static prefetch_mode mode = determine_prefetch_mode();
 #endif
   return mode;
 }

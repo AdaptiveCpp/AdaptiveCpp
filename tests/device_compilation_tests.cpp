@@ -32,8 +32,10 @@
 #define BOOST_TEST_MODULE device compilation tests
 #if !defined(_WIN32) || defined(__MINGW32__)
 #define BOOST_TEST_DYN_LINK
-#endif // _WIN32
 #include <boost/test/included/unit_test.hpp>
+#else
+#include <boost/test/unit_test.hpp>
+#endif // _WIN32
 
 #include <initializer_list>
 

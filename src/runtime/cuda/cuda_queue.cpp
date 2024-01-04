@@ -89,7 +89,9 @@ public:
                              operation &op, dag_node_ptr node) 
                              : _queue{q}, _operation{&op}, _node{node} {
     assert(q);
-    assert(_node);
+    
+    if(!_node)
+      return;
 
     if (_node->get_execution_hints()
             .has_hint<
@@ -113,6 +115,9 @@ public:
   }
 
   ~cuda_instrumentation_guard() {
+    if(!_node)
+      return;
+    
     if (_node->get_execution_hints()
             .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
       std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();

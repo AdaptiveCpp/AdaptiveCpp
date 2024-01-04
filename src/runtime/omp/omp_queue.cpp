@@ -129,6 +129,9 @@ private:
 class omp_instrumentation_setup {
 public:
   omp_instrumentation_setup(operation &op, dag_node_ptr node) {
+    if(!node)
+      return;
+
     if (node->get_execution_hints()
             .has_hint<
                 rt::hints::request_instrumentation_submission_timestamp>()) {

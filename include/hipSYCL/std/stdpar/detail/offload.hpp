@@ -28,11 +28,13 @@
 #ifndef HIPSYCL_PSTL_OFFLOAD_HPP
 #define HIPSYCL_PSTL_OFFLOAD_HPP
 
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/std/stdpar/detail/execution_fwd.hpp"
 #include "hipSYCL/std/stdpar/detail/stdpar_builtins.hpp"
 #include "hipSYCL/std/stdpar/detail/sycl_glue.hpp"
 #include "hipSYCL/glue/reflection.hpp"
 #include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <cstddef>
@@ -279,13 +281,52 @@ bool validate_all_pointers(const Args&... args){
   return result;
 }
 
+enum prefetch_mode {
+  automatic = 0,
+  always = 1,
+  never = 2,
+  after_sync = 3,
+  first = 4
+};
+
+inline constexpr prefetch_mode get_prefetch_mode() noexcept {
+#ifdef __HIPSYCL_STDPAR_PREFETCH_MODE__
+  prefetch_mode mode = static_cast<prefetch_mode>(__HIPSYCL_STDPAR_PREFETCH_MODE__);
+#else
+  prefetch_mode mode = prefetch_mode::automatic;
+#endif
+  return mode;
+}
+
+inline void prefetch(sycl::queue& q, const void* ptr, std::size_t bytes) noexcept {
+  auto* inorder_executor = q.hipSYCL_inorder_executor();
+  if(inorder_executor) {
+    // Attempt to invoke backend functionality directly -
+    // in general we might have to issue multiple prefetches for
+    // each kernel, so overheads can quickly add up.
+    HIPSYCL_DEBUG_INFO << "[stdpar] Submitting raw prefetch to backend: "
+                       << bytes << " bytes @" << ptr << std::endl;
+    rt::inorder_queue* ordered_q = inorder_executor->get_queue();
+    rt::prefetch_operation op{ptr, bytes, ordered_q->get_device()};
+    ordered_q->submit_prefetch(op, nullptr);
+  } else {
+    q.prefetch(ptr, bytes);
+  }
+}
+
 template<class AlgorithmType, class Size, typename... Args>
 void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... args) {
   auto& q = detail::single_device_dispatch::get_queue();
   std::size_t current_batch_id = stdpar::detail::stdpar_tls_runtime::get()
                                      .get_current_offloading_batch_id();
 
-  auto arg_handler = [&](const auto& arg){
+  
+  // Use "first" mode in case of automatic prefetch decision for now
+  const auto prefetch_mode =
+      (get_prefetch_mode() == prefetch_mode::automatic) ? prefetch_mode::first
+                                                        : get_prefetch_mode();
+
+  auto prefetch_handler = [&](const auto& arg){
     if(!has_decoration<decorations::no_pointer_validation>(arg)) {
       glue::reflection::introspect_flattened_struct introspection{arg};
       for(int i = 0; i < introspection.get_num_members(); ++i) {
@@ -294,16 +335,31 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
           std::memcpy(&ptr, (char*)&arg + introspection.get_member_offset(i), sizeof(void*));
           
           unified_shared_memory::allocation_lookup_result lookup_result;
+          
           if(ptr && unified_shared_memory::allocation_lookup(ptr, lookup_result)) {
-            std::size_t *most_recent_offload_batch =
+            int64_t *most_recent_offload_batch_ptr =
                 &(lookup_result.info->most_recent_offload_batch);
 
+            std::size_t prefetch_size = lookup_result.info->allocation_size;
+
             // Need to use atomic builtins until we can use C++ 20 atomic_ref :(
-            if (__atomic_load_n(most_recent_offload_batch, __ATOMIC_ACQUIRE) <
-                current_batch_id) {
-              q.prefetch(lookup_result.root_address,
-                         lookup_result.info->allocation_size);
-              __atomic_store_n(most_recent_offload_batch, current_batch_id,
+            int64_t most_recent_offload_batch = __atomic_load_n(
+                most_recent_offload_batch_ptr, __ATOMIC_ACQUIRE);
+            
+            bool should_prefetch = false;
+            if(prefetch_mode == prefetch_mode::first)
+              // an allocation that was never used will still contain the
+              // initialization value of -1
+              should_prefetch = most_recent_offload_batch == -1;
+            else
+              // Never emit multiple prefetches for the same allocation in one batch
+              should_prefetch = most_recent_offload_batch <
+                                static_cast<int64_t>(current_batch_id);
+
+            if (should_prefetch) {
+              //sycl::mem_advise(lookup_result.root_address, prefetch_size, 3, q);
+              prefetch(q, lookup_result.root_address, prefetch_size);
+              __atomic_store_n(most_recent_offload_batch_ptr, current_batch_id,
                                __ATOMIC_RELEASE);
             }
           }
@@ -311,16 +367,32 @@ void prepare_offloading(AlgorithmType type, Size problem_size, const Args&... ar
       } 
     }
   };
-  (arg_handler(args), ...);
+  
+
+  if(prefetch_mode == prefetch_mode::after_sync) {
+    int submission_id_in_batch = stdpar::detail::stdpar_tls_runtime::get()
+                                   .get_num_outstanding_operations();
+    if(submission_id_in_batch == 0)
+      (prefetch_handler(args), ...);
+  } else if (prefetch_mode == prefetch_mode::always ||
+             prefetch_mode == prefetch_mode::first) {
+    (prefetch_handler(args), ...);
+  } else if (prefetch_mode == prefetch_mode::never) {
+    /* nothing to do */
+  }
 }
 
 template <class AlgorithmType, class Size, typename... Args>
 bool should_offload(AlgorithmType type, Size n, const Args &...args) {
+  // If we have system USM, no need to validate pointers as all
+  // will be automatically valid.
+#if !defined(__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__)
   if(!validate_all_pointers(args...)) {
     HIPSYCL_DEBUG_WARNING << "Detected pointers that are not valid device "
                              "pointers; not offloading stdpar call.\n";
     return false;
   }
+#endif
 
 #ifdef __HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__
   return true;

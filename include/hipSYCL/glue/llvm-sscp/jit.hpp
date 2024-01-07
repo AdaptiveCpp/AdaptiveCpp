@@ -32,6 +32,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/small_map.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/stable_running_hash.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/kernel_cache.hpp"
@@ -216,12 +217,18 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 
   assert(translator);
 
+  common::stable_running_hash jit_id_hash;
   auto config_id = config.generate_id();
+  auto backend_id = translator->getBackendId();
+
+  jit_id_hash(&config_id, config_id.size());
+  jit_id_hash(&backend_id, sizeof(backend_id));
+  for(const auto& kernel_name : translator->getOutliningEntrypoints()) {
+    jit_id_hash(kernel_name.data(), kernel_name.size());
+  }
 
   std::string jit_cache_file =
-      "jit_cache_" + std::to_string(translator->getBackendId())+"_";
-  for(auto component : config_id)
-    jit_cache_file += std::to_string(component);
+      "jit_cache_" + std::to_string(jit_id_hash.get_current_hash());
 
   {
     std::ifstream cache_input {jit_cache_file, std::ios::binary|std::ios::ate};
@@ -287,7 +294,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           std::string &output) {
   assert(hcf);
   assert(hcf->root_node());
-
+  
 
   auto images_node = hcf->root_node()->get_subnode("images");
   if(!images_node) {

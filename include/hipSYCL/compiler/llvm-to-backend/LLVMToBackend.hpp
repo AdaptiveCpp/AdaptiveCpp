@@ -125,6 +125,10 @@ public:
     return S2IRConstantBackendId;
   }
 
+  const std::vector<std::string>& getOutliningEntrypoints() const {
+    return OutliningEntrypoints;
+  }
+
   using SymbolListType = std::vector<std::string>;
 
   class ExternalSymbolResolver {

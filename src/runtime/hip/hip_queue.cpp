@@ -659,7 +659,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     // Lower kernels
     std::string amdgpu_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, amdgpu_image);
+        hcf, hcf_object, selected_image_name, config, amdgpu_image);
     
     if(!err.is_success()) {
       register_error(err);

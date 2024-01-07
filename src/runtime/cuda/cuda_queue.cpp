@@ -677,7 +677,7 @@ result cuda_queue::submit_sscp_kernel_from_code_object(
     // Lower kernels to PTX
     std::string ptx_image;
     auto err = glue::jit::compile(translator.get(),
-        hcf, selected_image_name, config, ptx_image);
+        hcf, hcf_object, selected_image_name, config, ptx_image);
     
     if(!err.is_success()) {
       register_error(err);

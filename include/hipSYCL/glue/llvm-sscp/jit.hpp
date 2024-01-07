@@ -211,6 +211,7 @@ private:
 
 inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           const std::string &source,
+                          rt::hcf_object_id source_id,
                           const glue::kernel_configuration &config,
                           const symbol_list_t& imported_symbol_names,
                           std::string &output) {
@@ -223,6 +224,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 
   jit_id_hash(&config_id, config_id.size());
   jit_id_hash(&backend_id, sizeof(backend_id));
+  jit_id_hash(&source_id, sizeof(source_id));
   for(const auto& kernel_name : translator->getOutliningEntrypoints()) {
     jit_id_hash(kernel_name.data(), kernel_name.size());
   }
@@ -289,6 +291,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 
 inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
                           const common::hcf_container* hcf,
+                          rt::hcf_object_id source_id,
                           const std::string& image_name,
                           const glue::kernel_configuration &config,
                           std::string &output) {
@@ -330,7 +333,8 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
   symbol_list_t imported_symbol_names =
       target_image_node->get_as_list("imported-symbols");
 
-  return compile(translator, source, config, imported_symbol_names, output);
+  return compile(translator, source, source_id, config, imported_symbol_names,
+                 output);
 }
 
 inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
@@ -345,7 +349,7 @@ inline rt::result compile(compiler::LLVMToBackendTranslator* translator,
         rt::error_info{"jit::compile: Could not obtain HCF object"});
   }
 
-  return compile(translator, hcf, image_name, config,
+  return compile(translator, hcf, hcf_object, image_name, config,
                  output);
 }
 

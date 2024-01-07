@@ -216,6 +216,24 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
 
   assert(translator);
 
+  auto config_id = config.generate_id();
+
+  std::string jit_cache_file =
+      "jit_cache_" + std::to_string(translator->getBackendId())+"_";
+  for(auto component : config_id)
+    jit_cache_file += std::to_string(component);
+
+  {
+    std::ifstream cache_input {jit_cache_file, std::ios::binary|std::ios::ate};
+    if(cache_input.is_open()) {
+      std::streamsize file_size = cache_input.tellg();
+      cache_input.seekg(0, std::ios::beg);
+      output.resize(file_size);
+      cache_input.read(output.data(), file_size);
+      return rt::make_success();
+    }
+  }
+
   runtime_linker configure_linker {translator, imported_symbol_names};
 
   // Apply configuration
@@ -251,6 +269,11 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
     return rt::make_error(__hipsycl_here(),
                       rt::error_info{"jit::compile: Encountered errors:\n" +
                                  translator->getErrorLogAsString()});
+  } else {
+    std::ofstream out{jit_cache_file, std::ios::trunc|std::ios::binary};
+    if(out.is_open()) {
+      out.write(output.c_str(), output.size());
+    }
   }
 
   return rt::make_success();

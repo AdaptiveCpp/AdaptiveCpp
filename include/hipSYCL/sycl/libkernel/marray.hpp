@@ -81,6 +81,7 @@ public:
   }
 
   template <typename... ArgTN,
+            std::enable_if_t<(sizeof...(ArgTN) > 0), bool> = true,
             std::size_t num_args = (count_elements<ArgTN>() + ...),
             std::enable_if_t<num_args == NumElements, bool> = true>
   constexpr marray(const ArgTN&... args) {

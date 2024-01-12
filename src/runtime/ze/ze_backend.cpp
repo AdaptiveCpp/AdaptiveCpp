@@ -105,7 +105,10 @@ std::string ze_backend::get_name() const {
 
 std::unique_ptr<backend_executor>
 ze_backend::create_inorder_executor(device_id dev, int priority){
-  return nullptr;
+  std::unique_ptr<inorder_queue> q =
+      std::make_unique<ze_queue>(_hardware_manager.get(), dev.get_id());
+
+  return std::make_unique<inorder_executor>(std::move(q));
 }
 
 }

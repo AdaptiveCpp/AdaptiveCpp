@@ -177,8 +177,8 @@ if __name__ == '__main__':
               style='rounded,filled', fontcolor = str(determine_font_color(root_color)))
 
   intel_blue          = make_html_color("127bca")
-  opensycl_grey        = make_html_color("555555")
-  opensycl_red         = make_html_color("c50d29")
+  acpp_grey        = make_html_color("555555")
+  acpp_red         = make_html_color("c50d29")
   codeplay_purple     = make_html_color("993697")
   codeplay_light_blue = make_html_color("a7d5fd")
   xilinx_dark = make_html_color("171c2d")
@@ -217,22 +217,25 @@ if __name__ == '__main__':
   add_implementation(graph, "DPC++", intel_blue, intel_blue,
                      ["dpcpp_host", "dpcpp_opencl", "dpcpp_cuda", "dpcpp_l0"])
 
-  ####################### Open SYCL ##############################
+  ####################### AdaptiveCpp ##############################
 
-  add_backend(graph, "opensycl_cuda", opensycl_grey, {'NVIDIA GPUs' : nvidia_green},
+  add_backend(graph, "acpp_cuda", acpp_grey, {'NVIDIA GPUs' : nvidia_green},
               description="CUDA\n(runtime API)")
 
-  add_backend(graph, "opensycl_rocm", opensycl_grey, {'AMD GPUs' : amd_red},
+  add_backend(graph, "acpp_rocm", acpp_grey, {'AMD GPUs' : amd_red},
               description="ROCm")
 
-  add_backend(graph, "opensycl_openmp", opensycl_grey,
+  add_backend(graph, "acpp_openmp", acpp_grey,
               {'Any CPU' : cpu_color}, description="OpenMP")
 
-  add_backend(graph, "opensycl_l0", opensycl_grey, {'Intel GPUs' : intel_blue},
+  add_backend(graph, "acpp_l0", acpp_grey, {'Intel GPUs' : intel_blue},
               description="Level Zero")
 
-  add_implementation(graph, "Open SYCL", opensycl_grey, opensycl_red,
-                     ["opensycl_cuda", "opensycl_rocm", "opensycl_openmp", "opensycl_l0"])
+  add_backend(graph, "acpp_ocl", acpp_grey, {'OpenCL SPIR-V devices' : intel_blue},
+              description="OpenCL")
+
+  add_implementation(graph, "AdaptiveCpp", acpp_grey, acpp_red,
+                     ["acpp_cuda", "acpp_rocm", "acpp_openmp", "acpp_l0", "acpp_ocl"])
 
   ####################### triSYCL ##############################
 

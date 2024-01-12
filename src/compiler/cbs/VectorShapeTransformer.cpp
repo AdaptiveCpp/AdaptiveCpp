@@ -17,6 +17,8 @@
 
 #include "hipSYCL/compiler/cbs/MathUtils.hpp"
 
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/IntrinsicInst.h>
 #include <llvm/IR/Intrinsics.h>
@@ -24,17 +26,6 @@
 
 using namespace hipsycl::compiler;
 using namespace llvm;
-
-#if LLVM_VERSION_MAJOR < 13 || (LLVM_VERSION_MAJOR == 13 && defined(ROCM_CLANG_VERSION_MAJOR) && ROCM_CLANG_VERSION_MAJOR < 5)
-#define IS_OPAQUE(pointer) constexpr(false)
-#define HAS_TYPED_PTR 1
-#elif LLVM_VERSION_MAJOR < 16
-#define IS_OPAQUE(pointer) (pointer->isOpaquePointerTy())
-#define HAS_TYPED_PTR 1
-#else
-#define IS_OPAQUE(pointer) constexpr(true)
-#define HAS_TYPED_PTR 0
-#endif
 
 hipsycl::compiler::VectorShape GenericTransfer(hipsycl::compiler::VectorShape a) {
   if (!a.isDefined())
@@ -128,15 +119,7 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
 
   switch (I.getOpcode()) {
   case Instruction::Alloca: {
-    const int alignment = vecInfo.getVectorWidth();
-    auto *AllocatedType = llvm::cast<llvm::AllocaInst>(I).getAllocatedType();
-    const bool Vectorizable = false;
-
-    if (Vectorizable) {
-      int typeStoreSize = (int)(layout.getTypeStoreSize(AllocatedType));
-      return VectorShape::strided(typeStoreSize, alignment);
-    }
-
+    // AdaptiveCpp CBS: we moved allocas out of the wi-loop.
     return VectorShape::varying();
   }
   case Instruction::Br: {
@@ -283,10 +266,10 @@ VectorShape VectorShapeTransformer::computeIdealShapeForInst(const Instruction &
     }
 
     // next: query resolver mechanism // TODO account for predicate
-    bool hasVaryingBlockPredicate = false;
-    if (!vecInfo.getVaryingPredicateFlag(BB, hasVaryingBlockPredicate)) {
-      hasVaryingBlockPredicate = false; // assume uniform block pred unless shown otherwise
-    }
+    // bool hasVaryingBlockPredicate = false;
+    // if (!vecInfo.getVaryingPredicateFlag(BB, hasVaryingBlockPredicate)) {
+    //   hasVaryingBlockPredicate = false; // assume uniform block pred unless shown otherwise
+    // }
 
     // todo: do we need this in hipSYCL? should be inlined already anyways
     //    auto resolver = platInfo.getResolver(callee->getName(), *callee->getFunctionType(),

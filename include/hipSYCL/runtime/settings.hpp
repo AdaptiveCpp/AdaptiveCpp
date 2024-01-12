@@ -44,9 +44,66 @@ namespace rt {
 enum class scheduler_type { direct, unbound };
 enum class default_selector_behavior { strict, multigpu, system };
 
+struct device_visibility_condition{
+  int device_index_equality = -1;
+  int platform_index_equality = -1;
+  std::string device_name_match;
+  std::string platform_name_match;
+};
+
+using visibility_mask_t =
+    std::unordered_map<rt::backend_id,
+                       std::vector<device_visibility_condition>>;
+
+bool device_matches(const visibility_mask_t &mask, backend_id backend,
+                    int global_device_index, int platform_device_index,
+                    int platform_index, const std::string &dev_name,
+                    const std::string &platform_name);
+
+bool device_matches(const visibility_mask_t::mapped_type &visibility_conditions,
+                    int global_device_index, int platform_device_index,
+                    int platform_index, const std::string &dev_name,
+                    const std::string &platform_name);
+bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend);
+
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
-std::istream &operator>>(std::istream &istr, std::vector<rt::backend_id> &out);
+std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
+
+template <class T>
+bool try_get_environment_variable(const std::string& name, T& out) {
+  std::string env_name = name;
+
+  std::transform(env_name.begin(), env_name.end(), env_name.begin(), ::toupper);
+
+  std::string env;
+  if (const char *env_value =
+          std::getenv(("ACPP_"+env_name).c_str())) {
+    env_name = "ACPP_"+env_name;
+    env = std::string{env_value};
+  } else if (const char *env_value =
+          std::getenv(("HIPSYCL_"+env_name).c_str())) {
+    env_name = "HIPSYCL_"+env_name;
+    env = std::string{env_value};
+  }
+  
+  if (!env.empty()) {
+    
+    T val;
+    std::stringstream sstr{std::string{env}};
+    sstr >> val;
+
+    if (sstr.fail() || sstr.bad()) {
+      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
+                    "variable: "
+                << env_name << std::endl;
+      return false;
+    }
+    out = val;
+    return true;
+  }
+  return false;
+}
 
 enum class setting {
   debug_level,
@@ -60,7 +117,9 @@ enum class setting {
   persistent_runtime,
   max_cached_nodes,
   sscp_failed_ir_dump_directory,
-  gc_trigger_batch_size
+  gc_trigger_batch_size,
+  ocl_no_shared_context,
+  ocl_show_all_devices
 };
 
 template <setting S> struct setting_trait {};
@@ -71,9 +130,10 @@ template <setting S> struct setting_trait {};
     static constexpr const char *str = string_identifier;                      \
   };
 
+
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::debug_level, "debug_level", int)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::scheduler_type, "rt_scheduler", scheduler_type)
-HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", std::vector<rt::backend_id>)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::visibility_mask, "visibility_mask", visibility_mask_t)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::dag_req_optimization_depth,
                               "rt_dag_req_optimization_depth", std::size_t);
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::mqe_lane_statistics_max_size,
@@ -89,6 +149,8 @@ HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::max_cached_nodes, "rt_max_cached_nodes", 
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::sscp_failed_ir_dump_directory,
                               "sscp_failed_ir_dump_directory", std::string)
 HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::gc_trigger_batch_size, "rt_gc_trigger_batch_size", std::size_t)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_no_shared_context, "rt_ocl_no_shared_context", bool)
+HIPSYCL_RT_MAKE_SETTING_TRAIT(setting::ocl_show_all_devices, "rt_ocl_show_all_devices", bool)
 
 class settings
 {
@@ -119,6 +181,10 @@ public:
       return _sscp_failed_ir_dump_directory;
     } else if constexpr(S == setting::gc_trigger_batch_size) {
       return _gc_trigger_batch_size;
+    } else if constexpr(S == setting::ocl_no_shared_context) {
+      return _ocl_no_shared_context;
+    } else if constexpr(S == setting::ocl_show_all_devices) {
+      return _ocl_show_all_devices;
     }
     return typename setting_trait<S>::type{};
   }
@@ -135,7 +201,7 @@ public:
             scheduler_type::unbound);
     _visibility_mask =
         get_environment_variable_or_default<setting::visibility_mask>(
-            std::vector<rt::backend_id>{});
+            visibility_mask_t{});
     _dag_requirement_optimization_depth = get_environment_variable_or_default<
         setting::dag_req_optimization_depth>(10);
     _mqe_lane_statistics_max_size = get_environment_variable_or_default<
@@ -156,38 +222,24 @@ public:
         setting::sscp_failed_ir_dump_directory>(std::string{});
     _gc_trigger_batch_size =
         get_environment_variable_or_default<setting::gc_trigger_batch_size>(128);
+    _ocl_no_shared_context =
+        get_environment_variable_or_default<setting::ocl_no_shared_context>(false);
+    _ocl_show_all_devices =
+        get_environment_variable_or_default<setting::ocl_show_all_devices>(false);
   }
 
 private:
   template <setting S, class T>
   T get_environment_variable_or_default(const T &default_value) {
-    const char *env = std::getenv(get_environment_variable_name<S>().c_str());
-    if (env) {
-      
-      T val;
-      std::stringstream sstr{std::string{env}};
-      sstr >> val;
-
-      if (sstr.fail() || sstr.bad()) {
-        std::cerr << "hipSYCL prelaunch: Could not parse value of environment "
-                     "variable: "
-                  << get_environment_variable_name<S>() << std::endl;
-        return default_value;
-      }
-      return val;
+    T out;
+    if(try_get_environment_variable(setting_trait<S>::str, out)) {
+      return out;
     }
     return default_value;
   }
 
-  template <setting S> std::string get_environment_variable_name() {
-    std::string id = setting_trait<S>::str;
-    std::transform(id.begin(), id.end(), id.begin(), ::toupper);
-    return "HIPSYCL_"+id;
-  }
-
   int _debug_level;
   scheduler_type _scheduler_type;
-  std::vector<rt::backend_id> _visibility_mask;
   std::size_t _dag_requirement_optimization_depth;
   std::size_t _mqe_lane_statistics_max_size;
   double _mqe_lane_statistics_decay_time_sec;
@@ -197,6 +249,9 @@ private:
   std::size_t _max_cached_nodes;
   std::string _sscp_failed_ir_dump_directory;
   std::size_t _gc_trigger_batch_size;
+  visibility_mask_t _visibility_mask;
+  bool _ocl_no_shared_context;
+  bool _ocl_show_all_devices;
 };
 
 }

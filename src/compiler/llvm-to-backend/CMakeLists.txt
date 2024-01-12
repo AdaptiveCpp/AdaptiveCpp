@@ -27,7 +27,13 @@ function(create_llvm_based_library)
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   
   target_compile_definitions(${target} PRIVATE ${LLVM_DEFINITIONS} -DHIPSYCL_COMPILER_COMPONENT)
-  llvm_config(${target} irreader passes)
+  find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS})
+  if(NOT LLVM_LIBRARY)
+    message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
+  endif()
+  llvm_config(${target} USE_SHARED core support irreader passes)
+  # We need symbolic functions for stdpar
+  target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
   install(TARGETS ${target} DESTINATION lib/hipSYCL/llvm-to-backend)
 endfunction()
@@ -47,7 +53,7 @@ function(create_llvm_to_backend_library)
   set(sources ${CREATE_LLVM_LIBRARY_SOURCES})
 
   create_llvm_based_library(TARGET ${target} SOURCES ${sources})
-  target_link_libraries(${target} PUBLIC llvm-to-backend opensycl-common)
+  target_link_libraries(${target} PUBLIC llvm-to-backend acpp-common)
 endfunction()
 
 function(create_llvm_to_backend_tool)
@@ -116,24 +122,27 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
-    ExternalProject_Add(LLVMSpirvTranslator
-    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
-    GIT_TAG origin/${LLVMSPIRV_BRANCH}
-    GIT_SHALLOW ON
-    GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
-    BUILD_ALWAYS OFF
-    INSTALL_DIR ${LLVMSPIRV_INSTALLDIR}
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-    CMAKE_CACHE_ARGS
-      -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
-      -DLLVM_DIR:PATH=${LLVM_DIR}
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
-    PATCH_COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch || true
+    include(FetchContent)
+    FetchContent_Declare(LLVMSpirvTranslator
+      GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
+      GIT_TAG origin/${LLVMSPIRV_BRANCH}
+      GIT_SHALLOW ON
     )
+
+    FetchContent_GetProperties(LLVMSpirvTranslator)
+    if(NOT LLVMSpirvTranslator_POPULATED)
+      FetchContent_Populate(LLVMSpirvTranslator)
+      execute_process(COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch ${llvmspirvtranslator_SOURCE_DIR}/lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch)
+      execute_process(COMMAND ${CMAKE_COMMAND} -DLLVM_SPIRV_BUILD_EXTERNAL=ON -DLLVM_DIR=${LLVM_DIR} -DCMAKE_INSTALL_PREFIX=${LLVMSPIRV_INSTALLDIR} -DCMAKE_BUILD_TYPE=Release -S ${llvmspirvtranslator_SOURCE_DIR} -B ${llvmspirvtranslator_BINARY_DIR})
+    endif()
+    
+    add_custom_target(llvm-spirv-translator ALL COMMAND ${CMAKE_COMMAND} --build ${llvmspirvtranslator_BINARY_DIR} --config Release)
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --install ${llvmspirvtranslator_BINARY_DIR})")
 
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
+    
+    
   endif()
 
   if(WITH_LLVM_TO_PTX)

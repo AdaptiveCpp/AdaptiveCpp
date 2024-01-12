@@ -49,7 +49,7 @@ namespace hipsycl {
 namespace rt {
 
 cuda_backend::cuda_backend()
-    : _hw_manager{get_hardware_platform()},
+    : _hw_manager{cuda_backend::get_hardware_platform()},
       _executor{*this, [this](device_id dev) {
                   return std::make_unique<cuda_queue>(this, dev);
                 }} {}

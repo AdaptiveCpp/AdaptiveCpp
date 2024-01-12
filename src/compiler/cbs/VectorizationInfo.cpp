@@ -52,7 +52,7 @@ void VectorizationInfo::print(const Value *val, llvm::raw_ostream &out) const {
   out << *val;
 
   // show shadow input (if any)
-  auto *phi = dyn_cast<PHINode>(val);
+  // auto *phi = dyn_cast<PHINode>(val);
   //  if (phi) {
   //    const Value * shadowIn = getShadowInput(*phi);
   //    if (shadowIn) {

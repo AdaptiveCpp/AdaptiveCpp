@@ -33,6 +33,7 @@
 #include "hipSYCL/runtime/dag_direct_scheduler.hpp"
 #include "hipSYCL/runtime/generic/multi_event.hpp"
 #include "hipSYCL/runtime/hints.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "hipSYCL/runtime/serialization/serialization.hpp"
 
 #include <algorithm>
@@ -45,7 +46,7 @@ namespace rt {
 namespace {
 
 std::size_t determine_target_lane(dag_node_ptr node,
-                                  const std::vector<dag_node_ptr>& nonvirtual_reqs,
+                                  const node_list_t& nonvirtual_reqs,
                                   const multi_queue_executor* executor,
                                   const moving_statistics& device_submission_statistics,
                                   backend_execution_lane_range lane_range) {
@@ -60,7 +61,7 @@ std::size_t determine_target_lane(dag_node_ptr node,
     return lane_range.begin + preferred_lane % lane_range.num_lanes;
   }
 
-  std::vector<int> synchronization_cost(lane_range.num_lanes);
+  common::small_vector<int, 8> synchronization_cost(lane_range.num_lanes);
 
   for(dag_node_ptr req : nonvirtual_reqs){
     assert(req);
@@ -177,11 +178,11 @@ multi_queue_executor::multi_queue_executor(
 
 
 bool multi_queue_executor::is_inorder_queue() const {
-  return true;
+  return false;
 }
 
 bool multi_queue_executor::is_outoforder_queue() const {
-  return false;
+  return true;
 }
 
 bool multi_queue_executor::is_taskgraph() const {
@@ -204,7 +205,7 @@ multi_queue_executor::get_kernel_execution_lane_range(device_id dev) const {
 
 void multi_queue_executor::submit_directly(
     dag_node_ptr node, operation *op,
-    const std::vector<dag_node_ptr> &reqs) {
+    const node_list_t &reqs) {
 
   HIPSYCL_DEBUG_INFO << "multi_queue_executor: Processing node " << node.get()
 	  << " with " << reqs.size() << " non-virtual requirement(s) and "

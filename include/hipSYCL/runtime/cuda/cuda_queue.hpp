@@ -108,7 +108,7 @@ public:
 
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-  virtual result submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) override;
+  virtual result submit_queue_wait_for(dag_node_ptr evt) override;
   virtual result submit_external_wait_for(dag_node_ptr node) override;
 
   virtual result wait() override;
@@ -138,7 +138,7 @@ public:
 private:
   void activate_device() const;
 
-  device_id _dev;
+  const device_id _dev;
   CUstream_st *_stream;
   cuda_multipass_code_object_invoker _multipass_code_object_invoker;
   cuda_sscp_code_object_invoker _sscp_code_object_invoker;

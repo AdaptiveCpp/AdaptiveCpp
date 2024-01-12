@@ -89,7 +89,9 @@ public:
                              operation &op, dag_node_ptr node) 
                              : _queue{q}, _operation{&op}, _node{node} {
     assert(q);
-    assert(_node);
+    
+    if(!_node)
+      return;
 
     if (_node->get_execution_hints()
             .has_hint<
@@ -113,6 +115,9 @@ public:
   }
 
   ~cuda_instrumentation_guard() {
+    if(!_node)
+      return;
+    
     if (_node->get_execution_hints()
             .has_hint<rt::hints::request_instrumentation_finish_timestamp>()) {
       std::shared_ptr<dag_node_event> task_finish = _queue->insert_event();
@@ -411,7 +416,8 @@ result cuda_queue::submit_memset(memset_operation &op, dag_node_ptr node) {
 
 /// Causes the queue to wait until an event on another queue has occured.
 /// the other queue must be from the same backend
-result cuda_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result cuda_queue::submit_queue_wait_for(dag_node_ptr node) {
+  auto evt = node->get_event();
   assert(dynamic_is<inorder_queue_event<cudaEvent_t>>(evt.get()));
 
   inorder_queue_event<cudaEvent_t> *cuda_evt =

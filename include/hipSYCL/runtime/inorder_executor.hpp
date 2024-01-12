@@ -29,12 +29,20 @@
 #ifndef HIPSYCL_INORDER_EXECUTOR_HPP
 #define HIPSYCL_INORDER_EXECUTOR_HPP
 
+#include <atomic>
+
 #include "executor.hpp"
+#include "hipSYCL/runtime/operations.hpp"
 #include "inorder_queue.hpp"
 
 namespace hipsycl {
 namespace rt {
 
+/// inorder_executor implements the executor
+/// interface on top of inorder_queue objects.
+///
+/// This class is thread-safe, provided that the underlying
+/// inorder_queue is thread-safe.
 class inorder_executor : public backend_executor
 {
 public:
@@ -48,7 +56,7 @@ public:
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
-                  const std::vector<dag_node_ptr> &reqs) override;
+                  const node_list_t &reqs) override;
 
   inorder_queue* get_queue() const;
 
@@ -56,7 +64,7 @@ public:
   bool is_submitted_by_me(dag_node_ptr node) const override;
 private:
   std::unique_ptr<inorder_queue> _q;
-  std::size_t _num_submitted_operations;
+  std::atomic<std::size_t> _num_submitted_operations;
 };
 
 }

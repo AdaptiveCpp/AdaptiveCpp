@@ -54,21 +54,10 @@ class dag_builder
 public:
   dag_builder(runtime* rt);
 
-  dag_node_ptr add_kernel(std::unique_ptr<operation> op,
-                          const requirements_list& requirements,
-                          const execution_hints& hints = {});
-  dag_node_ptr add_memcpy(std::unique_ptr<operation> op,
-                          const requirements_list& requirements,
-                          const execution_hints& hints = {});
-  dag_node_ptr add_fill(std::unique_ptr<operation> op,
-                        const requirements_list& requirements,
-                        const execution_hints& hints = {});
-  dag_node_ptr add_prefetch(std::unique_ptr<operation> op,
-                            const requirements_list &requirements,
-                            const execution_hints &hints = {});
-  dag_node_ptr add_memset(std::unique_ptr<operation> op,
-                          const requirements_list &requirements,
-                          const execution_hints &hints = {});
+  dag_node_ptr add_command_group(std::unique_ptr<operation> op,
+                                const requirements_list& requirements,
+                                const execution_hints& hints = {});
+
   dag_node_ptr
   add_explicit_mem_requirement(std::unique_ptr<operation> req,
                                const requirements_list &requirements,
@@ -84,9 +73,7 @@ private:
   dag_node_ptr build_node(std::unique_ptr<operation> op,
                           const requirements_list &requirements,
                           const execution_hints &hints);
-  dag_node_ptr add_command_group(std::unique_ptr<operation> op,
-                                const requirements_list& requirements,
-                                const execution_hints& hints = {});
+  
 
   mutable std::mutex _mutex;
   dag _current_dag;

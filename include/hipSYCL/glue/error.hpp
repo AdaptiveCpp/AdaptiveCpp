@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/small_vector.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/async_errors.hpp"
@@ -87,59 +88,64 @@ inline std::exception_ptr throw_result(const rt::result& r){
   if(!r.is_success()) {
     rt::error_type etype = r.info().get_error_type();
 
+    using sycl::exception, sycl::make_error_code, sycl::errc;
+
     try {
       switch (etype) {
+        // TODO: error_type::unimplemented has no equivalent errc
       case rt::error_type::unimplemented:
-        throw sycl::unimplemented{r};
-        break;
       case rt::error_type::runtime_error:
-        throw sycl::runtime_error{r};
+        throw exception{make_error_code(errc::runtime), r.what()};
         break;
       case rt::error_type::kernel_error:
-        throw sycl::kernel_error{r};
+        throw exception{make_error_code(errc::kernel), r.what()};
         break;
       case rt::error_type::accessor_error:
-        throw sycl::accessor_error{r};
+        throw exception{make_error_code(errc::accessor), r.what()};
         break;
       case rt::error_type::nd_range_error:
-        throw sycl::nd_range_error{r};
+        throw exception{make_error_code(errc::nd_range), r.what()};
         break;
       case rt::error_type::event_error:
-        throw sycl::event_error{r};
+        throw exception{make_error_code(errc::event), r.what()};
         break;
       case rt::error_type::invalid_parameter_error:
-        throw sycl::invalid_parameter_error{r};
+        throw exception{make_error_code(errc::invalid), r.what()};
         break;
       case rt::error_type::device_error:
-        throw sycl::device_error{r};
+        /* TODO: error_type::device_error has no equivalent errc, however
+           this isn't used anywhere, maybe remove in rt::error_type? */
+        throw exception{make_error_code(errc::runtime), r.what()};
         break;
+        /* TODO: Neither error_type::compile_program_error nor
+           error_type::link_program_error have an equivalent errc,
+           however they are both not used anywhere, maybe remove in
+           rt::error_type? */
       case rt::error_type::compile_program_error:
-        throw sycl::compile_program_error{r};
-        break;
       case rt::error_type::link_program_error:
-        throw sycl::link_program_error{r};
+        throw exception{make_error_code(errc::build), r.what()};
         break;
       case rt::error_type::invalid_object_error:
-        throw sycl::invalid_object_error{r};
+        throw exception{make_error_code(errc::invalid), r.what()};
         break;
       case rt::error_type::memory_allocation_error:
-        throw sycl::memory_allocation_error{r};
+        throw exception{make_error_code(errc::memory_allocation), r.what()};
         break;
       case rt::error_type::platform_error:
-        throw sycl::platform_error{r};
+        throw exception{make_error_code(errc::platform), r.what()};
         break;
       case rt::error_type::profiling_error:
-        throw sycl::profiling_error{r};
+        throw exception{make_error_code(errc::profiling), r.what()};
         break;
       case rt::error_type::feature_not_supported:
-        throw sycl::feature_not_supported{r};
+        throw exception{make_error_code(errc::feature_not_supported), r.what()};
         break;
       default:
         HIPSYCL_DEBUG_WARNING
             << "throw_result(): Encountered unknown exception type"
             << std::endl;
-        throw sycl::runtime_error{"Unknown error type encountered: " +
-                                  r.what()};
+        throw exception{make_error_code(errc::runtime),
+                        "Unknown error type encountered: " + r.what()};
       }
     } catch (...) {
       return std::current_exception();
@@ -152,7 +158,7 @@ template<class Handler>
 void throw_asynchronous_errors(Handler h){
   sycl::exception_list exceptions;
 
-  std::vector<rt::result> async_errors;
+  common::auto_small_vector<rt::result> async_errors;
   rt::application::errors().pop_each_error(
       [&](const rt::result &err) {
         async_errors.push_back(err);

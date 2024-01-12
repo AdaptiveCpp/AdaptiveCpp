@@ -36,7 +36,9 @@
 #include "exception.hpp"
 #include "access.hpp"
 #include "context.hpp"
+#include "hipSYCL/runtime/dag_node.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
+#include "hipSYCL/runtime/executor.hpp"
 #include "hipSYCL/runtime/util.hpp"
 #include "libkernel/backend.hpp"
 #include "device.hpp"
@@ -65,6 +67,10 @@
 #include "hipSYCL/glue/kernel_launcher_factory.hpp"
 #include "hipSYCL/glue/kernel_names.hpp"
 #include "hipSYCL/glue/generic/code_object.hpp"
+
+#ifndef HIPSYCL_ALLOW_INSTANT_SUBMISSION
+#define HIPSYCL_ALLOW_INSTANT_SUBMISSION 0
+#endif
 
 namespace hipsycl {
 namespace sycl {
@@ -102,9 +108,9 @@ class handler {
     glue::unique_id accessor_id = acc.get_uid();
 
     if (!data.mem) {
-      throw invalid_parameter_error{
-          "handler: require(): accessor is illegal paramater for require() "
-          "because it is not bound to a buffer."};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: require(): accessor is illegal paramater for "
+                      "require() because it is not bound to a buffer."};
     }
 
     // Translate no_init property and host_task modes
@@ -148,8 +154,8 @@ class handler {
     HIPSYCL_DEBUG_ERROR << "Attempted to access accessor that was not "
                            "registered with the handler"
                         << std::endl;
-    throw sycl::invalid_parameter_error{
-        "Accessor was not registered with handler"};
+    throw exception{make_error_code(errc::invalid),
+                    "Accessor was not registered with handler"};
   }
 
   template <class AccessorType>
@@ -250,9 +256,9 @@ public:
         acc.get_data_region();
 
     if(!data_region) {
-      throw invalid_parameter_error{
-          "handler: require(): accessor is illegal paramater for require() "
-          "because it is not bound to a buffer."};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: require(): accessor is illegal paramater for "
+                      "require() because it is not bound to a buffer."};
     }
 
     auto offset = acc.get_offset();
@@ -309,6 +315,21 @@ public:
   }
 
   template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  void parallel_for(range<1> numWorkItems,
+                    const ReductionsAndKernel &... redu_kernel) {
+
+    auto invoker = [&](auto&& kernel, auto&&... reductions){
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          sycl::id<1>{}, numWorkItems,
+          get_preferred_group_size<1>(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
             typename... ReductionsAndKernel, int dimensions>
   void parallel_for(range<dimensions> numWorkItems,
                     id<dimensions> workItemOffset,
@@ -317,6 +338,21 @@ public:
       this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
           workItemOffset, numWorkItems,
           get_preferred_group_size<dimensions>(),
+          kernel, reductions...);
+    };
+
+    detail::separate_last_argument_and_apply(invoker, redu_kernel...);
+  }
+
+  template <typename KernelName = __hipsycl_unnamed_kernel,
+            typename... ReductionsAndKernel>
+  void parallel_for(range<1> numWorkItems,
+                    id<1> workItemOffset,
+                    const ReductionsAndKernel &... redu_kernel) {
+    auto invoker = [&](auto&& kernel, auto&& ... reductions) {
+      this->submit_kernel<KernelName, rt::kernel_type::basic_parallel_for>(
+          workItemOffset, numWorkItems,
+          get_preferred_group_size<1>(),
           kernel, reductions...);
     };
 
@@ -437,8 +473,8 @@ public:
     {
       if(get_range(src).get(i) > get_range(dest).get(i))
       {
-        throw invalid_parameter_error{"handler: copy(): "
-          "Accessor sizes are incompatible."};
+        throw exception{make_error_code(errc::invalid),
+                        "handler: copy(): Accessor sizes are incompatible."};
       }
     }
 
@@ -450,11 +486,10 @@ public:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{_rt->dag()};
-
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id src_dev = get_explicit_accessor_target(src);
     rt::device_id dest_dev = get_explicit_accessor_target(dest);
@@ -467,8 +502,7 @@ public:
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, rt::embed_in_range3(get_range(src)));
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
-        std::move(explicit_copy), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -484,8 +518,9 @@ public:
   void update(accessor<T, dim, mode, tgt, variant> acc) {
     
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: device update() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: device update() is unsupported for queues not "
+                      "bound to devices"};
 
     update_dev(
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id(),
@@ -505,7 +540,7 @@ public:
 
 
     this->submit_kernel<__hipsycl_unnamed_kernel, rt::kernel_type::basic_parallel_for>(
-        get_offset(dest), get_range(dest),
+        sycl::id<dim>{}, get_range(dest),
         get_preferred_group_size<dim>(),
         detail::kernels::fill_kernel{dest, src});
   }
@@ -514,11 +549,10 @@ public:
 
   void memcpy(void *dest, const void *src, std::size_t num_bytes) {
 
-    rt::dag_build_guard build{_rt->dag()};
-
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit memcpy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit memcpy() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id queue_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -538,8 +572,9 @@ public:
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation
         return detail::extract_rt_device(get_pointer_device(ptr, _ctx));
-      
-      throw invalid_parameter_error{"Invalid allocation type"};
+
+      throw exception{make_error_code(errc::invalid),
+                      "Invalid allocation type"};
     };
 
     rt::device_id src_dev = determine_ptr_device(src);
@@ -556,8 +591,7 @@ public:
     auto op = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, rt::embed_in_range3(range<1>{num_bytes}));
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
-        std::move(op), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -579,8 +613,9 @@ public:
       T *typed_ptr = static_cast<T *>(ptr);
 
       if (!_execution_hints.has_hint<rt::hints::bind_to_device>())
-        throw invalid_parameter_error{"handler: USM fill() is unsupported "
-                                      "for queues not bound to devices"};
+        throw exception{make_error_code(errc::invalid),
+                        "handler: USM fill() is unsupported for queues not "
+                        "bound to devices"};
 
       this->submit_kernel<__hipsycl_unnamed_kernel,
                           rt::kernel_type::basic_parallel_for>(
@@ -591,29 +626,26 @@ public:
   }
 
   void memset(void *ptr, int value, std::size_t num_bytes) {
-   
-    rt::dag_build_guard build{_rt->dag()};
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit memset() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit memset() is unsupported for queues "
+                      "not bound to devices"};
 
     auto op = rt::make_operation<rt::memset_operation>(
         ptr, static_cast<unsigned char>(value), num_bytes);
 
-    rt::dag_node_ptr node = build.builder()->add_memset(
-        std::move(op), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
     _command_group_nodes.push_back(node);
   }
 
   void prefetch_host(const void *ptr, std::size_t num_bytes) {
 
-    rt::dag_build_guard build{_rt->dag()};
-
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit prefetch() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id executing_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -629,15 +661,14 @@ public:
 
       auto usm_dev = detail::extract_rt_device(get_pointer_device(ptr, _ctx));
 
-      hints.overwrite_with(rt::make_execution_hint<rt::hints::bind_to_device>(
-          usm_dev));
+      hints.set_hint(rt::hints::bind_to_device{
+          usm_dev});
     }
 
     auto op = rt::make_operation<rt::prefetch_operation>(
         ptr, num_bytes, target_dev);
 
-    rt::dag_node_ptr node = build.builder()->add_prefetch(
-        std::move(op), _requirements, hints);
+    rt::dag_node_ptr node = create_task(std::move(op), hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -645,8 +676,9 @@ public:
   void prefetch(const void *ptr, std::size_t num_bytes) {
 
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit prefetch() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit prefetch() is unsupported for queues "
+                      "not bound to devices"};
 
     rt::device_id executing_dev =
         _execution_hints.get_hint<rt::hints::bind_to_device>()->get_device_id();
@@ -658,31 +690,28 @@ public:
     else {
       // Otherwise, run prefetch on the queue's device to the
       // queue's device
-      rt::dag_build_guard build{_rt->dag()};
 
       auto op = rt::make_operation<rt::prefetch_operation>(
           ptr, num_bytes, executing_dev);
 
-      rt::dag_node_ptr node = build.builder()->add_prefetch(
-          std::move(op), _requirements, _execution_hints);
+      rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
 
       _command_group_nodes.push_back(node);
     }
   }
 
   void mem_advise(const void *addr, std::size_t num_bytes, int advice) {
-    throw feature_not_supported{"mem_advise() is not yet supported"};
+    throw exception{make_error_code(errc::feature_not_supported),
+                    "mem_advise() is not yet supported"};
   }
 
 
   template <class InteropFunction>
   void hipSYCL_enqueue_custom_operation(InteropFunction f) {
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{
-          "handler: submitting custom operations is unsupported "
-          "for queues not bound to devices"};
-
-    rt::dag_build_guard build{_rt->dag()};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: submitting custom operations is unsupported "
+                      "for queues not bound to devices"};
 
     auto custom_kernel_op = rt::make_operation<rt::kernel_operation>(
         typeid(f).name(),
@@ -692,8 +721,7 @@ public:
             0, f),
         _requirements);
 
-    rt::dag_node_ptr node = build.builder()->add_kernel(
-        std::move(custom_kernel_op), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(custom_kernel_op), _execution_hints);
     
     _command_group_nodes.push_back(node);
   }
@@ -725,10 +753,8 @@ private:
     std::shared_ptr<rt::buffer_data_region> data = get_memory_region(acc);
 
     if(!data)
-      throw sycl::invalid_parameter_error{
-          "update_dev(): Accessor is not bound to buffer"};
-
-    rt::dag_build_guard build{_rt->dag()};
+      throw exception{make_error_code(errc::invalid),
+                      "update_dev(): Accessor is not bound to buffer"};
 
     const rt::range<dim> buffer_shape = rt::make_range(acc.get_buffer_shape());
     constexpr bool has_access_range =
@@ -743,20 +769,15 @@ private:
       mode, tgt
     );
 
-    rt::execution_hints enforce_bind_to_dev;
-    enforce_bind_to_dev.add_hint(
-        rt::make_execution_hint<rt::hints::bind_to_device>(
-            dev));
-
     // Merge new hint into default hints
     rt::execution_hints hints = _execution_hints;
-    hints.overwrite_with(enforce_bind_to_dev);
+    hints.set_hint(rt::hints::bind_to_device{
+            dev});
     assert(hints.has_hint<rt::hints::bind_to_device>());
     assert(hints.get_hint<rt::hints::bind_to_device>()->get_device_id() ==
            dev);
 
-    rt::dag_node_ptr node = build.builder()->add_explicit_mem_requirement(
-        std::move(explicit_requirement), _requirements, hints);
+    rt::dag_node_ptr node = create_task(std::move(explicit_requirement), hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -768,7 +789,8 @@ private:
                      Reductions... reductions) {
     std::size_t shared_mem_size = _local_mem_allocator.get_allocation_size();
 
-    rt::dag_build_guard build{_rt->dag()};
+    if(sizeof...(reductions) > 0)
+      this->_operation_uses_reductions = true;
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
         rt::kernel_cache::get().get_global_kernel_name<KernelFuncType>(),
@@ -777,9 +799,7 @@ private:
             reductions...),
         _requirements);
 
-    rt::dag_node_ptr node = build.builder()->add_kernel(
-        std::move(kernel_op), _requirements, _execution_hints);
-    
+    rt::dag_node_ptr node = create_task(std::move(kernel_op), _execution_hints);
     _command_group_nodes.push_back(node);
 
     // This registers the kernel with the runtime when the application
@@ -810,11 +830,10 @@ private:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{_rt->dag()};
-
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id dev = get_explicit_accessor_target(src);
 
@@ -828,8 +847,7 @@ private:
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, rt::embed_in_range3(get_range(src)));
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
-        std::move(explicit_copy), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -845,11 +863,10 @@ private:
       assert(false && "Accessors with different element size than original "
                       "buffer are not yet supported");
 
-    rt::dag_build_guard build{_rt->dag()};
-
     if(!_execution_hints.has_hint<rt::hints::bind_to_device>())
-      throw invalid_parameter_error{"handler: explicit copy() is unsupported "
-                                    "for queues not bound to devices"};
+      throw exception{make_error_code(errc::invalid),
+                      "handler: explicit copy() is unsupported for queues not "
+                      "bound to devices"};
 
     rt::device_id dev = get_explicit_accessor_target(dest);
 
@@ -863,8 +880,7 @@ private:
     auto explicit_copy = rt::make_operation<rt::memcpy_operation>(
         source_location, dest_location, rt::embed_in_range3(get_range(dest)));
 
-    rt::dag_node_ptr node = build.builder()->add_memcpy(
-        std::move(explicit_copy), _requirements, _execution_hints);
+    rt::dag_node_ptr node = create_task(std::move(explicit_copy), _execution_hints);
 
     _command_group_nodes.push_back(node);
   }
@@ -897,7 +913,7 @@ private:
       "supported for copying");
   }
 
-  const std::vector<rt::dag_node_ptr>& get_cg_nodes() const
+  const rt::node_list_t& get_cg_nodes() const
   { return _command_group_nodes; }
 
   
@@ -933,20 +949,69 @@ private:
   void set_preferred_group_size(range<Dim> r) {
     get_preferred_group_size<Dim>() = r;
   }
-  
+
+  rt::dag_node_ptr create_task(std::unique_ptr<rt::operation> op,
+                               rt::execution_hints &hints) {
+
+    bool uses_buffers = false;
+    bool has_non_instant_dependency = false;
+    bool is_unbound = !hints.has_hint<rt::hints::bind_to_device>();
+
+    for(const auto& req : _requirements.get()) {
+      if(req->get_operation()->is_requirement())
+        uses_buffers = true;
+      if (!req->get_execution_hints()
+               .has_hint<rt::hints::instant_execution>() &&
+          !req->is_known_complete())
+        has_non_instant_dependency = true;
+    }
+    
+    bool is_dedicated_in_order_queue = false;
+    rt::backend_executor* executor = nullptr;
+    if(hints.has_hint<rt::hints::prefer_executor>()) {
+      executor = hints.get_hint<rt::hints::prefer_executor>()->get_executor();
+    }
+    if(executor && executor->is_inorder_queue())
+      is_dedicated_in_order_queue = true;
+
+    if (!HIPSYCL_ALLOW_INSTANT_SUBMISSION || uses_buffers ||
+        has_non_instant_dependency || is_unbound ||
+        !is_dedicated_in_order_queue || _operation_uses_reductions ||
+        op->is_requirement()) {
+      // traditional submission
+      rt::dag_build_guard build{_rt->dag()};
+      return build.builder()->add_command_group(std::move(op), _requirements, hints);
+    } else {
+      // instant submission
+      hints.set_hint(rt::hints::instant_execution{});
+
+      rt::dag_node_ptr node = std::make_shared<rt::dag_node>(
+          hints, _requirements.get(), std::move(op), _rt);
+      node->assign_to_device(
+          hints.get_hint<rt::hints::bind_to_device>()->get_device_id());
+      node->assign_to_executor(executor);
+      executor->submit_directly(node, node->get_operation(), _requirements.get());
+      // Signal that instrumentation setup phase is complete
+      node->get_operation()->get_instrumentations().mark_set_complete();
+      return node;
+    }
+  }
+
   const context _ctx;
   detail::local_memory_allocator _local_mem_allocator;
   async_handler _handler;
 
   rt::requirements_list _requirements;
   rt::execution_hints _execution_hints;
-  std::vector<rt::dag_node_ptr> _command_group_nodes;
+  rt::node_list_t _command_group_nodes;
 
   range<1> _preferred_group_size1d;
   range<2> _preferred_group_size2d;
   range<3> _preferred_group_size3d;
 
   rt::runtime* _rt;
+
+  bool _operation_uses_reductions = false;
 };
 
 namespace detail::handler {

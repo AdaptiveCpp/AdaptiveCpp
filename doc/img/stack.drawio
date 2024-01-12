@@ -1,0 +1,126 @@
+<mxfile host="app.diagrams.net" modified="2023-09-18T18:29:20.850Z" agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0" etag="tPnopiENAXynrpBdwNU3" version="21.7.0" type="device">
+  <diagram name="Seite-1" id="0SLCvcLKsHxv7A8LpPj7">
+    <mxGraphModel dx="1434" dy="773" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-8" value="" style="shape=manualInput;whiteSpace=wrap;html=1;rotation=90;size=197;fillColor=#fa6800;fontColor=#000000;strokeColor=#C73500;" parent="1" vertex="1">
+          <mxGeometry x="354.7" y="129.84" width="95.62" height="365" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-15" value="" style="shape=manualInput;whiteSpace=wrap;html=1;rotation=-90;size=194;fillColor=#b1ddf0;strokeColor=#10739e;" parent="1" vertex="1">
+          <mxGeometry x="537.97" y="137.71" width="95.74" height="349.26" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-16" value="SYCL support layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="239.99" y="297.34" width="110.01" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-17" value="C++ standard parallelism layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+          <mxGeometry x="570" y="289.87" width="170" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-18" value="AdaptiveCpp compiler driver" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="220" y="366.87" width="540" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-19" value="nvc++" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="40" y="431" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-20" value="clang CUDA toolchain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;gradientColor=#990000;gradientDirection=north;" parent="1" vertex="1">
+          <mxGeometry x="480" y="431" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-21" value="OpenMP+custom compiler acceleration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;gradientColor=#990000;gradientDirection=north;" parent="1" vertex="1">
+          <mxGeometry x="620" y="431" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-24" value="clang HIP toolchain" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;gradientColor=#990000;gradientDirection=north;" parent="1" vertex="1">
+          <mxGeometry x="352.51" y="431" width="114" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="ecabpJtwDSr2gYmt2dEg-25" target="ecabpJtwDSr2gYmt2dEg-37" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="230" y="611" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="280" y="581" />
+              <mxPoint x="179" y="581" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="ecabpJtwDSr2gYmt2dEg-25" target="ecabpJtwDSr2gYmt2dEg-39" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="280" y="581" />
+              <mxPoint x="394" y="581" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="ecabpJtwDSr2gYmt2dEg-25" target="ecabpJtwDSr2gYmt2dEg-38" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-25" value="Generic single-pass compiler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="220" y="431" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-26" value="OpenMP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" parent="1" vertex="1">
+          <mxGeometry x="120" y="431" width="90" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-27" value="AdaptiveCpp compiler driver (library-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="42.01" y="366.87" width="169.99" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-28" value="SYCL support layer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fa6800;fontColor=#000000;strokeColor=#C73500;" parent="1" vertex="1">
+          <mxGeometry x="42.01" y="264.68" width="169.99" height="95.32" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-29" value="NVIDIA GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="40" y="496" width="70" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-30" value="CPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" parent="1" vertex="1">
+          <mxGeometry x="120" y="496" width="90" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-32" value="NVIDIA GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="480" y="496" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-33" value="LLVM-supported CPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;" parent="1" vertex="1">
+          <mxGeometry x="620" y="496" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-34" value="AMD GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;" parent="1" vertex="1">
+          <mxGeometry x="352.51" y="496" width="114" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-35" value="User application code" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+          <mxGeometry x="40" y="198" width="717.99" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-37" value="PTX JIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="137" y="617" width="83" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-38" value="amdgcn JIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="230.7" y="617" width="98.3" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-39" value="SPIR-V JIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" parent="1" vertex="1">
+          <mxGeometry x="338" y="617" width="112" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-42" value="NVIDIA GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" parent="1" vertex="1">
+          <mxGeometry x="137" y="681" width="83" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-43" value="AMD GPUs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;" parent="1" vertex="1">
+          <mxGeometry x="230.7" y="681" width="99.3" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-45" value="Intel GPUs (L0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" parent="1" vertex="1">
+          <mxGeometry x="340" y="681" width="53" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-49" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="ecabpJtwDSr2gYmt2dEg-46" target="ecabpJtwDSr2gYmt2dEg-47" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="ecabpJtwDSr2gYmt2dEg-46" target="ecabpJtwDSr2gYmt2dEg-48" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-53" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="ecabpJtwDSr2gYmt2dEg-46" target="ecabpJtwDSr2gYmt2dEg-51" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-46" value="OpenCL devices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" parent="1" vertex="1">
+          <mxGeometry x="400" y="681" width="50" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-47" value="Intel CPU OpenCL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" parent="1" vertex="1">
+          <mxGeometry x="485" y="681" width="145" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-48" value="Intel GPU OpenCL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" parent="1" vertex="1">
+          <mxGeometry x="485" y="710" width="145" height="23" as="geometry" />
+        </mxCell>
+        <mxCell id="ecabpJtwDSr2gYmt2dEg-51" value="Other suitable OpenCL implementations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" parent="1" vertex="1">
+          <mxGeometry x="485" y="741" width="145" height="29" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -32,6 +32,8 @@
 #include "hipSYCL/compiler/cbs/SplitterAnnotationAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
+
 #include "hipSYCL/common/debug.hpp"
 
 #include <llvm/Analysis/PostDominators.h>
@@ -147,10 +149,14 @@ void loadSizeValuesFromArgument(llvm::Function &F, int Dim, llvm::Value *LocalSi
 
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   llvm::Value *LocalSizePtr = nullptr;
-  if (!LocalSizeArg->getType()->isArrayTy())
-    LocalSizePtr = Builder.CreatePointerCast(
-        LocalSizeArg, llvm::Type::getIntNPtrTy(F.getContext(), SizeTSize), "local_size.cast");
-
+  if (!LocalSizeArg->getType()->isArrayTy()) {
+#if HAS_TYPED_PTR
+    auto PtrTy = llvm::Type::getIntNPtrTy(F.getContext(), SizeTSize);
+#else
+    auto PtrTy = llvm::PointerType::get(F.getContext(), 0);
+#endif
+    LocalSizePtr = Builder.CreatePointerCast(LocalSizeArg, PtrTy, "local_size.cast");
+  }
   for (unsigned int I = 0; I < Dim; ++I) {
     if (LocalSizeArg->getType()->isArrayTy()) {
       LocalSize[I] =

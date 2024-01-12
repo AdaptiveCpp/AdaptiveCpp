@@ -749,8 +749,9 @@ BOOST_AUTO_TEST_CASE(offset_1d) {
   {
     s::buffer<int> buf(data.data(), N);
     s::queue{}.submit([&](s::handler &cgh) {
-      s::range range{N};
       s::id offset{2};
+      s::range range{N-offset};
+      
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset},
@@ -779,8 +780,10 @@ BOOST_AUTO_TEST_CASE(offset_2d) {
     s::buffer<int, 2> buf(data.data(), {N,N});
 
     s::queue{}.submit([&](s::handler &cgh) {
-      s::range range{N, N};
-      s::id offset{2, 2};
+      std::size_t offset_1d = 2;
+      s::range range{N - offset_1d, N - offset_1d};
+      s::id offset{offset_1d, offset_1d};
+      
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},
@@ -817,8 +820,10 @@ BOOST_AUTO_TEST_CASE(offset_nested_subscript) {
   {
     s::buffer<int, 2> buf(data.data(), {N,N});
     s::queue{}.submit([&](s::handler &cgh) {
-      s::range range{N, N};
-      s::id offset{2, 2};
+      std::size_t offset_1d = 2;
+      s::range range{N - offset_1d, N - offset_1d};
+      s::id offset{offset_1d, offset_1d};
+      
       auto acc = s::accessor(buf, cgh, range, offset);
 
       cgh.parallel_for(s::range{N - offset.get(0), N - offset.get(1)},

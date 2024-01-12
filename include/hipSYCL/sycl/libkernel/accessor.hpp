@@ -1378,9 +1378,8 @@ private:
           ->bind(this->get_uid());
 
       rt::execution_hints enforce_bind_to_host;
-      enforce_bind_to_host.add_hint(
-          rt::make_execution_hint<rt::hints::bind_to_device>(
-              detail::get_host_device()));
+      enforce_bind_to_host.set_hint(
+          rt::hints::bind_to_device{detail::get_host_device()});
 
       node = build.builder()->add_explicit_mem_requirement(
           std::move(explicit_requirement), rt::requirements_list{rt},

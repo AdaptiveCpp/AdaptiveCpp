@@ -59,7 +59,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
     auto *V = Phi->getIncomingValue(Incoming);
     auto *IncomingBB = Phi->getIncomingBlock(Incoming);
     Builder.SetInsertPoint(IncomingBB->getTerminator());
-    llvm::Instruction *Store = Builder.CreateStore(V, Alloca);
+    Builder.CreateStore(V, Alloca);
   }
   Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
 

@@ -1,0 +1,130 @@
+name: Linux LIT tests
+
+on: [push, pull_request]
+
+jobs:
+  cbs:
+    name: CBS, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang: [13, 14, 15, 16, 17]
+        os: [ubuntu-22.04]
+        include:
+          - clang: 11
+            os: ubuntu-20.04
+          - clang: 12
+            os: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: install LLVM
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev
+          sudo python -m pip install lit
+          sudo ln -s /usr/bin/FileCheck-${{matrix.clang}} /usr/bin/FileCheck
+          if [[ "${{matrix.clang}}" == "16" ]]; then
+            sudo rm -r /usr/lib/clang/16*
+            sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
+          fi
+      - name: install boost (from apt)
+        run: |
+          sudo apt install libboost-all-dev
+      - name: setup build env
+        run: |
+          export CXXFLAGS="$CXXFLAGS"
+          if [[ "${{matrix.clang}}" != "11" && "${{matrix.clang}}" -lt "16" ]]; then
+            export OMP_CXX_FLAGS="$CXXFLAGS -fexperimental-new-pass-manager"
+            export CC=clang-${{matrix.clang}}
+            export CXX=clang++-${{matrix.clang}}
+          fi
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "OMP_CXX_FLAGS=${OMP_CXX_FLAGS}" >> $GITHUB_ENV
+      - name: build AdaptiveCpp
+        run: |
+          mkdir build && cd build
+          echo ${CXXFLAGS}
+          
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DOMP_CXX_FLAGS="$OMP_CXX_FLAGS -fopenmp" -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake .. -DCMAKE_INSTALL_PREFIX=`pwd`/install
+          make -j2 install
+      - name: setup CPU tests with loop splitting
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-cpu
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          
+          cmake -DACPP_TARGETS=omp -DACPP_USE_ACCELERATED_CPU=true -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCMAKE_CXX_FLAGS="$CXXFLAGS" ${GITHUB_WORKSPACE}/tests
+      - name: build CPU tests with loop splitting
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          make -j2
+      - name: run LIT tests on CPU
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-cbs
+      - name: run CPU tests
+        run: |
+          cd ${GITHUB_WORKSPACE}/build/tests-cpu
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
+  sscp:
+    name: SSCP/Reflection/stdpar, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        clang: [14, 15, 16, 17]
+        os: [ubuntu-22.04]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: install LLVM
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{matrix.clang}}
+          sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev
+          sudo python -m pip install lit
+          sudo ln -s /usr/bin/FileCheck-${{matrix.clang}} /usr/bin/FileCheck
+          if [[ "${{matrix.clang}}" == "16" ]]; then
+            sudo rm -r /usr/lib/clang/16*
+            sudo ln -s /usr/lib/llvm-16/lib/clang/16 /usr/lib/clang/16
+          fi
+      - name: install boost (from apt)
+        run: |
+          sudo apt install libboost-all-dev
+      - name: Install OpenCL
+        run: |
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt update
+          sudo apt install intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-compilers-2024 ocl-icd-libopencl1 ocl-icd-opencl-dev
+      - name: build AdaptiveCpp
+        run: |
+          mkdir build && cd build
+          cmake -DCMAKE_CXX_COMPILER=/usr/bin/clang++-${{matrix.clang}} -DCLANG_EXECUTABLE_PATH=/usr/bin/clang++-${{matrix.clang}} -DLLVM_DIR=/usr/lib/llvm-${{matrix.clang}}/cmake -DWITH_OPENCL_BACKEND=ON -DCMAKE_INSTALL_PREFIX=`pwd`/install ..
+          make -j2 install
+      - name: Print detected devices
+        run: |
+          ${GITHUB_WORKSPACE}/build/install/bin/acpp-info
+      - name: run SSCP LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-sscp
+          cd ${GITHUB_WORKSPACE}/build/tests-sscp  
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
+      - name: run Reflection LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-reflection
+          cd ${GITHUB_WORKSPACE}/build/tests-reflection  
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
+      - name: run stdpar LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cd ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar

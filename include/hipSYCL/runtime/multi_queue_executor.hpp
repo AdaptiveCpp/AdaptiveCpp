@@ -145,7 +145,7 @@ public:
 
   virtual void
   submit_directly(dag_node_ptr node, operation *op,
-                  const std::vector<dag_node_ptr> &reqs) override;
+                  const node_list_t &reqs) override;
 
   template <class F> void for_each_queue(rt::device_id dev, F handler) const {
     assert(dev.get_id() < _device_data.size());

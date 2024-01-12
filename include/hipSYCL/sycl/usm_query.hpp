@@ -50,10 +50,9 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
   const rt::unique_device_list &devs = detail::extract_context_devices(ctx);
 
   if (devs.get_num_backends() == 0)
-    throw memory_allocation_error{
-        "USM: No backends to carry out USM memory management are present in "
-        "the context!"};
-
+    throw exception{make_error_code(errc::memory_allocation),
+                    "USM: No backends to carry out USM memory management "
+                    "are present in the context!"};
 
   std::size_t num_host_backends =
       devs.get_num_backends(rt::hardware_platform::cpu);
@@ -102,11 +101,21 @@ inline rt::backend_id select_usm_backend(const context &ctx) {
   } else {
     // Prevent warnings about uninitialized use of selected_backend
     selected_backend = detail::get_host_device().get_backend();
-    throw memory_allocation_error{
-        "USM: Could not select backend to use for USM memory operation"};
+    throw exception{make_error_code(errc::memory_allocation),
+                    "USM: Could not select backend to use for USM memory "
+                    "operation"};
   }
   
   return selected_backend;
+}
+
+inline int select_usm_device_index(const context& ctx, rt::backend_id backend) {
+  const rt::unique_device_list &devs = detail::extract_context_devices(ctx);
+  for(auto it = devs.devices_begin(); it != devs.devices_end(); ++it) {
+    if(it->get_backend() == backend)
+      return it->get_id();
+  }
+  return 0;
 }
 
 inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
@@ -116,11 +125,13 @@ inline rt::backend_allocator *select_usm_allocator(const context &ctx) {
       *ctx.hipSYCL_runtime()->backends().get(selected_backend);
 
   if (backend_object.get_hardware_manager()->get_num_devices() == 0)
-    throw memory_allocation_error{"USM: Context has no devices on which "
-                                  "requested operation could be carried out"};
+    throw exception{make_error_code(errc::memory_allocation),
+                    "USM: Context has no devices on which "
+                    "requested operation could be carried out"};
 
+  int device_id = select_usm_device_index(ctx, selected_backend);
   return backend_object.get_allocator(
-      rt::device_id{backend_object.get_backend_descriptor(), 0});
+      rt::device_id{backend_object.get_backend_descriptor(), device_id});
 }
 
 inline rt::backend_allocator *select_usm_allocator(const context &ctx,

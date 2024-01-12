@@ -307,7 +307,8 @@ public:
     T *ptr = aligned_alloc<T>(Alignment, num_elements, _dev, _ctx, AllocKind);
 
     if (!ptr)
-      throw memory_allocation_error("usm_allocator: Allocation failed");
+      throw exception{make_error_code(errc::memory_allocation),
+                      "usm_allocator: Allocation failed"};
 
     return ptr;
   }

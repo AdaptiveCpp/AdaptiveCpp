@@ -37,6 +37,7 @@
 #include "hipSYCL/runtime/device_id.hpp"
 #include "hipSYCL/runtime/error.hpp"
 #include "hipSYCL/runtime/event.hpp"
+#include "hipSYCL/runtime/hints.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
 #include "hipSYCL/runtime/ze/ze_code_object.hpp"
 #include "hipSYCL/runtime/ze/ze_queue.hpp"
@@ -234,6 +235,8 @@ std::shared_ptr<dag_node_event> ze_queue::create_queue_completion_event() {
 
 
 std::shared_ptr<dag_node_event> ze_queue::insert_event() {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   if(!_last_submitted_op_event) {
     auto evt = create_event();
     ze_result_t err = zeEventHostSignal(
@@ -244,6 +247,7 @@ std::shared_ptr<dag_node_event> ze_queue::insert_event() {
 }
 
 result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
 
   // TODO We could probably unify some of the logic here between
   // ze/cuda/hip backends
@@ -303,6 +307,8 @@ result ze_queue::submit_memcpy(memcpy_operation& op, dag_node_ptr node) {
 }
 
 result ze_queue::submit_kernel(kernel_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   rt::backend_kernel_launcher *l = 
       op.get_launcher().find_launcher(backend_id::level_zero);
   
@@ -327,21 +333,53 @@ result ze_queue::submit_prefetch(prefetch_operation &, dag_node_ptr node) {
   return make_success();
 }
 
-result ze_queue::submit_memset(memset_operation&, dag_node_ptr node) {
+result ze_queue::submit_memset(memset_operation& op, dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
+  std::shared_ptr<dag_node_event> completion_evt = create_event();
+  std::vector<ze_event_handle_t> wait_events = get_enqueued_event_handles();
+  
+  auto pattern = op.get_pattern();
+  ze_result_t err = zeCommandListAppendMemoryFill(
+      _command_list, op.get_pointer(), &pattern, sizeof(decltype(pattern)),
+      op.get_num_bytes(),
+      static_cast<ze_node_event *>(completion_evt.get())->get_event_handle(),
+      static_cast<uint32_t>(wait_events.size()), wait_events.data());
+
+  if(err != ZE_RESULT_SUCCESS) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"ze_queue: zeCommandListAppendMemoryFill() failed",
+                     error_code{"ze", static_cast<int>(err)}});
+  }
+
+  register_submitted_op(completion_evt);
+
   return make_success();
 }
 
 result ze_queue::wait() {
-  _last_submitted_op_event->wait();
+  std::shared_ptr<dag_node_event> _last_event;
+  {
+    std::lock_guard<std::mutex> lock{_mutex};
+    _last_event = _last_submitted_op_event;
+  }
+  if(_last_event)
+    _last_event->wait();
   return make_success();
 }
 
-result ze_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result ze_queue::submit_queue_wait_for(dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
+  auto evt = node->get_event();
   _enqueued_synchronization_ops.push_back(evt);
   return make_success();
 }
 
 result ze_queue::submit_external_wait_for(dag_node_ptr node) {
+  std::lock_guard<std::mutex> lock{_mutex};
+
   // Clean up old futures before adding new ones
   _external_waits.erase(
       std::remove_if(_external_waits.begin(), _external_waits.end(),
@@ -372,6 +410,7 @@ result ze_queue::submit_external_wait_for(dag_node_ptr node) {
 }
 
 result ze_queue::query_status(inorder_queue_status &status) {
+  std::lock_guard<std::mutex> lock{_mutex};
   status = inorder_queue_status{this->_last_submitted_op_event->is_complete()};
   return make_success();
 }

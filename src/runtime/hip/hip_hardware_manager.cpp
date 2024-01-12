@@ -40,6 +40,16 @@ namespace rt {
 
 hip_hardware_manager::hip_hardware_manager(hardware_platform hw_platform)
     : _hw_platform(hw_platform) {
+  
+  if (has_device_visibility_mask(
+          application::get_settings().get<setting::visibility_mask>(),
+          backend_id::hip)) {
+    print_warning(
+        __hipsycl_here(),
+        error_info{
+            "hip_hardware_manager: HIP backend does not support device "
+            "visibility masks. Use HIP_VISIBILE_DEVICES instead."});
+  }
 
   int num_devices = 0;
 

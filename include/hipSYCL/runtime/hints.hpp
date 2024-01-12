@@ -28,9 +28,11 @@
 #ifndef HIPSYCL_HINTS_HPP
 #define HIPSYCL_HINTS_HPP
 
-#include <algorithm>
+#include <cstdint>
 #include <memory>
+#include <type_traits>
 #include <vector>
+#include <cstring>
 
 #include "device_id.hpp"
 #include "util.hpp"
@@ -44,54 +46,32 @@ using dag_node_ptr = std::shared_ptr<dag_node>;
 
 class operation;
 
-enum class execution_hint_type
-{
-  // mark a DAG node as bound to a particular device for execution
-  bind_to_device,
-  bind_to_device_group,
-  prefer_execution_lane,
-  node_group,
-  coarse_grained_synchronization,
-  prefer_executor,
-
-  request_instrumentation_submission_timestamp,
-  request_instrumentation_start_timestamp,
-  request_instrumentation_finish_timestamp
-};
-
-class execution_hint
-{
-public:
-  execution_hint(execution_hint_type type);
-
-  execution_hint_type get_hint_type() const;
-
-  virtual ~execution_hint();
-private:
-  execution_hint_type _type;
-};
-
-using execution_hint_ptr = std::shared_ptr<execution_hint>;
-
-template<class T, typename... Args>
-execution_hint_ptr make_execution_hint(Args... args)
-{
-  return execution_hint_ptr{
-    new T{args...}
-  };
-}
 
 namespace hints {
+
+class execution_hint {
+public:
+  void make_present() {
+    _is_present = true;
+  }
+
+  bool is_present() const {
+    return _is_present;
+  }
+private:
+  bool _is_present = false;
+};
 
 class bind_to_device : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
-    execution_hint_type::bind_to_device;
+  bind_to_device() = default;
+  explicit bind_to_device(device_id d)
+  : _dev{d} {}
 
-  explicit bind_to_device(device_id d);
-
-  device_id get_device_id() const;
+  device_id get_device_id() const {
+    return _dev;
+  }
 private:
   device_id _dev;
 };
@@ -100,11 +80,9 @@ private:
 class bind_to_device_group : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type = 
-    execution_hint_type::bind_to_device_group;
-
+  bind_to_device_group() = default;
   bind_to_device_group(const std::vector<device_id> &devs)
-      : execution_hint{execution_hint_type::bind_to_device_group}, _devs{devs} {
+      : _devs{devs} {
   }
 
   const std::vector<device_id>& get_devices() const {
@@ -118,12 +96,9 @@ private:
 class prefer_execution_lane : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::prefer_execution_lane;
-
+  prefer_execution_lane() = default;
   prefer_execution_lane(std::size_t lane_id)
-      : execution_hint{execution_hint_type::prefer_execution_lane},
-        _lane_id{lane_id} {}
+      : _lane_id{lane_id} {}
 
   std::size_t get_lane_id() const {
     return _lane_id;
@@ -135,11 +110,9 @@ private:
 class node_group : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::node_group;
-
+  node_group() = default;
   node_group(std::size_t group_id)
-      : execution_hint{execution_hint_type::node_group}, _group_id{group_id} {}
+      : _group_id{group_id} {}
 
   std::size_t get_id() const {
     return _group_id;
@@ -149,28 +122,17 @@ private:
 };
 
 class coarse_grained_synchronization : public execution_hint
-{
-public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::coarse_grained_synchronization;
-  
-  coarse_grained_synchronization()
-  : execution_hint{execution_hint_type::coarse_grained_synchronization} {}
-};
+{};
 
 class prefer_executor : public execution_hint
 {
 public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::prefer_executor;
-
+  prefer_executor() = default;
   prefer_executor(std::shared_ptr<backend_executor> executor)
-      : execution_hint{execution_hint_type::prefer_executor},
-        _executor{executor.get()}, _shared_executor{executor} {}
+      : _executor{executor.get()}, _shared_executor{executor} {}
 
   prefer_executor(backend_executor* executor)
-      : execution_hint{execution_hint_type::prefer_executor},
-        _executor{executor} {}
+      : _executor{executor} {}
 
   backend_executor* get_executor() const {
     return _executor;
@@ -180,76 +142,100 @@ private:
   std::shared_ptr<backend_executor> _shared_executor;
 };
 
-class request_instrumentation_submission_timestamp : public execution_hint {
-public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::request_instrumentation_submission_timestamp;
 
-  request_instrumentation_submission_timestamp()
-      : execution_hint{execution_hint_type::
-                           request_instrumentation_submission_timestamp} {}
-};
+class instant_execution : public execution_hint {};
 
-
-class request_instrumentation_start_timestamp : public execution_hint {
-public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::request_instrumentation_start_timestamp;
-
-  request_instrumentation_start_timestamp()
-      : execution_hint{execution_hint_type::
-                           request_instrumentation_start_timestamp} {}
-};
-
-class request_instrumentation_finish_timestamp : public execution_hint {
-public:
-  static constexpr execution_hint_type type =
-      execution_hint_type::request_instrumentation_finish_timestamp;
-
-  request_instrumentation_finish_timestamp()
-      : execution_hint{execution_hint_type::
-                           request_instrumentation_finish_timestamp} {}
-};
+class request_instrumentation_submission_timestamp : public execution_hint {};
+class request_instrumentation_start_timestamp : public execution_hint {};
+class request_instrumentation_finish_timestamp : public execution_hint {};
 
 } // hints
-
 
 
 class execution_hints
 {
 public:
-  void add_hint(execution_hint_ptr hint);
-  void overwrite_with(const execution_hints &other);
-  void overwrite_with(execution_hint_ptr hint);
-  
-  bool has_hint(execution_hint_type type) const;
-  execution_hint* get_hint(execution_hint_type type) const;
+  execution_hints() = default;
 
-  template<class Hint_type>
-  Hint_type* get_hint() const
-  {
-    execution_hint* ptr = get_hint(Hint_type::type);
-    if(ptr)
-      return cast<Hint_type>(ptr);
+  
+  template <class HintT,
+            std::enable_if_t<std::is_base_of_v<hints::execution_hint, HintT>,
+                             int> = 0>
+  void set_hint(HintT&& hint) {
+    HintT& entry = get_entry<HintT>();
+    entry = hint;
+    entry.make_present();
+  }
+
+  template <class HintT,
+            std::enable_if_t<std::is_base_of_v<hints::execution_hint, HintT>,
+                             int> = 0>
+  const HintT *get_hint() const {
+    const HintT& entry = get_entry<HintT>();
+    if(entry.is_present())
+      return &entry;
     return nullptr;
   }
 
-  template <class Hint_type> bool has_hint() const {
-    return get_hint(Hint_type::type) != nullptr;
+  template <class HintT> bool has_hint() const {
+    const HintT& entry = get_entry<HintT>();
+    return entry.is_present();
   }
 
-  friend bool operator==(const execution_hints &a, const execution_hints &b) {
-    return a._hints == b._hints;
-  }
-
-  friend bool operator!=(const execution_hints &a, const execution_hints &b) {
-    return !(a==b);
-  }
 private:
-  std::vector<execution_hint_ptr> _hints;
+
+  template<class T>
+  T& get_entry();
+
+  template<class T>
+  const T& get_entry() const;
+
+
+  hints::bind_to_device _bind_to_device;
+  hints::bind_to_device_group _bind_to_device_group;
+  
+  hints::prefer_execution_lane _prefer_execution_lane;
+  
+  hints::node_group _node_group;
+  
+  hints::coarse_grained_synchronization _coarse_grained_synchronization;
+  
+  hints::prefer_executor _prefer_executor;
+
+  hints::request_instrumentation_submission_timestamp
+      _request_instrumentation_submission_timestamp;
+  hints::request_instrumentation_start_timestamp
+      _request_instrumentation_start_timestamp;
+  hints::request_instrumentation_finish_timestamp
+      _request_instrumentation_finish_timestamp;
+
+  hints::instant_execution _instant_execution;
 };
 
+#define HIPSYCL_RT_HINTS_MAP_GETTER(name, member)                              \
+  template <> inline hints::name &execution_hints::get_entry<hints::name>() {  \
+    return member;                                                             \
+  }                                                                            \
+  template <>                                                                  \
+  inline const hints::name &execution_hints::get_entry<hints::name>() const {  \
+    return member;                                                             \
+  }
 
+HIPSYCL_RT_HINTS_MAP_GETTER(bind_to_device, _bind_to_device);
+HIPSYCL_RT_HINTS_MAP_GETTER(bind_to_device_group, _bind_to_device_group);
+HIPSYCL_RT_HINTS_MAP_GETTER(prefer_execution_lane, _prefer_execution_lane);
+HIPSYCL_RT_HINTS_MAP_GETTER(node_group, _node_group);
+HIPSYCL_RT_HINTS_MAP_GETTER(coarse_grained_synchronization,
+                            _coarse_grained_synchronization);
+HIPSYCL_RT_HINTS_MAP_GETTER(prefer_executor, _prefer_executor);
+HIPSYCL_RT_HINTS_MAP_GETTER(request_instrumentation_submission_timestamp,
+                            _request_instrumentation_submission_timestamp);
+HIPSYCL_RT_HINTS_MAP_GETTER(request_instrumentation_start_timestamp,
+                            _request_instrumentation_start_timestamp);
+HIPSYCL_RT_HINTS_MAP_GETTER(request_instrumentation_finish_timestamp,
+                            _request_instrumentation_finish_timestamp);
+HIPSYCL_RT_HINTS_MAP_GETTER(instant_execution,
+                            _instant_execution);
 }
 }
 

@@ -28,6 +28,7 @@
 #ifndef HIPSYCL_EXCEPTION_HPP
 #define HIPSYCL_EXCEPTION_HPP
 
+#include <memory>
 #include <stdexcept>
 #include <exception>
 #include <functional>
@@ -35,104 +36,113 @@
 #include <system_error>
 
 #include "hipSYCL/runtime/error.hpp"
+#include "hipSYCL/sycl/info/queue.hpp"
 #include "types.hpp"
 #include "libkernel/backend.hpp"
 
-namespace hipsycl {
+namespace hipsycl {  
 namespace sycl {
+namespace detail {
+struct sycl_category : std::error_category {
+  const char* name() const noexcept override { return "sycl"; }
+  std::string message(int) const override { return "hipSYCL Error"; }
+};
+} // namespace detail
 
 class context;
 
-class exception {
+enum class errc : unsigned int {
+  success = 0,
+  runtime,
+  kernel,
+  accessor,
+  nd_range,
+  event,
+  kernel_argument,
+  build,
+  invalid,
+  memory_allocation,
+  platform,
+  profiling,
+  feature_not_supported,
+  kernel_not_supported,
+  backend_mismatch
+};
+
+inline const std::error_category &sycl_category() noexcept {
+  static const detail::sycl_category _sycl_category;
+  return _sycl_category;
+}
+  
+inline std::error_code make_error_code(errc e) noexcept {
+  return {static_cast<int>(e), sycl_category()};
+}
+  
+using async_handler = std::function<void(sycl::exception_list)>;
+  
+class exception : public virtual std::exception {
 public:
-  exception(const std::string& message)
-  : _msg{message}
-  {
-    set_error_code();
+  exception() = default;
+
+  exception(std::error_code ec, const std::string& what_arg)
+    : error_code{ec}, _msg{what_arg} {}
+
+  exception(std::error_code ec, const char* what_arg)
+    : error_code{ec}, _msg{what_arg} {}
+
+  exception(std::error_code ec)
+    : error_code{ec} {}
+
+  exception(int ev, const std::error_category& ecat,
+            const std::string& what_arg)
+    : error_code{ev, ecat}, _msg{what_arg} {}
+
+  exception(int ev, const std::error_category& ecat, const char* what_arg)
+    : error_code{ev, ecat}, _msg{what_arg} {}
+
+  exception(int ev, const std::error_category& ecat)
+    : error_code{ev, ecat} {}
+
+  // Defined in context.hpp
+  exception(context ctx, std::error_code ec, const std::string& what_arg);
+  exception(context ctx, std::error_code ec, const char* what_arg);
+  exception(context ctx, std::error_code ec);
+  exception(context ctx, int ev, const std::error_category& ecat,
+            const std::string& what_arg);
+  exception(context ctx, int ev, const std::error_category& ecat,
+            const char* what_arg);
+  exception(context ctx, int ev, const std::error_category& ecat);
+
+  const std::error_code& code() const noexcept {
+    return error_code;
+  }
+  
+  const std::error_category& category() const noexcept {
+    return error_code.category();
   }
 
-  exception(const rt::result& details)
-    : _msg{details.what()}, _error_details{details}
-  {
-    set_error_code();
-  }
-
-  const char *what() const
-  {
+  const char* what() const noexcept override {
     return _msg.c_str();
   }
 
-  bool has_context() const
-  {
-    return false;
+  bool has_context() const noexcept {
+    return (_context != nullptr);
   }
 
-  const std::error_code& code() const noexcept
-  {
-    return error_code;
-  }
-
-  // Implementation in context.hpp
+  // Defined in context.hpp
   context get_context() const;
 
 private:
-  void set_error_code(){
-    error_code = std::error_code(_error_details.info().error_code().get_code(), std::system_category());
-  }
+  std::shared_ptr<context> _context;
   std::error_code error_code;
   string_class _msg;
-  rt::result _error_details;
-};
-
-
-
-class unimplemented : public exception {
-  using exception::exception;
-};
-class runtime_error : public exception {
-  using exception::exception;
-};
-class kernel_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class accessor_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class nd_range_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class event_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class invalid_parameter_error : public runtime_error {
-  using runtime_error::runtime_error;
-};
-class device_error : public exception {
-  using exception::exception;
-};
-class compile_program_error : public device_error {
-  using device_error::device_error;
-};
-class link_program_error : public device_error {
-  using device_error::device_error;
-};
-class invalid_object_error : public device_error {
-  using device_error::device_error;
-};
-class memory_allocation_error : public device_error {
-  using device_error::device_error;
-};
-class platform_error : public device_error {
-  using device_error::device_error;
-};
-class profiling_error : public device_error {
-  using device_error::device_error;
-};
-class feature_not_supported : public device_error {
-  using device_error::device_error;
 };
 
 } // namespace sycl
 } // namespace hipsycl
+
+namespace std {
+template <> struct is_error_code_enum<hipsycl::sycl::errc> : true_type {};
+} // namespace std
 
 #endif

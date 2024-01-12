@@ -129,6 +129,9 @@ private:
 class omp_instrumentation_setup {
 public:
   omp_instrumentation_setup(operation &op, dag_node_ptr node) {
+    if(!node)
+      return;
+
     if (node->get_execution_hints()
             .has_hint<
                 rt::hints::request_instrumentation_submission_timestamp>()) {
@@ -364,8 +367,9 @@ result omp_queue::submit_memset(memset_operation & op, dag_node_ptr node) {
 
   /// Causes the queue to wait until an event on another queue has occured.
   /// the other queue must be from the same backend
-result omp_queue::submit_queue_wait_for(std::shared_ptr<dag_node_event> evt) {
+result omp_queue::submit_queue_wait_for(dag_node_ptr node) {
   HIPSYCL_DEBUG_INFO << "omp_queue: Submitting wait for other queue..." << std::endl;
+  auto evt = node->get_event();
   if(!evt) {
     return register_error(
         __hipsycl_here(),

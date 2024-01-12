@@ -39,12 +39,12 @@ namespace detail {
 
 static std::string version_string()
 {
-  std::string hipsycl_version = std::to_string(HIPSYCL_VERSION_MAJOR)
-      + "." + std::to_string(HIPSYCL_VERSION_MINOR)
-      + "." + std::to_string(HIPSYCL_VERSION_PATCH)
-      + "-" + std::string(HIPSYCL_VERSION_TYPE);
+  std::string version = std::to_string(ACPP_VERSION_MAJOR)
+      + "." + std::to_string(ACPP_VERSION_MINOR)
+      + "." + std::to_string(ACPP_VERSION_PATCH)
+      + std::string(ACPP_VERSION_SUFFIX);
 
-  return "hipSYCL " + hipsycl_version;
+  return "AdaptiveCpp " + version;
 }
 
 }

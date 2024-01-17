@@ -128,7 +128,8 @@ result submit_ocl_kernel(cl::Kernel& kernel,
 class ocl_hardware_manager;
 
 ocl_queue::ocl_queue(ocl_hardware_manager* hw_manager, std::size_t device_index)
-: _hw_manager{hw_manager}, _device_index{device_index}, _sscp_invoker{this} {
+  : _hw_manager{hw_manager}, _device_index{device_index}, _sscp_invoker{this},
+    _kernel_cache{kernel_cache::get()} {
 
   cl_command_queue_properties props = 0;
   ocl_hardware_context *dev_ctx =
@@ -263,8 +264,29 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &, dag_node_ptr) {
-  // TODO, prefetch is just a hint
+result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+  ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
+        _hw_manager->get_device(_device_index));
+  ocl_usm* usm = ocl_ctx->get_usm_provider();
+
+  cl::Event evt;
+  cl_int err = 0;
+  if(op.get_target().is_host()) {
+    err = usm->enqueue_prefetch(_queue, op.get_pointer(), op.get_num_bytes(),
+                                CL_MIGRATE_MEM_OBJECT_HOST, {}, &evt);
+  } else {
+    err = usm->enqueue_prefetch(_queue, op.get_pointer(), op.get_num_bytes(),
+                                0, {}, &evt);
+  }
+
+  if(err != CL_SUCCESS) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"ocl_queue: enqueuing prefetch failed",
+                     error_code{"CL", static_cast<int>(err)}});
+  }
+
+  register_submitted_op(evt);
   return make_success();
 }
 
@@ -392,7 +414,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
 
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t* kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -475,7 +497,7 @@ result ocl_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, kernel_name, backend_id::ocl, hcf_object,
       code_object_selector, code_object_constructor);
 

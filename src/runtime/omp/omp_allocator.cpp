@@ -38,15 +38,17 @@ omp_allocator::omp_allocator(const device_id &my_device)
     : _my_device{my_device} {}
 
 void *omp_allocator::allocate(size_t min_alignment, size_t size_bytes) {
-  if(min_alignment == 0)
-    return std::malloc(size_bytes);
-
-#ifndef _WIN32
+#if !defined(_WIN32)
   // posix requires alignment to be a multiple of sizeof(void*)
   if (min_alignment < sizeof(void*))
     return std::malloc(size_bytes);
 #else
-  min_alignment = std::max(min_alignment, 1ULL);
+  /* The std::free function of the Microsoft C Runtime Library cannot handle
+     aligned memory, therefore omp_allocator::free always calls _aligned_free.
+     This, however, can only free memory allocated with _aligned_malloc, but
+     _aligned_malloc returns NULL when min_alignment == 0.  */
+  if (min_alignment == 0)
+    min_alignment = 1;
 #endif
 
   if(size_bytes % min_alignment != 0)
@@ -70,7 +72,7 @@ void *omp_allocator::allocate_optimized_host(size_t min_alignment,
 };
 
 void omp_allocator::free(void *mem) {
-#ifndef _WIN32
+#if !defined(_WIN32)
   std::free(mem);
 #else
   _aligned_free(mem);

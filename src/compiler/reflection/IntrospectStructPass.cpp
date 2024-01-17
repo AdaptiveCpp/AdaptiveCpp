@@ -182,61 +182,92 @@ llvm::PreservedAnalyses IntrospectStructPass::run(llvm::Module& M, llvm::ModuleA
     }
   }
 
-  
   llvm::SmallDenseMap<llvm::Function*, TypeInformation> StructTypeInfoForBuiltin;
   llvm::SmallVector<llvm::CallInst*, 16> Calls;
   for(auto* F: BuiltinInstantiations) {
-    for(auto* U : F->users()) {
-      if(llvm::CallInst* CI = llvm::dyn_cast<llvm::CallInst>(U)) {
+    for (auto *U : F->users()) {
+      if (llvm::CallInst *CI = llvm::dyn_cast<llvm::CallInst>(U)) {
         Calls.push_back(CI);
+
         // Obtain type referenced by builtin calls. To workaround opaque pointers, this
         // assumes that an alloca instruction with the type is present in the preceding code.
-        auto* AI = getPrevAllocaInst(CI);
-        if(AI) {
-          llvm::Type* T = AI->getAllocatedType();
+        auto *AI = getPrevAllocaInst(CI);
+        if (AI == nullptr) {
+          /* In some cases it might happen that the alloca instruction is in a
+           * different BasicBlock (e.g., when compiling with -fsanitize=undefined).
+           * We therefore traverse all the BasicBlocks in the function and check
+           * if there is exactly one BasicBlock containing
+           * alloca instructions. Within this block, we take the last alloca
+           * instruction. */
+          llvm::BasicBlock *AllocaBlock;
+          std::size_t NumAllocaBlocks = 0;
+
+          // Instruction::getParent() gives the parent BasicBlock,
+          // BasicBlock::getParent the parent Function
+          for (auto &Block : *CI->getParent()->getParent()) {
+            for (auto &Inst : Block) {
+              if (const auto *NewAI = llvm::dyn_cast<llvm::AllocaInst>(&Inst)) {
+                AllocaBlock = &Block;
+                NumAllocaBlocks++;
+                break;
+              }
+            }
+          }
+
+          if (NumAllocaBlocks == 1) {
+            for (auto &Inst : *AllocaBlock) {
+              if (auto *NextAI = llvm::dyn_cast<llvm::AllocaInst>(&Inst)) {
+                AI = NextAI;
+              }
+            }
+          }
+        }
+
+        if (AI) {
+          llvm::Type *T = AI->getAllocatedType();
           auto TI = getTypeInformation(T, M);
           StructTypeInfoForBuiltin[F] = TI;
         } else {
           HIPSYCL_DEBUG_WARNING
-            << "IntrospectStructPass: " << F->getName().str()
-            << " instantiation could not be connected to type information, ignoring.\n";
+              << "IntrospectStructPass: " << F->getName().str()
+              << " instantiation could not be connected to type information, ignoring.\n";
         }
       }
     }
   }
 
-  for(auto* CI : Calls) {
-    llvm::Function* F = CI->getCalledFunction();
-    if(F) {
-      auto It = StructTypeInfoForBuiltin.find(F);
+  if (StructTypeInfoForBuiltin.size() > 0)
+    for(auto* CI : Calls) {
+      llvm::Function* F = CI->getCalledFunction();
+      if(F) {
+        auto It = StructTypeInfoForBuiltin.find(F);
 
-      auto GVs = storeTypeInformationAsGlobals(F, M, It->getSecond());
+        auto GVs = storeTypeInformationAsGlobals(F, M, It->getSecond());
 
-      if(It != StructTypeInfoForBuiltin.end()) {
-        if(F->getFunctionType()->getNumParams() != 4) {
-          HIPSYCL_DEBUG_WARNING << "IntrospectStructPass: Call to " << F->getName().str()
-                                << " has the wrong number of parameters, ignoring call\n";
-        } else {
-          auto createStoreOp = [&](int ArgIndex, llvm::GlobalVariable* GV) {
-            if(!CI->getArgOperand(ArgIndex)->getType()->isPointerTy()) {
-              HIPSYCL_DEBUG_WARNING
-                  << "IntrospectStructPass: Call to " << F->getName().str()
-                  << " is invalid; argument is not a pointer type. Ingoring call.\n";
-              return;
-            }
-            [[maybe_unused]] llvm::StoreInst *S =
+        if(It != StructTypeInfoForBuiltin.end()) {
+          if(F->getFunctionType()->getNumParams() != 4) {
+            HIPSYCL_DEBUG_WARNING << "IntrospectStructPass: Call to " << F->getName().str()
+            << " has the wrong number of parameters, ignoring call\n";
+          } else {
+            auto createStoreOp = [&](int ArgIndex, llvm::GlobalVariable* GV) {
+              if(!CI->getArgOperand(ArgIndex)->getType()->isPointerTy()) {
+                HIPSYCL_DEBUG_WARNING
+                << "IntrospectStructPass: Call to " << F->getName().str()
+                << " is invalid; argument is not a pointer type. Ingoring call.\n";
+                return;
+              }
+              [[maybe_unused]] llvm::StoreInst *S =
                 new llvm::StoreInst(GV, CI->getArgOperand(ArgIndex), CI);
-          };
+            };
 
-          createStoreOp(0, GVs.FlattenedNumMembers);
-          createStoreOp(1, GVs.MemberOffsets);
-          createStoreOp(2, GVs.MemberSizes);
-          createStoreOp(3, GVs.MemberKind);
-
+            createStoreOp(0, GVs.FlattenedNumMembers);
+            createStoreOp(1, GVs.MemberOffsets);
+            createStoreOp(2, GVs.MemberSizes);
+            createStoreOp(3, GVs.MemberKind);
+          }
         }
       }
     }
-  }
 
   // Lastly, remove calls and builtin declarations from IR
   for(auto* CI : Calls)

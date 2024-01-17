@@ -65,6 +65,12 @@ public:
                               const std::vector<cl::Event> &wait_events,
                               cl::Event *out) = 0;
 
+  virtual cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                                  std::size_t bytes,
+                                  cl_mem_migration_flags flags,
+                                  const std::vector<cl::Event> &wait_events,
+                                  cl::Event *out) = 0;
+
   virtual cl_int enable_indirect_usm_access(cl::Kernel&) = 0;
 
   static std::unique_ptr<ocl_usm> from_intel_extension(ocl_hardware_manager* hw_mgr, int device_index);

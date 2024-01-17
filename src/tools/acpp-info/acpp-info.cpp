@@ -25,6 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <iostream>
+
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/backend.hpp"
 #include "hipSYCL/runtime/runtime.hpp"
@@ -189,15 +191,42 @@ void list_devices(rt::runtime* rt) {
   });
 }
 
-int main() {
+void print_help(const char* exe_name)
+{
+    std::cout << "Usage: " << exe_name << " [options]\n\n";
+    std::cout << "Options:\n";
+    std::cout << "\t-h, --help              Show this message.\n";
+    std::cout << "\t-l, --list-devices      Only list backends and devices, without detailed information.\n";
+}
+
+int main(int argc, char *argv[]) {
+  bool print_device_details = true;
+  for (int arg = 1; arg < argc; arg++) {
+    const std::string current_arg{argv[arg]};
+    if (current_arg == "-h" || current_arg == "--help") {
+      print_help(argv[0]);
+      return 0;
+    }
+    else if (current_arg == "-l" || current_arg == "--list-devices") {
+      print_device_details = false;
+    }
+    else {
+      std::cerr << "Unknown option: " << argv[arg] << std::endl;
+      print_help(argv[0]);
+      return 1;
+    }
+  }
+
   rt::runtime_keep_alive_token rt_token;
   rt::runtime* rt = rt_token.get();
 
   std::cout << "=================Backend information==================="
             << std::endl;
   list_backends(rt);
-  std::cout << std::endl;
-  std::cout << "=================Device information==================="
-            << std::endl;
-  list_devices(rt);
+  if (print_device_details) {
+    std::cout << std::endl;
+    std::cout << "=================Device information==================="
+              << std::endl;
+    list_devices(rt);
+  }
 }

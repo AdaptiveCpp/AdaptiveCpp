@@ -192,8 +192,6 @@ result ocl_queue::submit_memcpy(memcpy_operation &op, dag_node_ptr) {
 
   // TODO We could probably unify some of the logic here between
   // backends
-  device_id source_dev = op.source().get_device();
-  device_id dest_dev = op.dest().get_device();
 
   assert(op.source().get_access_ptr());
   assert(op.dest().get_access_ptr());
@@ -266,8 +264,29 @@ result ocl_queue::submit_kernel(kernel_operation &op, dag_node_ptr node) {
   return make_success();
 }
 
-result ocl_queue::submit_prefetch(prefetch_operation &, dag_node_ptr) {
-  // TODO, prefetch is just a hint
+result ocl_queue::submit_prefetch(prefetch_operation &op, dag_node_ptr) {
+  ocl_hardware_context *ocl_ctx = static_cast<ocl_hardware_context *>(
+        _hw_manager->get_device(_device_index));
+  ocl_usm* usm = ocl_ctx->get_usm_provider();
+
+  cl::Event evt;
+  cl_int err = 0;
+  if(op.get_target().is_host()) {
+    err = usm->enqueue_prefetch(_queue, op.get_pointer(), op.get_num_bytes(),
+                                CL_MIGRATE_MEM_OBJECT_HOST, {}, &evt);
+  } else {
+    err = usm->enqueue_prefetch(_queue, op.get_pointer(), op.get_num_bytes(),
+                                0, {}, &evt);
+  }
+
+  if(err != CL_SUCCESS) {
+    return make_error(
+          __hipsycl_here(),
+          error_info{"ocl_queue: enqueuing prefetch failed",
+                     error_code{"CL", static_cast<int>(err)}});
+  }
+
+  register_submitted_op(evt);
   return make_success();
 }
 

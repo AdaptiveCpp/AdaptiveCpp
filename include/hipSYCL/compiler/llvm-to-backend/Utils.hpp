@@ -181,13 +181,21 @@ public:
             NewT = getWrappedGlobalPointerType(M, PT, WrapperType);
             WrapperTypes[i] = WrapperType;
           } else {
+#if LLVM_VERSION_MAJOR < 17
             NewT = llvm::PointerType::getWithSamePointeeType(PT, PointerAddressSpace);
+#else
+            NewT = llvm::PointerType::get(PT->getContext(), PointerAddressSpace);
+#endif
           }
         } else {
           // ByVal or ByRef - this probably means that
           // some struct is passed into the kernel by value.
           // (the attribute will be handled later)
+#if LLVM_VERSION_MAJOR < 17
           NewT = llvm::PointerType::getWithSamePointeeType(PT, ByValueArgAddressSpace);
+#else
+          NewT = llvm::PointerType::get(PT->getContext(), ByValueArgAddressSpace);
+#endif
         }
         Params.push_back(NewT);
       
@@ -328,7 +336,11 @@ private:
     static std::atomic<std::size_t> WrapperCounter = 0;
 
     llvm::Type *WrappedType =
+#if LLVM_VERSION_MAJOR < 17
         llvm::PointerType::getWithSamePointeeType(OriginalPointerType, PointerAddressSpace);
+#else
+        llvm::PointerType::get(OriginalPointerType->getContext(), PointerAddressSpace);
+#endif
     
     auto it = PointerWrapperTypes.find(WrappedType);
     if(it != PointerWrapperTypes.end())

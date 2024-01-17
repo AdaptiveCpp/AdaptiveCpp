@@ -81,7 +81,7 @@ std::transform(std::execution::par_unseq, first, last, dest, ...);
 ### Automatic migration of heap allocations to USM shared allocations
 
 C++ is unaware of separate devices with their own device memory. In order to retain C++ semantics, when offloading C++ standard algorithms AdaptiveCpp tries to move all memory allocations that the application performs in translation units compiled with `--acpp-stdpar` to SYCL shared USM allocations. To this end, `operator new` and `operator delete` as well as the C-Style functions `malloc`, `aligned_alloc` and `free` are replaced by our own implementations (`calloc` and `realloc` are not yet implemented).
-**Note that pointers to host stack memory cannot be used in offloaded C++ algorithms, because we cannot move stack allocations to USM memory! This also means that lambdas passed to C++ algorithms should never capture by reference!**
+**Note that pointers to host stack memory cannot be used in offloaded C++ algorithms, because we cannot move stack allocations to USM memory! AdaptiveCpp detects whether such pointers are used, and will not offload in this case!**
 
 This replacement is performed using a special compiler transformation. This compiler transformation also enforces that the SYCL headers perform regular allocations instead. This is important because in general the SYCL headers construct complex objects such as `std::vector` or `std::shared_ptr` which then get handed over to the SYCL runtime library. The runtime library however cannot rely on SYCL USM pointers -- in short: The runtime as the code responsible for managing these allocations cannot itself sit on them. Therefore, the compiler performs non-trivial operations to only selectively replace memory allocations.
 
@@ -90,7 +90,7 @@ The backend used to perform USM allocations is the backend managing the executin
 
 ## Scope and visibility of replaced functions
 
-Functions for memory allocation are only exchanged for USM variants within translation units compiled with `--acpp-stdpar`. Our USM functions for releasing memory are however overriding the standard functions within the entire linkage unit. This is motivated by the expectation that pointers may be shared within the application, and the place where they are released may not be the place where they are created. As our functions for freeing memory can handle both regular and USM allocations, making them more widely available seems like the safer choice. However, our memory release functions are currently not exported to external linkage units, such as shared libraries that the application may load. **As such, you should be cautious when transferring ownership of a pointer to an external shared library, as this library may be unable to release the memory if it is a USM allocation!**
+Functions for memory allocation are only exchanged for USM variants within translation units compiled with `--acpp-stdpar`. Our USM functions for releasing memory are however overriding the standard functions within the entire application. This is motivated by the expectation that pointers may be shared within the application, and the place where they are released may not be the place where they are created. As our functions for freeing memory can handle both regular and USM allocations, making them more widely available seems like the safer choice.
 
 Note that in C++ due to the one definition rule (ODR) the linker may in certain circumstances pick one definition of a symbol when multiple definitions are available. This can potentially be a problem if a user-defined function is both defined in a translation unit compiled with `--acpp-stdpar` and one without it. In this case, there is no guarantee that the linker will pick the variant that does USM allocations. Be aware that the most vulnerable code for this issue might not only be user code directly, but also header-only library code such as `std::` functions (think of e.g. the allocations performed by `std::vector` of common types) as these functions may be commonly used in multiple translation units.
 **We therefore recommend that if you enable `--acpp-stdpar` for one translation unit, you also enable it for the other translation units in your project!**
@@ -101,6 +101,7 @@ Such issues are not present for the functions defined in the SYCL headers, becau
 
 Of course, if you wish to have greater control over memory, USM device pointers from user-controlled USM memory management function calls can also be used, as in any regular SYCL kernel. The buffer-accessor model is not supported; memory stored in `sycl::buffer` objects can only be used when converting it to a USM pointer using our buffer-USM interoperability extension.
 Note that you may need to invoke SYCL functions to explicitly copy memory to device and back if you use explicit SYCL device USM allocations.
+It is not recommended to use USM shared allocations from direct calls to `sycl::malloc_shared` in C++ standard algorithms. Such allocations will not be tracked by the stdpar runtime, and as such might not benefit from optimizations such as automatic prefetching.
 
 ### Systems with system-level USM support
 

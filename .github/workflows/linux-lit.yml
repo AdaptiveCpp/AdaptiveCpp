@@ -71,7 +71,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-cpu
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib ./sycl_tests
   sscp:
-    name: SSCP, clang ${{ matrix.clang }}, ${{ matrix.os }}
+    name: SSCP/Reflection/stdpar, clang ${{ matrix.clang }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -101,7 +101,7 @@ jobs:
           wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt update
-          sudo apt install intel-oneapi-runtime-opencl intel-oneapi-runtime-compilers ocl-icd-libopencl1 ocl-icd-opencl-dev
+          sudo apt install intel-oneapi-runtime-opencl-2024 intel-oneapi-runtime-compilers-2024 ocl-icd-libopencl1 ocl-icd-opencl-dev
       - name: build AdaptiveCpp
         run: |
           mkdir build && cd build
@@ -116,3 +116,15 @@ jobs:
           cd ${GITHUB_WORKSPACE}/build/tests-sscp  
           cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
           LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-sscp
+      - name: run Reflection LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-reflection
+          cd ${GITHUB_WORKSPACE}/build/tests-reflection  
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-reflection
+      - name: run stdpar LIT tests
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cd ${GITHUB_WORKSPACE}/build/tests-stdpar
+          cmake -DACPP_TARGETS=generic -DAdaptiveCpp_DIR=${GITHUB_WORKSPACE}/build/install/lib/cmake/AdaptiveCpp  ${GITHUB_WORKSPACE}/tests
+          LD_LIBRARY_PATH=${GITHUB_WORKSPACE}/build/install/lib make check-stdpar

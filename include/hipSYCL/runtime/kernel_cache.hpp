@@ -222,7 +222,7 @@ public:
   using code_object_index_t = std::size_t;
   using kernel_name_index_t = std::size_t;
 
-  static kernel_cache& get();
+  static std::shared_ptr<kernel_cache> get();
 
   // This function is currently only partially thread-safe, as the
   // returned pointer may become invalid if another thread registers a new kernel.
@@ -453,7 +453,7 @@ namespace detail {
 
 template<class T>
 struct kernel_registrator {
-  kernel_registrator() { kernel_cache::get().register_kernel<T>(); }
+  kernel_registrator() { kernel_cache::get()->register_kernel<T>(); }
 };
 
 template<class KernelT>

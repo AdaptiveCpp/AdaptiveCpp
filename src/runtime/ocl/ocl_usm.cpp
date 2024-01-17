@@ -251,6 +251,23 @@ public:
     return err;
   }
 
+  cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                          std::size_t bytes,
+                          cl_mem_migration_flags flags,
+                          const std::vector<cl::Event> &wait_events,
+                          cl::Event *event) override {
+    cl_event tmp;
+    cl_int err = _migrate_mem(
+        queue.get(), ptr, bytes, flags, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
+    }
+    return err;
+  }
+
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     auto maybe_ignore = [this](cl_int error_code) {
       // Intel CPU OpenCL seems to not understand these flags. We can just ignore USM errors
@@ -426,6 +443,27 @@ public:
     unsigned char pattern_byte = static_cast<char>(pattern);
     return queue.enqueueMemFillSVM(ptr, pattern_byte, bytes, &wait_events, out);
   }
+
+
+  cl_int enqueue_prefetch(cl::CommandQueue &queue, const void *ptr,
+                          std::size_t bytes,
+                          cl_mem_migration_flags flags,
+                          const std::vector<cl::Event> &wait_events,
+                          cl::Event *event) override {
+    // Seems there is a bug in CommandQueue::enqueueMigrateSVM, so we directly
+    // call the OpenCL function
+    cl_event tmp;
+    cl_int err = ::clEnqueueSVMMigrateMem(
+        queue.get(), 1, &ptr, &bytes, flags, wait_events.size(),
+        (wait_events.size() > 0) ? (cl_event *)&wait_events.front() : nullptr,
+        (event != nullptr) ? &tmp : nullptr);
+    
+    if(event != nullptr && err == CL_SUCCESS) {
+      *event = tmp;
+    }
+    return err;
+  }
+
 
   cl_int enable_indirect_usm_access(cl::Kernel& k) override {
     return k.setExecInfo(CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM, cl_bool{true});

@@ -118,6 +118,8 @@ private:
 
   std::vector<std::future<void>> _external_waits;
 
+  std::shared_ptr<kernel_cache> _kernel_cache;
+  
   // Most L0 API functions that add to a command list are not thread-safe.
   // Since most of the public API functions of this class do exactly that,
   // arguably the best strategy to achieve thread-safety is to just have a mutex

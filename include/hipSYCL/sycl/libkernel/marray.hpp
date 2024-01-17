@@ -44,7 +44,7 @@ private:
   
   template<class T>
   static constexpr std::size_t count_elements() {
-    if constexpr (std::is_scalar_v<T>)
+    if constexpr (std::is_convertible_v<DataT, T>)
       return 1;
     else
       return T::size();
@@ -52,7 +52,7 @@ private:
 
   template<class T>
   constexpr void init_offset(std::size_t offset, const T& x) {
-    if constexpr(std::is_scalar_v<T>) {
+    if constexpr(std::is_convertible_v<DataT, T>) {
       _data[offset] = x;
     } else {
       for(std::size_t i = 0; i < x.size(); ++i)
@@ -65,16 +65,6 @@ private:
     init_offset(current_offset, arg);
     current_offset += count_elements<ArgT>();
   }
-
-  struct not_convertible_to_scalar {};
-  static constexpr auto get_scalar_conversion_type() {
-    if constexpr(NumElements == 1)
-      return std::size_t{};
-    else
-      return not_convertible_to_scalar {};
-  }
-
-  using scalar_conversion_type = decltype(get_scalar_conversion_type());
 public:
   using value_type = DataT;
   using reference = DataT&;
@@ -82,8 +72,7 @@ public:
   using iterator = DataT*;
   using const_iterator = const DataT*;
 
-  marray()
-  : marray{DataT{}} {}
+  constexpr marray() = default;
 
   explicit constexpr marray(const DataT& arg) {
     for(std::size_t i = 0; i < NumElements; ++i) {
@@ -91,11 +80,11 @@ public:
     }
   }
 
-  template <typename... ArgTN>
+  template <typename... ArgTN,
+            std::enable_if_t<(sizeof...(ArgTN) > 0), bool> = true,
+            std::size_t num_args = (count_elements<ArgTN>() + ...),
+            std::enable_if_t<num_args == NumElements, bool> = true>
   constexpr marray(const ArgTN&... args) {
-    constexpr std::size_t num_args = (count_elements<ArgTN>() + ...);
-    static_assert(num_args == NumElements,
-                  "Incorrect number of marray constructor arguments");
     int current_offset = 0;
     (initialize_from_arg(current_offset, args), ...);
   }
@@ -104,7 +93,9 @@ public:
   constexpr marray(marray<DataT, NumElements>&& rhs) = default;
 
   // Available only when: NumElements == 1
-  operator scalar_conversion_type() const {
+  template <std::size_t N = NumElements,
+            std::enable_if_t<N == 1, bool> = true>
+  constexpr operator DataT() const {
     return _data[0];
   }
 
@@ -113,10 +104,10 @@ public:
   }
 
   // subscript operator
-  reference operator[](std::size_t index) {
+  constexpr reference operator[](std::size_t index) {
     return _data[index];
   }
-  const_reference operator[](std::size_t index) const {
+  constexpr const_reference operator[](std::size_t index) const {
     return _data[index];
   }
 
@@ -213,7 +204,7 @@ public:
   HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_MARRAY(/=, DataT)
   template <typename t = DataT,
             std::enable_if_t<std::is_integral_v<t>, bool> = true>
-  HIPSYCL_DEFINE_BINARY_MARRAY_OP_MARRAY_MARRAY(%=, t)
+  HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_MARRAY(%=, t)
 
   HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_SCALAR(+=, DataT)
   HIPSYCL_DEFINE_INPLACE_MARRAY_OP_MARRAY_SCALAR(-=, DataT)

@@ -1822,6 +1822,10 @@ class compiler:
       "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
     ]
 
+    # MSVC only defines constants like M_PI if _USE_MATH_DEFINES is set
+    if sys.platform.startswith("win32"):
+      args += ["-D_USE_MATH_DEFINES"]
+
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [

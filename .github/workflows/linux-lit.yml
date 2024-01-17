@@ -87,6 +87,8 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh ${{matrix.clang}}
           sudo apt install libclang-${{matrix.clang}}-dev clang-tools-${{matrix.clang}} libomp-${{matrix.clang}}-dev llvm-${{matrix.clang}}-dev
+          # install with --force-override since this tries to override some clang README
+          sudo apt install -o DPkg::options::="--force-overwrite" libclang-rt-${{matrix.clang}}-dev
           sudo python -m pip install lit
           sudo ln -s /usr/bin/FileCheck-${{matrix.clang}} /usr/bin/FileCheck
           if [[ "${{matrix.clang}}" == "16" ]]; then

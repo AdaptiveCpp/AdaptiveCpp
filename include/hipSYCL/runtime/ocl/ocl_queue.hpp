@@ -95,6 +95,8 @@ private:
   ocl_sscp_code_object_invoker _sscp_invoker;
   worker_thread _host_worker;
 
+  std::shared_ptr<kernel_cache> _kernel_cache;
+
   // Non-thread safe state should go here
   struct protected_state {
   public:

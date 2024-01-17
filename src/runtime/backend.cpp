@@ -39,7 +39,8 @@ namespace hipsycl {
 namespace rt {
 
 backend_manager::backend_manager()
-: _hw_model(std::make_unique<hw_model>(this))
+  : _hw_model(std::make_unique<hw_model>(this)),
+    _kernel_cache{kernel_cache::get()}
 {
 
   _loader.query_backends();
@@ -87,7 +88,7 @@ backend_manager::backend_manager()
 
 backend_manager::~backend_manager()
 {
-  kernel_cache::get().unload();
+  _kernel_cache->unload();
 }
 
 backend *backend_manager::get(backend_id id) const {

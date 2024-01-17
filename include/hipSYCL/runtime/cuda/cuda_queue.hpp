@@ -144,6 +144,8 @@ private:
   cuda_sscp_code_object_invoker _sscp_code_object_invoker;
   host_timestamped_event _reference_event;
   cuda_backend* _backend;
+
+  std::shared_ptr<kernel_cache> _kernel_cache;
 };
 
 }

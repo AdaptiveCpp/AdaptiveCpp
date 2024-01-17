@@ -146,11 +146,12 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo llvmGetPassPluginIn
 
 #ifdef HIPSYCL_WITH_STDPAR_COMPILER
           if(EnableStdPar) {
-            if(!StdparNoMallocToUSM) {
-              PB.registerPipelineStartEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
+            PB.registerPipelineStartEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
+              if(!StdparNoMallocToUSM) {
                 MPM.addPass(MallocToUSMPass{});
-              });
-            }
+              }
+            });
+          
             PB.registerOptimizerLastEPCallback([&](llvm::ModulePassManager &MPM, OptLevel Level) {
               MPM.addPass(SyncElisionInliningPass{});
               MPM.addPass(llvm::AlwaysInlinerPass{});

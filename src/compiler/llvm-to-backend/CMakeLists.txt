@@ -164,22 +164,23 @@ if(WITH_SSCP_COMPILER)
 
     target_compile_definitions(llvm-to-amdgpu PRIVATE
       -DACPP_ROCM_PATH="${ROCM_PATH}")
-
-    find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib REQUIRED)
+    
     find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
+    if(HIPCC_PATH)
+      target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_HIPCC_PATH="${HIPCC_PATH}")
+    endif()
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
+
+    find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
+   
     if(HIPRTC_LIBRARY)
       message(STATUS "Found hipRTC: ${HIPRTC_LIBRARY}")
 
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-          -DACPP_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
-      
-      if(HIPCC_PATH)
-        target_compile_definitions(llvm-to-amdgpu PRIVATE
-          -DACPP_HIPCC_PATH="${HIPCC_PATH}")
-      endif()
-
       target_include_directories(llvm-to-amdgpu PRIVATE ${ROCM_PATH}/include)
       target_link_libraries(llvm-to-amdgpu PRIVATE ${HIPRTC_LIBRARY})
+      target_compile_definitions(llvm-to-amdgpu PRIVATE -DACPP_HIPRTC_LINK)
     endif()
 
   endif()

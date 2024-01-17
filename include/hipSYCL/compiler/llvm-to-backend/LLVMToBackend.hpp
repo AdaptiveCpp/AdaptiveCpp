@@ -180,10 +180,12 @@ protected:
   
   bool linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                        const std::string &ForcedTriple = "",
-                       const std::string &ForcedDataLayout = "");
+                       const std::string &ForcedDataLayout = "",
+                       bool LinkOnlyNeeded = true);
   bool linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
                          const std::string &ForcedTriple = "",
-                         const std::string &ForcedDataLayout = "");
+                         const std::string &ForcedDataLayout = "",
+                         bool LinkOnlyNeeded = true);
   // If backend needs to set IR constants, it should do so here.
   virtual bool prepareBackendFlavor(llvm::Module& M) = 0;
   // Transform LLVM IR as much as required to backend-specific flavor

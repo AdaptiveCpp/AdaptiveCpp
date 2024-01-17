@@ -32,7 +32,6 @@
 #include "hipSYCL/glue/llvm-sscp/s2_ir_constants.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/debug.hpp"
-#include <llvm/ADT/None.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -57,8 +56,10 @@
 #include <vector>
 #include <sstream>
 
+#ifdef ACPP_HIPRTC_LINK
 #define __HIP_PLATFORM_AMD__
 #include <hip/hiprtc.h>
+#endif
 
 
 namespace hipsycl {
@@ -68,6 +69,22 @@ namespace {
 
 const char* TargetTriple = "amdgcn-amd-amdhsa";
 
+std::string getRocmClang(const std::string& RocmPath) {
+  std::string ClangPath;
+
+  std::string GuessedHipccPath =
+      common::filesystem::join_path(RocmPath, std::vector<std::string>{"bin", "hipcc"});
+  if (llvm::sys::fs::exists(GuessedHipccPath))
+    ClangPath = GuessedHipccPath;
+  else {
+#if defined(ACPP_HIPCC_PATH)
+    ClangPath = ACPP_HIPCC_PATH;
+#else
+    ClangPath = ACPP_CLANG_PATH;
+#endif
+  }
+
+  return ClangPath;
 }
 
 #if LLVM_VERSION_MAJOR < 16
@@ -78,6 +95,45 @@ template<class T>
 using optional_t = std::optional<T>;
 #endif
 
+bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
+                      std::string &Out) {
+
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-query-%%%%%%.txt");
+
+  std::string OutputFilename = OutputFile->TmpName;
+
+  auto E = OutputFile.takeError();
+  if(E){
+    return false;
+  }
+
+  AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
+
+  llvm::SmallVector<llvm::StringRef> InvocationRef;
+  for(const auto& S: Invocation)
+    InvocationRef.push_back(S);
+
+  llvm::SmallVector<optional_t<llvm::StringRef>> Redirections;
+  std::string RedirectedOutputFile = OutputFile->TmpName;
+  Redirections.push_back(optional_t<llvm::StringRef>{});
+  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
+  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
+
+  int R = llvm::sys::ExecuteAndWait(Program, InvocationRef, {}, Redirections); 
+  if(R != 0)
+    return false;
+
+  auto ReadResult =
+    llvm::MemoryBuffer::getFile(OutputFile->TmpName, true);
+  
+  Out = ReadResult.get()->getBuffer();
+  return true;
+}
+
+}
+
+
+
 
 class RocmDeviceLibs {
 public:
@@ -86,35 +142,15 @@ public:
                                           const std::string& DeviceLibsPath,
                                           const std::string& TargetDevice,
                                           std::vector<std::string>& BitcodeFiles) {
-    auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-clang-query-%%%%%%.txt");
-  
-    std::string OutputFilename = OutputFile->TmpName;
-  
-    auto E = OutputFile.takeError();
-    if(E){
-      return false;
-    }
+    
 
-    AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
-
-    llvm::SmallVector<std::string, 16> Invocation;
+    llvm::SmallVector<std::string> Invocation;
     auto OffloadArchFlag = "--cuda-gpu-arch="+TargetDevice;
     auto RocmPathFlag = "--rocm-path="+std::string{RocmPath};
     auto RocmDeviceLibsFlag = "--rocm-device-lib-path="+DeviceLibsPath;
 
-    std::string ClangPath;
-
-    std::string GuessedHipccPath =
-        common::filesystem::join_path(RocmPath, std::vector<std::string>{"bin", "hipcc"});
-    if (llvm::sys::fs::exists(GuessedHipccPath))
-      ClangPath = GuessedHipccPath;
-    else {
-#if defined(ACPP_HIPCC_PATH)
-      ClangPath = ACPP_HIPCC_PATH;
-#else
-      ClangPath = ACPP_CLANG_PATH;
-#endif
-    }
+    std::string ClangPath = getRocmClang(RocmPath);
+    
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking " << ClangPath
                        << " to determine ROCm device library list\n";
 
@@ -129,24 +165,10 @@ public:
       "-###"
     };
     
-    llvm::SmallVector<llvm::StringRef, 16> InvocationRef;
-    for(const auto& S: Invocation)
-      InvocationRef.push_back(S);
-
-    llvm::SmallVector<optional_t<llvm::StringRef>> Redirections;
-    std::string RedirectedOutputFile = OutputFile->TmpName;
-    Redirections.push_back(optional_t<llvm::StringRef>{});
-    Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-    Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-
-    int R = llvm::sys::ExecuteAndWait(ClangPath, InvocationRef, {}, Redirections); 
-    if(R != 0)
-      return false;
-
-    auto ReadResult =
-      llvm::MemoryBuffer::getFile(OutputFile->TmpName, true);
     
-    std::string Output {ReadResult.get()->getBuffer()};
+    std::string Output;
+    if(!getCommandOutput(ClangPath, Invocation, Output))
+      return false;
 
     std::stringstream sstr{Output};
     std::string CurrentComponent;
@@ -230,6 +252,7 @@ bool LLVMToAmdgpuTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
 
 
 bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModule, std::string &Out) {
+#ifdef ACPP_HIPRTC_LINK
   HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking hipRTC...\n";
 
   std::string ModuleString;
@@ -237,6 +260,9 @@ bool LLVMToAmdgpuTranslator::translateToBackendFormat(llvm::Module &FlavoredModu
   llvm::WriteBitcodeToFile(FlavoredModule, StrOstream);
 
   return hiprtcJitLink(ModuleString, Out);
+#else
+  return clangJitLink(FlavoredModule, Out);
+#endif
 }
 
 bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const std::string &Value) {
@@ -255,16 +281,12 @@ bool LLVMToAmdgpuTranslator::applyBuildOption(const std::string &Option, const s
 }
 
 bool LLVMToAmdgpuTranslator::applyBuildFlag(const std::string &Flag) {
-  if(Flag == "assemble-only") {
-    OnlyGenerateAssembly = true;
-    return true;
-  }
 
   return false;
 }
 
 bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::string &Output) {
-
+#ifdef ACPP_HIPRTC_LINK
   // Currently hipRTC link does not take into account options anyway.
   // It just compiles for the currently active HIP device.
   std::vector<hiprtcJIT_option> options {};
@@ -332,7 +354,105 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
   }
 
   return true;
+#else
+  return false;
+#endif
+}
 
+bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::string& Out) {
+  
+  auto addBitcodeFile = [&](const std::string &BCFileName) -> bool {
+    std::string Path = common::filesystem::join_path(RocmDeviceLibsPath, BCFileName);
+    auto ReadResult = llvm::MemoryBuffer::getFile(Path, false);
+    if(auto Err = ReadResult.getError()) {
+      this->registerError("LLVMToAmdgpu: Could not open file: " + Path);
+      return false;
+    }
+
+    llvm::StringRef BC = ReadResult->get()->getBuffer();
+    this->linkBitcodeFile(FlavoredModule, Path, "", "", false);
+
+    return true;
+  };
+
+  std::vector<std::string> DeviceLibs;
+  RocmDeviceLibs::determineRequiredDeviceLibs(RocmPath, RocmDeviceLibsPath, TargetDevice,
+                                              DeviceLibs);
+  for(const auto& BC : DeviceLibs)
+    addBitcodeFile(BC);
+
+  auto InputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.bc");
+  auto OutputFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-%%%%%%.hipfb");
+  auto DummyFile = llvm::sys::fs::TempFile::create("hipsycl-sscp-amdgpu-dummy-%%%%%%.cpp");
+
+  std::string OutputFilename = OutputFile->TmpName;
+
+  auto checkFileError = [&](auto& F) {
+    auto E = F.takeError();
+    if(E){
+      this->registerError("LLVMToAmdgpu: Could not create temp file: "+InputFile->TmpName);
+      return false;
+    }
+    return true;
+  };
+
+  if(!checkFileError(InputFile)) return false;
+  if(!checkFileError(DummyFile)) return false;
+
+  AtScopeExit DestroyInputFile([&]() { auto Err = InputFile->discard(); });
+  AtScopeExit DestroyOutputFile([&]() { auto Err = OutputFile->discard(); });
+  AtScopeExit DestroyDummyFile([&]() { auto Err = DummyFile->discard(); });
+  
+  llvm::raw_fd_ostream InputStream{InputFile->FD, false};
+  llvm::raw_fd_ostream DummyStream{DummyFile->FD, false};
+
+  llvm::WriteBitcodeToFile(FlavoredModule, InputStream);
+  InputStream.flush();
+   
+  std::string DummyText = "int main() {}\n";
+  DummyStream.write(DummyText.c_str(), DummyText.size());
+  DummyStream.flush();
+
+  auto OffloadArchFlag = "--cuda-gpu-arch="+TargetDevice;
+  std::string ClangPath = ACPP_CLANG_PATH;
+
+  llvm::SmallVector<std::string> Invocation = {
+      ClangPath, "-x", "hip", "-O3", "-nogpuinc", OffloadArchFlag, "--cuda-device-only",
+        "-Xclang", "-mlink-bitcode-file", "-Xclang", InputFile->TmpName,
+        "-o",  OutputFilename, DummyFile->TmpName
+  };
+
+  llvm::SmallVector<llvm::StringRef> InvocationRef;
+  for(auto &S : Invocation)
+    InvocationRef.push_back(S);
+
+  std::string ArgString;
+  for(const auto& S : Invocation) {
+    ArgString += S;
+    ArgString += " ";
+  }
+  HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Invoking " << ArgString << "\n";
+
+  int R = llvm::sys::ExecuteAndWait(
+      InvocationRef[0], InvocationRef);
+
+  if(R != 0) {
+    this->registerError("LLVMToAmdgpu: clang invocation failed with exit code " +
+                        std::to_string(R));
+    return false;
+  }
+
+  auto ReadResult =
+      llvm::MemoryBuffer::getFile(OutputFile->TmpName, -1);
+
+  if(auto Err = ReadResult.getError()) {
+    this->registerError("LLVMToAmdgpu: Could not read result file"+Err.message());
+    return false;
+  }
+
+  Out = ReadResult->get()->getBuffer();
+
+  return true;
 }
 
 bool LLVMToAmdgpuTranslator::isKernelAfterFlavoring(llvm::Function& F) {

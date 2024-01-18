@@ -80,8 +80,11 @@ ze_backend::ze_backend() {
         _hardware_manager.get()});
   }
 
-  _executor = std::make_unique<lazily_constructed_executor<multi_queue_executor>>(
-      create_multi_queue_executor(this, _hardware_manager.get()));
+  _executor =
+      std::make_unique<lazily_constructed_executor<multi_queue_executor>>(
+          [this, hw_mgr = _hardware_manager.get()]() {
+            return create_multi_queue_executor(this, hw_mgr);
+          });
 }
 
 api_platform ze_backend::get_api_platform() const {

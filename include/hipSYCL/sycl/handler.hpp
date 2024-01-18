@@ -793,7 +793,7 @@ private:
       this->_operation_uses_reductions = true;
 
     auto kernel_op = rt::make_operation<rt::kernel_operation>(
-        rt::kernel_cache::get().get_global_kernel_name<KernelFuncType>(),
+        _kernel_cache->get_global_kernel_name<KernelFuncType>(),
         glue::make_kernel_launchers<KernelName, KernelType>(
             offset, local_range, global_range, shared_mem_size, f,
             reductions...),
@@ -921,7 +921,8 @@ private:
           const rt::execution_hints &hints, rt::runtime* rt)
       : _ctx{ctx}, _handler{handler}, _execution_hints{hints},
         _preferred_group_size1d{}, _preferred_group_size2d{},
-        _preferred_group_size3d{}, _rt{rt}, _requirements{rt} {}
+        _preferred_group_size3d{}, _rt{rt}, _requirements{rt},
+        _kernel_cache{rt::kernel_cache::get()} {}
 
   template<int Dim>
   range<Dim>& get_preferred_group_size() {
@@ -1012,6 +1013,8 @@ private:
   rt::runtime* _rt;
 
   bool _operation_uses_reductions = false;
+
+  std::shared_ptr<rt::kernel_cache> _kernel_cache;
 };
 
 namespace detail::handler {

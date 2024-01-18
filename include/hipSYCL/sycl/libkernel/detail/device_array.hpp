@@ -43,25 +43,25 @@ struct device_array
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t i) noexcept
+  constexpr T& operator[] (size_t i) noexcept
   {
     return _data[i];
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t i) const noexcept
+  constexpr const T& operator[] (size_t i) const noexcept
   {
     return _data[i];
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return N;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array& other) const noexcept
+  constexpr bool operator== (const device_array& other) const noexcept
   {
     for(size_t i = 0; i < N; ++i)
       if(_data[i] != other._data[i])
@@ -70,12 +70,13 @@ struct device_array
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
-  T _data [N];
+  // Zero initialise to make device_array constexpr-constructible
+  T _data[N] = {0};
 };
 
 template<class T>
@@ -85,31 +86,31 @@ struct device_array<T, 0>
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return 0;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array&) const noexcept
+  constexpr bool operator== (const device_array&) const noexcept
   {
     return true;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t) noexcept
+  constexpr T& operator[] (size_t) noexcept
   {
     return *reinterpret_cast<T*>(0);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t) const noexcept
+  constexpr const T& operator[] (size_t) const noexcept
   {
     return *reinterpret_cast<T*>(0);
   }
@@ -126,36 +127,37 @@ struct device_array<T, 1>
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return 1;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array& other) const noexcept
+  constexpr bool operator== (const device_array& other) const noexcept
   {
     return _x == other._x;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t) noexcept
+  constexpr T& operator[] (size_t) noexcept
   {
     return _x;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t) const noexcept
+  constexpr const T& operator[] (size_t) const noexcept
   {
     return _x;
   }
 
-  T _x;
+  // Zero initialise to make device_array constexpr-constructible
+  T _x = 0;
 };
 
 template<class T>
@@ -165,25 +167,25 @@ struct device_array<T, 2>
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return 2;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array& other) const noexcept
+  constexpr bool operator== (const device_array& other) const noexcept
   {
     return _x == other._x && _y == other._y;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t idx) noexcept
+  constexpr T& operator[] (size_t idx) noexcept
   {
     if(idx == 0)
       return _x;
@@ -192,7 +194,7 @@ struct device_array<T, 2>
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t idx) const noexcept
+  constexpr const T& operator[] (size_t idx) const noexcept
   {
     if(idx == 0)
       return _x;
@@ -200,8 +202,9 @@ struct device_array<T, 2>
       return _y;
   }
 
-  T _x;
-  T _y;
+  // Zero initialise to make device_array constexpr-constructible
+  T _x = 0;
+  T _y = 0;
 };
 
 
@@ -212,25 +215,25 @@ struct device_array<T, 3>
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return 3;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array& other) const noexcept
+  constexpr bool operator== (const device_array& other) const noexcept
   {
     return _x == other._x && _y == other._y && _z == other._z;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t idx) noexcept
+  constexpr T& operator[] (size_t idx) noexcept
   {
     if(idx == 0)
       return _x;
@@ -241,7 +244,7 @@ struct device_array<T, 3>
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t idx) const noexcept
+  constexpr const T& operator[] (size_t idx) const noexcept
   {
     if(idx == 0)
       return _x;
@@ -250,10 +253,11 @@ struct device_array<T, 3>
     else
       return _z;
   }
-
-  T _x;
-  T _y;
-  T _z;
+  
+  // Zero initialise to make device_array constexpr-constructible
+  T _x = 0;
+  T _y = 0;
+  T _z = 0;
 };
 
 
@@ -264,25 +268,25 @@ struct device_array<T, 4>
   using const_iterator = const T*;
 
   HIPSYCL_UNIVERSAL_TARGET
-  size_t size() const noexcept
+  constexpr size_t size() const noexcept
   {
     return 4;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator== (const device_array& other) const noexcept
+  constexpr bool operator== (const device_array& other) const noexcept
   {
     return _x == other._x && _y == other._y && _z == other._z && _w == other._w;
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  bool operator!= (const device_array& other) const noexcept
+  constexpr bool operator!= (const device_array& other) const noexcept
   {
     return !(*this == other);
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  T& operator[] (size_t idx) noexcept
+  constexpr T& operator[] (size_t idx) noexcept
   {
     if(idx == 0)
       return _x;
@@ -295,7 +299,7 @@ struct device_array<T, 4>
   }
 
   HIPSYCL_UNIVERSAL_TARGET
-  const T& operator[] (size_t idx) const noexcept
+  constexpr const T& operator[] (size_t idx) const noexcept
   {
     if(idx == 0)
       return _x;
@@ -307,10 +311,11 @@ struct device_array<T, 4>
       return _w;
   }
 
-  T _x;
-  T _y;
-  T _z;
-  T _w;
+  // Zero initialise to make device_array constexpr-constructible
+  T _x = 0;
+  T _y = 0;
+  T _z = 0;
+  T _w = 0;
 };
 
 #endif // HIPSYCL_LIBKERNEL_IS_DEVICE_PASS_HOST

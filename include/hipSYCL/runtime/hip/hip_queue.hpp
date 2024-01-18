@@ -136,6 +136,7 @@ private:
   hip_backend* _backend;
   hip_multipass_code_object_invoker _multipass_code_object_invoker;
   hip_sscp_code_object_invoker _sscp_code_object_invoker;
+  std::shared_ptr<kernel_cache> _kernel_cache;
 };
 
 }

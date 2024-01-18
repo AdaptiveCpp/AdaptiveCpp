@@ -178,7 +178,8 @@ void hip_queue::activate_device() const {
 
 hip_queue::hip_queue(hip_backend *be, device_id dev, int priority)
     : _dev{dev}, _stream{nullptr}, _backend{be},
-      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this} {
+      _multipass_code_object_invoker{this}, _sscp_code_object_invoker{this},
+      _kernel_cache{kernel_cache::get()} {
   this->activate_device();
 
   hipError_t err;
@@ -497,7 +498,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
   
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t *kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -569,7 +570,7 @@ result hip_queue::submit_multipass_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, backend_kernel_name, backend_id::hip, hcf_object,
       code_object_selector, code_object_constructor);
 
@@ -600,7 +601,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
   
   std::string global_kernel_name = op.get_global_kernel_name();
   const kernel_cache::kernel_name_index_t *kidx =
-      kernel_cache::get().get_global_kernel_index(global_kernel_name);
+      _kernel_cache->get_global_kernel_index(global_kernel_name);
 
   if(!kidx) {
     return make_error(
@@ -684,7 +685,7 @@ result hip_queue::submit_sscp_kernel_from_code_object(
     return exec_obj;
   };
 
-  const code_object *obj = kernel_cache::get().get_or_construct_code_object(
+  const code_object *obj = _kernel_cache->get_or_construct_code_object(
       *kidx, kernel_name, backend_id::hip, hcf_object,
       code_object_selector, code_object_constructor);
 

@@ -50,15 +50,15 @@ namespace {
 
 bool linkBitcode(llvm::Module &M, std::unique_ptr<llvm::Module> OtherM,
                    const std::string &ForcedTriple = "",
-                   const std::string &ForcedDataLayout = "") {
+                   const std::string &ForcedDataLayout = "",
+                   llvm::Linker::Flags Flags = llvm::Linker::Flags::LinkOnlyNeeded) {
   if(!ForcedTriple.empty())
     OtherM->setTargetTriple(ForcedTriple);
   if(!ForcedDataLayout.empty())
     OtherM->setDataLayout(ForcedDataLayout);
 
   // Returns true on error
-  if (llvm::Linker::linkModules(M, std::move(OtherM),
-                                llvm::Linker::Flags::LinkOnlyNeeded)) {
+  if (llvm::Linker::linkModules(M, std::move(OtherM), Flags)) {
     return false;
   }
   return true;
@@ -237,7 +237,8 @@ bool LLVMToBackendTranslator::optimizeFlavoredIR(llvm::Module& M, PassHandler& P
 
 bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::string &Bitcode,
                                                 const std::string &ForcedTriple,
-                                                const std::string &ForcedDataLayout) {
+                                                const std::string &ForcedDataLayout,
+                                                bool LinkOnlyNeeded) {
   std::unique_ptr<llvm::Module> OtherModule;
   auto err = loadModuleFromString(Bitcode, M.getContext(), OtherModule);
 
@@ -249,7 +250,11 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
     return false;
   }
 
-  if(!linkBitcode(M, std::move(OtherModule), ForcedTriple, ForcedDataLayout)) {
+  llvm::Linker::Flags F = llvm::Linker::None;
+  if(LinkOnlyNeeded)
+    F = llvm::Linker::LinkOnlyNeeded;
+
+  if(!linkBitcode(M, std::move(OtherModule), ForcedTriple, ForcedDataLayout, F)) {
     this->registerError("LLVMToBackend: Linking module failed");
     return false;
   }
@@ -259,14 +264,16 @@ bool LLVMToBackendTranslator::linkBitcodeString(llvm::Module &M, const std::stri
 
 bool LLVMToBackendTranslator::linkBitcodeFile(llvm::Module &M, const std::string &BitcodeFile,
                                               const std::string &ForcedTriple,
-                                              const std::string &ForcedDataLayout) {
+                                              const std::string &ForcedDataLayout,
+                                              bool LinkOnlyNeeded) {
   auto F = llvm::MemoryBuffer::getFile(BitcodeFile);
   if(auto Err = F.getError()) {
     this->registerError("LLVMToBackend: Could not open file " + BitcodeFile);
     return false;
   }
   HIPSYCL_DEBUG_INFO << "LLVMToBackend: Linking with bitcode file: " << BitcodeFile << "\n";
-  return linkBitcodeString(M, std::string{F.get()->getBuffer()}, ForcedTriple, ForcedDataLayout);
+  return linkBitcodeString(M, std::string{F.get()->getBuffer()}, ForcedTriple, ForcedDataLayout,
+                           LinkOnlyNeeded);
 }
 
 void LLVMToBackendTranslator::setS2IRConstant(const std::string &name, const void *ValueBuffer) {

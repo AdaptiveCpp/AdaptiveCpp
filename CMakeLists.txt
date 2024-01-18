@@ -96,7 +96,7 @@ find_package(OpenCL QUIET)
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
   message(STATUS "Could not find HIP cmake integration, falling back to finding hipcc")
-  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH})
+  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
   set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
   if(HIPCC_COMPILER MATCHES "-NOTFOUND")
     message(STATUS "Could not find ROCm installation by looking for hipcc. ROCm support unavailable.")

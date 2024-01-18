@@ -61,7 +61,7 @@ public:
   create_inorder_executor(device_id dev, int priority) override;
 private:
   mutable ocl_hardware_manager _hw_manager;
-  mutable multi_queue_executor _executor;
+  mutable lazily_constructed_executor<multi_queue_executor> _executor;
 };
 
 }

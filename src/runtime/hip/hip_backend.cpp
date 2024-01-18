@@ -31,6 +31,7 @@
 #include "hipSYCL/runtime/hip/hip_event.hpp"
 #include "hipSYCL/runtime/hip/hip_target.hpp"
 #include "hipSYCL/runtime/hip/hip_queue.hpp"
+#include "hipSYCL/runtime/multi_queue_executor.hpp"
 
 HIPSYCL_PLUGIN_API_EXPORT
 hipsycl::rt::backend *hipsycl_backend_plugin_create() {
@@ -44,14 +45,26 @@ const char *hipsycl_backend_plugin_get_name() {
   return backend_name;
 }
 
+
 namespace hipsycl {
 namespace rt {
 
+
+namespace {
+
+std::unique_ptr<multi_queue_executor>
+create_multi_queue_executor(hip_backend *b) {
+  return std::make_unique<multi_queue_executor>(
+      *b, [b](device_id dev) { return std::make_unique<hip_queue>(b, dev); });
+}
+
+}
+
 hip_backend::hip_backend()
     : _hw_manager{hip_backend::get_hardware_platform()},
-      _executor{*this, [this](device_id dev) {
-                  return std::make_unique<hip_queue>(this, dev);
-                }} {}
+      _executor{[this]() {
+        return create_multi_queue_executor(this);
+      }} {}
 
 api_platform hip_backend::get_api_platform() const {
   return api_platform::hip;
@@ -85,7 +98,7 @@ backend_executor *hip_backend::get_executor(device_id dev) const {
     return nullptr;
   }
 
-  return &_executor;
+  return _executor.get();
 }
 
 backend_allocator* hip_backend::get_allocator(device_id dev) const {

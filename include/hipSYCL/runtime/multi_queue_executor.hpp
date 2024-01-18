@@ -182,7 +182,7 @@ class lazily_constructed_executor {
 public:
   template<class Factory>
   lazily_constructed_executor(Factory&& F)
-  : _factory{F}, _is_initialized{false} {}
+  : _factory{std::forward<Factory>(F)}, _is_initialized{false} {}
 
   Executor* get() {
     if(_is_initialized.load(std::memory_order_acquire))

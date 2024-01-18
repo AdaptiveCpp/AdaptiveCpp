@@ -340,7 +340,18 @@ class acpp_config:
                - hip.integrated-multipass: Force HIP backend to operate in integrated
                                            multipass mode.
       * spirv - use clang SYCL driver to generate spirv
-      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device""")
+      * generic - use generic LLVM SSCP compilation flow, and JIT at runtime to target device"""),
+
+      'stdpar-prefetch-mode' : option("--acpp-stdpar-prefetch-mode", "ACPP_STDPAR_PREFETCH_MODE", "default-stdpar-prefetch-mode", 
+"""  AdaptiveCpp supports issuing automati USM prefetch operations for allocations used inside offloaded C++ PSTL
+    algorithms. This flags determines the strategy for submitting such prefetches.
+    Supported values are:
+      * always      - Prefetches every allocation used by every stdpar kernel
+      * never       - Disables prefetching
+      * after-sync  - Prefetch all allocations used by the first kernel submitted after each synchronization point.
+                      (Prefetches running on non-idling queues can be expensive!)
+      * first       - Prefetch allocations only the very first time they are used in a kernel
+      * auto        - Let AdaptiveCpp decide (default)""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -835,6 +846,10 @@ class acpp_config:
       return self._is_flag_set("stdpar-unconditional-offload")
     except OptionNotSet:
       return False
+  
+  @property
+  def stdpar_prefetch_mode(self):
+    return self._retrieve_option("stdpar-prefetch-mode")
 
   @property
   def save_temps(self):
@@ -1621,6 +1636,10 @@ class compiler:
     self._is_stdpar = config.is_stdpar
     self._is_stdpar_system_usm = config.is_stdpar_system_usm
     self._is_stdpar_unconditional_offload = config.is_stdpar_unconditional_offload
+    try:
+      self._stdpar_prefetch_mode = config.stdpar_prefetch_mode
+    except OptionNotSet:
+      self._stdpar_prefetch_mode = None
 
     if "hip" in self._targets and "cuda" in self._targets:
         if not self._is_explicit_multipass:
@@ -1802,6 +1821,11 @@ class compiler:
       "-isystem", self._acpp_include_path,
       "-D__OPENSYCL__","-D__HIPSYCL__", "-D__ADAPTIVECPP__", "-D__ACPP__"
     ]
+
+    # MSVC only defines constants like M_PI if _USE_MATH_DEFINES is set
+    if sys.platform.startswith("win32"):
+      args += ["-D_USE_MATH_DEFINES"]
+
     if self._is_stdpar:
       stdpar_include_path = os.path.join(self._acpp_include_path,"hipSYCL","std","stdpar")
       args += [
@@ -1812,10 +1836,31 @@ class compiler:
         "-mllvm", "-hipsycl-stdpar",
         "-include", os.path.join(stdpar_include_path, "detail", "sycl_glue.hpp")
       ]
+      
       if self._is_stdpar_system_usm:
         args += ["-mllvm", "-hipsycl-stdpar-no-malloc-to-usm", "-D__HIPSYCL_STDPAR_ASSUME_SYSTEM_USM__"]
       if self._is_stdpar_unconditional_offload:
         args += ["-D__HIPSYCL_STDPAR_UNCONDITIONAL_OFFLOAD__"]
+      
+      if self._stdpar_prefetch_mode != None:
+        prefetch_mode_string = self._stdpar_prefetch_mode
+        prefetch_mode_id = 0
+
+        if prefetch_mode_string == "auto":
+          prefetch_mode_id = 0
+        elif prefetch_mode_string == "always":
+          prefetch_mode_id = 1
+        elif prefetch_mode_string == "never":
+          prefetch_mode_id = 2
+        elif prefetch_mode_string == "after-sync":
+          prefetch_mode_id = 3
+        elif prefetch_mode_string == "first":
+          prefetch_mode_id = 4
+        else:
+          raise RuntimeError("Invalid value for stdpar-prefetch-mode: "+prefetch_mode_string)
+        
+        args += ["-D__HIPSYCL_STDPAR_PREFETCH_MODE__="+str(prefetch_mode_id)]
+
     return args + self._common_compiler_args
 
   @property
@@ -1982,6 +2027,10 @@ if __name__ == '__main__':
         print_version(config)
         print_config(config)
         sys.exit(0)
+      elif arg.startswith("-fsycl"):
+        raise RuntimeError("The {} flag is a component from a different SYCL implementation. "
+              "This flag is neither neither needed nor meaningful for AdaptiveCpp. "
+              "Its use is unsupported.".format(arg))
 
     if not config.is_pure_linking_stage():
       if not config.has_optimization_flag():

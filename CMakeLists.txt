@@ -96,7 +96,7 @@ find_package(OpenCL QUIET)
 # In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
 if (NOT HIP_FOUND)
   message(STATUS "Could not find HIP cmake integration, falling back to finding hipcc")
-  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH})
+  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
   set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
   if(HIPCC_COMPILER MATCHES "-NOTFOUND")
     message(STATUS "Could not find ROCm installation by looking for hipcc. ROCm support unavailable.")
@@ -284,6 +284,11 @@ if(BUILD_CLANG_PLUGIN)
     set(WITH_REFLECTION_BUILTINS OFF)
   endif()
   message(STATUS "Using clang include directory: ${CLANG_INCLUDE_PATH}")
+  
+# Check if building on Windows and LLVM_LIBS is set, if not, use LLVM_AVAILABLE_LIBS 
+  if(WIN32 AND NOT LLVM_LIBS AND LLVM_AVAILABLE_LIBS)
+    llvm_map_components_to_libnames(LLVM_LIBS analysis core support passes)
+  endif()
 endif()
 
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")

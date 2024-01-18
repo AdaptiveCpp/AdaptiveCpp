@@ -54,10 +54,11 @@ protected:
 private:
   std::vector<std::string> KernelNames;
   std::string RocmDeviceLibsPath;
+  std::string RocmPath = ACPP_ROCM_PATH;
   std::string TargetDevice = "gfx900";
-  bool OnlyGenerateAssembly = false;
 
   bool hiprtcJitLink(const std::string& Bitcode, std::string& Output);
+  bool clangJitLink(llvm::Module& FlavoredModule, std::string& Output);
 };
 
 }

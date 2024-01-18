@@ -163,27 +163,25 @@ if(WITH_SSCP_COMPILER)
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
     target_compile_definitions(llvm-to-amdgpu PRIVATE
-      -DHIPSYCL_ROCM_PATH="${ROCM_PATH}")
+      -DACPP_ROCM_PATH="${ROCM_PATH}")
+    
+    find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
+    if(HIPCC_PATH)
+      target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_HIPCC_PATH="${HIPCC_PATH}")
+    endif()
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
 
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
+   
     if(HIPRTC_LIBRARY)
       message(STATUS "Found hipRTC: ${HIPRTC_LIBRARY}")
-      target_compile_definitions(llvm-to-amdgpu PRIVATE -DHIPSYCL_SSCP_AMDGPU_USE_HIPRTC)
+
       target_include_directories(llvm-to-amdgpu PRIVATE ${ROCM_PATH}/include)
       target_link_libraries(llvm-to-amdgpu PRIVATE ${HIPRTC_LIBRARY})
+      target_compile_definitions(llvm-to-amdgpu PRIVATE -DACPP_HIPRTC_LINK)
     endif()
 
-    if(HIPSYCL_SSCP_AMDGPU_USE_ROCM_CLANG)
-      find_program(ROCM_CLANG_PATH NAMES clang++ HINTS ${ROCM_PATH}/llvm/bin)
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_CLANG_PATH="${ROCM_CLANG_PATH}")
-    else()
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
-    endif()
-    if(HIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DHIPSYCL_SSCP_AMDGPU_FORCE_OCLC_ABI_VERSION)
-    endif()
   endif()
 endif()

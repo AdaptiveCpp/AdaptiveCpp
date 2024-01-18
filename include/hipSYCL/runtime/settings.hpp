@@ -70,6 +70,41 @@ std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, visibility_mask_t &out);
 std::istream &operator>>(std::istream &istr, default_selector_behavior& out);
 
+template <class T>
+bool try_get_environment_variable(const std::string& name, T& out) {
+  std::string env_name = name;
+
+  std::transform(env_name.begin(), env_name.end(), env_name.begin(), ::toupper);
+
+  std::string env;
+  if (const char *env_value =
+          std::getenv(("ACPP_"+env_name).c_str())) {
+    env_name = "ACPP_"+env_name;
+    env = std::string{env_value};
+  } else if (const char *env_value =
+          std::getenv(("HIPSYCL_"+env_name).c_str())) {
+    env_name = "HIPSYCL_"+env_name;
+    env = std::string{env_value};
+  }
+  
+  if (!env.empty()) {
+    
+    T val;
+    std::stringstream sstr{std::string{env}};
+    sstr >> val;
+
+    if (sstr.fail() || sstr.bad()) {
+      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
+                    "variable: "
+                << env_name << std::endl;
+      return false;
+    }
+    out = val;
+    return true;
+  }
+  return false;
+}
+
 enum class setting {
   debug_level,
   scheduler_type,
@@ -196,38 +231,11 @@ public:
 private:
   template <setting S, class T>
   T get_environment_variable_or_default(const T &default_value) {
-    std::string env;
-
-    if (const char *env_value =
-            std::getenv(get_environment_variable_name<S>("ACPP_").c_str())) {
-      env = std::string{env_value};
-    } else if (const char *env_value =
-            std::getenv(get_environment_variable_name<S>("HIPSYCL_").c_str())) {
-      env = std::string{env_value};
-    }
-    
-    if (!env.empty()) {
-      
-      T val;
-      std::stringstream sstr{std::string{env}};
-      sstr >> val;
-
-      if (sstr.fail() || sstr.bad()) {
-        std::cerr << "AdaptiveCpp prelaunch: Could not parse value of environment "
-                     "variable: "
-                  << get_environment_variable_name<S>("ACPP_") << std::endl;
-        return default_value;
-      }
-      return val;
+    T out;
+    if(try_get_environment_variable(setting_trait<S>::str, out)) {
+      return out;
     }
     return default_value;
-  }
-
-  template <setting S>
-  std::string get_environment_variable_name(const std::string &prefix) {
-    std::string id = setting_trait<S>::str;
-    std::transform(id.begin(), id.end(), id.begin(), ::toupper);
-    return prefix+id;
   }
 
   int _debug_level;

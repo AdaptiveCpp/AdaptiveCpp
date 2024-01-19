@@ -189,8 +189,10 @@ public:
       return _ptr.get();
     else {
       std::lock_guard<std::mutex> lock{_mutex};
-      _ptr = _factory();
-      _is_initialized.store(true, std::memory_order_release);
+      if(!_is_initialized.load(std::memory_order_acquire)) {
+        _ptr = _factory();
+        _is_initialized.store(true, std::memory_order_release);
+      }
       return _ptr.get();
     }
   }

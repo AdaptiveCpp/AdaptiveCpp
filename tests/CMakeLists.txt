@@ -1,5 +1,5 @@
-project(adaptivecpp-tests)
 cmake_minimum_required(VERSION 3.12)
+project(adaptivecpp-tests)
 
 set(Boost_USE_STATIC_LIBS off)
 set(BUILD_SHARED_LIBS on)

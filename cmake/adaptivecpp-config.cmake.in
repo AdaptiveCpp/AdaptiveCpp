@@ -24,6 +24,8 @@ if(NOT ACPP_TARGETS)
 endif()
 if(ACPP_TARGETS)
   set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS} --acpp-targets=\"${ACPP_TARGETS}\"")
+else()
+  message(FATAL_ERROR "ACPP targets were not specified")
 endif()
 
 set(ACPP_CLANG "" CACHE STRING "Clang compiler executable used for compilation.")

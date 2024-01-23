@@ -166,28 +166,29 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
 
 class config_file:
   # Scans the provided directory for json files
-  def __init__(self, config_file_dir):
+  def __init__(self, config_file_dirs):
     
     self._data = {}
     self._locations = {}
-    self._config_dir = config_file_dir
+    self._config_dirs = config_file_dirs
 
-    files = os.listdir(config_file_dir)
-    for f in files:
-      if os.path.basename(f).endswith(".json"):
-        with open(f, 'r') as config_file:
-          data = json.load(config_file)
-          for d in data:
-            self._data[d] = data[d]
-          self._is_loaded = True
+    for current_dir in config_file_dirs:
+      files = os.listdir(current_dir)
+      for f in files:
+        if os.path.basename(f).endswith(".json"):
+          with open(f, 'r') as config_file:
+            data = json.load(config_file)
+            for d in data:
+              self._data[d] = data[d]
+            self._is_loaded = True
 
   @property
   def is_loaded(self):
     return self._is_loaded
 
   @property
-  def config_dir(self):
-    return self._config_dir
+  def config_dirs(self):
+    return self._config_dirs
 
   @property
   def keys(self):
@@ -238,19 +239,6 @@ class option:
 
 class acpp_config:
   def __init__(self, args):
-    config_file_path = os.path.abspath(
-      os.path.join(self.acpp_installation_path,
-                  "etc/AdaptiveCpp"))
-    
-    self._config_file = None
-    # First check silently if we can open the default config path.
-    # If that fails, we try later on after argument parsing if a
-    # custom location for the config file has been supplied.
-    # (This happens when compiling AdaptiveCpp)
-    if os.path.exists(config_file_path):
-      self._config_file = config_file(config_file_path)
-      
-    self._args = args
 
     # Describes different representations of options:
     # 1.) the corresponding command line argument
@@ -388,6 +376,9 @@ class acpp_config:
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
   algorithms will be offloaded unconditionally.""")
     }
+
+
+    self._args = args
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._acpp_args = []
     self._acpp_environment_args = {}
@@ -410,23 +401,23 @@ class acpp_config:
       elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
         self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
     
-    config_file_dir = None
+    config_file_directories = []
+
+    install_config_dir = os.path.abspath(
+      os.path.join(self.acpp_installation_path,
+                  "etc/AdaptiveCpp"))
+    
+    # TODO try using some more portable path here
+    global_config_dir = '/etc/AdaptiveCpp'
+    
     if self._is_option_set_to_non_default_value("config-file-dir"):
-      config_file_dir = config_file(self._retrieve_option("config-file-dir"))
-      
-    if config_file_dir == None:
-      # If the config dir is still None at this point, probably no alternative
-      # config dir was supplied and the default one doesn't exist.
-      # As a last resort, we check if there is a global dir file
-      # TODO try using some more portable path here
-      global_config_dir = '/etc/AdaptiveCpp'
-      if os.path.exists(global_config_dir):
-        self._config_file = config_file(global_config_dir)
-      else:
-        # The main purpose of opening the default config file dir explicitly 
-        # here is that it will print a warning for the user
-        # if it doesn't exist and set the config file content to {}.
-        self._config_file = config_file(config_file_path)
+      config_file_directories.append(self._retrieve_option("config-file-dir"))
+    elif os.path.exists(install_config_dir):
+      config_file_directories.append(install_config_dir)
+    elif os.path.exists(global_config_dir):
+      config_file_directories.append(global_config_dir)
+    self._config_file = config_file(config_file_directories)
+
     
     self._common_compiler_args = self._get_std_compiler_args()
 
@@ -465,7 +456,7 @@ class acpp_config:
       opt = self._options[option_name]
       print(opt.commandline + "=<value>")
       print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
-      print("  [default value provided by field '{}' in JSON files in {}.]".format(opt.configfile, self._config_file.config_dir))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(opt.configfile, self._config_file.config_dirs))
       try:
         print("  [current value: {}]".format(self._retrieve_option(option_name)))
       except OptionNotSet:
@@ -480,7 +471,7 @@ class acpp_config:
       print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
         flag.environment
       ))
-      print("  [default value provided by field '{}' in JSON files in {}.]".format(flag.configfile, self._config_file.config_dir))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(flag.configfile, self._config_file.config_dirs))
       try:
         print("  [current value: {}]".format(self._is_flag_set(flag_name)))
       except OptionNotSet:
@@ -2047,6 +2038,5 @@ if __name__ == '__main__':
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
-    raise e
     print("acpp fatal error: "+str(e))
     sys.exit(-1)

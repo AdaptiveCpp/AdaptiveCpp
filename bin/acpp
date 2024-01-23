@@ -175,8 +175,8 @@ class config_file:
     for current_dir in config_file_dirs:
       files = os.listdir(current_dir)
       for f in files:
-        if os.path.basename(f).endswith(".json"):
-          with open(f, 'r') as config_file:
+        if f.lower().endswith(".json"):
+          with open(os.path.join(current_dir, f), 'r') as config_file:
             data = json.load(config_file)
             for d in data:
               self._data[d] = data[d]

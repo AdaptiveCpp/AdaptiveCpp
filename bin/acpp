@@ -165,24 +165,29 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
       f.write(str(self))
 
 class config_file:
-  def __init__(self, filepath):
-    self._location = filepath
-    try:
-      with open(filepath, 'r') as config_file:
-        self._data = json.load(config_file)
-        self._is_loaded = True
-    except:
-      print("Could not open config",filepath)
-      self._data = {}
-      self._is_loaded = False
+  # Scans the provided directory for json files
+  def __init__(self, config_file_dir):
+    
+    self._data = {}
+    self._locations = {}
+    self._config_dir = config_file_dir
+
+    files = os.listdir(config_file_dir)
+    for f in files:
+      if os.path.basename(f).endswith(".json"):
+        with open(f, 'r') as config_file:
+          data = json.load(config_file)
+          for d in data:
+            self._data[d] = data[d]
+          self._is_loaded = True
 
   @property
   def is_loaded(self):
     return self._is_loaded
 
   @property
-  def location(self):
-    return self._location
+  def config_dir(self):
+    return self._config_dir
 
   @property
   def keys(self):
@@ -199,7 +204,7 @@ class config_file:
 
   def get(self, key):
     if not self.contains_key(key):
-      raise RuntimeError("Accessed missing key in config file: "+key)
+      raise RuntimeError("Accessed missing key in config files: "+key)
 
     return self._data[key]
 
@@ -235,13 +240,13 @@ class acpp_config:
   def __init__(self, args):
     config_file_path = os.path.abspath(
       os.path.join(self.acpp_installation_path,
-                  "etc/hipSYCL/syclcc.json"))
+                  "etc/AdaptiveCpp"))
     
     self._config_file = None
-    # First check silently if we can open the default config file.
+    # First check silently if we can open the default config path.
     # If that fails, we try later on after argument parsing if a
     # custom location for the config file has been supplied.
-    # (This happens when compiling hipSYCL)
+    # (This happens when compiling AdaptiveCpp)
     if os.path.exists(config_file_path):
       self._config_file = config_file(config_file_path)
       
@@ -308,8 +313,8 @@ class acpp_config:
       'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
 """ The arguments passed to the compiler to compile for the CUDA backend"""),
 
-      'config-file' : option("--acpp-config-file", "ACPP_CONFIG_FILE", "default-config-file",
-"""  Select an alternative path for the config file containing the default hipSYCL settings.
+      'config-file-dir' : option("--acpp-config-file-dir", "ACPP_CONFIG_FILE_DIR", "default-config-file-dir",
+"""  Select an alternative path for the config files containing the default AdaptiveCpp settings.
     It is normally not necessary for the user to change this setting. """),
     
       'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
@@ -404,20 +409,21 @@ class acpp_config:
         self._acpp_environment_args[envvar] = os.environ[envvar]
       elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
         self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
-        
-    if self._is_option_set_to_non_default_value("config-file"):
-      self._config_file = config_file(self._retrieve_option("config-file"))
+    
+    config_file_dir = None
+    if self._is_option_set_to_non_default_value("config-file-dir"):
+      config_file_dir = config_file(self._retrieve_option("config-file-dir"))
       
-    if self._config_file == None:
-      # If the config file is still None at this point, probably no alternative
-      # config file was supplied and the default one doesn't exist.
-      # As a last resort, we check if there is a global config file
+    if config_file_dir == None:
+      # If the config dir is still None at this point, probably no alternative
+      # config dir was supplied and the default one doesn't exist.
+      # As a last resort, we check if there is a global dir file
       # TODO try using some more portable path here
-      global_config_file = '/etc/hipSYCL/syclcc.json'
-      if os.path.exists(global_config_file):
-        self._config_file = config_file(global_config_file)
+      global_config_dir = '/etc/AdaptiveCpp'
+      if os.path.exists(global_config_dir):
+        self._config_file = config_file(global_config_dir)
       else:
-        # The main purpose of opening the default config file explicitly 
+        # The main purpose of opening the default config file dir explicitly 
         # here is that it will print a warning for the user
         # if it doesn't exist and set the config file content to {}.
         self._config_file = config_file(config_file_path)
@@ -459,7 +465,7 @@ class acpp_config:
       opt = self._options[option_name]
       print(opt.commandline + "=<value>")
       print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
-      print("  [default value provided by field '{}' in {}.]".format(opt.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files in {}.]".format(opt.configfile, self._config_file.config_dir))
       try:
         print("  [current value: {}]".format(self._retrieve_option(option_name)))
       except OptionNotSet:
@@ -474,7 +480,7 @@ class acpp_config:
       print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
         flag.environment
       ))
-      print("  [default value provided by field '{}' in {}.]".format(flag.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files in {}.]".format(flag.configfile, self._config_file.config_dir))
       try:
         print("  [current value: {}]".format(self._is_flag_set(flag_name)))
       except OptionNotSet:
@@ -2041,5 +2047,6 @@ if __name__ == '__main__':
     c = compiler(config)
     sys.exit(c.run())
   except Exception as e:
+    raise e
     print("acpp fatal error: "+str(e))
     sys.exit(-1)

@@ -164,7 +164,7 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
     with open(filename, 'w') as f:
       f.write(str(self))
 
-class config_file:
+class config_db:
   # Scans the provided directory for json files
   def __init__(self, config_file_dirs):
     
@@ -215,10 +215,10 @@ class config_file:
     return default_value
 
 class option:
-  def __init__(self, commandline, environment, configfile, description):
+  def __init__(self, commandline, environment, config_db, description):
     self._commandline = commandline
     self._environment = environment
-    self._configfile = configfile
+    self._config_db = config_db
     self._description = description
 
   @property
@@ -230,8 +230,8 @@ class option:
     return self._environment
 
   @property
-  def configfile(self):
-    return self._configfile
+  def config_db(self):
+    return self._config_db
 
   @property
   def description(self):
@@ -416,7 +416,7 @@ class acpp_config:
       config_file_directories.append(install_config_dir)
     elif os.path.exists(global_config_dir):
       config_file_directories.append(global_config_dir)
-    self._config_file = config_file(config_file_directories)
+    self._config_db = config_db(config_file_directories)
 
     
     self._common_compiler_args = self._get_std_compiler_args()
@@ -456,7 +456,7 @@ class acpp_config:
       opt = self._options[option_name]
       print(opt.commandline + "=<value>")
       print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
-      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(opt.configfile, self._config_file.config_dirs))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(opt.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._retrieve_option(option_name)))
       except OptionNotSet:
@@ -471,7 +471,7 @@ class acpp_config:
       print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
         flag.environment
       ))
-      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(flag.configfile, self._config_file.config_dirs))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(flag.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._is_flag_set(flag_name)))
       except OptionNotSet:
@@ -500,8 +500,8 @@ class acpp_config:
       env_value = self._acpp_environment_args[flag.environment]
       return self._interpret_flag(env_value)
 
-    if self._config_file.contains_key(flag.configfile):
-      return self._interpret_flag(self._config_file.get(flag.configfile))
+    if self._config_db.contains_key(flag.config_db):
+      return self._interpret_flag(self._config_db.get(flag.config_db))
 
     raise OptionNotSet(
       "Could not infer value of required flag from command line argument {}, "
@@ -581,9 +581,9 @@ class acpp_config:
     if opt.environment in self._acpp_environment_args:
       return self._acpp_environment_args[opt.environment]
 
-    # Try config file
-    if self._config_file.contains_key(opt.configfile):
-      return self._config_file.get(opt.configfile)
+    # Try config db
+    if self._config_db.contains_key(opt.config_db):
+      return self._config_db.get(opt.config_db)
   
     if not allow_unset:
       raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
@@ -640,29 +640,29 @@ class acpp_config:
   @property
   def version(self):
   
-    if not self._config_file.contains_key("version-major"):
+    if not self._config_db.contains_key("version-major"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-minor"):
+    if not self._config_db.contains_key("version-minor"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-patch"):
+    if not self._config_db.contains_key("version-patch"):
       raise OptionNotSet("Could not retrieve major version from config file")
     
     # version suffix may be empty if git queries fail
     suffix = ""
-    if self._config_file.contains_key("version-suffix"):
-      suffix = self._config_file.get("version-suffix")
+    if self._config_db.contains_key("version-suffix"):
+      suffix = self._config_db.get("version-suffix")
 
     return (
-      self._config_file.get("version-major"), 
-      self._config_file.get("version-minor"),
-      self._config_file.get("version-patch"),
+      self._config_db.get("version-major"), 
+      self._config_db.get("version-minor"),
+      self._config_db.get("version-patch"),
       suffix)
 
   @property
   def plugin_llvm_version(self):
-    if not self._config_file.contains_key("plugin-llvm-version-major"):
+    if not self._config_db.contains_key("plugin-llvm-version-major"):
       raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
-    return int(self._config_file.get("plugin-llvm-version-major"))
+    return int(self._config_db.get("plugin-llvm-version-major"))
 
   @property
   def has_plugin(self):
@@ -670,9 +670,9 @@ class acpp_config:
 
   @property
   def has_plugin_cpu_acceleration(self):
-    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+    if not self._config_db.contains_key("plugin-with-cpu-acceleration"):
       raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
-    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
+    return self._interpret_flag(self._config_db.get("plugin-with-cpu-acceleration"))
 
   @property
   def runtime_backends(self):
@@ -892,8 +892,8 @@ class acpp_config:
     return source_files
 
   @property
-  def configfile(self):
-    return self._config_file
+  def config_db(self):
+    return self._config_db
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0
@@ -1968,12 +1968,12 @@ class compiler:
       return self._run(temp_dir)
 
 def print_config(config):
-  config_file = config.configfile
+  config_db = config.config_db
   print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
-  for k in config_file.keys:
+  for k in config_db.keys:
     v = "(unconfigured)"
     try:
-      v = config_file.get(k)
+      v = config_db.get(k)
     except Exception as e:
       pass
     print("    {}: {}".format(k, v))

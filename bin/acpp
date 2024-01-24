@@ -2010,6 +2010,12 @@ if __name__ == '__main__':
     print_error("acpp requires python 3.")
     sys.exit(-1)
   
+  filename = os.path.basename(os.path.realpath(__file__))
+  if os.path.basename(os.path.realpath(__file__)) == "syclcc":
+    print("acpp warning: syclcc is deprecated; please use acpp instead.")
+  if os.path.basename(os.path.realpath(__file__)) == "syclcc-clang":
+    print("acpp warning: syclcc-clang is deprecated; please use acpp instead.")
+
   args = sys.argv[1:]
 
   try:

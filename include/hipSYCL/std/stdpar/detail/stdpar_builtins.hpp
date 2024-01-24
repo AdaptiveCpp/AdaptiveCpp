@@ -31,11 +31,7 @@
 #include "sycl_glue.hpp"
 #include "stdpar_defs.hpp"
 
-// Compiler does not currently support handling invoke instructions for
-// these calls, so mark them as noexcept (which should be fine) such
-// that call instructions are generated instead.
-HIPSYCL_STDPAR_NOINLINE
-extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
+inline void __hipsycl_stdpar_barrier() noexcept {
   auto& rt = hipsycl::stdpar::detail::stdpar_tls_runtime::get();
   int num_ops = rt.get_num_outstanding_operations();
   if(num_ops > 0) {
@@ -44,6 +40,17 @@ extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
     rt.get_queue().wait();
     rt.finalize_offloading_batch();
   }
+}
+
+// Compiler does not currently support handling invoke instructions for
+// these calls, so mark them as noexcept (which should be fine) such
+// that call instructions are generated instead.
+//
+// The compiler detects calls to this function and tries to postpone
+// its calls within the control flow for as long as possible.
+HIPSYCL_STDPAR_NOINLINE
+extern "C" void __hipsycl_stdpar_optional_barrier() noexcept {
+  __hipsycl_stdpar_barrier();
 }
 
 

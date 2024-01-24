@@ -43,6 +43,7 @@ class backend_executor;
 class backend_allocator;
 class backend_hardware_manager;
 class hw_model;
+class kernel_cache;
 
 class backend
 {
@@ -102,6 +103,7 @@ private:
   backend_list_type _backends;
 
   std::unique_ptr<hw_model> _hw_model;
+  std::shared_ptr<kernel_cache> _kernel_cache;
 };
 
 }

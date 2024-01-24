@@ -28,6 +28,7 @@
 #include <level_zero/ze_api.h>
 
 
+#include "hipSYCL/runtime/multi_queue_executor.hpp"
 #include "hipSYCL/runtime/ze/ze_backend.hpp"
 #include "hipSYCL/runtime/ze/ze_allocator.hpp"
 #include "hipSYCL/runtime/ze/ze_hardware_manager.hpp"
@@ -50,6 +51,19 @@ const char *hipsycl_backend_plugin_get_name() {
 namespace hipsycl {
 namespace rt {
 
+
+namespace {
+
+std::unique_ptr<multi_queue_executor>
+create_multi_queue_executor(ze_backend *b, ze_hardware_manager *mgr) {
+  return std::make_unique<multi_queue_executor>(*b, [b, mgr](device_id dev) {
+    return std::make_unique<ze_queue>(mgr,
+                                      static_cast<std::size_t>(dev.get_id()));
+  });
+}
+}
+
+
 ze_backend::ze_backend() {
   ze_result_t err = zeInit(0);
 
@@ -66,11 +80,11 @@ ze_backend::ze_backend() {
         _hardware_manager.get()});
   }
 
-  _executor = std::make_unique<multi_queue_executor>(
-      *this, [this](device_id dev) {
-        return std::make_unique<ze_queue>(this->_hardware_manager.get(),
-                                          dev.get_id());
-      });
+  _executor =
+      std::make_unique<lazily_constructed_executor<multi_queue_executor>>(
+          [this, hw_mgr = _hardware_manager.get()]() {
+            return create_multi_queue_executor(this, hw_mgr);
+          });
 }
 
 api_platform ze_backend::get_api_platform() const {
@@ -90,7 +104,7 @@ backend_hardware_manager* ze_backend::get_hardware_manager() const {
 }
 
 backend_executor* ze_backend::get_executor(device_id dev) const {
-  return _executor.get();
+  return _executor->get();
 }
 
 backend_allocator *ze_backend::get_allocator(device_id dev) const {

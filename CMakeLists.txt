@@ -454,10 +454,6 @@ set(ACPP_CORE_CONFIG_FILE "{
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
   \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
   \"default-omp-cxx-flags\" : \"${OMP_CXX_FLAGS}\",
-  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\",
   \"default-is-explicit-multipass\" : \"false\",
   \"default-save-temps\" : \"false\"
 }

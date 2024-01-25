@@ -164,25 +164,31 @@ HIPSYCL_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __hipsycl_hcf_object_{hcf_ob
     with open(filename, 'w') as f:
       f.write(str(self))
 
-class config_file:
-  def __init__(self, filepath):
-    self._location = filepath
-    try:
-      with open(filepath, 'r') as config_file:
-        self._data = json.load(config_file)
-        self._is_loaded = True
-    except:
-      print("Could not open config",filepath)
-      self._data = {}
-      self._is_loaded = False
+class config_db:
+  # Scans the provided directory for json files
+  def __init__(self, config_file_dirs):
+    
+    self._data = {}
+    self._locations = {}
+    self._config_dirs = config_file_dirs
+
+    for current_dir in config_file_dirs:
+      files = os.listdir(current_dir)
+      for f in files:
+        if f.lower().endswith(".json"):
+          with open(os.path.join(current_dir, f), 'r') as config_file:
+            data = json.load(config_file)
+            for d in data:
+              self._data[d] = data[d]
+            self._is_loaded = True
 
   @property
   def is_loaded(self):
     return self._is_loaded
 
   @property
-  def location(self):
-    return self._location
+  def config_dirs(self):
+    return self._config_dirs
 
   @property
   def keys(self):
@@ -199,7 +205,7 @@ class config_file:
 
   def get(self, key):
     if not self.contains_key(key):
-      raise RuntimeError("Accessed missing key in config file: "+key)
+      raise RuntimeError("Accessed missing key in config files: "+key)
 
     return self._data[key]
 
@@ -209,10 +215,10 @@ class config_file:
     return default_value
 
 class option:
-  def __init__(self, commandline, environment, configfile, description):
+  def __init__(self, commandline, environment, config_db, description):
     self._commandline = commandline
     self._environment = environment
-    self._configfile = configfile
+    self._config_db = config_db
     self._description = description
 
   @property
@@ -224,8 +230,8 @@ class option:
     return self._environment
 
   @property
-  def configfile(self):
-    return self._configfile
+  def config_db(self):
+    return self._config_db
 
   @property
   def description(self):
@@ -233,19 +239,6 @@ class option:
 
 class acpp_config:
   def __init__(self, args):
-    config_file_path = os.path.abspath(
-      os.path.join(self.acpp_installation_path,
-                  "etc/hipSYCL/syclcc.json"))
-    
-    self._config_file = None
-    # First check silently if we can open the default config file.
-    # If that fails, we try later on after argument parsing if a
-    # custom location for the config file has been supplied.
-    # (This happens when compiling hipSYCL)
-    if os.path.exists(config_file_path):
-      self._config_file = config_file(config_file_path)
-      
-    self._args = args
 
     # Describes different representations of options:
     # 1.) the corresponding command line argument
@@ -308,8 +301,8 @@ class acpp_config:
       'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
 """ The arguments passed to the compiler to compile for the CUDA backend"""),
 
-      'config-file' : option("--acpp-config-file", "ACPP_CONFIG_FILE", "default-config-file",
-"""  Select an alternative path for the config file containing the default hipSYCL settings.
+      'config-file-dir' : option("--acpp-config-file-dir", "ACPP_CONFIG_FILE_DIR", "default-config-file-dir",
+"""  Select an alternative path for the config files containing the default AdaptiveCpp settings.
     It is normally not necessary for the user to change this setting. """),
     
       'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
@@ -383,6 +376,9 @@ class acpp_config:
   This particularly affects small problem sizes. If this flag is set, supported parallel STL
   algorithms will be offloaded unconditionally.""")
     }
+
+
+    self._args = args
     self._insufficient_cpp_standards = ['98', '03', '11', '14', '0x']
     self._acpp_args = []
     self._acpp_environment_args = {}
@@ -404,23 +400,24 @@ class acpp_config:
         self._acpp_environment_args[envvar] = os.environ[envvar]
       elif self._is_acpp_envvar(self._upgrade_legacy_environ_var(envvar)):
         self._acpp_environment_args[self._upgrade_legacy_environ_var(envvar)] = os.environ[envvar]
-        
-    if self._is_option_set_to_non_default_value("config-file"):
-      self._config_file = config_file(self._retrieve_option("config-file"))
-      
-    if self._config_file == None:
-      # If the config file is still None at this point, probably no alternative
-      # config file was supplied and the default one doesn't exist.
-      # As a last resort, we check if there is a global config file
-      # TODO try using some more portable path here
-      global_config_file = '/etc/hipSYCL/syclcc.json'
-      if os.path.exists(global_config_file):
-        self._config_file = config_file(global_config_file)
-      else:
-        # The main purpose of opening the default config file explicitly 
-        # here is that it will print a warning for the user
-        # if it doesn't exist and set the config file content to {}.
-        self._config_file = config_file(config_file_path)
+    
+    config_file_directories = []
+
+    install_config_dir = os.path.abspath(
+      os.path.join(self.acpp_installation_path,
+                  "etc/AdaptiveCpp"))
+    
+    # TODO try using some more portable path here
+    global_config_dir = '/etc/AdaptiveCpp'
+    
+    if self._is_option_set_to_non_default_value("config-file-dir"):
+      config_file_directories.append(self._retrieve_option("config-file-dir"))
+    elif os.path.exists(install_config_dir):
+      config_file_directories.append(install_config_dir)
+    elif os.path.exists(global_config_dir):
+      config_file_directories.append(global_config_dir)
+    self._config_db = config_db(config_file_directories)
+
     
     self._common_compiler_args = self._get_std_compiler_args()
 
@@ -459,7 +456,7 @@ class acpp_config:
       opt = self._options[option_name]
       print(opt.commandline + "=<value>")
       print("  [can also be set with environment variable: {}=<value>]".format(opt.environment))
-      print("  [default value provided by field '{}' in {}.]".format(opt.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(opt.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._retrieve_option(option_name)))
       except OptionNotSet:
@@ -474,7 +471,7 @@ class acpp_config:
       print("  [can also be set by setting environment variable {} to any value other than false|off|0 ]".format(
         flag.environment
       ))
-      print("  [default value provided by field '{}' in {}.]".format(flag.configfile, self._config_file.location))
+      print("  [default value provided by field '{}' in JSON files from directories: {}.]".format(flag.config_db, self._config_db.config_dirs))
       try:
         print("  [current value: {}]".format(self._is_flag_set(flag_name)))
       except OptionNotSet:
@@ -503,8 +500,8 @@ class acpp_config:
       env_value = self._acpp_environment_args[flag.environment]
       return self._interpret_flag(env_value)
 
-    if self._config_file.contains_key(flag.configfile):
-      return self._interpret_flag(self._config_file.get(flag.configfile))
+    if self._config_db.contains_key(flag.config_db):
+      return self._interpret_flag(self._config_db.get(flag.config_db))
 
     raise OptionNotSet(
       "Could not infer value of required flag from command line argument {}, "
@@ -584,9 +581,9 @@ class acpp_config:
     if opt.environment in self._acpp_environment_args:
       return self._acpp_environment_args[opt.environment]
 
-    # Try config file
-    if self._config_file.contains_key(opt.configfile):
-      return self._config_file.get(opt.configfile)
+    # Try config db
+    if self._config_db.contains_key(opt.config_db):
+      return self._config_db.get(opt.config_db)
   
     if not allow_unset:
       raise OptionNotSet("Required command line argument {} or environment variable {} not specified".format(
@@ -643,29 +640,29 @@ class acpp_config:
   @property
   def version(self):
   
-    if not self._config_file.contains_key("version-major"):
+    if not self._config_db.contains_key("version-major"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-minor"):
+    if not self._config_db.contains_key("version-minor"):
       raise OptionNotSet("Could not retrieve major version from config file")
-    if not self._config_file.contains_key("version-patch"):
+    if not self._config_db.contains_key("version-patch"):
       raise OptionNotSet("Could not retrieve major version from config file")
     
     # version suffix may be empty if git queries fail
     suffix = ""
-    if self._config_file.contains_key("version-suffix"):
-      suffix = self._config_file.get("version-suffix")
+    if self._config_db.contains_key("version-suffix"):
+      suffix = self._config_db.get("version-suffix")
 
     return (
-      self._config_file.get("version-major"), 
-      self._config_file.get("version-minor"),
-      self._config_file.get("version-patch"),
+      self._config_db.get("version-major"), 
+      self._config_db.get("version-minor"),
+      self._config_db.get("version-patch"),
       suffix)
 
   @property
   def plugin_llvm_version(self):
-    if not self._config_file.contains_key("plugin-llvm-version-major"):
+    if not self._config_db.contains_key("plugin-llvm-version-major"):
       raise OptionNotSet("Could not retrieve plugin LLVM version from config file")
-    return int(self._config_file.get("plugin-llvm-version-major"))
+    return int(self._config_db.get("plugin-llvm-version-major"))
 
   @property
   def has_plugin(self):
@@ -673,9 +670,9 @@ class acpp_config:
 
   @property
   def has_plugin_cpu_acceleration(self):
-    if not self._config_file.contains_key("plugin-with-cpu-acceleration"):
+    if not self._config_db.contains_key("plugin-with-cpu-acceleration"):
       raise OptionNotSet("Could not retrieve plugin cpu acceleration capability from config file")
-    return self._interpret_flag(self._config_file.get("plugin-with-cpu-acceleration"))
+    return self._interpret_flag(self._config_db.get("plugin-with-cpu-acceleration"))
 
   @property
   def runtime_backends(self):
@@ -895,8 +892,8 @@ class acpp_config:
     return source_files
 
   @property
-  def configfile(self):
-    return self._config_file
+  def config_db(self):
+    return self._config_db
 
   def is_pure_linking_stage(self):
     return len(self.source_file_arguments) == 0
@@ -1971,12 +1968,12 @@ class compiler:
       return self._run(temp_dir)
 
 def print_config(config):
-  config_file = config.configfile
+  config_db = config.config_db
   print("\n\nFull configuration [can be overriden using environment variables or command line arguments]:")
-  for k in config_file.keys:
+  for k in config_db.keys:
     v = "(unconfigured)"
     try:
-      v = config_file.get(k)
+      v = config_db.get(k)
     except Exception as e:
       pass
     print("    {}: {}".format(k, v))

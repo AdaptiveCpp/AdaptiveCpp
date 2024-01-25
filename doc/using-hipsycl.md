@@ -66,7 +66,7 @@ See [here](stdpar.md) for details on how to offload C++ standard STL algorithms 
 After installing AdaptiveCpp, it can be used as a standalone tool to manually build source files similarly to regular compilers, or it can be integrated in build systems other than CMake.
 For example, compiling a SYCL source `example.cpp` to an executable, while targeting CPU and CUDA backends, is possible using `acpp -o example example.cpp -O3 --acpp-targets="omp;cuda:sm_61"`.
 
-The full excerpt from `acpp --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in `/acpp/install/path/etc/hipSYCL/syclcc.json`.
+The full excerpt from `acpp --help` follows below. Note the options can also be set via environment variables or corresponding CMake options. Default values can be set in the `/acpp/install/path/etc/AdaptiveCpp/*.json` files.
 ```
 acpp [hipSYCL compilation driver], Copyright (C) 2018-2022 Aksel Alpay and the hipSYCL project
   hipSYCL version: 0.9.2

@@ -234,7 +234,9 @@ public:
   sscp_kernel_launcher() {}
   virtual ~sscp_kernel_launcher(){}
 
-  virtual void set_params(void*) override {}
+  virtual void set_params(void* params) override {
+    _params = params;
+  }
 
   template <class KernelNameTraits, rt::kernel_type type, int Dim, class Kernel,
             typename... Reductions>
@@ -298,7 +300,11 @@ public:
       } else if constexpr( type == rt::kernel_type::scoped_parallel_for) {
         
       } else if constexpr (type == rt::kernel_type::custom) {
-        // TODO
+        assert(_params);
+        sycl::interop_handle handle{node->get_assigned_device(),
+                                    _params};
+
+        k(handle);
       }
       else {
         assert(false && "Unsupported kernel type");
@@ -427,6 +433,7 @@ private:
   std::function<void (rt::dag_node*)> _invoker;
   rt::kernel_type _type;
   const kernel_configuration* _configuration = nullptr;
+  void* _params = nullptr;
 };
 
 

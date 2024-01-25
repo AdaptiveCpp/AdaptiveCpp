@@ -48,11 +48,22 @@ const char *hipsycl_backend_plugin_get_name() {
 namespace hipsycl {
 namespace rt {
 
+
+namespace {
+
+std::unique_ptr<multi_queue_executor>
+create_multi_queue_executor(cuda_backend *b) {
+  return std::make_unique<multi_queue_executor>(
+      *b, [b](device_id dev) { return std::make_unique<cuda_queue>(b, dev); });
+}
+
+}
+
 cuda_backend::cuda_backend()
     : _hw_manager{cuda_backend::get_hardware_platform()},
-      _executor{*this, [this](device_id dev) {
-                  return std::make_unique<cuda_queue>(this, dev);
-                }} {}
+      _executor{[this]() {
+        return create_multi_queue_executor(this);
+      }} {}
 
 api_platform cuda_backend::get_api_platform() const {
   return api_platform::cuda;
@@ -78,7 +89,7 @@ backend_executor *cuda_backend::get_executor(device_id dev) const {
     return nullptr;
   }
 
-  return &_executor;
+  return _executor.get();
 }
 
 backend_allocator* cuda_backend::get_allocator(device_id dev) const {

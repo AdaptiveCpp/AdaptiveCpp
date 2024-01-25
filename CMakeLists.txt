@@ -297,14 +297,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(src)
 
-set(SYCLCC_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}/syclcc.json")
-set(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
-  "Whether to install the syclcc configuration file into a global directory (typically, /etc/hipSYCL). This is generally not recommended.")
+set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
+set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
+  "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
 
-if(SYCLCC_CONFIG_FILE_GLOBAL_INSTALLATION)
-  set(SYCLCC_CONFIG_FILE_INSTALL_DIR /etc/hipSYCL/)
+if(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION)
+  set(ACPP_CONFIG_FILE_INSTALL_DIR /etc/AdaptiveCpp/)
 else()
-  set(SYCLCC_CONFIG_FILE_INSTALL_DIR etc/hipSYCL)
+  set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 endif()
 
 if(Boost_FIBER_LIBRARY_DEBUG)
@@ -470,7 +470,8 @@ endif()
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
-set(SYCLCC_CONFIG_FILE "{
+
+set(ACPP_CORE_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
   \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
   \"version-patch\" : \"${ACPP_VERSION_PATCH}\",
@@ -478,8 +479,6 @@ set(SYCLCC_CONFIG_FILE "{
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"default-clang\"     : \"${CLANG_EXECUTABLE_PATH}\",
-  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
   \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
   \"default-rocm-path\" : \"${ROCM_PATH}\",
@@ -491,17 +490,35 @@ set(SYCLCC_CONFIG_FILE "{
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
   \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
   \"default-omp-cxx-flags\" : \"${OMP_CXX_FLAGS}\",
-  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\",
   \"default-is-explicit-multipass\" : \"false\",
   \"default-save-temps\" : \"false\"
 }
 ")
 
-file(WRITE ${SYCLCC_CONFIG_FILE_PATH} ${SYCLCC_CONFIG_FILE})
 
+set(ACPP_CUDA_CONFIG_FILE "{
+  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
+  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
+  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
+  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
+}
+")
+
+
+set(ACPP_ROCM_CONFIG_FILE "{
+  \"default-rocm-path\" : \"${ROCM_PATH}\",
+  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
+  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\"
+}
+")
+
+file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
+if(WITH_CUDA_BACKEND)
+  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
+endif()
+if(WITH_ROCM_BACKEND)
+  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
+endif()
 
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
@@ -526,7 +543,13 @@ install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
-install(FILES ${SYCLCC_CONFIG_FILE_PATH} DESTINATION ${SYCLCC_CONFIG_FILE_INSTALL_DIR})
+install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+if(WITH_CUDA_BACKEND)
+  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+if(WITH_ROCM_BACKEND)
+  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
